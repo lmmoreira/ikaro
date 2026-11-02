@@ -631,14 +631,20 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 - **Preview canvas:** `BrandedFeedbackMessage` with a retry; `usePreviewSupplementaryData` gains a reload trigger (page-level errors are never exempt).
 - **Cards:** hosts own the card, shared content does not. `HotsiteTemplateGallery` is split into a header and a body that hosts compose (no style prop): the detailed editor's templates tab wraps them in a `Card` with the `text-sm font-semibold` heading and the intro inside; the visual inspector keeps its `text-base` heading and its look. The danger zone becomes a `Card` keeping its destructive tone. The other tabs and the module panels are inspected top to bottom and any loose control is wrapped. `ModuleConfigShell` becomes an `ActionPane` with no feedback slot (Apply is local; a publish leaves the view through `onSettled`).
 - **Test ids:** `FieldFeedback` takes none, so `hotsite-manifest-error` and `single-image-upload-error` become `aria-invalid` + text assertions in the specs and E2E.
+- **Added during implementation (beyond the file list above):** `useHotsiteActionFeedback.ts` (+ spec) maps a publish/unpublish result to the `FeedbackModel` for both editors; `executeUnpublish` and `executeHotsitePublish` take one `onBanner(banner | null)` callback and drop the previous result as an action starts (so a repeated result remounts and the visual editor focuses it); the detailed editor's tab bar moved above the grid so the first box starts level with the pane (measured 144 px / 144 px on every tab); `BrandingTab`, `SeoTab` and `ManifestTab` cards use the `compact` heading; two new locale keys `previewView.retry` and `layout.panels.leadForm.retry` (both locales); `HotsitePreview` and `ModuleConfigShell` moved onto `ActionPane`, and `ModuleConfigShell` wraps the panel in one `Card` (no panel draws its own). `helpers/hotsite/hotsite-editor-navigation.ts` and `service-public-page.spec.ts` needed no change (no id they use was renamed).
 
 **Backend use case steps:** none
 **Backend HTTP surface:** none
 **BFF endpoint spec:** none
 **Prototype references:** none
-**New migration / i18n keys / env vars / feature flags:** none expected; any new copy key in both locales in the same change
+**New migration / i18n keys / env vars / feature flags:** two new keys, in both locales in the same change: `dashboard.hotsitePage.previewView.retry` and `dashboard.hotsitePage.layout.panels.leadForm.retry`
 
 **Files to create/modify:**
+- `apps/web/features/platform/components/hotsite/useHotsiteActionFeedback.ts` + `useHotsiteActionFeedback.spec.tsx` (new)
+- `apps/web/features/platform/components/hotsite/BrandingTab.tsx`, `SeoTab.tsx` (compact card heading)
+- `packages/i18n/locales/en/web.json`, `packages/i18n/locales/pt-BR/web.json` (the two keys above)
+- `apps/web/shared/lib/feedback/use-form-feedback.ts` + `use-form-feedback.spec.tsx` (focus moves after the errors commit)
+- `apps/web/e2e/helpers/hotsite/hotsite-publish-failure.ts` (new, `failHotsitePublish`) and its export in `helpers/hotsite/index.ts`
 - `apps/web/features/platform/components/hotsite/HotsiteActionBanner.tsx` + `HotsiteActionBanner.spec.tsx`
 - `apps/web/features/platform/components/hotsite/HotsiteEditorMainView.tsx` + `HotsiteEditorMainView.spec.tsx`
 - `apps/web/features/platform/components/hotsite/HotsitePreview.tsx` + `HotsitePreview.spec.tsx`

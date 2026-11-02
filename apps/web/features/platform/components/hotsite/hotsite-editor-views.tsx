@@ -7,6 +7,7 @@ import type {
 } from '@ikaro/types';
 import { ModuleConfigShell } from '@/features/platform/components/hotsite/modules/ModuleConfigShell';
 import { MODULE_CONFIG_PANELS } from './hotsite-editor-lazy-panels';
+import type { ActionBanner } from './useHotsiteActionFeedback';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { hasQuestionValidationError } from './modules/LeadFormSortableQuestion';
 import {
@@ -98,16 +99,19 @@ export function hasInvalidLeadFormQuestion(config: LeadFormConfigDraft): boolean
 export async function executeUnpublish(
   unpublish: { mutateAsync: () => Promise<unknown> },
   locale: 'pt-BR' | 'en',
-  onSuccess: () => void,
-  onError: (message: string) => void,
+  onBanner: (banner: ActionBanner | null) => void,
 ): Promise<void> {
+  onBanner(null);
   try {
     await unpublish.mutateAsync();
-    onSuccess();
+    onBanner({ kind: 'unpublish', status: 'success' });
   } catch (error) {
-    onError(resolveErrorMessageFromApiError(error, locale));
+    onBanner({
+      kind: 'unpublish',
+      status: 'error',
+      message: resolveErrorMessageFromApiError(error, locale),
+    });
   }
-  globalThis.scrollTo?.({ top: 0, behavior: 'smooth' });
 }
 
 export function updateEditorDraft(

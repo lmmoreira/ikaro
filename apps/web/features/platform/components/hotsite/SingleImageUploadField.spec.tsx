@@ -283,8 +283,15 @@ describe('SingleImageUploadField', () => {
       makeFile('banner.png', 'image/png'),
     );
 
-    expect(await screen.findByTestId('single-image-upload-error')).toHaveTextContent(
-      LABELS.uploadErrorLabel,
+    await waitFor(() =>
+      expect(screen.getByTestId('single-image-upload-input')).toHaveAccessibleDescription(
+        expect.stringContaining(LABELS.uploadErrorLabel),
+      ),
+    );
+    expect(screen.getByTestId('single-image-upload-input')).toHaveAttribute('aria-invalid', 'true');
+    // The drop zone carries the shared invalid outline and the message is a field-level one.
+    expect(screen.getByTestId('single-image-upload-input').closest('label')).toHaveClass(
+      'border-red-600',
     );
   });
 
@@ -309,9 +316,12 @@ describe('SingleImageUploadField', () => {
       makeFile('banner.png', 'image/png'),
     );
 
-    expect(await screen.findByTestId('single-image-upload-error')).toHaveTextContent(
-      'A imagem informada não foi encontrada.',
+    await waitFor(() =>
+      expect(screen.getByTestId('single-image-upload-input')).toHaveAccessibleDescription(
+        expect.stringContaining('A imagem informada não foi encontrada.'),
+      ),
     );
+    expect(screen.getByTestId('single-image-upload-input')).toHaveAttribute('aria-invalid', 'true');
   });
 
   it('shows the upload-error state when compressImage rejects (e.g. a source too small to crop to the required ratio)', async () => {
@@ -333,9 +343,12 @@ describe('SingleImageUploadField', () => {
       makeFile('tiny.png', 'image/png'),
     );
 
-    expect(await screen.findByTestId('single-image-upload-error')).toHaveTextContent(
-      LABELS.uploadErrorLabel,
+    await waitFor(() =>
+      expect(screen.getByTestId('single-image-upload-input')).toHaveAccessibleDescription(
+        expect.stringContaining(LABELS.uploadErrorLabel),
+      ),
     );
+    expect(screen.getByTestId('single-image-upload-input')).toHaveAttribute('aria-invalid', 'true');
   });
 
   it('shows lowResolutionErrorLabel when compressImage rejects with the low-resolution marker and the caller supplied that label', async () => {
@@ -358,9 +371,12 @@ describe('SingleImageUploadField', () => {
       makeFile('wide-banner.png', 'image/png'),
     );
 
-    expect(await screen.findByTestId('single-image-upload-error')).toHaveTextContent(
-      'Resolução muito baixa.',
+    await waitFor(() =>
+      expect(screen.getByTestId('single-image-upload-input')).toHaveAccessibleDescription(
+        expect.stringContaining('Resolução muito baixa.'),
+      ),
     );
+    expect(screen.getByTestId('single-image-upload-input')).toHaveAttribute('aria-invalid', 'true');
   });
 
   it('falls back to the generic uploadErrorLabel for a low-resolution rejection when no lowResolutionErrorLabel was supplied', async () => {
@@ -382,9 +398,12 @@ describe('SingleImageUploadField', () => {
       makeFile('wide-banner.png', 'image/png'),
     );
 
-    expect(await screen.findByTestId('single-image-upload-error')).toHaveTextContent(
-      LABELS.uploadErrorLabel,
+    await waitFor(() =>
+      expect(screen.getByTestId('single-image-upload-input')).toHaveAccessibleDescription(
+        expect.stringContaining(LABELS.uploadErrorLabel),
+      ),
     );
+    expect(screen.getByTestId('single-image-upload-input')).toHaveAttribute('aria-invalid', 'true');
   });
 
   it('removing a freshly-uploaded (raw storage path) image calls deleteHotsiteImage and clears the value', async () => {
@@ -631,9 +650,12 @@ describe('SingleImageUploadField', () => {
       makeFile('banner.png', 'image/png'),
     );
 
-    expect(await screen.findByTestId('single-image-upload-error')).toHaveTextContent(
-      'Resolução muito baixa.',
+    await waitFor(() =>
+      expect(screen.getByTestId('single-image-upload-input')).toHaveAccessibleDescription(
+        expect.stringContaining('Resolução muito baixa.'),
+      ),
     );
+    expect(screen.getByTestId('single-image-upload-input')).toHaveAttribute('aria-invalid', 'true');
   });
 
   it('does not render a remove button when there is no current value', () => {

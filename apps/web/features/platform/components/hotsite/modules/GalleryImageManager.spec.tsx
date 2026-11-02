@@ -192,9 +192,9 @@ describe('GalleryImageManager', () => {
 
     await user.upload(screen.getByTestId('gallery-upload-input'), makeFile('g2.png', 'image/png'));
 
-    expect(await screen.findByTestId('gallery-upload-error')).toHaveTextContent(
-      'Não foi possível enviar a imagem. Tente novamente.',
-    );
+    const error = await screen.findByTestId('gallery-upload-error');
+    expect(error).toHaveAttribute('role', 'alert');
+    expect(error).toHaveTextContent('Não foi possível enviar a imagem. Tente novamente.');
   });
 
   it('shows the specific translated message when the signed-url request fails with a known code', async () => {

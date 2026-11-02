@@ -351,6 +351,49 @@ describe('HotsiteEditor', () => {
       expect(mockPublishHotsite).not.toHaveBeenCalled();
       expect(screen.getByTestId('visual-editor')).toBeInTheDocument();
     });
+
+    it('reports a publish error that names a field as a form-level message, marking no input', async () => {
+      mockUpdateHotsiteConfig.mockRejectedValue(
+        new ApiError(422, 'Invalid', {
+          code: 'PLATFORM_HOTSITE_NO_ENABLED_MODULES',
+          field: 'primaryColor',
+        }),
+      );
+      const user = userEvent.setup();
+      renderVisualEditor();
+      await user.click(visualCommand('branding'));
+
+      await user.click(visualCommand('publish'));
+
+      expect(await screen.findByTestId('hotsite-action-error-banner')).toBeInTheDocument();
+      expect(screen.getByTestId('hotsite-primary-color')).not.toHaveAttribute(
+        'aria-invalid',
+        'true',
+      );
+    });
+
+    it('drops the previous result as a new publish starts, then focuses the new one', async () => {
+      mockUpdateHotsiteConfig.mockRejectedValueOnce(
+        new ApiError(422, 'Invalid', { code: 'PLATFORM_HOTSITE_NO_ENABLED_MODULES' }),
+      );
+      const user = userEvent.setup();
+      renderVisualEditor();
+      await user.click(visualCommand('publish'));
+      await screen.findByTestId('hotsite-action-error-banner');
+
+      let finishSave: (value: typeof INITIAL) => void = () => {};
+      mockUpdateHotsiteConfig.mockReturnValue(
+        new Promise((resolve) => {
+          finishSave = resolve;
+        }),
+      );
+      mockPublishHotsite.mockResolvedValue({ isPublished: true });
+      await user.click(visualCommand('publish'));
+
+      expect(screen.queryByTestId('hotsite-action-error-banner')).not.toBeInTheDocument();
+      finishSave({ ...INITIAL });
+      expect(await screen.findByTestId('hotsite-action-success-banner')).toHaveFocus();
+    });
   });
 
   describe('Visual editor — Organize modules and the module inspector', () => {
@@ -1430,7 +1473,7 @@ describe('HotsiteEditor', () => {
       fireEvent.change(textarea, { target: { value: '{ not valid json' } });
       await user.click(screen.getByTestId('hotsite-manifest-apply'));
 
-      expect(screen.getByTestId('hotsite-manifest-error')).toBeInTheDocument();
+      expect(textarea).toHaveAttribute('aria-invalid', 'true');
       await user.click(screen.getByRole('tab', { name: 'Branding' }));
       expect(screen.getByTestId('hotsite-primary-color')).toHaveValue('#2563eb');
     });

@@ -7,6 +7,7 @@ import type {
   HotsiteModuleType,
   HotsiteSeoResponse,
 } from '@ikaro/types';
+import { ActionPane } from '@/shared/components/ui/action-pane';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
 import { MOBILE_ACTION_BAR_CLEARANCE_CLASS } from '@/shells/dashboard/utils/mobile-action-bar';
@@ -14,15 +15,13 @@ import { BrandingTab } from '@/features/platform/components/hotsite/BrandingTab'
 import { LayoutTab } from '@/features/platform/components/hotsite/LayoutTab';
 import { SeoTab } from '@/features/platform/components/hotsite/SeoTab';
 import { ManifestTab } from '@/features/platform/components/hotsite/ManifestTab';
-import { HotsiteTemplateGallery } from '@/features/platform/components/hotsite/HotsiteTemplateGallery';
+import { HotsiteTemplateGalleryTab } from '@/features/platform/components/hotsite/HotsiteTemplateGallery';
 import type { HotsiteTemplatesController } from '@/features/platform/components/hotsite/useHotsiteTemplateApplication';
 import {
-  HotsiteActionBanner,
+  useHotsiteActionFeedback,
   type ActionBanner,
-} from '@/features/platform/components/hotsite/HotsiteActionBanner';
+} from '@/features/platform/components/hotsite/useHotsiteActionFeedback';
 import type { ManifestDraft } from '@/features/platform/hotsite/manifest-schema';
-
-export type { ActionBanner };
 
 export type EditorTab = 'templates' | 'branding' | 'layout' | 'seo' | 'manifest';
 
@@ -70,43 +69,42 @@ export function HotsiteEditorMainView({
   onOpenPreview,
 }: HotsiteEditorMainViewProps): React.JSX.Element {
   const t = useTranslations('dashboard.hotsitePage');
+  const feedback = useHotsiteActionFeedback(actionBanner, tenantSlug);
 
   return (
     <div className="space-y-4 pb-28 lg:space-y-6 lg:pb-0">
-      <HotsiteActionBanner banner={actionBanner} tenantSlug={tenantSlug} />
+      <div className="flex gap-1 border-b border-gray-200" role="tablist">
+        {TABS.map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            role="tab"
+            id={`hotsite-tab-${tab}`}
+            aria-controls={`hotsite-tabpanel-${tab}`}
+            data-testid="hotsite-tab"
+            data-tab={tab}
+            aria-selected={activeTab === tab}
+            onClick={() => onActiveTabChange(tab)}
+            className={`rounded-t-md px-4 py-2.5 text-sm font-semibold transition-colors ${
+              activeTab === tab
+                ? '-mb-px border-b-2 border-blue-600 text-blue-600'
+                : 'text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            {t(`tabs.${tab}`)}
+          </button>
+        ))}
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         <div className="space-y-4 lg:space-y-6">
-          <div className="flex gap-1 border-b border-gray-200" role="tablist">
-            {TABS.map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                role="tab"
-                id={`hotsite-tab-${tab}`}
-                aria-controls={`hotsite-tabpanel-${tab}`}
-                data-testid="hotsite-tab"
-                data-tab={tab}
-                aria-selected={activeTab === tab}
-                onClick={() => onActiveTabChange(tab)}
-                className={`rounded-t-md px-4 py-2.5 text-sm font-semibold transition-colors ${
-                  activeTab === tab
-                    ? '-mb-px border-b-2 border-blue-600 text-blue-600'
-                    : 'text-gray-500 hover:text-gray-900'
-                }`}
-              >
-                {t(`tabs.${tab}`)}
-              </button>
-            ))}
-          </div>
-
           {activeTab === 'templates' && (
             <div
               role="tabpanel"
               id="hotsite-tabpanel-templates"
               aria-labelledby="hotsite-tab-templates"
             >
-              <HotsiteTemplateGallery controller={templates} />
+              <HotsiteTemplateGalleryTab controller={templates} />
             </div>
           )}
           {activeTab === 'branding' && (
@@ -145,23 +143,27 @@ export function HotsiteEditorMainView({
             </div>
           )}
 
-          <div className="rounded-md border-2 border-dashed border-red-200 p-4">
-            <p className="mb-2 text-sm font-bold text-red-800">{t('dangerZoneTitle')}</p>
-            <Button
-              type="button"
-              variant="destructive"
-              disabled={isUnpublishing}
-              onClick={onUnpublish}
-              data-testid="hotsite-unpublish-button"
-            >
-              {t('unpublish')}
-            </Button>
-          </div>
+          <Card className="border-red-200">
+            <CardContent className="space-y-3 p-5 lg:p-6">
+              <p className="text-sm font-semibold text-red-800">{t('dangerZoneTitle')}</p>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={isUnpublishing}
+                onClick={onUnpublish}
+                data-testid="hotsite-unpublish-button"
+              >
+                {t('unpublish')}
+              </Button>
+            </CardContent>
+          </Card>
         </div>
 
-        <aside className="hidden lg:block lg:sticky lg:top-6">
-          <Card>
-            <CardContent className="space-y-4 p-4">
+        <ActionPane
+          feedback={feedback}
+          mobileOffsetClassName={MOBILE_ACTION_BAR_CLEARANCE_CLASS}
+          actions={
+            <>
               <Button
                 type="button"
                 disabled={isPublishing}
@@ -192,42 +194,41 @@ export function HotsiteEditorMainView({
               </Button>
               <hr className="border-t border-gray-200" />
               <p className="text-sm leading-6 text-gray-500">{t('unpublishedHint')}</p>
-            </CardContent>
-          </Card>
-        </aside>
-      </div>
-
-      <div
-        className={`fixed inset-x-0 ${MOBILE_ACTION_BAR_CLEARANCE_CLASS} z-20 flex gap-3 border-t border-gray-200 bg-white p-4 shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden`}
-      >
-        <Button
-          asChild
-          variant="outline"
-          className="flex-1"
-          data-testid="hotsite-view-live-site-mobile"
-        >
-          <a href={`/${tenantSlug}`} target="_blank" rel="noopener noreferrer">
-            {t('viewLiveSite')}
-          </a>
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onOpenPreview}
-          className="flex-1"
-          data-testid="hotsite-preview-mobile"
-        >
-          {t('preview')}
-        </Button>
-        <Button
-          type="button"
-          disabled={isPublishing}
-          onClick={onPublish}
-          className="flex-1"
-          data-testid="hotsite-publish-mobile"
-        >
-          {t('publish')}
-        </Button>
+            </>
+          }
+          mobileActions={
+            <div className="flex gap-3">
+              <Button
+                asChild
+                variant="outline"
+                className="flex-1"
+                data-testid="hotsite-view-live-site-mobile"
+              >
+                <a href={`/${tenantSlug}`} target="_blank" rel="noopener noreferrer">
+                  {t('viewLiveSite')}
+                </a>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onOpenPreview}
+                className="flex-1"
+                data-testid="hotsite-preview-mobile"
+              >
+                {t('preview')}
+              </Button>
+              <Button
+                type="button"
+                disabled={isPublishing}
+                onClick={onPublish}
+                className="flex-1"
+                data-testid="hotsite-publish-mobile"
+              >
+                {t('publish')}
+              </Button>
+            </div>
+          }
+        />
       </div>
     </div>
   );

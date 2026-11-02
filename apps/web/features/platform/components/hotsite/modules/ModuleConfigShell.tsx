@@ -1,6 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { ActionPane } from '@/shared/components/ui/action-pane';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
 import { DiscardChangesDialog } from '@/shared/components/DiscardChangesDialog';
@@ -45,11 +46,14 @@ export function ModuleConfigShell({
   return (
     <div className="space-y-4 pb-28 lg:space-y-6 lg:pb-0">
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
-        <div className="space-y-4 lg:space-y-6">{children}</div>
+        <Card>
+          <CardContent className="p-5 lg:p-6">{children}</CardContent>
+        </Card>
 
-        <aside className="hidden lg:block lg:sticky lg:top-6">
-          <Card>
-            <CardContent className="space-y-4 p-4">
+        <ActionPane
+          mobileOffsetClassName={MOBILE_ACTION_BAR_CLEARANCE_CLASS}
+          actions={
+            <>
               <p className="text-sm leading-6 text-gray-500">
                 {t('titlePrefix')}: <strong className="text-gray-700">{moduleLabel}</strong>
                 <br />
@@ -81,40 +85,39 @@ export function ModuleConfigShell({
               >
                 {t('cancelLabel')}
               </Button>
-            </CardContent>
-          </Card>
-        </aside>
-      </div>
-
-      <div
-        className={`fixed inset-x-0 ${MOBILE_ACTION_BAR_CLEARANCE_CLASS} z-20 flex gap-3 border-t border-gray-200 bg-white p-4 shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden`}
-      >
-        <Button
-          type="button"
-          variant="outline"
-          className="flex-1"
-          onClick={onBack}
-          data-testid="module-config-cancel-mobile"
-        >
-          {t('cancelLabel')}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="flex-1"
-          onClick={onPreview}
-          data-testid="module-config-preview-mobile"
-        >
-          {tRoot('preview')}
-        </Button>
-        <Button
-          type="button"
-          className="flex-1"
-          onClick={onApply}
-          data-testid="module-config-apply-mobile"
-        >
-          {t('applyLabel')}
-        </Button>
+            </>
+          }
+          mobileActions={
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={onBack}
+                data-testid="module-config-cancel-mobile"
+              >
+                {t('cancelLabel')}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={onPreview}
+                data-testid="module-config-preview-mobile"
+              >
+                {tRoot('preview')}
+              </Button>
+              <Button
+                type="button"
+                className="flex-1"
+                onClick={onApply}
+                data-testid="module-config-apply-mobile"
+              >
+                {t('applyLabel')}
+              </Button>
+            </div>
+          }
+        />
       </div>
 
       <DiscardChangesDialog

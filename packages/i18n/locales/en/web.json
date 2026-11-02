@@ -1191,7 +1191,8 @@
         "viewingDraftLabel": "Viewing unpublished changes",
         "publishNow": "Publish now",
         "loading": "Loading preview...",
-        "loadError": "Could not load the preview. Please try again."
+        "loadError": "Could not load the preview. Please try again.",
+        "retry": "Try again"
       },
       "visual": {
         "commandsLabel": "Editor actions",
@@ -1586,6 +1587,7 @@
           "leadForm": {
             "loading": "Loading configuration...",
             "loadError": "We couldn't load the configuration. Try again.",
+            "retry": "Try again",
             "teaser": {
               "title": "Teaser copy",
               "titleLabel": "Title",

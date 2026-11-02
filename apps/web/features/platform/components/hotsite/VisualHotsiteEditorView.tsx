@@ -12,7 +12,8 @@ import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { MOBILE_ACTION_BAR_CLEARANCE_CLASS } from '@/shells/dashboard/utils/mobile-action-bar';
 import { BrandingTab } from './BrandingTab';
-import { HotsiteActionBanner, type ActionBanner } from './HotsiteActionBanner';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
+import { useHotsiteActionFeedback, type ActionBanner } from './useHotsiteActionFeedback';
 import { HotsiteTemplateGallery } from './HotsiteTemplateGallery';
 import { HotsiteSharingPreview } from './HotsiteSharingPreview';
 import { HotsitePreviewCanvas } from './hotsite-editor-lazy-panels';
@@ -147,6 +148,7 @@ export function VisualHotsiteEditorView({
   onPublish,
 }: VisualHotsiteEditorViewProps): React.JSX.Element {
   const t = useTranslations('dashboard.hotsitePage');
+  const feedback = useHotsiteActionFeedback(actionBanner, tenantSlug);
   const visualContext = effectiveContext(requestedContext, draft.layout);
   const selectedType = visualContext.kind === 'module' ? visualContext.type : null;
   const liveSiteHref = `/${tenantSlug}`;
@@ -161,7 +163,16 @@ export function VisualHotsiteEditorView({
   return (
     <div data-testid="visual-editor" className="space-y-4 pb-28 lg:space-y-6 lg:pb-0">
       <div data-testid="visual-banner-slot">
-        <HotsiteActionBanner banner={actionBanner} tenantSlug={tenantSlug} />
+        {feedback && (
+          <FeedbackMessage
+            variant={feedback.variant}
+            title={feedback.title}
+            testId={feedback.testId}
+            focusOnMount
+          >
+            {feedback.body}
+          </FeedbackMessage>
+        )}
       </div>
 
       <VisualCommandRow

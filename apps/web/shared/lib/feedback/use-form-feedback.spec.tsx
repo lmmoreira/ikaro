@@ -66,6 +66,21 @@ describe('useFormFeedback', () => {
     expect(api().feedback).toEqual({ variant: 'error', title: catalogMessage });
   });
 
+  it('moves focus only after the invalid mark and its message are rendered', () => {
+    const described: (string | null)[] = [];
+    const focus = vi.spyOn(HTMLElement.prototype, 'focus').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      const id = this.getAttribute('aria-describedby');
+      described.push(id ? (document.getElementById(id)?.textContent ?? null) : null);
+    });
+
+    act(() => api().setFromApiError(problem('first'), 'en'));
+
+    expect(described).toEqual([catalogMessage]);
+    focus.mockRestore();
+  });
+
   it('keeps only the form-level message when the named field is not registered', () => {
     act(() => api().setFromApiError(problem('nowhere'), 'en'));
 

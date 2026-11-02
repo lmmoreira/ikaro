@@ -329,8 +329,23 @@ describe('HotsitePreviewCanvas', () => {
     renderWithIntl(<HotsitePreviewCanvas draft={makeDraft()} />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('hotsite-preview-load-error')).toBeInTheDocument();
+      expect(screen.getByTestId('hotsite-preview-load-error')).toHaveAttribute('role', 'alert');
     });
+  });
+
+  it('retries the supplementary fetch from the error state and renders the preview once it succeeds', async () => {
+    const user = userEvent.setup();
+    mockFetchManifest.mockRejectedValueOnce(new Error('network error'));
+    mockFetchManifest.mockResolvedValue(makeManifest());
+    renderWithIntl(<HotsitePreviewCanvas draft={makeDraft()} />);
+
+    await user.click(await screen.findByRole('button', { name: 'Tentar novamente' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('hotsite-preview-content')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('hotsite-preview-load-error')).not.toBeInTheDocument();
+    expect(mockFetchManifest).toHaveBeenCalledTimes(2);
   });
 
   // Without this, ChatbotWidget's `position: fixed` bubble button resolves against the real

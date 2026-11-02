@@ -1,5 +1,6 @@
 'use client';
 
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { GalleryImage } from '@ikaro/types';
@@ -199,9 +200,9 @@ export function GalleryImageManager({
       </div>
 
       {status === 'error' && (
-        <p data-testid="gallery-upload-error" className="mt-1.5 text-sm text-red-600">
-          {uploadErrorMessage}
-        </p>
+        <div className="mt-3">
+          <FeedbackMessage title={uploadErrorMessage} testId="gallery-upload-error" />
+        </div>
       )}
 
       {pickerOpen && (

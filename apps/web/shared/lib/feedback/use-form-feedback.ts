@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { FeedbackModel } from '@/shared/components/ui/feedback-message';
 import type { SupportedLocale } from '@/shared/lib/i18n/get-messages';
 import { resolveApiErrorFeedback } from '@/shared/lib/i18n/resolve-error-message';
@@ -81,6 +81,18 @@ function useMessages() {
   return { error: errorMessage, success: successMessage, feedback, setError, setSuccess, clear };
 }
 
+// Runs `focus` after the render the caller's state change produces has committed. An input focused
+// before its `aria-describedby` and message exist is announced without the reason it is invalid.
+function useFocusAfterCommit(focus: () => void): () => void {
+  const [request, setRequest] = useState(0);
+
+  useEffect(() => {
+    if (request > 0) focus();
+  }, [request, focus]);
+
+  return useCallback(() => setRequest((current) => current + 1), []);
+}
+
 function useFieldErrors(registry: ReturnType<typeof useFieldRegistry>) {
   const formId = useId();
   const [errorsByField, setErrorsByField] = useState<FieldErrors>({});
@@ -97,12 +109,14 @@ function useFieldErrors(registry: ReturnType<typeof useFieldRegistry>) {
     [focusFirstOf],
   );
 
+  const requestFocus = useFocusAfterCommit(focusFirstInvalid);
+
   const setFieldErrors = useCallback(
     (errors: FieldErrors) => {
       replace(errors);
-      focusFirstInvalid();
+      requestFocus();
     },
-    [replace, focusFirstInvalid],
+    [replace, requestFocus],
   );
 
   const fieldErrorId = useCallback((name: string) => `${formId}-${name}-error`, [formId]);

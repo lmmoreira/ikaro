@@ -7,6 +7,7 @@ import {
   extractLeadFormConfig,
   hasInvalidLeadFormQuestion,
   mergeLocalDataIntoLayout,
+  executeUnpublish,
   stripLeadFormConfig,
 } from './hotsite-editor-views';
 
@@ -169,5 +170,35 @@ describe('module buffer helpers', () => {
       type: 'LEAD_FORM',
       localData: { title: 'x', ...LEAD_FORM_CONFIG },
     });
+  });
+});
+
+describe('executeUnpublish', () => {
+  it('drops the previous result, then reports success, without scrolling the page', async () => {
+    const scrollTo = vi.spyOn(globalThis, 'scrollTo').mockImplementation(() => {});
+    const onBanner = vi.fn();
+
+    await executeUnpublish({ mutateAsync: vi.fn().mockResolvedValue({}) }, 'pt-BR', onBanner);
+
+    expect(onBanner.mock.calls).toEqual([[null], [{ kind: 'unpublish', status: 'success' }]]);
+    expect(scrollTo).not.toHaveBeenCalled();
+    scrollTo.mockRestore();
+  });
+
+  it('reports a failure with the resolved message, without scrolling the page', async () => {
+    const scrollTo = vi.spyOn(globalThis, 'scrollTo').mockImplementation(() => {});
+    const onBanner = vi.fn();
+
+    await executeUnpublish(
+      { mutateAsync: vi.fn().mockRejectedValue(new Error('boom')) },
+      'pt-BR',
+      onBanner,
+    );
+
+    expect(onBanner).toHaveBeenLastCalledWith(
+      expect.objectContaining({ kind: 'unpublish', status: 'error' }),
+    );
+    expect(scrollTo).not.toHaveBeenCalled();
+    scrollTo.mockRestore();
   });
 });

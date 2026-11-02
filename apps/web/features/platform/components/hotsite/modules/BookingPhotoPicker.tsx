@@ -1,5 +1,6 @@
 'use client';
 
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { GalleryImage } from '@ikaro/types';
@@ -174,13 +175,9 @@ export function BookingPhotoPicker({
       </div>
 
       {pickError && (
-        <p
-          role="alert"
-          data-testid="booking-photo-picker-error"
-          className="mb-3 text-sm text-red-600"
-        >
-          {pickError}
-        </p>
+        <div className="mb-3">
+          <FeedbackMessage title={pickError} testId="booking-photo-picker-error" />
+        </div>
       )}
 
       {candidates === null && <p className="text-sm text-gray-500">{t('loadingLabel')}</p>}

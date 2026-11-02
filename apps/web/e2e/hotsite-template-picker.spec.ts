@@ -287,4 +287,62 @@ test.describe.serial('hotsite template picker (MANAGER)', () => {
       .click();
     await expect(page.getByTestId('navigation-item')).toHaveCount(0);
   });
+
+  // TD57-S10 — a failing catalogue or apply is reported where the cards would be, with a retry.
+  test('a failing template catalogue shows the error with a retry that loads the cards', async ({
+    page,
+  }) => {
+    // The query client retries a failed read once, so the first two requests must fail for the
+    // error to reach the screen.
+    let failures = 2;
+    await page.route('**/v1/tenants/hotsite/templates', (route) => {
+      if (failures > 0) {
+        failures -= 1;
+        return route.fulfill({
+          status: 500,
+          contentType: 'application/problem+json',
+          body: JSON.stringify({ status: 500, title: 'Internal Server Error' }),
+        });
+      }
+      return route.fallback();
+    });
+    await openVisualEditor(page);
+    await page.locator(COMMAND('templates')).click();
+
+    const error = page.getByTestId('template-load-error');
+    await expect(error).toHaveAttribute('role', 'alert');
+    await error.getByRole('button', { name: 'Tentar novamente' }).click();
+
+    await expect(page.getByTestId('template-card')).toHaveCount(6);
+    await expect(error).toHaveCount(0);
+  });
+
+  test('a failing template apply shows the error with a retry and selects nothing until it succeeds', async ({
+    page,
+  }) => {
+    let failures = 1;
+    await page.route('**/v1/tenants/hotsite/templates/*/apply', (route) => {
+      if (failures > 0) {
+        failures -= 1;
+        return route.fulfill({
+          status: 500,
+          contentType: 'application/problem+json',
+          body: JSON.stringify({ status: 500, title: 'Internal Server Error' }),
+        });
+      }
+      return route.fallback();
+    });
+    await openVisualEditor(page);
+    await openTemplates(page);
+
+    await applyButton(page, 'origem').click();
+    const error = page.getByTestId('template-apply-error');
+    await expect(error).toHaveAttribute('role', 'alert');
+    await expect(selectedCards(page)).toHaveCount(0);
+
+    await error.getByRole('button', { name: 'Tentar novamente' }).click();
+
+    await expect(card(page, 'origem')).toHaveAttribute('data-selected', 'true');
+    await expect(error).toHaveCount(0);
+  });
 });

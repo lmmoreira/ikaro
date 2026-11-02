@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderWithIntl } from '@/test-utils';
 import { ManifestTab } from './ManifestTab';
 import type { ManifestDraft } from '@/features/platform/hotsite/manifest-schema';
@@ -61,8 +61,10 @@ describe('ManifestTab', () => {
     fireEvent.change(textarea, { target: { value: '{ not valid json' } });
     await user.click(screen.getByTestId('hotsite-manifest-apply'));
 
-    expect(screen.getByTestId('hotsite-manifest-error')).toHaveTextContent(
-      'a sintaxe do texto está incorreta',
+    const field = screen.getByTestId('hotsite-manifest-textarea');
+    expect(field).toHaveAttribute('aria-invalid', 'true');
+    expect(field).toHaveAccessibleDescription(
+      expect.stringContaining('a sintaxe do texto está incorreta'),
     );
     expect(onApply).not.toHaveBeenCalled();
   });
@@ -83,8 +85,10 @@ describe('ManifestTab', () => {
     });
     await user.click(screen.getByTestId('hotsite-manifest-apply'));
 
-    expect(screen.getByTestId('hotsite-manifest-error')).toHaveTextContent(
-      'tipo de módulo desconhecido "NOT_A_REAL_MODULE"',
+    const field = screen.getByTestId('hotsite-manifest-textarea');
+    expect(field).toHaveAttribute('aria-invalid', 'true');
+    expect(field).toHaveAccessibleDescription(
+      expect.stringContaining('tipo de módulo desconhecido "NOT_A_REAL_MODULE"'),
     );
     expect(onApply).not.toHaveBeenCalled();
   });
@@ -124,7 +128,9 @@ describe('ManifestTab', () => {
     });
     await user.click(screen.getByTestId('hotsite-manifest-apply'));
 
-    expect(screen.getByTestId('hotsite-manifest-error')).toHaveTextContent(message);
+    const field = screen.getByTestId('hotsite-manifest-textarea');
+    expect(field).toHaveAttribute('aria-invalid', 'true');
+    expect(field).toHaveAccessibleDescription(expect.stringContaining(message));
     expect(onApply).not.toHaveBeenCalled();
   });
 
@@ -145,10 +151,36 @@ describe('ManifestTab', () => {
     const textarea = screen.getByTestId('hotsite-manifest-textarea');
     fireEvent.change(textarea, { target: { value: '{ not valid json' } });
     await user.click(screen.getByTestId('hotsite-manifest-apply'));
-    expect(screen.getByTestId('hotsite-manifest-error')).toBeInTheDocument();
+    expect(textarea).toHaveAttribute('aria-invalid', 'true');
 
     await user.type(textarea, '"');
 
-    expect(screen.queryByTestId('hotsite-manifest-error')).not.toBeInTheDocument();
+    expect(textarea).not.toHaveAttribute('aria-invalid');
+    expect(textarea).not.toHaveAccessibleDescription();
+  });
+
+  describe('field focus', () => {
+    const scrollIntoView = vi.fn();
+
+    afterEach(() => {
+      scrollIntoView.mockReset();
+      Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
+    });
+
+    it('scrolls to and focuses the textarea when the JSON is invalid', async () => {
+      Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+        configurable: true,
+        value: scrollIntoView,
+      });
+      const user = userEvent.setup();
+      renderWithIntl(<ManifestTab value={VALID_MANIFEST} onApply={vi.fn()} />);
+
+      const textarea = screen.getByTestId('hotsite-manifest-textarea');
+      fireEvent.change(textarea, { target: { value: '{ not valid json' } });
+      await user.click(screen.getByTestId('hotsite-manifest-apply'));
+
+      expect(scrollIntoView).toHaveBeenCalledWith({ block: 'center' });
+      expect(textarea).toHaveFocus();
+    });
   });
 });

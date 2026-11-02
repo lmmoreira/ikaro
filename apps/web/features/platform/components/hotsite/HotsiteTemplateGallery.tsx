@@ -6,6 +6,8 @@ import { Badge } from '@/shared/components/ui/badge';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { DiscardChangesDialog } from '@/shared/components/DiscardChangesDialog';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
+import { cn } from '@/shared/utils/cn';
 import { ApplyTemplateDialog } from './ApplyTemplateDialog';
 import {
   MAX_CAPABILITY_CHIPS,
@@ -91,16 +93,12 @@ function CatalogueBody({
   }
   if (controller.isError || !controller.templates) {
     return (
-      <div
-        role="alert"
-        data-testid="template-load-error"
-        className="space-y-2 rounded-md bg-red-50 p-3 text-sm text-red-800"
-      >
-        <p>{t('error')}</p>
-        <Button type="button" variant="outline" size="sm" onClick={controller.reload}>
-          {t('retry')}
-        </Button>
-      </div>
+      <FeedbackMessage
+        title={t('error')}
+        onRetry={controller.reload}
+        retryLabel={t('retry')}
+        testId="template-load-error"
+      />
     );
   }
   return (
@@ -120,28 +118,26 @@ interface HotsiteTemplateGalleryProps {
   readonly controller: HotsiteTemplatesController;
 }
 
-// The template picker: six cards applied straight onto the in-memory draft (there is no separate
-// preview step — preview and apply are the same operation). The visual editor mounts it in the
-// inspector and the detailed editor in its first tab; both read the same session state.
-export function HotsiteTemplateGallery({
-  controller,
-}: HotsiteTemplateGalleryProps): React.JSX.Element {
+function GalleryHeader({ headingClassName }: { readonly headingClassName: string }) {
   const t = useTranslations('dashboard.hotsitePage.templates');
 
   return (
-    <section
-      className="space-y-4"
-      data-testid="template-gallery"
-      aria-labelledby="templates-heading"
-    >
-      <div className="space-y-1">
-        <h2 id="templates-heading" className="text-base font-semibold text-gray-900">
-          {t('heading')}
-        </h2>
-        <p className="text-sm leading-6 text-gray-600">{t('intro')}</p>
-        <p className="text-sm leading-6 text-gray-500">{t('note')}</p>
-      </div>
+    <div className="space-y-1">
+      <h2 id="templates-heading" className={cn('text-gray-900', headingClassName)}>
+        {t('heading')}
+      </h2>
+      <p className="text-sm leading-6 text-gray-600">{t('intro')}</p>
+      <p className="text-sm leading-6 text-gray-500">{t('note')}</p>
+    </div>
+  );
+}
 
+// The notices and the undo button that sit between the header and the catalogue.
+function GalleryControls({ controller }: HotsiteTemplateGalleryProps): React.JSX.Element {
+  const t = useTranslations('dashboard.hotsitePage.templates');
+
+  return (
+    <>
       {controller.showSampleNotice && (
         <output
           data-testid="template-sample-notice"
@@ -152,16 +148,12 @@ export function HotsiteTemplateGallery({
       )}
 
       {controller.applyFailed && (
-        <div
-          role="alert"
-          data-testid="template-apply-error"
-          className="space-y-2 rounded-md bg-red-50 p-3 text-sm text-red-800"
-        >
-          <p>{t('applyError')}</p>
-          <Button type="button" variant="outline" size="sm" onClick={controller.retryApply}>
-            {t('retry')}
-          </Button>
-        </div>
+        <FeedbackMessage
+          title={t('applyError')}
+          onRetry={controller.retryApply}
+          retryLabel={t('retry')}
+          testId="template-apply-error"
+        />
       )}
 
       {controller.canUndo && (
@@ -175,9 +167,15 @@ export function HotsiteTemplateGallery({
           {t('undo')}
         </Button>
       )}
+    </>
+  );
+}
 
-      <CatalogueBody controller={controller} />
+function GalleryDialogs({ controller }: HotsiteTemplateGalleryProps): React.JSX.Element {
+  const t = useTranslations('dashboard.hotsitePage.templates');
 
+  return (
+    <>
       <ApplyTemplateDialog
         open={controller.replaceConfirmOpen}
         onConfirm={controller.confirmReplace}
@@ -193,6 +191,51 @@ export function HotsiteTemplateGallery({
         onCancel={controller.cancelUndo}
         confirmTestId="template-undo-confirm"
       />
+    </>
+  );
+}
+
+// The template picker: six cards applied straight onto the in-memory draft (there is no separate
+// preview step — preview and apply are the same operation). The visual editor mounts it in the
+// inspector (this component, on the page background like the rest of the inspector); the detailed
+// editor mounts HotsiteTemplateGalleryTab. Both read the same session state.
+export function HotsiteTemplateGallery({
+  controller,
+}: HotsiteTemplateGalleryProps): React.JSX.Element {
+  return (
+    <section
+      className="space-y-4"
+      data-testid="template-gallery"
+      aria-labelledby="templates-heading"
+    >
+      <GalleryHeader headingClassName="text-base font-semibold" />
+      <GalleryControls controller={controller} />
+      <CatalogueBody controller={controller} />
+      <GalleryDialogs controller={controller} />
+    </section>
+  );
+}
+
+// The detailed editor's templates tab: the heading, intro and controls sit in a card level with
+// the action pane's card; the catalogue below is already a grid of cards, so it is not wrapped
+// again.
+export function HotsiteTemplateGalleryTab({
+  controller,
+}: HotsiteTemplateGalleryProps): React.JSX.Element {
+  return (
+    <section
+      className="space-y-4 lg:space-y-6"
+      data-testid="template-gallery"
+      aria-labelledby="templates-heading"
+    >
+      <Card>
+        <CardContent className="space-y-4 p-5 lg:p-6">
+          <GalleryHeader headingClassName="text-sm font-semibold" />
+          <GalleryControls controller={controller} />
+        </CardContent>
+      </Card>
+      <CatalogueBody controller={controller} />
+      <GalleryDialogs controller={controller} />
     </section>
   );
 }

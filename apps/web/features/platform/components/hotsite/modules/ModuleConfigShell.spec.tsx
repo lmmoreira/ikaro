@@ -100,4 +100,18 @@ describe('ModuleConfigShell', () => {
 
     expect(onCancelDiscard).toHaveBeenCalledTimes(1);
   });
+
+  it('builds its desktop aside and mobile bar on the shared action pane, without a message slot', () => {
+    renderShell();
+
+    expect(screen.getByTestId('action-pane-desktop')).toBeInTheDocument();
+    expect(screen.getByTestId('action-pane-mobile')).toBeInTheDocument();
+    expect(screen.queryByTestId('form-feedback')).not.toBeInTheDocument();
+  });
+
+  it('puts the panel fields inside a card level with the pane', () => {
+    renderShell();
+
+    expect(screen.getByTestId('field').closest('.bg-card')).not.toBeNull();
+  });
 });

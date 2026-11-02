@@ -4,6 +4,7 @@ import { loginAsStaff } from './helpers/auth';
 import { openFirstDayWithSlots } from './helpers/booking-form';
 import {
   enterDetailedEditor,
+  failHotsitePublish,
   getHotsiteConfig,
   getPublicManifest,
   openDetailedEditor,
@@ -885,7 +886,10 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.getByTestId('hotsite-manifest-textarea').fill('{ not valid json');
     await page.getByTestId('hotsite-manifest-apply').click();
 
-    await expect(page.getByTestId('hotsite-manifest-error')).toBeVisible();
+    const textarea = page.getByTestId('hotsite-manifest-textarea');
+    await expect(textarea).toHaveAttribute('aria-invalid', 'true');
+    await expect(textarea).toHaveAccessibleDescription(/sintaxe/);
+    await expect(textarea).toBeFocused();
     await page.getByRole('tab', { name: 'Branding' }).click();
     await expect(page.getByTestId('hotsite-primary-color')).toHaveValue(
       original.branding.primaryColor,
@@ -908,7 +912,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     // Structural validation only checks the primitive TYPE (string), so "not-a-color" passes
     // Aplicar — it's rejected only by the real backend's hex-format rule, on Publish.
     await page.getByTestId('hotsite-manifest-apply').click();
-    await expect(page.getByTestId('hotsite-manifest-error')).not.toBeVisible();
+    await expect(textarea).not.toHaveAttribute('aria-invalid', 'true');
 
     await page.getByTestId('hotsite-publish-desktop').click();
 
@@ -1689,7 +1693,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     about.presentation = { surface: 'custom', customColor: '#0B0908', minHeight: 'lg' };
     await textarea.fill(JSON.stringify(manifest));
     await page.getByTestId('hotsite-manifest-apply').click();
-    await expect(page.getByTestId('hotsite-manifest-error')).toHaveCount(0);
+    await expect(textarea).not.toHaveAttribute('aria-invalid', 'true');
 
     // The tab re-seeds from the draft when reopened, so this reads back what Aplicar merged.
     await page.getByRole('tab', { name: 'Layout' }).click();
@@ -1700,14 +1704,75 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     about.presentation = { surface: 'custom' };
     await textarea.fill(JSON.stringify(manifest));
     await page.getByTestId('hotsite-manifest-apply').click();
-    await expect(page.getByTestId('hotsite-manifest-error')).toContainText(
-      'apresentação de seção inválida para o módulo "ABOUT"',
+    await expect(textarea).toHaveAttribute('aria-invalid', 'true');
+    await expect(textarea).toHaveAccessibleDescription(
+      /apresentação de seção inválida para o módulo "ABOUT"/,
     );
 
     // ...and the draft still holds the last valid presentation.
     await page.getByRole('tab', { name: 'Layout' }).click();
     await manifestTab.click();
     await expect(textarea).toHaveValue(/"customColor": "#0B0908"/);
+  });
+
+  // TD57-S10 — a publish refused by the server is reported in the editor's own place: the visual
+  // editor's slot (no action pane there), focused, with the manager's edits still in place.
+  test('visual editor: a refused publish shows the error in its slot, focused, and keeps the edit', async ({
+    page,
+  }) => {
+    await failHotsitePublish(page);
+    await openVisualEditor(page);
+    await page.locator('[data-testid="visual-command"][data-command="branding"]').click();
+    await page.getByTestId('hotsite-primary-color').fill('#123456');
+
+    await page.locator('[data-testid="visual-command"][data-command="publish"]').click();
+
+    const message = page
+      .getByTestId('visual-banner-slot')
+      .getByTestId('hotsite-action-error-banner');
+    await expect(message).toBeVisible();
+    await expect(message).toHaveAttribute('role', 'alert');
+    await expect(message).toBeFocused();
+    await expect(page.getByTestId('hotsite-primary-color')).toHaveValue('#123456');
+  });
+
+  // TD57-S10 — the detailed editor reports the same refusal in its action pane, under the buttons.
+  test('detailed editor: a refused publish shows the error in the action pane under the buttons', async ({
+    page,
+  }) => {
+    await failHotsitePublish(page);
+    await openDetailedEditor(page);
+
+    await page.getByTestId('hotsite-publish-desktop').click();
+
+    await expect(
+      page.getByTestId('action-pane-desktop').getByTestId('hotsite-action-error-banner'),
+    ).toBeVisible();
+  });
+
+  // TD57-S10 — an upload the server refuses is reported under the field that owns it.
+  test('SEO tab: a refused share-image upload marks the field and describes the failure', async ({
+    page,
+  }) => {
+    await page.route('**/v1/tenants/hotsite/images/signed-url', (route) =>
+      route.fulfill({
+        status: 500,
+        contentType: 'application/problem+json',
+        body: JSON.stringify({ status: 500, title: 'Internal Server Error' }),
+      }),
+    );
+    await openDetailedEditor(page);
+    await page.getByRole('tab', { name: 'SEO' }).click();
+
+    await page.getByTestId('single-image-upload-input').setInputFiles({
+      name: 'share.png',
+      mimeType: 'image/png',
+      buffer: CROPPABLE_PNG_BUFFER,
+    });
+
+    const input = page.getByTestId('single-image-upload-input');
+    await expect(input).toHaveAttribute('aria-invalid', 'true');
+    await expect(input).toHaveAccessibleDescription(/.+/);
   });
 });
 

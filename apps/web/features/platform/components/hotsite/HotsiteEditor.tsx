@@ -10,10 +10,8 @@ import type {
 } from '@ikaro/types';
 import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
 import { useTenant } from '@/providers/tenant-provider';
-import {
-  HotsiteEditorMainView,
-  type ActionBanner,
-} from '@/features/platform/components/hotsite/HotsiteEditorMainView';
+import { HotsiteEditorMainView } from '@/features/platform/components/hotsite/HotsiteEditorMainView';
+import type { ActionBanner } from './useHotsiteActionFeedback';
 import { materializeLayout } from '@/features/platform/hotsite/default-layout';
 import type { ManifestDraft } from '@/features/platform/hotsite/manifest-schema';
 import {
@@ -188,12 +186,7 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
     });
 
   const handleUnpublish = (): Promise<void> =>
-    executeUnpublish(
-      unpublishHotsite,
-      locale,
-      () => setActionBanner({ kind: 'unpublish', status: 'success' }),
-      (message) => setActionBanner({ kind: 'unpublish', status: 'error', message }),
-    );
+    executeUnpublish(unpublishHotsite, locale, setActionBanner);
 
   const handleConfigure = (type: HotsiteModuleType): void =>
     configureModule(draft, type, leadFormConfigDraft, setView);

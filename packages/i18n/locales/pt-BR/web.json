@@ -1191,7 +1191,8 @@
         "viewingDraftLabel": "Visualizando alterações não publicadas",
         "publishNow": "Publicar agora",
         "loading": "Carregando preview...",
-        "loadError": "Não foi possível carregar o preview. Tente novamente."
+        "loadError": "Não foi possível carregar o preview. Tente novamente.",
+        "retry": "Tentar novamente"
       },
       "visual": {
         "commandsLabel": "Ações do editor",
@@ -1586,6 +1587,7 @@
           "leadForm": {
             "loading": "Carregando configuração...",
             "loadError": "Não foi possível carregar a configuração. Tente novamente.",
+            "retry": "Tentar novamente",
             "teaser": {
               "title": "Texto do teaser",
               "titleLabel": "Título",
