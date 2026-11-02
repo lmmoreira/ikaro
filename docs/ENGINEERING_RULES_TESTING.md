@@ -104,6 +104,10 @@ Two test files per controller: `.spec.ts` (unit) + `.component.spec.ts` (compone
 
 `test:cov` must exclude component specs — coverage instruments `AppModule` at import time, triggering `validateEnv` before env vars are set.
 
+### A component spec stubs the error type the real helper throws
+
+A component's error handling can depend on the class of the error it catches. In TD57-S08 the unit specs for the tenant picker threw an `ApiError`, but the real helper (`AuthFetchError`, a `FetchError`) was not read by `extractProblemDetailShape`, so a refused switch always showed the generic message. Only the Playwright run exposed it. When a spec makes a mocked helper fail, throw the error class the real helper throws (read its source), and give any shared resolver a spec for each error class it accepts.
+
 ---
 
 

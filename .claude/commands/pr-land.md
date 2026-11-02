@@ -94,6 +94,7 @@ Collect, in one list, from every actor that responded in Step 1:
 - Every failing CI check (diagnose via its job log; never from a stale log or a guess from the diff).
 - **Every open SonarCloud issue from the script's live issues-API output — always pool this, unconditionally, every round, regardless of whether `gh pr checks` shows a Sonar row at all this round** (see Step 1's SonarCloud bullet for why the check-run status alone can't be trusted). Never rely on the `sonarqubecloud[bot]` PR comment's "Quality Gate Passed" headline either — a passing gate can still carry real new issues that block this repo's own separate "Fail on any new SonarCloud issue" CI step; the live issues list is the only source of truth (`docs/ANTI_PATTERNS.md`'s SonarCloud row).
 - Every Codex finding (Critical/Important/Minor) from this round's review comment.
+- Read every review comment in full: never cut `gh api .../pulls/<N>/comments` or a review body with `head`, `tail` or a character limit. A CodeRabbit finding past the cut was missed in round 1 of PR #703 and only surfaced in round 2. Count the comments (`--jq 'length'`) and check each bot's count against its own summary.
 - Round 1 only: every CodeRabbit finding (if it posted an actual review rather than a rate-limit notice).
 
 ---
