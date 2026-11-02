@@ -2,12 +2,12 @@
 
 import { useTranslations } from 'next-intl';
 import { SectionCard } from '@/shared/components/ui/section-card';
-import type { SettingsFormErrors, SettingsFormValues } from '@/features/platform/settings-form';
-import { SuffixNumberField } from './SettingsFormFields';
+import type { SettingsFormValues } from '@/features/platform/settings-form';
+import { SuffixNumberField, type SettingsFieldFeedback } from './SettingsFormFields';
 
 interface SettingsLeadFormSectionProps {
   readonly values: SettingsFormValues;
-  readonly fieldErrors: SettingsFormErrors;
+  readonly feedback: SettingsFieldFeedback;
   readonly onFieldChange: <K extends keyof SettingsFormValues>(
     key: K,
     value: SettingsFormValues[K],
@@ -20,13 +20,13 @@ interface SettingsLeadFormSectionProps {
 // settings-form-validation.ts's SettingsFormSchema), same as the booking section's numeric fields.
 export function SettingsLeadFormSection({
   values,
-  fieldErrors,
+  feedback,
   onFieldChange,
 }: SettingsLeadFormSectionProps): React.JSX.Element {
   const t = useTranslations('dashboard.settingsPage');
 
   return (
-    <SectionCard title={t('sections.leadForm')}>
+    <SectionCard size="compact" title={t('sections.leadForm')}>
       <p className="text-sm text-gray-500">{t('leadFormSectionSub')}</p>
       <SuffixNumberField
         id="settings-lead-form-retention-months"
@@ -34,7 +34,8 @@ export function SettingsLeadFormSection({
         hint={t('leadFormRetentionHint')}
         suffix={t('monthsSuffix')}
         value={values.retentionMonths}
-        error={fieldErrors.retentionMonths}
+        name="retentionMonths"
+        feedback={feedback}
         onChange={(value) => onFieldChange('retentionMonths', value)}
       />
       <SuffixNumberField
@@ -43,7 +44,8 @@ export function SettingsLeadFormSection({
         hint={t('leadFormMaxSubmissionsPerDayHint')}
         suffix={t('perDaySuffix')}
         value={values.maxSubmissionsPerDay}
-        error={fieldErrors.maxSubmissionsPerDay}
+        name="maxSubmissionsPerDay"
+        feedback={feedback}
         onChange={(value) => onFieldChange('maxSubmissionsPerDay', value)}
       />
       <SuffixNumberField
@@ -52,7 +54,8 @@ export function SettingsLeadFormSection({
         hint={t('leadFormMaxSubmissionsPerIpPerDayHint')}
         suffix={t('perDaySuffix')}
         value={values.maxSubmissionsPerIpPerDay}
-        error={fieldErrors.maxSubmissionsPerIpPerDay}
+        name="maxSubmissionsPerIpPerDay"
+        feedback={feedback}
         onChange={(value) => onFieldChange('maxSubmissionsPerIpPerDay', value)}
       />
     </SectionCard>

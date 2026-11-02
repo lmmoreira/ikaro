@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderWithIntl } from '@/test-utils';
 import type { SettingsFormValues } from '@/features/platform/settings-form';
 import { SettingsLoyaltySection } from './SettingsLoyaltySection';
+import { settingsFeedback } from './settings-field-feedback.fixture';
 
 function buildValues(): SettingsFormValues {
   return {
@@ -58,7 +59,7 @@ describe('SettingsLoyaltySection', () => {
     renderWithIntl(
       <SettingsLoyaltySection
         values={buildValues()}
-        fieldErrors={{}}
+        feedback={settingsFeedback()}
         onFieldChange={onFieldChange}
       />,
     );
@@ -74,7 +75,7 @@ describe('SettingsLoyaltySection', () => {
     renderWithIntl(
       <SettingsLoyaltySection
         values={buildValues()}
-        fieldErrors={{}}
+        feedback={settingsFeedback()}
         onFieldChange={onFieldChange}
       />,
     );
@@ -87,7 +88,7 @@ describe('SettingsLoyaltySection', () => {
     renderWithIntl(
       <SettingsLoyaltySection
         values={buildValues()}
-        fieldErrors={{ pointsPerCurrencyUnit: 'Inválido' }}
+        feedback={settingsFeedback({ pointsPerCurrencyUnit: 'Inválido' })}
         onFieldChange={vi.fn()}
       />,
     );

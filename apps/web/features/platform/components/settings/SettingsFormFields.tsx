@@ -1,51 +1,77 @@
+import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
+import type { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
+import type { SettingsFormErrors } from '@/features/platform/settings-form';
+import { cn } from '@/shared/utils/cn';
+
 // Extracted from SettingsForm (TD37-S5A) — the reusable field primitives (label + input + hint +
 // error, in various shapes) are a self-contained, fully generic concern, unrelated to the
 // section-by-section form layout that consumes them. Split into this file for basic fields and
 // SettingsFormAdvancedFields.tsx for the more specialized ones (phone, postal code, day row).
 export const INPUT_CLASS =
-  'w-full rounded-md border border-border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 aria-[invalid=true]:border-red-500 aria-[invalid=true]:bg-red-50';
+  'w-full rounded-md border border-border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
 
-interface FieldErrorProps {
-  readonly id: string;
-  readonly message?: string;
-}
+// The slice of the form's single `useFormFeedback` the fields need: the error message by field
+// name, the ref + aria props that let the hook mark and focus the input, and its message id.
+export type SettingsFieldFeedback = Pick<
+  ReturnType<typeof useFormFeedback>,
+  'fieldErrors' | 'fieldProps' | 'fieldErrorId'
+>;
 
-export function FieldError({ id, message }: FieldErrorProps): React.JSX.Element | null {
-  if (!message) return null;
-  return (
-    <p id={id} data-testid={id} className="mt-1.5 text-sm text-red-600">
-      {message}
-    </p>
-  );
+export type SettingsFieldName = keyof SettingsFormErrors;
+
+interface FieldWiring {
+  readonly error: string | undefined;
+  readonly errorId: string;
+  readonly hintId: string;
+  readonly inputProps: ReturnType<SettingsFieldFeedback['fieldProps']>;
+  readonly inputClassName: (base: string) => string;
 }
 
 // The visible hint is announced with the input only while it is shown (no error); an error takes
 // precedence, matching the `hint && !error` rendering in every field below.
-function describedByFor(id: string, error?: string, hint?: string): string | undefined {
-  if (error) return `${id}-error`;
-  if (hint) return `${id}-hint`;
-  return undefined;
+export function settingsFieldWiring(
+  feedback: SettingsFieldFeedback,
+  name: SettingsFieldName,
+  id: string,
+  hint?: string,
+): FieldWiring {
+  const error = feedback.fieldErrors[name];
+  const errorId = feedback.fieldErrorId(name);
+  const hintId = `${id}-hint`;
+  const describedBy = (error ? errorId : hint && hintId) || undefined;
+
+  return {
+    error,
+    errorId,
+    hintId,
+    inputProps: { ...feedback.fieldProps(name), 'aria-describedby': describedBy },
+    inputClassName: (base) => cn(base, error && FIELD_INVALID_CLASS),
+  };
 }
 
 interface SuffixNumberFieldProps {
   readonly id: string;
+  readonly name: SettingsFieldName;
   readonly label: string;
   readonly hint?: string;
   readonly suffix: string;
   readonly value: string;
-  readonly error?: string;
+  readonly feedback: SettingsFieldFeedback;
   readonly onChange: (value: string) => void;
 }
 
 export function SuffixNumberField({
   id,
+  name,
   label,
   hint,
   suffix,
   value,
-  error,
+  feedback,
   onChange,
 }: SuffixNumberFieldProps): React.JSX.Element {
+  const field = settingsFieldWiring(feedback, name, id, hint);
+
   return (
     <div>
       <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-gray-900">
@@ -59,29 +85,29 @@ export function SuffixNumberField({
           inputMode="numeric"
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          aria-invalid={Boolean(error)}
-          aria-describedby={describedByFor(id, error, hint)}
-          className={`${INPUT_CLASS} pr-16`}
+          {...field.inputProps}
+          className={field.inputClassName(`${INPUT_CLASS} pr-16`)}
         />
         <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
           {suffix}
         </span>
       </div>
-      {hint && !error && (
-        <p id={`${id}-hint`} className="mt-1.5 text-sm text-gray-500">
+      {hint && !field.error && (
+        <p id={field.hintId} className="mt-1.5 text-sm text-gray-500">
           {hint}
         </p>
       )}
-      <FieldError id={`${id}-error`} message={error} />
+      <FieldFeedback id={field.errorId}>{field.error}</FieldFeedback>
     </div>
   );
 }
 
 interface TextFieldProps {
   readonly id: string;
+  readonly name: SettingsFieldName;
   readonly label: string;
   readonly value: string;
-  readonly error?: string;
+  readonly feedback: SettingsFieldFeedback;
   readonly hint?: string;
   readonly placeholder?: string;
   readonly maxLength?: number;
@@ -91,15 +117,18 @@ interface TextFieldProps {
 
 export function TextField({
   id,
+  name,
   label,
   value,
-  error,
+  feedback,
   hint,
   placeholder,
   maxLength,
   type = 'text',
   onChange,
 }: TextFieldProps): React.JSX.Element {
+  const field = settingsFieldWiring(feedback, name, id, hint);
+
   return (
     <div>
       <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-gray-900">
@@ -113,25 +142,25 @@ export function TextField({
         maxLength={maxLength}
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
-        aria-invalid={Boolean(error)}
-        aria-describedby={describedByFor(id, error, hint)}
-        className={INPUT_CLASS}
+        {...field.inputProps}
+        className={field.inputClassName(INPUT_CLASS)}
       />
-      {hint && !error && (
-        <p id={`${id}-hint`} className="mt-1.5 text-sm text-gray-500">
+      {hint && !field.error && (
+        <p id={field.hintId} className="mt-1.5 text-sm text-gray-500">
           {hint}
         </p>
       )}
-      <FieldError id={`${id}-error`} message={error} />
+      <FieldFeedback id={field.errorId}>{field.error}</FieldFeedback>
     </div>
   );
 }
 
 interface TextareaFieldProps {
   readonly id: string;
+  readonly name: SettingsFieldName;
   readonly label: string;
   readonly value: string;
-  readonly error?: string;
+  readonly feedback: SettingsFieldFeedback;
   readonly hint?: string;
   readonly placeholder?: string;
   readonly onChange: (value: string) => void;
@@ -139,13 +168,16 @@ interface TextareaFieldProps {
 
 export function TextareaField({
   id,
+  name,
   label,
   value,
-  error,
+  feedback,
   hint,
   placeholder,
   onChange,
 }: TextareaFieldProps): React.JSX.Element {
+  const field = settingsFieldWiring(feedback, name, id, hint);
+
   return (
     <div>
       <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-gray-900">
@@ -157,40 +189,43 @@ export function TextareaField({
         value={value}
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
-        aria-invalid={Boolean(error)}
-        aria-describedby={describedByFor(id, error, hint)}
+        {...field.inputProps}
         rows={5}
-        className={`${INPUT_CLASS} min-h-32 resize-y`}
+        className={field.inputClassName(`${INPUT_CLASS} min-h-32 resize-y`)}
       />
-      {hint && !error && (
-        <p id={`${id}-hint`} className="mt-1.5 text-sm text-gray-500">
+      {hint && !field.error && (
+        <p id={field.hintId} className="mt-1.5 text-sm text-gray-500">
           {hint}
         </p>
       )}
-      <FieldError id={`${id}-error`} message={error} />
+      <FieldFeedback id={field.errorId}>{field.error}</FieldFeedback>
     </div>
   );
 }
 
 interface SelectFieldProps {
   readonly id: string;
+  readonly name: SettingsFieldName;
   readonly label: string;
   readonly hint?: string;
   readonly value: string;
-  readonly error?: string;
+  readonly feedback: SettingsFieldFeedback;
   readonly options: readonly { readonly value: string; readonly label: string }[];
   readonly onChange: (value: string) => void;
 }
 
 export function SelectField({
   id,
+  name,
   label,
   hint,
   value,
-  error,
+  feedback,
   options,
   onChange,
 }: SelectFieldProps): React.JSX.Element {
+  const field = settingsFieldWiring(feedback, name, id, hint);
+
   return (
     <div>
       <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-gray-900">
@@ -201,9 +236,8 @@ export function SelectField({
         data-testid={id}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        aria-invalid={Boolean(error)}
-        aria-describedby={describedByFor(id, error, hint)}
-        className={`${INPUT_CLASS} max-w-56`}
+        {...field.inputProps}
+        className={field.inputClassName(`${INPUT_CLASS} max-w-56`)}
       >
         {options.map((option) => (
           <option key={option.value} value={option.value}>
@@ -211,12 +245,12 @@ export function SelectField({
           </option>
         ))}
       </select>
-      {hint && !error && (
-        <p id={`${id}-hint`} className="mt-1.5 text-sm text-gray-500">
+      {hint && !field.error && (
+        <p id={field.hintId} className="mt-1.5 text-sm text-gray-500">
           {hint}
         </p>
       )}
-      <FieldError id={`${id}-error`} message={error} />
+      <FieldFeedback id={field.errorId}>{field.error}</FieldFeedback>
     </div>
   );
 }

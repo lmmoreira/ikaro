@@ -20,7 +20,7 @@ export function SettingsLocalizationSection({
   const t = useTranslations('dashboard.settingsPage');
 
   return (
-    <SectionCard title={t('sections.localization')}>
+    <SectionCard size="compact" title={t('sections.localization')}>
       <div className="grid grid-cols-3 gap-4">
         <ReadOnlyField
           testId="settings-country-code"

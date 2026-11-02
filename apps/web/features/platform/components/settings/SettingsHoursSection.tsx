@@ -4,11 +4,12 @@ import { useTranslations } from 'next-intl';
 import { SectionCard } from '@/shared/components/ui/section-card';
 import { WeekDayRow } from '@/shared/components/ui/week-day-row';
 import { WEEK_DAYS, type DayHoursValue, type WeekDay } from '@/features/platform/settings-form';
-import { FieldError, INPUT_CLASS } from './SettingsFormFields';
+import { FieldFeedback } from '@/shared/components/ui/field-feedback';
+import { INPUT_CLASS, settingsFieldWiring, type SettingsFieldFeedback } from './SettingsFormFields';
 
 interface SettingsHoursSectionProps {
   readonly timezone: string;
-  readonly timezoneError: string | undefined;
+  readonly feedback: SettingsFieldFeedback;
   readonly timezones: readonly string[];
   readonly days: Record<WeekDay, DayHoursValue>;
   readonly timeFormat: '24h' | '12h';
@@ -22,7 +23,7 @@ interface SettingsHoursSectionProps {
 // around it.
 export function SettingsHoursSection({
   timezone,
-  timezoneError,
+  feedback,
   timezones,
   days,
   timeFormat,
@@ -31,9 +32,10 @@ export function SettingsHoursSection({
   onCopyMondayToWeekdays,
 }: SettingsHoursSectionProps): React.JSX.Element {
   const t = useTranslations('dashboard.settingsPage');
+  const timezoneField = settingsFieldWiring(feedback, 'timezone', 'settings-timezone');
 
   return (
-    <SectionCard title={t('sections.hours')}>
+    <SectionCard size="compact" title={t('sections.hours')}>
       <div>
         <label
           htmlFor="settings-timezone"
@@ -46,8 +48,8 @@ export function SettingsHoursSection({
           data-testid="settings-timezone-select"
           value={timezone}
           onChange={(event) => onTimezoneChange(event.target.value)}
-          aria-invalid={Boolean(timezoneError)}
-          className={`${INPUT_CLASS} max-w-md`}
+          {...timezoneField.inputProps}
+          className={timezoneField.inputClassName(`${INPUT_CLASS} max-w-md`)}
         >
           {timezones.map((tz) => (
             <option key={tz} value={tz}>
@@ -55,7 +57,7 @@ export function SettingsHoursSection({
             </option>
           ))}
         </select>
-        <FieldError id="settings-timezone-error" message={timezoneError} />
+        <FieldFeedback id={timezoneField.errorId}>{timezoneField.error}</FieldFeedback>
       </div>
       <div>
         {WEEK_DAYS.map((day) => (

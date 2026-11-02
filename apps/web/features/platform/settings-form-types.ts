@@ -81,15 +81,17 @@ export interface SettingsFormErrors {
   addressStreet?: string;
   addressNumber?: string;
   addressNeighborhood?: string;
+  addressComplement?: string;
   addressCity?: string;
   addressState?: string;
   addressZipCode?: string;
   socialLinksWhatsapp?: string;
+  socialLinksInstagram?: string;
+  socialLinksFacebook?: string;
   knowledgeText?: string;
   retentionMonths?: string;
   maxSubmissionsPerDay?: string;
   maxSubmissionsPerIpPerDay?: string;
-  submit?: string;
 }
 
 export interface NormalizedSettingsForm {

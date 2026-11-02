@@ -50,7 +50,7 @@ test.describe('tenant settings management (MANAGER)', () => {
     await page.getByTestId('settings-loyalty-expiry').fill('200');
 
     await page.getByTestId('settings-submit-desktop').click();
-    await expect(page.getByTestId('settings-saved-banner')).toBeVisible();
+    await expect(page.getByTestId('form-feedback')).toBeVisible();
 
     await page.reload();
     await expect(page.getByTestId('settings-cancellation-window')).toHaveValue('72');
@@ -70,7 +70,7 @@ test.describe('tenant settings management (MANAGER)', () => {
 
     await field.fill('5');
     await page.getByTestId('settings-submit-desktop').click();
-    await expect(page.getByTestId('settings-saved-banner')).toBeVisible();
+    await expect(page.getByTestId('form-feedback')).toBeVisible();
 
     await page.reload();
     await expect(page.getByTestId('settings-recurring-renewal-reminder-days')).toHaveValue('5');
@@ -84,15 +84,45 @@ test.describe('tenant settings management (MANAGER)', () => {
     const field = page.getByTestId('settings-recurring-renewal-reminder-days');
     await field.fill('31');
     await page.getByTestId('settings-submit-desktop').click();
-    await expect(page.getByTestId('settings-recurring-renewal-reminder-days-error')).toBeVisible();
-    await expect(page.getByTestId('settings-saved-banner')).toBeHidden();
+    await expect(field).toHaveAttribute('aria-invalid', 'true');
+    await expect(field).toBeFocused();
+    await expect(page.getByTestId('form-feedback')).toBeHidden();
 
     await field.fill('0');
     await page.getByTestId('settings-submit-desktop').click();
-    await expect(page.getByTestId('settings-saved-banner')).toBeVisible();
+    await expect(page.getByTestId('form-feedback')).toBeVisible();
 
     await page.reload();
     await expect(page.getByTestId('settings-recurring-renewal-reminder-days')).toHaveValue('0');
+  });
+
+  test('shows a failed save in the action pane and keeps the form values (TD57-S09)', async ({
+    page,
+  }) => {
+    await goToSettings(page);
+
+    // The save goes browser → same-origin BFF gateway; stub only that PATCH so the tenant is
+    // never mutated and the failure path is exercised end to end in the real page.
+    await page.route('**/tenants/settings', async (route) => {
+      if (route.request().method() !== 'PATCH') {
+        await route.continue();
+        return;
+      }
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/problem+json',
+        body: JSON.stringify({ status: 500, title: 'Internal Server Error' }),
+      });
+    });
+
+    const field = page.getByTestId('settings-recurring-renewal-reminder-days');
+    await field.fill('9');
+    await page.getByTestId('settings-submit-desktop').click();
+
+    const feedback = page.getByTestId('action-pane-desktop').getByTestId('form-feedback');
+    await expect(feedback).toBeVisible();
+    await expect(feedback).toHaveAttribute('role', 'alert');
+    await expect(field).toHaveValue('9');
   });
 
   test('auto-fills street/city/state from a valid CEP', async ({ page }) => {
@@ -126,7 +156,7 @@ test.describe('tenant settings management (MANAGER)', () => {
     await page.getByTestId('settings-address-state').fill('MG');
 
     await page.getByTestId('settings-submit-desktop').click();
-    await expect(page.getByTestId('settings-saved-banner')).toBeVisible();
+    await expect(page.getByTestId('form-feedback')).toBeVisible();
   });
 
   test('blocks submit when the loyalty expiry warning is not less than the expiry itself', async ({
@@ -138,7 +168,10 @@ test.describe('tenant settings management (MANAGER)', () => {
     await page.getByTestId('settings-loyalty-expiry-warning').fill('30');
     await page.getByTestId('settings-submit-desktop').click();
 
-    await expect(page.getByTestId('settings-loyalty-expiry-warning-error')).toBeVisible();
+    const warning = page.getByTestId('settings-loyalty-expiry-warning');
+    await expect(warning).toHaveAttribute('aria-invalid', 'true');
+    await expect(warning).toBeFocused();
+    await expect(page.getByTestId('form-feedback')).toBeHidden();
   });
 
   test('blocks submit on a partially-filled address (all-or-nothing)', async ({ page }) => {
@@ -148,7 +181,8 @@ test.describe('tenant settings management (MANAGER)', () => {
     // zipCode/number/city/state left blank on purpose.
     await page.getByTestId('settings-submit-desktop').click();
 
-    await expect(page.getByTestId('settings-address-zip-error')).toBeVisible();
+    await expect(page.getByTestId('settings-address-zip')).toHaveAttribute('aria-invalid', 'true');
+    await expect(page.getByTestId('form-feedback')).toBeHidden();
   });
 
   test("Monday's copy button applies its hours to Tue-Fri but not Sat/Sun", async ({ page }) => {
@@ -191,8 +225,7 @@ test.describe('tenant settings management (MANAGER)', () => {
     await page.getByTestId('settings-service-buffer').fill('50');
     await page.getByTestId('settings-submit-desktop').click();
 
-    await expect(page.getByTestId('settings-saved-banner')).toBeVisible();
-    await expect(page.getByTestId('settings-submit-error')).not.toBeVisible();
+    await expect(page.getByTestId('form-feedback')).toContainText('Configurações salvas!');
 
     const after = await getTenantSettings(page);
     expect(after.settings.businessInfo?.socialLinks).toBeNull();

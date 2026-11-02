@@ -2,12 +2,12 @@
 
 import { useTranslations } from 'next-intl';
 import { SectionCard } from '@/shared/components/ui/section-card';
-import { INPUT_CLASS, TextField } from './SettingsFormFields';
+import { INPUT_CLASS, TextField, type SettingsFieldFeedback } from './SettingsFormFields';
 
 interface SettingsGeneralSectionProps {
   readonly slug: string;
   readonly name: string;
-  readonly nameError: string | undefined;
+  readonly feedback: SettingsFieldFeedback;
   readonly onNameChange: (value: string) => void;
 }
 
@@ -16,18 +16,19 @@ interface SettingsGeneralSectionProps {
 export function SettingsGeneralSection({
   slug,
   name,
-  nameError,
+  feedback,
   onNameChange,
 }: SettingsGeneralSectionProps): React.JSX.Element {
   const t = useTranslations('dashboard.settingsPage');
 
   return (
-    <SectionCard title={t('sections.general')}>
+    <SectionCard size="compact" title={t('sections.general')}>
       <TextField
         id="settings-name"
         label={t('nameLabel')}
         value={name}
-        error={nameError}
+        name="name"
+        feedback={feedback}
         maxLength={100}
         onChange={onNameChange}
       />

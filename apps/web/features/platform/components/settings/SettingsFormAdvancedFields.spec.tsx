@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { countrySpec } from '@ikaro/i18n';
 import { renderWithIntl } from '@/test-utils';
+import { settingsFeedback } from './settings-field-feedback.fixture';
 import { PhoneField, PostalCodeField, addressSpecFieldLabel } from './SettingsFormAdvancedFields';
 
 // PhoneField's displayed value is derived (formatPhoneForDisplay) from its `value` prop on every
@@ -21,6 +22,8 @@ function ControlledPhoneField({
   return (
     <PhoneField
       id="settings-phone"
+      name="phone"
+      feedback={settingsFeedback()}
       prefixTestId="settings-phone-prefix"
       label="Telefone"
       value={value}
@@ -49,6 +52,7 @@ describe('PostalCodeField', () => {
   it('shows the searching hint while looking up and the not-found hint on failure', () => {
     const { rerender } = renderWithIntl(
       <PostalCodeField
+        feedback={settingsFeedback()}
         label="CEP"
         value=""
         postalPlaceholder="00000-000"
@@ -63,6 +67,7 @@ describe('PostalCodeField', () => {
 
     rerender(
       <PostalCodeField
+        feedback={settingsFeedback()}
         label="CEP"
         value=""
         postalPlaceholder="00000-000"
@@ -83,6 +88,7 @@ describe('PostalCodeField', () => {
     const onChange = vi.fn();
     renderWithIntl(
       <PostalCodeField
+        feedback={settingsFeedback()}
         label="CEP"
         value=""
         postalPlaceholder="00000-000"
@@ -108,5 +114,46 @@ describe('addressSpecFieldLabel', () => {
     expect(addressSpecFieldLabel(spec, 'city')).toBe(spec.cityLabel);
     expect(addressSpecFieldLabel(spec, 'state')).toBe(spec.stateLabel);
     expect(addressSpecFieldLabel(spec, 'zipCode')).toBe(spec.postalLabel);
+  });
+});
+
+describe('field errors', () => {
+  it('PhoneField marks the input invalid and describes it with its message', () => {
+    renderWithIntl(
+      <PhoneField
+        id="settings-phone"
+        name="phone"
+        feedback={settingsFeedback({ phone: 'Telefone inválido.' })}
+        prefixTestId="settings-phone-prefix"
+        label="Telefone"
+        value=""
+        phonePrefix="+55"
+        onChange={vi.fn()}
+      />,
+    );
+
+    const input = screen.getByTestId('settings-phone');
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(input).toHaveAttribute('aria-describedby', 'phone-error');
+    expect(screen.getByText('Telefone inválido.')).toHaveAttribute('id', 'phone-error');
+  });
+
+  it('PostalCodeField marks the input invalid and shows its message', () => {
+    renderWithIntl(
+      <PostalCodeField
+        feedback={settingsFeedback({ addressZipCode: 'Informe o CEP.' })}
+        label="CEP"
+        value=""
+        postalPlaceholder="00000-000"
+        isLookingUp={false}
+        lookupFailed={false}
+        searchingLabel="Buscando"
+        notFoundLabel="Não encontrado"
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('settings-address-zip')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByText('Informe o CEP.')).toBeInTheDocument();
   });
 });

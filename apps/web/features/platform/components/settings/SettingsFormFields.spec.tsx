@@ -3,25 +3,15 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  FieldError,
   ReadOnlyField,
   SelectField,
   SuffixNumberField,
   TextareaField,
   TextField,
 } from './SettingsFormFields';
+import { settingsFeedback } from './settings-field-feedback.fixture';
 
-describe('FieldError', () => {
-  it('renders nothing when there is no message', () => {
-    const { container } = render(<FieldError id="err" />);
-    expect(container).toBeEmptyDOMElement();
-  });
-
-  it('renders the message when present', () => {
-    render(<FieldError id="err" message="Campo obrigatório" />);
-    expect(screen.getByTestId('err')).toHaveTextContent('Campo obrigatório');
-  });
-});
+const none = settingsFeedback();
 
 describe('SuffixNumberField', () => {
   it('renders the suffix and calls onChange', async () => {
@@ -30,6 +20,8 @@ describe('SuffixNumberField', () => {
     render(
       <SuffixNumberField
         id="field-a"
+        name="cancellationWindowHours"
+        feedback={none}
         label="Janela"
         suffix="horas"
         value="10"
@@ -41,35 +33,117 @@ describe('SuffixNumberField', () => {
     await user.type(screen.getByTestId('field-a'), '5');
     expect(onChange).toHaveBeenCalled();
   });
+
+  it('marks the input invalid and shows the message when the field has an error', () => {
+    render(
+      <SuffixNumberField
+        id="field-a"
+        name="cancellationWindowHours"
+        feedback={settingsFeedback({ cancellationWindowHours: 'Valor inválido' })}
+        label="Janela"
+        suffix="horas"
+        value="10"
+        onChange={vi.fn()}
+      />,
+    );
+
+    const input = screen.getByTestId('field-a');
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(input).toHaveAttribute('aria-describedby', 'cancellationWindowHours-error');
+    expect(screen.getByText('Valor inválido')).toHaveAttribute(
+      'id',
+      'cancellationWindowHours-error',
+    );
+    expect(input.className).toContain('ring-red-600');
+  });
+
+  it('ignores an error recorded for another field', () => {
+    render(
+      <SuffixNumberField
+        id="field-a"
+        name="cancellationWindowHours"
+        feedback={settingsFeedback({ serviceBufferMinutes: 'Outro erro' })}
+        label="Janela"
+        suffix="horas"
+        value="10"
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('field-a')).not.toHaveAttribute('aria-invalid');
+    expect(screen.queryByText('Outro erro')).not.toBeInTheDocument();
+  });
 });
 
 describe('TextField', () => {
   it('renders the hint when there is no error, and the error otherwise', () => {
     const { rerender } = render(
-      <TextField id="field-b" label="Nome" value="" hint="Dica" onChange={vi.fn()} />,
+      <TextField
+        id="field-b"
+        name="name"
+        feedback={none}
+        label="Nome"
+        value=""
+        hint="Dica"
+        onChange={vi.fn()}
+      />,
     );
     expect(screen.getByText('Dica')).toBeInTheDocument();
 
     rerender(
-      <TextField id="field-b" label="Nome" value="" hint="Dica" error="Erro" onChange={vi.fn()} />,
+      <TextField
+        id="field-b"
+        name="name"
+        feedback={settingsFeedback({ name: 'Erro' })}
+        label="Nome"
+        value=""
+        hint="Dica"
+        onChange={vi.fn()}
+      />,
     );
     expect(screen.queryByText('Dica')).not.toBeInTheDocument();
-    expect(screen.getByTestId('field-b-error')).toHaveTextContent('Erro');
+    expect(screen.getByText('Erro')).toBeInTheDocument();
+    expect(screen.getByTestId('field-b')).toHaveAttribute('aria-invalid', 'true');
   });
 
   it('associates the visible hint with the input via aria-describedby, and the error takes precedence', () => {
     const { rerender } = render(
-      <TextField id="field-b" label="Nome" value="" hint="Dica" onChange={vi.fn()} />,
+      <TextField
+        id="field-b"
+        name="name"
+        feedback={none}
+        label="Nome"
+        value=""
+        hint="Dica"
+        onChange={vi.fn()}
+      />,
     );
     expect(screen.getByText('Dica')).toHaveAttribute('id', 'field-b-hint');
     expect(screen.getByTestId('field-b')).toHaveAttribute('aria-describedby', 'field-b-hint');
 
     rerender(
-      <TextField id="field-b" label="Nome" value="" hint="Dica" error="Erro" onChange={vi.fn()} />,
+      <TextField
+        id="field-b"
+        name="name"
+        feedback={settingsFeedback({ name: 'Erro' })}
+        label="Nome"
+        value=""
+        hint="Dica"
+        onChange={vi.fn()}
+      />,
     );
-    expect(screen.getByTestId('field-b')).toHaveAttribute('aria-describedby', 'field-b-error');
+    expect(screen.getByTestId('field-b')).toHaveAttribute('aria-describedby', 'name-error');
 
-    rerender(<TextField id="field-b" label="Nome" value="" onChange={vi.fn()} />);
+    rerender(
+      <TextField
+        id="field-b"
+        name="name"
+        feedback={none}
+        label="Nome"
+        value=""
+        onChange={vi.fn()}
+      />,
+    );
     expect(screen.getByTestId('field-b')).not.toHaveAttribute('aria-describedby');
   });
 });
@@ -79,6 +153,8 @@ describe('SuffixNumberField hint association', () => {
     render(
       <SuffixNumberField
         id="field-n"
+        name="welcomeStaffScreenDays"
+        feedback={none}
         label="Dias"
         hint="Dica"
         suffix="dias"
@@ -94,7 +170,17 @@ describe('SuffixNumberField hint association', () => {
 
 describe('TextareaField', () => {
   it('associates the visible hint with the textarea via aria-describedby when there is no error', () => {
-    render(<TextareaField id="field-c" label="Texto" value="" hint="Dica" onChange={vi.fn()} />);
+    render(
+      <TextareaField
+        id="field-c"
+        name="knowledgeText"
+        feedback={none}
+        label="Texto"
+        value=""
+        hint="Dica"
+        onChange={vi.fn()}
+      />,
+    );
 
     const textarea = screen.getByTestId('field-c');
     expect(screen.getByText('Dica')).toHaveAttribute('id', 'field-c-hint');
@@ -105,20 +191,34 @@ describe('TextareaField', () => {
     render(
       <TextareaField
         id="field-c"
+        name="knowledgeText"
+        feedback={settingsFeedback({ knowledgeText: 'Erro' })}
         label="Texto"
         value=""
         hint="Dica"
-        error="Erro"
         onChange={vi.fn()}
       />,
     );
 
     expect(screen.queryByText('Dica')).not.toBeInTheDocument();
-    expect(screen.getByTestId('field-c')).toHaveAttribute('aria-describedby', 'field-c-error');
+    expect(screen.getByTestId('field-c')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByTestId('field-c')).toHaveAttribute(
+      'aria-describedby',
+      'knowledgeText-error',
+    );
   });
 
   it('has no aria-describedby when neither hint nor error is present', () => {
-    render(<TextareaField id="field-c" label="Texto" value="" onChange={vi.fn()} />);
+    render(
+      <TextareaField
+        id="field-c"
+        name="knowledgeText"
+        feedback={none}
+        label="Texto"
+        value=""
+        onChange={vi.fn()}
+      />,
+    );
 
     expect(screen.getByTestId('field-c')).not.toHaveAttribute('aria-describedby');
   });
@@ -131,6 +231,8 @@ describe('SelectField', () => {
     render(
       <SelectField
         id="field-c"
+        name="slotGranularityMinutes"
+        feedback={none}
         label="Granularidade"
         value="30"
         options={[
@@ -143,6 +245,23 @@ describe('SelectField', () => {
 
     await user.selectOptions(screen.getByTestId('field-c'), '15');
     expect(onChange).toHaveBeenCalledWith('15');
+  });
+
+  it('marks the select invalid and shows the message', () => {
+    render(
+      <SelectField
+        id="field-c"
+        name="slotGranularityMinutes"
+        feedback={settingsFeedback({ slotGranularityMinutes: 'Escolha uma opção' })}
+        label="Granularidade"
+        value="30"
+        options={[{ value: '30', label: '30 minutos' }]}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('field-c')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByText('Escolha uma opção')).toBeInTheDocument();
   });
 });
 

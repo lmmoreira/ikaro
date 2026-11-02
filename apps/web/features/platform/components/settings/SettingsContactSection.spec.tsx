@@ -6,6 +6,7 @@ import { countrySpec } from '@ikaro/i18n';
 import { renderWithIntl } from '@/test-utils';
 import type { SettingsFormValues } from '@/features/platform/settings-form';
 import { SettingsContactSection } from './SettingsContactSection';
+import { settingsFeedback } from './settings-field-feedback.fixture';
 
 function buildValues(): SettingsFormValues {
   return {
@@ -55,7 +56,7 @@ function buildValues(): SettingsFormValues {
 function baseProps() {
   return {
     values: buildValues(),
-    fieldErrors: {},
+    feedback: settingsFeedback(),
     addressSpec: countrySpec('BR').address,
     phonePrefix: '+55',
     isLookingUpZip: false,
