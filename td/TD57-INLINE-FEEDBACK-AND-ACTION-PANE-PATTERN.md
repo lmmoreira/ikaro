@@ -637,9 +637,14 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Backend HTTP surface:** none
 **BFF endpoint spec:** none
 **Prototype references:** none
-**New migration / i18n keys / env vars / feature flags:** none expected; any new copy key in both locales in the same change
+**New migration / i18n keys / env vars / feature flags:** two new keys, in both locales in the same change: `dashboard.hotsitePage.previewView.retry` and `dashboard.hotsitePage.layout.panels.leadForm.retry`
 
 **Files to create/modify:**
+- `apps/web/features/platform/components/hotsite/useHotsiteActionFeedback.ts` + `useHotsiteActionFeedback.spec.tsx` (new)
+- `apps/web/features/platform/components/hotsite/BrandingTab.tsx`, `SeoTab.tsx` (compact card heading)
+- `packages/i18n/locales/en/web.json`, `packages/i18n/locales/pt-BR/web.json` (the two keys above)
+- `apps/web/shared/lib/feedback/use-form-feedback.ts` + `use-form-feedback.spec.tsx` (focus moves after the errors commit)
+- `apps/web/e2e/helpers/hotsite/hotsite-publish-failure.ts` (new, `failHotsitePublish`) and its export in `helpers/hotsite/index.ts`
 - `apps/web/features/platform/components/hotsite/HotsiteActionBanner.tsx` + `HotsiteActionBanner.spec.tsx`
 - `apps/web/features/platform/components/hotsite/HotsiteEditorMainView.tsx` + `HotsiteEditorMainView.spec.tsx`
 - `apps/web/features/platform/components/hotsite/HotsitePreview.tsx` + `HotsitePreview.spec.tsx`

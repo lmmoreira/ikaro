@@ -3,6 +3,7 @@ export {
   openDetailedEditor,
   openVisualEditor,
 } from './hotsite-editor-navigation';
+export { failHotsitePublish } from './hotsite-publish-failure';
 export {
   getHotsiteConfig,
   updateHotsiteConfig,

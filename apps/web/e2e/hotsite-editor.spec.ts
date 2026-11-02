@@ -4,6 +4,7 @@ import { loginAsStaff } from './helpers/auth';
 import { openFirstDayWithSlots } from './helpers/booking-form';
 import {
   enterDetailedEditor,
+  failHotsitePublish,
   getHotsiteConfig,
   getPublicManifest,
   openDetailedEditor,
@@ -1719,15 +1720,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('visual editor: a refused publish shows the error in its slot, focused, and keeps the edit', async ({
     page,
   }) => {
-    await page.route('**/v1/tenants/hotsite', (route) =>
-      route.request().method() === 'PATCH'
-        ? route.fulfill({
-            status: 500,
-            contentType: 'application/problem+json',
-            body: JSON.stringify({ status: 500, title: 'Internal Server Error' }),
-          })
-        : route.fallback(),
-    );
+    await failHotsitePublish(page);
     await openVisualEditor(page);
     await page.locator('[data-testid="visual-command"][data-command="branding"]').click();
     await page.getByTestId('hotsite-primary-color').fill('#123456');
@@ -1747,15 +1740,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('detailed editor: a refused publish shows the error in the action pane under the buttons', async ({
     page,
   }) => {
-    await page.route('**/v1/tenants/hotsite', (route) =>
-      route.request().method() === 'PATCH'
-        ? route.fulfill({
-            status: 500,
-            contentType: 'application/problem+json',
-            body: JSON.stringify({ status: 500, title: 'Internal Server Error' }),
-          })
-        : route.fallback(),
-    );
+    await failHotsitePublish(page);
     await openDetailedEditor(page);
 
     await page.getByTestId('hotsite-publish-desktop').click();
