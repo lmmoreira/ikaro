@@ -5,15 +5,22 @@ import {
   sanitizePhoneInput,
 } from '@/shared/utils/phone-format';
 import type { SettingsAddressValues } from '@/features/platform/settings-form';
-import { FieldError, INPUT_CLASS } from './SettingsFormFields';
+import { FieldFeedback } from '@/shared/components/ui/field-feedback';
+import {
+  INPUT_CLASS,
+  settingsFieldWiring,
+  type SettingsFieldFeedback,
+  type SettingsFieldName,
+} from './SettingsFormFields';
 
 interface PhoneFieldProps {
   readonly id: string;
+  readonly name: SettingsFieldName;
   readonly prefixTestId: string;
   readonly label: string;
   readonly value: string;
   readonly phonePrefix: string;
-  readonly error?: string;
+  readonly feedback: SettingsFieldFeedback;
   readonly hint?: string;
   readonly onChange: (localDigits: string) => void;
 }
@@ -24,14 +31,17 @@ interface PhoneFieldProps {
 // for both businessInfo.phone and businessInfo.socialLinks.whatsapp.
 export function PhoneField({
   id,
+  name,
   prefixTestId,
   label,
   value,
   phonePrefix,
-  error,
+  feedback,
   hint,
   onChange,
 }: PhoneFieldProps): React.JSX.Element {
+  const field = settingsFieldWiring(feedback, name, id);
+
   return (
     <div>
       <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-gray-900">
@@ -52,13 +62,12 @@ export function PhoneField({
           placeholder={phonePlaceholder(phonePrefix)}
           value={formatPhoneForDisplay(value, phonePrefix)}
           onChange={(event) => onChange(sanitizePhoneInput(event.target.value, phonePrefix))}
-          aria-invalid={Boolean(error)}
-          aria-describedby={error ? `${id}-error` : undefined}
-          className={`${INPUT_CLASS} rounded-l-none`}
+          {...field.inputProps}
+          className={field.inputClassName(`${INPUT_CLASS} rounded-l-none`)}
         />
       </div>
-      {hint && !error && <p className="mt-1.5 text-sm text-gray-500">{hint}</p>}
-      <FieldError id={`${id}-error`} message={error} />
+      {hint && !field.error && <p className="mt-1.5 text-sm text-gray-500">{hint}</p>}
+      <FieldFeedback id={field.errorId}>{field.error}</FieldFeedback>
     </div>
   );
 }
@@ -67,7 +76,7 @@ interface PostalCodeFieldProps {
   readonly label: string;
   readonly value: string;
   readonly postalPlaceholder: string;
-  readonly error?: string;
+  readonly feedback: SettingsFieldFeedback;
   readonly isLookingUp: boolean;
   readonly lookupFailed: boolean;
   readonly searchingLabel: string;
@@ -79,13 +88,15 @@ export function PostalCodeField({
   label,
   value,
   postalPlaceholder,
-  error,
+  feedback,
   isLookingUp,
   lookupFailed,
   searchingLabel,
   notFoundLabel,
   onChange,
 }: PostalCodeFieldProps): React.JSX.Element {
+  const field = settingsFieldWiring(feedback, 'addressZipCode', 'settings-address-zip');
+
   return (
     <div>
       <label
@@ -102,9 +113,8 @@ export function PostalCodeField({
         placeholder={postalPlaceholder}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        aria-invalid={Boolean(error)}
-        aria-describedby={error ? 'settings-address-zip-error' : undefined}
-        className={`${INPUT_CLASS} max-w-56`}
+        {...field.inputProps}
+        className={field.inputClassName(`${INPUT_CLASS} max-w-56`)}
       />
       {isLookingUp && (
         <p data-testid="settings-address-zip-loading" className="mt-1.5 text-sm text-gray-500">
@@ -116,7 +126,7 @@ export function PostalCodeField({
           {notFoundLabel}
         </p>
       )}
-      <FieldError id="settings-address-zip-error" message={error} />
+      <FieldFeedback id={field.errorId}>{field.error}</FieldFeedback>
     </div>
   );
 }

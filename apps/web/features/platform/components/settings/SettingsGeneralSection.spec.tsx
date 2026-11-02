@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithIntl } from '@/test-utils';
 import { SettingsGeneralSection } from './SettingsGeneralSection';
+import { settingsFeedback } from './settings-field-feedback.fixture';
 
 describe('SettingsGeneralSection', () => {
   it('renders the name field and the read-only slug', () => {
@@ -11,7 +12,7 @@ describe('SettingsGeneralSection', () => {
       <SettingsGeneralSection
         slug="beloauto"
         name="BeloAuto"
-        nameError={undefined}
+        feedback={settingsFeedback()}
         onNameChange={vi.fn()}
       />,
     );
@@ -29,7 +30,7 @@ describe('SettingsGeneralSection', () => {
       <SettingsGeneralSection
         slug="beloauto"
         name="BeloAuto"
-        nameError={undefined}
+        feedback={settingsFeedback()}
         onNameChange={onNameChange}
       />,
     );
@@ -43,7 +44,7 @@ describe('SettingsGeneralSection', () => {
       <SettingsGeneralSection
         slug="beloauto"
         name="BeloAuto"
-        nameError="Nome inválido"
+        feedback={settingsFeedback({ name: 'Nome inválido' })}
         onNameChange={vi.fn()}
       />,
     );

@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderWithIntl } from '@/test-utils';
 import type { DayHoursValue, WeekDay } from '@/features/platform/settings-form';
 import { SettingsHoursSection } from './SettingsHoursSection';
+import { settingsFeedback } from './settings-field-feedback.fixture';
 
 function buildDays(): Record<WeekDay, DayHoursValue> {
   const open = { open: '08:00', close: '18:00', closed: false };
@@ -22,7 +23,7 @@ function buildDays(): Record<WeekDay, DayHoursValue> {
 function baseProps() {
   return {
     timezone: 'America/Sao_Paulo',
-    timezoneError: undefined,
+    feedback: settingsFeedback(),
     timezones: ['America/Sao_Paulo', 'America/New_York'],
     days: buildDays(),
     timeFormat: '24h' as const,
@@ -59,5 +60,13 @@ describe('SettingsHoursSection', () => {
 
     await user.click(screen.getByRole('checkbox', { name: /Fechado — Domingo/ }));
     expect(props.onDayChange).toHaveBeenCalledWith('sunday', { closed: false });
+  });
+
+  it('marks the timezone select invalid and shows its message', () => {
+    const props = { ...baseProps(), feedback: settingsFeedback({ timezone: 'Fuso inválido' }) };
+    renderWithIntl(<SettingsHoursSection {...props} />);
+
+    expect(screen.getByTestId('settings-timezone-select')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByText('Fuso inválido')).toBeInTheDocument();
   });
 });

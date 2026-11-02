@@ -5,14 +5,13 @@ import { SectionCard } from '@/shared/components/ui/section-card';
 import { SwitchField } from '@/shared/components/ui/switch-field';
 import {
   SLOT_GRANULARITY_OPTIONS,
-  type SettingsFormErrors,
   type SettingsFormValues,
 } from '@/features/platform/settings-form';
-import { SelectField, SuffixNumberField } from './SettingsFormFields';
+import { SelectField, SuffixNumberField, type SettingsFieldFeedback } from './SettingsFormFields';
 
 interface SettingsBookingSectionProps {
   readonly values: SettingsFormValues;
-  readonly fieldErrors: SettingsFormErrors;
+  readonly feedback: SettingsFieldFeedback;
   readonly onFieldChange: <K extends keyof SettingsFormValues>(
     key: K,
     value: SettingsFormValues[K],
@@ -23,13 +22,13 @@ interface SettingsBookingSectionProps {
 // group of booking-policy fields, unrelated to the other SectionCard groups around it.
 export function SettingsBookingSection({
   values,
-  fieldErrors,
+  feedback,
   onFieldChange,
 }: SettingsBookingSectionProps): React.JSX.Element {
   const t = useTranslations('dashboard.settingsPage');
 
   return (
-    <SectionCard title={t('sections.booking')}>
+    <SectionCard size="compact" title={t('sections.booking')}>
       <div className="grid gap-4 md:grid-cols-2">
         <SuffixNumberField
           id="settings-cancellation-window"
@@ -37,7 +36,8 @@ export function SettingsBookingSection({
           hint={t('cancellationHint')}
           suffix={t('hoursSuffix')}
           value={values.cancellationWindowHours}
-          error={fieldErrors.cancellationWindowHours}
+          name="cancellationWindowHours"
+          feedback={feedback}
           onChange={(value) => onFieldChange('cancellationWindowHours', value)}
         />
         <SuffixNumberField
@@ -46,7 +46,8 @@ export function SettingsBookingSection({
           hint={t('bufferHint')}
           suffix={t('minutesSuffix')}
           value={values.serviceBufferMinutes}
-          error={fieldErrors.serviceBufferMinutes}
+          name="serviceBufferMinutes"
+          feedback={feedback}
           onChange={(value) => onFieldChange('serviceBufferMinutes', value)}
         />
       </div>
@@ -64,7 +65,8 @@ export function SettingsBookingSection({
           hint={t('minBookingAdvanceHint')}
           suffix={t('hoursSuffix')}
           value={values.minBookingAdvanceHours}
-          error={fieldErrors.minBookingAdvanceHours}
+          name="minBookingAdvanceHours"
+          feedback={feedback}
           onChange={(value) => onFieldChange('minBookingAdvanceHours', value)}
         />
         <SuffixNumberField
@@ -73,7 +75,8 @@ export function SettingsBookingSection({
           hint={t('maxBookingAdvanceHint')}
           suffix={t('daysSuffix')}
           value={values.maxBookingAdvanceDays}
-          error={fieldErrors.maxBookingAdvanceDays}
+          name="maxBookingAdvanceDays"
+          feedback={feedback}
           onChange={(value) => onFieldChange('maxBookingAdvanceDays', value)}
         />
       </div>
@@ -83,7 +86,8 @@ export function SettingsBookingSection({
           label={t('slotGranularityLabel')}
           hint={t('slotGranularityHint')}
           value={values.slotGranularityMinutes}
-          error={fieldErrors.slotGranularityMinutes}
+          name="slotGranularityMinutes"
+          feedback={feedback}
           options={SLOT_GRANULARITY_OPTIONS.map((minutes) => ({
             value: String(minutes),
             label: t('minutesValue', { minutes }),
@@ -96,7 +100,8 @@ export function SettingsBookingSection({
           hint={t('welcomeStaffScreenHint')}
           suffix={t('daysSuffix')}
           value={values.welcomeStaffScreenDays}
-          error={fieldErrors.welcomeStaffScreenDays}
+          name="welcomeStaffScreenDays"
+          feedback={feedback}
           onChange={(value) => onFieldChange('welcomeStaffScreenDays', value)}
         />
       </div>
@@ -107,7 +112,8 @@ export function SettingsBookingSection({
           hint={t('recurringRenewalReminderHint')}
           suffix={t('daysSuffix')}
           value={values.recurringRenewalReminderDays}
-          error={fieldErrors.recurringRenewalReminderDays}
+          name="recurringRenewalReminderDays"
+          feedback={feedback}
           onChange={(value) => onFieldChange('recurringRenewalReminderDays', value)}
         />
       </div>

@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderWithIntl } from '@/test-utils';
 import type { SettingsFormValues } from '@/features/platform/settings-form';
 import { SettingsBookingSection } from './SettingsBookingSection';
+import { settingsFeedback } from './settings-field-feedback.fixture';
 
 function buildValues(): SettingsFormValues {
   return {
@@ -57,7 +58,7 @@ describe('SettingsBookingSection', () => {
     renderWithIntl(
       <SettingsBookingSection
         values={buildValues()}
-        fieldErrors={{}}
+        feedback={settingsFeedback()}
         onFieldChange={onFieldChange}
       />,
     );
@@ -77,7 +78,7 @@ describe('SettingsBookingSection', () => {
     renderWithIntl(
       <SettingsBookingSection
         values={buildValues()}
-        fieldErrors={{}}
+        feedback={settingsFeedback()}
         onFieldChange={onFieldChange}
       />,
     );
@@ -93,7 +94,9 @@ describe('SettingsBookingSection', () => {
     renderWithIntl(
       <SettingsBookingSection
         values={buildValues()}
-        fieldErrors={{ recurringRenewalReminderDays: 'Informe um valor de 0 a 30 dias.' }}
+        feedback={settingsFeedback({
+          recurringRenewalReminderDays: 'Informe um valor de 0 a 30 dias.',
+        })}
         onFieldChange={vi.fn()}
       />,
     );
@@ -107,7 +110,7 @@ describe('SettingsBookingSection', () => {
     renderWithIntl(
       <SettingsBookingSection
         values={buildValues()}
-        fieldErrors={{}}
+        feedback={settingsFeedback()}
         onFieldChange={onFieldChange}
       />,
     );
@@ -120,7 +123,7 @@ describe('SettingsBookingSection', () => {
     renderWithIntl(
       <SettingsBookingSection
         values={buildValues()}
-        fieldErrors={{ cancellationWindowHours: 'Valor inválido' }}
+        feedback={settingsFeedback({ cancellationWindowHours: 'Valor inválido' })}
         onFieldChange={vi.fn()}
       />,
     );

@@ -1,14 +1,14 @@
 'use client';
 
-import { useCallback, useState, type SubmitEvent } from 'react';
+import { useCallback, useMemo, useState, type SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import type { TenantSettingsResponse } from '@ikaro/types';
 import { renameTenant, updateTenantSettings } from '@/features/platform/api/tenant-settings';
 import type { AddressLookup } from '@/shared/lib/address/address-lookup.port';
 import { viaCepAddressLookup } from '@/shared/lib/address/viacep-address-lookup.adapter';
-import { extractProblemDetailShape } from '@/shared/lib/api/errors';
+import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import {
-  resolveErrorMessage,
+  resolveApiErrorFeedback,
   resolveErrorMessageFromApiError,
 } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
@@ -33,7 +33,17 @@ import { SettingsContactSection } from './SettingsContactSection';
 import { SettingsChatbotSection } from './SettingsChatbotSection';
 import { SettingsLeadFormSection } from './SettingsLeadFormSection';
 import { SettingsLocalizationSection } from './SettingsLocalizationSection';
-import { SettingsDesktopActions, SettingsMobileActionBar } from './SettingsFormActions';
+import { SettingsActionPane } from './SettingsFormActions';
+
+// Backend problem `field` paths that are not the form's own field names. A path absent here is
+// matched against the registered field names as is; anything else becomes the pane message.
+const SERVER_FIELD_TO_FORM_FIELD: Readonly<Record<string, keyof SettingsFormErrors>> = {
+  'chatbot.knowledgeText': 'knowledgeText',
+};
+
+function withoutEmptyErrors(errors: SettingsFormErrors): Record<string, string> {
+  return Object.fromEntries(Object.entries(errors).filter(([, message]) => message));
+}
 
 const COPYABLE_WEEKDAYS = [
   'tuesday',
@@ -61,39 +71,54 @@ export function SettingsForm({
   );
   const [values, setValues] = useState<SettingsFormValues>(() => toSettingsFormValues(initial));
   const [currentName, setCurrentName] = useState(initial.name);
-  const [fieldErrors, setFieldErrors] = useState<SettingsFormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const feedback = useFormFeedback();
+  const { clear: clearFeedback } = feedback;
+
+  // The success card carries a title and a body; the hook's model holds the title only.
+  const paneFeedback = useMemo(
+    () =>
+      feedback.feedback?.variant === 'success'
+        ? { ...feedback.feedback, body: t('successBody') }
+        : feedback.feedback,
+    [feedback.feedback, t],
+  );
 
   const setField = useCallback(
     <K extends keyof SettingsFormValues>(key: K, value: SettingsFormValues[K]): void => {
       setValues((prev) => ({ ...prev, [key]: value }));
-      setSaved(false);
+      clearFeedback();
     },
-    [],
+    [clearFeedback],
   );
 
-  const setAddressField = useCallback((key: keyof SettingsAddressValues, value: string): void => {
-    setValues((prev) => ({ ...prev, address: { ...prev.address, [key]: value } }));
-    setSaved(false);
-  }, []);
+  const setAddressField = useCallback(
+    (key: keyof SettingsAddressValues, value: string): void => {
+      setValues((prev) => ({ ...prev, address: { ...prev.address, [key]: value } }));
+      clearFeedback();
+    },
+    [clearFeedback],
+  );
 
   const setSocialLinksField = useCallback(
     (key: keyof SettingsSocialLinksValues, value: string): void => {
       setValues((prev) => ({ ...prev, socialLinks: { ...prev.socialLinks, [key]: value } }));
-      setSaved(false);
+      clearFeedback();
     },
-    [],
+    [clearFeedback],
   );
 
   // Stable reference — passed directly as DayRow's onChange prop so memoization holds.
-  const setDay = useCallback((day: WeekDay, patch: Partial<DayHoursValue>): void => {
-    setValues((prev) => ({
-      ...prev,
-      days: { ...prev.days, [day]: { ...prev.days[day], ...patch } },
-    }));
-    setSaved(false);
-  }, []);
+  const setDay = useCallback(
+    (day: WeekDay, patch: Partial<DayHoursValue>): void => {
+      setValues((prev) => ({
+        ...prev,
+        days: { ...prev.days, [day]: { ...prev.days[day], ...patch } },
+      }));
+      clearFeedback();
+    },
+    [clearFeedback],
+  );
 
   const handleCopyMondayToWeekdays = useCallback((): void => {
     setValues((prev) => {
@@ -104,8 +129,8 @@ export function SettingsForm({
       }
       return { ...prev, days };
     });
-    setSaved(false);
-  }, []);
+    clearFeedback();
+  }, [clearFeedback]);
 
   const { isLookingUpZip, zipLookupFailed, handleZipCodeChange } = useSettingsZipLookup({
     addressSpec,
@@ -116,15 +141,17 @@ export function SettingsForm({
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    setSaved(false);
+    clearFeedback();
 
     const { errors, normalized } = validateSettingsForm(
       values,
       initial.settings.localization.countryCode,
       t,
     );
-    setFieldErrors(errors);
-    if (!normalized) return;
+    if (!normalized) {
+      feedback.setFieldErrors(withoutEmptyErrors(errors));
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -132,14 +159,14 @@ export function SettingsForm({
     } catch (err) {
       // chatbot.knowledgeText is the only settings field validated purely server-side (no
       // client-side length cap, since the resolved max can be a per-tenant Ikaro-only override
-      // never exposed to this form) — its error is shown inline under the field, matching every
-      // other field-level validation error, instead of the generic submit banner used for every
-      // other API failure in this form (e.g. the rename partial-failure case below).
-      const shape = extractProblemDetailShape(err);
-      if (shape?.field === 'chatbot.knowledgeText') {
-        setFieldErrors({ knowledgeText: resolveErrorMessage(shape.code, locale) });
+      // never exposed to this form), and its backend path differs from the input's name.
+      const { message, field } = resolveApiErrorFeedback(err, locale);
+      const formField = field ? SERVER_FIELD_TO_FORM_FIELD[field] : undefined;
+      if (formField) {
+        feedback.setError(message);
+        feedback.setFieldErrors({ [formField]: message });
       } else {
-        setFieldErrors({ submit: resolveErrorMessageFromApiError(err, locale) });
+        feedback.setFromApiError(err, locale);
       }
       setIsSubmitting(false);
       return;
@@ -150,83 +177,43 @@ export function SettingsForm({
     // a blanket "nothing was saved" message. The translation string carries that
     // partial-success fact (which no error code could convey) around a `{reason}`
     // placeholder — not string concatenation, which would hardcode word order and break in
-    // languages that need the dynamic text placed somewhere other than the end.
+    // languages that need the dynamic text placed somewhere other than the end. The pane holds
+    // one message, so it shows this error (no success card) and the name input carries the reason.
     if (normalized.name !== currentName) {
       try {
         await renameTenant({ name: normalized.name });
         setCurrentName(normalized.name);
       } catch (err) {
-        setSaved(true);
-        setFieldErrors({
-          submit: t('errors.renamePartialFailure', {
-            reason: resolveErrorMessageFromApiError(err, locale),
-          }),
-        });
-        globalThis.scrollTo?.({ top: 0, behavior: 'smooth' });
+        const reason = resolveErrorMessageFromApiError(err, locale);
+        feedback.setError(t('errors.renamePartialFailure', { reason }));
+        feedback.setFieldErrors({ name: reason });
         setIsSubmitting(false);
         return;
       }
     }
 
-    setSaved(true);
-    globalThis.scrollTo?.({ top: 0, behavior: 'smooth' });
+    feedback.setSuccess(t('successTitle'));
     setIsSubmitting(false);
   }
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-4 pb-28 lg:space-y-6 lg:pb-0">
-      {saved && (
-        <output
-          data-testid="settings-saved-banner"
-          className="flex items-start gap-3.5 rounded-xl border border-green-300 bg-green-50 p-4"
-        >
-          <span
-            aria-hidden="true"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-600 text-white"
-          >
-            ✓
-          </span>
-          <span>
-            <span className="block text-sm font-bold text-green-800">{t('successTitle')}</span>
-            <span className="mt-0.5 block text-sm text-green-700">{t('successBody')}</span>
-          </span>
-        </output>
-      )}
-
-      {fieldErrors.submit && (
-        <div
-          role="alert"
-          data-testid="settings-submit-error"
-          className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm font-semibold text-red-700"
-        >
-          {fieldErrors.submit}
-        </div>
-      )}
-
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         <div className="space-y-4 lg:space-y-6">
           <SettingsGeneralSection
             slug={initial.slug}
             name={values.name}
-            nameError={fieldErrors.name}
+            feedback={feedback}
             onNameChange={(value) => setField('name', value)}
           />
 
-          <SettingsBookingSection
-            values={values}
-            fieldErrors={fieldErrors}
-            onFieldChange={setField}
-          />
+          <SettingsBookingSection values={values} feedback={feedback} onFieldChange={setField} />
 
-          <SettingsLoyaltySection
-            values={values}
-            fieldErrors={fieldErrors}
-            onFieldChange={setField}
-          />
+          <SettingsLoyaltySection values={values} feedback={feedback} onFieldChange={setField} />
 
           <SettingsHoursSection
             timezone={values.timezone}
-            timezoneError={fieldErrors.timezone}
+            feedback={feedback}
             timezones={timezones}
             days={values.days}
             timeFormat={timeFormat}
@@ -237,7 +224,7 @@ export function SettingsForm({
 
           <SettingsContactSection
             values={values}
-            fieldErrors={fieldErrors}
+            feedback={feedback}
             addressSpec={addressSpec}
             phonePrefix={phonePrefix}
             isLookingUpZip={isLookingUpZip}
@@ -252,15 +239,11 @@ export function SettingsForm({
 
           <SettingsChatbotSection
             knowledgeText={values.knowledgeText}
-            knowledgeTextError={fieldErrors.knowledgeText}
+            feedback={feedback}
             onChange={(value) => setField('knowledgeText', value)}
           />
 
-          <SettingsLeadFormSection
-            values={values}
-            fieldErrors={fieldErrors}
-            onFieldChange={setField}
-          />
+          <SettingsLeadFormSection values={values} feedback={feedback} onFieldChange={setField} />
 
           <SettingsLocalizationSection
             countryCode={initial.settings.localization.countryCode}
@@ -269,10 +252,8 @@ export function SettingsForm({
           />
         </div>
 
-        <SettingsDesktopActions isSubmitting={isSubmitting} />
+        <SettingsActionPane isSubmitting={isSubmitting} feedback={paneFeedback} />
       </div>
-
-      <SettingsMobileActionBar isSubmitting={isSubmitting} />
     </form>
   );
 }

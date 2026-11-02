@@ -3,12 +3,18 @@
 import { useTranslations } from 'next-intl';
 import { SectionCard } from '@/shared/components/ui/section-card';
 import { SwitchField } from '@/shared/components/ui/switch-field';
-import type { SettingsFormErrors, SettingsFormValues } from '@/features/platform/settings-form';
-import { FieldError, INPUT_CLASS, SuffixNumberField } from './SettingsFormFields';
+import { FieldFeedback } from '@/shared/components/ui/field-feedback';
+import type { SettingsFormValues } from '@/features/platform/settings-form';
+import {
+  INPUT_CLASS,
+  SuffixNumberField,
+  settingsFieldWiring,
+  type SettingsFieldFeedback,
+} from './SettingsFormFields';
 
 interface SettingsLoyaltySectionProps {
   readonly values: SettingsFormValues;
-  readonly fieldErrors: SettingsFormErrors;
+  readonly feedback: SettingsFieldFeedback;
   readonly onFieldChange: <K extends keyof SettingsFormValues>(
     key: K,
     value: SettingsFormValues[K],
@@ -19,13 +25,25 @@ interface SettingsLoyaltySectionProps {
 // group of loyalty-policy fields, unrelated to the other SectionCard groups around it.
 export function SettingsLoyaltySection({
   values,
-  fieldErrors,
+  feedback,
   onFieldChange,
 }: SettingsLoyaltySectionProps): React.JSX.Element {
   const t = useTranslations('dashboard.settingsPage');
+  const points = settingsFieldWiring(
+    feedback,
+    'pointsPerCurrencyUnit',
+    'settings-points-per-unit',
+    t('pointsHint'),
+  );
+  const minPoints = settingsFieldWiring(
+    feedback,
+    'loyaltyNotificationMinPoints',
+    'settings-loyalty-notification-min-points',
+    t('notificationMinPointsHint'),
+  );
 
   return (
-    <SectionCard title={t('sections.loyalty')}>
+    <SectionCard size="compact" title={t('sections.loyalty')}>
       <div className="grid gap-4 md:grid-cols-2">
         <SuffixNumberField
           id="settings-loyalty-expiry"
@@ -33,7 +51,8 @@ export function SettingsLoyaltySection({
           hint={t('expiryHint')}
           suffix={t('daysSuffix')}
           value={values.loyaltyExpiryDays}
-          error={fieldErrors.loyaltyExpiryDays}
+          name="loyaltyExpiryDays"
+          feedback={feedback}
           onChange={(value) => onFieldChange('loyaltyExpiryDays', value)}
         />
         <div>
@@ -52,19 +71,15 @@ export function SettingsLoyaltySection({
             max={10000}
             value={values.pointsPerCurrencyUnit}
             onChange={(event) => onFieldChange('pointsPerCurrencyUnit', event.target.value)}
-            aria-invalid={Boolean(fieldErrors.pointsPerCurrencyUnit)}
-            aria-describedby={
-              fieldErrors.pointsPerCurrencyUnit ? 'settings-points-per-unit-error' : undefined
-            }
-            className={`${INPUT_CLASS} max-w-56`}
+            {...points.inputProps}
+            className={points.inputClassName(`${INPUT_CLASS} max-w-56`)}
           />
-          {!fieldErrors.pointsPerCurrencyUnit && (
-            <p className="mt-1.5 text-sm text-gray-500">{t('pointsHint')}</p>
+          {!points.error && (
+            <p id={points.hintId} className="mt-1.5 text-sm text-gray-500">
+              {t('pointsHint')}
+            </p>
           )}
-          <FieldError
-            id="settings-points-per-unit-error"
-            message={fieldErrors.pointsPerCurrencyUnit}
-          />
+          <FieldFeedback id={points.errorId}>{points.error}</FieldFeedback>
         </div>
       </div>
       <SwitchField
@@ -81,7 +96,8 @@ export function SettingsLoyaltySection({
           hint={t('expiryWarningHint')}
           suffix={t('daysSuffix')}
           value={values.loyaltyExpiryWarningDays}
-          error={fieldErrors.loyaltyExpiryWarningDays}
+          name="loyaltyExpiryWarningDays"
+          feedback={feedback}
           onChange={(value) => onFieldChange('loyaltyExpiryWarningDays', value)}
         />
         <div>
@@ -100,21 +116,15 @@ export function SettingsLoyaltySection({
             max={10000}
             value={values.loyaltyNotificationMinPoints}
             onChange={(event) => onFieldChange('loyaltyNotificationMinPoints', event.target.value)}
-            aria-invalid={Boolean(fieldErrors.loyaltyNotificationMinPoints)}
-            aria-describedby={
-              fieldErrors.loyaltyNotificationMinPoints
-                ? 'settings-loyalty-notification-min-points-error'
-                : undefined
-            }
-            className={`${INPUT_CLASS} max-w-56`}
+            {...minPoints.inputProps}
+            className={minPoints.inputClassName(`${INPUT_CLASS} max-w-56`)}
           />
-          {!fieldErrors.loyaltyNotificationMinPoints && (
-            <p className="mt-1.5 text-sm text-gray-500">{t('notificationMinPointsHint')}</p>
+          {!minPoints.error && (
+            <p id={minPoints.hintId} className="mt-1.5 text-sm text-gray-500">
+              {t('notificationMinPointsHint')}
+            </p>
           )}
-          <FieldError
-            id="settings-loyalty-notification-min-points-error"
-            message={fieldErrors.loyaltyNotificationMinPoints}
-          />
+          <FieldFeedback id={minPoints.errorId}>{minPoints.error}</FieldFeedback>
         </div>
       </div>
     </SectionCard>

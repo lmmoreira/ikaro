@@ -5,16 +5,15 @@ import type { AddressSpec } from '@ikaro/i18n';
 import { SectionCard } from '@/shared/components/ui/section-card';
 import type {
   SettingsAddressValues,
-  SettingsFormErrors,
   SettingsFormValues,
   SettingsSocialLinksValues,
 } from '@/features/platform/settings-form';
-import { TextField } from './SettingsFormFields';
+import { TextField, type SettingsFieldFeedback } from './SettingsFormFields';
 import { PhoneField, PostalCodeField, addressSpecFieldLabel } from './SettingsFormAdvancedFields';
 
 interface SettingsContactSectionProps {
   readonly values: SettingsFormValues;
-  readonly fieldErrors: SettingsFormErrors;
+  readonly feedback: SettingsFieldFeedback;
   readonly addressSpec: AddressSpec;
   readonly phonePrefix: string;
   readonly isLookingUpZip: boolean;
@@ -33,7 +32,7 @@ interface SettingsContactSectionProps {
 // around it.
 export function SettingsContactSection({
   values,
-  fieldErrors,
+  feedback,
   addressSpec,
   phonePrefix,
   isLookingUpZip,
@@ -46,7 +45,7 @@ export function SettingsContactSection({
   const t = useTranslations('dashboard.settingsPage');
 
   return (
-    <SectionCard title={t('sections.contact')}>
+    <SectionCard size="compact" title={t('sections.contact')}>
       <div className="grid gap-4 md:grid-cols-2">
         <PhoneField
           id="settings-phone"
@@ -54,7 +53,8 @@ export function SettingsContactSection({
           label={t('phoneLabel')}
           value={values.phone}
           phonePrefix={phonePrefix}
-          error={fieldErrors.phone}
+          name="phone"
+          feedback={feedback}
           onChange={(localDigits) => onFieldChange('phone', localDigits)}
         />
         <TextField
@@ -62,7 +62,8 @@ export function SettingsContactSection({
           label={t('emailLabel')}
           type="email"
           value={values.email}
-          error={fieldErrors.email}
+          name="email"
+          feedback={feedback}
           placeholder={t('emailPlaceholder')}
           hint={t('emailHint')}
           onChange={(value) => onFieldChange('email', value)}
@@ -76,7 +77,7 @@ export function SettingsContactSection({
             label={addressSpec.postalLabel}
             value={values.address.zipCode}
             postalPlaceholder={addressSpec.postalPlaceholder}
-            error={fieldErrors.addressZipCode}
+            feedback={feedback}
             isLookingUp={isLookingUpZip}
             lookupFailed={zipLookupFailed}
             searchingLabel={t('addressZipSearching')}
@@ -87,7 +88,8 @@ export function SettingsContactSection({
             id="settings-address-number"
             label={addressSpecFieldLabel(addressSpec, 'number')}
             value={values.address.number}
-            error={fieldErrors.addressNumber}
+            name="addressNumber"
+            feedback={feedback}
             onChange={(value) => onAddressFieldChange('number', value)}
           />
         </div>
@@ -95,12 +97,15 @@ export function SettingsContactSection({
           id="settings-address-street"
           label={addressSpecFieldLabel(addressSpec, 'street')}
           value={values.address.street}
-          error={fieldErrors.addressStreet}
+          name="addressStreet"
+          feedback={feedback}
           onChange={(value) => onAddressFieldChange('street', value)}
         />
         <div className="grid gap-4 md:grid-cols-2">
           <TextField
             id="settings-address-complement"
+            name="addressComplement"
+            feedback={feedback}
             label={addressSpecFieldLabel(addressSpec, 'complement')}
             value={values.address.complement}
             onChange={(value) => onAddressFieldChange('complement', value)}
@@ -110,7 +115,8 @@ export function SettingsContactSection({
               id="settings-address-neighborhood"
               label={addressSpecFieldLabel(addressSpec, 'neighborhood')}
               value={values.address.neighborhood}
-              error={fieldErrors.addressNeighborhood}
+              name="addressNeighborhood"
+              feedback={feedback}
               onChange={(value) => onAddressFieldChange('neighborhood', value)}
             />
           )}
@@ -120,7 +126,8 @@ export function SettingsContactSection({
             id="settings-address-city"
             label={addressSpecFieldLabel(addressSpec, 'city')}
             value={values.address.city}
-            error={fieldErrors.addressCity}
+            name="addressCity"
+            feedback={feedback}
             onChange={(value) => onAddressFieldChange('city', value)}
           />
           <TextField
@@ -128,7 +135,8 @@ export function SettingsContactSection({
             label={addressSpecFieldLabel(addressSpec, 'state')}
             maxLength={addressSpec.stateMaxLen ?? undefined}
             value={values.address.state}
-            error={fieldErrors.addressState}
+            name="addressState"
+            feedback={feedback}
             onChange={(value) => onAddressFieldChange('state', value)}
           />
         </div>
@@ -142,11 +150,14 @@ export function SettingsContactSection({
             label={t('socialLinksWhatsappLabel')}
             value={values.socialLinks.whatsapp}
             phonePrefix={phonePrefix}
-            error={fieldErrors.socialLinksWhatsapp}
+            name="socialLinksWhatsapp"
+            feedback={feedback}
             onChange={(localDigits) => onSocialLinksFieldChange('whatsapp', localDigits)}
           />
           <TextField
             id="settings-social-instagram"
+            name="socialLinksInstagram"
+            feedback={feedback}
             label={t('socialLinksInstagramLabel')}
             type="url"
             value={values.socialLinks.instagram}
@@ -155,6 +166,8 @@ export function SettingsContactSection({
           />
           <TextField
             id="settings-social-facebook"
+            name="socialLinksFacebook"
+            feedback={feedback}
             label={t('socialLinksFacebookLabel')}
             type="url"
             value={values.socialLinks.facebook}

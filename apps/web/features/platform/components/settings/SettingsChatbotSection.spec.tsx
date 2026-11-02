@@ -4,13 +4,14 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithIntl } from '@/test-utils';
 import { SettingsChatbotSection } from './SettingsChatbotSection';
+import { settingsFeedback } from './settings-field-feedback.fixture';
 
 describe('SettingsChatbotSection', () => {
   it('renders the knowledge text field pre-filled with the initial value', () => {
     renderWithIntl(
       <SettingsChatbotSection
         knowledgeText="Aceitamos Pix e cartão."
-        knowledgeTextError={undefined}
+        feedback={settingsFeedback()}
         onChange={vi.fn()}
       />,
     );
@@ -22,11 +23,7 @@ describe('SettingsChatbotSection', () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     renderWithIntl(
-      <SettingsChatbotSection
-        knowledgeText=""
-        knowledgeTextError={undefined}
-        onChange={onChange}
-      />,
+      <SettingsChatbotSection knowledgeText="" feedback={settingsFeedback()} onChange={onChange} />,
     );
 
     const field = screen.getByLabelText('Sobre o seu negócio');
@@ -40,7 +37,10 @@ describe('SettingsChatbotSection', () => {
     renderWithIntl(
       <SettingsChatbotSection
         knowledgeText={'a'.repeat(4001)}
-        knowledgeTextError="O texto de conhecimento do assistente excede o limite de caracteres permitido."
+        feedback={settingsFeedback({
+          knowledgeText:
+            'O texto de conhecimento do assistente excede o limite de caracteres permitido.',
+        })}
         onChange={vi.fn()}
       />,
     );
@@ -55,7 +55,7 @@ describe('SettingsChatbotSection', () => {
 
   it('renders the caps-elsewhere advisory note', () => {
     renderWithIntl(
-      <SettingsChatbotSection knowledgeText="" knowledgeTextError={undefined} onChange={vi.fn()} />,
+      <SettingsChatbotSection knowledgeText="" feedback={settingsFeedback()} onChange={vi.fn()} />,
     );
 
     expect(screen.getByText(/não aparecem neste formulário/)).toBeInTheDocument();

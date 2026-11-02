@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderWithIntl } from '@/test-utils';
 import type { SettingsFormValues } from '@/features/platform/settings-form';
 import { SettingsLeadFormSection } from './SettingsLeadFormSection';
+import { settingsFeedback } from './settings-field-feedback.fixture';
 
 function buildValues(overrides?: Partial<SettingsFormValues>): SettingsFormValues {
   return {
@@ -54,7 +55,11 @@ function buildValues(overrides?: Partial<SettingsFormValues>): SettingsFormValue
 describe('SettingsLeadFormSection', () => {
   it('renders all three fields with their current values', () => {
     renderWithIntl(
-      <SettingsLeadFormSection values={buildValues()} fieldErrors={{}} onFieldChange={vi.fn()} />,
+      <SettingsLeadFormSection
+        values={buildValues()}
+        feedback={settingsFeedback()}
+        onFieldChange={vi.fn()}
+      />,
     );
 
     expect(screen.getByTestId('settings-lead-form-retention-months')).toHaveValue(6);
@@ -67,7 +72,7 @@ describe('SettingsLeadFormSection', () => {
     renderWithIntl(
       <SettingsLeadFormSection
         values={buildValues()}
-        fieldErrors={{}}
+        feedback={settingsFeedback()}
         onFieldChange={onFieldChange}
       />,
     );
@@ -92,7 +97,9 @@ describe('SettingsLeadFormSection', () => {
     renderWithIntl(
       <SettingsLeadFormSection
         values={buildValues({ retentionMonths: '30' })}
-        fieldErrors={{ retentionMonths: 'A retenção deve estar entre 1 e 24 meses.' }}
+        feedback={settingsFeedback({
+          retentionMonths: 'A retenção deve estar entre 1 e 24 meses.',
+        })}
         onFieldChange={vi.fn()}
       />,
     );
@@ -104,9 +111,9 @@ describe('SettingsLeadFormSection', () => {
     renderWithIntl(
       <SettingsLeadFormSection
         values={buildValues()}
-        fieldErrors={{
+        feedback={settingsFeedback({
           maxSubmissionsPerDay: 'O limite diário de envios deve estar entre 1 e 1000.',
-        }}
+        })}
         onFieldChange={vi.fn()}
       />,
     );
@@ -114,8 +121,12 @@ describe('SettingsLeadFormSection', () => {
     expect(
       screen.getByText('O limite diário de envios deve estar entre 1 e 1000.'),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByTestId('settings-lead-form-retention-months-error'),
-    ).not.toBeInTheDocument();
+    expect(screen.getByTestId('settings-lead-form-retention-months')).not.toHaveAttribute(
+      'aria-invalid',
+    );
+    expect(screen.getByTestId('settings-lead-form-max-submissions-per-day')).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
   });
 });

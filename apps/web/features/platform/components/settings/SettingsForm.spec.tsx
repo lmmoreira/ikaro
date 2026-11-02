@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TenantSettingsResponse } from '@ikaro/types';
@@ -189,6 +189,9 @@ describe('SettingsForm', () => {
     await user.click(screen.getByTestId('settings-submit-desktop'));
 
     expect(screen.getByText('O valor máximo é 720 horas (30 dias).')).toBeInTheDocument();
+    expect(field).toHaveAttribute('aria-invalid', 'true');
+    expect(field).toHaveFocus();
+    expect(screen.queryByTestId('form-feedback')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Nome do estabelecimento *')).toHaveValue('BeloAuto Demo');
     expect(screen.getByLabelText('Buffer entre agendamentos')).toHaveValue(60);
     expect(mockUpdateTenantSettings).not.toHaveBeenCalled();
@@ -225,27 +228,37 @@ describe('SettingsForm', () => {
     expect(mockUpdateTenantSettings).not.toHaveBeenCalled();
   });
 
-  it('shows the success banner and stays on the page after a save', async () => {
+  it('shows the success under the buttons, as a status, and stays on the page after a save', async () => {
+    const scrollTo = vi.spyOn(globalThis, 'scrollTo').mockImplementation(() => undefined);
     const user = userEvent.setup();
     renderWithIntl(<SettingsForm initial={buildTenant()} />);
 
     await user.click(screen.getByTestId('settings-submit-desktop'));
 
-    expect(await screen.findByTestId('settings-saved-banner')).toBeInTheDocument();
-    expect(screen.getByText('Configurações salvas!')).toBeInTheDocument();
+    const feedback = await screen.findByTestId('form-feedback');
+    expect(feedback.tagName).toBe('OUTPUT');
+    expect(feedback).toHaveTextContent('Configurações salvas!');
+    expect(feedback).toHaveTextContent('As alterações foram aplicadas.');
+    expect(within(screen.getByTestId('action-pane-desktop')).getByTestId('form-feedback')).toBe(
+      feedback,
+    );
     expect(mockRenameTenant).not.toHaveBeenCalled();
+    // The pane is sticky, so the old banner and its scroll-to-top are gone.
+    expect(screen.queryByTestId('settings-saved-banner')).not.toBeInTheDocument();
+    expect(scrollTo).not.toHaveBeenCalled();
+    scrollTo.mockRestore();
   });
 
-  it('hides the success banner again once the user edits a field after saving', async () => {
+  it('clears the success again once the user edits a field after saving', async () => {
     const user = userEvent.setup();
     renderWithIntl(<SettingsForm initial={buildTenant()} />);
 
     await user.click(screen.getByTestId('settings-submit-desktop'));
-    expect(await screen.findByTestId('settings-saved-banner')).toBeInTheDocument();
+    expect(await screen.findByTestId('form-feedback')).toBeInTheDocument();
 
     await user.type(screen.getByLabelText('Buffer entre agendamentos'), '1');
 
-    expect(screen.queryByTestId('settings-saved-banner')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('form-feedback')).not.toBeInTheDocument();
   });
 
   it('reports a partial-failure when settings save but the rename fails, with the specific reason', async () => {
@@ -260,10 +273,16 @@ describe('SettingsForm', () => {
     await user.type(name, 'Novo Nome');
     await user.click(screen.getByTestId('settings-submit-desktop'));
 
-    expect(await screen.findByTestId('settings-saved-banner')).toBeInTheDocument();
-    expect(screen.getByTestId('settings-submit-error')).toHaveTextContent(
+    const feedback = await screen.findByTestId('form-feedback');
+    expect(feedback).toHaveAttribute('role', 'alert');
+    expect(feedback).toHaveTextContent(
       'As configurações foram salvas, mas não foi possível renomear o estabelecimento: Estabelecimento não encontrado.',
     );
+    // One message at a time: no success card next to the error, and the name carries the reason.
+    expect(feedback).not.toHaveTextContent('Configurações salvas!');
+    expect(name).toHaveAttribute('aria-invalid', 'true');
+    expect(name).toHaveFocus();
+    expect(screen.getByText('Estabelecimento não encontrado.')).toBeInTheDocument();
   });
 
   it('calls renameTenant only when the name changed', async () => {
@@ -275,7 +294,7 @@ describe('SettingsForm', () => {
     await user.type(name, 'Novo Nome');
     await user.click(screen.getByTestId('settings-submit-desktop'));
 
-    expect(await screen.findByTestId('settings-saved-banner')).toBeInTheDocument();
+    expect(await screen.findByTestId('form-feedback')).toHaveTextContent('Configurações salvas!');
     expect(mockRenameTenant).toHaveBeenCalledWith({ name: 'Novo Nome' });
   });
 
@@ -286,10 +305,26 @@ describe('SettingsForm', () => {
 
     await user.click(screen.getByTestId('settings-submit-desktop'));
 
-    expect(await screen.findByTestId('settings-submit-error')).toHaveTextContent(
-      'Algo deu errado. Tente novamente.',
-    );
+    const feedback = await screen.findByTestId('form-feedback');
+    expect(feedback).toHaveAttribute('role', 'alert');
+    expect(feedback).toHaveTextContent('Algo deu errado. Tente novamente.');
+    expect(screen.queryByTestId('settings-submit-error')).not.toBeInTheDocument();
     expect(screen.queryByTestId('settings-saved-banner')).not.toBeInTheDocument();
+  });
+
+  it('falls back to the pane message when the server field is not one of the form inputs', async () => {
+    mockUpdateTenantSettings.mockRejectedValueOnce(
+      new ApiError(422, 'Invalid', { code: 'PLATFORM_TENANT_INACTIVE', field: 'settings.unknown' }),
+    );
+    const user = userEvent.setup();
+    renderWithIntl(<SettingsForm initial={buildTenant()} />);
+
+    await user.click(screen.getByTestId('settings-submit-desktop'));
+
+    expect(await screen.findByTestId('form-feedback')).toHaveTextContent(
+      'Este estabelecimento está inativo e não pode ser modificado.',
+    );
+    expect(document.querySelector('[aria-invalid="true"]')).toBeNull();
   });
 
   it('shows the specific translated message when the server rejects the save with a known code', async () => {
@@ -301,7 +336,7 @@ describe('SettingsForm', () => {
 
     await user.click(screen.getByTestId('settings-submit-desktop'));
 
-    expect(await screen.findByTestId('settings-submit-error')).toHaveTextContent(
+    expect(await screen.findByTestId('form-feedback')).toHaveTextContent(
       'Este estabelecimento está inativo e não pode ser modificado.',
     );
   });
@@ -320,7 +355,7 @@ describe('SettingsForm', () => {
 
     await user.click(screen.getByTestId('settings-submit-desktop'));
 
-    expect(await screen.findByTestId('settings-saved-banner')).toBeInTheDocument();
+    expect(await screen.findByTestId('form-feedback')).toBeInTheDocument();
     expect(mockUpdateTenantSettings).toHaveBeenCalledWith(
       expect.objectContaining({
         settings: expect.objectContaining({
@@ -448,7 +483,7 @@ describe('SettingsForm', () => {
     expect(screen.queryByLabelText('E-mail de envio das notificações')).not.toBeInTheDocument();
 
     await user.click(screen.getByTestId('settings-submit-desktop'));
-    expect(await screen.findByTestId('settings-saved-banner')).toBeInTheDocument();
+    expect(await screen.findByTestId('form-feedback')).toBeInTheDocument();
     expect(mockUpdateTenantSettings).toHaveBeenCalledTimes(1);
     const payload = mockUpdateTenantSettings.mock.calls[0][0] as { settings: object };
     expect(payload.settings).not.toHaveProperty('notification');
@@ -471,7 +506,7 @@ describe('SettingsForm', () => {
     await user.type(field, 'Não atendemos por ordem de chegada.');
     await user.click(screen.getByTestId('settings-submit-desktop'));
 
-    expect(await screen.findByTestId('settings-saved-banner')).toBeInTheDocument();
+    expect(await screen.findByTestId('form-feedback')).toBeInTheDocument();
     expect(mockUpdateTenantSettings).toHaveBeenCalledWith(
       expect.objectContaining({
         settings: expect.objectContaining({
@@ -481,7 +516,7 @@ describe('SettingsForm', () => {
     );
   });
 
-  it('shows the knowledge-text-too-long error inline under the field, not as the generic submit banner', async () => {
+  it('marks and focuses the knowledge text input for the server error, mapped from its backend path', async () => {
     mockUpdateTenantSettings.mockRejectedValueOnce(
       new ApiError(400, 'Bad request', {
         code: 'PLATFORM_SETTINGS_CHATBOT_KNOWLEDGE_TEXT_TOO_LONG',
@@ -493,11 +528,13 @@ describe('SettingsForm', () => {
 
     await user.click(screen.getByTestId('settings-submit-desktop'));
 
-    expect(
-      await screen.findByText(
-        'O texto de conhecimento do assistente excede o limite de caracteres permitido.',
-      ),
-    ).toBeInTheDocument();
+    const message =
+      'O texto de conhecimento do assistente excede o limite de caracteres permitido.';
+    expect(await screen.findByTestId('form-feedback')).toHaveTextContent(message);
+    const knowledge = screen.getByTestId('settings-chatbot-knowledge-text');
+    expect(knowledge).toHaveAttribute('aria-invalid', 'true');
+    expect(knowledge).toHaveFocus();
+    expect(within(knowledge.parentElement as HTMLElement).getByText(message)).toBeInTheDocument();
     expect(screen.queryByTestId('settings-submit-error')).not.toBeInTheDocument();
     expect(screen.queryByTestId('settings-saved-banner')).not.toBeInTheDocument();
   });
@@ -507,7 +544,7 @@ describe('SettingsForm', () => {
     renderWithIntl(<SettingsForm initial={buildTenant()} />);
 
     await user.click(screen.getByTestId('settings-submit-desktop'));
-    expect(await screen.findByTestId('settings-saved-banner')).toBeInTheDocument();
+    expect(await screen.findByTestId('form-feedback')).toBeInTheDocument();
     expect(mockUpdateTenantSettings).toHaveBeenLastCalledWith(
       expect.objectContaining({
         settings: expect.objectContaining({
