@@ -578,6 +578,38 @@ describe('ServiceEditPage', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
+  it('drops the created success when another tab is edited, and it stays gone back on Detalhes', async () => {
+    const user = userEvent.setup();
+    const { container } = renderWithIntl(
+      <ServiceEditPage service={service} intakeSchema={intakeSchema} justCreated />,
+    );
+    expect(screen.getAllByRole('status').length).toBeGreaterThan(0);
+
+    await user.click(getTabButton(container, 'recursos'));
+    await user.clear(screen.getByTestId('resource-buffer-input'));
+    await user.type(screen.getByTestId('resource-buffer-input'), '45');
+    await user.click(getTabButton(container, 'detalhes'));
+
+    expect(screen.queryByText('Serviço criado!')).not.toBeInTheDocument();
+  });
+
+  it('drops the created success when another tab is saved without an edit', async () => {
+    const user = userEvent.setup();
+    const { container } = renderWithIntl(
+      <ServiceEditPage service={service} intakeSchema={intakeSchema} justCreated />,
+    );
+    expect(screen.getAllByRole('status').length).toBeGreaterThan(0);
+
+    await user.click(getTabButton(container, 'politicas'));
+    await user.click(screen.getByTestId('service-desktop-tab-action'));
+    expect(await screen.findByTestId('form-feedback')).toHaveTextContent(
+      'As políticas do serviço foram atualizadas.',
+    );
+    await user.click(getTabButton(container, 'detalhes'));
+
+    expect(screen.queryByText('Serviço criado!')).not.toBeInTheDocument();
+  });
+
   it('shows no created success without the query flag', () => {
     renderWithIntl(<ServiceEditPage service={service} intakeSchema={intakeSchema} />);
 

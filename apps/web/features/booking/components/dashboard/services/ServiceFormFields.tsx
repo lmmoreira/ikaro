@@ -19,7 +19,7 @@ interface ServiceFormFieldsProps {
   readonly loyaltyPointsValue: string;
   readonly requiresPickupAddress: boolean;
   // The form's feedback owner: its field registry marks and focuses the input a client check or
-  // the backend's `field` points at (TD57-S13).
+  // the backend's `field` points at.
   readonly feedback: Pick<
     ReturnType<typeof useFormFeedback>,
     'fieldProps' | 'fieldErrors' | 'fieldErrorId'

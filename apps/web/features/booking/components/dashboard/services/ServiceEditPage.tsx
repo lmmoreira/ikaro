@@ -79,7 +79,6 @@ export function ServiceEditPage({
   function markDetalhesDirty(): void {
     detalhesEditRevisionRef.current += 1;
     form.clear();
-    created.dismiss();
     setTabDirty('detalhes', true);
   }
 
@@ -87,7 +86,10 @@ export function ServiceEditPage({
     setTopbarServiceStatus?.(isActive ? 'ACTIVE' : 'INACTIVE');
   }, [isActive, setTopbarServiceStatus]);
 
+  // Every tab reports an edit with `true` and a successful save with `false`, so any report
+  // means the user acted after landing here: the created notice has served its purpose.
   function setTabDirty(tab: ServiceEditTabKey, value: boolean): void {
+    created.dismiss();
     setDirty((current) => (current[tab] === value ? current : { ...current, [tab]: value }));
   }
 
