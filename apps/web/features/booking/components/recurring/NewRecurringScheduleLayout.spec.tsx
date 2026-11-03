@@ -20,6 +20,16 @@ describe('NewRecurringScheduleLayout', () => {
     expect(within(desktop).getByRole('button', { name: 'Go' })).toBeInTheDocument();
   });
 
+  it('reserves room below the content for the tallest mobile bar (aside plus two stacked links)', () => {
+    render(
+      <NewRecurringScheduleLayout testId="screen" pane={<button type="button">Go</button>}>
+        <p>content</p>
+      </NewRecurringScheduleLayout>,
+    );
+
+    expect(screen.getByTestId('screen')).toHaveClass('pb-56', 'lg:pb-0');
+  });
+
   it('puts the aside text above the pane buttons', () => {
     render(
       <ActionPane aside="Nothing is reserved yet.">

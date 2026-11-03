@@ -22,7 +22,8 @@ export function NewRecurringScheduleLayout({
   feedback = null,
 }: NewRecurringScheduleLayoutProps): React.JSX.Element {
   return (
-    <div className="w-full pb-40 lg:pb-0" data-testid={testId}>
+    // pb-56: the mobile bar carries the aside (it can wrap to three lines at 320px) above two stacked links.
+    <div className="w-full pb-56 lg:pb-0" data-testid={testId}>
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-6">
         <div className="flex flex-col gap-4">{children}</div>
         <SharedActionPane actions={pane} feedback={feedback} />
