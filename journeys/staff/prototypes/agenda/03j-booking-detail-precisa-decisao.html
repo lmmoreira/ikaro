@@ -252,8 +252,11 @@
               </div>
             </div>
 
-            <p class="detail-section-label" style="margin-top: 0;">Cliente</p>
-            <div class="card" style="display: flex; align-items: center; gap: 0.875rem; margin-bottom: 1.25rem;">
+            <!-- TD57-S12: the heading lives INSIDE the first card (same 1.25rem padding and heading style as the action pane),
+                 so the first box starts level with the pane's card. -->
+            <div class="card" style="padding: 1.25rem; margin-bottom: 1.25rem;">
+              <p style="font-size: 0.8125rem; font-weight: 700; color: var(--ba-text); margin-bottom: 1rem;">Cliente</p>
+              <div style="display: flex; align-items: center; gap: 0.875rem;">
               <div class="list-avatar" style="width: 2.75rem; height: 2.75rem; font-size: 1rem; flex-shrink: 0; background: #2563eb;">JS</div>
               <div style="min-width: 0;">
                 <p style="font-weight: 700; font-size: 1rem; color: var(--ba-text);">João Silva</p>
@@ -261,6 +264,7 @@
                 <p style="font-size: 0.75rem; color: var(--ba-primary); margin-top: 0.25rem;">
                   ★ 240 pontos ativos
                 </p>
+              </div>
               </div>
             </div>
 
