@@ -889,7 +889,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-### Story 13 — Migrate Service create, deactivate and list screens to the feedback pattern 🟡
+### Story 13 — Migrate Service create, deactivate and list screens to the feedback pattern 🟡 ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** S
