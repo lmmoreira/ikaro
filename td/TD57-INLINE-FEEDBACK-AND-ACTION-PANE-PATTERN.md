@@ -903,7 +903,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Backend use case steps:** none
 **Backend HTTP surface:** none
 **BFF endpoint spec:** none
-**Prototype references:** `journeys/manager/prototypes/feedback-pane/` (the TD's shared prototype; `dev-notes.md`, `index.html`) and its parent `journeys/manager/feedback-pane.md`. The service create, deactivate and list failure states are drawn in discovery, before implementation (CLAUDE.md §15 order: `/docs-audit` baseline, journey `.md`, `use-cases.md`, `journeys/README.md` index, then the prototype files), and listed here once drawn.
+**Prototype references:** `journeys/manager/prototypes/feedback-pane/` (the TD's shared prototype; `dev-notes.md`, `index.html`) and its parent `journeys/manager/feedback-pane.md`. The service screens live in their owning journey, `journeys/staff/servicos.md`, and are drawn there (linked from the hub): `staff/prototypes/servicos/02b-service-create-error.html`, `02c-service-create-success.html`, `03b-deactivate-confirm.html`, `03j-deactivate-error.html`, `01-servicos-list.html`, `01b-servicos-list-load-error.html` (with that folder's `dev-notes.md` § TD57-S13).
 **New migration / i18n keys / env vars / feature flags:** none expected; any new copy key in both locales in the same change. `deactivateFailed` is removed (the backend message replaces it); a list load-failure title/body/retry is added if no existing key fits.
 
 **Discovery decisions (2026-11-03):**

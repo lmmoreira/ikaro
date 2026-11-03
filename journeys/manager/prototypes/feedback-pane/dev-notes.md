@@ -26,6 +26,7 @@ Shared CSS: `journeys/shared/feedback-pane.css` (`.fb*` SaaS skin, `.fb-pane*`, 
 | `apps/web/features/booking/components/dashboard/services/ServiceEditPanels.tsx` | ✅ DONE | TD57-S02 — pane + mobile bar render through `ActionPane`; each tab registers its `feedback` with the action (`useTabFeedback`); Detalhes passes its own |
 | `apps/web/features/booking/components/dashboard/services/ServiceResourceModePicker.tsx` | ✅ DONE | TD57-S03 — the mode buttons sit in a `Card` headed by the question, level with the pane |
 | `apps/web/features/staff/components/team/MemberRow.tsx` | ✅ DONE | TD57-S04 — the changed badge/button is the confirmation; an inline failure beside the row |
+| `apps/web/features/booking/components/dashboard/services/ServiceCreatePage.tsx`, `ServiceFormFields.tsx`, `ServiceDeactivatePage.tsx`, `ServiceListPage.tsx` | ⚠ TD57-S13 | drawn in `staff/prototypes/servicos/` (`02b`, `02c`, `03b`, `03j`, `01`, `01b`); the pages migrate to `FormActionPane`, `FieldFeedback` and a page-level `FeedbackMessage` |
 | `apps/web/features/customer/components/my-account/CancelConfirmPage.tsx` | ✅ DONE | TD57-S11 — the error renders under the buttons, in the pane |
 
 ## Screen 01 / 01b / 01c / 01d — Service edit, Políticas (`ServiceEditPanels` + `ActionPane`)

@@ -92,12 +92,14 @@ Folder: `staff/prototypes/servicos/`
 | File | Screen | UC | Status |
 |---|---|---|---|
 | `index.html` | Navigation hub + dry-run checklist | — | ✅ Criado |
-| `01-servicos-list.html` | Service list (active + inactive tabs) | — | ✅ Criado |
+| `01-servicos-list.html` | Service list (active + inactive tabs); the filter chips sit inside the list card (TD57-S13) | — | ✅ Criado |
+| `01b-servicos-list-load-error.html` | List load failure — page-level message with "Tentar novamente" inside the list card (the page used to show "no services") | — | ✅ Criado (TD57-S13) |
 | `02-service-create.html` | Create service form | UC-012 | ✅ Criado |
-| `02b-service-create-error.html` | Duplicate name error state | UC-012 A1 | ✅ Criado |
-| `02c-service-create-success.html` | Service created — redirects straight to the edit page (Detalhes tab, inline success banner), all 4 tabs unlocked showing their empty/default state | UC-012 | ✅ Criado — redesigned 2026-09-17, was previously a banner on the list page |
+| `02b-service-create-error.html` | Duplicate name error state — the name field is marked and the message sits under the buttons in the action pane (TD57-S13) | UC-012 A1 | ✅ Criado |
+| `02c-service-create-success.html` | Service created — redirects straight to the edit page (Detalhes tab, success message in the action pane — TD57-S13, was an inline banner), all 4 tabs unlocked showing their empty/default state | UC-012 | ✅ Criado — redesigned 2026-09-17, was previously a banner on the list page |
 | `03-service-edit.html` | Edit service form — 4 tabs (the 5th, Página pública, is `03g`–`03i`): Detalhes (UC-013, shipped) · Recursos (UC-050–053) · Políticas de reserva (UC-055) · Formulário de reserva (UC-054) | UC-013, 050–055 | ✅ Criado — all 4 tabs shipped (M22-S04) |
 | `03b-deactivate-confirm.html` | Deactivation confirmation | UC-013 A1 | ✅ Criado (still branded for the pre-M22 protagonist — see `dev-notes.md`'s known follow-up) |
+| `03j-deactivate-error.html` | Deactivation failure — the error under the buttons in the action pane | UC-013 A1 | ✅ Criado (TD57-S13) |
 | `03c-service-edit-inactive.html` | Edit form, inactive-service variant — same 4 tabs as `03`, "Ativar" action instead of Salvar+danger-zone on Detalhes (reactivation, shipped 2026-07-31; rebuilt with tabs 2026-09-17) | UC-013 A4 | ✅ Criado |
 | `03d-service-edit-policy-error.html` | Error — variable duration without pricing policy (Políticas de reserva tab) | UC-055 A2 | ✅ Criado — shipped (M22-S04) |
 | `03e-service-edit-intake-error.html` | Error — booking-intake form with 0 questions and no consent text (Formulário de reserva tab) | UC-054 | ✅ Criado — shipped (M22-S04) |

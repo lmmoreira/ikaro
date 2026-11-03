@@ -15,6 +15,8 @@
 | `03-service-edit.html` | `/dashboard/services/[id]/edit` | `ServiceEditPage` (isActive=true branch) |
 | `03c-service-edit-inactive.html` | `/dashboard/services/[id]/edit` | `ServiceEditPage` (isActive=false branch — same component, different section rendered) |
 | `03b-deactivate-confirm.html` | `/dashboard/services/[id]/deactivate` | `ServiceDeactivatePage` — dedicated page, not a bottom sheet (resolved) |
+| `03j-deactivate-error.html` | `/dashboard/services/[id]/deactivate` | `ServiceDeactivatePage` — failure state (TD57-S13) |
+| `01b-servicos-list-load-error.html` | `/dashboard/services` | `ServiceListPage` — `loadFailed` state (TD57-S13) |
 
 No `[slug]` segment on any of these — the staff/manager dashboard is JWT/session-scoped, not URL-slug-scoped (an earlier draft of this file's HTML comments assumed `[slug]`; corrected 2026-07-31).
 
@@ -383,3 +385,20 @@ The create page (`ServiceCreatePage`) gets no tab: the service must exist first,
 **Reuse inventory (`shared/components/ui/`):** `section-card` for tab groups, `textarea` for the Markdown and notes fields, `switch-field` for the publish switch (the prototype draws the shared `toggle-switch` shape), `button` for add/remove. Image tiles reuse the hotsite editor's `SingleImageUploadField` upload mechanics. The Markdown preview uses the shared `RestrictedMarkdown` renderer, so the manager sees what the visitor will see. No existing primitive for the Escrever/Pré-visualizar toggle — two buttons with `aria-selected`.
 
 **i18n:** keys under `dashboard.servicesPage.publicPage*` in both locales, plus the `BOOKING_SERVICE_PUBLIC_SLUG_TAKEN` entry in `errors.json`.
+
+---
+
+## TD57-S13 — feedback pattern on create, deactivate and list (drawn 2026-11-03, built by TD57-S13)
+
+The failure and success states of these screens use the shared feedback pattern (`manager/prototypes/feedback-pane/`, `docs/ENGINEERING_RULES_FRONTEND.md`), not their own boxes. Screens: `02b`, `02c`, `03b`, `03j`, `01`, `01b`.
+
+| Screen | State | Rule |
+|---|---|---|
+| `02b` | Create fails (duplicate name, `field: "name"`) | The name input is outlined in red (`aria-invalid` + `aria-describedby`) with its own message and takes focus; the same failure appears as a form-level `FeedbackMessage` (`role="alert"`) in a second card under the buttons (desktop, sticky) and above the buttons in the fixed mobile bar. A `field` the form does not know falls back to the form-level message alone. |
+| `02c` | Landed on the edit page after create | The old green banner is a success `FeedbackMessage` (`role="status"`, "Serviço criado!") in the Detalhes pane and mobile bar; it shows on the Detalhes tab only and stays until the next edit. |
+| `03b` | Deactivate confirmation | Buttons in the pane and the fixed mobile bar; no extra message. |
+| `03j` | Deactivate fails | The backend-resolved error under the buttons (same pane and bar). On success the page redirects to the list: the row's inactive badge is the confirmation, no message. |
+| `01` | List | The filter chips sit inside the list card (header row); the list has no created banner (nothing ever sent the list `?created=1`; the banner and its timer are removed). |
+| `01b` | List load fails | The list card holds a page-level `FeedbackMessage` with "Tentar novamente" (`router.refresh()`), not the "no services" empty state. The server page passes `loadFailed`. |
+
+**data-testid:** `form-feedback` (`form-feedback-mobile` inside the mobile bar), `page-feedback`. The ids `service-submit-error` and `service-created-banner` go away.

@@ -43,6 +43,9 @@ Every node in red is a gap: the screens not yet migrated do not use the shared c
 | `/dashboard/bookings/[id]/complete`, `/reschedule` | `MarkCompleteActionRail`, `RescheduleActionRail` | TD57-S12 | ✅ Rail error under the buttons of the shared `ActionPane` — `staff/prototypes/agenda/04c`, `05d` |
 | `/dashboard/schedule` | `SchedulePage`, `ScheduleResourceColumnsBoard`, `ResourceFilterMenu` | TD57-S12 | ✅ Page-level `FeedbackMessage` with retry; field-level message on the resource select — `staff/prototypes/horarios/11` |
 | `/dashboard/scheduling-exceptions` | `SchedulingExceptionWorklistPage`, `BulkResultList`, the sheets | TD57-S12 | ✅ Shared `FeedbackMessage` / sheet message — `manager/prototypes/scheduling-exceptions/01d`, `01j`, `01k` |
+| `/dashboard/services/new`, `/dashboard/services/[id]/edit` (Detalhes) | `ServiceCreatePage`, `ServiceFormFields`, `ServiceEditDetailsTab` | TD57-S13 | ⚠ Drawn — `staff/prototypes/servicos/02b`, `02c`; the field marking from a server `field` and the success in the pane land with the story |
+| `/dashboard/services/[id]/deactivate` | `ServiceDeactivatePage` | TD57-S13 | ⚠ Drawn — `staff/prototypes/servicos/03b`, `03j` |
+| `/dashboard/services` | `ServiceListPage` | TD57-S13 | ⚠ Drawn — `staff/prototypes/servicos/01`, `01b` (load failure with retry; chips inside the card) |
 | `/[slug]` (lead form) | public lead form + branded feedback component | TD57-S16 | ⚠ Component exists (TD57-S06); form still uses a hand-rolled box |
 | Shared components | `FeedbackMessage`, `ActionPane`, `FieldFeedback`, `useFormFeedback` | TD57-S01 | ✅ EXISTS |
 

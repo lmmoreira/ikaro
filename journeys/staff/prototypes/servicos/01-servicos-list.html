@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Serviços — BeloAuto</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="../../../shared/feedback-pane.css">
   <style>
     /* Desktop-only create button in topbar */
     .topbar-create-btn { display: none; }
@@ -185,15 +186,13 @@
     <main class="main-content">
       <div class="dashboard-body">
 
-        <!-- Filter tabs -->
-        <div class="filter-tabs">
+        <!-- Service list — the filter chips sit inside the list card (TD57-S13) -->
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div class="filter-tabs" style="padding:0.875rem 1rem;border-bottom:1px solid var(--ba-secondary);">
           <a href="#" class="filter-tab active">Todos (5)</a>
           <a href="#" class="filter-tab">Ativos (4)</a>
           <a href="#" class="filter-tab">Inativos (1)</a>
         </div>
-
-        <!-- Service list -->
-        <div class="card" style="padding:0;overflow:hidden;">
 
           <!-- Service 1 — active, has points -->
           <a href="03-service-edit.html" class="service-row">
