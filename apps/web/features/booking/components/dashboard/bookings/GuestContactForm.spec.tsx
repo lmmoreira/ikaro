@@ -42,6 +42,13 @@ describe('GuestContactForm', () => {
     expect(screen.getByTestId('guest-error')).toHaveTextContent(
       'Nome, telefone e e-mail são obrigatórios.',
     );
+    // TD57-S12: the message is announced and referenced by the invalid input
+    expect(screen.getByTestId('guest-error')).toHaveAttribute('role', 'alert');
+    expect(screen.getByTestId('guest-email')).toHaveAttribute(
+      'aria-describedby',
+      'guest-error-message',
+    );
+    expect(screen.getByTestId('guest-name')).not.toHaveAttribute('aria-describedby');
   });
 
   it('says the booking is recorded as a guest booking', () => {

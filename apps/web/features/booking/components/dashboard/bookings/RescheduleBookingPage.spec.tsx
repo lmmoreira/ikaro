@@ -17,9 +17,16 @@ vi.mock('@/features/booking/components/public/AvailabilityCarousel', () => ({
 }));
 
 vi.mock('@/features/booking/components/public/SlotPicker', () => ({
-  SlotPicker: ({ onSelectSlot }: { readonly onSelectSlot: (slot: AvailableSlot) => void }) => (
+  SlotPicker: ({
+    onSelectSlot,
+    selectedSlot,
+  }: {
+    readonly onSelectSlot: (slot: AvailableSlot) => void;
+    readonly selectedSlot: AvailableSlot | null;
+  }) => (
     <button
       type="button"
+      aria-pressed={selectedSlot?.startsAt === '2026-06-17T10:00:00.000Z'}
       onClick={() =>
         onSelectSlot({
           startsAt: '2026-06-17T10:00:00.000Z',
@@ -178,9 +185,11 @@ describe('RescheduleBookingPage', () => {
 
     await user.click(screen.getAllByRole('button', { name: 'Reagendar' })[0]);
 
-    expect(
-      await screen.findByText('Escolha um novo horário antes de continuar.'),
-    ).toBeInTheDocument();
+    // TD57-S12: the failure reports under the buttons of the action pane (desktop and mobile copies).
+    expect(await screen.findByTestId('reschedule-error')).toHaveTextContent(
+      'Escolha um novo horário antes de continuar.',
+    );
+    expect(screen.getByTestId('reschedule-error-mobile')).toHaveAttribute('role', 'alert');
   });
 
   it('shows the resolved backend error message for a non-conflict rescheduling failure', async () => {
@@ -204,7 +213,16 @@ describe('RescheduleBookingPage', () => {
     await user.click(screen.getByRole('button', { name: 'choose slot' }));
     await user.click(screen.getAllByRole('button', { name: 'Reagendar' })[0]);
 
-    expect(await screen.findByText('O novo horário deve ser no futuro.')).toBeInTheDocument();
+    expect(await screen.findByTestId('reschedule-error')).toHaveTextContent(
+      'O novo horário deve ser no futuro.',
+    );
+    // negative guarantee: a generic failure keeps the chosen slot selected and Confirm enabled
+    expect(screen.getByRole('button', { name: 'choose slot' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'choose slot' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(screen.getAllByRole('button', { name: 'Reagendar' })[0]).toBeEnabled();
   });
 
   it('shows the loading alternatives error when the conflict fallback cannot fetch slots', async () => {
@@ -228,9 +246,9 @@ describe('RescheduleBookingPage', () => {
     await user.click(screen.getByRole('button', { name: 'choose slot' }));
     await user.click(screen.getAllByRole('button', { name: 'Reagendar' })[0]);
 
-    expect(
-      await screen.findByText('Não foi possível carregar horários alternativos.'),
-    ).toBeInTheDocument();
+    expect(await screen.findByTestId('reschedule-error')).toHaveTextContent(
+      'Não foi possível carregar horários alternativos.',
+    );
   });
 
   it('says the time is closed, not occupied, when the reschedule is refused for a closure', async () => {
@@ -451,6 +469,8 @@ describe('RescheduleBookingPage — injected confirm (the "Reservas a resolver" 
 
     await pickSlotAndConfirm(user);
 
-    expect(await screen.findByText('O novo horário deve ser no futuro.')).toBeInTheDocument();
+    expect(await screen.findByTestId('reschedule-error')).toHaveTextContent(
+      'O novo horário deve ser no futuro.',
+    );
   });
 });

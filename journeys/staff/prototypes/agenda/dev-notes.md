@@ -572,7 +572,7 @@ Drawn 2026-10-16. Frontend only (no BFF, no migration). Behavior and decisions: 
 - **A click is still a click:** a drag release must not toggle the popover (the prototype suppresses the click that follows a drag).
 - ⚠ A pill in a top or left corner can cover page content — accepted (decided 2026-10-16); the user chose the corner and "Posição" returns it to the default.
 
-## TD57-S12 — failure states in the action pane (✅ screens drawn · code pending `TD57-S12`)
+## TD57-S12 — failure states in the action pane (✅ built — `TD57-S12`)
 
 Source of truth: `td/TD57-INLINE-FEEDBACK-AND-ACTION-PANE-PATTERN.md` Story 12 and `journeys/manager/prototypes/feedback-pane/dev-notes.md`. Result banners (approved, rejected, info requested, cancelled, completed, no-show, rescheduled, "precisa de decisão", recurring hold banners) stay page content and render no `role="alert"`.
 

@@ -10,6 +10,8 @@ import { getBooking } from '@/features/booking/api/booking';
 import { fetchBookingAvailability } from '@/features/booking/api/availability';
 import { BookingDetailPage } from './BookingDetailPage';
 
+const desktop = () => within(screen.getByTestId('action-pane-desktop'));
+
 const freshStatus = vi.hoisted(() => ({ value: 'APPROVED' as 'APPROVED' | 'CANCELLED' }));
 
 vi.mock('./BookingDecisionPanel', () => ({
@@ -166,7 +168,7 @@ describe('BookingDetailPage', () => {
 
     renderWithIntl(<BookingDetailPage booking={makeBooking()} tenantSlug="lavacar-bh" />);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Aprovar' }));
+    await userEvent.click(desktop().getByRole('button', { name: 'Aprovar' }));
 
     expect(await screen.findByText('Agendamento aprovado!')).toBeInTheDocument();
     expect(setBookingStatus).toHaveBeenCalledWith('APPROVED');
@@ -181,11 +183,11 @@ describe('BookingDetailPage', () => {
 
     renderWithIntl(<BookingDetailPage booking={makeBooking()} tenantSlug="lavacar-bh" />);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Aprovar' }));
+    await userEvent.click(desktop().getByRole('button', { name: 'Aprovar' }));
 
     expect(await screen.findByText('Agendamento aprovado!')).toBeInTheDocument();
     expect(screen.getByText('Aprovado')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Aprovar' })).not.toBeInTheDocument();
+    expect(desktop().queryByRole('button', { name: 'Aprovar' })).not.toBeInTheDocument();
   });
 
   it('shows slot suggestions after a 409 and retries with the selected slot', async () => {
@@ -210,7 +212,7 @@ describe('BookingDetailPage', () => {
 
     renderWithIntl(<BookingDetailPage booking={makeBooking()} tenantSlug="lavacar-bh" />);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Aprovar' }));
+    await userEvent.click(desktop().getByRole('button', { name: 'Aprovar' }));
 
     expect(await screen.findByText('Horário não disponível')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /Aprovar neste/ }));
@@ -285,7 +287,7 @@ describe('BookingDetailPage', () => {
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: 'Marcar concluído' }));
+    await user.click(desktop().getByRole('button', { name: 'Marcar concluído' }));
 
     expect(routerPush).toHaveBeenCalledWith(
       `/dashboard/bookings/b-1/complete?returnTo=${encodeURIComponent(returnTo)}`,
@@ -301,13 +303,50 @@ describe('BookingDetailPage', () => {
 
     renderWithIntl(<BookingDetailPage booking={makeBooking()} tenantSlug="lavacar-bh" />);
 
-    await userEvent.click(screen.getAllByRole('button', { name: 'Rejeitar' })[0]);
+    await userEvent.click(desktop().getByRole('button', { name: 'Rejeitar' }));
     await userEvent.type(screen.getByRole('textbox'), 'curto');
-    await userEvent.click(screen.getAllByRole('button', { name: 'Rejeitar' })[1]);
+    await userEvent.click(screen.getAllByRole('button', { name: 'Rejeitar' }).at(-1)!);
 
     expect(
       await screen.findByText('Este valor deve ter no mínimo 10 caracteres.'),
     ).toBeInTheDocument();
+    // TD57-S12: the validation message belongs to the sheet; the action pane stays empty.
+    expect(screen.queryByTestId('form-feedback')).not.toBeInTheDocument();
+  });
+
+  it('reports a failed approve under the buttons of the action pane, not in a card at the top', async () => {
+    approveBookingMutateAsync.mockRejectedValue(new ApiError(500, 'boom'));
+
+    renderWithIntl(<BookingDetailPage booking={makeBooking()} tenantSlug="lavacar-bh" />);
+
+    await userEvent.click(desktop().getByRole('button', { name: 'Aprovar' }));
+
+    const feedback = await desktop().findByTestId('form-feedback');
+    expect(feedback).toHaveAttribute('role', 'alert');
+    expect(feedback).toHaveTextContent('Erro ao aprovar. Tente novamente.');
+    expect(screen.getByTestId('form-feedback-mobile')).toHaveTextContent(
+      'Erro ao aprovar. Tente novamente.',
+    );
+    // every alert of the page lives inside an action pane (desktop or mobile)
+    for (const alert of screen.getAllByRole('alert')) {
+      expect(alert.closest('[data-testid^="action-pane"]')).not.toBeNull();
+    }
+    // the buttons stay available to try again
+    expect(desktop().getByRole('button', { name: 'Aprovar' })).toBeEnabled();
+  });
+
+  it('reports a non-validation reject failure in the action pane and closes nothing else', async () => {
+    rejectBookingMutateAsync.mockRejectedValue(new ApiError(500, 'boom'));
+
+    renderWithIntl(<BookingDetailPage booking={makeBooking()} tenantSlug="lavacar-bh" />);
+
+    await userEvent.click(desktop().getByRole('button', { name: 'Rejeitar' }));
+    await userEvent.type(screen.getByRole('textbox'), 'Cliente pediu cancelamento');
+    await userEvent.click(screen.getAllByRole('button', { name: 'Rejeitar' }).at(-1)!);
+
+    expect(await desktop().findByTestId('form-feedback')).toHaveTextContent(
+      'Não foi possível rejeitar. Tente novamente.',
+    );
   });
 
   it('shows the resolved backend validation message when requesting more info with a short message', async () => {
@@ -321,7 +360,7 @@ describe('BookingDetailPage', () => {
 
     renderWithIntl(<BookingDetailPage booking={makeBooking()} tenantSlug="lavacar-bh" />);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Pedir info' }));
+    await userEvent.click(desktop().getByRole('button', { name: 'Pedir info' }));
     await userEvent.type(screen.getByRole('textbox'), 'curto');
     await userEvent.click(screen.getByRole('button', { name: 'Enviar' }));
 
@@ -338,9 +377,9 @@ describe('BookingDetailPage', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: 'Aprovar' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Rejeitar' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Pedir info' })).not.toBeInTheDocument();
+    expect(desktop().getByRole('button', { name: 'Aprovar' })).toBeInTheDocument();
+    expect(desktop().getByRole('button', { name: 'Rejeitar' })).toBeInTheDocument();
+    expect(desktop().queryByRole('button', { name: 'Pedir info' })).not.toBeInTheDocument();
   });
 
   it('renders approved lifecycle actions when the booking is already approved', () => {
@@ -348,9 +387,9 @@ describe('BookingDetailPage', () => {
       <BookingDetailPage booking={makeBooking({ status: 'APPROVED' })} tenantSlug="lavacar-bh" />,
     );
 
-    expect(screen.getByRole('button', { name: 'Marcar concluído' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Reagendar' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Cancelar agendamento' })).toBeInTheDocument();
+    expect(desktop().getByRole('button', { name: 'Marcar concluído' })).toBeInTheDocument();
+    expect(desktop().getByRole('button', { name: 'Reagendar' })).toBeInTheDocument();
+    expect(desktop().getByRole('button', { name: 'Cancelar agendamento' })).toBeInTheDocument();
   });
 
   it('renders the approved gallery and routes the action buttons', async () => {
@@ -368,10 +407,10 @@ describe('BookingDetailPage', () => {
 
     expect(screen.getByRole('img', { name: 'Foto depois do serviço 1' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Marcar concluído' }));
+    await user.click(desktop().getByRole('button', { name: 'Marcar concluído' }));
     expect(routerPush).toHaveBeenCalledWith('/dashboard/bookings/b-1/complete');
 
-    await user.click(screen.getByRole('button', { name: 'Reagendar' }));
+    await user.click(desktop().getByRole('button', { name: 'Reagendar' }));
     expect(routerPush).toHaveBeenCalledWith('/dashboard/bookings/b-1/reschedule');
   });
 
@@ -381,12 +420,12 @@ describe('BookingDetailPage', () => {
 
     renderWithIntl(<BookingDetailPage booking={makeBooking()} tenantSlug="lavacar-bh" />);
 
-    await user.click(screen.getAllByRole('button', { name: 'Rejeitar' })[0]);
+    await user.click(desktop().getByRole('button', { name: 'Rejeitar' }));
     await user.type(screen.getByRole('textbox'), 'Cliente pediu cancelamento');
-    await user.click(screen.getAllByRole('button', { name: 'Rejeitar' })[1]);
+    await user.click(screen.getAllByRole('button', { name: 'Rejeitar' }).at(-1)!);
 
     expect(await screen.findByText('Agendamento rejeitado')).toBeInTheDocument();
-    expect(await screen.findByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
+    expect(await desktop().findByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
   });
 
   it('shows the information-request success state after a successful request', async () => {
@@ -395,7 +434,7 @@ describe('BookingDetailPage', () => {
 
     renderWithIntl(<BookingDetailPage booking={makeBooking()} tenantSlug="lavacar-bh" />);
 
-    await user.click(screen.getByRole('button', { name: 'Pedir info' }));
+    await user.click(desktop().getByRole('button', { name: 'Pedir info' }));
     await user.type(screen.getByRole('textbox'), 'Confirmar endereço de coleta');
     await user.click(screen.getByRole('button', { name: 'Enviar' }));
 
@@ -408,9 +447,9 @@ describe('BookingDetailPage', () => {
       <BookingDetailPage booking={makeBooking({ status: 'REJECTED' })} tenantSlug="lavacar-bh" />,
     );
 
-    expect(screen.queryByRole('button', { name: 'Marcar concluído' })).not.toBeInTheDocument();
+    expect(desktop().queryByRole('button', { name: 'Marcar concluído' })).not.toBeInTheDocument();
     // The only thing left in the aside is the way back to the Agenda.
-    expect(screen.getByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
+    expect(desktop().getByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
   });
 
   it('shows the charge and loyalty discount summary when reopening a completed booking', () => {
@@ -444,7 +483,7 @@ describe('BookingDetailPage', () => {
     expect(screen.getByTestId('complete-loyalty-discount-applied')).toHaveTextContent(
       'Desconto fidelidade: -R$ 24,00',
     );
-    expect(screen.getByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
+    expect(desktop().getByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
   });
 
   it('falls back to the quoted total when a completed booking has no discount', () => {
@@ -479,7 +518,7 @@ describe('BookingDetailPage', () => {
 
     renderWithIntl(<BookingDetailPage booking={makeBooking()} tenantSlug="lavacar-bh" />);
 
-    await user.click(screen.getByRole('button', { name: 'Aprovar' }));
+    await user.click(desktop().getByRole('button', { name: 'Aprovar' }));
 
     expect(await screen.findByText('Horário não disponível')).toBeInTheDocument();
     await user.click(screen.getAllByRole('button', { name: '← Voltar sem aprovar' })[0]);
@@ -499,12 +538,12 @@ describe('BookingDetailPage', () => {
       <BookingDetailPage booking={makeBooking({ status: 'APPROVED' })} tenantSlug="lavacar-bh" />,
     );
 
-    await user.click(screen.getAllByRole('button', { name: 'Cancelar agendamento' })[0]);
+    await user.click(desktop().getAllByRole('button', { name: 'Cancelar agendamento' })[0]);
     const dialog = await screen.findByRole('dialog');
     await user.click(within(dialog).getByRole('button', { name: 'Cancelar agendamento' }));
 
     expect(await screen.findByText('Agendamento cancelado')).toBeInTheDocument();
-    expect(await screen.findByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
+    expect(await desktop().findByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
   });
 
   describe('no-show (UC-074)', () => {
@@ -549,7 +588,7 @@ describe('BookingDetailPage', () => {
       });
 
     async function markNoShow(user: ReturnType<typeof userEvent.setup>) {
-      await user.click(screen.getByRole('button', { name: 'Marcar não compareceu' }));
+      await user.click(desktop().getByRole('button', { name: 'Marcar não compareceu' }));
       await user.click(screen.getByRole('button', { name: 'Confirmar não comparecimento' }));
     }
 
@@ -559,7 +598,7 @@ describe('BookingDetailPage', () => {
       vi.mocked(getBooking).mockResolvedValue(noShow());
       renderAt(AFTER_END, approved());
 
-      await user.click(screen.getByRole('button', { name: 'Marcar não compareceu' }));
+      await user.click(desktop().getByRole('button', { name: 'Marcar não compareceu' }));
       await user.type(screen.getByRole('textbox'), 'Cliente não atendeu o telefone.');
       await user.click(screen.getByRole('button', { name: 'Confirmar não comparecimento' }));
 
@@ -568,7 +607,7 @@ describe('BookingDetailPage', () => {
         body: { reason: 'Cliente não atendeu o telefone.' },
       });
       expect(await screen.findByTestId('booking-no-show-marked')).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
+      expect(desktop().getByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
       expect(
         await screen.findByText(/Motivo: Cliente não atendeu o telefone\./),
       ).toBeInTheDocument();
@@ -588,8 +627,10 @@ describe('BookingDetailPage', () => {
     it('disables the action before the end time with the hint', () => {
       renderAt(BEFORE_END, approved());
 
-      expect(screen.getByRole('button', { name: 'Marcar não compareceu' })).toBeDisabled();
-      expect(screen.getByText(/Disponível após o término do atendimento \(/)).toBeInTheDocument();
+      expect(desktop().getByRole('button', { name: 'Marcar não compareceu' })).toBeDisabled();
+      expect(
+        desktop().getByText(/Disponível após o término do atendimento \(/),
+      ).toBeInTheDocument();
     });
 
     it('shows the already-closed banner on a 409 and re-reads the booking', async () => {
@@ -602,12 +643,14 @@ describe('BookingDetailPage', () => {
 
       await markNoShow(user);
 
-      expect(await screen.findByTestId('booking-no-show-terminal')).toBeInTheDocument();
+      const banner = await screen.findByTestId('booking-no-show-terminal');
+      expect(banner.closest('[data-testid^="action-pane"]')).toBeNull();
+      expect(screen.queryByTestId('booking-no-show-error')).not.toBeInTheDocument();
       expect(getBooking).toHaveBeenCalledWith('b-1');
       // The re-read shows what the booking is now: the status badge and the action rail follow it.
       expect(await screen.findByText('Concluído')).toBeInTheDocument();
       expect(
-        screen.queryByRole('button', { name: 'Marcar não compareceu' }),
+        desktop().queryByRole('button', { name: 'Marcar não compareceu' }),
       ).not.toBeInTheDocument();
     });
 
@@ -622,19 +665,21 @@ describe('BookingDetailPage', () => {
 
       expect(await screen.findByTestId('booking-no-show-not-ended')).toBeInTheDocument();
       expect(getBooking).not.toHaveBeenCalled();
-      expect(screen.getByRole('button', { name: 'Marcar não compareceu' })).toBeEnabled();
+      expect(desktop().getByRole('button', { name: 'Marcar não compareceu' })).toBeEnabled();
     });
 
-    it('shows the retry banner on a network failure and retrying reopens the sheet', async () => {
+    it('shows the failure in the action pane on a network failure and retrying reopens the sheet', async () => {
       const user = userEvent.setup();
       markNoShowMutateAsync.mockRejectedValue(new ApiError(0, 'Network Error'));
       renderAt(AFTER_END, approved());
 
       await markNoShow(user);
-      expect(await screen.findByTestId('booking-no-show-error')).toBeInTheDocument();
+      const failure = await screen.findByTestId('booking-no-show-error');
+      expect(failure).toHaveAttribute('role', 'alert');
+      expect(desktop().getByTestId('booking-no-show-error')).toBe(failure);
       expect(getBooking).not.toHaveBeenCalled();
 
-      await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+      await user.click(within(failure).getByRole('button', { name: 'Tentar novamente' }));
       expect(
         screen.getByRole('button', { name: 'Confirmar não comparecimento' }),
       ).toBeInTheDocument();
@@ -645,7 +690,9 @@ describe('BookingDetailPage', () => {
 
       expect(screen.getByText('Histórico de status')).toBeInTheDocument();
       expect(screen.getByText(/Ana Pereira \(Gerente\)/)).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Corrigir para concluído' })).toBeInTheDocument();
+      expect(
+        desktop().getByRole('button', { name: 'Corrigir para concluído' }),
+      ).toBeInTheDocument();
     });
 
     it('hides the correction button from staff on a NO_SHOW booking', () => {
@@ -653,7 +700,7 @@ describe('BookingDetailPage', () => {
 
       expect(screen.getByText('Histórico de status')).toBeInTheDocument();
       expect(
-        screen.queryByRole('button', { name: 'Corrigir para concluído' }),
+        desktop().queryByRole('button', { name: 'Corrigir para concluído' }),
       ).not.toBeInTheDocument();
     });
 
@@ -669,7 +716,7 @@ describe('BookingDetailPage', () => {
       vi.mocked(getBooking).mockResolvedValue(makeBooking({ status: 'COMPLETED' }));
       renderAt(AFTER_END, noShow(), 'MANAGER');
 
-      await user.click(screen.getByRole('button', { name: 'Corrigir para concluído' }));
+      await user.click(desktop().getByRole('button', { name: 'Corrigir para concluído' }));
       expect(screen.getByRole('button', { name: 'Confirmar correção' })).toBeDisabled();
       await user.type(screen.getByRole('textbox'), 'Cliente chegou atrasado e foi atendido.');
       await user.click(screen.getByRole('button', { name: 'Confirmar correção' }));
@@ -688,7 +735,7 @@ describe('BookingDetailPage', () => {
       correctNoShowMutateAsync.mockRejectedValue(new ForbiddenError('no', undefined));
       renderAt(AFTER_END, noShow(), 'MANAGER');
 
-      await user.click(screen.getByRole('button', { name: 'Corrigir para concluído' }));
+      await user.click(desktop().getByRole('button', { name: 'Corrigir para concluído' }));
       await user.type(screen.getByRole('textbox'), 'Cliente chegou atrasado e foi atendido.');
       await user.click(screen.getByRole('button', { name: 'Confirmar correção' }));
 
@@ -702,11 +749,14 @@ describe('BookingDetailPage', () => {
       correctNoShowMutateAsync.mockRejectedValue(new ApiError(0, 'Network Error'));
       renderAt(AFTER_END, noShow(), 'MANAGER');
 
-      await user.click(screen.getByRole('button', { name: 'Corrigir para concluído' }));
+      await user.click(desktop().getByRole('button', { name: 'Corrigir para concluído' }));
       await user.type(screen.getByRole('textbox'), 'Cliente chegou atrasado e foi atendido.');
       await user.click(screen.getByRole('button', { name: 'Confirmar correção' }));
 
-      expect(await screen.findByTestId('booking-no-show-correct-error')).toBeInTheDocument();
+      const failure = await screen.findByTestId('booking-no-show-correct-error');
+      expect(failure).toHaveAttribute('role', 'alert');
+      expect(desktop().getByTestId('booking-no-show-correct-error')).toBe(failure);
+      expect(within(failure).getByRole('button', { name: 'Tentar novamente' })).toBeInTheDocument();
     });
   });
 });
@@ -749,7 +799,7 @@ describe('BookingDetailPage — needs a decision (M23-S46)', () => {
     renderMarked('MANAGER', false);
 
     expect(screen.queryByTestId('booking-decision-banner')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Marcar concluído' })).toBeInTheDocument();
+    expect(desktop().getByRole('button', { name: 'Marcar concluído' })).toBeInTheDocument();
   });
 
   it('after a reassign the page shows the refreshed booking: no banner, no panel, the normal actions back', async () => {
@@ -760,7 +810,7 @@ describe('BookingDetailPage — needs a decision (M23-S46)', () => {
 
     expect(screen.queryByTestId('booking-decision-banner')).not.toBeInTheDocument();
     expect(screen.queryByTestId('booking-decision-panel')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Marcar concluído' })).toBeInTheDocument();
+    expect(desktop().getByRole('button', { name: 'Marcar concluído' })).toBeInTheDocument();
   });
 
   it('after a cancel the page shows the cancelled state with the way back to the agenda', async () => {
@@ -771,6 +821,6 @@ describe('BookingDetailPage — needs a decision (M23-S46)', () => {
     await user.click(screen.getByRole('button', { name: 'resolve-and-refresh' }));
 
     expect(screen.queryByTestId('booking-decision-panel')).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
+    expect(desktop().getByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
   });
 });

@@ -66,4 +66,36 @@ describe('BookingActionSheetShell', () => {
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it('renders the failure as the shared FeedbackMessage (role alert), not a hand-rolled red box', () => {
+    render(<Harness />);
+
+    const feedback = screen.getByTestId('action-sheet-error');
+    expect(feedback).toHaveAttribute('role', 'alert');
+    expect(feedback).toHaveTextContent('Problem');
+    expect(feedback.className).not.toContain('bg-red-50 px-3 py-2');
+  });
+
+  it('renders nothing when there is no error', () => {
+    const dialogRef = {
+      current: document.createElement('dialog'),
+    } as RefObject<HTMLDialogElement | null>;
+    render(
+      <BookingActionSheetShell
+        dialogRef={dialogRef}
+        titleId="title"
+        descriptionId="description"
+        title="Title"
+        onClose={vi.fn()}
+        onSubmit={(event) => event.preventDefault()}
+        cancelLabel="Cancel"
+        submitLabel="Submit"
+        error={null}
+      >
+        <input aria-label="field" />
+      </BookingActionSheetShell>,
+    );
+
+    expect(screen.queryByTestId('action-sheet-error')).not.toBeInTheDocument();
+  });
 });

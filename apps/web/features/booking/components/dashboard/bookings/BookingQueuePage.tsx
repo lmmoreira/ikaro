@@ -7,7 +7,7 @@ import type { StaffBookingListResponse } from '@ikaro/types';
 import { WeekNav } from '@/shells/dashboard/components/WeekNav';
 import { ApiError } from '@/shared/lib/api/errors';
 import { Button } from '@/shared/components/ui/button';
-import { Card, CardContent } from '@/shared/components/ui/card';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import {
   useActionNeededBookings,
   useTodayBookings,
@@ -173,9 +173,9 @@ export function BookingQueuePage({
         </div>
 
         {approveError && (
-          <Card className="mb-6 border-red-200 bg-red-50/80">
-            <CardContent className="p-4 text-sm text-red-700">{approveError}</CardContent>
-          </Card>
+          <div className="mb-6">
+            <FeedbackMessage title={approveError} testId="booking-queue-approve-error" />
+          </div>
         )}
 
         {filter.allHidden ? (

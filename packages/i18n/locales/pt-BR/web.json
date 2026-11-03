@@ -2574,6 +2574,7 @@
       "dayGridBufferTooltipResourceTurnover": "Virada do recurso {resource} ({minutes} min): só {resource} fica bloqueado(a) até {time}.",
       "dayGridBufferTooltipUnknownOrigin": "{resource} fica bloqueado(a) até {time}. A origem deste bloqueio não foi registrada.",
       "fetchError": "Não foi possível carregar a agenda",
+      "retry": "Tentar novamente",
       "errors": {
         "requiredDate": "Informe a data.",
         "pastDateClosure": "Escolha hoje ou uma data futura para bloquear.",

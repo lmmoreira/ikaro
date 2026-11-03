@@ -2,8 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import type { RecurringBookingScheduleListItem, StaffBookingCardResponse } from '@ikaro/types';
-import { Button } from '@/shared/components/ui/button';
-import { Card, CardContent } from '@/shared/components/ui/card';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import { BookingCard } from './BookingCard';
 import { BookingQueueSection } from './BookingQueueSection';
 import { RecurringScheduleCard } from './RecurringScheduleCard';
@@ -79,14 +78,14 @@ export function BookingQueueActionNeeded({
       ) : null}
 
       {showRecurrences && recurrencesFailed ? (
-        <Card className="mb-6 border-red-200 bg-red-50/80" data-testid="recurrences-load-error">
-          <CardContent className="flex items-center justify-between gap-3 p-4 text-sm text-red-700">
-            <span>{t('recurrencesLoadError')}</span>
-            <Button type="button" variant="outline" size="sm" onClick={onRetryRecurrences}>
-              {t('recurrencesRetry')}
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="mb-6">
+          <FeedbackMessage
+            title={t('recurrencesLoadError')}
+            onRetry={onRetryRecurrences}
+            retryLabel={t('recurrencesRetry')}
+            testId="recurrences-load-error"
+          />
+        </div>
       ) : null}
     </>
   );

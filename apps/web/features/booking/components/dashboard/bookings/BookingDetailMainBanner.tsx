@@ -29,8 +29,6 @@ interface BookingDetailMainBannerProps {
   readonly noShowEndLabel: string;
   readonly correctionPoints: number | null;
   readonly onRefresh: () => void;
-  readonly onRetryNoShow: () => void;
-  readonly onRetryCorrect: () => void;
 }
 
 // Extracted from BookingDetailPage (TD37-S5A) — the status banner is a self-contained switch
@@ -42,10 +40,11 @@ export function BookingDetailMainBanner({
   noShowEndLabel,
   correctionPoints,
   onRefresh,
-  onRetryNoShow,
-  onRetryCorrect,
 }: BookingDetailMainBannerProps): React.JSX.Element | null {
   const t = useTranslations('dashboard.bookingDetail');
+
+  // A network/5xx failure of the no-show or its correction reports in the action pane (TD57-S12).
+  if (actionState === 'no-show-error' || actionState === 'correct-error') return null;
 
   if (isBookingNoShowActionState(actionState)) {
     return (
@@ -55,8 +54,6 @@ export function BookingDetailMainBanner({
         noShowEndLabel={noShowEndLabel}
         correctionPoints={correctionPoints}
         onRefresh={onRefresh}
-        onRetryNoShow={onRetryNoShow}
-        onRetryCorrect={onRetryCorrect}
       />
     );
   }

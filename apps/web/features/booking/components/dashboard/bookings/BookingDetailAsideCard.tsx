@@ -3,37 +3,53 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { BOOKING_STATUS, type StaffBookingDetailResponse } from '@ikaro/types';
+import { ActionPane } from '@/shared/components/ui/action-pane';
 import { Button } from '@/shared/components/ui/button';
-import { Card, CardContent } from '@/shared/components/ui/card';
+import type { FeedbackModel } from '@/shared/components/ui/feedback-message';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { bookingNeedsDecision } from '@/features/booking/model/booking-decision';
 import { BookingActionPanel } from './BookingActionPanel';
 import { BookingDecisionPanel } from './BookingDecisionPanel';
 import type { BookingDetailActionState } from './BookingDetailMainBanner';
 
-function BackToAgendaActionsCard({
+function PaneHeading({ children }: { readonly children: React.ReactNode }): React.JSX.Element {
+  return <p className="text-sm font-semibold text-gray-900">{children}</p>;
+}
+
+function BackToAgendaButton({ backHref }: { readonly backHref: string }): React.JSX.Element {
+  const t = useTranslations('dashboard.bookingDetail');
+
+  return (
+    <Button asChild className="w-full">
+      <Link href={backHref}>{t('backToAgenda')}</Link>
+    </Button>
+  );
+}
+
+// A terminal state has no actions of its own: the way back to the Agenda, with an optional note.
+function BackToAgendaPane({
   backHref,
   note,
+  feedback,
 }: {
   readonly backHref: string;
   readonly note?: string;
+  readonly feedback: FeedbackModel | null;
 }): React.JSX.Element {
   const t = useTranslations('dashboard.bookingDetail');
 
   return (
-    <div className="space-y-2">
-      <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-        {t('actionsSection')}
-      </p>
-      <Card>
-        <CardContent className="space-y-3 p-4">
+    <ActionPane
+      feedback={feedback}
+      actions={
+        <div className="space-y-3">
+          <PaneHeading>{t('actionsSection')}</PaneHeading>
           {note && <p className="text-xs leading-5 text-gray-500">{note}</p>}
-          <Button asChild className="w-full">
-            <Link href={backHref}>{t('backToAgenda')}</Link>
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
+          <BackToAgendaButton backHref={backHref} />
+        </div>
+      }
+      mobileActions={<BackToAgendaButton backHref={backHref} />}
+    />
   );
 }
 
@@ -41,6 +57,8 @@ interface BookingDetailAsideCardProps {
   readonly actionState: BookingDetailActionState;
   readonly booking: StaffBookingDetailResponse;
   readonly backHref: string;
+  // The failure of the action the user just took, shown under the buttons (TD57-S12).
+  readonly feedback: FeedbackModel | null;
   // UC-074: the appointment's end time (tenant timezone) while it has not passed, else null.
   readonly noShowAvailableAt: string | null;
   readonly canCorrectNoShow: boolean;
@@ -61,10 +79,12 @@ interface BookingDetailAsideCardProps {
 
 // Extracted from BookingDetailPage (TD37-S5A) — the aside action card is a self-contained
 // switch over actionState/booking.status, unrelated to the main banner or sheets around it.
+// Every branch renders through the shared `ActionPane` (sticky on desktop, fixed bar on mobile).
 export function BookingDetailAsideCard({
   actionState,
   booking,
   backHref,
+  feedback,
   noShowAvailableAt,
   canCorrectNoShow,
   canDecide,
@@ -81,34 +101,43 @@ export function BookingDetailAsideCard({
 }: BookingDetailAsideCardProps): React.JSX.Element | null {
   const t = useTranslations('dashboard.bookingDetail');
   const { formatTime } = useFormatting();
+  const isSubmitting = actionState === 'submitting';
 
   if (actionState === 'approved' || actionState === 'rejected' || actionState === 'corrected') {
-    return <BackToAgendaActionsCard backHref={backHref} />;
+    return <BackToAgendaPane backHref={backHref} feedback={feedback} />;
   }
 
   if (actionState === 'no-show') {
-    return <BackToAgendaActionsCard backHref={backHref} note={t('noShowMarkedAsideNote')} />;
+    return (
+      <BackToAgendaPane backHref={backHref} note={t('noShowMarkedAsideNote')} feedback={feedback} />
+    );
   }
 
   if (actionState === 'slot-conflict') {
+    const backButton = (
+      <Button type="button" variant="ghost" className="w-full" onClick={onBackWithoutApprove}>
+        {t('backWithoutApprove')}
+      </Button>
+    );
+
     return (
-      <Card className="border-gray-200">
-        <CardContent className="space-y-3 p-4">
-          <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-            {t('approvingLabel')}
-          </p>
-          <p className="text-sm font-semibold text-gray-900">{booking.contactName}</p>
-          <p className="text-sm text-gray-500">
-            {booking.lines.map((line) => line.serviceName).join(' · ')}
-          </p>
-          <p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-600">
-            {t('requestedSlotLabel', { time: formatTime(new Date(booking.scheduledAt)) })}
-          </p>
-          <Button type="button" variant="ghost" className="w-full" onClick={onBackWithoutApprove}>
-            {t('backWithoutApprove')}
-          </Button>
-        </CardContent>
-      </Card>
+      <ActionPane
+        feedback={feedback}
+        actions={
+          <div className="space-y-3">
+            <PaneHeading>{t('approvingLabel')}</PaneHeading>
+            <p className="text-sm font-semibold text-gray-900">{booking.contactName}</p>
+            <p className="text-sm text-gray-500">
+              {booking.lines.map((line) => line.serviceName).join(' · ')}
+            </p>
+            <p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-600">
+              {t('requestedSlotLabel', { time: formatTime(new Date(booking.scheduledAt)) })}
+            </p>
+            {backButton}
+          </div>
+        }
+        mobileActions={backButton}
+      />
     );
   }
 
@@ -117,56 +146,60 @@ export function BookingDetailAsideCard({
   // gets nothing (the banner tells them to ask a manager).
   if (bookingNeedsDecision(booking)) {
     if (!canDecide) return null;
-    return (
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-4 lg:static lg:z-auto lg:border-0 lg:bg-transparent lg:p-0">
-        <BookingDecisionPanel booking={booking} onBookingRefreshed={onBookingRefreshed} />
-      </div>
-    );
+    return <BookingDecisionPanel booking={booking} onBookingRefreshed={onBookingRefreshed} />;
   }
 
   if (booking.status === BOOKING_STATUS.APPROVED) {
+    const approvedProps = {
+      bookingStatus: BOOKING_STATUS.APPROVED,
+      isSubmitting,
+      onOpenComplete,
+      onOpenReschedule,
+      onOpenCancel,
+      onOpenNoShow,
+      noShowAvailableAt,
+    } as const;
+
     return (
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-4 lg:static lg:z-auto lg:border-0 lg:bg-transparent lg:p-0">
-        <BookingActionPanel
-          bookingStatus={BOOKING_STATUS.APPROVED}
-          isSubmitting={actionState === 'submitting'}
-          onOpenComplete={onOpenComplete}
-          onOpenReschedule={onOpenReschedule}
-          onOpenCancel={onOpenCancel}
-          onOpenNoShow={onOpenNoShow}
-          noShowAvailableAt={noShowAvailableAt}
-        />
-      </div>
+      <ActionPane
+        feedback={feedback}
+        actions={<BookingActionPanel {...approvedProps} />}
+        mobileActions={<BookingActionPanel {...approvedProps} compact />}
+      />
     );
   }
 
   if (booking.status === BOOKING_STATUS.NO_SHOW) {
+    const noShowProps = {
+      bookingStatus: BOOKING_STATUS.NO_SHOW,
+      isSubmitting,
+      canCorrect: canCorrectNoShow,
+      onOpenCorrect: onOpenCorrectNoShow,
+    } as const;
+
     return (
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-4 lg:static lg:z-auto lg:border-0 lg:bg-transparent lg:p-0">
-        <BookingActionPanel
-          bookingStatus={BOOKING_STATUS.NO_SHOW}
-          isSubmitting={actionState === 'submitting'}
-          canCorrect={canCorrectNoShow}
-          onOpenCorrect={onOpenCorrectNoShow}
-        />
-      </div>
+      <ActionPane
+        feedback={feedback}
+        actions={<BookingActionPanel {...noShowProps} />}
+        mobileActions={<BookingActionPanel {...noShowProps} compact />}
+      />
     );
   }
 
   if (actionState === 'cancelled') {
     return (
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-4 lg:static lg:z-auto lg:border-0 lg:bg-transparent lg:p-0">
-        <Card>
-          <CardContent className="space-y-3 p-4">
+      <ActionPane
+        feedback={feedback}
+        actions={
+          <div className="space-y-3">
             <p className="text-sm text-gray-600">
               {t('cancelledAsideBody', { name: booking.contactName })}
             </p>
-            <Button asChild className="w-full">
-              <Link href={backHref}>{t('backToAgenda')}</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+            <BackToAgendaButton backHref={backHref} />
+          </div>
+        }
+        mobileActions={<BackToAgendaButton backHref={backHref} />}
+      />
     );
   }
 
@@ -176,23 +209,25 @@ export function BookingDetailAsideCard({
     booking.status === BOOKING_STATUS.REJECTED ||
     booking.status === BOOKING_STATUS.CANCELLED
   ) {
-    return <BackToAgendaActionsCard backHref={backHref} />;
+    return <BackToAgendaPane backHref={backHref} feedback={feedback} />;
   }
 
-  const triageStatus =
-    booking.status === BOOKING_STATUS.INFO_REQUESTED
-      ? BOOKING_STATUS.INFO_REQUESTED
-      : BOOKING_STATUS.PENDING;
+  const triageProps = {
+    bookingStatus:
+      booking.status === BOOKING_STATUS.INFO_REQUESTED
+        ? BOOKING_STATUS.INFO_REQUESTED
+        : BOOKING_STATUS.PENDING,
+    isSubmitting,
+    onApprove,
+    onOpenReject,
+    onOpenRequestInfo,
+  } as const;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-4 lg:static lg:z-auto lg:border-0 lg:bg-transparent lg:p-0">
-      <BookingActionPanel
-        bookingStatus={triageStatus}
-        isSubmitting={actionState === 'submitting'}
-        onApprove={onApprove}
-        onOpenReject={onOpenReject}
-        onOpenRequestInfo={onOpenRequestInfo}
-      />
-    </div>
+    <ActionPane
+      feedback={feedback}
+      actions={<BookingActionPanel {...triageProps} />}
+      mobileActions={<BookingActionPanel {...triageProps} compact />}
+    />
   );
 }

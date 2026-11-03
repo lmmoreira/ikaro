@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { SchedulingExceptionItem } from '@ikaro/types';
 import { Button } from '@/shared/components/ui/button';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { useOpenSchedulingExceptions } from '@/features/booking/hooks/useSchedulingExceptions';
 import { useSchedulingExceptionActions } from '@/features/booking/hooks/useSchedulingExceptionActions';
@@ -106,23 +107,13 @@ export function SchedulingExceptionWorklistPage(): React.JSX.Element {
 
   if (isError) {
     return (
-      <div
-        role="alert"
-        data-testid="scheduling-exceptions-load-error"
-        className="rounded-md border border-red-200 bg-red-50 p-4 text-red-700"
-      >
-        <p className="text-sm font-bold">{t('loadError')}</p>
-        <p className="mt-1 text-sm">{t('loadErrorBody')}</p>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="mt-3"
-          onClick={() => void refetch()}
-        >
-          {t('retry')}
-        </Button>
-      </div>
+      <FeedbackMessage
+        title={t('loadError')}
+        hint={t('loadErrorBody')}
+        onRetry={() => void refetch()}
+        retryLabel={t('retry')}
+        testId="scheduling-exceptions-load-error"
+      />
     );
   }
 
@@ -142,7 +133,11 @@ export function SchedulingExceptionWorklistPage(): React.JSX.Element {
 
   return (
     <div className={liveSelection.length > 0 ? 'pb-36 lg:pb-16' : undefined}>
-      <p className="mb-1 text-sm text-gray-500">{t('intro')}</p>
+      <Card className="mb-2">
+        <CardContent className="p-4">
+          <p className="text-sm text-gray-500">{t('intro')}</p>
+        </CardContent>
+      </Card>
 
       <SchedulingExceptionGroups
         items={items}

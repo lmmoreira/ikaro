@@ -102,6 +102,7 @@ describe('CustomerSearchPanel', () => {
     renderWithIntl(<CustomerSearchPanel selectedId={null} onSelect={vi.fn()} />);
 
     expect(screen.queryByTestId('customer-list')).not.toBeInTheDocument();
+    expect(screen.getByTestId('customer-search-error')).toHaveAttribute('role', 'alert');
     await userEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
 
     expect(search.retry).toHaveBeenCalledOnce();

@@ -9,8 +9,6 @@ const noShowProps = {
   noShowEndLabel: '10:30',
   correctionPoints: 5,
   onRefresh: vi.fn(),
-  onRetryNoShow: vi.fn(),
-  onRetryCorrect: vi.fn(),
 };
 
 function makeBooking(overrides?: Partial<StaffBookingDetailResponse>): StaffBookingDetailResponse {
@@ -193,5 +191,35 @@ describe('BookingDetailMainBanner', () => {
 
     expect(screen.getByTestId('booking-no-show-not-ended')).toBeInTheDocument();
     expect(screen.getByText(/O atendimento termina às 10:30/)).toBeInTheDocument();
+  });
+
+  it('is page content: the result banners render no role=alert', () => {
+    // Negative guarantee (TD57-S12): an informational banner is page content, never a role=alert message.
+    for (const actionState of ['approved', 'rejected', 'cancelled'] as const) {
+      const view = renderWithIntl(
+        <BookingDetailMainBanner
+          {...noShowProps}
+          actionState={actionState}
+          booking={makeBooking()}
+          approvedRangeLabel="10:00–10:30"
+        />,
+      );
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      view.unmount();
+    }
+  });
+
+  it('renders nothing for the network failures of the no-show and its correction (they report in the pane)', () => {
+    for (const actionState of ['no-show-error', 'correct-error'] as const) {
+      const { container } = renderWithIntl(
+        <BookingDetailMainBanner
+          {...noShowProps}
+          actionState={actionState}
+          booking={makeBooking()}
+          approvedRangeLabel=""
+        />,
+      );
+      expect(container).toBeEmptyDOMElement();
+    }
   });
 });

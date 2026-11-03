@@ -75,18 +75,23 @@ interface SoonestSlotOptions {
 // `withinHours` away, for a spec that needs a booking inside a window measured in hours. It is open
 // Monday–Friday and Saturday until 14:00 and closed on Sunday, so "the next weekday" is not close
 // enough: from a Friday it is Monday, 60+ hours away, while a Saturday slot is not. The slot is
-// picked from the open ones inside the window; there may be none (a Saturday afternoon has few),
-// in which case this throws rather than hand back a start that makes the scenario assert nothing.
+// picked from EVERY open one inside the window, across days, never only from the first day that has
+// one: late in the afternoon (UTC) a single slot is left today, and a fixture whose twelve retry
+// seeds all land on that one slot fails with a 409 as soon as another spec has taken it. There may
+// be no slot at all (a Saturday afternoon has few), in which case this throws rather than hand back
+// a start that makes the scenario assert nothing.
 export function parseSoonestSlot(seed: string, options: SoonestSlotOptions = {}): string {
   const { withinHours = DEFAULT_WITHIN_HOURS, now = new Date() } = options;
   const earliest = now.getTime() + SOONEST_LEAD_MS;
   const latest = now.getTime() + withinHours * HOUR_MS;
 
-  for (let dayIndex = 0; dayIndex < LOOKAHEAD_DAYS; dayIndex += 1) {
+  const slots = Array.from({ length: LOOKAHEAD_DAYS }, (_, dayIndex) => {
     const day = new Date(now);
     day.setUTCDate(day.getUTCDate() + dayIndex);
-    const slots = openSlotsBetween(day, earliest, latest);
-    if (slots.length > 0) return slots[hashSeed(seed) % slots.length].toISOString();
+    return openSlotsBetween(day, earliest, latest);
+  }).flat();
+  if (slots.length === 0) {
+    throw new Error(`no open slot within ${withinHours}h of ${now.toISOString()}`);
   }
-  throw new Error(`no open slot within ${withinHours}h of ${now.toISOString()}`);
+  return slots[hashSeed(seed) % slots.length].toISOString();
 }

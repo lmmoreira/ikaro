@@ -87,9 +87,9 @@ describe('SchedulingExceptionWorklistPage — states', () => {
     mockList.mockRejectedValueOnce(new Error('boom'));
     renderPage();
 
-    expect(await screen.findByTestId('scheduling-exceptions-load-error')).toHaveTextContent(
-      'Não foi possível carregar as reservas',
-    );
+    const loadError = await screen.findByTestId('scheduling-exceptions-load-error');
+    expect(loadError).toHaveTextContent('Não foi possível carregar as reservas');
+    expect(loadError).toHaveAttribute('role', 'alert');
     listOf([entry('e1', BOX2, 'João Silva')]);
     await user.click(screen.getByRole('button', { name: 'Tentar de novo' }));
 
@@ -110,6 +110,16 @@ describe('SchedulingExceptionWorklistPage — states', () => {
 });
 
 describe('SchedulingExceptionWorklistPage — the list', () => {
+  // TD57-S12 (docs/ENGINEERING_RULES_FRONTEND.md § Alignment and cards): intro text lives inside a card.
+  it('keeps the page intro inside a card, not on the page background', async () => {
+    listOf([entry('e1', BOX2, 'João Silva')]);
+    renderPage();
+
+    const intro = await screen.findByText(/Mudanças nos recursos nunca movem clientes/);
+
+    expect(intro.closest('.rounded-lg')).not.toBeNull();
+  });
+
   it('groups the entries by the unavailable resource, with a header and a count each', async () => {
     listOf([
       entry('e1', BOX2, 'João Silva'),

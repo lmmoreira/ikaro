@@ -60,6 +60,33 @@ test.describe('parseSoonestSlot', () => {
     expect(() => parseSoonestSlot('seed', { now, withinHours: 2 })).toThrow(/no open slot/);
   });
 
+  // A fixture retries a 409 with a new seed; if every seed lands on one slot the retry is a no-op.
+  // Late in the UTC afternoon only one slot is left today, which used to collapse the whole retry space.
+  test('leaves a retry loop room at every half hour of a weekday: several distinct slots, never a single one', () => {
+    // a Saturday afternoon genuinely has only a couple of open slots in the window, so weekends are skipped
+    const weekdays = everyHalfHourOfTwoWeeks().filter(
+      (at) => at.getUTCDay() !== SATURDAY && at.getUTCDay() !== SUNDAY,
+    );
+    for (const now of weekdays) {
+      const slots = new Set(
+        Array.from({ length: 40 }, (_, index) => {
+          try {
+            return parseSoonestSlot(`retry-${index}`, { now });
+          } catch {
+            return 'none';
+          }
+        }),
+      );
+      slots.delete('none');
+
+      // a stretch with no open slot in the window at all is allowed to throw (see below); anything else
+      // must offer at least three distinct starts
+      if (slots.size > 0) {
+        expect(slots.size, `from ${now.toISOString()}`).toBeGreaterThanOrEqual(3);
+      }
+    }
+  });
+
   test('the same seed picks the same slot, and different seeds spread over the open slots', () => {
     const now = new Date('2026-10-27T00:00:00Z');
 

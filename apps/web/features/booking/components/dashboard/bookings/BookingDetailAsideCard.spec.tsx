@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { StaffBookingDetailResponse } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
 import { BookingDetailAsideCard } from './BookingDetailAsideCard';
+
+const desktop = () => within(screen.getByTestId('action-pane-desktop'));
 
 vi.mock('./BookingDecisionPanel', () => ({
   BookingDecisionPanel: () => <div data-testid="booking-decision-panel" />,
@@ -79,6 +81,7 @@ function baseProps(overrides: Partial<Parameters<typeof BookingDetailAsideCard>[
     actionState: 'idle' as const,
     booking: makeBooking(),
     backHref: '/dashboard/bookings',
+    feedback: null,
     noShowAvailableAt: null,
     canCorrectNoShow: false,
     canDecide: false,
@@ -104,18 +107,18 @@ describe('BookingDetailAsideCard', () => {
         <BookingDetailAsideCard {...baseProps({ booking: makeBooking({ status }) })} />,
       );
 
-      expect(screen.getByRole('link', { name: 'Voltar à agenda' })).toHaveAttribute(
+      expect(desktop().getByRole('link', { name: 'Voltar à agenda' })).toHaveAttribute(
         'href',
         '/dashboard/bookings',
       );
-      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+      expect(desktop().queryByRole('button')).not.toBeInTheDocument();
     },
   );
 
   it('renders the back-to-agenda card when actionState is approved', () => {
     renderWithIntl(<BookingDetailAsideCard {...baseProps({ actionState: 'approved' })} />);
 
-    expect(screen.getByRole('link', { name: 'Voltar à agenda' })).toHaveAttribute(
+    expect(desktop().getByRole('link', { name: 'Voltar à agenda' })).toHaveAttribute(
       'href',
       '/dashboard/bookings',
     );
@@ -130,7 +133,7 @@ describe('BookingDetailAsideCard', () => {
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: /Voltar/ }));
+    await user.click(desktop().getByRole('button', { name: /Voltar/ }));
 
     expect(onBackWithoutApprove).toHaveBeenCalledTimes(1);
   });
@@ -140,7 +143,7 @@ describe('BookingDetailAsideCard', () => {
     const onApprove = vi.fn();
     renderWithIntl(<BookingDetailAsideCard {...baseProps({ onApprove })} />);
 
-    await user.click(screen.getByRole('button', { name: 'Aprovar' }));
+    await user.click(desktop().getByRole('button', { name: 'Aprovar' }));
 
     expect(onApprove).toHaveBeenCalledTimes(1);
   });
@@ -154,7 +157,7 @@ describe('BookingDetailAsideCard', () => {
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: 'Marcar concluído' }));
+    await user.click(desktop().getByRole('button', { name: 'Marcar concluído' }));
 
     expect(onOpenComplete).toHaveBeenCalledTimes(1);
   });
@@ -169,7 +172,7 @@ describe('BookingDetailAsideCard', () => {
         />,
       );
 
-      await user.click(screen.getByRole('button', { name: 'Marcar não compareceu' }));
+      await user.click(desktop().getByRole('button', { name: 'Marcar não compareceu' }));
 
       expect(onOpenNoShow).toHaveBeenCalledTimes(1);
     });
@@ -184,8 +187,10 @@ describe('BookingDetailAsideCard', () => {
         />,
       );
 
-      expect(screen.getByRole('button', { name: 'Marcar não compareceu' })).toBeDisabled();
-      expect(screen.getByText('Disponível após o término do atendimento (17:30).')).toBeVisible();
+      expect(desktop().getByRole('button', { name: 'Marcar não compareceu' })).toBeDisabled();
+      expect(
+        desktop().getByText('Disponível após o término do atendimento (17:30).'),
+      ).toBeVisible();
     });
 
     it('offers the correction on a NO_SHOW booking to a manager, never the triage actions', async () => {
@@ -201,10 +206,10 @@ describe('BookingDetailAsideCard', () => {
         />,
       );
 
-      await user.click(screen.getByRole('button', { name: 'Corrigir para concluído' }));
+      await user.click(desktop().getByRole('button', { name: 'Corrigir para concluído' }));
 
       expect(onOpenCorrectNoShow).toHaveBeenCalledTimes(1);
-      expect(screen.queryByRole('button', { name: 'Aprovar' })).not.toBeInTheDocument();
+      expect(desktop().queryByRole('button', { name: 'Aprovar' })).not.toBeInTheDocument();
     });
 
     it('hides the correction from staff on a NO_SHOW booking', () => {
@@ -214,7 +219,7 @@ describe('BookingDetailAsideCard', () => {
         />,
       );
 
-      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+      expect(desktop().queryByRole('button')).not.toBeInTheDocument();
       expect(screen.getByTestId('no-show-read-only-note')).toBeInTheDocument();
     });
 
@@ -229,12 +234,12 @@ describe('BookingDetailAsideCard', () => {
         />,
       );
 
-      expect(screen.getByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
+      expect(desktop().getByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
       expect(
-        screen.getByText('Se foi um engano, um gerente pode corrigir o registro.'),
+        desktop().getByText('Se foi um engano, um gerente pode corrigir o registro.'),
       ).toBeInTheDocument();
       expect(
-        screen.queryByRole('button', { name: 'Corrigir para concluído' }),
+        desktop().queryByRole('button', { name: 'Corrigir para concluído' }),
       ).not.toBeInTheDocument();
     });
 
@@ -248,7 +253,7 @@ describe('BookingDetailAsideCard', () => {
         />,
       );
 
-      expect(screen.getByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
+      expect(desktop().getByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
     });
 
     it.each(['no-show-not-ended', 'no-show-error', 'no-show-terminal'] as const)(
@@ -260,7 +265,7 @@ describe('BookingDetailAsideCard', () => {
           />,
         );
 
-        expect(screen.getByRole('button', { name: 'Marcar não compareceu' })).toBeEnabled();
+        expect(desktop().getByRole('button', { name: 'Marcar não compareceu' })).toBeEnabled();
       },
     );
 
@@ -277,7 +282,7 @@ describe('BookingDetailAsideCard', () => {
           />,
         );
 
-        expect(screen.getByRole('button', { name: 'Corrigir para concluído' })).toBeEnabled();
+        expect(desktop().getByRole('button', { name: 'Corrigir para concluído' })).toBeEnabled();
       },
     );
   });
@@ -331,7 +336,7 @@ describe('BookingDetailAsideCard', () => {
         />,
       );
 
-      expect(screen.getByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
+      expect(desktop().getByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
       expect(screen.queryByTestId('booking-decision-panel')).not.toBeInTheDocument();
     });
 
@@ -346,7 +351,7 @@ describe('BookingDetailAsideCard', () => {
         />,
       );
 
-      expect(screen.getByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
+      expect(desktop().getByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
       expect(screen.queryByTestId('booking-decision-panel')).not.toBeInTheDocument();
     });
 
@@ -361,7 +366,94 @@ describe('BookingDetailAsideCard', () => {
       );
 
       expect(screen.queryByTestId('booking-decision-panel')).not.toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Marcar concluído' })).toBeInTheDocument();
+      expect(desktop().getByRole('button', { name: 'Marcar concluído' })).toBeInTheDocument();
     });
+  });
+  describe('feedback in the action pane (TD57-S12)', () => {
+    it('renders a failure under the buttons of the desktop pane and above the buttons of the mobile bar', () => {
+      renderWithIntl(
+        <BookingDetailAsideCard
+          {...baseProps({
+            feedback: { variant: 'error', title: 'Erro ao aprovar. Tente novamente.' },
+          })}
+        />,
+      );
+
+      const desktopPane = screen.getByTestId('action-pane-desktop');
+      const feedback = within(desktopPane).getByTestId('form-feedback');
+      expect(feedback).toHaveAttribute('role', 'alert');
+      expect(feedback).toHaveTextContent('Erro ao aprovar. Tente novamente.');
+      const approve = within(desktopPane).getByRole('button', { name: 'Aprovar' });
+      expect(
+        approve.compareDocumentPosition(feedback) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+
+      const mobileBar = screen.getByTestId('action-pane-mobile');
+      expect(within(mobileBar).getByTestId('form-feedback-mobile')).toHaveTextContent(
+        'Erro ao aprovar. Tente novamente.',
+      );
+    });
+
+    it('renders no feedback card when there is no message', () => {
+      renderWithIntl(<BookingDetailAsideCard {...baseProps()} />);
+
+      expect(screen.queryByTestId('form-feedback')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('form-feedback-mobile')).not.toBeInTheDocument();
+    });
+
+    it('uses the shared ActionPane, with a fixed mobile bar at bottom-0 and no bar of its own', () => {
+      renderWithIntl(
+        <BookingDetailAsideCard {...baseProps({ booking: makeBooking({ status: 'APPROVED' }) })} />,
+      );
+
+      const mobileBar = screen.getByTestId('action-pane-mobile');
+      expect(mobileBar).toHaveClass('fixed', 'bottom-0');
+      expect(screen.getByTestId('action-pane-desktop')).toHaveClass('lg:sticky');
+    });
+
+    it('keeps the lifecycle buttons while a no-show failure is shown, with its retry', async () => {
+      const user = userEvent.setup();
+      const onRetry = vi.fn();
+      renderWithIntl(
+        <BookingDetailAsideCard
+          {...baseProps({
+            actionState: 'no-show-error',
+            booking: makeBooking({ status: 'APPROVED' }),
+            feedback: {
+              variant: 'error',
+              title: 'Não foi possível registrar o não comparecimento',
+              hint: 'Verifique sua conexão e tente novamente. Nada foi alterado.',
+              onRetry,
+              retryLabel: 'Tentar novamente',
+              testId: 'booking-no-show-error',
+            },
+          })}
+        />,
+      );
+
+      expect(desktop().getByRole('button', { name: 'Marcar concluído' })).toBeInTheDocument();
+      await user.click(
+        within(screen.getByTestId('booking-no-show-error')).getByRole('button', {
+          name: 'Tentar novamente',
+        }),
+      );
+
+      expect(onRetry).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // TD57-S12 negative guarantee: the decision branch adds no fixed bar or sticky wrapper of its own.
+  it('renders the decision panel directly, with no hand-built fixed wrapper around it', () => {
+    const { container } = renderWithIntl(
+      <BookingDetailAsideCard
+        {...baseProps({
+          canDecide: true,
+          booking: makeBooking({ status: 'APPROVED', hasOpenException: true }),
+        })}
+      />,
+    );
+
+    expect(container.firstElementChild).toBe(screen.getByTestId('booking-decision-panel'));
+    expect(container.querySelector('.fixed')).toBeNull();
   });
 });

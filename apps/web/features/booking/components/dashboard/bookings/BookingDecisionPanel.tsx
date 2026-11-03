@@ -3,8 +3,9 @@
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { BOOKING_STATUS, type StaffBookingDetailResponse } from '@ikaro/types';
+import { ActionPane } from '@/shared/components/ui/action-pane';
 import { Button } from '@/shared/components/ui/button';
-import { Card, CardContent } from '@/shared/components/ui/card';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import { CancelSheet } from '@/features/booking/components/dashboard/scheduling-exceptions/CancelSheet';
 import { ReassignSheet } from '@/features/booking/components/dashboard/scheduling-exceptions/ReassignSheet';
 import { useBookingDecision } from '@/features/booking/hooks/useBookingDecision';
@@ -18,29 +19,35 @@ interface BookingDecisionPanelProps {
   readonly onBookingRefreshed: (fresh: StaffBookingDetailResponse) => void;
 }
 
+function DecisionHeading(): React.JSX.Element {
+  const t = useTranslations('dashboard.bookingDetail');
+
+  return <p className="text-sm font-semibold text-orange-700">{t('decisionPanelTitle')}</p>;
+}
+
 // What replaces the panel when a resolve succeeded but the booking could not be reloaded.
 function RefreshFailedPanel(): React.JSX.Element {
   const t = useTranslations('dashboard.bookingDetail');
-  return (
-    <div className="space-y-2" data-testid="booking-decision-panel">
-      <p className="text-xs font-bold uppercase tracking-[0.07em] text-orange-700">
-        {t('decisionPanelTitle')}
-      </p>
-      <Card className="border-orange-200">
-        <CardContent className="p-4">
-          <p role="alert" className="text-sm text-red-700">
-            {t('decisionRefreshError')}
-          </p>
-        </CardContent>
-      </Card>
+  const body = (
+    <div className="space-y-3">
+      <DecisionHeading />
+      <FeedbackMessage title={t('decisionRefreshError')} />
     </div>
+  );
+
+  return (
+    <ActionPane
+      actions={<div data-testid="booking-decision-panel">{body}</div>}
+      mobileActions={body}
+    />
   );
 }
 
 // M23-S46 (MANAGER only) — what the booking detail offers instead of its normal actions while the
 // booking has an open "Reservas a resolver" entry: the worklist's own three actions, for this one
 // booking. Reatribuir is per entry (a target is valid for one source resource only), Cancelar and
-// Reagendar are for the booking.
+// Reagendar are for the booking. It renders through the shared `ActionPane` (sticky card on desktop,
+// fixed bar on mobile), like every other action state of the booking detail (TD57-S12).
 export function BookingDecisionPanel({
   booking,
   onBookingRefreshed,
@@ -67,82 +74,87 @@ export function BookingDecisionPanel({
       ),
     );
 
+  // Both the desktop card and the mobile bar render the controls (CSS shows one), so ids are suffixed.
+  const renderBody = (idSuffix: string) => (
+    <div className="space-y-3">
+      <DecisionHeading />
+
+      {decision.isLoading && (
+        <div aria-busy="true" className="h-24 animate-pulse rounded-md bg-gray-100" />
+      )}
+
+      {decision.isError && (
+        <FeedbackMessage
+          title={tx('loadError')}
+          onRetry={decision.retryLoad}
+          retryLabel={tx('retry')}
+        />
+      )}
+
+      {entries.map((entry, index) => {
+        const noAlternative = entry.alternatives.length === 0;
+        const hintId = `no-alternative-${entry.id}${idSuffix}`;
+        return (
+          <div key={entry.id}>
+            <Button
+              type="button"
+              className={index === 0 ? 'w-full' : SECONDARY_BUTTON}
+              disabled={noAlternative || decision.isSubmitting}
+              aria-describedby={noAlternative ? hintId : undefined}
+              onClick={() => decision.openSheet('reassign', [entry.id])}
+            >
+              {severalEntries
+                ? t('decisionPanelReassignNamed', {
+                    resource: entry.booking?.resourceName ?? '',
+                  })
+                : tx('reassign')}
+            </Button>
+            {noAlternative && (
+              <p id={hintId} className="mt-1.5 text-xs text-gray-500">
+                {tx('noAlternative')}
+              </p>
+            )}
+          </div>
+        );
+      })}
+
+      {entries.length > 0 && booking.status === BOOKING_STATUS.APPROVED && (
+        <Button
+          type="button"
+          className={SECONDARY_BUTTON}
+          disabled={decision.isSubmitting}
+          onClick={reschedule}
+        >
+          {t('rescheduleAction')}
+        </Button>
+      )}
+
+      {entries.length > 0 && (
+        <Button
+          type="button"
+          className={SECONDARY_BUTTON}
+          disabled={decision.isSubmitting}
+          onClick={() =>
+            decision.openSheet(
+              'cancel',
+              entries.map((e) => e.id),
+            )
+          }
+        >
+          {t('cancelBookingAction')}
+        </Button>
+      )}
+
+      <p className="text-xs leading-5 text-gray-500">{t('decisionPanelHint')}</p>
+    </div>
+  );
+
   return (
-    <div className="space-y-2" data-testid="booking-decision-panel">
-      <p className="text-xs font-bold uppercase tracking-[0.07em] text-orange-700">
-        {t('decisionPanelTitle')}
-      </p>
-      <Card className="border-orange-200">
-        <CardContent className="space-y-3 p-4">
-          {decision.isLoading && (
-            <div aria-busy="true" className="h-24 animate-pulse rounded-md bg-gray-100" />
-          )}
-
-          {decision.isError && (
-            <div className="space-y-2">
-              <p className="text-sm text-red-700">{tx('loadError')}</p>
-              <Button type="button" className={SECONDARY_BUTTON} onClick={decision.retryLoad}>
-                {tx('retry')}
-              </Button>
-            </div>
-          )}
-
-          {entries.map((entry, index) => {
-            const noAlternative = entry.alternatives.length === 0;
-            return (
-              <div key={entry.id}>
-                <Button
-                  type="button"
-                  className={index === 0 ? 'w-full' : SECONDARY_BUTTON}
-                  disabled={noAlternative || decision.isSubmitting}
-                  aria-describedby={noAlternative ? `no-alternative-${entry.id}` : undefined}
-                  onClick={() => decision.openSheet('reassign', [entry.id])}
-                >
-                  {severalEntries
-                    ? t('decisionPanelReassignNamed', {
-                        resource: entry.booking?.resourceName ?? '',
-                      })
-                    : tx('reassign')}
-                </Button>
-                {noAlternative && (
-                  <p id={`no-alternative-${entry.id}`} className="mt-1.5 text-xs text-gray-500">
-                    {tx('noAlternative')}
-                  </p>
-                )}
-              </div>
-            );
-          })}
-
-          {entries.length > 0 && booking.status === BOOKING_STATUS.APPROVED && (
-            <Button
-              type="button"
-              className={SECONDARY_BUTTON}
-              disabled={decision.isSubmitting}
-              onClick={reschedule}
-            >
-              {t('rescheduleAction')}
-            </Button>
-          )}
-
-          {entries.length > 0 && (
-            <Button
-              type="button"
-              className={SECONDARY_BUTTON}
-              disabled={decision.isSubmitting}
-              onClick={() =>
-                decision.openSheet(
-                  'cancel',
-                  entries.map((e) => e.id),
-                )
-              }
-            >
-              {t('cancelBookingAction')}
-            </Button>
-          )}
-
-          <p className="text-xs leading-5 text-gray-500">{t('decisionPanelHint')}</p>
-        </CardContent>
-      </Card>
+    <>
+      <ActionPane
+        actions={<div data-testid="booking-decision-panel">{renderBody('')}</div>}
+        mobileActions={renderBody('-mobile')}
+      />
 
       {sheet && (
         <>
@@ -166,6 +178,6 @@ export function BookingDecisionPanel({
           />
         </>
       )}
-    </div>
+    </>
   );
 }

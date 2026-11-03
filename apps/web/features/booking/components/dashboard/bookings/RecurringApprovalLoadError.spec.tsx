@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/shared/lib/api/errors';
@@ -35,5 +35,27 @@ describe('RecurringApprovalLoadError', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }));
 
     expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('announces the failure with role alert inside the page-level wrapper, retry included', () => {
+    renderWithIntl(<RecurringApprovalLoadError error={new Error('x')} onRetry={vi.fn()} />);
+
+    const wrapper = screen.getByTestId('recurring-approval-error');
+    const alert = within(wrapper).getByRole('alert');
+    expect(alert).toHaveTextContent('Não foi possível carregar este pedido.');
+    expect(within(alert).getByRole('button', { name: 'Tentar de novo' })).toBeInTheDocument();
+  });
+
+  it('announces the 404 too, without a retry in the alert', () => {
+    renderWithIntl(
+      <RecurringApprovalLoadError
+        error={new ApiError(404, 'BOOKING_RECURRING_SCHEDULE_NOT_FOUND', {})}
+        onRetry={vi.fn()}
+      />,
+    );
+
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent('Este pedido não foi encontrado.');
+    expect(within(alert).queryByRole('button')).not.toBeInTheDocument();
   });
 });

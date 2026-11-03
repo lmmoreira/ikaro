@@ -78,7 +78,7 @@ Folder: `manager/prototypes/scheduling-exceptions/` — relocated from `docs/dis
 | `01h-vazio.html` · `01i-carregando.html` · `01j-erro-carregar.html` | Empty, loading and fetch-error states | UC-073 | ✅ Built |
 | `01k-erro-enviar.html` | The whole request failed — nothing changed | UC-077 | ✅ Built |
 
-## TD57-S12 — feedback pattern (in progress)
+## TD57-S12 — feedback pattern (✅ Built — `TD57-S12`)
 
 Redrawn in place, `shared/feedback-pane.css` (all ✅ Criado): `01d` (the result view keeps the real row actions Reatribuir · Reagendar · Cancelar on still-open rows, no "Tentar de novo"), `01j` (load failure as a page-level `FeedbackMessage` with the retry label "Tentar de novo"; no intro above it, as shipped) and `01k` (the whole-request failure stays **inside the open sheet**, above its buttons, with the selection kept; there is no list-level banner). `01h`, `01i` and the sheets `01c`/`01f` are unchanged.
 

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { BOOKING_STATUS, type BookingStatus, type TenantBusinessHours } from '@ikaro/types';
 import { axe } from '@/axe-helper';
@@ -77,6 +78,23 @@ describe('ScheduleResourceColumnsBoard', () => {
     expect(
       screen.getByText(/Não foi possível carregar as colunas dos recursos/),
     ).toBeInTheDocument();
+  });
+
+  it('announces the day-grid failure and retries the failed query (TD57-S12)', async () => {
+    const refetch = vi.fn();
+    useScheduleDayGridMock.mockReturnValue({
+      isLoading: false,
+      isError: true,
+      error: new Error('boom'),
+      data: undefined,
+      refetch,
+    });
+    renderWithIntl(<ScheduleResourceColumnsBoard {...baseProps()} />);
+
+    expect(screen.getByTestId('day-grid-fetch-error')).toHaveAttribute('role', 'alert');
+    await userEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+
+    expect(refetch).toHaveBeenCalledTimes(1);
   });
 
   it('renders exactly one column per checked resource, not for an unchecked one present in the response', () => {

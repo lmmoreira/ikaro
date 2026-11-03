@@ -27,4 +27,11 @@ describe('BookingDecisionBanner', () => {
     expect(screen.queryByText(/Escolha como resolver/)).not.toBeInTheDocument();
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
+
+  it('is page content: it renders no role=alert', () => {
+    // Negative guarantee (TD57-S12): an informational banner is page content, never a role=alert message.
+    renderWithIntl(<BookingDecisionBanner needsDecision canDecide />);
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
 });

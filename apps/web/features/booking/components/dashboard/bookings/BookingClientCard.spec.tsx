@@ -75,4 +75,15 @@ describe('BookingClientCard', () => {
 
     expect(screen.getByText('Visitante')).toBeInTheDocument();
   });
+
+  it('puts the section heading inside the card, with the shared card-heading style', () => {
+    const { container } = renderWithIntl(<BookingClientCard booking={makeBooking()} />);
+
+    const heading = screen.getByText('Cliente', { selector: 'p' });
+    expect(heading).toHaveClass('text-sm', 'font-semibold');
+    expect(heading).not.toHaveClass('uppercase');
+    // the heading is the first thing in the card, so the card starts level with the action pane
+    const card = container.querySelector('section > div');
+    expect(card).toContainElement(heading);
+  });
 });

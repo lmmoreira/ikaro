@@ -139,4 +139,11 @@ describe('BulkResultList', () => {
 
     expect(h.onBack).toHaveBeenCalled();
   });
+
+  it('is page content: the partial-result banner and the open-row reason render no role=alert', () => {
+    // Negative guarantee (TD57-S12): an informational banner is page content, never a role=alert message.
+    renderList();
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
 });
