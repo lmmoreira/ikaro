@@ -141,6 +141,13 @@ describe('ResourceField', () => {
       'id',
       'new-schedule-resource-0-error',
     );
+    expect(screen.getByRole('radiogroup', { name: 'Sala' })).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
+    expect(screen.getByRole('radiogroup', { name: 'Sala' })).toHaveAccessibleDescription(
+      'Escolha a sala',
+    );
   });
 
   it('numbers each group of a bundle in a data attribute', () => {

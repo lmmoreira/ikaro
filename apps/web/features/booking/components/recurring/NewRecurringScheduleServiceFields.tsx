@@ -100,6 +100,7 @@ export function ResourceField({
   onChange,
 }: ResourceFieldProps): React.JSX.Element {
   const tn = useTranslations('booking.recurringScheduleForm');
+  const errorId = `new-schedule-resource-${index}-error`;
 
   function renderChoice(): React.JSX.Element {
     if (query.isError) {
@@ -123,6 +124,8 @@ export function ResourceField({
         options={options.map((resource) => ({ value: resource.resourceId, label: resource.name }))}
         onChange={onChange}
         testId="new-schedule-resource-option"
+        invalid={error !== null}
+        describedBy={error === null ? undefined : errorId}
       />
     );
   }
@@ -130,7 +133,7 @@ export function ResourceField({
   return (
     <div ref={fieldRef} data-testid="new-schedule-resource" data-index={index}>
       {renderChoice()}
-      <FieldFeedback id={`new-schedule-resource-${index}-error`}>{error}</FieldFeedback>
+      <FieldFeedback id={errorId}>{error}</FieldFeedback>
       <p className="mt-1 text-xs text-gray-500">{tn('resourceHint')}</p>
     </div>
   );

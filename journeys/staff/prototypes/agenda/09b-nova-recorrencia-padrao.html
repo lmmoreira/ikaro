@@ -58,6 +58,9 @@
     .skeleton { height: 2.5rem; border-radius: var(--ba-radius); background: linear-gradient(90deg, #f3f4f6, #e5e7eb, #f3f4f6); margin-bottom: 0.5rem; }
     .inline-retry { font-size: 0.8125rem; margin-left: 0.5rem; }
     .btn-primary.is-disabled { opacity: 0.45; pointer-events: none; }
+    /* erros variant: the invalid controls carry the shared red outline (TD57), the message sits under them */
+    body[data-variant="erros"] #ends-on,
+    body[data-variant="erros"] #weekdays .chip { border-color: #dc2626; box-shadow: 0 0 0 1px #dc2626; }
     .proto-only { margin-top: 1.5rem; padding: 0.875rem; border: 1px dashed #9ca3af; border-radius: var(--ba-radius); font-size: 0.8125rem; color: #4b5563; }
     .proto-only a { margin-right: 0.75rem; }
   </style>
@@ -216,7 +219,7 @@
     </aside>
 
     <!-- MAIN CONTENT -->
-    <main class="main-content" style="padding-bottom: 8rem;">
+    <main class="main-content" style="padding-bottom: 14rem;">
       <div class="dashboard-body">
         <div class="detail-layout">
 
@@ -427,6 +430,10 @@
       document.getElementById('starts-on').value = v === 'recusa' ? '2026-08-04' : '2026-08-18';
     }
     window.addEventListener('hashchange', applyVariant); applyVariant();
+    // The pane refusals describe the pattern as it was: the first edit clears them, like the app does.
+    document.querySelector('[data-form]').addEventListener('input', clearRefusals);
+    document.querySelectorAll('#weekdays .chip').forEach(function (chip) { chip.addEventListener('click', clearRefusals); });
+    function clearRefusals() { document.querySelectorAll('.fb[data-v]').forEach(function (el) { el.hidden = true; }); }
     document.getElementById('proto-nav').innerHTML = VARIANTS.map(function (x) { return '<a href="#' + x + '">' + x + '</a>'; }).join(' · ');
   </script>
 

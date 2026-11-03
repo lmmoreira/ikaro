@@ -46,6 +46,8 @@ interface TermLimit {
   readonly latest: string | null;
 }
 
+const NO_LIMIT: TermLimit = { maxTermDays: null, latest: null };
+
 function termExceededMessage(ctx: MessageContext, limit: TermLimit): string {
   const { t, service, draft, formatDateKey } = ctx;
   const fallbackLatest =
@@ -60,7 +62,7 @@ function termExceededMessage(ctx: MessageContext, limit: TermLimit): string {
 function endsOnMessage(
   ctx: MessageContext,
   kind: 'END_REQUIRED' | 'END_BEFORE_START' | 'TERM_EXCEEDED',
-  limit: TermLimit = { maxTermDays: null, latest: null },
+  limit: TermLimit = NO_LIMIT,
 ): string {
   if (kind === 'END_REQUIRED') return ctx.t('errorEndRequired');
   if (kind === 'END_BEFORE_START') return ctx.t('errorEndBeforeStart');
