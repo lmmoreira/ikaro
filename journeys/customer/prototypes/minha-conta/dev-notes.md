@@ -403,3 +403,30 @@ Copy: "Esta empresa não está aceitando agendamentos no momento", "Voltar para 
 **Status:** ❌ Gap — TD57-S11. Drawn here so the customer account shows the same pattern as the dashboard; the pattern itself, its shared CSS (`shared/feedback-pane.css`) and the rules are in `manager/prototypes/feedback-pane/dev-notes.md`.
 
 Cancel errors move from a box above the content into a second card under the buttons card, inside the sticky `ActionPane`; the card only exists while there is a message. The heading sits inside the first card so it starts level with the pane's card. Decided in TD57-S11 discovery (2026-11-02): every customer pane screen adopts the shared fixed bottom bar (`ActionPane`, `bottom-0`: these are drill-down routes that hide the customer bottom nav, and `main` already reserves `pb-24`). Story 11 migrates the other pane screens of this folder in place to the same layout.
+
+---
+
+## Prototype vs current code — known differences (TD57-S11, compared 2026-11-03)
+
+The redrawn screens show the **target** layout (messages in the pane, fixed mobile bar, heading in the first card). Layout differences are intentional and are not listed. These are **content** differences between a prototype and the component it describes, found by a read-only comparison; the story builds the target layout and leaves the rest of the behaviour as the code has it. Items marked ✔ were re-read in code; the others are from the comparison and must be re-read before relying on them.
+
+**Planned in a prototype, not built in the code (out of TD57):**
+- `06`/`06h`: the "Nova reserva recorrente" link in the ENDED and CANCELLED states (M23-S17/S22); `RecurringScheduleDetail` has no such link today ✔.
+- `02`: the "Fotos antes do serviço" card with an upload tile on an approved booking; `BookingDetailMain` only lists photos that already exist ✔.
+- `02g`: the banner naming who cancelled and when; the code shows that in the termination card.
+- `05`: the current tenant pinned first and marked "Atual"; the code keeps the API order.
+
+**Existing behaviour the prototypes do not draw (unchanged by the story):**
+- `02b`/`02e`: the "Fotos (opcional)" upload inside the info form.
+- `02c`/`02f`/`02g`/`02h`: the mobile pane has the same buttons as desktop (including "Ver meus pontos →").
+- `07g`: the mobile pane also has "Novo agendamento".
+- `15g`: the code has no "O novo horário já está confirmado." pane note.
+- `05`: header avatar and name, a loading skeleton, a redirect when there are 0 or 1 tenants, "Voltar sem trocar" going to the hotsite, and `router.refresh()` as the retry.
+- `03b`/`15j`: the WhatsApp button is hidden when the tenant has no number.
+- `02c`: the points display, the realized duration and the quoted vs charged price differ from the code.
+
+**Prototype copy the code does not have (to drop or keep deliberately when building):**
+- `02b`: "Resumo do agendamento" / "Horário a confirmar após aprovação", and the form hint "Após enviar, o admin revisará e aprovará o agendamento."
+- `06g`: "2 horas" and "13 reservas criadas" in the summary; `07f`: "30 dias após a criação"; `15`: the "O que vai mudar" summary repeated in the main column on mobile (the code shows it in the pane only).
+
+**Fixed in the prototypes (they were wrong):** `15k` no longer disables "Confirmar novo horário" after a generic submit failure; only a taken slot, a closed time, an unavailable bundle part or a booking-window refusal clears the selection (`reschedule-failure.ts` `shouldReloadSlots` ✔).
