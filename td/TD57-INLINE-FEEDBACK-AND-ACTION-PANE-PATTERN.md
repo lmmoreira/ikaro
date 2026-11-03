@@ -697,7 +697,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 3. **Informational banners stay as page content** (points earned, renewal, no-show and ended notices, the reschedule success screen's facts, the per-photo upload status line). `responseSentConfirmation` becomes a `FeedbackMessage` success in the pane.
 4. **The info form moves out of the pane.** `InfoSubmitForm`'s textarea and photo upload sit in a main-column card ("Sua resposta"); the pane holds "Enviar resposta" (a `form=` button) and the cancel action. `BookingDetailPage`, `InfoSubmitForm` and `CustomerPhotoUpload` change accordingly (more than a message swap).
 5. **A generic reschedule failure keeps the slot selected and Confirm enabled** (`reschedule-failure.ts` `shouldReloadSlots` is unchanged); only slotTaken, slotClosed, bundleUnavailable and bookingWindow clear it. Prototype `15k` shows this.
-6. **Not changed here:** the staff-name idea for the info request. See the open item at the end of this story.
+6. **No staff name on the info request** (kept neutral on purpose; see the decision at the end of this story). No backend, BFF or `@ikaro/types` change.
 
 **Description:**
 Replace every hand-rolled error/success box listed for this area in Appendix A with the shared pattern (see "Chosen approach"): forms with a primary action show their form-level feedback below the buttons in `ActionPane` (SaaS skin) and route the offending `field` through `useFormFeedback`; page-level load failures use a page-level `FeedbackMessage` with a retry; field-level messages keep `aria-invalid` + `aria-describedby` and gain the red outline where Appendix A shows none. Every feedback box gets a `role` (the audit found most had none, so they were never announced). `InformationCompletionPrompt.tsx` is rendered under the hotsite theme and reads `--ba-*`, so it uses the Story 6 branded component. Includes `app/[slug]/my-account/error.tsx` and `app/[slug]/my-account/alerts/error.tsx` (route error pages, page-level, SaaS skin: they read no `--ba-*`).
@@ -772,7 +772,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-**Open item (not decided): a staff name on the info request.** The prototypes keep the neutral heading "O admin precisa de mais informações". Showing who asked and when needs a backend, BFF and `@ikaro/types` change, and it reverses a deliberate rule: a customer booking read skips the staff-name lookup entirely (`booking-detail-extras.helpers.ts` `includeActorNames: false`) and `toCustomerDetailExtras` never carries an actor name (a pinned negative guarantee). Decide before READY whether to keep the rule (stay neutral, as the termination card does with "O estabelecimento") or to carve out an exception for the info request; if the latter, it joins this story as a small backend/BFF/types change with its own tests.
+**Decided (2026-11-03): no staff name on the info request.** The customer keeps the neutral heading "O admin precisa de mais informações". The customer booking read skips the staff-name lookup on purpose (`booking-detail-extras.helpers.ts` `includeActorNames: false`) and `toCustomerDetailExtras` never carries an actor name (a pinned negative guarantee), so this story changes no backend, BFF or `@ikaro/types` code.
 
 ### Story 12 — Migrate Bookings dashboard, schedule and scheduling exceptions to the feedback pattern 🟡
 
