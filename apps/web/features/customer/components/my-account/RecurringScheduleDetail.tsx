@@ -20,6 +20,7 @@ import {
   recurringScheduleRenewPath,
 } from '../../recurring-schedule-model';
 import { useCustomerTopbarStatus } from '../customer-topbar-status-context';
+import { DetailSection } from './DetailSection';
 import { RecurringScheduleOccurrences } from './RecurringScheduleOccurrences';
 import { RecurringSchedulePendingView } from './RecurringSchedulePendingView';
 import { useRecurrenceText } from './use-recurrence-text';
@@ -218,11 +219,8 @@ function ScheduleDetailBody({
             </div>
           )}
 
-          <div>
-            <p className="mb-2.5 text-[0.6875rem] font-bold uppercase tracking-wider text-gray-400">
-              {t('sectionRecurrence')}
-            </p>
-            <div className="rounded-xl border border-gray-100 bg-white px-4">
+          <DetailSection title={t('sectionRecurrence')}>
+            <div>
               <DetailRow
                 label={t('labelDayTime')}
                 value={recurrenceLine(schedule.recurrence)}
@@ -237,7 +235,7 @@ function ScheduleDetailBody({
                 sub={periodSub}
               />
             </div>
-          </div>
+          </DetailSection>
 
           {occurrences !== null && (
             <RecurringScheduleOccurrences

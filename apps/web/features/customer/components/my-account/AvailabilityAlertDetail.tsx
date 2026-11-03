@@ -18,6 +18,7 @@ import {
   canCancelAlert,
 } from '../../alert-model';
 import { useCustomerTopbarStatus } from '../customer-topbar-status-context';
+import { DetailSection } from './DetailSection';
 import { useAlertText } from './use-alert-text';
 
 interface AvailabilityAlertDetailProps {
@@ -57,12 +58,9 @@ interface SectionProps {
 
 function Section({ label, children }: SectionProps): React.JSX.Element {
   return (
-    <div>
-      <p className="mb-2.5 text-[0.6875rem] font-bold uppercase tracking-wider text-gray-400">
-        {label}
-      </p>
-      <div className="rounded-xl border border-gray-100 bg-white px-4">{children}</div>
-    </div>
+    <DetailSection title={label}>
+      <div>{children}</div>
+    </DetailSection>
   );
 }
 

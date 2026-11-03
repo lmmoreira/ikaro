@@ -99,6 +99,19 @@ describe('BookingDetailMain', () => {
     expect(screen.getAllByText('R$ 180.00')).toHaveLength(2);
   });
 
+  it('starts with a card whose heading is inside it, so the first box sits level with the action pane', () => {
+    const { container } = render(
+      <BookingDetailMain booking={makeBooking()} tenantSlug="beloauto" />,
+    );
+
+    const firstChild = container.firstElementChild?.firstElementChild;
+    expect(firstChild?.tagName).toBe('DIV');
+    expect(firstChild?.firstElementChild?.tagName).toBe('H2');
+    expect(firstChild).toContainElement(
+      screen.getByRole('heading', { level: 2, name: 'Data e horário' }),
+    );
+  });
+
   it('renders separate Data and Horário rows with the estimated duration', () => {
     render(<BookingDetailMain booking={makeBooking()} tenantSlug="beloauto" />);
 
