@@ -710,7 +710,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **New migration / i18n keys / env vars / feature flags:** no new keys; one reworded key (`customer.bookingItem.infoNeeded`, both locales); any other new copy key in both locales in the same change
 
 **Files to create/modify:**
-- `apps/web/app/[slug]/my-account/error.tsx` + `error.spec.tsx` (new spec)
+- `apps/web/app/[slug]/my-account/error.tsx` (a thin wrapper) + `apps/web/features/customer/components/my-account/MyAccountRouteError.tsx` + `MyAccountRouteError.spec.tsx` (new; a spec may not sit beside a route file, so the component and its spec live in the feature folder, as `alerts/error.tsx` already does)
 - `apps/web/features/customer/components/InformationCompletionPrompt.tsx` + `InformationCompletionPrompt.spec.tsx`
 - `apps/web/features/customer/components/SwitchTenantClient.tsx` + `SwitchTenantClient.spec.tsx`
 - `apps/web/features/customer/components/my-account/AvailabilityAlertCancelConfirm.tsx` + `AvailabilityAlertCancelConfirm.spec.tsx`

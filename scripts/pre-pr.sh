@@ -42,7 +42,10 @@ web_tsx_prod=$(echo "$ts_prod" | grep '^apps/web/' | grep -E '\.tsx$' || true)
 web_component_re='^apps/web/(features/[^/]+/components/|shells/[^/]+/components/|shared/components/)'
 web_spec_tsx_added=$(echo "$added" | grep -E "$web_component_re" | grep -E '\.spec\.tsx$' || true)
 # Dashboard shell chrome + dashboard-scoped feature components + CustomerShell/account components.
-web_dashboard_tsx=$(echo "$ts_prod" | grep -E '^apps/web/(shells/dashboard/components/|features/[^/]+/components/dashboard/|features/customer/components/)' | grep -E '\.tsx$' || true)
+# InformationCompletionPrompt and its phone field live in features/customer/ but render over the
+# tenant's hotsite (the [slug] layout paints the --ba-* variables there) and use the branded
+# feedback skin, so they legitimately read --ba-*; every other customer component is account chrome.
+web_dashboard_tsx=$(echo "$ts_prod" | grep -E '^apps/web/(shells/dashboard/components/|features/[^/]+/components/dashboard/|features/customer/components/)' | grep -E '\.tsx$' | grep -vE '^apps/web/features/customer/components/InformationCompletion(Prompt|PhoneField)\.tsx$' || true)
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
