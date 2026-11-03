@@ -133,7 +133,11 @@ export function SchedulingExceptionWorklistPage(): React.JSX.Element {
 
   return (
     <div className={liveSelection.length > 0 ? 'pb-36 lg:pb-16' : undefined}>
-      <p className="mb-1 text-sm text-gray-500">{t('intro')}</p>
+      <Card className="mb-2">
+        <CardContent className="p-4">
+          <p className="text-sm text-gray-500">{t('intro')}</p>
+        </CardContent>
+      </Card>
 
       <SchedulingExceptionGroups
         items={items}

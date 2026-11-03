@@ -84,6 +84,7 @@ export function SchedulePage(props: SchedulePageProps): React.JSX.Element {
           // failed ones is what a manager means by "try again".
           onRetry={() =>
             void queryClient.refetchQueries({
+              queryKey: ['schedule'],
               type: 'active',
               predicate: (query) => query.state.status === 'error',
             })

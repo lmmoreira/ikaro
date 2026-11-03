@@ -521,7 +521,11 @@ describe('SchedulePage', () => {
     await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
 
     expect(refetchQueries).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'active', predicate: expect.any(Function) }),
+      expect.objectContaining({
+        queryKey: ['schedule'],
+        type: 'active',
+        predicate: expect.any(Function),
+      }),
     );
     refetchQueries.mockRestore();
   });

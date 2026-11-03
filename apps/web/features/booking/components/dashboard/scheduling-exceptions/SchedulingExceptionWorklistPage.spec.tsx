@@ -110,6 +110,16 @@ describe('SchedulingExceptionWorklistPage — states', () => {
 });
 
 describe('SchedulingExceptionWorklistPage — the list', () => {
+  // TD57-S12 (docs/ENGINEERING_RULES_FRONTEND.md § Alignment and cards): intro text lives inside a card.
+  it('keeps the page intro inside a card, not on the page background', async () => {
+    listOf([entry('e1', BOX2, 'João Silva')]);
+    renderPage();
+
+    const intro = await screen.findByText(/Mudanças nos recursos nunca movem clientes/);
+
+    expect(intro.closest('.rounded-lg')).not.toBeNull();
+  });
+
   it('groups the entries by the unavailable resource, with a header and a count each', async () => {
     listOf([
       entry('e1', BOX2, 'João Silva'),
