@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/shared/components/ui/button';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import { ApiError } from '@/shared/lib/api/errors';
 
 interface RecurringApprovalLoadErrorProps {
@@ -21,13 +22,12 @@ export function RecurringApprovalLoadError({
 
   return (
     <div className="space-y-3 p-4" data-testid="recurring-approval-error">
-      <p className="text-sm text-red-700">{notFound ? t('notFound') : t('loadError')}</p>
+      <FeedbackMessage
+        title={notFound ? t('notFound') : t('loadError')}
+        onRetry={notFound ? undefined : onRetry}
+        retryLabel={t('retry')}
+      />
       <div className="flex gap-2">
-        {notFound ? null : (
-          <Button type="button" variant="outline" onClick={onRetry}>
-            {t('retry')}
-          </Button>
-        )}
         <Button asChild variant="ghost">
           <Link href="/dashboard/bookings">{t('backToAgenda')}</Link>
         </Button>

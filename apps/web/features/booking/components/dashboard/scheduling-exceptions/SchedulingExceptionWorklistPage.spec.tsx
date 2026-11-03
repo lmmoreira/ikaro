@@ -87,9 +87,9 @@ describe('SchedulingExceptionWorklistPage — states', () => {
     mockList.mockRejectedValueOnce(new Error('boom'));
     renderPage();
 
-    expect(await screen.findByTestId('scheduling-exceptions-load-error')).toHaveTextContent(
-      'Não foi possível carregar as reservas',
-    );
+    const loadError = await screen.findByTestId('scheduling-exceptions-load-error');
+    expect(loadError).toHaveTextContent('Não foi possível carregar as reservas');
+    expect(loadError).toHaveAttribute('role', 'alert');
     listOf([entry('e1', BOX2, 'João Silva')]);
     await user.click(screen.getByRole('button', { name: 'Tentar de novo' }));
 

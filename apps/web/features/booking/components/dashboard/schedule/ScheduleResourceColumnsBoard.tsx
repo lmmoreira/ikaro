@@ -10,6 +10,7 @@ import type {
   StaffBookingCardResponse,
   TenantBusinessHours,
 } from '@ikaro/types';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { useScheduleDayGrid } from '@/features/booking/schedule/useSchedule';
@@ -151,14 +152,16 @@ export function ScheduleResourceColumnsBoard(
   );
 
   if (dayGrid.isError) {
-    // Same inline error-banner pattern as SchedulePage's own scheduleFetchError, per M22-S06's AC.
+    // Same page-level FeedbackMessage as SchedulePage's own scheduleFetchError, per M22-S06's AC.
     return (
-      <p
-        data-testid="day-grid-fetch-error"
-        className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600"
+      <FeedbackMessage
+        title={t('dayGridFetchError')}
+        onRetry={() => void dayGrid.refetch()}
+        retryLabel={t('retry')}
+        testId="day-grid-fetch-error"
       >
-        {t('dayGridFetchError')}: {resolveErrorMessageFromApiError(dayGrid.error, locale)}
-      </p>
+        {resolveErrorMessageFromApiError(dayGrid.error, locale)}
+      </FeedbackMessage>
     );
   }
 

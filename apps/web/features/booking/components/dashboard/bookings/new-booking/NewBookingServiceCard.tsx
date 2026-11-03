@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import type { HotsiteServiceResponse } from '@ikaro/types';
+import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
 import { useServicePriceText } from '@/features/booking/hooks/useServicePriceText';
 
 interface NewBookingServiceCardProps {
@@ -21,7 +22,7 @@ export function NewBookingServiceCard({
   const t = useTranslations('booking.serviceSelection');
   const text = useServicePriceText(service);
   let border = 'border-gray-200 bg-white hover:bg-gray-50';
-  if (isUnavailable) border = 'border-red-300 bg-red-50/50';
+  if (isUnavailable) border = FIELD_INVALID_CLASS;
   else if (isSelected) border = 'border-blue-500 bg-blue-50/60';
 
   return (
@@ -32,7 +33,13 @@ export function NewBookingServiceCard({
         data-service-id={service.id}
         data-requires-pickup={service.requiresPickupAddress ? 'true' : 'false'}
       >
-        <input type="checkbox" checked={isSelected} onChange={onToggle} />
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={onToggle}
+          aria-invalid={isUnavailable ? true : undefined}
+          aria-describedby={isUnavailable ? `service-unavailable-${service.id}` : undefined}
+        />
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-semibold text-gray-900">{service.name}</span>
           {service.description && (
@@ -60,9 +67,11 @@ export function NewBookingServiceCard({
         </span>
       </label>
       {isUnavailable && (
-        <p role="alert" className="mt-2 text-sm text-red-700" data-testid="service-unavailable">
-          <strong>{t('unavailable')}</strong> {t('unavailableHint', { name: service.name })}
-        </p>
+        <div role="alert" data-testid="service-unavailable">
+          <FieldFeedback id={`service-unavailable-${service.id}`}>
+            <strong>{t('unavailable')}</strong> {t('unavailableHint', { name: service.name })}
+          </FieldFeedback>
+        </div>
       )}
     </>
   );

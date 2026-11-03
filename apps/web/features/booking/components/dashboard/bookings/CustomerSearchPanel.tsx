@@ -3,8 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { CustomerSearchItem } from '@ikaro/types';
-import { Button } from '@/shared/components/ui/button';
-import { Card, CardContent } from '@/shared/components/ui/card';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import {
   MIN_CUSTOMER_SEARCH_LENGTH,
   useCustomerSearch,
@@ -93,14 +92,12 @@ export function CustomerSearchPanel({
       </div>
 
       {search.isError && (
-        <Card className="border-red-200 bg-red-50/80" data-testid="customer-search-error">
-          <CardContent className="flex items-center justify-between gap-3 p-4 text-sm text-red-700">
-            <span>{t('searchError')}</span>
-            <Button type="button" variant="outline" size="sm" onClick={search.retry}>
-              {t('retry')}
-            </Button>
-          </CardContent>
-        </Card>
+        <FeedbackMessage
+          title={t('searchError')}
+          onRetry={search.retry}
+          retryLabel={t('retry')}
+          testId="customer-search-error"
+        />
       )}
 
       {!search.isError && (

@@ -320,7 +320,7 @@ A rejected intermediate idea (worth recording so it isn't re-proposed): labeling
 
 Drawn 2026-10-16. The status filter and, for a MANAGER, the resource filter are two pills in one `FloatingFilterDock`: dragging either (or choosing a corner in either "Posição" row) moves both; they stack along the corner with **status nearest the corner and resource further out**, and never overlap. One remembered corner for the Horários page, per tenant, separate from the Agenda's. Full behavior, components and offsets: `../agenda/dev-notes.md` § "M23-S50" and `../../agenda.md` § "M23-S50 addition". Variants: `#cantos-tl|tr|bl|br`, `#posicao`, `#mobile`. A STAFF user has no resource filter, so the dock holds one pill.
 
-## TD57-S12 — failure states of the schedule page (✅ screen drawn · code pending `TD57-S12`)
+## TD57-S12 — failure states of the schedule page (✅ built — `TD57-S12`)
 
 `11-erros-carregar.html` (hash states): `#agenda` — `schedule-fetch-error`, a page-level `FeedbackMessage` with retry (`SchedulePage`); `#colunas` — `day-grid-fetch-error`, replaces the resource columns board, with retry (`ScheduleResourceColumnsBoard`); `#filtro` — `resource-filter-error`, inside the floating resource-filter popover with retry (`ResourceFilterMenu`); `#recurso` — `resource-select-field-error`, field level (outline + `aria-describedby` message) under the Recurso select of the closure/opening sheet (`ResourceSelectField`). Today these are bare red text boxes with no retry; the retry button on `#agenda`, `#colunas` and `#filtro` is new (refetch of the failed query, label from the shared `common` retry key).
 

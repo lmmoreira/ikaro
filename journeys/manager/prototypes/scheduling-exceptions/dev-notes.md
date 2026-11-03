@@ -128,7 +128,7 @@ Shown after any bulk action. One line per entry, `RESOLVED` or `STILL_OPEN` with
 - [x] Nav placement and the count badge: built as drawn (below "Agenda", MANAGER only; first item of the mobile "Mais" sheet).
 - [x] The alternatives are advisory and recomputed on every read of an open entry (stored only for closed ones); the real check still happens when the manager confirms (a race leaves the entry open, `01d`). An entry with none shows "Sem alternativa compatível — reagende ou cancele" and its **Reatribuir is disabled** (in the bulk bar too, when no selected entry has one); Reagendar and Cancelar stay.
 
-## TD57-S12 — feedback pattern (✅ screens drawn · code pending `TD57-S12`)
+## TD57-S12 — feedback pattern (✅ built — `TD57-S12`)
 
 - `01d` — the result banner is page content (amber while any entry is open, green when all are resolved); a still-open row keeps **Reatribuir · Reagendar (APPROVED only) · Cancelar**; a resolved row shows only its pill; the full-width "Voltar à lista" closes the view.
 - `01j` — load failure: a page-level `FeedbackMessage` (`role="alert"`, `scheduling-exceptions-load-error`) with `loadError`, `loadErrorBody` and the retry button `retry` ("Tentar de novo"). The page intro is not drawn in this branch, as shipped.

@@ -179,4 +179,14 @@ describe('RecurringApprovalBanner — outcomes (08b)', () => {
       for (const text of expectedTexts) expect(banner).toHaveTextContent(text);
     },
   );
+
+  it('keeps the hold and the hold-expired banners out of the alert role', () => {
+    // Negative guarantee (TD57-S12): an informational banner is page content, never a role=alert message.
+    const pending = renderBanner(null);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    pending.unmount();
+
+    renderBanner(null, true, true);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
 });

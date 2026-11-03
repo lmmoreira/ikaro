@@ -3,8 +3,6 @@
 import { BOOKING_STATUS } from '@ikaro/types';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/shared/components/ui/button';
-import { Card, CardContent } from '@/shared/components/ui/card';
-import { cn } from '@/shared/utils/cn';
 
 type PendingActionPanelProps = {
   readonly bookingStatus: typeof BOOKING_STATUS.PENDING | typeof BOOKING_STATUS.INFO_REQUESTED;
@@ -33,25 +31,32 @@ type NoShowActionPanelProps = {
 
 type BookingActionPanelProps = {
   readonly isSubmitting: boolean;
-  readonly className?: string;
+  // The copy rendered in the fixed mobile bar: no heading, and ids/test ids that do not repeat the
+  // desktop pane's (both copies are in the DOM; CSS shows one).
+  readonly compact?: boolean;
 } & (PendingActionPanelProps | ApprovedActionPanelProps | NoShowActionPanelProps);
 
+const SECONDARY_BUTTON_CLASS = 'w-full border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50';
+
+function PaneHeading(): React.JSX.Element {
+  const t = useTranslations('dashboard.bookingDetail');
+
+  return <p className="text-sm font-semibold text-gray-900">{t('actionsSection')}</p>;
+}
+
+// The buttons of the booking detail action pane. `BookingDetailAsideCard` puts them inside the shared
+// `ActionPane`, which supplies the card, the sticky desktop placement, the fixed mobile bar and the
+// feedback card under the buttons (TD57-S12).
 export function BookingActionPanel({
   bookingStatus,
   isSubmitting,
-  className,
+  compact = false,
   ...actions
 }: BookingActionPanelProps): React.JSX.Element {
-  const t = useTranslations('dashboard.bookingDetail');
-  const isApproved = bookingStatus === BOOKING_STATUS.APPROVED;
-  const isInfoRequested = bookingStatus === BOOKING_STATUS.INFO_REQUESTED;
-  const approvedActions = actions as ApprovedActionPanelProps;
-  const pendingActions = actions as PendingActionPanelProps;
-
   if (bookingStatus === BOOKING_STATUS.NO_SHOW) {
     return (
-      <NoShowActionPanel
-        className={className}
+      <NoShowActions
+        compact={compact}
         isSubmitting={isSubmitting}
         {...(actions as NoShowActionPanelProps)}
       />
@@ -59,142 +64,155 @@ export function BookingActionPanel({
   }
 
   return (
-    <div className={cn('space-y-2', className)}>
-      <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-        {t('actionsSection')}
-      </p>
-      <Card>
-        <CardContent className="space-y-3 p-4">
-          {isApproved ? (
-            <>
-              <Button
-                type="button"
-                className="w-full"
-                onClick={approvedActions.onOpenComplete}
-                disabled={isSubmitting}
-              >
-                {t('markCompleted')}
-              </Button>
-              <Button
-                type="button"
-                className="w-full border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50"
-                onClick={approvedActions.onOpenReschedule}
-                disabled={isSubmitting}
-              >
-                {t('rescheduleAction')}
-              </Button>
-              <div>
-                <Button
-                  type="button"
-                  className="w-full border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50"
-                  onClick={approvedActions.onOpenNoShow}
-                  disabled={isSubmitting || approvedActions.noShowAvailableAt !== null}
-                  aria-describedby={
-                    approvedActions.noShowAvailableAt === null ? undefined : 'no-show-hint'
-                  }
-                >
-                  {t('markNoShowAction')}
-                </Button>
-                {approvedActions.noShowAvailableAt !== null && (
-                  <p
-                    id="no-show-hint"
-                    data-testid="no-show-hint"
-                    className="mt-1.5 text-xs text-gray-500"
-                  >
-                    {t('noShowAvailableAfter', { time: approvedActions.noShowAvailableAt })}
-                  </p>
-                )}
-              </div>
-              <Button
-                type="button"
-                className="w-full border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50"
-                onClick={approvedActions.onOpenCancel}
-                disabled={isSubmitting}
-              >
-                {t('cancelBookingAction')}
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button
-                type="button"
-                className="w-full"
-                onClick={pendingActions.onApprove}
-                disabled={isSubmitting}
-              >
-                {t('approveAction')}
-              </Button>
-              <div
-                className={
-                  isInfoRequested
-                    ? 'grid grid-cols-1 gap-3'
-                    : 'grid grid-cols-2 gap-3 lg:grid-cols-1'
-                }
-              >
-                <Button
-                  type="button"
-                  className="w-full border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50"
-                  onClick={pendingActions.onOpenReject}
-                  disabled={isSubmitting}
-                >
-                  {t('rejectAction')}
-                </Button>
-                {!isInfoRequested && (
-                  <Button
-                    type="button"
-                    className="w-full border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50"
-                    onClick={pendingActions.onOpenRequestInfo}
-                    disabled={isSubmitting}
-                  >
-                    {t('requestInfoAction')}
-                  </Button>
-                )}
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+    <div className="space-y-3">
+      {!compact && <PaneHeading />}
+      {bookingStatus === BOOKING_STATUS.APPROVED ? (
+        <ApprovedActions
+          compact={compact}
+          isSubmitting={isSubmitting}
+          {...(actions as ApprovedActionPanelProps)}
+        />
+      ) : (
+        <TriageActions
+          isInfoRequested={bookingStatus === BOOKING_STATUS.INFO_REQUESTED}
+          isSubmitting={isSubmitting}
+          {...(actions as PendingActionPanelProps)}
+        />
+      )}
     </div>
   );
 }
 
-function NoShowActionPanel({
-  canCorrect,
+function ApprovedActions({
+  compact,
   isSubmitting,
-  onOpenCorrect,
-  className,
-}: NoShowActionPanelProps & {
+  onOpenComplete,
+  onOpenReschedule,
+  onOpenCancel,
+  onOpenNoShow,
+  noShowAvailableAt,
+}: Omit<ApprovedActionPanelProps, 'bookingStatus'> & {
+  readonly compact: boolean;
   readonly isSubmitting: boolean;
-  readonly className?: string;
+}): React.JSX.Element {
+  const t = useTranslations('dashboard.bookingDetail');
+  const hintId = compact ? 'no-show-hint-mobile' : 'no-show-hint';
+
+  return (
+    <>
+      <Button type="button" className="w-full" onClick={onOpenComplete} disabled={isSubmitting}>
+        {t('markCompleted')}
+      </Button>
+      <Button
+        type="button"
+        className={SECONDARY_BUTTON_CLASS}
+        onClick={onOpenReschedule}
+        disabled={isSubmitting}
+      >
+        {t('rescheduleAction')}
+      </Button>
+      <div>
+        <Button
+          type="button"
+          className={SECONDARY_BUTTON_CLASS}
+          onClick={onOpenNoShow}
+          disabled={isSubmitting || noShowAvailableAt !== null}
+          aria-describedby={noShowAvailableAt === null ? undefined : hintId}
+        >
+          {t('markNoShowAction')}
+        </Button>
+        {noShowAvailableAt !== null && (
+          <p id={hintId} data-testid={hintId} className="mt-1.5 text-xs text-gray-500">
+            {t('noShowAvailableAfter', { time: noShowAvailableAt })}
+          </p>
+        )}
+      </div>
+      <Button
+        type="button"
+        className={SECONDARY_BUTTON_CLASS}
+        onClick={onOpenCancel}
+        disabled={isSubmitting}
+      >
+        {t('cancelBookingAction')}
+      </Button>
+    </>
+  );
+}
+
+function TriageActions({
+  isInfoRequested,
+  isSubmitting,
+  onApprove,
+  onOpenReject,
+  onOpenRequestInfo,
+}: Omit<PendingActionPanelProps, 'bookingStatus'> & {
+  readonly isInfoRequested: boolean;
+  readonly isSubmitting: boolean;
 }): React.JSX.Element {
   const t = useTranslations('dashboard.bookingDetail');
 
   return (
-    <div className={cn('space-y-2', className)}>
-      <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-        {t('actionsSection')}
-      </p>
-      <Card>
-        <CardContent className="space-y-3 p-4">
-          {canCorrect ? (
-            <>
-              <Button
-                type="button"
-                className="w-full"
-                onClick={onOpenCorrect}
-                disabled={isSubmitting}
-              >
-                {t('correctNoShowAction')}
-              </Button>
-              <p className="text-xs leading-5 text-gray-500">{t('correctNoShowNote')}</p>
-            </>
-          ) : (
-            <p data-testid="no-show-read-only-note" className="text-sm text-gray-600">
-              {t('noShowReadOnlyNote')}
-            </p>
-          )}
-        </CardContent>
-      </Card>
+    <>
+      <Button type="button" className="w-full" onClick={onApprove} disabled={isSubmitting}>
+        {t('approveAction')}
+      </Button>
+      <div
+        className={
+          isInfoRequested ? 'grid grid-cols-1 gap-3' : 'grid grid-cols-2 gap-3 lg:grid-cols-1'
+        }
+      >
+        <Button
+          type="button"
+          className={SECONDARY_BUTTON_CLASS}
+          onClick={onOpenReject}
+          disabled={isSubmitting}
+        >
+          {t('rejectAction')}
+        </Button>
+        {!isInfoRequested && (
+          <Button
+            type="button"
+            className={SECONDARY_BUTTON_CLASS}
+            onClick={onOpenRequestInfo}
+            disabled={isSubmitting}
+          >
+            {t('requestInfoAction')}
+          </Button>
+        )}
+      </div>
+    </>
+  );
+}
+
+function NoShowActions({
+  canCorrect,
+  compact,
+  isSubmitting,
+  onOpenCorrect,
+}: Omit<NoShowActionPanelProps, 'bookingStatus'> & {
+  readonly compact: boolean;
+  readonly isSubmitting: boolean;
+}): React.JSX.Element {
+  const t = useTranslations('dashboard.bookingDetail');
+
+  return (
+    <div className="space-y-3">
+      {!compact && <PaneHeading />}
+      {canCorrect ? (
+        <>
+          <Button type="button" className="w-full" onClick={onOpenCorrect} disabled={isSubmitting}>
+            {t('correctNoShowAction')}
+          </Button>
+          <p className="text-xs leading-5 text-gray-500">{t('correctNoShowNote')}</p>
+        </>
+      ) : (
+        <p
+          data-testid={compact ? 'no-show-read-only-note-mobile' : 'no-show-read-only-note'}
+          className="text-sm text-gray-600"
+        >
+          {t('noShowReadOnlyNote')}
+        </p>
+      )}
     </div>
   );
 }

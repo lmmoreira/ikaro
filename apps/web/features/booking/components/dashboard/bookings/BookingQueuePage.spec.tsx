@@ -351,6 +351,8 @@ describe('BookingQueuePage — card rendering', () => {
         'Não é possível alterar o status do agendamento para o status solicitado.',
       ),
     ).toBeInTheDocument();
+    // TD57-S12: the shared FeedbackMessage (role alert), not a hand-rolled red card
+    expect(screen.getByTestId('booking-queue-approve-error')).toHaveAttribute('role', 'alert');
     expect(routerPush).not.toHaveBeenCalled();
   });
 

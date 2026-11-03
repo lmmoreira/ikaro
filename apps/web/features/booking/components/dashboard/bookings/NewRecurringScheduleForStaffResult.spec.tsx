@@ -52,7 +52,7 @@ describe('NewRecurringScheduleForStaffResult', () => {
 
     const panel = screen.getByTestId('staff-schedule-outcome');
     expect(panel).toHaveAttribute('data-outcome', 'ACTIVE');
-    expect(panel).toHaveAttribute('role', 'status');
+    expect(within(panel).getByRole('status')).toBeInTheDocument();
     expect(panel).toHaveTextContent('Recorrência criada para Ana Costa');
     expect(panel).toHaveTextContent('Criamos as 3 reservas');
     expect(pane().getByTestId('staff-schedule-back-to-agenda')).toHaveAttribute(
@@ -73,7 +73,7 @@ describe('NewRecurringScheduleForStaffResult', () => {
     });
 
     const panel = screen.getByTestId('staff-schedule-outcome');
-    expect(panel).toHaveAttribute('role', 'alert');
+    expect(within(panel).getByRole('alert')).toBeInTheDocument();
     expect(panel).toHaveTextContent('Não foi possível criar esta recorrência');
     expect(screen.getAllByTestId('conflict-item')).toHaveLength(1);
 

@@ -808,6 +808,13 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
   - `apps/web/features/booking/components/dashboard/bookings/BookingActionPanel.tsx` + `BookingActionPanel.spec.tsx`
   - `apps/web/features/booking/components/dashboard/bookings/BookingDetailAsideCard.tsx` + `BookingDetailAsideCard.spec.tsx`
   - `apps/web/features/booking/components/dashboard/bookings/BookingDetailSheets.tsx` + `BookingDetailSheets.spec.tsx`
+- Added during implementation (found while building; all verified):
+  - `apps/web/features/booking/hooks/useBookingPaneFeedback.ts` (new: the pane message of the booking detail — a failed action and the no-show network failures — kept out of `BookingDetailPage` to stay within the lint limits) + `useBookingPaneFeedback.spec.tsx`
+  - `apps/web/features/booking/components/dashboard/bookings/BookingClientCard.tsx` + spec (the first card carries its heading, level with the pane)
+  - `apps/web/features/booking/components/dashboard/bookings/MarkCompleteBookingPage.tsx` and `RescheduleBookingPage.tsx` + specs (controls moved into cards), `RescheduleNotesCard.tsx` + `RescheduleNotesCard.spec.tsx` (new)
+  - `apps/web/features/booking/schedule/useSelectableResources.ts` (exposes `refetch` for the filter popover's retry)
+  - `packages/i18n/locales/{pt-BR,en}/web.json` (`dashboard.schedule.retry`)
+  - Not migrated, after reading them: `AfterServicePhotoUpload` (its per-photo status line is upload progress), `BookingCompletionSummary`, `BookingDecisionBanner`, `BookingOutcomeLayout`, `NewBookingOutcome`, `RecurringApprovalBanner`, `RecurringScheduleApprovalDetail`, `SlotConflictAlert`, `BulkResultList` (informational page content, pinned by negative-guarantee tests); `NewRecurringScheduleForStaffResult` keeps its outcome box in the main column but as a shared `FeedbackMessage`.
 - Journeys (flip the TD57-S12 gap rows): `journeys/staff/agenda.md`, `journeys/staff/horarios.md`, `journeys/manager/scheduling-exceptions.md`, `journeys/manager/feedback-pane.md`, the three prototype `dev-notes.md` files and `journeys/README.md`; stale-reference sweep for `inlineError` and the aside's hand-built mobile bars across `docs/*.md`, `.claude/**` and `scripts/**`.
 - `apps/web/features/booking/components/dashboard/bookings/AfterServicePhotoUpload.tsx` + `AfterServicePhotoUpload.spec.tsx`
 - `apps/web/features/booking/components/dashboard/bookings/BookingActionSheetShell.tsx` + `BookingActionSheetShell.spec.tsx`

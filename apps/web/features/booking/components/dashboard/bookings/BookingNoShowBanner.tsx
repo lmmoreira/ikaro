@@ -28,16 +28,20 @@ export function isBookingNoShowActionState(state: string): state is BookingNoSho
   );
 }
 
+// The two network/5xx failures report in the action pane, not in a banner (TD57-S12).
+type BookingNoShowBannerState = Exclude<
+  BookingNoShowActionState,
+  'no-show-error' | 'correct-error'
+>;
+
 interface BookingNoShowBannerProps {
-  readonly actionState: BookingNoShowActionState;
+  readonly actionState: BookingNoShowBannerState;
   readonly booking: StaffBookingDetailResponse;
   // The appointment's end time in the tenant timezone (the 422 banner names it).
   readonly noShowEndLabel: string;
   // Loyalty points the correction awarded; null for a guest booking.
   readonly correctionPoints: number | null;
   readonly onRefresh: () => void;
-  readonly onRetryNoShow: () => void;
-  readonly onRetryCorrect: () => void;
 }
 
 // Whole class names, never built from a fragment, so Tailwind's scanner sees every one.
@@ -102,16 +106,14 @@ function BannerShell({
   );
 }
 
-// UC-074 outcome banners (03c #rejeitado, 03d, 03e #terminal/#falha, 03g #sucesso/#falha/#permissao).
-// Every failure banner means the booking was left unchanged.
+// UC-074 outcome banners (03c #rejeitado, 03d, 03e #terminal, 03g #sucesso/#permissao). The 03e #falha and
+// 03g #falha failures are action-pane messages. Every failure banner means the booking was left unchanged.
 export function BookingNoShowBanner({
   actionState,
   booking,
   noShowEndLabel,
   correctionPoints,
   onRefresh,
-  onRetryNoShow,
-  onRetryCorrect,
 }: BookingNoShowBannerProps): React.JSX.Element {
   const t = useTranslations('dashboard.bookingDetail');
   const services = booking.lines.map((line) => line.serviceName).join(', ');
@@ -145,21 +147,6 @@ export function BookingNoShowBanner({
           <p>{t('noShowTerminalBody')}</p>
         </BannerShell>
       );
-    case 'no-show-error':
-      return (
-        <BannerShell
-          tone="red"
-          testId="booking-no-show-error"
-          title={t('noShowErrorTitle')}
-          action={
-            <Button type="button" onClick={onRetryNoShow}>
-              {t('noShowRetry')}
-            </Button>
-          }
-        >
-          <p>{t('noShowErrorBody')}</p>
-        </BannerShell>
-      );
     case 'corrected':
       return (
         <BannerShell tone="green" testId="booking-no-show-corrected" title={t('correctedTitle')}>
@@ -182,21 +169,6 @@ export function BookingNoShowBanner({
           title={t('correctForbiddenTitle')}
         >
           <p>{t('correctForbiddenBody')}</p>
-        </BannerShell>
-      );
-    case 'correct-error':
-      return (
-        <BannerShell
-          tone="red"
-          testId="booking-no-show-correct-error"
-          title={t('correctErrorTitle')}
-          action={
-            <Button type="button" onClick={onRetryCorrect}>
-              {t('noShowRetry')}
-            </Button>
-          }
-        >
-          <p>{t('correctErrorBody')}</p>
         </BannerShell>
       );
   }

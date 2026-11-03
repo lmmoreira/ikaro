@@ -9,6 +9,7 @@ interface UseSelectableResourcesResult {
   readonly isLoading: boolean;
   readonly isError: boolean;
   readonly error: unknown;
+  readonly refetch: () => void;
 }
 
 // Shared by ResourceFilterMenu (the page-level view filter) and ResourceSelectField (the
@@ -16,11 +17,14 @@ interface UseSelectableResourcesResult {
 // active, non-LOCATION resources. Excludes LOCATION: the tenant-wide default already represents
 // that scope, so listing it separately would be a redundant, confusing duplicate option.
 export function useSelectableResources(enabled = true): UseSelectableResourcesResult {
-  const { data, isLoading, isError, error } = useResources({ isActive: true }, { enabled });
+  const { data, isLoading, isError, error, refetch } = useResources(
+    { isActive: true },
+    { enabled },
+  );
   const resources = useMemo(
     () => (data?.items ?? []).filter((resource) => resource.type !== 'LOCATION'),
     [data],
   );
 
-  return { resources, isLoading, isError, error };
+  return { resources, isLoading, isError, error, refetch: () => void refetch() };
 }

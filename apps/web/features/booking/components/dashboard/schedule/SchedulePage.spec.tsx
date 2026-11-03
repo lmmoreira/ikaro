@@ -11,7 +11,8 @@ import type {
   TenantBusinessHours,
 } from '@ikaro/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithIntl } from '@/test-utils';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { renderWithIntl as renderBase } from '@/test-utils';
 import { SCHEDULE_BOOKING_TIMELINE_CLASSES } from '@/features/booking/model/booking-status';
 import { SchedulePage } from './SchedulePage';
 
@@ -28,6 +29,12 @@ const scheduleHooks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/features/booking/schedule/useSchedule', () => scheduleHooks);
+
+// SchedulePage retries its failed queries through the QueryClient (the data hooks themselves are mocked).
+function renderWithIntl(ui: React.ReactElement) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return renderBase(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+}
 
 const tenantProvider = vi.hoisted(() => ({ useTenant: vi.fn() }));
 
@@ -487,6 +494,36 @@ describe('SchedulePage', () => {
     );
 
     expect(screen.getByTestId('schedule-fetch-error')).toBeInTheDocument();
+    expect(screen.getByTestId('schedule-fetch-error')).toHaveAttribute('role', 'alert');
+  });
+
+  it('retries the failed queries from the fetch error (TD57-S12)', async () => {
+    const user = userEvent.setup();
+    const refetchQueries = vi.spyOn(QueryClient.prototype, 'refetchQueries').mockResolvedValue();
+    scheduleHooks.useScheduleClosures.mockReturnValue({
+      isError: true,
+      error: new Error('network down'),
+    });
+
+    renderWithIntl(
+      <SchedulePage
+        initialClosures={emptyClosures()}
+        initialOpenings={emptyOpenings()}
+        initialBookings={emptyBookings()}
+        businessHours={makeBusinessHours(true)}
+        todayKey="2026-06-29"
+        weekStartKey="2026-06-29"
+        initialSelectedDateKey="2026-06-29"
+        slotGranularityMinutes={30}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+
+    expect(refetchQueries).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'active', predicate: expect.any(Function) }),
+    );
+    refetchQueries.mockRestore();
   });
 
   it('closes the status filter when escape is pressed', async () => {

@@ -198,4 +198,21 @@ describe('ResourceFilterMenu', () => {
     expect(screen.queryByTestId('resource-filter-options')).not.toBeInTheDocument();
     expect(screen.queryByText('network down')).not.toBeInTheDocument();
   });
+
+  it('announces the failure inside the popover and offers a retry of the resource list (TD57-S12)', async () => {
+    const refetch = vi.fn();
+    useResourcesMock.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: new Error('network down'),
+      refetch,
+    });
+    renderWithIntlInFloatingFilterDock(<ResourceFilterMenu {...baseProps()} open />);
+
+    expect(screen.getByTestId('resource-filter-error')).toHaveAttribute('role', 'alert');
+    await userEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
 });

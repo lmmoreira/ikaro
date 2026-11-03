@@ -172,9 +172,11 @@ describe('MarkCompleteBookingPage', () => {
     await user.clear(screen.getAllByRole('spinbutton')[1]);
     await user.click(screen.getAllByRole('button', { name: 'Confirmar conclusão' })[0]);
 
-    expect(
-      await screen.findByText('Informe um valor válido para cada serviço.'),
-    ).toBeInTheDocument();
+    // TD57-S12: the failure reports under the buttons of the action pane, never at the top.
+    expect(await screen.findByTestId('mark-complete-error')).toHaveTextContent(
+      'Informe um valor válido para cada serviço.',
+    );
+    expect(screen.getByTestId('mark-complete-error')).toHaveAttribute('role', 'alert');
     expect(completeBookingMutateAsync).not.toHaveBeenCalled();
   });
 
@@ -252,8 +254,8 @@ describe('MarkCompleteBookingPage', () => {
     expect(actionsLabels[0].closest('aside')).toHaveClass('hidden');
 
     const mobileFooter = container.querySelector('.fixed.inset-x-0.bottom-0');
+    expect(mobileFooter).toBe(screen.getByTestId('action-pane-mobile'));
     expect(mobileFooter).toHaveTextContent('Ações');
-    expect(mobileFooter?.querySelector('.rounded-lg.border')).not.toBeNull();
   });
 
   it('shows the loyalty panel before pricing and sends discountByPoints when using all points', async () => {

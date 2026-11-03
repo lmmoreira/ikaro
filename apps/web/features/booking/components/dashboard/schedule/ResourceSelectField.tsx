@@ -1,7 +1,9 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
+import { cn } from '@/shared/utils/cn';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { useSelectableResources } from '@/features/booking/schedule/useSelectableResources';
 
@@ -36,7 +38,12 @@ export function ResourceSelectField({
           value={value ?? ALL_BUSINESS_VALUE}
           onChange={(event) => onValueChange(event.target.value || null)}
           disabled={isLoading || isError}
-          className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+          aria-invalid={isError ? true : undefined}
+          aria-describedby={isError ? 'resource-select-field-error' : undefined}
+          className={cn(
+            'w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60',
+            isError && FIELD_INVALID_CLASS,
+          )}
         >
           <option value={ALL_BUSINESS_VALUE}>
             {isLoading ? commonT('loading') : t('resourcePickerAllBusiness')}
@@ -49,9 +56,11 @@ export function ResourceSelectField({
         </select>
       </label>
       {isError && (
-        <p data-testid="resource-select-field-error" className="text-sm text-red-600">
-          {resolveErrorMessageFromApiError(error, locale)}
-        </p>
+        <div data-testid="resource-select-field-error">
+          <FieldFeedback id="resource-select-field-error">
+            {resolveErrorMessageFromApiError(error, locale)}
+          </FieldFeedback>
+        </div>
       )}
     </div>
   );

@@ -187,7 +187,9 @@ describe('BookingDecisionPanel (M23-S46)', () => {
     setDecision({ entries: [], isError: true, retryLoad });
     renderPanel();
 
-    expect(screen.getByText('Não foi possível carregar as reservas')).toBeInTheDocument();
+    expect(
+      screen.getByText('Não foi possível carregar as reservas').closest('[role="alert"]'),
+    ).not.toBeNull();
     await user.click(screen.getByRole('button', { name: 'Tentar de novo' }));
     expect(retryLoad).toHaveBeenCalledTimes(1);
   });

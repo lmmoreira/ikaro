@@ -107,4 +107,41 @@ describe('RescheduleActionRail', () => {
 
     expect(screen.getAllByRole('button', { name: 'Reagendar' })[0]).toBeDisabled();
   });
+
+  it('reports a failure under the buttons of the pane (desktop) and above them in the mobile bar', () => {
+    renderWithIntl(
+      <RescheduleActionRail
+        error="Algo deu errado"
+        pendingSubmit={false}
+        backHref="/dashboard/bookings/b-1"
+        currentStart={CURRENT_START}
+        currentEnd={CURRENT_END}
+        selectedSlot={null}
+      />,
+    );
+
+    const feedback = screen.getByTestId('reschedule-error');
+    expect(feedback).toHaveAttribute('role', 'alert');
+    expect(screen.getByTestId('action-pane-desktop')).toContainElement(feedback);
+    expect(screen.getByTestId('action-pane-mobile')).toContainElement(
+      screen.getByTestId('reschedule-error-mobile'),
+    );
+  });
+
+  it('never disables the submit because of a failure: only an in-flight request does', () => {
+    renderWithIntl(
+      <RescheduleActionRail
+        error="Algo deu errado"
+        pendingSubmit={false}
+        backHref="/dashboard/bookings/b-1"
+        currentStart={CURRENT_START}
+        currentEnd={CURRENT_END}
+        selectedSlot={null}
+      />,
+    );
+
+    for (const button of screen.getAllByRole('button', { name: 'Reagendar' })) {
+      expect(button).toBeEnabled();
+    }
+  });
 });

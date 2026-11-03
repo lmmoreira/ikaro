@@ -6,7 +6,9 @@ import type {
   StaffBookingListResponse,
   TenantBusinessHours,
 } from '@ikaro/types';
+import { useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import { WeekNav } from '@/shells/dashboard/components/WeekNav';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
@@ -66,6 +68,7 @@ export function SchedulePage(props: SchedulePageProps): React.JSX.Element {
   const { role } = useTenant();
   const t = useTranslations('dashboard.schedule');
   const locale = useResolvedLocale();
+  const queryClient = useQueryClient();
 
   const isWeekView = scheduleViewMode === 'week';
   // Bounded multi-resource columns (M22-S06) — MANAGER-only, driven entirely by the same
@@ -75,12 +78,21 @@ export function SchedulePage(props: SchedulePageProps): React.JSX.Element {
   return (
     <div className="space-y-4 px-4 pb-8">
       {scheduleFetchError ? (
-        <p
-          data-testid="schedule-fetch-error"
-          className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600"
+        <FeedbackMessage
+          title={t('fetchError')}
+          // The page merges several queries (closures, openings, the week's day grids); retrying the
+          // failed ones is what a manager means by "try again".
+          onRetry={() =>
+            void queryClient.refetchQueries({
+              type: 'active',
+              predicate: (query) => query.state.status === 'error',
+            })
+          }
+          retryLabel={t('retry')}
+          testId="schedule-fetch-error"
         >
-          {t('fetchError')}: {resolveErrorMessageFromApiError(scheduleFetchError, locale)}
-        </p>
+          {resolveErrorMessageFromApiError(scheduleFetchError, locale)}
+        </FeedbackMessage>
       ) : null}
 
       {/* TD44 Story 4 — pinned below the dashboard Topbar (sticky top-0 z-10 itself;

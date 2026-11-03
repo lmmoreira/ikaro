@@ -9,7 +9,8 @@ import {
   phonePlaceholder,
   sanitizePhoneInput,
 } from '@/shared/utils/phone-format';
-import { ERROR_TEXT_CLASS, INPUT_CLASS, LABEL_CLASS } from './new-booking/new-booking-styles';
+import { FieldFeedback } from '@/shared/components/ui/field-feedback';
+import { INPUT_CLASS, LABEL_CLASS } from './new-booking/new-booking-styles';
 
 interface GuestContactFormProps {
   readonly value: StaffGuestContact;
@@ -44,6 +45,7 @@ export function GuestContactForm({
           value={value.contactName}
           maxLength={255}
           aria-invalid={errorField === 'name' ? true : undefined}
+          aria-describedby={errorField === 'name' ? 'guest-error-message' : undefined}
           onChange={(event) => onChange({ ...value, contactName: event.target.value })}
         />
       </div>
@@ -64,6 +66,7 @@ export function GuestContactForm({
             placeholder={phonePlaceholder(phonePrefix)}
             value={formatPhoneForDisplay(localPhone, phonePrefix)}
             aria-invalid={errorField === 'phone' ? true : undefined}
+            aria-describedby={errorField === 'phone' ? 'guest-error-message' : undefined}
             onChange={(event) => {
               const input = sanitizePhoneInput(event.target.value, phonePrefix);
               onChange({ ...value, contactPhone: buildContactPhone(input, phonePrefix) });
@@ -82,13 +85,14 @@ export function GuestContactForm({
           className={INPUT_CLASS}
           value={value.contactEmail}
           aria-invalid={errorField === 'email' ? true : undefined}
+          aria-describedby={errorField === 'email' ? 'guest-error-message' : undefined}
           onChange={(event) => onChange({ ...value, contactEmail: event.target.value })}
         />
       </div>
       {errorField && (
-        <p role="alert" className={ERROR_TEXT_CLASS} data-testid="guest-error">
-          {t('guestRequired')}
-        </p>
+        <div role="alert" data-testid="guest-error">
+          <FieldFeedback id="guest-error-message">{t('guestRequired')}</FieldFeedback>
+        </div>
       )}
       <p className="text-sm text-gray-600">{t('guestNote')}</p>
     </div>

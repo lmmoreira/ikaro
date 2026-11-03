@@ -9,6 +9,7 @@ import {
   useMarkCompleteSubmission,
 } from '@/features/booking/hooks/useMarkCompleteSubmission';
 import { AfterServicePhotoUpload } from './AfterServicePhotoUpload';
+import { Card, CardContent } from '@/shared/components/ui/card';
 import { BookingClientCard } from './BookingClientCard';
 import { MarkCompleteActionRail } from './MarkCompleteActionRail';
 import { MarkCompleteLineFields } from './MarkCompleteLineFields';
@@ -141,32 +142,38 @@ export function MarkCompleteBookingPage({
           )}
 
           <section>
-            <AfterServicePhotoUpload
-              slug={tenantSlug}
-              bookingId={booking.bookingId}
-              label={t('afterPhotosLabel')}
-              value={submission.afterServicePhotoUrls}
-              onChange={(filePaths) => submission.setAfterServicePhotoUrls(filePaths)}
-            />
+            <Card>
+              <CardContent className="p-4">
+                <AfterServicePhotoUpload
+                  slug={tenantSlug}
+                  bookingId={booking.bookingId}
+                  label={t('afterPhotosLabel')}
+                  value={submission.afterServicePhotoUrls}
+                  onChange={(filePaths) => submission.setAfterServicePhotoUrls(filePaths)}
+                />
+              </CardContent>
+            </Card>
           </section>
 
           <section>
-            <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-              {t('notesSection')}
-            </p>
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium text-gray-700">
-                {t('notesLabel')}
-              </span>
-              <textarea
-                value={submission.adminNotes}
-                onChange={(event) => submission.setAdminNotes(event.target.value)}
-                rows={5}
-                maxLength={500}
-                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none ring-0 placeholder:text-gray-400 focus:border-blue-500"
-                placeholder={t('notesPlaceholder')}
-              />
-            </label>
+            <Card>
+              <CardContent className="p-4">
+                <p className="mb-3 text-sm font-semibold text-gray-900">{t('notesSection')}</p>
+                <label className="block">
+                  <span className="mb-2 block text-sm font-medium text-gray-700">
+                    {t('notesLabel')}
+                  </span>
+                  <textarea
+                    value={submission.adminNotes}
+                    onChange={(event) => submission.setAdminNotes(event.target.value)}
+                    rows={5}
+                    maxLength={500}
+                    className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none ring-0 placeholder:text-gray-400 focus:border-blue-500"
+                    placeholder={t('notesPlaceholder')}
+                  />
+                </label>
+              </CardContent>
+            </Card>
           </section>
         </div>
 

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RecurringBookingScheduleListItem, StaffBookingCardResponse } from '@ikaro/types';
@@ -181,7 +181,9 @@ describe('BookingQueueActionNeeded', () => {
       <BookingQueueActionNeeded {...props({ recurrencesFailed: true, onRetryRecurrences })} />,
     );
 
-    expect(screen.getByTestId('recurrences-load-error')).toBeInTheDocument();
+    const alert = screen.getByTestId('recurrences-load-error');
+    expect(alert).toHaveAttribute('role', 'alert');
+    expect(within(alert).getByRole('button', { name: 'Tentar de novo' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }));
 
     expect(onRetryRecurrences).toHaveBeenCalledTimes(1);

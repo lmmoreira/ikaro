@@ -3,10 +3,9 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import type { AvailableSlot } from '@ikaro/types';
+import { ActionPane } from '@/shared/components/ui/action-pane';
 import { Button } from '@/shared/components/ui/button';
-import { Card, CardContent } from '@/shared/components/ui/card';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
-import { BookingOutcomeActionRail } from './BookingOutcomeActionRail';
 
 function formatRangeLine(
   start: Date,
@@ -27,7 +26,9 @@ interface RescheduleActionRailProps {
 }
 
 // Extracted from RescheduleBookingPage (TD37-S5A) — the action rail (submit/cancel actions plus
-// the from/to summary card) is a self-contained section, unrelated to the form fields beside it.
+// the from/to summary) is a self-contained section, unrelated to the form fields beside it. A failed
+// submit reports under the buttons in the shared action pane (TD57-S12); the chosen slot stays
+// selected and the submit stays enabled (the page owns that state, the rail never clears it).
 export function RescheduleActionRail({
   error,
   pendingSubmit,
@@ -41,40 +42,25 @@ export function RescheduleActionRail({
   const { formatDateLong, formatTime } = useFormatting();
 
   return (
-    <BookingOutcomeActionRail
-      desktopTop={
-        error ? (
-          <Card className="border-red-200 bg-red-50/80">
-            <CardContent className="p-4 text-sm text-red-700">{error}</CardContent>
-          </Card>
-        ) : null
-      }
-    >
-      <div className="space-y-2">
-        <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-          {t('actionsSection')}
-        </p>
-        <Card>
-          <CardContent className="space-y-3 p-4">
-            <Button type="submit" disabled={pendingSubmit} className="w-full">
-              {t('submitReschedule')}
-            </Button>
-            <Button
-              asChild
-              className="w-full border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50"
-            >
-              <Link href={backHref}>{commonT('cancel')}</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+    <ActionPane
+      feedback={error ? { variant: 'error', title: error, testId: 'reschedule-error' } : null}
+      actions={
+        <div className="space-y-3">
+          <p className="text-sm font-semibold text-gray-900">{t('actionsSection')}</p>
+          <Button type="submit" disabled={pendingSubmit} className="w-full">
+            {t('submitReschedule')}
+          </Button>
+          <Button
+            asChild
+            className="w-full border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50"
+          >
+            <Link href={backHref}>{commonT('cancel')}</Link>
+          </Button>
 
-      <Card className="border-blue-200 bg-blue-50/70">
-        <CardContent className="space-y-3 p-4">
-          <p className="text-xs font-bold uppercase tracking-[0.07em] text-blue-700">
-            {t('summaryLabel')}
-          </p>
-          <div className="space-y-3 text-sm text-blue-700/90">
+          <div className="space-y-3 rounded-lg border border-blue-200 bg-blue-50/70 p-3 text-sm text-blue-700/90">
+            <p className="text-xs font-bold uppercase tracking-[0.07em] text-blue-700">
+              {t('summaryLabel')}
+            </p>
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.07em] text-blue-700">
                 {t('rescheduledFromLabel')}
@@ -99,8 +85,8 @@ export function RescheduleActionRail({
               </p>
             </div>
           </div>
-        </CardContent>
-      </Card>
-    </BookingOutcomeActionRail>
+        </div>
+      }
+    />
   );
 }

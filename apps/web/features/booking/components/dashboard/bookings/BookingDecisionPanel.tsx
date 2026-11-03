@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { BOOKING_STATUS, type StaffBookingDetailResponse } from '@ikaro/types';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import { CancelSheet } from '@/features/booking/components/dashboard/scheduling-exceptions/CancelSheet';
 import { ReassignSheet } from '@/features/booking/components/dashboard/scheduling-exceptions/ReassignSheet';
 import { useBookingDecision } from '@/features/booking/hooks/useBookingDecision';
@@ -28,9 +29,7 @@ function RefreshFailedPanel(): React.JSX.Element {
       </p>
       <Card className="border-orange-200">
         <CardContent className="p-4">
-          <p role="alert" className="text-sm text-red-700">
-            {t('decisionRefreshError')}
-          </p>
+          <FeedbackMessage title={t('decisionRefreshError')} />
         </CardContent>
       </Card>
     </div>
@@ -79,12 +78,11 @@ export function BookingDecisionPanel({
           )}
 
           {decision.isError && (
-            <div className="space-y-2">
-              <p className="text-sm text-red-700">{tx('loadError')}</p>
-              <Button type="button" className={SECONDARY_BUTTON} onClick={decision.retryLoad}>
-                {tx('retry')}
-              </Button>
-            </div>
+            <FeedbackMessage
+              title={tx('loadError')}
+              onRetry={decision.retryLoad}
+              retryLabel={tx('retry')}
+            />
           )}
 
           {entries.map((entry, index) => {

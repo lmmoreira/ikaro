@@ -25,6 +25,7 @@ import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-s
 import { SlotConflictAlert } from './SlotConflictAlert';
 import { BookingClientCard } from './BookingClientCard';
 import { RescheduleActionRail } from './RescheduleActionRail';
+import { RescheduleNotesCard } from './RescheduleNotesCard';
 import { RescheduleSuccessView } from './RescheduleSuccessView';
 
 interface RescheduleBookingPageProps {
@@ -176,11 +177,9 @@ export function RescheduleBookingPage({
           <BookingClientCard booking={booking} />
 
           <section>
-            <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-              {t('currentSlotLabel')}
-            </p>
             <Card>
               <CardContent className="p-4">
+                <p className="mb-3 text-sm font-semibold text-gray-900">{t('currentSlotLabel')}</p>
                 <p className="text-sm font-semibold text-gray-900">
                   {formatDateLong(currentStart)}
                 </p>
@@ -193,58 +192,49 @@ export function RescheduleBookingPage({
           </section>
 
           <section>
-            <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-              {t('chooseNewDateLabel')}
-            </p>
-            <AvailabilityCarousel
-              slug={tenantSlug}
-              serviceIds={serviceIds}
-              selectedDate={selectedDate}
-              onSelectDate={(date) => {
-                setSelectedDate(date);
-                setSelectedSlot(null);
-              }}
-              carouselDays={14}
-              maxBookingAdvanceDays={maxBookingAdvanceDays}
-              timezone={timezone}
-              variant="dashboard"
-            />
+            <Card>
+              <CardContent className="p-4">
+                <p className="mb-3 text-sm font-semibold text-gray-900">
+                  {t('chooseNewDateLabel')}
+                </p>
+                <AvailabilityCarousel
+                  slug={tenantSlug}
+                  serviceIds={serviceIds}
+                  selectedDate={selectedDate}
+                  onSelectDate={(date) => {
+                    setSelectedDate(date);
+                    setSelectedSlot(null);
+                  }}
+                  carouselDays={14}
+                  maxBookingAdvanceDays={maxBookingAdvanceDays}
+                  timezone={timezone}
+                  variant="dashboard"
+                />
+              </CardContent>
+            </Card>
           </section>
 
           {selectedDate && (
             <section>
-              <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-                {t('availableSlotsLabel')}
-              </p>
-              <SlotPicker
-                slug={tenantSlug}
-                serviceIds={serviceIds}
-                date={selectedDate}
-                selectedSlot={selectedSlot}
-                onSelectSlot={setSelectedSlot}
-                variant="dashboard"
-              />
+              <Card>
+                <CardContent className="p-4">
+                  <p className="mb-3 text-sm font-semibold text-gray-900">
+                    {t('availableSlotsLabel')}
+                  </p>
+                  <SlotPicker
+                    slug={tenantSlug}
+                    serviceIds={serviceIds}
+                    date={selectedDate}
+                    selectedSlot={selectedSlot}
+                    onSelectSlot={setSelectedSlot}
+                    variant="dashboard"
+                  />
+                </CardContent>
+              </Card>
             </section>
           )}
 
-          <section>
-            <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-              {t('notesSection')}
-            </p>
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium text-gray-700">
-                {t('notesLabel')}
-              </span>
-              <textarea
-                value={adminNotes}
-                onChange={(event) => setAdminNotes(event.target.value)}
-                rows={4}
-                maxLength={500}
-                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none ring-0 placeholder:text-gray-400 focus:border-blue-500"
-                placeholder={t('rescheduleNotesPlaceholder')}
-              />
-            </label>
-          </section>
+          <RescheduleNotesCard value={adminNotes} onChange={setAdminNotes} />
         </div>
 
         <RescheduleActionRail

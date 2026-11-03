@@ -3,7 +3,7 @@
 **Actor(s):** STAFF | MANAGER  
 **Goal:** Review the daily booking queue, action each request — approve, reject, or request more information — and manage an approved booking through to completion, cancellation, or reschedule  
 **UCs covered:** UC-003, UC-004, UC-005, UC-008, UC-009 (incl. A6 — loyalty redemption during completion) · UC-070 (staff creating a recurrence on a customer's behalf), UC-071, UC-074, UC-108 (staff creating a one-off booking on a customer's behalf) (M23 Cluster 3 — UC-074 appointment no-show ✅ Criado by M23-S27; recurring-schedule creation on behalf ✅ M23-S19 and approval ✅ M23-S13)  
-**Status:** Reviewed — lifecycle screens built in `M13-S19`/`M13-S20`; the M23 extensions are built (`M23-S13`, `S19`, `S27`, `S40`, `S46`, `S47`, `S50`); TD57-S12 redraw of the failure states into the action pane: in progress
+**Status:** Reviewed — lifecycle screens built in `M13-S19`/`M13-S20`; the M23 extensions are built (`M23-S13`, `S19`, `S27`, `S40`, `S46`, `S47`, `S50`); failure states in the action pane: built (`TD57-S12`)
 
 > Note: the lifecycle screens referenced here were later implemented in M13-S19 and M13-S20; this document remains the prototype and journey reference.
 >
@@ -178,7 +178,7 @@ When this audit was written the staff detail (`BookingDetailMain.tsx`) rendered 
 
 Built by M23-S47 (the "Cobrança" and "Duração escolhida" rows excluded, see their rows); the screens were the reference for a "full staff booking detail" story (backend + BFF fields, then the web cards). The customer detail has the matching cards in `customer/prototypes/minha-conta/02*`.
 
-## TD57-S12 — failure states move into the action pane (in progress)
+## TD57-S12 — failure states move into the action pane (✅ Built — `TD57-S12`)
 
 > Source of truth: `td/TD57-INLINE-FEEDBACK-AND-ACTION-PANE-PATTERN.md` Story 12 and `manager/feedback-pane.md`. Result banners (approved, rejected, info requested, cancelled, completed, no-show, rescheduled, the "precisa de decisão" notices, the recurring hold banners) stay as page content and are **not** redrawn. Redrawn: `01-booking-detail.html` (the aside becomes the action pane; the message sits under the buttons, in the fixed mobile bar on small screens) and `03e-no-show-error.html` (`#falha` in the pane; the "Resposta do servidor" line is dropped, the shipped page does not print it). Added: `01e`, `04c`, `05d` (the schedule page's own failure states are in `staff/prototypes/horarios/11-erros-carregar.html`, because `SchedulePage` belongs to the Horários journey). `03e` keeps `#terminal` (409, someone else closed the booking) as a page banner, because it is a state of the booking, and moves only `#falha` (network/5xx) into the pane. Screens that differ from the shipped page but are not part of this migration (for example `10b` `#ocupado`, `08b` banner tones) are recorded in `dev-notes.md` § "Prototype vs shipped code — known differences"; code wins there.
 

@@ -1,14 +1,10 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
+import { cleanup, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { StaffBookingDetailResponse } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
-import {
-  BookingNoShowBanner,
-  isBookingNoShowActionState,
-  type BookingNoShowActionState,
-} from './BookingNoShowBanner';
+import { BookingNoShowBanner, isBookingNoShowActionState } from './BookingNoShowBanner';
 
 const booking = {
   contactName: 'João Silva',
@@ -16,7 +12,7 @@ const booking = {
 } as unknown as StaffBookingDetailResponse;
 
 function renderBanner(
-  actionState: BookingNoShowActionState,
+  actionState: Parameters<typeof BookingNoShowBanner>[0]['actionState'],
   overrides: Partial<Parameters<typeof BookingNoShowBanner>[0]> = {},
 ) {
   const props = {
@@ -25,8 +21,6 @@ function renderBanner(
     noShowEndLabel: '17:30',
     correctionPoints: 12,
     onRefresh: vi.fn(),
-    onRetryNoShow: vi.fn(),
-    onRetryCorrect: vi.fn(),
     ...overrides,
   };
   renderWithIntl(<BookingNoShowBanner {...props} />);
@@ -63,16 +57,6 @@ describe('BookingNoShowBanner', () => {
     expect(props.onRefresh).toHaveBeenCalledTimes(1);
   });
 
-  it('offers a retry on the no-show failure banner and says nothing was changed', async () => {
-    const user = userEvent.setup();
-    const props = renderBanner('no-show-error');
-
-    expect(screen.getByText('Não foi possível registrar o não comparecimento')).toBeInTheDocument();
-    expect(screen.getByText(/Nada foi alterado\./)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
-    expect(props.onRetryNoShow).toHaveBeenCalledTimes(1);
-  });
-
   it('names the points and services awarded by a correction', () => {
     renderBanner('corrected');
 
@@ -98,13 +82,22 @@ describe('BookingNoShowBanner', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
-  it('offers a retry on the correction failure banner', async () => {
-    const user = userEvent.setup();
-    const props = renderBanner('correct-error');
-
-    expect(screen.getByText('Não foi possível corrigir')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
-    expect(props.onRetryCorrect).toHaveBeenCalledTimes(1);
+  // The network/5xx failures of the no-show and of its correction report in the action pane with a
+  // retry (TD57-S12); the banner type no longer accepts them, so a banner can never duplicate the pane.
+  it('has no banner for the network failures, which report in the action pane', () => {
+    const states: Parameters<typeof BookingNoShowBanner>[0]['actionState'][] = [
+      'no-show',
+      'no-show-terminal',
+      'no-show-not-ended',
+      'corrected',
+      'correct-forbidden',
+    ];
+    for (const state of states) {
+      renderBanner(state);
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Tentar novamente' })).not.toBeInTheDocument();
+      cleanup();
+    }
   });
 });
 

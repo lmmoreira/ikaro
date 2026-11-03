@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { renderWithIntl } from '@/test-utils';
 import { MarkCompleteActionRail } from './MarkCompleteActionRail';
@@ -46,5 +46,37 @@ describe('MarkCompleteActionRail', () => {
       'href',
       '/dashboard/bookings/b-1',
     );
+  });
+
+  it('reports a failure under the buttons of the pane (desktop) and above them in the mobile bar', () => {
+    renderWithIntl(
+      <MarkCompleteActionRail
+        error="Falha ao concluir"
+        isSubmitting={false}
+        backHref="/dashboard/bookings"
+      />,
+    );
+
+    const feedback = screen.getByTestId('mark-complete-error');
+    expect(feedback).toHaveAttribute('role', 'alert');
+    expect(feedback).toHaveTextContent('Falha ao concluir');
+    const desktopPane = screen.getByTestId('action-pane-desktop');
+    const submit = within(desktopPane).getByRole('button', { name: 'Confirmar conclusão' });
+    expect(desktopPane).toContainElement(feedback);
+    expect(
+      submit.compareDocumentPosition(feedback) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(screen.getByTestId('action-pane-mobile')).toContainElement(
+      screen.getByTestId('mark-complete-error-mobile'),
+    );
+  });
+
+  it('renders no feedback card without an error', () => {
+    renderWithIntl(
+      <MarkCompleteActionRail error={null} isSubmitting={false} backHref="/dashboard/bookings" />,
+    );
+
+    expect(screen.queryByTestId('mark-complete-error')).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

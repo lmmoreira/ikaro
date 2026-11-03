@@ -20,6 +20,7 @@ import {
 } from '@/features/booking/model/recurring-schedule-form';
 import type { StaffCreateOutcome } from '@/features/booking/model/recurring-staff-create';
 import { Button } from '@/shared/components/ui/button';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 
 export interface StaffScheduleCustomer {
   readonly customerId: string;
@@ -51,11 +52,6 @@ const PANELS = {
   CUSTOMER_NOT_FOUND: { copy: 'notFound', tone: 'error' },
   FAILURE: { copy: 'failure', tone: 'error' },
 } as const satisfies Record<ResultOutcome['kind'], { copy: string; tone: 'ok' | 'error' }>;
-
-const TONE_CLASSES = {
-  ok: 'border-green-200 bg-green-50 text-green-900',
-  error: 'border-red-200 bg-red-50 text-red-900',
-} as const;
 
 /**
  * The outcome of an accepted pattern (`09c`), one panel each. The pattern the staff member typed
@@ -130,14 +126,13 @@ export function NewRecurringScheduleForStaffResult({
 
   return (
     <NewRecurringScheduleLayout testId="staff-schedule-result" pane={pane}>
-      <div
-        role={tone === 'ok' ? 'status' : 'alert'}
-        data-testid="staff-schedule-outcome"
-        data-outcome={outcome.kind}
-        className={`rounded-xl border p-4 ${TONE_CLASSES[tone]}`}
-      >
-        <p className="text-sm font-bold">{tr(`${copy}.title`, params)}</p>
-        <p className="mt-1 text-sm leading-relaxed">{tr(`${copy}.body`, params)}</p>
+      <div data-testid="staff-schedule-outcome" data-outcome={outcome.kind}>
+        <FeedbackMessage
+          variant={tone === 'ok' ? 'success' : 'error'}
+          title={tr(`${copy}.title`, params)}
+        >
+          {tr(`${copy}.body`, params)}
+        </FeedbackMessage>
       </div>
 
       {outcome.kind === 'CONFLICT' && outcome.conflicts.length > 0 && (

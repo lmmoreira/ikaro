@@ -3,6 +3,7 @@
 import type { RefObject } from 'react';
 import { useTranslations } from 'next-intl';
 import type { ResourceResponse } from '@ikaro/types';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { useSelectableResources } from '@/features/booking/schedule/useSelectableResources';
@@ -85,7 +86,7 @@ export function ResourceFilterMenu({
   const t = useTranslations('dashboard.schedule');
   const commonT = useTranslations('common');
   const locale = useResolvedLocale();
-  const { resources, isLoading, isError, error } = useSelectableResources();
+  const { resources, isLoading, isError, error, refetch } = useSelectableResources();
 
   return (
     <FloatingFilterMenu
@@ -101,12 +102,14 @@ export function ResourceFilterMenu({
       doneLabel={t('resourceFilterDone')}
     >
       {isError ? (
-        <p
-          data-testid="resource-filter-error"
-          className="px-4 py-3 text-sm text-red-600 border-y border-gray-100"
-        >
-          {resolveErrorMessageFromApiError(error, locale)}
-        </p>
+        <div className="border-y border-gray-100 px-4 py-3">
+          <FeedbackMessage
+            title={resolveErrorMessageFromApiError(error, locale)}
+            onRetry={refetch}
+            retryLabel={t('retry')}
+            testId="resource-filter-error"
+          />
+        </div>
       ) : (
         <>
           <div

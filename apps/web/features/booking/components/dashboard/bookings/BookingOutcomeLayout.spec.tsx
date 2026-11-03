@@ -158,4 +158,19 @@ describe('BookingOutcomeLayout', () => {
 
     expect(screen.getByTestId('outcome-banner-title').className).toContain(expectedClass);
   });
+
+  it('is page content: the outcome banner renders no role=alert', () => {
+    // Negative guarantee (TD57-S12): an informational banner is page content, never a role=alert message.
+    renderWithIntl(
+      <BookingOutcomeLayout
+        booking={makeBooking()}
+        bannerTitle="Agendamento concluído"
+        bannerBody="O serviço foi finalizado."
+        asideBody="Próximos passos"
+        primaryAction={{ label: 'Ver agendamentos', href: '/dashboard/bookings' }}
+      />,
+    );
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
 });

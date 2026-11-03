@@ -2574,6 +2574,7 @@
       "dayGridBufferTooltipResourceTurnover": "Resource turnover {resource} ({minutes} min): only {resource} is held until {time}.",
       "dayGridBufferTooltipUnknownOrigin": "{resource} is held until {time}. The origin of this hold was not recorded.",
       "fetchError": "Couldn't load the schedule",
+      "retry": "Try again",
       "errors": {
         "requiredDate": "Enter the date.",
         "pastDateClosure": "Choose today or a future date for blocks.",

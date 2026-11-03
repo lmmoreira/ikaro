@@ -135,4 +135,19 @@ describe('ResourceSelectField', () => {
     expect(screen.getByTestId('resource-select-field-error')).toBeInTheDocument();
     expect(screen.queryByText('network down')).not.toBeInTheDocument();
   });
+
+  it('marks the field itself: outline, aria-invalid and a described-by message (TD57-S12)', () => {
+    useResourcesMock.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: new Error('network down'),
+    });
+    renderWithIntl(<ResourceSelectField value={null} onValueChange={vi.fn()} />);
+
+    const select = screen.getByTestId('resource-select-field');
+    expect(select).toHaveAttribute('aria-invalid', 'true');
+    expect(select).toHaveClass('ring-red-600');
+    expect(select).toHaveAccessibleDescription(/\S/);
+  });
 });

@@ -59,4 +59,21 @@ describe('BookingCompletionSummary', () => {
 
     expect(screen.queryByText(/pts ganhos/)).not.toBeInTheDocument();
   });
+
+  it('is page content: the completion summary renders no role=alert', () => {
+    // Negative guarantee (TD57-S12): an informational banner is page content, never a role=alert message.
+    renderWithIntl(
+      <BookingCompletionSummary
+        quotedTotal={100}
+        chargedTotal={90}
+        lines={[
+          { lineId: 'l-1', serviceName: 'Lavagem Simples', quotedPrice: 100, chargedPrice: 90 },
+        ]}
+        discount={{ pointsUsed: 10, amount: 10 }}
+        pointsEarned={5}
+      />,
+    );
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
 });

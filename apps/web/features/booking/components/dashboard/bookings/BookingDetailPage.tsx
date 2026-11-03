@@ -5,11 +5,11 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { type SlotConflictSuggestion, type StaffBookingDetailResponse } from '@ikaro/types';
 import { Badge } from '@/shared/components/ui/badge';
-import { Card, CardContent } from '@/shared/components/ui/card';
 import { cn } from '@/shared/utils/cn';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { useApproveBooking } from '@/features/booking/hooks/useBookingMutations';
+import { useBookingPaneFeedback } from '@/features/booking/hooks/useBookingPaneFeedback';
 import { useInitialSlotSuggestions } from '@/features/booking/hooks/useInitialSlotSuggestions';
 import { useNoShowAvailability } from '@/features/booking/hooks/useNoShowAvailability';
 import { buildApproveHandler } from '@/features/booking/model/booking-approve-action';
@@ -80,7 +80,8 @@ export function BookingDetailPage({
   const [isLoadingSlotSuggestions, setIsLoadingSlotSuggestions] = useState(
     initialActionState === 'slot-conflict',
   );
-  const [inlineError, setInlineError] = useState<string | null>(null);
+  // TD57-S12: a failed action reports under the buttons of the action pane, never in a card at the top.
+  const { paneFeedback, setInlineError } = useBookingPaneFeedback(actionState, setSheetState);
   const [conflictCode, setConflictCode] = useState<string | undefined>(initialConflictCode);
   const approveBookingMutation = useApproveBooking();
   const { role } = useTenant();
@@ -148,12 +149,6 @@ export function BookingDetailPage({
         </div>
       )}
 
-      {inlineError && (
-        <Card className="border-red-200 bg-red-50/70">
-          <CardContent className="p-4 text-sm text-red-700">{inlineError}</CardContent>
-        </Card>
-      )}
-
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="space-y-4">
           <BookingDetailMainBanner
@@ -163,8 +158,6 @@ export function BookingDetailPage({
             noShowEndLabel={noShowEndLabel}
             correctionPoints={correctionPoints}
             onRefresh={noShowOutcome.onRefresh}
-            onRetryNoShow={() => setSheetState('no-show')}
-            onRetryCorrect={() => setSheetState('correct-no-show')}
           />
 
           <BookingDecisionBanner
@@ -195,40 +188,37 @@ export function BookingDetailPage({
           )}
         </div>
 
-        <aside className="lg:block">
-          <div className="space-y-4 lg:sticky lg:top-6">
-            <BookingDetailAsideCard
-              actionState={actionState}
-              booking={booking}
-              backHref={backHref}
-              noShowAvailableAt={noShowAvailableAt}
-              canCorrectNoShow={role === 'MANAGER'}
-              canDecide={role === 'MANAGER'}
-              onBookingRefreshed={handleBookingRefreshed}
-              onOpenNoShow={() => setSheetState('no-show')}
-              onOpenCorrectNoShow={() => setSheetState('correct-no-show')}
-              onBackWithoutApprove={() => {
-                setActionState('idle');
-                setSlotSuggestions([]);
-                setInlineError(null);
-              }}
-              onOpenComplete={() =>
-                router.push(
-                  appendReturnTo(`/dashboard/bookings/${booking.bookingId}/complete`, returnTo),
-                )
-              }
-              onOpenReschedule={() =>
-                router.push(
-                  appendReturnTo(`/dashboard/bookings/${booking.bookingId}/reschedule`, returnTo),
-                )
-              }
-              onOpenCancel={() => setSheetState('cancel')}
-              onApprove={() => void handleApprove()}
-              onOpenReject={() => setSheetState('reject')}
-              onOpenRequestInfo={() => setSheetState('info')}
-            />
-          </div>
-        </aside>
+        <BookingDetailAsideCard
+          actionState={actionState}
+          booking={booking}
+          backHref={backHref}
+          feedback={paneFeedback}
+          noShowAvailableAt={noShowAvailableAt}
+          canCorrectNoShow={role === 'MANAGER'}
+          canDecide={role === 'MANAGER'}
+          onBookingRefreshed={handleBookingRefreshed}
+          onOpenNoShow={() => setSheetState('no-show')}
+          onOpenCorrectNoShow={() => setSheetState('correct-no-show')}
+          onBackWithoutApprove={() => {
+            setActionState('idle');
+            setSlotSuggestions([]);
+            setInlineError(null);
+          }}
+          onOpenComplete={() =>
+            router.push(
+              appendReturnTo(`/dashboard/bookings/${booking.bookingId}/complete`, returnTo),
+            )
+          }
+          onOpenReschedule={() =>
+            router.push(
+              appendReturnTo(`/dashboard/bookings/${booking.bookingId}/reschedule`, returnTo),
+            )
+          }
+          onOpenCancel={() => setSheetState('cancel')}
+          onApprove={() => void handleApprove()}
+          onOpenReject={() => setSheetState('reject')}
+          onOpenRequestInfo={() => setSheetState('info')}
+        />
       </div>
 
       <BookingDetailSheets

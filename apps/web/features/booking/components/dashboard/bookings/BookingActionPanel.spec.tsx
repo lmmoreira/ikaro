@@ -170,4 +170,42 @@ describe('BookingActionPanel', () => {
       );
     });
   });
+  describe('compact copy (the fixed mobile bar, TD57-S12)', () => {
+    it('drops the heading and keeps the no-show hint id distinct from the desktop copy', () => {
+      renderWithIntl(
+        <BookingActionPanel
+          bookingStatus={BOOKING_STATUS.APPROVED}
+          isSubmitting={false}
+          compact
+          onOpenComplete={vi.fn()}
+          onOpenReschedule={vi.fn()}
+          onOpenCancel={vi.fn()}
+          onOpenNoShow={vi.fn()}
+          noShowAvailableAt="17:30"
+        />,
+      );
+
+      expect(screen.queryByText('Ações')).not.toBeInTheDocument();
+      expect(screen.getByTestId('no-show-hint-mobile')).toHaveAttribute(
+        'id',
+        'no-show-hint-mobile',
+      );
+      expect(screen.queryByTestId('no-show-hint')).not.toBeInTheDocument();
+    });
+
+    it('suffixes the read-only note of a NO_SHOW booking for staff', () => {
+      renderWithIntl(
+        <BookingActionPanel
+          bookingStatus={BOOKING_STATUS.NO_SHOW}
+          isSubmitting={false}
+          compact
+          canCorrect={false}
+          onOpenCorrect={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByTestId('no-show-read-only-note-mobile')).toBeInTheDocument();
+      expect(screen.queryByTestId('no-show-read-only-note')).not.toBeInTheDocument();
+    });
+  });
 });

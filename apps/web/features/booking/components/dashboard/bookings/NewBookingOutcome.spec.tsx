@@ -103,4 +103,13 @@ describe('NewBookingFailureOutcome', () => {
     );
     expect(screen.getByText('Recap')).toBeInTheDocument();
   });
+
+  it('keeps the created outcome out of the alert role', () => {
+    // Negative guarantee (TD57-S12): an informational banner is page content, never a role=alert message.
+    renderWithIntl(
+      <NewBookingCreatedOutcome booking={BOOKING} recipientName="Ana" recap={null} whenText="x" />,
+    );
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
 });
