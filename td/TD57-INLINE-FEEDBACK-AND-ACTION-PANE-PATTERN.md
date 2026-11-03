@@ -956,18 +956,23 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Pattern:** plain composition over the Story 1 building blocks — no named pattern applies
 
 **Description:**
-Replace every hand-rolled error/success box listed for this area in Appendix A with the shared pattern (see "Chosen approach"): forms with a primary action show their form-level feedback below the buttons in `ActionPane` (SaaS skin) and route the offending `field` through `useFormFeedback`; page-level load failures use a page-level `FeedbackMessage` with a retry; field-level messages keep `aria-invalid` + `aria-describedby` and gain the red outline where Appendix A shows none. Every feedback box gets a `role` (the audit found most had none, so they were never announced). 
+Replace every hand-rolled error/success box listed for this area in Appendix A with the shared pattern (see "Chosen approach"): forms with a primary action show their form-level feedback below the buttons in `ActionPane` (SaaS skin) and route the offending `field` through `useFormFeedback`; page-level load failures use a page-level `FeedbackMessage` with a retry; field-level messages keep `aria-invalid` + `aria-describedby` and gain the red outline where Appendix A shows none. Every feedback box gets a `role` (the audit found most had none, so they were never announced).
+
+Decisions locked in discovery: (1) `RecurringScheduleFields` does not own the pane, so it stops drawing the `new-schedule-notice` box and returns the refusal as data; each shell (customer `NewRecurringScheduleForm`, staff `NewRecurringScheduleForStaff`) feeds it through `useFormFeedback` into `NewRecurringScheduleLayout`'s existing `feedback` prop (pane, under the buttons). (2) Client-side `issues` shown after "Revisar" are registered fields: the first invalid one (service, resources, weekdays, start time, start date, end date) is scrolled to (`block: 'center'`) and focused; `PillMultiSelect` and `TimePicker` forward no ref, so the wrapper is registered. (3) Resource states in `NewRecurringScheduleServiceFields.tsx`: the load failure is a `FeedbackMessage` with `onRetry` and the "no options" state a `FeedbackMessage`, both inside the field's card; "resource required" is a field error (`FieldFeedback` + `FIELD_INVALID_CLASS`).
 
 **Backend use case steps:** none
 **Backend HTTP surface:** none
 **BFF endpoint spec:** none
-**Prototype references:** none
+**Prototype references:** `journeys/manager/prototypes/feedback-pane/` (`dev-notes.md`, `index.html`) and `journeys/manager/feedback-pane.md`. Redraw to the pane pattern: customer `journeys/customer/prototypes/minha-conta/13-nova-recorrencia.html`, `13e-nova-recorrencia-erro.html`, `13h-nova-recorrencia-pacote.html`; staff `journeys/staff/prototypes/agenda/09b-nova-recorrencia-padrao.html`. Audit against the card and alignment rules, edit only if out of pattern: customer `13b`, `13f`, `13g`; staff `09`, `09c`. Already migrated, untouched: `13c`, `13d`. Out of scope (content, not feedback; owned by Story 11's result screen): `06b`, `06d`. Docs to update in the same change: `journeys/customer/prototypes/minha-conta/dev-notes.md` and `journeys/staff/prototypes/agenda/dev-notes.md` (a TD57-S14 section plus "Prototype vs current code"), `journeys/customer/minha-conta.md` (the "Not in this story" note at the S11 migration line), `journeys/manager/feedback-pane.md` (status note).
 **New migration / i18n keys / env vars / feature flags:** none expected; any new copy key in both locales in the same change
 
 **Files to create/modify:**
 - `apps/web/features/booking/components/recurring/NewRecurringScheduleDateField.tsx` + `NewRecurringScheduleDateField.spec.tsx`
 - `apps/web/features/booking/components/recurring/NewRecurringScheduleServiceFields.tsx` + `NewRecurringScheduleServiceFields.spec.tsx`
-- `apps/web/features/booking/components/recurring/RecurringScheduleFields.tsx` + `RecurringScheduleFields.spec.tsx`
+- `apps/web/features/booking/components/recurring/RecurringScheduleFields.tsx` + `RecurringScheduleFields.spec.tsx` (drops the notice box; exposes the refusal as data and registers the fields)
+- `apps/web/features/booking/components/recurring/NewRecurringScheduleResources.tsx` + spec (only if it renders a field or state message)
+- `apps/web/features/customer/components/my-account/NewRecurringScheduleForm.tsx` + its spec (owns `useFormFeedback`; passes `feedback` to the layout)
+- `apps/web/features/booking/components/dashboard/bookings/NewRecurringScheduleForStaff.tsx` + its spec (same, staff shell)
 - `apps/web/e2e/booking-appointment-end.spec.ts` (update ids if the migration renames a `data-testid`)
 - `apps/web/e2e/dashboard-recurring-schedule-create.spec.ts` (update ids if the migration renames a `data-testid`)
 - `apps/web/e2e/helpers/recurring-schedule.ts` (helper referencing a migrated id; update if renamed)
@@ -981,12 +986,19 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Acceptance criteria — product:**
 - [ ] Every error and success message of these screens appears in the place Appendix A prescribes (the pane under the buttons, the field, or the page), announced with `role="alert"` / `role="status"`.
 - [ ] A backend `field` marks and focuses the offending input; the first invalid field is scrolled to and focused.
+- [ ] The booking-window and no-occurrences refusals appear in the pane under the buttons in both shells (customer and staff), no longer as a box above the fields; they clear on the next edit.
+- [ ] After "Revisar" with client-side issues, the first invalid field is scrolled to and focused (weekday pills and time picker via their wrapper).
+- [ ] Resource states: load failure is a `FeedbackMessage` with retry, "no options" is a `FeedbackMessage`, "resource required" is a field error with the red outline.
+- [ ] The prototypes listed above are redrawn or audited and their dev-notes and journey notes updated in the same change.
 - [ ] Every screen this story owns follows the visual pattern (`docs/ENGINEERING_RULES_FRONTEND.md` § Alignment and cards): every control sits inside a card (no loose label, input or button on the page background), intro text is inside the first card, card headings use the shared `text-sm font-semibold` style, and on desktop the first box starts level with the action pane's card. The Story 0 audit measured only the service edit tabs, so inspect each screen here, top to bottom, and fix what is out of pattern.
 
 **Acceptance criteria — technical:**
 - Unit:
   - [ ] one spec per migrated file asserting the old hand-rolled box no longer renders and the shared component does, with the right `role`
   - [ ] a server `field` error marks and focuses its input; an unknown `field` falls back to the form-level message (own test)
+  - [ ] each shell spec: a window refusal renders in the pane (`role="alert"`), not in the content, and clears after an edit
+  - [ ] client issues: first invalid field focused with `scrollIntoView({ block: 'center' })` (stubbed per the rules doc), pinned for a pill or time-picker field
+  - [ ] negative guarantee: `new-schedule-notice` no longer renders in the content area
 - Integration: none — frontend story
 - Tenant isolation: none — no data access
 - E2E:
@@ -1339,11 +1351,11 @@ comm -23 /tmp/td57-enum.txt /tmp/td57-listed.txt
 
 | File | Class | Skin | Role | Field marking | Action pane | Feedback `data-testid`s | E2E specs | Owner | Message placement | Scroll / focus |
 |---|---|---|---|---|---|---|---|---|---|---|
-| `features/booking/components/recurring/NewRecurringScheduleConflictList.tsx` | not feedback | SaaS | - | none | - | - | `dashboard-recurring-schedule-create.spec.ts`, `my-account-recurring-schedule-bundle.spec.ts`, `my-account-recurring-schedule-create.spec.ts` | new story (Recurring schedule forms) | n/a | none |
-| `features/booking/components/recurring/NewRecurringScheduleDateField.tsx` | field / section message | SaaS | alert | aria-invalid+red outline | - | - | - | new story (Recurring schedule forms) | inline in content (no pane) | none |
+| `features/booking/components/recurring/NewRecurringScheduleConflictList.tsx` | not feedback | SaaS | - | none | - | - | `dashboard-recurring-schedule-create.spec.ts`, `my-account-recurring-schedule-bundle.spec.ts`, `my-account-recurring-schedule-create.spec.ts` | Story 14 | n/a | none |
+| `features/booking/components/recurring/NewRecurringScheduleDateField.tsx` | field / section message | SaaS | alert | aria-invalid+red outline | - | - | - | Story 14 | inline in content (no pane) | none |
 | `features/booking/components/recurring/NewRecurringScheduleLayout.tsx` | pane only (no feedback of its own) | SaaS | none | none | customer action-pane-*, sticky, in-flow mobile | `action-pane-desktop`, `action-pane-mobile` | `booking-appointment-end.spec.ts`, `helpers/recurring-schedule.ts`, `my-account-detail-cancel.spec.ts`, `my-account-recurring-schedules.spec.ts`, `my-account-reschedule.spec.ts` | Story 11 (Customer account; Story 14 builds on it) | main column, before the pane markup | none |
-| `features/booking/components/recurring/NewRecurringScheduleServiceFields.tsx` | field / section message | SaaS | alert | none | - | - | `dashboard-recurring-schedule-create.spec.ts`, `helpers/recurring-schedule.ts`, `my-account-recurring-schedule-bundle.spec.ts`, `my-account-recurring-schedule-default-service.spec.ts` | new story (Recurring schedule forms) | inline in content (no pane) | none |
-| `features/booking/components/recurring/RecurringScheduleFields.tsx` | field / section message | SaaS | alert | via NewRecurringScheduleDateField | - | - | `dashboard-recurring-schedule-create.spec.ts` | new story (Recurring schedule forms) | inline in content (no pane) | none |
+| `features/booking/components/recurring/NewRecurringScheduleServiceFields.tsx` (also holds the resource load / empty / required messages) | field / section message | SaaS | alert | none | - | - | `dashboard-recurring-schedule-create.spec.ts`, `helpers/recurring-schedule.ts`, `my-account-recurring-schedule-bundle.spec.ts`, `my-account-recurring-schedule-default-service.spec.ts` | Story 14 | inline in content (no pane) | none |
+| `features/booking/components/recurring/RecurringScheduleFields.tsx` (also draws the `new-schedule-notice` form-level refusal box; target: pane under the buttons) | field / section message | SaaS | alert | via NewRecurringScheduleDateField | - | - | `dashboard-recurring-schedule-create.spec.ts` | Story 14 | inline in content (no pane) | none |
 
 ### A.10 Loyalty and page-level
 
