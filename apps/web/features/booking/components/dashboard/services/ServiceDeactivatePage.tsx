@@ -94,7 +94,7 @@ export function ServiceDeactivatePage({ service }: ServiceDeactivatePageProps): 
           <Card>
             <CardContent className="space-y-5 p-5 lg:p-6">
               <div className="space-y-2">
-                <h2 className="text-[1.0625rem] font-bold text-gray-900">{t('deactivateTitle')}</h2>
+                <h2 className="text-sm font-semibold text-gray-900">{t('deactivateTitle')}</h2>
                 <p className="text-sm leading-6 text-gray-600">{t('deactivateIntro')}</p>
               </div>
 
