@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { StaffServiceResponse } from '@ikaro/types';
@@ -99,16 +99,35 @@ describe('ServiceDeactivatePage', () => {
     expect(routerPush).toHaveBeenCalledWith('/dashboard/services');
   });
 
-  it('shows the failure message inline when deactivation fails', async () => {
+  it('shows the backend-resolved message under the buttons when deactivation fails', async () => {
     const user = userEvent.setup();
-    mockDeactivateService.mockRejectedValue(new ApiError(500, 'server-error', {}));
+    mockDeactivateService.mockRejectedValue(
+      new ApiError(500, 'server-error', { code: 'MONEY_AMOUNT_INVALID' }),
+    );
 
     renderWithIntl(<ServiceDeactivatePage service={service} />);
 
     await user.click(screen.getAllByRole('button', { name: 'Confirmar desativação' })[0]);
 
+    const alerts = await screen.findAllByRole('alert');
+    for (const alert of alerts) expect(alert).toHaveTextContent('O valor informado é inválido.');
     expect(
-      await screen.findByText('Erro ao desativar serviço. Tente novamente.'),
-    ).toBeInTheDocument();
+      screen.queryByText('Erro ao desativar serviço. Tente novamente.'),
+    ).not.toBeInTheDocument();
+    expect(routerPush).not.toHaveBeenCalled();
+  });
+
+  it('renders no message before a failure and redirects without one on success', async () => {
+    const user = userEvent.setup();
+    mockDeactivateService.mockResolvedValue(undefined);
+
+    renderWithIntl(<ServiceDeactivatePage service={service} />);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    await user.click(screen.getAllByRole('button', { name: 'Confirmar desativação' })[0]);
+
+    await waitFor(() => expect(routerPush).toHaveBeenCalledWith('/dashboard/services'));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 });

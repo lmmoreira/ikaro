@@ -388,7 +388,7 @@ The create page (`ServiceCreatePage`) gets no tab: the service must exist first,
 
 ---
 
-## TD57-S13 — feedback pattern on create, deactivate and list (drawn 2026-11-03, built by TD57-S13)
+## TD57-S13 — feedback pattern on create, deactivate and list (drawn and built 2026-11-03)
 
 The failure and success states of these screens use the shared feedback pattern (`manager/prototypes/feedback-pane/`, `docs/ENGINEERING_RULES_FRONTEND.md`), not their own boxes. Screens: `02b`, `02c`, `03b`, `03j`, `01`, `01b`.
 

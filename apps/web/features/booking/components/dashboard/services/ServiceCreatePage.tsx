@@ -1,25 +1,20 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useState, type SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import type { ServiceBookingModel } from '@ikaro/types';
 import { useCreateService } from '@/features/booking/services/useServices';
-import {
-  validateServiceForm,
-  type ServiceFormErrors,
-} from '@/features/booking/services/service-form';
+import { toFieldErrors, validateServiceForm } from '@/features/booking/services/service-form';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
-import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
-import { Button } from '@/shared/components/ui/button';
+import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import { Card, CardContent } from '@/shared/components/ui/card';
+import { FormActionPane } from '@/shared/components/ui/form-action-pane';
 import { ServiceFormFields } from './ServiceFormFields';
 import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
 
 export function ServiceCreatePage(): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
-  const commonT = useTranslations('common');
   const locale = useResolvedLocale();
   const router = useRouter();
   const createServiceMutation = useCreateService();
@@ -33,7 +28,7 @@ export function ServiceCreatePage(): React.JSX.Element {
   const [requiresPickupAddress, setRequiresPickupAddress] = useState(false);
   const [bookingModel, setBookingModel] = useState<ServiceBookingModel>('APPOINTMENT');
   const [isActive, setIsActive] = useState(true);
-  const [fieldErrors, setFieldErrors] = useState<ServiceFormErrors>({});
+  const feedback = useFormFeedback();
   const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
 
   const isSubmitting = isSubmittingLocal || createServiceMutation.isPending;
@@ -56,8 +51,12 @@ export function ServiceCreatePage(): React.JSX.Element {
       { name, description, priceAmount, durationMinutes, loyaltyPointsValue },
       t,
     );
-    setFieldErrors(validation.errors);
-    if (validation.normalized === null) return;
+    feedback.clear();
+    if (validation.normalized === null) {
+      feedback.setError(t('feedbackValidationSummary'));
+      feedback.setFieldErrors(toFieldErrors(validation.errors));
+      return;
+    }
 
     setIsSubmittingLocal(true);
     try {
@@ -73,7 +72,7 @@ export function ServiceCreatePage(): React.JSX.Element {
       // Formulário) only ever makes sense once the service exists (decided 2026-09-17).
       router.push(`/dashboard/services/${result.serviceId}/edit?created=1`);
     } catch (err) {
-      setFieldErrors({ submit: resolveErrorMessageFromApiError(err, locale) });
+      feedback.setFromApiError(err, locale);
     } finally {
       setIsSubmittingLocal(false);
     }
@@ -136,12 +135,12 @@ export function ServiceCreatePage(): React.JSX.Element {
               durationMinutes={durationMinutes}
               loyaltyPointsValue={loyaltyPointsValue}
               requiresPickupAddress={requiresPickupAddress}
-              fieldErrors={fieldErrors}
-              onNameChange={setName}
-              onDescriptionChange={setDescription}
-              onPriceAmountChange={setPriceAmount}
-              onDurationMinutesChange={setDurationMinutes}
-              onLoyaltyPointsValueChange={setLoyaltyPointsValue}
+              feedback={feedback}
+              onNameChange={feedback.edit(setName)}
+              onDescriptionChange={feedback.edit(setDescription)}
+              onPriceAmountChange={feedback.edit(setPriceAmount)}
+              onDurationMinutesChange={feedback.edit(setDurationMinutes)}
+              onLoyaltyPointsValueChange={feedback.edit(setLoyaltyPointsValue)}
               onToggleRequiresPickupAddress={() => setRequiresPickupAddress((value) => !value)}
               hidePickupToggle={bookingModel === 'SESSION'}
             >
@@ -179,32 +178,15 @@ export function ServiceCreatePage(): React.JSX.Element {
           </CardContent>
         </Card>
 
-        <aside className="hidden lg:block lg:sticky lg:top-6">
-          <Card>
-            <CardContent className="space-y-4 p-4">
-              <p className="text-sm leading-6 text-gray-600">{t('createActiveHint')}</p>
-
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? commonT('loading') : t('createSubmit')}
-              </Button>
-
-              <Button asChild variant="outline" className="w-full">
-                <Link href="/dashboard/services">{t('createCancel')}</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </aside>
-      </div>
-
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden">
-        <div className="grid grid-cols-2 gap-3">
-          <Button asChild variant="outline" className="w-full">
-            <Link href="/dashboard/services">{t('createCancel')}</Link>
-          </Button>
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? commonT('loading') : t('createSubmit')}
-          </Button>
-        </div>
+        <FormActionPane
+          submitLabel={t('createSubmit')}
+          cancelLabel={t('createCancel')}
+          cancelHref="/dashboard/services"
+          desktopSaveTestId="service-create-save-desktop"
+          mobileSaveTestId="service-create-save-mobile"
+          isSubmitting={isSubmitting}
+          feedback={feedback.feedback}
+        />
       </div>
     </form>
   );

@@ -22,7 +22,13 @@ export interface ServiceFormErrors {
   priceAmount?: string;
   durationMinutes?: string;
   loyaltyPointsValue?: string;
-  submit?: string;
+}
+
+// The errors as the form-feedback hook takes them: only the fields that failed, by input name.
+export function toFieldErrors(errors: ServiceFormErrors): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(errors).filter((entry): entry is [string, string] => entry[1] !== undefined),
+  );
 }
 
 function parseNonNegativeInteger(value: string): number | null {

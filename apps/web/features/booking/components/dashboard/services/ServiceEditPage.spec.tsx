@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, fireEvent, screen } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ServiceIntakeSchemaResponse, StaffServiceResponse } from '@ikaro/types';
@@ -552,18 +552,101 @@ describe('ServiceEditPage', () => {
     expect(screen.queryByText('Descartar alterações?')).not.toBeInTheDocument();
   });
 
-  it('shows the created-success banner on the Detalhes tab when showCreatedBanner is true', () => {
-    renderWithIntl(
-      <ServiceEditPage service={service} intakeSchema={intakeSchema} showCreatedBanner />,
-    );
+  it('shows the created success in the Detalhes pane and cleans the url once', () => {
+    renderWithIntl(<ServiceEditPage service={service} intakeSchema={intakeSchema} justCreated />);
 
-    expect(screen.getByTestId('service-created-banner')).toBeInTheDocument();
+    const statuses = screen.getAllByRole('status');
+    expect(statuses.length).toBeGreaterThan(0);
+    for (const status of statuses) expect(status).toHaveTextContent('Serviço criado!');
+    expect(screen.queryByTestId('service-created-banner')).not.toBeInTheDocument();
+    expect(mockRouterReplace).toHaveBeenCalledTimes(1);
+    expect(mockRouterReplace).toHaveBeenCalledWith(
+      `/dashboard/services/${service.serviceId}/edit`,
+      {
+        scroll: false,
+      },
+    );
   });
 
-  it('does not show the created-success banner without the query flag', () => {
+  it('keeps the created success until the next edit, then drops it', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<ServiceEditPage service={service} intakeSchema={intakeSchema} justCreated />);
+    expect(screen.getAllByRole('status').length).toBeGreaterThan(0);
+
+    await user.type(screen.getByLabelText('Nome do serviço'), 'x');
+
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('drops the created success when another tab is edited, and it stays gone back on Detalhes', async () => {
+    const user = userEvent.setup();
+    const { container } = renderWithIntl(
+      <ServiceEditPage service={service} intakeSchema={intakeSchema} justCreated />,
+    );
+    expect(screen.getAllByRole('status').length).toBeGreaterThan(0);
+
+    await user.click(getTabButton(container, 'recursos'));
+    await user.clear(screen.getByTestId('resource-buffer-input'));
+    await user.type(screen.getByTestId('resource-buffer-input'), '45');
+    await user.click(getTabButton(container, 'detalhes'));
+
+    expect(screen.queryByText('Serviço criado!')).not.toBeInTheDocument();
+  });
+
+  it('drops the created success when another tab is saved without an edit', async () => {
+    const user = userEvent.setup();
+    const { container } = renderWithIntl(
+      <ServiceEditPage service={service} intakeSchema={intakeSchema} justCreated />,
+    );
+    expect(screen.getAllByRole('status').length).toBeGreaterThan(0);
+
+    await user.click(getTabButton(container, 'politicas'));
+    await user.click(screen.getByTestId('service-desktop-tab-action'));
+    expect(await screen.findByTestId('form-feedback')).toHaveTextContent(
+      'As políticas do serviço foram atualizadas.',
+    );
+    await user.click(getTabButton(container, 'detalhes'));
+
+    expect(screen.queryByText('Serviço criado!')).not.toBeInTheDocument();
+  });
+
+  it('shows no created success without the query flag', () => {
     renderWithIntl(<ServiceEditPage service={service} intakeSchema={intakeSchema} />);
 
-    expect(screen.queryByTestId('service-created-banner')).not.toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(mockRouterReplace).not.toHaveBeenCalled();
+  });
+
+  it('marks and focuses the Detalhes field the backend points at, with a form-level message', async () => {
+    const user = userEvent.setup();
+    mockUpdateService.mockRejectedValue(
+      new ApiError(422, 'Invalid name', { code: 'BOOKING_SERVICE_NAME_REQUIRED', field: 'name' }),
+    );
+    renderWithIntl(<ServiceEditPage service={service} intakeSchema={intakeSchema} />);
+
+    await user.type(screen.getByLabelText('Nome do serviço'), 'x');
+    await user.click(screen.getAllByTestId('service-desktop-save-button')[0]);
+
+    const nameInput = screen.getByTestId('service-name-input');
+    await waitFor(() => expect(nameInput).toHaveAttribute('aria-invalid', 'true'));
+    await waitFor(() => expect(nameInput).toHaveFocus());
+    expect(screen.getAllByRole('alert')[0]).toHaveTextContent('O nome do serviço é obrigatório.');
+  });
+
+  it('falls back to the form-level message for a field the Detalhes tab does not have', async () => {
+    const user = userEvent.setup();
+    mockUpdateService.mockRejectedValue(
+      new ApiError(422, 'Invalid', { code: 'MONEY_AMOUNT_INVALID', field: 'unknownField' }),
+    );
+    renderWithIntl(<ServiceEditPage service={service} intakeSchema={intakeSchema} />);
+
+    await user.type(screen.getByLabelText('Nome do serviço'), 'x');
+    await user.click(screen.getAllByTestId('service-desktop-save-button')[0]);
+
+    expect((await screen.findAllByRole('alert'))[0]).toHaveTextContent(
+      'O valor informado é inválido.',
+    );
+    expect(screen.getByTestId('service-name-input')).not.toHaveAttribute('aria-invalid', 'true');
   });
 
   it('exposes all 5 tabs even when the service is inactive', () => {

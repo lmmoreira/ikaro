@@ -3,7 +3,7 @@
 **Journey:** MANAGER — Feedback e painel de ações (`manager/feedback-pane.md`)
 **UCs:** none — a cross-cutting UI pattern, not a use case. Source: `td/TD57-INLINE-FEEDBACK-AND-ACTION-PANE-PATTERN.md`
 **Prototype:** `manager/prototypes/feedback-pane/`
-**Status:** In progress — the shared components shipped with TD57-S01; the service edit screen (all five tabs) and the five New-booking steps use them; TD57-S02 also split the policy error into per-reason codes. TD57-S03 made every service edit tab start with a card level with the pane. Done: S04 (rows), S06 (branded component), S07 (Resources), S08 (Team, deactivate screens, tenant picker), S09 (Settings), S10 (Hotsite editor) and S11 (Customer account); pending: S05 (lint guard) and S13–S16 (area migrations); S12 (Bookings dashboard, schedule and scheduling exceptions) is built (prototypes: `staff/prototypes/agenda` `01`, `01e`, `03e`, `04c`, `05d`; `staff/prototypes/horarios` `11`; `manager/prototypes/scheduling-exceptions` `01d`, `01j`, `01k`).
+**Status:** In progress — the shared components shipped with TD57-S01; the service edit screen (all five tabs) and the five New-booking steps use them; TD57-S02 also split the policy error into per-reason codes. TD57-S03 made every service edit tab start with a card level with the pane. Done: S04 (rows), S06 (branded component), S07 (Resources), S08 (Team, deactivate screens, tenant picker), S09 (Settings), S10 (Hotsite editor) and S11 (Customer account); pending: S05 (lint guard) and S14–S16 (area migrations); S13 (Service create, deactivate and list) is built (prototypes: `staff/prototypes/servicos` `01`, `01b`, `02b`, `02c`, `03b`, `03j`); S12 (Bookings dashboard, schedule and scheduling exceptions) is built (prototypes: `staff/prototypes/agenda` `01`, `01e`, `03e`, `04c`, `05d`; `staff/prototypes/horarios` `11`; `manager/prototypes/scheduling-exceptions` `01d`, `01j`, `01k`).
 
 ---
 
@@ -26,7 +26,7 @@ Shared CSS: `journeys/shared/feedback-pane.css` (`.fb*` SaaS skin, `.fb-pane*`, 
 | `apps/web/features/booking/components/dashboard/services/ServiceEditPanels.tsx` | ✅ DONE | TD57-S02 — pane + mobile bar render through `ActionPane`; each tab registers its `feedback` with the action (`useTabFeedback`); Detalhes passes its own |
 | `apps/web/features/booking/components/dashboard/services/ServiceResourceModePicker.tsx` | ✅ DONE | TD57-S03 — the mode buttons sit in a `Card` headed by the question, level with the pane |
 | `apps/web/features/staff/components/team/MemberRow.tsx` | ✅ DONE | TD57-S04 — the changed badge/button is the confirmation; an inline failure beside the row |
-| `apps/web/features/booking/components/dashboard/services/ServiceCreatePage.tsx`, `ServiceFormFields.tsx`, `ServiceDeactivatePage.tsx`, `ServiceListPage.tsx` | ⚠ TD57-S13 | drawn in `staff/prototypes/servicos/` (`02b`, `02c`, `03b`, `03j`, `01`, `01b`); the pages migrate to `FormActionPane`, `FieldFeedback` and a page-level `FeedbackMessage` |
+| `apps/web/features/booking/components/dashboard/services/ServiceCreatePage.tsx`, `ServiceFormFields.tsx`, `ServiceDeactivatePage.tsx`, `ServiceListPage.tsx` | ✅ DONE | TD57-S13 — drawn in `staff/prototypes/servicos/` (`02b`, `02c`, `03b`, `03j`, `01`, `01b`); the pages use `FormActionPane`, `ActionPane`, `FieldFeedback` and a page-level `FeedbackMessage` |
 | `apps/web/features/customer/components/my-account/CancelConfirmPage.tsx` | ✅ DONE | TD57-S11 — the error renders under the buttons, in the pane |
 
 ## Screen 01 / 01b / 01c / 01d — Service edit, Políticas (`ServiceEditPanels` + `ActionPane`)

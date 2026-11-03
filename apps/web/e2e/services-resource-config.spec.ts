@@ -405,7 +405,7 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     await page.getByTestId('service-duration-input').fill('45');
     await page.getByTestId('service-points-input').fill('5');
     await page.getByRole('button', { name: 'Criar serviço' }).click();
-    await expect(page).toHaveURL(/\/dashboard\/services\/[^/]+\/edit\?created=1$/);
+    await expect(page).toHaveURL(/\/dashboard\/services\/[^/]+\/edit(\?created=1)?$/);
 
     const tabAction = page.getByTestId('service-desktop-tab-action');
     const dirtyDot = (tab: string) =>

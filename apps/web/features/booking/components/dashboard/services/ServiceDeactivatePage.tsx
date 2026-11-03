@@ -7,6 +7,9 @@ import { useRouter } from 'next/navigation';
 import { AlertTriangle } from 'lucide-react';
 import type { StaffServiceResponse } from '@ikaro/types';
 import { useDeactivateService } from '@/features/booking/services/useServices';
+import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
+import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
+import { ActionPane } from '@/shared/components/ui/action-pane';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { Button } from '@/shared/components/ui/button';
@@ -21,19 +24,27 @@ interface ServiceDeactivateActionsProps {
   readonly serviceId: string;
   readonly isSubmitting: boolean;
   readonly className: string;
+  readonly submitTestId: string;
 }
 
 function ServiceDeactivateActions({
   serviceId,
   isSubmitting,
   className,
+  submitTestId,
 }: ServiceDeactivateActionsProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
   const commonT = useTranslations('common');
 
   return (
     <div className={className}>
-      <Button variant="destructive" type="submit" className="w-full" disabled={isSubmitting}>
+      <Button
+        variant="destructive"
+        type="submit"
+        data-testid={submitTestId}
+        className="w-full"
+        disabled={isSubmitting}
+      >
         {isSubmitting ? commonT('loading') : t('deactivateConfirm')}
       </Button>
       <Button asChild variant="outline" className="w-full">
@@ -46,12 +57,13 @@ function ServiceDeactivateActions({
 export function ServiceDeactivatePage({ service }: ServiceDeactivatePageProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
   const { formatMoney } = useFormatting();
+  const locale = useResolvedLocale();
   const router = useRouter();
   const deactivateServiceMutation = useDeactivateService();
   const topbarStatus = useDashboardTopbarStatus();
   const setTopbarServiceStatus = topbarStatus?.setServiceStatus;
   const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const feedback = useFormFeedback();
 
   const isSubmitting = isSubmittingLocal || deactivateServiceMutation.isPending;
 
@@ -61,15 +73,15 @@ export function ServiceDeactivatePage({ service }: ServiceDeactivatePageProps): 
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    setSubmitError(null);
+    feedback.clear();
 
     setIsSubmittingLocal(true);
     try {
       await deactivateServiceMutation.mutateAsync(service.serviceId);
       setTopbarServiceStatus?.('INACTIVE');
       router.push('/dashboard/services');
-    } catch {
-      setSubmitError(t('deactivateFailed'));
+    } catch (err) {
+      feedback.setFromApiError(err, locale);
     } finally {
       setIsSubmittingLocal(false);
     }
@@ -105,35 +117,31 @@ export function ServiceDeactivatePage({ service }: ServiceDeactivatePageProps): 
                   <li>{t('deactivateWarningReactivate')}</li>
                 </ul>
               </div>
-
-              {submitError && (
-                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {submitError}
-                </div>
-              )}
             </CardContent>
           </Card>
         </div>
 
-        <aside className="hidden lg:block lg:sticky lg:top-6">
-          <Card>
-            <CardContent className="space-y-4 p-4">
+        <ActionPane
+          actions={
+            <>
               <p className="text-sm leading-6 text-gray-600">{t('deactivateIntro')}</p>
               <ServiceDeactivateActions
                 serviceId={service.serviceId}
                 isSubmitting={isSubmitting}
                 className="space-y-4"
+                submitTestId="service-deactivate-confirm-desktop"
               />
-            </CardContent>
-          </Card>
-        </aside>
-      </div>
-
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden">
-        <ServiceDeactivateActions
-          serviceId={service.serviceId}
-          isSubmitting={isSubmitting}
-          className="space-y-3"
+            </>
+          }
+          mobileActions={
+            <ServiceDeactivateActions
+              serviceId={service.serviceId}
+              isSubmitting={isSubmitting}
+              className="space-y-3"
+              submitTestId="service-deactivate-confirm-mobile"
+            />
+          }
+          feedback={feedback.feedback}
         />
       </div>
     </form>

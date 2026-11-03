@@ -17,10 +17,6 @@ export default async function ServiceEditRoute({
   const { service, intakeSchema } = await loadServiceEditRouteData(token, id);
 
   return (
-    <ServiceEditPage
-      service={service}
-      intakeSchema={intakeSchema}
-      showCreatedBanner={created === '1'}
-    />
+    <ServiceEditPage service={service} intakeSchema={intakeSchema} justCreated={created === '1'} />
   );
 }

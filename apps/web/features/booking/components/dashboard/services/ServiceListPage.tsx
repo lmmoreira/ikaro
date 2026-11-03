@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { StaffServiceResponse } from '@ikaro/types';
 import { FloatingCreateButton } from '@/shared/components/ui/floating-create-button';
 import { Card } from '@/shared/components/ui/card';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import { cn } from '@/shared/utils/cn';
 import { ServiceCard } from './ServiceCard';
 
@@ -13,7 +14,8 @@ type ServiceFilter = 'all' | 'active' | 'inactive';
 
 interface ServiceListPageProps {
   readonly services: readonly StaffServiceResponse[];
-  readonly showCreatedBanner?: boolean;
+  // The server page could not fetch the services: shown instead of a misleading empty list.
+  readonly loadFailed?: boolean;
 }
 
 function buildFilterClass(active: boolean): string {
@@ -27,20 +29,11 @@ function buildFilterClass(active: boolean): string {
 
 export function ServiceListPage({
   services,
-  showCreatedBanner = false,
+  loadFailed = false,
 }: ServiceListPageProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
   const router = useRouter();
   const [filter, setFilter] = useState<ServiceFilter>('all');
-
-  useEffect(() => {
-    if (!showCreatedBanner) return;
-    const timeoutId = globalThis.setTimeout(() => {
-      router.replace('/dashboard/services', { scroll: false });
-    }, 1800);
-
-    return () => globalThis.clearTimeout(timeoutId);
-  }, [router, showCreatedBanner]);
 
   const counts = useMemo(
     () => ({
@@ -66,52 +59,57 @@ export function ServiceListPage({
 
   return (
     <div className="space-y-4">
-      {showCreatedBanner && (
-        <output
-          aria-live="polite"
-          className="mx-4 block rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4"
-        >
-          <p className="text-[0.9375rem] font-bold text-emerald-800">{t('createdSuccessTitle')}</p>
-          <p className="mt-1 text-sm text-emerald-700">{t('createdSuccessBody')}</p>
-        </output>
-      )}
-
-      <div className="flex flex-wrap gap-2 px-4 pb-1">
-        <button
-          type="button"
-          className={buildFilterClass(filter === 'all')}
-          aria-pressed={filter === 'all'}
-          onClick={() => setFilter('all')}
-        >
-          {t('tabAll', { count: counts.all })}
-        </button>
-        <button
-          type="button"
-          className={buildFilterClass(filter === 'active')}
-          aria-pressed={filter === 'active'}
-          onClick={() => setFilter('active')}
-        >
-          {t('tabActive', { count: counts.active })}
-        </button>
-        <button
-          type="button"
-          className={buildFilterClass(filter === 'inactive')}
-          aria-pressed={filter === 'inactive'}
-          onClick={() => setFilter('inactive')}
-        >
-          {t('tabInactive', { count: counts.inactive })}
-        </button>
-      </div>
-
       <Card className="overflow-hidden">
-        {filteredServices.length > 0 ? (
-          <div className="divide-y divide-border">
-            {filteredServices.map((service) => (
-              <ServiceCard key={service.serviceId} service={service} />
-            ))}
+        {loadFailed ? (
+          <div className="p-4">
+            <FeedbackMessage
+              title={t('listLoadFailedTitle')}
+              onRetry={() => router.refresh()}
+              retryLabel={t('loadRetry')}
+              testId="page-feedback"
+            >
+              {t('listLoadFailedBody')}
+            </FeedbackMessage>
           </div>
         ) : (
-          <div className="px-4 py-10 text-center text-sm text-gray-500">{emptyMessage}</div>
+          <>
+            <div className="flex flex-wrap gap-2 border-b border-border px-4 py-3.5">
+              <button
+                type="button"
+                className={buildFilterClass(filter === 'all')}
+                aria-pressed={filter === 'all'}
+                onClick={() => setFilter('all')}
+              >
+                {t('tabAll', { count: counts.all })}
+              </button>
+              <button
+                type="button"
+                className={buildFilterClass(filter === 'active')}
+                aria-pressed={filter === 'active'}
+                onClick={() => setFilter('active')}
+              >
+                {t('tabActive', { count: counts.active })}
+              </button>
+              <button
+                type="button"
+                className={buildFilterClass(filter === 'inactive')}
+                aria-pressed={filter === 'inactive'}
+                onClick={() => setFilter('inactive')}
+              >
+                {t('tabInactive', { count: counts.inactive })}
+              </button>
+            </div>
+
+            {filteredServices.length > 0 ? (
+              <div className="divide-y divide-border">
+                {filteredServices.map((service) => (
+                  <ServiceCard key={service.serviceId} service={service} />
+                ))}
+              </div>
+            ) : (
+              <div className="px-4 py-10 text-center text-sm text-gray-500">{emptyMessage}</div>
+            )}
+          </>
         )}
       </Card>
 
