@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SchedulingExceptionItem, StaffBookingDetailResponse } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
 import { BookingDecisionPanel } from './BookingDecisionPanel';
+
+const desktop = () => within(screen.getByTestId('action-pane-desktop'));
 
 const push = vi.fn();
 const decision = vi.hoisted(() => ({ value: {} as Record<string, unknown> }));
@@ -94,19 +96,19 @@ describe('BookingDecisionPanel (M23-S46)', () => {
   it('offers Reatribuir, Reagendar and Cancelar agendamento for an approved booking with one entry', () => {
     renderPanel('APPROVED');
 
-    expect(screen.getByText('Decisão')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Reatribuir' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Reagendar' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Cancelar agendamento' })).toBeEnabled();
+    expect(desktop().getByText('Decisão')).toBeInTheDocument();
+    expect(desktop().getByRole('button', { name: 'Reatribuir' })).toBeEnabled();
+    expect(desktop().getByRole('button', { name: 'Reagendar' })).toBeEnabled();
+    expect(desktop().getByRole('button', { name: 'Cancelar agendamento' })).toBeEnabled();
   });
 
   // Negative guarantee: the resolve contract allows RESCHEDULE only for an APPROVED booking.
   it.each(['PENDING', 'INFO_REQUESTED'])('offers no Reagendar for a %s booking', (status) => {
     renderPanel(status);
 
-    expect(screen.queryByRole('button', { name: 'Reagendar' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Reatribuir' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Cancelar agendamento' })).toBeInTheDocument();
+    expect(desktop().queryByRole('button', { name: 'Reagendar' })).not.toBeInTheDocument();
+    expect(desktop().getByRole('button', { name: 'Reatribuir' })).toBeInTheDocument();
+    expect(desktop().getByRole('button', { name: 'Cancelar agendamento' })).toBeInTheDocument();
   });
 
   it('shows one Reatribuir per entry, named by its resource, when the booking has several', async () => {
@@ -114,12 +116,12 @@ describe('BookingDecisionPanel (M23-S46)', () => {
     setDecision({ entries: [entry('e1', 'Sala Aurora'), entry('e2', 'Projetor 2')] });
     renderPanel();
 
-    await user.click(screen.getByRole('button', { name: 'Reatribuir Projetor 2' }));
+    await user.click(desktop().getByRole('button', { name: 'Reatribuir Projetor 2' }));
 
-    expect(screen.getByRole('button', { name: 'Reatribuir Sala Aurora' })).toBeInTheDocument();
+    expect(desktop().getByRole('button', { name: 'Reatribuir Sala Aurora' })).toBeInTheDocument();
     expect(openSheet).toHaveBeenCalledWith('reassign', ['e2']);
-    expect(screen.getAllByRole('button', { name: 'Reagendar' })).toHaveLength(1);
-    expect(screen.getAllByRole('button', { name: 'Cancelar agendamento' })).toHaveLength(1);
+    expect(desktop().getAllByRole('button', { name: 'Reagendar' })).toHaveLength(1);
+    expect(desktop().getAllByRole('button', { name: 'Cancelar agendamento' })).toHaveLength(1);
   });
 
   it('opens the cancel sheet with every entry id of the booking', async () => {
@@ -127,7 +129,7 @@ describe('BookingDecisionPanel (M23-S46)', () => {
     setDecision({ entries: [entry('e1', 'Sala Aurora'), entry('e2', 'Projetor 2')] });
     renderPanel();
 
-    await user.click(screen.getByRole('button', { name: 'Cancelar agendamento' }));
+    await user.click(desktop().getByRole('button', { name: 'Cancelar agendamento' }));
 
     expect(openSheet).toHaveBeenCalledWith('cancel', ['e1', 'e2']);
   });
@@ -136,17 +138,17 @@ describe('BookingDecisionPanel (M23-S46)', () => {
     setDecision({ entries: [entry('e1', 'Sala 1', [])] });
     renderPanel();
 
-    expect(screen.getByRole('button', { name: 'Reatribuir' })).toBeDisabled();
-    expect(screen.getByText(/Sem alternativa compatível/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Reagendar' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Cancelar agendamento' })).toBeEnabled();
+    expect(desktop().getByRole('button', { name: 'Reatribuir' })).toBeDisabled();
+    expect(desktop().getByText(/Sem alternativa compatível/)).toBeInTheDocument();
+    expect(desktop().getByRole('button', { name: 'Reagendar' })).toBeEnabled();
+    expect(desktop().getByRole('button', { name: 'Cancelar agendamento' })).toBeEnabled();
   });
 
   it('navigates Reagendar to the first entry’s route and comes back to this booking', async () => {
     const user = userEvent.setup();
     renderPanel('APPROVED');
 
-    await user.click(screen.getByRole('button', { name: 'Reagendar' }));
+    await user.click(desktop().getByRole('button', { name: 'Reagendar' }));
 
     expect(push).toHaveBeenCalledWith(
       '/dashboard/scheduling-exceptions/e1/reschedule?returnTo=%2Fdashboard%2Fbookings%2Fb-1',
@@ -178,7 +180,7 @@ describe('BookingDecisionPanel (M23-S46)', () => {
     renderPanel();
 
     expect(document.querySelector('[aria-busy="true"]')).not.toBeNull();
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(desktop().queryByRole('button')).not.toBeInTheDocument();
   });
 
   it('shows a load error with a retry button', async () => {
@@ -188,9 +190,9 @@ describe('BookingDecisionPanel (M23-S46)', () => {
     renderPanel();
 
     expect(
-      screen.getByText('Não foi possível carregar as reservas').closest('[role="alert"]'),
+      desktop().getByText('Não foi possível carregar as reservas').closest('[role="alert"]'),
     ).not.toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Tentar de novo' }));
+    await user.click(desktop().getByRole('button', { name: 'Tentar de novo' }));
     expect(retryLoad).toHaveBeenCalledTimes(1);
   });
 
@@ -198,9 +200,9 @@ describe('BookingDecisionPanel (M23-S46)', () => {
     setDecision({ isSubmitting: true });
     renderPanel();
 
-    expect(screen.getByRole('button', { name: 'Reatribuir' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Reagendar' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Cancelar agendamento' })).toBeDisabled();
+    expect(desktop().getByRole('button', { name: 'Reatribuir' })).toBeDisabled();
+    expect(desktop().getByRole('button', { name: 'Reagendar' })).toBeDisabled();
+    expect(desktop().getByRole('button', { name: 'Cancelar agendamento' })).toBeDisabled();
   });
 
   // The resolve went through but the booking could not be reloaded, so every entry on screen is
@@ -209,9 +211,37 @@ describe('BookingDecisionPanel (M23-S46)', () => {
     setDecision({ refreshFailed: true });
     renderPanel();
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Recarregue a página');
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(desktop().getByRole('alert')).toHaveTextContent('Recarregue a página');
+    expect(desktop().queryByRole('button')).not.toBeInTheDocument();
     expect(screen.queryByTestId('reassign-sheet')).not.toBeInTheDocument();
     expect(screen.queryByTestId('cancel-sheet')).not.toBeInTheDocument();
+  });
+
+  // TD57-S12: the panel is the shared ActionPane like every other action state of the booking detail.
+  it('renders through the shared ActionPane: a sticky desktop card and a fixed mobile bar', () => {
+    renderPanel();
+
+    expect(screen.getByTestId('action-pane-desktop')).toHaveClass('lg:sticky');
+    expect(screen.getByTestId('action-pane-mobile')).toHaveClass('fixed', 'bottom-0');
+    expect(screen.getByTestId('action-pane-desktop')).toContainElement(
+      screen.getByTestId('booking-decision-panel'),
+    );
+  });
+
+  it('keeps the no-alternative hint ids distinct between the desktop card and the mobile bar', () => {
+    setDecision({ entries: [entry('e1', 'Sala 1', [])] });
+    renderPanel();
+
+    const ids = Array.from(document.querySelectorAll('[id^="no-alternative-"]')).map((el) => el.id);
+    expect(ids).toEqual(['no-alternative-e1', 'no-alternative-e1-mobile']);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('shows the refresh failure as an alert in the pane', () => {
+    setDecision({ refreshFailed: true });
+    renderPanel();
+
+    expect(desktop().getByRole('alert')).toHaveTextContent('Recarregue a página');
+    expect(screen.getByTestId('action-pane-mobile')).toHaveTextContent('Recarregue a página');
   });
 });

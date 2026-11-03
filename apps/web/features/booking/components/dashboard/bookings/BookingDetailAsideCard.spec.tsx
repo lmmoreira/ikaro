@@ -441,4 +441,19 @@ describe('BookingDetailAsideCard', () => {
       expect(onRetry).toHaveBeenCalledTimes(1);
     });
   });
+
+  // TD57-S12 negative guarantee: the decision branch adds no fixed bar or sticky wrapper of its own.
+  it('renders the decision panel directly, with no hand-built fixed wrapper around it', () => {
+    const { container } = renderWithIntl(
+      <BookingDetailAsideCard
+        {...baseProps({
+          canDecide: true,
+          booking: makeBooking({ status: 'APPROVED', hasOpenException: true }),
+        })}
+      />,
+    );
+
+    expect(container.firstElementChild).toBe(screen.getByTestId('booking-decision-panel'));
+    expect(container.querySelector('.fixed')).toBeNull();
+  });
 });

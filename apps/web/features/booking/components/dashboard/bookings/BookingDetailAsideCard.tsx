@@ -146,15 +146,7 @@ export function BookingDetailAsideCard({
   // gets nothing (the banner tells them to ask a manager).
   if (bookingNeedsDecision(booking)) {
     if (!canDecide) return null;
-    return (
-      <aside className="lg:block">
-        <div className="space-y-4 lg:sticky lg:top-6">
-          <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-4 lg:static lg:z-auto lg:border-0 lg:bg-transparent lg:p-0">
-            <BookingDecisionPanel booking={booking} onBookingRefreshed={onBookingRefreshed} />
-          </div>
-        </div>
-      </aside>
-    );
+    return <BookingDecisionPanel booking={booking} onBookingRefreshed={onBookingRefreshed} />;
   }
 
   if (booking.status === BOOKING_STATUS.APPROVED) {

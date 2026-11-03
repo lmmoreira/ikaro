@@ -17,9 +17,16 @@ vi.mock('@/features/booking/components/public/AvailabilityCarousel', () => ({
 }));
 
 vi.mock('@/features/booking/components/public/SlotPicker', () => ({
-  SlotPicker: ({ onSelectSlot }: { readonly onSelectSlot: (slot: AvailableSlot) => void }) => (
+  SlotPicker: ({
+    onSelectSlot,
+    selectedSlot,
+  }: {
+    readonly onSelectSlot: (slot: AvailableSlot) => void;
+    readonly selectedSlot: AvailableSlot | null;
+  }) => (
     <button
       type="button"
+      aria-pressed={selectedSlot?.startsAt === '2026-06-17T10:00:00.000Z'}
       onClick={() =>
         onSelectSlot({
           startsAt: '2026-06-17T10:00:00.000Z',
@@ -211,6 +218,10 @@ describe('RescheduleBookingPage', () => {
     );
     // negative guarantee: a generic failure keeps the chosen slot selected and Confirm enabled
     expect(screen.getByRole('button', { name: 'choose slot' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'choose slot' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
     expect(screen.getAllByRole('button', { name: 'Reagendar' })[0]).toBeEnabled();
   });
 
