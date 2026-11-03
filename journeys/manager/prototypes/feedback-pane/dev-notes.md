@@ -73,7 +73,7 @@ Load failures and route `error.tsx` use a page-level `FeedbackMessage` with a re
 
 - ⚠ The desktop pane and the mobile bar both contain the message in these static files. The real component renders one of them at a time.
 - Branded error colour is a fixed semantic red/green on the box's own white surface, never derived from tenant tokens (decided in TD57-S06 discovery: a tenant colour equal to the message colour would make the box vanish).
-- ⚠ Customer screens render their mobile pane in normal flow today, not fixed. Screen 07 shows the fixed bar. `ActionPane` ships only the fixed bar, with a `mobileOffsetClassName` prop; whether the customer account adopts it or needs an inline mobile mode is decided in TD57-S11.
+- ✅ Customer screens use the same fixed bottom bar (TD57-S11). `ActionPane` ships only the fixed bar, with a `mobileOffsetClassName` prop; whether the customer account adopts it or needs an inline mobile mode is decided in TD57-S11.
 - ⚠ The first-box alignment numbers (screen 02) are from the current implementation. This prototype shows the target, not the current layout.
 
 ## data-testid changes

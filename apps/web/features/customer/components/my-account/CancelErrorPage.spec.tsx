@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { CustomerBookingDetailResponse } from '@ikaro/types';
 import {
@@ -94,10 +94,11 @@ describe('CancelErrorPage', () => {
       <CancelErrorPage booking={makeBooking()} tenantSlug="lavacar-bh" whatsapp="+5531999999999" />,
     );
 
-    expect(screen.getByText('Cancelamento fora do prazo')).toBeInTheDocument();
-    expect(
-      screen.getByText('O prazo de cancelamento encerrou em 18 de junho às 10:00.'),
-    ).toBeInTheDocument();
+    // The shared page-level message carries the headline and the deadline sentence.
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent('Cancelamento fora do prazo');
+    expect(alert).toHaveTextContent('O prazo de cancelamento encerrou em 18 de junho às 10:00.');
+    expect(alert).toBe(screen.getByTestId('cancel-window-error'));
     expect(screen.getByText('Lavagem Completa')).toBeInTheDocument();
   });
 
@@ -110,23 +111,26 @@ describe('CancelErrorPage', () => {
       />,
     );
 
-    const link = screen.getByRole('link', { name: 'Contato via WhatsApp' });
+    const link = within(screen.getByTestId('action-pane-desktop')).getByRole('link', {
+      name: 'Contato via WhatsApp',
+    });
     expect(link).toHaveAttribute('href', 'https://wa.me/5531999999999');
   });
 
   it('hides the WhatsApp CTA when the tenant has no number configured', () => {
     render(<CancelErrorPage booking={makeBooking()} tenantSlug="lavacar-bh" whatsapp={null} />);
 
-    expect(screen.queryByRole('link', { name: 'Contato via WhatsApp' })).not.toBeInTheDocument();
+    expect(screen.queryAllByRole('link', { name: 'Contato via WhatsApp' })).toHaveLength(0);
   });
 
   it('links back to the booking detail page', () => {
     render(<CancelErrorPage booking={makeBooking()} tenantSlug="lavacar-bh" whatsapp={null} />);
 
-    expect(screen.getByRole('link', { name: 'Voltar ao agendamento' })).toHaveAttribute(
-      'href',
-      '/lavacar-bh/my-account/bookings/b1',
-    );
+    expect(
+      within(screen.getByTestId('action-pane-desktop')).getByRole('link', {
+        name: 'Voltar ao agendamento',
+      }),
+    ).toHaveAttribute('href', '/lavacar-bh/my-account/bookings/b1');
   });
 
   it('syncs the booking status and back link to the shared topbar context', () => {
@@ -179,10 +183,11 @@ describe('CancelErrorPage', () => {
       </CustomerTopbarStatusProvider>,
     );
 
-    expect(screen.getByRole('link', { name: 'Voltar ao agendamento' })).toHaveAttribute(
-      'href',
-      returnTo,
-    );
+    expect(
+      within(screen.getByTestId('action-pane-desktop')).getByRole('link', {
+        name: 'Voltar ao agendamento',
+      }),
+    ).toHaveAttribute('href', returnTo);
     expect(screen.getByTestId('probe-back-href')).toHaveTextContent(returnTo);
     expect(screen.getByTestId('probe-back-label')).toHaveTextContent('backToSchedule');
   });

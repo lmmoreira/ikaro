@@ -128,12 +128,13 @@ test.describe('customer my-account: booking detail, cancel and info-submit', () 
     await page.goto(`/${TENANT_SLUG}/my-account/bookings/${setup.bookingId}`);
     await expect(page.getByTestId('topbar-booking-status-badge')).toContainText('Info pedida');
 
-    // The form renders twice (mobile inline + desktop sidebar) — act within the desktop pane.
+    // The answer fields sit in the page; the submit button exists twice (desktop pane + mobile bar),
+    // so click the one in the desktop pane.
     const desktopPane = page.getByTestId('action-pane-desktop');
     await desktopPane.getByRole('button', { name: 'Enviar resposta' }).click();
-    await expect(desktopPane.getByTestId('info-validation-error')).toBeVisible();
+    await expect(page.getByTestId('info-validation-error')).toBeVisible();
 
-    await desktopPane.getByTestId('info-response-textarea').fill('Sim, pode confirmar o endereço.');
+    await page.getByTestId('info-response-textarea').fill('Sim, pode confirmar o endereço.');
     await desktopPane.getByRole('button', { name: 'Enviar resposta' }).click();
 
     await expect(page.getByTestId('topbar-booking-status-badge')).toContainText('Aguardando');

@@ -4,7 +4,10 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import type { CustomerBookingListItem, RecurringBookingScheduleListItem } from '@ikaro/types';
+import { ActionPane } from '@/shared/components/ui/action-pane';
 import { Badge } from '@/shared/components/ui/badge';
+import { Button } from '@/shared/components/ui/button';
+import { Card } from '@/shared/components/ui/card';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { cn } from '@/shared/utils/cn';
@@ -119,61 +122,72 @@ function ScheduleDetailBody({
       ? t('durationOnly', { duration })
       : t('perReservation', { duration, price: formatMoney(firstPrice) });
 
-  function renderActionPane(): React.JSX.Element {
-    return (
-      <div className="flex flex-col gap-2 rounded-xl border border-gray-100 bg-white p-4">
-        {terminal ? (
-          <p className="mb-1 text-sm leading-relaxed text-gray-500">
-            {schedule.status === 'ENDED' ? (
-              <>
-                {t('endedAside')}
-                <br />
-                <strong className="text-gray-900">{formatDateKey(schedule.endsOn)}</strong>
-              </>
-            ) : (
-              t('cancelledAside')
-            )}
-          </p>
-        ) : (
-          <>
-            <p className="mb-1 text-sm leading-relaxed text-gray-500">
-              {t('activeUntil')}
+  const endLink = (
+    <Button asChild variant="destructive" className="w-full">
+      <Link
+        href={recurringScheduleEndPath(tenantSlug, schedule.id)}
+        data-testid="end-schedule-link"
+      >
+        {t('endButton')}
+      </Link>
+    </Button>
+  );
+  const renewLink = offersRenewal(schedule) ? (
+    <Button asChild className="w-full">
+      <Link
+        href={recurringScheduleRenewPath(tenantSlug, schedule.id)}
+        data-testid="renew-schedule-button"
+      >
+        {t('renewAction')}
+      </Link>
+    </Button>
+  ) : null;
+  const backLink = (
+    <Button asChild variant="outline" className="w-full">
+      <Link href={backHref}>{t('backButton')}</Link>
+    </Button>
+  );
+  const paneActions = (
+    <>
+      {terminal ? (
+        <p className="text-sm leading-relaxed text-gray-500">
+          {schedule.status === 'ENDED' ? (
+            <>
+              {t('endedAside')}
               <br />
               <strong className="text-gray-900">{formatDateKey(schedule.endsOn)}</strong>
-            </p>
-            <Link
-              href={recurringScheduleEndPath(tenantSlug, schedule.id)}
-              data-testid="end-schedule-link"
-              className="rounded-lg border-2 border-red-600 bg-red-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:opacity-90"
-            >
-              {t('endButton')}
-            </Link>
-          </>
-        )}
-        {offersRenewal(schedule) && (
-          <Link
-            href={recurringScheduleRenewPath(tenantSlug, schedule.id)}
-            data-testid="renew-schedule-button"
-            className="rounded-lg bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-blue-700"
-          >
-            {t('renewAction')}
-          </Link>
-        )}
-        <Link
-          href={backHref}
-          className="rounded-lg border border-gray-200 px-4 py-2.5 text-center text-sm font-semibold text-gray-700 hover:bg-gray-50"
-        >
-          {t('backButton')}
-        </Link>
-      </div>
-    );
-  }
+            </>
+          ) : (
+            t('cancelledAside')
+          )}
+        </p>
+      ) : (
+        <>
+          <p className="text-sm leading-relaxed text-gray-500">
+            {t('activeUntil')}
+            <br />
+            <strong className="text-gray-900">{formatDateKey(schedule.endsOn)}</strong>
+          </p>
+          {endLink}
+        </>
+      )}
+      {renewLink}
+      {backLink}
+    </>
+  );
+  const paneMobileActions = (
+    <div className="grid auto-cols-fr grid-flow-col gap-3">
+      {backLink}
+      {terminal ? null : endLink}
+      {renewLink}
+    </div>
+  );
 
   return (
-    <div className="w-full" data-testid="recurring-schedule-detail">
-      <div className="lg:grid lg:grid-cols-[1fr_22rem] lg:items-start lg:gap-6">
+    <div className="w-full pb-40 lg:pb-0" data-testid="recurring-schedule-detail">
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-6">
         <div className="flex flex-col gap-4">
-          <div className="flex items-start justify-between gap-3">
+          <Card className="flex items-start justify-between gap-3 rounded-xl border-gray-100 p-4 shadow-none">
             <div className="min-w-0">
               <h1 className="text-lg font-bold text-gray-900">
                 {recurrenceLine(schedule.recurrence)}
@@ -191,7 +205,7 @@ function ScheduleDetailBody({
             >
               {t(STATUS_LABEL_KEY[schedule.status])}
             </Badge>
-          </div>
+          </Card>
 
           {schedule.status === 'ENDED' && (
             <div className="rounded-xl border border-blue-200 bg-blue-50 p-3.5 text-sm text-blue-900">
@@ -242,15 +256,9 @@ function ScheduleDetailBody({
               {t('activeHint')}
             </div>
           )}
-
-          <div data-testid="action-pane-mobile" className="lg:hidden">
-            {renderActionPane()}
-          </div>
         </div>
 
-        <div data-testid="action-pane-desktop" className="hidden lg:sticky lg:top-6 lg:block">
-          {renderActionPane()}
-        </div>
+        <ActionPane actions={paneActions} mobileActions={paneMobileActions} />
       </div>
     </div>
   );

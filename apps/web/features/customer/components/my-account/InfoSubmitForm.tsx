@@ -1,101 +1,181 @@
 'use client';
 
-import { useId, useState, type SubmitEvent } from 'react';
+import { useId, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { submitBookingInfoAsCustomer } from '@/features/booking/api/customer';
+import { Button } from '@/shared/components/ui/button';
+import { Card } from '@/shared/components/ui/card';
+import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
+import type { FeedbackModel } from '@/shared/components/ui/feedback-message';
+import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
+import { cn } from '@/shared/utils/cn';
 import { CustomerPhotoUpload } from './CustomerPhotoUpload';
 
-interface InfoSubmitFormProps {
+/** The submit button lives in the action pane, so it names the form it submits. */
+export const INFO_FORM_ID = 'info-response-form';
+
+interface UseInfoSubmitOptions {
   readonly bookingId: string;
-  readonly infoRequestMessage: string;
   readonly onSubmitted: () => void;
 }
 
-type FormState = 'idle' | 'submitting' | 'error';
-
-function submitLabel(state: FormState, t: (key: string) => string): string {
-  if (state === 'submitting') return t('submitting');
-  if (state === 'error') return t('retry');
-  return t('submit');
+export interface InfoSubmitController {
+  readonly bookingId: string;
+  readonly form: ReturnType<typeof useFormFeedback>;
+  readonly message: string;
+  readonly photoUrls: string[];
+  readonly isSubmitting: boolean;
+  readonly failed: boolean;
+  readonly feedback: FeedbackModel | null;
+  readonly changeMessage: (value: string) => void;
+  readonly setPhotoUrls: (filePaths: string[]) => void;
+  readonly submit: () => Promise<void>;
 }
 
-export function InfoSubmitForm({
+/**
+ * The state of the customer's answer to an information request. The fields render in the page
+ * (`InfoSubmitForm`), the submit button and the failure message render in the action pane, so
+ * the page owns this hook and hands it to both.
+ */
+export function useInfoSubmit({
   bookingId,
-  infoRequestMessage,
   onSubmitted,
-}: InfoSubmitFormProps): React.JSX.Element {
+}: UseInfoSubmitOptions): InfoSubmitController {
   const t = useTranslations('customer.infoSubmit');
+  const form = useFormFeedback();
   const [message, setMessage] = useState('');
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
-  const [state, setState] = useState<FormState>('idle');
-  const [validationError, setValidationError] = useState(false);
-  const responseId = useId();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [failed, setFailed] = useState(false);
 
-  async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
+  async function submit(): Promise<void> {
     if (message.trim().length === 0) {
-      setValidationError(true);
+      form.setFieldErrors({ response: t('validationError') });
       return;
     }
-    setValidationError(false);
-    setState('submitting');
+    form.clear();
+    setFailed(false);
+    setIsSubmitting(true);
     try {
       await submitBookingInfoAsCustomer(bookingId, message.trim(), photoUrls);
       onSubmitted();
     } catch {
-      setState('error');
+      form.setError(t('submitError'));
+      setFailed(true);
+      setIsSubmitting(false);
     }
   }
 
+  function changeMessage(value: string): void {
+    form.clear();
+    setMessage(value);
+  }
+
+  const feedback: FeedbackModel | null =
+    form.feedback === null ? null : { ...form.feedback, testId: 'info-submit-error' };
+
+  return {
+    bookingId,
+    form,
+    message,
+    photoUrls,
+    isSubmitting,
+    failed,
+    feedback,
+    changeMessage,
+    setPhotoUrls,
+    submit,
+  };
+}
+
+interface InfoSubmitButtonProps {
+  readonly controller: InfoSubmitController;
+}
+
+export function InfoSubmitButton({ controller }: InfoSubmitButtonProps): React.JSX.Element {
+  const t = useTranslations('customer.infoSubmit');
+  let label = t('submit');
+  if (controller.isSubmitting) label = t('submitting');
+  else if (controller.failed) label = t('retry');
+
   return (
-    <form
-      onSubmit={(event) => {
-        void handleSubmit(event);
-      }}
-      className="flex flex-col gap-3 rounded-xl border border-gray-100 bg-white p-4"
+    <Button
+      type="submit"
+      form={INFO_FORM_ID}
+      className="w-full"
+      data-testid="info-submit-button"
+      disabled={controller.isSubmitting}
     >
-      <div className="rounded-lg bg-blue-50 px-3 py-2.5 text-sm text-blue-900">
-        {infoRequestMessage}
-      </div>
+      {label}
+    </Button>
+  );
+}
 
-      {state === 'error' && (
-        <p role="alert" className="text-sm font-medium text-red-600">
-          {t('submitError')}
-        </p>
-      )}
+interface InfoSubmitFormProps {
+  readonly infoRequestMessage: string;
+  readonly controller: InfoSubmitController;
+}
 
-      <div>
-        <label htmlFor={responseId} className="text-sm font-semibold text-gray-900">
-          {t('label')}
-        </label>
-        <textarea
-          id={responseId}
-          data-testid="info-response-textarea"
-          value={message}
-          onChange={(event) => {
-            setMessage(event.target.value);
-            if (validationError) setValidationError(false);
-          }}
-          disabled={state === 'submitting'}
-          rows={4}
-          className="mt-1.5 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-        />
-        {validationError && (
-          <p data-testid="info-validation-error" className="mt-1 text-xs font-medium text-red-600">
-            {t('validationError')}
-          </p>
-        )}
-      </div>
+export function InfoSubmitForm({
+  infoRequestMessage,
+  controller,
+}: InfoSubmitFormProps): React.JSX.Element {
+  const t = useTranslations('customer.infoSubmit');
+  const tItem = useTranslations('customer.bookingItem');
+  const responseId = useId();
+  const { form } = controller;
+  const responseError = form.fieldErrors.response;
 
-      <CustomerPhotoUpload bookingId={bookingId} value={photoUrls} onChange={setPhotoUrls} />
-
-      <button
-        type="submit"
-        disabled={state === 'submitting'}
-        className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+  return (
+    <>
+      <Card
+        className="rounded-xl border-blue-200 bg-blue-50 p-4 shadow-none"
+        data-testid="info-request-message"
       >
-        {submitLabel(state, t)}
-      </button>
-    </form>
+        <p className="text-sm font-semibold text-blue-900">{tItem('infoNeeded')}</p>
+        <p className="mt-1 text-sm leading-relaxed text-blue-900">{infoRequestMessage}</p>
+      </Card>
+
+      <form
+        id={INFO_FORM_ID}
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault();
+          void controller.submit();
+        }}
+      >
+        <Card className="flex flex-col gap-3 rounded-xl border-gray-100 p-4 shadow-none">
+          <div>
+            <label htmlFor={responseId} className="text-sm font-semibold text-gray-900">
+              {t('label')}
+            </label>
+            <textarea
+              id={responseId}
+              data-testid="info-response-textarea"
+              value={controller.message}
+              onChange={(event) => controller.changeMessage(event.target.value)}
+              disabled={controller.isSubmitting}
+              rows={4}
+              className={cn(
+                'mt-1.5 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none',
+                responseError && FIELD_INVALID_CLASS,
+              )}
+              {...form.fieldProps('response')}
+            />
+            {responseError && (
+              <div data-testid="info-validation-error">
+                <FieldFeedback id={form.fieldErrorId('response')}>{responseError}</FieldFeedback>
+              </div>
+            )}
+          </div>
+
+          <CustomerPhotoUpload
+            bookingId={controller.bookingId}
+            value={controller.photoUrls}
+            onChange={controller.setPhotoUrls}
+          />
+        </Card>
+      </form>
+    </>
   );
 }

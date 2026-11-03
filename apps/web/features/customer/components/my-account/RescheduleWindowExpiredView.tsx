@@ -1,10 +1,12 @@
 'use client';
 
-import Link from 'next/link';
 import { useTranslations } from 'next-intl';
+import { Card } from '@/shared/components/ui/card';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import { digitsOnly } from '@/shared/utils/digits-only';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import type { BookingWindowFacts } from '../../hooks/useDescribeBookingWindow';
+import { OutcomePage } from './OutcomePage';
 import { RescheduleBookingFacts } from './RescheduleBookingFacts';
 
 interface RescheduleWindowExpiredViewProps {
@@ -32,58 +34,45 @@ export function RescheduleWindowExpiredView({
   const { formatDateLong, formatTime } = useFormatting();
 
   return (
-    <div className="flex w-full flex-col gap-4">
-      <div
-        role="alert"
-        data-testid="reschedule-window-error"
-        className="rounded-xl border border-red-200 bg-red-50 p-4"
-      >
-        <p className="mb-2 text-base font-extrabold text-red-700">🚫 {t('windowTitle')}</p>
-        <p className="mb-3 text-sm leading-relaxed text-red-900">
+    <OutcomePage
+      message={
+        <FeedbackMessage title={t('windowTitle')} testId="reschedule-window-error">
           {t('windowBody', { hours: windowHours })}
-        </p>
-        <div className="rounded-md border border-red-200 bg-white px-3 py-2.5 text-sm text-red-800">
+          <br />
+          <br />
           {t('windowDeadline')}
           <br />
           <strong>
             {formatDateLong(eligibleUntil)} · {formatTime(eligibleUntil)}
           </strong>
-        </div>
-      </div>
-
-      <div>
-        <p className="mb-2.5 text-[0.6875rem] font-bold uppercase tracking-wider text-gray-400">
-          {t('currentSectionLabel')}
-        </p>
+        </FeedbackMessage>
+      }
+      primary={{ label: t('backButton'), href: backHref }}
+      secondary={
+        whatsapp === null
+          ? undefined
+          : {
+              label: t('whatsappCta'),
+              href: `https://wa.me/${digitsOnly(whatsapp)}`,
+              external: true,
+            }
+      }
+    >
+      <Card className="rounded-xl border-gray-100 p-4 shadow-none">
+        <p className="mb-2 text-sm font-semibold text-gray-900">{t('currentSectionLabel')}</p>
         <RescheduleBookingFacts
+          bare
           serviceNames={serviceNames}
           when={when}
           durationMins={durationMins}
           price={price}
         />
-      </div>
+      </Card>
 
-      <div className="rounded-xl bg-blue-50 px-4 py-3.5 text-sm leading-relaxed text-gray-800">
-        <p className="mb-1 font-bold">{t('contactTitle')}</p>
-        {t('contactBody')}
-      </div>
-
-      <Link
-        href={backHref}
-        className="rounded-lg bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-blue-700"
-      >
-        {t('backButton')}
-      </Link>
-      {whatsapp !== null && (
-        <a
-          href={`https://wa.me/${digitsOnly(whatsapp)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="rounded-lg border border-gray-200 px-4 py-2.5 text-center text-sm font-semibold text-gray-700 hover:bg-gray-50"
-        >
-          {t('whatsappCta')}
-        </a>
-      )}
-    </div>
+      <Card className="rounded-xl border-gray-100 p-4 shadow-none">
+        <p className="mb-1 text-sm font-semibold text-gray-900">{t('contactTitle')}</p>
+        <p className="text-sm leading-relaxed text-gray-800">{t('contactBody')}</p>
+      </Card>
+    </OutcomePage>
   );
 }

@@ -110,6 +110,8 @@ describe('RecurringScheduleEndConfirm', () => {
     expect(await screen.findByTestId('end-schedule-error')).toHaveTextContent(
       'Algo deu errado. Tente novamente.',
     );
+    // The shared message: an alert inside the action pane, under the buttons.
+    expect(within(pane).getByRole('alert')).toBe(screen.getByTestId('end-schedule-error'));
     expect(within(pane).getByRole('button', { name: 'Encerrar recorrência' })).not.toBeDisabled();
     expect(pushMock).not.toHaveBeenCalled();
   });

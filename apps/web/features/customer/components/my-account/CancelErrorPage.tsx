@@ -1,12 +1,14 @@
 'use client';
 
 import { useEffect } from 'react';
-import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import type { CustomerBookingDetailResponse } from '@ikaro/types';
+import { Card } from '@/shared/components/ui/card';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { digitsOnly } from '@/shared/utils/digits-only';
 import { useCustomerTopbarStatus } from '../customer-topbar-status-context';
+import { OutcomePage } from './OutcomePage';
 
 interface CancelErrorPageProps {
   readonly booking: CustomerBookingDetailResponse;
@@ -55,19 +57,34 @@ export function CancelErrorPage({
   ]);
 
   return (
-    <div className="flex w-full flex-col gap-4">
-      <h1 className="text-lg font-bold text-gray-900">{t('title')}</h1>
-      <p className="text-sm text-gray-700">{t('body')}</p>
-      {deadline !== null && (
-        <p className="text-sm text-gray-500">
-          {t('deadlineNote', {
-            date: formatDateLong(deadline),
-            time: formatTime(deadline),
-          })}
-        </p>
-      )}
-
-      <div className="rounded-xl border border-gray-100 bg-white p-4">
+    <OutcomePage
+      message={
+        <FeedbackMessage title={t('title')} testId="cancel-window-error">
+          {t('body')}
+          {deadline !== null && (
+            <>
+              <br />
+              <br />
+              {t('deadlineNote', {
+                date: formatDateLong(deadline),
+                time: formatTime(deadline),
+              })}
+            </>
+          )}
+        </FeedbackMessage>
+      }
+      primary={{ label: t('backButton'), href: backHref }}
+      secondary={
+        whatsapp === null
+          ? undefined
+          : {
+              label: t('whatsappCta'),
+              href: `https://wa.me/${digitsOnly(whatsapp)}`,
+              external: true,
+            }
+      }
+    >
+      <Card className="rounded-xl border-gray-100 p-4 shadow-none">
         <p className="text-sm font-semibold text-gray-900">{serviceNames}</p>
         {scheduledAt !== null && (
           <p className="mt-1 text-sm text-gray-500">
@@ -77,27 +94,11 @@ export function CancelErrorPage({
         <p className="mt-1 text-sm font-medium text-gray-900">
           {formatMoney(booking.totalPrice.amount)}
         </p>
-      </div>
+      </Card>
 
-      <p className="text-sm text-gray-500">{t('contactNote')}</p>
-
-      {whatsapp !== null && (
-        <a
-          href={`https://wa.me/${digitsOnly(whatsapp)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="rounded-lg bg-green-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-green-700"
-        >
-          {t('whatsappCta')}
-        </a>
-      )}
-
-      <Link
-        href={backHref}
-        className="rounded-lg border border-gray-200 px-4 py-2.5 text-center text-sm font-semibold text-gray-700 hover:bg-gray-50"
-      >
-        {t('backButton')}
-      </Link>
-    </div>
+      <Card className="rounded-xl border-gray-100 p-4 shadow-none">
+        <p className="text-sm leading-relaxed text-gray-800">{t('contactNote')}</p>
+      </Card>
+    </OutcomePage>
   );
 }

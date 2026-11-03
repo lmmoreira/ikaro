@@ -16,7 +16,8 @@ import {
   UpdateHotsiteCustomerProfileError,
 } from '@/features/platform/hotsite/api/customers';
 import { AddressFields } from '@/features/booking/components/public/AddressFields';
-import { ErrorAlert } from '@/features/booking/components/public/ErrorAlert';
+import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feedback-message';
+import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
@@ -41,7 +42,7 @@ export function InformationCompletionPrompt({
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState<Address>(emptyAddress());
   const [showAddressErrors, setShowAddressErrors] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const feedback = useFormFeedback();
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -80,18 +81,18 @@ export function InformationCompletionPrompt({
 
     if (!isPhoneValid) {
       setShowAddressErrors(false);
-      setError(t('informationCompletionPhoneError'));
+      feedback.setFieldErrors({ phone: t('informationCompletionPhoneError') });
       return;
     }
     if (!isAddressValid) {
       setShowAddressErrors(true);
-      setError(null);
+      feedback.clear();
       return;
     }
 
     setShowAddressErrors(false);
     setSubmitting(true);
-    setError(null);
+    feedback.clear();
     try {
       await updateHotsiteCustomerProfile(slug, { phone, defaultAddress: sanitizeAddress(address) });
       setState('hidden');
@@ -99,7 +100,9 @@ export function InformationCompletionPrompt({
       if (err instanceof UpdateHotsiteCustomerProfileError) {
         const phoneViolation = err.violations.find((v) => v.field === 'phone');
         if (err.field === 'phone' || phoneViolation) {
-          setError(resolveErrorMessage(phoneViolation?.code ?? err.code, locale));
+          feedback.setFieldErrors({
+            phone: resolveErrorMessage(phoneViolation?.code ?? err.code, locale),
+          });
         } else if (err.status === 400) {
           // Either a top-level code from a backend domain/VO address validation failure
           // (CustomerAddressValidationError), or a structured defaultAddress.* Zod violation.
@@ -107,12 +110,12 @@ export function InformationCompletionPrompt({
           // other field on this form, so any non-phone 400 is treated as one rather than
           // falling through to a dead-end generic message.
           setShowAddressErrors(true);
-          setError(resolveErrorMessage(err.code ?? err.violations[0]?.code, locale));
+          feedback.setError(resolveErrorMessage(err.code ?? err.violations[0]?.code, locale));
         } else {
-          setError(resolveErrorMessage(undefined, locale));
+          feedback.setError(resolveErrorMessage(undefined, locale));
         }
       } else {
-        setError(resolveErrorMessage(undefined, locale));
+        feedback.setError(resolveErrorMessage(undefined, locale));
       }
     } finally {
       setSubmitting(false);
@@ -135,8 +138,14 @@ export function InformationCompletionPrompt({
           <InformationCompletionPhoneField
             phonePrefix={phonePrefix}
             localPhoneDigits={localPhoneDigits}
-            onChangeLocalDigits={setPhone}
+            onChangeLocalDigits={(value) => {
+              feedback.clear();
+              setPhone(value);
+            }}
             label={t('informationCompletionPhoneLabel')}
+            error={feedback.fieldErrors.phone}
+            errorId={feedback.fieldErrorId('phone')}
+            inputProps={feedback.fieldProps('phone')}
           />
 
           <div className="mt-5">
@@ -153,9 +162,13 @@ export function InformationCompletionPrompt({
             />
           </div>
 
-          {error && (
-            <div className="mt-3" data-testid="information-completion-error">
-              <ErrorAlert>{error}</ErrorAlert>
+          {feedback.error && (
+            <div className="mt-3">
+              <BrandedFeedbackMessage
+                title={feedback.error}
+                testId="information-completion-error"
+                focusOnMount
+              />
             </div>
           )}
 

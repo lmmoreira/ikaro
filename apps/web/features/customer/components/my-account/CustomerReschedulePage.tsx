@@ -14,7 +14,7 @@ import {
   shouldReloadSlots,
   type RescheduleFailure,
 } from '@/features/booking/model/reschedule-failure';
-import { ErrorAlert } from '@/features/booking/components/public/ErrorAlert';
+import { Card } from '@/shared/components/ui/card';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { extractProblemCode, resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
@@ -22,7 +22,7 @@ import { appendReturnTo } from '../../booking-navigation';
 import type { BookingWindowFacts } from '../../hooks/useDescribeBookingWindow';
 import { canRescheduleBooking } from '../../booking-sections';
 import { useCustomerTopbarStatus } from '../customer-topbar-status-context';
-import { RescheduleActionPane } from './RescheduleActionPane';
+import { RescheduleActionPane, RescheduleMobileDetails } from './RescheduleActionPane';
 import { RescheduleBookingFacts } from './RescheduleBookingFacts';
 import { RescheduleKeptPicks } from './RescheduleKeptPicks';
 import { ReschedulePicker } from './ReschedulePicker';
@@ -173,44 +173,23 @@ export function CustomerReschedulePage({
       ? null
       : { start: new Date(selectedSlot.startsAt), end: new Date(selectedSlot.appointmentEndsAt) };
 
-  function renderActionPane(): React.JSX.Element {
-    return (
-      <RescheduleActionPane
-        from={current}
-        to={target}
-        eligibleUntil={eligibleUntil}
-        isSubmitting={isSubmitting}
-        backHref={bookingHref}
-        onConfirm={() => void handleConfirm()}
-      />
-    );
-  }
-
   return (
-    <div className="w-full">
-      <div className="lg:grid lg:grid-cols-[1fr_22rem] lg:items-start lg:gap-6">
+    <div className="w-full pb-40 lg:pb-0">
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-6">
         <div className="flex flex-col gap-4">
-          <h1 className="text-lg font-bold text-gray-900">{t('title')}</h1>
-
-          {notice !== null && (
-            <div data-testid="reschedule-error">
-              <ErrorAlert hint={notice.hint} focusOnMount variant="dashboard">
-                {notice.title}
-              </ErrorAlert>
-            </div>
-          )}
-
-          <div>
-            <p className="mb-2.5 text-[0.6875rem] font-bold uppercase tracking-wider text-gray-400">
+          <Card className="rounded-xl border-gray-100 p-4 shadow-none">
+            <h1 className="text-lg font-bold text-gray-900">{t('title')}</h1>
+            <p className="mb-1 mt-3 text-[0.6875rem] font-bold uppercase tracking-wider text-gray-400">
               {t('currentSectionLabel')}
             </p>
             <RescheduleBookingFacts
+              bare
               serviceNames={serviceNames}
               when={current}
               durationMins={durationMins}
               price={booking.totalPrice.amount}
             />
-          </div>
+          </Card>
 
           <RescheduleKeptPicks keptPicks={reschedule.keptPicks} />
 
@@ -227,14 +206,27 @@ export function CustomerReschedulePage({
             onSelectSlot={setSelectedSlot}
           />
 
-          <div data-testid="action-pane-mobile" className="lg:hidden">
-            {renderActionPane()}
-          </div>
+          <RescheduleMobileDetails from={current} to={target} eligibleUntil={eligibleUntil} />
         </div>
 
-        <div data-testid="action-pane-desktop" className="hidden lg:sticky lg:top-6 lg:block">
-          {renderActionPane()}
-        </div>
+        <RescheduleActionPane
+          from={current}
+          to={target}
+          eligibleUntil={eligibleUntil}
+          isSubmitting={isSubmitting}
+          backHref={bookingHref}
+          onConfirm={() => void handleConfirm()}
+          feedback={
+            notice === null
+              ? null
+              : {
+                  variant: 'error',
+                  title: notice.title,
+                  hint: notice.hint,
+                  testId: 'reschedule-error',
+                }
+          }
+        />
       </div>
     </div>
   );

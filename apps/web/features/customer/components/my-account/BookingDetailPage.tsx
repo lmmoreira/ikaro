@@ -5,12 +5,16 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import type { CustomerBookingDetailResponse } from '@ikaro/types';
 import { BOOKING_STATUS } from '@ikaro/types';
+import { ActionPane } from '@/shared/components/ui/action-pane';
+import { Button } from '@/shared/components/ui/button';
+import { Card } from '@/shared/components/ui/card';
+import { FeedbackMessage, type FeedbackModel } from '@/shared/components/ui/feedback-message';
 import { returnBackLabelKey } from '../../booking-navigation';
 import { canCancelBooking, canRescheduleBooking } from '../../booking-sections';
 import { useCustomerTopbarStatus } from '../customer-topbar-status-context';
 import { BookingDetailMain } from './BookingDetailMain';
 import { CancelAction } from './CancelAction';
-import { InfoSubmitForm } from './InfoSubmitForm';
+import { InfoSubmitButton, InfoSubmitForm, useInfoSubmit } from './InfoSubmitForm';
 import { RescheduleAction } from './RescheduleAction';
 
 interface BookingDetailPageProps {
@@ -19,33 +23,16 @@ interface BookingDetailPageProps {
   readonly returnTo?: string | null;
 }
 
-interface ClosedActionPaneProps {
-  readonly tenantSlug: string;
-  // The note explaining why this closed booking has no actions of its own.
-  readonly noteKey: 'completedNote' | 'noShowNote' | 'cancelledNote' | 'rejectedNote';
-}
+type ClosedNoteKey = 'completedNote' | 'noShowNote' | 'cancelledNote' | 'rejectedNote';
 
-// COMPLETED and NO_SHOW share one pane (02c / 02f): a note, a way to book again, and the points.
-function ClosedActionPane({ tenantSlug, noteKey }: ClosedActionPaneProps): React.JSX.Element {
-  const t = useTranslations('customer.bookingDetail');
-  return (
-    <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-      <p className="mb-4 text-sm leading-relaxed text-gray-500">{t(noteKey)}</p>
-      <Link
-        href={`/${tenantSlug}/booking`}
-        className="block rounded-lg bg-blue-600 px-3 py-2.5 text-center text-sm font-semibold text-white hover:bg-blue-700"
-      >
-        {t('newBookingCta')}
-      </Link>
-      <Link
-        href={`/${tenantSlug}/my-account/loyalty`}
-        className="mt-1.5 block rounded-lg px-3 py-2.5 text-center text-sm font-semibold text-blue-600 hover:bg-blue-50"
-      >
-        {t('viewPointsCta')}
-      </Link>
-    </div>
-  );
-}
+// COMPLETED and NO_SHOW share one pane (02c / 02f) with CANCELLED and REJECTED: a note, a way to
+// book again, and the points.
+const CLOSED_NOTE: Partial<Record<CustomerBookingDetailResponse['status'], ClosedNoteKey>> = {
+  [BOOKING_STATUS.COMPLETED]: 'completedNote',
+  [BOOKING_STATUS.NO_SHOW]: 'noShowNote',
+  [BOOKING_STATUS.CANCELLED]: 'cancelledNote',
+  [BOOKING_STATUS.REJECTED]: 'rejectedNote',
+};
 
 export function BookingDetailPage({
   booking,
@@ -55,6 +42,13 @@ export function BookingDetailPage({
   const t = useTranslations('customer.bookingDetail');
   const [status, setStatus] = useState(booking.status);
   const [infoJustSubmitted, setInfoJustSubmitted] = useState(false);
+  const info = useInfoSubmit({
+    bookingId: booking.bookingId,
+    onSubmitted: () => {
+      setStatus(BOOKING_STATUS.PENDING);
+      setInfoJustSubmitted(true);
+    },
+  });
   const topbarStatus = useCustomerTopbarStatus();
   const setTopbarBookingStatus = topbarStatus?.setBookingStatus;
   const setBackHrefOverride = topbarStatus?.setBackHrefOverride;
@@ -65,15 +59,22 @@ export function BookingDetailPage({
   const showReschedule = canRescheduleBooking({ status, reschedule: booking.reschedule });
   const showInfoForm =
     isInfoRequested && booking.infoResponseMessage === null && !infoJustSubmitted;
-  // Every non-terminal state gets the same two-column layout, with a sticky action pane on
-  // desktop — INFO_REQUESTED stacks the response form above the cancel option in that pane.
-  const hasSidebarAction =
-    showCancel ||
-    showReschedule ||
-    status === BOOKING_STATUS.COMPLETED ||
-    status === BOOKING_STATUS.NO_SHOW ||
-    status === BOOKING_STATUS.CANCELLED ||
-    status === BOOKING_STATUS.REJECTED;
+  const closedNote = CLOSED_NOTE[status];
+  const showInfoFields = showInfoForm && booking.infoRequestMessage !== null;
+  // Every non-terminal state gets the same two-column layout, with the shared action pane: the
+  // sticky card on desktop, the fixed bottom bar on mobile.
+  const hasSidebarAction = showCancel || showReschedule || closedNote !== undefined;
+  const showRescheduleAction = showReschedule && booking.reschedule !== null;
+  const hasMobileNotes =
+    showRescheduleAction ||
+    (showCancel && status === BOOKING_STATUS.APPROVED && booking.cancellableUntil !== null);
+  const sentFeedback: FeedbackModel | null = infoJustSubmitted
+    ? {
+        variant: 'success',
+        title: t('responseSentConfirmation'),
+        testId: 'info-sent-confirmation',
+      }
+    : null;
 
   useEffect(() => {
     setTopbarBookingStatus?.(status);
@@ -93,61 +94,79 @@ export function BookingDetailPage({
     };
   }, [tenantSlug, returnTo, t, setBackHrefOverride, setBackLabelOverride]);
 
-  function renderActionPane(): React.JSX.Element {
-    if (status === BOOKING_STATUS.COMPLETED) {
-      return <ClosedActionPane tenantSlug={tenantSlug} noteKey="completedNote" />;
-    }
-    if (status === BOOKING_STATUS.NO_SHOW) {
-      return <ClosedActionPane tenantSlug={tenantSlug} noteKey="noShowNote" />;
-    }
-    if (status === BOOKING_STATUS.CANCELLED) {
-      return <ClosedActionPane tenantSlug={tenantSlug} noteKey="cancelledNote" />;
-    }
-    if (status === BOOKING_STATUS.REJECTED) {
-      return <ClosedActionPane tenantSlug={tenantSlug} noteKey="rejectedNote" />;
-    }
-    return (
-      <div className="flex flex-col gap-3">
-        {showInfoForm && booking.infoRequestMessage !== null && (
-          <InfoSubmitForm
-            bookingId={booking.bookingId}
-            infoRequestMessage={booking.infoRequestMessage}
-            onSubmitted={() => {
-              setStatus(BOOKING_STATUS.PENDING);
-              setInfoJustSubmitted(true);
-            }}
-          />
-        )}
-        {showReschedule && booking.reschedule !== null && (
-          <RescheduleAction
-            tenantSlug={tenantSlug}
-            bookingId={booking.bookingId}
-            eligibleUntil={booking.reschedule.eligibleUntil}
-            returnTo={returnTo}
-          />
-        )}
-        {showCancel && (
-          <CancelAction
-            tenantSlug={tenantSlug}
-            bookingId={booking.bookingId}
-            status={status}
-            cancellableUntil={booking.cancellableUntil}
-          />
-        )}
+  const rescheduleAction = (part: 'full' | 'button' | 'note') =>
+    showRescheduleAction && booking.reschedule !== null ? (
+      <RescheduleAction
+        tenantSlug={tenantSlug}
+        bookingId={booking.bookingId}
+        eligibleUntil={booking.reschedule.eligibleUntil}
+        returnTo={returnTo}
+        part={part}
+      />
+    ) : null;
+  const cancelAction = (part: 'full' | 'button' | 'note') =>
+    showCancel ? (
+      <CancelAction
+        tenantSlug={tenantSlug}
+        bookingId={booking.bookingId}
+        status={status}
+        cancellableUntil={booking.cancellableUntil}
+        part={part}
+      />
+    ) : null;
+  const newBookingLink = (
+    <Button asChild className="w-full">
+      <Link href={`/${tenantSlug}/booking`}>{t('newBookingCta')}</Link>
+    </Button>
+  );
+  const pointsLink = (
+    <Button asChild variant="ghost" className="w-full">
+      <Link href={`/${tenantSlug}/my-account/loyalty`}>{t('viewPointsCta')}</Link>
+    </Button>
+  );
+  const submitButton = showInfoFields ? <InfoSubmitButton controller={info} /> : null;
+
+  const paneActions =
+    closedNote === undefined ? (
+      <>
+        {submitButton}
+        {rescheduleAction('full')}
+        {cancelAction('full')}
+      </>
+    ) : (
+      <>
+        <p className="text-sm leading-relaxed text-gray-500">{t(closedNote)}</p>
+        {newBookingLink}
+        {pointsLink}
+      </>
+    );
+  const paneMobileActions =
+    closedNote === undefined ? (
+      <div className="grid auto-cols-fr grid-flow-col gap-3">
+        {submitButton}
+        {rescheduleAction('button')}
+        {cancelAction('button')}
+      </div>
+    ) : (
+      <div className="grid grid-cols-2 gap-3">
+        {pointsLink}
+        {newBookingLink}
       </div>
     );
-  }
 
   return (
-    <div className="w-full">
+    <div className={hasSidebarAction ? 'w-full pb-40 lg:pb-0' : 'w-full'}>
       <div
         className={
           hasSidebarAction
-            ? 'mt-4 lg:grid lg:grid-cols-[1fr_22rem] lg:items-start lg:gap-6'
+            ? 'mt-4 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-6'
             : 'mt-4'
         }
       >
         <div className="flex flex-col gap-4">
+          {showInfoFields && booking.infoRequestMessage !== null && (
+            <InfoSubmitForm infoRequestMessage={booking.infoRequestMessage} controller={info} />
+          )}
           {status === BOOKING_STATUS.NO_SHOW && (
             <div
               data-testid="booking-no-show-notice"
@@ -173,23 +192,28 @@ export function BookingDetailPage({
           )}
           <BookingDetailMain booking={{ ...booking, status }} tenantSlug={tenantSlug} />
 
-          {infoJustSubmitted && (
-            <div className="rounded-xl border border-green-100 bg-green-50 px-4 py-3 text-sm font-medium text-green-800">
-              {t('responseSentConfirmation')}
-            </div>
+          {sentFeedback !== null && !hasSidebarAction && (
+            <FeedbackMessage
+              variant="success"
+              title={sentFeedback.title}
+              testId={sentFeedback.testId}
+            />
           )}
 
-          {hasSidebarAction && (
-            <div data-testid="action-pane-mobile" className="lg:hidden">
-              {renderActionPane()}
-            </div>
+          {hasMobileNotes && (
+            <Card className="flex flex-col gap-2 rounded-xl border-gray-100 p-4 shadow-none lg:hidden">
+              {rescheduleAction('note')}
+              {cancelAction('note')}
+            </Card>
           )}
         </div>
 
         {hasSidebarAction && (
-          <div data-testid="action-pane-desktop" className="hidden lg:sticky lg:top-6 lg:block">
-            {renderActionPane()}
-          </div>
+          <ActionPane
+            actions={paneActions}
+            mobileActions={paneMobileActions}
+            feedback={sentFeedback ?? info.feedback}
+          />
         )}
       </div>
     </div>

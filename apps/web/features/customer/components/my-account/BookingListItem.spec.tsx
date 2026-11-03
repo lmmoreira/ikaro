@@ -14,7 +14,7 @@ vi.mock('next-intl', () => ({
         statusRejected: 'Rejeitado',
         statusCancelled: 'Cancelado',
         statusCompleted: 'Concluído',
-        infoNeeded: 'Admin precisa de informações',
+        infoNeeded: 'O estabelecimento precisa de informações',
         cancel: 'Cancelar',
         cancelRequest: 'Cancelar solicitação',
         respond: 'Responder',
@@ -143,7 +143,7 @@ describe('BookingListItem', () => {
       '/lavacar-bh/my-account/bookings/b1',
     );
     expect(screen.queryByText('Cancelar')).not.toBeInTheDocument();
-    expect(screen.getByText('Admin precisa de informações')).toBeInTheDocument();
+    expect(screen.getByText('O estabelecimento precisa de informações')).toBeInTheDocument();
     expect(screen.getByText('Info pedida')).toBeInTheDocument();
   });
 

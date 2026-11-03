@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import type { AvailableSlot, BookingRescheduleOptions } from '@ikaro/types';
 import { AvailabilityCarousel } from '@/features/booking/components/public/AvailabilityCarousel';
 import { SlotPicker } from '@/features/booking/components/public/SlotPicker';
+import { Card } from '@/shared/components/ui/card';
 import { RESCHEDULE_CAROUSEL_DAYS } from '@/features/booking/model/reschedule-date';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 
@@ -32,10 +33,8 @@ export function ReschedulePicker({
 
   return (
     <>
-      <div>
-        <p className="mb-2.5 text-[0.6875rem] font-bold uppercase tracking-wider text-gray-400">
-          {t('dateSectionLabel')}
-        </p>
+      <Card className="rounded-xl border-gray-100 p-4 shadow-none">
+        <p className="mb-2.5 text-sm font-semibold text-gray-900">{t('dateSectionLabel')}</p>
         <AvailabilityCarousel
           slug={tenantSlug}
           serviceIds={reschedule.serviceIds}
@@ -49,13 +48,11 @@ export function ReschedulePicker({
           durationMinutes={durationMinutes}
           variant="dashboard"
         />
-      </div>
+      </Card>
 
       {selectedDate !== null && (
-        <div>
-          <p className="mb-2.5 text-[0.6875rem] font-bold uppercase tracking-wider text-gray-400">
-            {t('slotsSectionLabel')}
-          </p>
+        <Card className="rounded-xl border-gray-100 p-4 shadow-none">
+          <p className="mb-2.5 text-sm font-semibold text-gray-900">{t('slotsSectionLabel')}</p>
           <SlotPicker
             slug={tenantSlug}
             serviceIds={reschedule.serviceIds}
@@ -67,12 +64,11 @@ export function ReschedulePicker({
             minBookingAdvanceHours={reschedule.window.minAdvanceHours}
             variant="dashboard"
           />
-        </div>
+          <p className="mt-3 rounded-lg bg-blue-50 px-3.5 py-3 text-sm leading-relaxed text-gray-800">
+            {t('sameDurationNote')}
+          </p>
+        </Card>
       )}
-
-      <p className="rounded-xl bg-blue-50 px-4 py-3.5 text-sm leading-relaxed text-gray-800">
-        {t('sameDurationNote')}
-      </p>
     </>
   );
 }

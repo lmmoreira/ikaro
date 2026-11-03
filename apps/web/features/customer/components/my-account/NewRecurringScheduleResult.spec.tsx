@@ -133,6 +133,23 @@ describe('NewRecurringScheduleResult', () => {
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 
+  it('failure: the message sits under the retry button in the pane, not above the content', () => {
+    renderResult({ kind: 'FAILURE' });
+
+    const message = within(screen.getByTestId('action-pane-desktop')).getByRole('alert');
+    expect(message).toBe(screen.getByTestId('new-schedule-failure-message'));
+    expect(within(screen.getByTestId('new-schedule-failure')).getAllByRole('alert')).toHaveLength(
+      2,
+    );
+  });
+
+  it('conflict and cap: the message is the shared page-level alert, not a pane message', () => {
+    renderResult({ kind: 'CAP_REACHED' });
+
+    expect(screen.getByTestId('new-schedule-cap-message')).toHaveAttribute('role', 'alert');
+    expect(within(screen.getByTestId('action-pane-desktop')).queryByRole('alert')).toBeNull();
+  });
+
   it('failure: the retry button is disabled while retrying', () => {
     renderResult({ kind: 'FAILURE' }, { retrying: true });
     expect(screen.getAllByTestId('new-schedule-retry')[0]).toBeDisabled();

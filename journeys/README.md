@@ -730,7 +730,7 @@ Sidebar, bottom-nav, and bottom-sheet items that point to another journey (e.g. 
 | STAFF — Login & First Access | `staff/login.md` | `staff/prototypes/login/` | Shipped (M13-S13); billing extension (suspended notice, UC-121): Draft |
 | STAFF — Agenda (Booking Queue & Lifecycle Management) | `staff/agenda.md` | `staff/prototypes/agenda/` | Reviewed |
 | STAFF — Horários (Schedule & Closure Management) | `staff/horarios.md` | `staff/prototypes/horarios/` | Reviewed |
-| CUSTOMER — Minha Conta (Bookings + Loyalty) | `customer/minha-conta.md` | `customer/prototypes/minha-conta/` | Reviewed (M23 extensions: ✅ built — `M23-S30`, `S12`, `S17`, `S22`, `S41`, `S43`; billing extension: tenant-suspended screens `16`–`16c`, Draft; TD57-S11 feedback-pane migration: `03c`/`03d` + in-place updates, ❓ Gap) |
+| CUSTOMER — Minha Conta (Bookings + Loyalty) | `customer/minha-conta.md` | `customer/prototypes/minha-conta/` | Reviewed (M23 extensions: ✅ built — `M23-S30`, `S12`, `S17`, `S22`, `S41`, `S43`; billing extension: tenant-suspended screens `16`–`16c`, Draft; TD57-S11 feedback-pane migration: `03c`/`03d` + in-place updates, ✅ Done) |
 | STAFF — Serviços (Service Catalog) | `staff/servicos.md` | `staff/prototypes/servicos/` | Shipped (M22-S04); public-page tab `03g`–`03i` Built (TD56-S03) |
 | STAFF — Fidelidade (Customer Loyalty Lookup) | `staff/fidelidade.md` | `staff/prototypes/fidelidade/` | Reviewed |
 | MANAGER — Equipe (Team Management) | `manager/equipe.md` | `manager/prototypes/equipe/` | Built (M13-S43, M13-S44) |

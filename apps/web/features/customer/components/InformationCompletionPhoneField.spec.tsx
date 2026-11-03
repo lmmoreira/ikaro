@@ -65,4 +65,42 @@ describe('InformationCompletionPhoneField', () => {
 
     expect(screen.getByTestId('information-completion-phone-input')).toBeRequired();
   });
+
+  it('marks the input and shows the message under it when there is an error', () => {
+    render(
+      <InformationCompletionPhoneField
+        phonePrefix="+55"
+        localPhoneDigits="119"
+        onChangeLocalDigits={vi.fn()}
+        label="Telefone"
+        error="Digite um número de telefone válido (10 ou 11 dígitos)."
+        errorId="phone-err"
+        inputProps={{ 'aria-invalid': true, 'aria-describedby': 'phone-err' }}
+      />,
+    );
+
+    const input = screen.getByTestId('information-completion-phone-input');
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(input).toHaveAttribute('aria-describedby', 'phone-err');
+    expect(screen.getByTestId('information-completion-phone-error')).toHaveTextContent(
+      'Digite um número de telefone válido (10 ou 11 dígitos).',
+    );
+    expect(document.getElementById('phone-err')).not.toBeNull();
+  });
+
+  it('shows no message and no invalid mark without an error', () => {
+    render(
+      <InformationCompletionPhoneField
+        phonePrefix="+55"
+        localPhoneDigits=""
+        onChangeLocalDigits={vi.fn()}
+        label="Telefone"
+      />,
+    );
+
+    expect(screen.queryByTestId('information-completion-phone-error')).not.toBeInTheDocument();
+    expect(screen.getByTestId('information-completion-phone-input')).not.toHaveAttribute(
+      'aria-invalid',
+    );
+  });
 });

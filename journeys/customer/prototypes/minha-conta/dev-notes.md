@@ -400,7 +400,7 @@ Copy: "Esta empresa não está aceitando agendamentos no momento", "Voltar para 
 
 ## Inline feedback in the action pane (`03c-cancel-confirm-feedback.html`, `03d-cancel-confirm-feedback-erro.html`; `CancelConfirmPage`)
 
-**Status:** ❌ Gap — TD57-S11. Drawn here so the customer account shows the same pattern as the dashboard; the pattern itself, its shared CSS (`shared/feedback-pane.css`) and the rules are in `manager/prototypes/feedback-pane/dev-notes.md`.
+**Status:** ✅ Done — TD57-S11. Drawn here so the customer account shows the same pattern as the dashboard; the pattern itself, its shared CSS (`shared/feedback-pane.css`) and the rules are in `manager/prototypes/feedback-pane/dev-notes.md`.
 
 Cancel errors move from a box above the content into a second card under the buttons card, inside the sticky `ActionPane`; the card only exists while there is a message. The heading sits inside the first card so it starts level with the pane's card. Decided in TD57-S11 discovery (2026-11-02): every customer pane screen adopts the shared fixed bottom bar (`ActionPane`, `bottom-0`: these are drill-down routes that hide the customer bottom nav, and `main` already reserves `pb-24`). Story 11 migrates the other pane screens of this folder in place to the same layout.
 
