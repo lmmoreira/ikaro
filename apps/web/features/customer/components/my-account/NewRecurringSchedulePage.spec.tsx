@@ -306,6 +306,36 @@ describe('NewRecurringSchedulePage — the outcomes', () => {
     );
   });
 
+  it('marks and focuses the end date when the server reports it missing', async () => {
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: vi.fn(),
+    });
+    createRecurringScheduleAsCustomer.mockRejectedValue(
+      new ApiError(400, 'invalid', {
+        violations: [{ field: 'endsOn', code: 'GENERIC_FIELD_REQUIRED' }],
+      }),
+    );
+    renderPage({ initialDraft: READY });
+
+    await reviewAndConfirm();
+
+    expect(await screen.findByTestId('new-schedule-ends-on-error')).toBeInTheDocument();
+    expect(screen.getByTestId('new-schedule-ends-on')).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('falls back to the form-level failure for a server field the form does not own', async () => {
+    createRecurringScheduleAsCustomer.mockRejectedValue(
+      new ApiError(400, 'invalid', { violations: [{ field: 'somethingElse', code: 'X' }] }),
+    );
+    renderPage({ initialDraft: READY });
+
+    await reviewAndConfirm();
+
+    expect(await screen.findByTestId('new-schedule-failure')).toBeInTheDocument();
+    expect(screen.queryByTestId('new-schedule-ends-on-error')).not.toBeInTheDocument();
+  });
+
   it('keeps the typed pattern after a network failure and sends the same body again on retry', async () => {
     createRecurringScheduleAsCustomer.mockRejectedValueOnce(new Error('Network Error'));
     renderPage({ initialDraft: READY });
