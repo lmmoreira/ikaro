@@ -231,6 +231,7 @@ flowchart TD
 | `16-agendamentos-empresa-inativa.html` | Account list with the "Empresa inativa" badge, history visible | UC-121 | planned Billing milestone | ❓ Draft |
 | `16b-detalhe-bloqueado.html` | An open booking's detail is blocked (opened from the list, or by direct URL — UC-121 A1) | UC-121, A1 | planned Billing milestone | ❓ Draft |
 | `16c-novo-agendamento-bloqueado.html` | A new booking is blocked (the disabled "Novo agendamento" button and the refused `/{slug}/booking` request) | UC-121 | planned Billing milestone | ❓ Draft |
+| `17-erro-de-rota.html` | Erro ao carregar a conta: `my-account/error.tsx` como mensagem de página com "Tentar novamente" | — | TD57-S11 | ❓ Gap (TD57-S11) |
 
 ---
 
@@ -362,3 +363,5 @@ Texto antigo em `02b`: "Horário a confirmar após aprovação" não vale mais �
 ## TD57 — Feedback inline e painel de ações (❓ Gap, `TD57-S11`)
 
 Cross-cutting pattern, source of truth `td/TD57-INLINE-FEEDBACK-AND-ACTION-PANE-PATTERN.md` and `manager/feedback-pane.md`. `TD57-S11` migrates every customer screen that shows an error or success message: the message moves to a card under the buttons inside the action pane (page-level load failures get a retry), the offending field is marked, the title and intro sit inside the first card, and every control sits in a card. `03c`/`03d` are the reference; the other pane screens (booking detail and info form, reschedule, end schedule, schedule detail, new-recurring outcomes, alert detail and cancel) and the page-level ones (alerts list error, route error, switch tenant, information-completion modal) are migrated in place. Decided 2026-11-02: customer panes adopt the shared fixed bottom bar (`bottom-0`; these drill-down routes hide the customer bottom nav). Informational banners (points earned, renewal, no-show and ended notices) stay as page content.
+
+**Migrated in place (2026-11-02):** `02`, `02b`, `02c`, `02d`, `02e`, `02f`, `02g`, `02h`, `03`, `03b`, `03c`, `03d`, `05` (+ load and switch failure states), `06`, `06b`, `06c`, `06d`, `06e`, `06f`, `06g` (+ failure state), `06h`, `07d`, `07f`, `07g`, `07h`, `07i`, `13c`, `13d`, `15`–`15k`; new `17`. All link `shared/customer-shell.css` (Ikaro tokens, no `--ba-*`). **Not in this story:** `13`, `13b`, `13e`–`13h` (the new-recurring form — TD57-S14). **Not drawn yet:** the information-completion modal (no prototype exists for it).
