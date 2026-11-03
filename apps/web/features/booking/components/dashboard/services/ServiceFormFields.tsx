@@ -2,9 +2,14 @@
 
 import type { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
-import type { ServiceFormErrors } from '@/features/booking/services/service-form';
+import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
+import type { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
+import { cn } from '@/shared/utils/cn';
 import { ServicePickupSwitch } from './ServicePickupSwitch';
 import { ServicePriceDurationFields } from './ServicePriceDurationFields';
+
+const INPUT_CLASS =
+  'w-full rounded-md border border-border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
 
 interface ServiceFormFieldsProps {
   readonly name: string;
@@ -13,7 +18,12 @@ interface ServiceFormFieldsProps {
   readonly durationMinutes: string;
   readonly loyaltyPointsValue: string;
   readonly requiresPickupAddress: boolean;
-  readonly fieldErrors: ServiceFormErrors;
+  // The form's feedback owner: its field registry marks and focuses the input a client check or
+  // the backend's `field` points at (TD57-S13).
+  readonly feedback: Pick<
+    ReturnType<typeof useFormFeedback>,
+    'fieldProps' | 'fieldErrors' | 'fieldErrorId'
+  >;
   readonly onNameChange: (value: string) => void;
   readonly onDescriptionChange: (value: string) => void;
   readonly onPriceAmountChange: (value: string) => void;
@@ -35,7 +45,7 @@ export function ServiceFormFields({
   durationMinutes,
   loyaltyPointsValue,
   requiresPickupAddress,
-  fieldErrors,
+  feedback,
   onNameChange,
   onDescriptionChange,
   onPriceAmountChange,
@@ -47,6 +57,7 @@ export function ServiceFormFields({
   children,
 }: ServiceFormFieldsProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
+  const { fieldProps, fieldErrors, fieldErrorId } = feedback;
 
   return (
     <>
@@ -65,20 +76,11 @@ export function ServiceFormFields({
             value={name}
             onChange={(event) => onNameChange(event.target.value)}
             maxLength={100}
-            aria-invalid={Boolean(fieldErrors.name)}
-            aria-describedby={fieldErrors.name ? 'service-name-error' : undefined}
             placeholder={t('createNamePlaceholder')}
-            className="w-full rounded-md border border-border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 aria-[invalid=true]:border-red-500 aria-[invalid=true]:bg-red-50"
+            {...fieldProps('name')}
+            className={cn(INPUT_CLASS, fieldErrors.name && FIELD_INVALID_CLASS)}
           />
-          {fieldErrors.name && (
-            <p
-              id="service-name-error"
-              data-testid="service-name-error"
-              className="mt-1.5 text-sm text-red-600"
-            >
-              {fieldErrors.name}
-            </p>
-          )}
+          <FieldFeedback id={fieldErrorId('name')}>{fieldErrors.name}</FieldFeedback>
         </div>
 
         <div>
@@ -95,20 +97,16 @@ export function ServiceFormFields({
             onChange={(event) => onDescriptionChange(event.target.value)}
             maxLength={500}
             placeholder={t('createDescriptionPlaceholder')}
-            className="min-h-24 w-full rounded-md border border-border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            {...fieldProps('description')}
+            className={cn(INPUT_CLASS, 'min-h-24', fieldErrors.description && FIELD_INVALID_CLASS)}
           />
-          {fieldErrors.description && (
-            <p data-testid="service-description-error" className="mt-1.5 text-sm text-red-600">
-              {fieldErrors.description}
-            </p>
-          )}
+          <FieldFeedback id={fieldErrorId('description')}>{fieldErrors.description}</FieldFeedback>
         </div>
 
         <ServicePriceDurationFields
           priceAmount={priceAmount}
           durationMinutes={durationMinutes}
-          priceError={fieldErrors.priceAmount}
-          durationError={fieldErrors.durationMinutes}
+          feedback={feedback}
           durationLocked={durationLocked}
           onPriceAmountChange={onPriceAmountChange}
           onDurationMinutesChange={onDurationMinutesChange}
@@ -130,22 +128,19 @@ export function ServiceFormFields({
             step="1"
             value={loyaltyPointsValue}
             onChange={(event) => onLoyaltyPointsValueChange(event.target.value)}
-            aria-invalid={Boolean(fieldErrors.loyaltyPointsValue)}
-            aria-describedby={
-              fieldErrors.loyaltyPointsValue ? 'service-points-error' : 'service-points-hint'
-            }
             placeholder={t('createPointsPlaceholder')}
-            className="w-full rounded-md border border-border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 aria-[invalid=true]:border-red-500 aria-[invalid=true]:bg-red-50"
+            {...fieldProps('loyaltyPointsValue')}
+            aria-describedby={
+              fieldErrors.loyaltyPointsValue
+                ? fieldErrorId('loyaltyPointsValue')
+                : 'service-points-hint'
+            }
+            className={cn(INPUT_CLASS, fieldErrors.loyaltyPointsValue && FIELD_INVALID_CLASS)}
           />
-          {fieldErrors.loyaltyPointsValue ? (
-            <p
-              id="service-points-error"
-              data-testid="service-points-error"
-              className="mt-1.5 text-sm text-red-600"
-            >
-              {fieldErrors.loyaltyPointsValue}
-            </p>
-          ) : (
+          <FieldFeedback id={fieldErrorId('loyaltyPointsValue')}>
+            {fieldErrors.loyaltyPointsValue}
+          </FieldFeedback>
+          {!fieldErrors.loyaltyPointsValue && (
             <p id="service-points-hint" className="mt-1.5 text-sm text-gray-500">
               {t('createPointsHint')}
             </p>
@@ -161,15 +156,6 @@ export function ServiceFormFields({
       )}
 
       {children}
-
-      {fieldErrors.submit && (
-        <div
-          data-testid="service-submit-error"
-          className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-        >
-          {fieldErrors.submit}
-        </div>
-      )}
     </>
   );
 }

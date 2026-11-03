@@ -3,7 +3,7 @@
 **Actor(s):** MANAGER (dashboard), CUSTOMER (conta do cliente), GUEST/CUSTOMER (hotsite público)
 **Goal:** When a save, action or load fails or succeeds, the user sees the result next to the action they just took, with the offending field marked — on every surface of `apps/web`.
 **UCs covered:** none — a cross-cutting UI pattern. Source of truth: `td/TD57-INLINE-FEEDBACK-AND-ACTION-PANE-PATTERN.md`. Lives under `manager/` because the dashboard is its main surface. The customer-account and public-hotsite screens live in their own actor folders, as the folder convention requires: `customer/prototypes/minha-conta/03c`–`03d` and `guest/prototypes/lead-form/01j`–`01k`; the hub `index.html` here links to them.
-**Status:** In progress (TD57) — the shared components shipped with TD57-S01 and the service edit screen uses them since TD57-S02; the screens below marked ⚠ still use their own boxes until their stories land (done: TD57-S01–S04 and S06–S12; pending: S05 and S13–S16). The service-edit error that triggered it is real: a 422 rendered below four cards, out of view.
+**Status:** In progress (TD57) — the shared components shipped with TD57-S01 and the service edit screen uses them since TD57-S02; the screens below marked ⚠ still use their own boxes until their stories land (done: TD57-S01–S04 and S06–S13; pending: S05 and S14–S16). The service-edit error that triggered it is real: a 422 rendered below four cards, out of view.
 
 ## Flow
 
@@ -28,7 +28,7 @@ flowchart TD
     class Ok,Err,Badge,RowErr,Page,PubMsg gap
 ```
 
-Every node in red is a gap: the screens not yet migrated do not use the shared components (the area stories `TD57-S13`–`S16` remain). The shared components exist since `TD57-S01`; the branded counterpart for the public hotsite exists since `TD57-S06` and its callers migrate in `TD57-S16`.
+Every node in red is a gap: the screens not yet migrated do not use the shared components (the area stories `TD57-S14`–`S16` remain). The shared components exist since `TD57-S01`; the branded counterpart for the public hotsite exists since `TD57-S06` and its callers migrate in `TD57-S16`.
 
 ## Pages referenced
 
@@ -43,9 +43,9 @@ Every node in red is a gap: the screens not yet migrated do not use the shared c
 | `/dashboard/bookings/[id]/complete`, `/reschedule` | `MarkCompleteActionRail`, `RescheduleActionRail` | TD57-S12 | ✅ Rail error under the buttons of the shared `ActionPane` — `staff/prototypes/agenda/04c`, `05d` |
 | `/dashboard/schedule` | `SchedulePage`, `ScheduleResourceColumnsBoard`, `ResourceFilterMenu` | TD57-S12 | ✅ Page-level `FeedbackMessage` with retry; field-level message on the resource select — `staff/prototypes/horarios/11` |
 | `/dashboard/scheduling-exceptions` | `SchedulingExceptionWorklistPage`, `BulkResultList`, the sheets | TD57-S12 | ✅ Shared `FeedbackMessage` / sheet message — `manager/prototypes/scheduling-exceptions/01d`, `01j`, `01k` |
-| `/dashboard/services/new`, `/dashboard/services/[id]/edit` (Detalhes) | `ServiceCreatePage`, `ServiceFormFields`, `ServiceEditDetailsTab` | TD57-S13 | ⚠ Drawn — `staff/prototypes/servicos/02b`, `02c`; the field marking from a server `field` and the success in the pane land with the story |
-| `/dashboard/services/[id]/deactivate` | `ServiceDeactivatePage` | TD57-S13 | ⚠ Drawn — `staff/prototypes/servicos/03b`, `03j` |
-| `/dashboard/services` | `ServiceListPage` | TD57-S13 | ⚠ Drawn — `staff/prototypes/servicos/01`, `01b` (load failure with retry; chips inside the card) |
+| `/dashboard/services/new`, `/dashboard/services/[id]/edit` (Detalhes) | `ServiceCreatePage`, `ServiceFormFields`, `ServiceEditDetailsTab` | TD57-S13 | ✅ Field marked and focused from a server `field`; created success in the Detalhes pane — `staff/prototypes/servicos/02b`, `02c` |
+| `/dashboard/services/[id]/deactivate` | `ServiceDeactivatePage` | TD57-S13 | ✅ Failure under the buttons of the shared `ActionPane` — `staff/prototypes/servicos/03b`, `03j` |
+| `/dashboard/services` | `ServiceListPage` | TD57-S13 | ✅ Load failure with retry, chips inside the list card — `staff/prototypes/servicos/01`, `01b` |
 | `/[slug]` (lead form) | public lead form + branded feedback component | TD57-S16 | ⚠ Component exists (TD57-S06); form still uses a hand-rolled box |
 | Shared components | `FeedbackMessage`, `ActionPane`, `FieldFeedback`, `useFormFeedback` | TD57-S01 | ✅ EXISTS |
 

@@ -6,7 +6,7 @@ import type { StaffServiceResponse } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
 import { ServiceListPage } from './ServiceListPage';
 
-const routerReplace = vi.fn();
+const routerRefresh = vi.fn();
 
 vi.mock('next/link', () => ({
   default: ({
@@ -27,7 +27,7 @@ vi.mock('next/link', () => ({
 }));
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ replace: routerReplace }),
+  useRouter: () => ({ refresh: routerRefresh }),
 }));
 
 function makeService(overrides?: Partial<StaffServiceResponse>): StaffServiceResponse {
@@ -77,31 +77,40 @@ function makeService(overrides?: Partial<StaffServiceResponse>): StaffServiceRes
 
 describe('ServiceListPage', () => {
   beforeEach(() => {
-    vi.useRealTimers();
-    routerReplace.mockReset();
+    routerRefresh.mockReset();
   });
 
-  it('shows the created banner and clears the query after a short delay', async () => {
-    vi.useFakeTimers();
-    renderWithIntl(<ServiceListPage services={[]} showCreatedBanner />);
+  it('shows no created banner: nothing sends the list the created flag', () => {
+    renderWithIntl(<ServiceListPage services={[]} />);
 
-    expect(screen.getByText('Serviço criado!')).toBeInTheDocument();
-    expect(routerReplace).not.toHaveBeenCalled();
-
-    await vi.advanceTimersByTimeAsync(1800);
-
-    expect(routerReplace).toHaveBeenCalledWith('/dashboard/services', { scroll: false });
-    vi.useRealTimers();
+    expect(screen.queryByText('Serviço criado!')).not.toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
-  it('shows the created banner once when requested', () => {
-    renderWithIntl(<ServiceListPage services={[]} showCreatedBanner />);
+  it('keeps the filter chips inside the list card', () => {
+    renderWithIntl(<ServiceListPage services={[makeService()]} />);
 
-    const banner = screen.getByText('Serviço criado!').closest('output');
-    expect(banner).not.toBeNull();
-    expect(banner).toHaveTextContent(
-      'O novo serviço já está disponível no formulário de agendamento.',
-    );
+    const card = screen
+      .getByRole('button', { name: /^Todos/ })
+      .closest('[class*="overflow-hidden"]');
+    expect(card).not.toBeNull();
+    expect(card).toContainElement(screen.getByRole('button', { name: /^Ativos/ }));
+    expect(card).toContainElement(screen.getByText('Lavagem Completa'));
+  });
+
+  it('shows the load failure with a retry instead of the empty message when loadFailed', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<ServiceListPage services={[]} loadFailed />);
+
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent('Não foi possível carregar os serviços');
+    expect(alert).toHaveTextContent('Verifique sua conexão e tente novamente.');
+    expect(screen.queryByText(/Nenhum serviço/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Todos/ })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+
+    expect(routerRefresh).toHaveBeenCalledTimes(1);
   });
 
   it('renders all services and filters them client-side', async () => {

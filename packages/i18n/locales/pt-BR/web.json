@@ -2117,7 +2117,6 @@
       "deactivateWarningExisting": "Agendamentos já criados com este serviço não são cancelados",
       "deactivateWarningReactivate": "O serviço pode ser reativado a qualquer momento",
       "deactivateConfirm": "Confirmar desativação",
-      "deactivateFailed": "Erro ao desativar serviço. Tente novamente.",
       "resourceTypeLocation": "Local",
       "resourceTypeStaff": "Profissional",
       "resourceTypeRoom": "Sala",
@@ -2296,7 +2295,10 @@
       "publicPageInclusionAdd": "Adicionar item",
       "publicPagePreparationLabel": "Como se preparar",
       "publicPageSaveButton": "Salvar página pública",
-      "publicPageSavedBody": "A página pública do serviço foi atualizada."
+      "publicPageSavedBody": "A página pública do serviço foi atualizada.",
+      "listLoadFailedTitle": "Não foi possível carregar os serviços",
+      "listLoadFailedBody": "Verifique sua conexão e tente novamente.",
+      "loadRetry": "Tentar novamente"
     },
     "bookingCard": {
       "statusPending": "Pendente",

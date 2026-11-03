@@ -2117,7 +2117,6 @@
       "deactivateWarningExisting": "Bookings already created with this service are not cancelled",
       "deactivateWarningReactivate": "The service can be reactivated at any time",
       "deactivateConfirm": "Confirm deactivation",
-      "deactivateFailed": "Could not deactivate service. Please try again.",
       "resourceTypeLocation": "Location",
       "resourceTypeStaff": "Staff",
       "resourceTypeRoom": "Room",
@@ -2296,7 +2295,10 @@
       "publicPageInclusionAdd": "Add item",
       "publicPagePreparationLabel": "How to prepare",
       "publicPageSaveButton": "Save public page",
-      "publicPageSavedBody": "The service public page was updated."
+      "publicPageSavedBody": "The service public page was updated.",
+      "listLoadFailedTitle": "Could not load services",
+      "listLoadFailedBody": "Check your connection and try again.",
+      "loadRetry": "Try again"
     },
     "bookingCard": {
       "statusPending": "Pending",

@@ -54,10 +54,12 @@ test.describe('service creation flows', () => {
 
     await page.getByRole('button', { name: 'Criar serviço' }).click();
 
-    // M22-S04: create now redirects straight to the edit page (Detalhes tab, inline banner),
-    // not back to the list.
-    await expect(page).toHaveURL(/\/dashboard\/services\/[^/]+\/edit\?created=1$/);
-    await expect(page.getByTestId('service-created-banner')).toContainText('Serviço criado!');
+    // M22-S04: create now redirects straight to the edit page (Detalhes tab, success in the action pane),
+    // not back to the list. The page cleans ?created=1 from the URL once it has shown it.
+    await expect(page).toHaveURL(/\/dashboard\/services\/[^/]+\/edit(\?created=1)?$/);
+    await expect(
+      page.getByTestId('action-pane-desktop').getByTestId('form-feedback'),
+    ).toContainText('Serviço criado!');
     await expect(page.getByTestId('service-name-input')).toHaveValue(serviceName);
     for (const tab of ['Recursos', 'Políticas de reserva', 'Formulário de reserva']) {
       await expect(page.getByRole('tab', { name: tab })).toBeVisible();
@@ -86,8 +88,10 @@ test.describe('service creation flows', () => {
 
     await page.getByRole('button', { name: 'Criar serviço' }).click();
 
-    await expect(page).toHaveURL(/\/dashboard\/services\/[^/]+\/edit\?created=1$/);
-    await expect(page.getByTestId('service-created-banner')).toContainText('Serviço criado!');
+    await expect(page).toHaveURL(/\/dashboard\/services\/[^/]+\/edit(\?created=1)?$/);
+    await expect(
+      page.getByTestId('action-pane-desktop').getByTestId('form-feedback'),
+    ).toContainText('Serviço criado!');
 
     await page.goto('/dashboard/services');
     const card = page.getByRole('link', { name: new RegExp(serviceName) });
@@ -100,9 +104,17 @@ test.describe('service creation flows', () => {
 
     await page.getByRole('button', { name: 'Criar serviço' }).click();
 
-    await expect(page.getByTestId('service-name-error')).toBeVisible();
-    await expect(page.getByTestId('service-price-error')).toBeVisible();
-    await expect(page.getByTestId('service-duration-error')).toBeVisible();
+    // Each invalid input is marked, the first one takes focus, and the pane summarises.
+    await expect(page.getByTestId('service-name-input')).toHaveAttribute('aria-invalid', 'true');
+    await expect(page.getByTestId('service-price-input')).toHaveAttribute('aria-invalid', 'true');
+    await expect(page.getByTestId('service-duration-input')).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
+    await expect(page.getByTestId('service-name-input')).toBeFocused();
+    await expect(
+      page.getByTestId('action-pane-desktop').getByTestId('form-feedback'),
+    ).toContainText('Revise os campos destacados para salvar.');
   });
 
   test('accepts boundary values at the form limits', async ({ page }) => {
@@ -123,8 +135,10 @@ test.describe('service creation flows', () => {
 
     await page.getByRole('button', { name: 'Criar serviço' }).click();
 
-    await expect(page).toHaveURL(/\/dashboard\/services\/[^/]+\/edit\?created=1$/);
-    await expect(page.getByTestId('service-created-banner')).toContainText('Serviço criado!');
+    await expect(page).toHaveURL(/\/dashboard\/services\/[^/]+\/edit(\?created=1)?$/);
+    await expect(
+      page.getByTestId('action-pane-desktop').getByTestId('form-feedback'),
+    ).toContainText('Serviço criado!');
 
     await page.goto('/dashboard/services');
     await expect(page.getByRole('link', { name: new RegExp(serviceName) })).toBeVisible();
@@ -155,7 +169,7 @@ test.describe('service creation flows', () => {
     });
     await page.getByRole('button', { name: 'Criar serviço' }).click();
 
-    await expect(page).toHaveURL(/\/dashboard\/services\/[^/]+\/edit\?created=1$/);
+    await expect(page).toHaveURL(/\/dashboard\/services\/[^/]+\/edit(\?created=1)?$/);
 
     await page.goto('/dashboard/services');
     const card = page.getByRole('link', { name: new RegExp(serviceName) });

@@ -2,16 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState, type SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
 import type { ServiceIntakeSchemaResponse, StaffServiceResponse } from '@ikaro/types';
 import { useActivateService, useUpdateService } from '@/features/booking/services/useServices';
-import type { ServiceFormErrors } from '@/features/booking/services/service-form';
-import { validateServiceForm } from '@/features/booking/services/service-form';
+import { toFieldErrors, validateServiceForm } from '@/features/booking/services/service-form';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import type { ServiceEditTabKey } from '@/features/booking/types/service';
 import { INITIAL_SERVICE_EDIT_DIRTY_STATE } from '@/features/booking/types/service';
 import { DiscardChangesDialog } from '@/shared/components/DiscardChangesDialog';
+import { useCreatedNotice } from './use-created-notice';
 import { useTabFeedback, type ServiceTabAction } from './service-tab-action';
 import { useServiceEditLeaveGuard } from './useServiceEditLeaveGuard';
 import { ServiceEditActionPanels } from './ServiceEditPanels';
@@ -23,35 +22,16 @@ import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-s
 interface ServiceEditPageProps {
   readonly service: StaffServiceResponse;
   readonly intakeSchema: ServiceIntakeSchemaResponse;
-  readonly showCreatedBanner?: boolean;
-}
-
-// The "service created" banner shows for a moment after the create redirect, then the URL is
-// cleaned so a reload does not show it again.
-function useCreatedBanner(initial: boolean, serviceId: string): boolean {
-  const router = useRouter();
-  const [show, setShow] = useState(initial);
-
-  useEffect(() => {
-    if (!show) return;
-    const timeoutId = globalThis.setTimeout(() => {
-      setShow(false);
-      router.replace(`/dashboard/services/${serviceId}/edit`, { scroll: false });
-    }, 1800);
-    return () => globalThis.clearTimeout(timeoutId);
-  }, [router, serviceId, show]);
-
-  return show;
+  readonly justCreated?: boolean;
 }
 
 export function ServiceEditPage({
   service,
   intakeSchema,
-  showCreatedBanner: initialShowCreatedBanner = false,
+  justCreated = false,
 }: ServiceEditPageProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
   const locale = useResolvedLocale();
-  const showCreatedBanner = useCreatedBanner(initialShowCreatedBanner, service.serviceId);
   const updateServiceMutation = useUpdateService();
   const activateServiceMutation = useActivateService();
   const topbarStatus = useDashboardTopbarStatus();
@@ -80,11 +60,12 @@ export function ServiceEditPage({
     service.requiresPickupAddress,
   );
   const [isActive, setIsActive] = useState(service.isActive);
-  const [fieldErrors, setFieldErrors] = useState<ServiceFormErrors>({});
   const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
   const [isActivatingLocal, setIsActivatingLocal] = useState(false);
   const form = useFormFeedback();
-  const feedback = useTabFeedback(form);
+  const tabFeedback = useTabFeedback(form);
+  const created = useCreatedNotice(justCreated, service.serviceId);
+  const feedback = tabFeedback ?? created.notice;
 
   const isSubmitting = isSubmittingLocal || updateServiceMutation.isPending;
   const isActivating = isActivatingLocal || activateServiceMutation.isPending;
@@ -98,6 +79,7 @@ export function ServiceEditPage({
   function markDetalhesDirty(): void {
     detalhesEditRevisionRef.current += 1;
     form.clear();
+    created.dismiss();
     setTabDirty('detalhes', true);
   }
 
@@ -137,9 +119,10 @@ export function ServiceEditPage({
       t,
     );
     form.clear();
-    setFieldErrors(validation.errors);
+    created.dismiss();
     if (validation.normalized === null) {
       form.setError(t('feedbackValidationSummary'));
+      form.setFieldErrors(toFieldErrors(validation.errors));
       return;
     }
 
@@ -164,7 +147,6 @@ export function ServiceEditPage({
   }
 
   async function handleActivate(): Promise<void> {
-    setFieldErrors({});
     form.clear();
     setIsActivatingLocal(true);
 
@@ -196,7 +178,6 @@ export function ServiceEditPage({
             <ServiceEditDetailsTab
               serviceId={service.serviceId}
               isActive={isActive}
-              showCreatedBanner={showCreatedBanner}
               name={name}
               description={description}
               priceAmount={priceAmount}
@@ -204,7 +185,7 @@ export function ServiceEditPage({
               loyaltyPointsValue={loyaltyPointsValue}
               requiresPickupAddress={requiresPickupAddress}
               durationLocked={hasLegs}
-              fieldErrors={fieldErrors}
+              feedback={form}
               onNameChange={(value) => {
                 setName(value);
                 markDetalhesDirty();

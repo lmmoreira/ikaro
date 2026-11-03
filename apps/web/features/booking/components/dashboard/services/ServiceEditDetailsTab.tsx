@@ -1,7 +1,6 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
-import type { ServiceFormErrors } from '@/features/booking/services/service-form';
+import type { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { ServiceFormFields } from './ServiceFormFields';
 import { ServiceEditStatusSection } from './ServiceEditPanels';
@@ -9,7 +8,6 @@ import { ServiceEditStatusSection } from './ServiceEditPanels';
 interface ServiceEditDetailsTabProps {
   readonly serviceId: string;
   readonly isActive: boolean;
-  readonly showCreatedBanner: boolean;
   readonly name: string;
   readonly description: string;
   readonly priceAmount: string;
@@ -17,7 +15,10 @@ interface ServiceEditDetailsTabProps {
   readonly loyaltyPointsValue: string;
   readonly requiresPickupAddress: boolean;
   readonly durationLocked?: boolean;
-  readonly fieldErrors: ServiceFormErrors;
+  readonly feedback: Pick<
+    ReturnType<typeof useFormFeedback>,
+    'fieldProps' | 'fieldErrors' | 'fieldErrorId'
+  >;
   readonly onNameChange: (value: string) => void;
   readonly onDescriptionChange: (value: string) => void;
   readonly onPriceAmountChange: (value: string) => void;
@@ -29,7 +30,6 @@ interface ServiceEditDetailsTabProps {
 export function ServiceEditDetailsTab({
   serviceId,
   isActive,
-  showCreatedBanner,
   name,
   description,
   priceAmount,
@@ -37,7 +37,7 @@ export function ServiceEditDetailsTab({
   loyaltyPointsValue,
   requiresPickupAddress,
   durationLocked = false,
-  fieldErrors,
+  feedback,
   onNameChange,
   onDescriptionChange,
   onPriceAmountChange,
@@ -45,24 +45,12 @@ export function ServiceEditDetailsTab({
   onLoyaltyPointsValueChange,
   onToggleRequiresPickupAddress,
 }: ServiceEditDetailsTabProps): React.JSX.Element {
-  const t = useTranslations('dashboard.servicesPage');
-
   return (
     <div
       role="tabpanel"
       id="service-edit-tabpanel-detalhes"
       aria-labelledby="service-edit-tab-detalhes"
     >
-      {showCreatedBanner && (
-        <output
-          aria-live="polite"
-          data-testid="service-created-banner"
-          className="mb-4 block rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4"
-        >
-          <p className="text-[0.9375rem] font-bold text-emerald-800">{t('createdSuccessTitle')}</p>
-          <p className="mt-1 text-sm text-emerald-700">{t('createdSuccessBody')}</p>
-        </output>
-      )}
       <Card>
         <CardContent className="space-y-5 p-5 lg:p-6">
           <ServiceFormFields
@@ -73,7 +61,7 @@ export function ServiceEditDetailsTab({
             loyaltyPointsValue={loyaltyPointsValue}
             requiresPickupAddress={requiresPickupAddress}
             durationLocked={durationLocked}
-            fieldErrors={fieldErrors}
+            feedback={feedback}
             onNameChange={onNameChange}
             onDescriptionChange={onDescriptionChange}
             onPriceAmountChange={onPriceAmountChange}
