@@ -780,9 +780,19 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 
 **Agent:** frontend-ts
 **Complexity:** L
-**Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md` (the section added by Story 1); `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` §3; `docs/TESTING_STRATEGY.md` § apps/web Testing Infrastructure; this TD's Appendix A.7
+**Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md` (the section added by Story 1; § Alignment and cards); `journeys/staff/prototypes/agenda/dev-notes.md` § TD57-S12; `journeys/manager/prototypes/scheduling-exceptions/dev-notes.md` § TD57-S12; `journeys/staff/prototypes/horarios/dev-notes.md` § TD57-S12; `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` §3; `docs/TESTING_STRATEGY.md` § apps/web Testing Infrastructure; this TD's Appendix A.7
 **Dependencies:** Story 0, Story 1
 **Pattern:** plain composition over the Story 1 building blocks — no named pattern applies
+
+**Decisions locked in discovery (2026-11-03):**
+1. **Booking detail aside → shared `ActionPane`.** `BookingDetailAsideCard` stops hand-building its aside and its three fixed bottom bars; desktop pane is sticky with the message **under the buttons**, the mobile bar sits at `bottom-0` (the dashboard bottom nav hides on detail routes) and shows the message above its buttons. The top-of-page red `inlineError` card in `BookingDetailPage` is removed.
+2. **Action failures go to the pane** (`useFormFeedback`): approve, reject, request-info, cancel, no-show `#falha`, mark-complete and reschedule. A **validation error from a sheet stays in the sheet** (`BookingActionSheetShell` → `FeedbackMessage`/`FieldFeedback`) and never reaches the pane.
+3. **Informational banners stay page content and render no `role="alert"`:** `BookingNoShowBanner`, `BookingDecisionBanner`, `RecurringApprovalBanner` (hold banners), `BookingCompletionSummary`, `NewBookingOutcome`/`BookingOutcomeLayout`, `BookingDetailMainBanner` result banners, the `BulkResultList` result banner, and the no-show `#terminal` (409) banner.
+4. **Load failures are page-level `FeedbackMessage` with `onRetry`, existing `data-testid`s kept:** `schedule-fetch-error`, `day-grid-fetch-error`, `scheduling-exceptions-load-error`, `recurrences-load-error`, `recurring-approval-error`, `resource-filter-error` (inside the popover). `resource-select-field-error` is field level (`FieldFeedback` + outline). The retry on the schedule page's fetch, day-grid and resource-filter errors is new (refetch of the failed query; the label comes from the shared `common` retry key).
+5. **Scheduling exceptions:** the whole-request failure stays inside the open sheet (title `submitError`, hint `submitErrorBody`, or the backend-resolved message), with no list banner; `BulkResultList` keeps its row actions.
+6. **Alignment:** the aside heading lives inside the pane card, the first main heading and intro live inside the first card, and loose controls (reschedule slot grid and notes, mark-complete fields) move into cards. Verified in a browser (approved in discovery, `/tmp/jest_rs` cleared first, stack stopped afterwards).
+7. **Scope check of files outside the original list (discovery, 2026-11-03):** added `BookingActionPanel`, `BookingDetailAsideCard` and `BookingDetailSheets`. Excluded after reading them: `BookingStatusBannerIcon` (icon colour only), `SchedulingExceptionRow` (its still-open reason is result content), `NewRecurringScheduleForStaff` (Story 14), `RecurringApprovalActions` (a destructive button).
+8. **Copy:** the generic reschedule failure text is the backend-resolved message (`resolveErrorMessageFromApiError`); no new key except possibly the schedule retry label if no `common` key fits.
 
 **Description:**
 Replace every hand-rolled error/success box listed for this area in Appendix A with the shared pattern (see "Chosen approach"): forms with a primary action show their form-level feedback below the buttons in `ActionPane` (SaaS skin) and route the offending `field` through `useFormFeedback`; page-level load failures use a page-level `FeedbackMessage` with a retry; field-level messages keep `aria-invalid` + `aria-describedby` and gain the red outline where Appendix A shows none. Every feedback box gets a `role` (the audit found most had none, so they were never announced). 
@@ -790,10 +800,15 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Backend use case steps:** none
 **Backend HTTP surface:** none
 **BFF endpoint spec:** none
-**Prototype references:** none
+**Prototype references:** `journeys/staff/prototypes/agenda/` `01`, `01e` (`?estado=erro|longo|sheet`), `03e` (`#terminal`, `#falha`), `04c`, `05d`; `journeys/staff/prototypes/horarios/11-erros-carregar.html` (`#agenda`, `#colunas`, `#filtro`, `#recurso`); `journeys/manager/prototypes/scheduling-exceptions/` `01d`, `01j`, `01k` (all drawn in discovery; dev-notes § TD57-S12 and § Prototype vs shipped code — known differences). Journeys: `journeys/staff/agenda.md`, `journeys/staff/horarios.md`, `journeys/manager/scheduling-exceptions.md`. The other 'Cliente'-heading screens (`03`, `03c`–`03k`, `08`, `08b`, `09c`) were realigned in the prototypes only.
 **New migration / i18n keys / env vars / feature flags:** none expected; any new copy key in both locales in the same change
 
 **Files to create/modify:**
+- Files found missing from the original list in discovery (2026-11-03):
+  - `apps/web/features/booking/components/dashboard/bookings/BookingActionPanel.tsx` + `BookingActionPanel.spec.tsx`
+  - `apps/web/features/booking/components/dashboard/bookings/BookingDetailAsideCard.tsx` + `BookingDetailAsideCard.spec.tsx`
+  - `apps/web/features/booking/components/dashboard/bookings/BookingDetailSheets.tsx` + `BookingDetailSheets.spec.tsx`
+- Journeys (flip the TD57-S12 gap rows): `journeys/staff/agenda.md`, `journeys/staff/horarios.md`, `journeys/manager/scheduling-exceptions.md`, `journeys/manager/feedback-pane.md`, the three prototype `dev-notes.md` files and `journeys/README.md`; stale-reference sweep for `inlineError` and the aside's hand-built mobile bars across `docs/*.md`, `.claude/**` and `scripts/**`.
 - `apps/web/features/booking/components/dashboard/bookings/AfterServicePhotoUpload.tsx` + `AfterServicePhotoUpload.spec.tsx`
 - `apps/web/features/booking/components/dashboard/bookings/BookingActionSheetShell.tsx` + `BookingActionSheetShell.spec.tsx`
 - `apps/web/features/booking/components/dashboard/bookings/BookingCompletionSummary.tsx` + `BookingCompletionSummary.spec.tsx`
@@ -850,16 +865,20 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Acceptance criteria — product:**
 - [ ] Every error and success message of these screens appears in the place Appendix A prescribes (the pane under the buttons, the field, or the page), announced with `role="alert"` / `role="status"`.
 - [ ] A backend `field` marks and focuses the offending input; the first invalid field is scrolled to and focused.
+- [ ] Booking detail: approve, reject, request-info, cancel, no-show and complete failures appear under the buttons in the pane (sticky on desktop; above the buttons in the fixed `bottom-0` mobile bar, scrolling past about 6.5rem); a sheet validation error stays in the sheet.
+- [ ] The schedule page's fetch, day-grid and resource-filter errors offer a retry; the resource-select error is marked on its field.
+- [ ] Scheduling exceptions: a whole-request failure stays in the open sheet with the selection kept; the result view keeps its row actions.
 - [ ] Every screen this story owns follows the visual pattern (`docs/ENGINEERING_RULES_FRONTEND.md` § Alignment and cards): every control sits inside a card (no loose label, input or button on the page background), intro text is inside the first card, card headings use the shared `text-sm font-semibold` style, and on desktop the first box starts level with the action pane's card. The Story 0 audit measured only the service edit tabs, so inspect each screen here, top to bottom, and fix what is out of pattern.
 
 **Acceptance criteria — technical:**
 - Unit:
   - [ ] one spec per migrated file asserting the old hand-rolled box no longer renders and the shared component does, with the right `role`
   - [ ] a server `field` error marks and focuses its input; an unknown `field` falls back to the form-level message (own test)
+  - [ ] negative guarantees, each with its own test: a generic reschedule failure leaves the slot selected and Confirm enabled (`RescheduleBookingPage.spec.tsx`); each informational banner in decision 3 renders no `role="alert"`; a sheet validation error renders in the sheet and nothing in the pane (`BookingDetailSheets.spec.tsx`); the no-show `#terminal` outcome stays a banner while `#falha` renders in the pane; `BookingDetailAsideCard` uses the shared `ActionPane` (no `fixed inset-x-0 bottom-0` classes of its own)
 - Integration: none — frontend story
 - Tenant isolation: none — no data access
 - E2E:
-  - [ ] existing specs updated for any renamed `data-testid`: `authenticated-booking.spec.ts`, `booking-chosen-resource.spec.ts`, `booking-detail.spec.ts`, `booking-submit-routing.spec.ts`, `dashboard-recurring-schedule-create.spec.ts`, `guest-booking.spec.ts`, `helpers/booking-form/flow.ts`, `helpers/booking-form/index.ts`, `helpers/booking/complete-booking.ts`, `helpers/booking/detail-seed.ts`, `helpers/booking/staff-new-booking.ts`, `helpers/localization/index.ts`, `helpers/recurring-approval.ts`, `helpers/recurring-staff-create.ts`, `hotsite-editor.spec.ts`, `schedule-resource-columns.spec.ts`, `schedule.spec.ts`, `scheduling-exceptions.spec.ts`, `staff-booking-lifecycle.spec.ts`, `staff-new-booking.spec.ts`, `staff-no-show.spec.ts`, `staff-recurring-approval.spec.ts`; no new scenario unless a route has none (then one scenario per such route)
+  - [ ] existing specs updated for any renamed `data-testid`: `authenticated-booking.spec.ts`, `booking-chosen-resource.spec.ts`, `booking-detail.spec.ts`, `booking-submit-routing.spec.ts`, `dashboard-recurring-schedule-create.spec.ts`, `guest-booking.spec.ts`, `helpers/booking-form/flow.ts`, `helpers/booking-form/index.ts`, `helpers/booking/complete-booking.ts`, `helpers/booking/detail-seed.ts`, `helpers/booking/staff-new-booking.ts`, `helpers/localization/index.ts`, `helpers/recurring-approval.ts`, `helpers/recurring-staff-create.ts`, `hotsite-editor.spec.ts`, `schedule-resource-columns.spec.ts`, `schedule.spec.ts`, `scheduling-exceptions.spec.ts`, `staff-booking-lifecycle.spec.ts`, `staff-new-booking.spec.ts`, `staff-no-show.spec.ts`, `staff-recurring-approval.spec.ts`; no new scenario: the failure states cannot be forced in a browser without fault injection, so they are covered by the unit specs (the same limit Story 11 recorded); the regression run of these specs is approved in discovery (worktree only, `/tmp/jest_rs` cleared first, `pnpm infra:e2e` then `pnpm infra:e2e:down`)
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 

@@ -572,3 +572,26 @@ Drawn 2026-10-16. Frontend only (no BFF, no migration). Behavior and decisions: 
 - **A click is still a click:** a drag release must not toggle the popover (the prototype suppresses the click that follows a drag).
 - ⚠ A pill in a top or left corner can cover page content — accepted (decided 2026-10-16); the user chose the corner and "Posição" returns it to the default.
 
+## TD57-S12 — failure states in the action pane (✅ screens drawn · code pending `TD57-S12`)
+
+Source of truth: `td/TD57-INLINE-FEEDBACK-AND-ACTION-PANE-PATTERN.md` Story 12 and `journeys/manager/prototypes/feedback-pane/dev-notes.md`. Result banners (approved, rejected, info requested, cancelled, completed, no-show, rescheduled, "precisa de decisão", recurring hold banners) stay page content and render no `role="alert"`.
+
+| Screen | Component(s) | What it draws | Status |
+|---|---|---|---|
+| `01-booking-detail.html` | `BookingDetailPage` + `BookingDetailAsideCard` → shared `ActionPane` | Idle pane: the buttons card plus a feedback card that exists only while a message exists. The first main card carries its heading inside, level with the pane | ✅ Criado |
+| `01e-acao-falhou.html` | same | Approve/reject/request-info/cancel failure under the buttons (desktop sticky); the fixed mobile bar shows it above its buttons (`max-height` ~6.5rem, scrolls); `?estado=sheet` keeps a sheet validation error inside the sheet, with no pane message | ✅ Criado |
+| `03e-no-show-error.html` | `BookingDetailPage`, `BookingNoShowBanner` | `#terminal` (409) stays a page banner (a state of the booking; the page refetches); `#falha` (network/5xx) is a pane message with "Tentar novamente". No "Resposta do servidor" line | ✅ Criado |
+| `04c-concluir-erro.html` | `MarkCompleteBookingPage` + `MarkCompleteActionRail` | Failure under the buttons (`completeError`); typed values are kept | ✅ Criado |
+| `05d-reagendar-erro.html` | `RescheduleBookingPage` + `RescheduleActionRail` | Generic failure under the buttons; the chosen slot stays selected and Confirm stays enabled. The sentence drawn stands in for the backend-resolved message (`resolveErrorMessageFromApiError`); a slot conflict stays `05b` | ✅ Criado |
+
+**Rules the build follows:** the aside heading lives inside the pane card (never above it); the first main-column heading and intro live inside the first card; a mobile bar sits at `bottom-0` (the dashboard bottom nav hides on detail routes); the sheet-level validation message (BFF `BOOKING_REJECTION_REASON_TOO_SHORT`, request-info minimum) stays in the sheet. The "Cliente" heading was moved inside the first card in `03`, `03c`–`03k`, `08`, `08b` and `09c` as a prototype-only alignment fix.
+
+### Prototype vs shipped code — known differences (code wins; these screens are not part of the migration)
+
+- `01b` draws a "o cliente é notificado do ajuste" note and a "Voltar sem aprovar" link and replaces the detail cards; the shipped conflict alert sits above the detail, which stays visible, and renders neither the note nor the link.
+- `01c`/`02` draw an aside note ("Este agendamento foi rejeitado/aprovado…"); the shipped aside shows only "Voltar à agenda". `01d` draws "Voltar à agenda" plus the UC-005 A3 hint for an info-requested booking; the shipped aside shows Aprovar and Rejeitar.
+- `04b` draws a "Saldo atual" points line; the shipped success view shows the summary, discount and points earned only.
+- `05b` draws a "cliente é notificado por email" note and a "Reagendando" aside; the shipped conflict block sits above the form with the date strip still shown.
+- `08b` draws `#recusada` neutral and `#expirada` red; the shipped banners are danger and info respectively. `#aguardando` in `09c` is not rendered.
+- `10b` `#ocupado` is drawn as an outcome page; the shipped flow returns to the date step and shows a `FeedbackMessage` (`step2-error`). `#janela` is an outcome only for window codes; `SLOT_CLOSED` / `OUTSIDE_BUSINESS_HOURS` also return to the date step.
+
