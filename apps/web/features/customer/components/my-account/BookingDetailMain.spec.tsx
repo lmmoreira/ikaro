@@ -198,6 +198,11 @@ describe('BookingDetailMain', () => {
       '+20 pontos de fidelidade',
     );
     expect(within(summary).getByText('Desconto aplicado: 240 pts (−R$ 24.00)')).toBeInTheDocument();
+    // An informational banner, not feedback: it is never announced as an alert (TD57-S11).
+    expect(
+      within(summary).getByTestId('points-earned-banner').closest('[role="alert"]'),
+    ).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('non-COMPLETED bookings: hides after-photos even when present in the payload', () => {

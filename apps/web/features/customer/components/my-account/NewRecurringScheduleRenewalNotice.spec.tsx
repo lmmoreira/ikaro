@@ -32,6 +32,8 @@ describe('NewRecurringScheduleRenewalNotice', () => {
     expect(banner).toHaveTextContent('Renovando sua reserva de Sala Aurora');
     expect(banner).toHaveTextContent('Toda terça');
     expect(banner).toHaveTextContent('nada é reservado até você confirmar');
+    // Information, not feedback: not announced as an alert (TD57-S11 negative guarantee).
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('shows the not-found notice when there is nothing to renew', () => {

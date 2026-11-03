@@ -370,5 +370,8 @@ describe('InformationCompletionPrompt', () => {
     expect(failure).toHaveAttribute('role', 'alert');
     // Branded skin: it is painted from the tenant radius, never from the dashboard component.
     expect(failure.style.borderRadius).toBe('var(--ba-radius)');
+    // Never the dashboard FeedbackMessage (its classes would paint a fixed Tailwind red box).
+    expect(failure.className).not.toContain('bg-red-50');
+    expect(failure.className).not.toContain('border-red-300');
   });
 });

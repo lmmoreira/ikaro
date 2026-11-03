@@ -19,7 +19,7 @@ interface InformationCompletionPhoneFieldProps {
   readonly error?: string;
   readonly errorId?: string;
   readonly inputProps?: React.InputHTMLAttributes<HTMLInputElement> & {
-    ref?: (element: HTMLElement | null) => void;
+    readonly ref?: (element: HTMLElement | null) => void;
   };
 }
 
