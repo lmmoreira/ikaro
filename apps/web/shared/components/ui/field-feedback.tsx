@@ -2,14 +2,19 @@ export const FIELD_INVALID_CLASS = 'border-red-600 bg-red-50/40 ring-1 ring-red-
 
 interface FieldFeedbackProps {
   readonly id: string;
+  readonly testId?: string;
   readonly children?: React.ReactNode;
 }
 
-export function FieldFeedback({ id, children }: FieldFeedbackProps): React.JSX.Element | null {
+export function FieldFeedback({
+  id,
+  testId,
+  children,
+}: FieldFeedbackProps): React.JSX.Element | null {
   if (!children) return null;
 
   return (
-    <p id={id} className="mt-1.5 text-[0.8125rem] font-medium text-red-600">
+    <p id={id} data-testid={testId} className="mt-1.5 text-[0.8125rem] font-medium text-red-600">
       {children}
     </p>
   );

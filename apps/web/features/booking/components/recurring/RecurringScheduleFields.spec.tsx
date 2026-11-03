@@ -8,9 +8,15 @@ import type {
   PatternRefusal,
   RecurringScheduleDraft,
 } from '@/features/booking/model/recurring-schedule-form';
-import { hotsiteServiceBookingDefaults, makeHotsiteService, renderWithIntl } from '@/test-utils';
+import {
+  choiceRequirement,
+  hotsiteServiceBookingDefaults,
+  makeHotsiteService,
+  renderWithIntl,
+} from '@/test-utils';
 import { useResourcePicks } from './NewRecurringScheduleResources';
 import { RecurringScheduleFields } from './RecurringScheduleFields';
+import { useRecurringFormFeedback } from './use-recurring-form-feedback';
 
 const fetchServiceResourceOptions = vi.hoisted(() => vi.fn());
 vi.mock('@/features/booking/api/public', () => ({ fetchServiceResourceOptions }));
@@ -18,6 +24,17 @@ vi.mock('@/features/booking/api/public', () => ({ fetchServiceResourceOptions })
 const SERVICE = makeHotsiteService({
   name: 'Sala Aurora',
   durationMinutes: 120,
+  bookingPolicy: {
+    ...hotsiteServiceBookingDefaults.bookingPolicy,
+    recurrenceEligible: true,
+    recurringHorizonDays: 90,
+  },
+});
+
+const RESOURCE_SERVICE = makeHotsiteService({
+  name: 'Sala Aurora',
+  durationMinutes: 120,
+  resourceRequirements: [choiceRequirement('ROOM')],
   bookingPolicy: {
     ...hotsiteServiceBookingDefaults.bookingPolicy,
     recurrenceEligible: true,
@@ -38,32 +55,39 @@ interface HarnessProps {
   readonly service?: HotsiteServiceResponse;
   readonly draft?: RecurringScheduleDraft;
   readonly issues?: readonly DraftIssue[];
-  readonly showIssues?: boolean;
   readonly refusal?: PatternRefusal | null;
   readonly onChange: (patch: Partial<RecurringScheduleDraft>) => void;
 }
 
-// What both shells do: read the picks once, hand them to the fields card.
+// What both shells do: read the picks once, own the feedback, hand both to the fields card. The
+// "present" button stands for the shell's Revisar / Criar handler; the pane message is drawn inline.
 function Harness({
   service = SERVICE,
   draft = DRAFT,
   issues = [],
-  showIssues = false,
   refusal = null,
   onChange,
 }: HarnessProps): React.JSX.Element {
   const picks = useResourcePicks({ service, tenantSlug: 'lavacar-bh', draft, onChange });
+  const form = useRecurringFormFeedback(service, draft);
   return (
-    <RecurringScheduleFields
-      services={[service]}
-      service={service}
-      draft={draft}
-      onChange={onChange}
-      issues={issues}
-      showIssues={showIssues}
-      refusal={refusal}
-      picks={picks}
-    />
+    <>
+      <button type="button" data-testid="present" onClick={() => form.present(issues, refusal)} />
+      <button type="button" data-testid="clear" onClick={form.clear} />
+      {form.feedback && (
+        <div role="alert" data-testid={form.feedback.testId}>
+          {form.feedback.title}
+        </div>
+      )}
+      <RecurringScheduleFields
+        services={[service]}
+        service={service}
+        draft={draft}
+        onChange={onChange}
+        form={form}
+        picks={picks}
+      />
+    </>
   );
 }
 
@@ -114,19 +138,35 @@ describe('RecurringScheduleFields', () => {
       issues: ['WEEKDAY_REQUIRED', 'END_REQUIRED'],
     });
     expect(screen.queryByText('Escolha pelo menos um dia da semana.')).not.toBeInTheDocument();
-  });
 
-  it('names the problems once they are shown', () => {
-    renderFields({
-      draft: { ...DRAFT, daysOfWeek: [] },
-      issues: ['WEEKDAY_REQUIRED', 'END_REQUIRED'],
-      showIssues: true,
-    });
+    present();
 
     expect(screen.getByText('Escolha pelo menos um dia da semana.')).toBeInTheDocument();
     expect(screen.getByTestId('new-schedule-ends-on-error')).toHaveTextContent(
       'Escolha a data em que a recorrência termina.',
     );
+    expect(screen.getByTestId('new-schedule-ends-on')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getAllByTestId('new-schedule-weekday')[0]!.closest('fieldset')).toHaveAttribute(
+      'data-invalid',
+      'true',
+    );
+  });
+
+  it('scrolls to and focuses the first invalid field, in page order', () => {
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoView,
+    });
+    renderFields({
+      draft: { ...DRAFT, daysOfWeek: [] },
+      issues: ['END_REQUIRED', 'WEEKDAY_REQUIRED'],
+    });
+
+    present();
+
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'center' });
+    expect(document.activeElement).toBe(screen.getAllByTestId('new-schedule-weekday')[0]);
   });
 
   it('shows the server’s term refusal on the end date, with its limit', () => {
@@ -134,20 +174,61 @@ describe('RecurringScheduleFields', () => {
       refusal: { kind: 'TERM_EXCEEDED', maxTermDays: 30, latestEndsOn: '2026-11-18' },
     });
 
+    present();
+
     expect(screen.getByTestId('new-schedule-ends-on-error')).toHaveTextContent('30 dias');
+    expect(screen.queryByTestId('new-schedule-notice')).not.toBeInTheDocument();
   });
 
-  it('shows a booking-window or no-occurrence refusal as a notice above the card', () => {
+  it('shows a booking-window or no-occurrence refusal as the pane message, on no field', () => {
     renderFields({ refusal: { kind: 'BOOKING_WINDOW', code: 'BOOKING_SCHEDULED_IN_PAST' } });
+
+    present();
 
     expect(screen.getByTestId('new-schedule-notice')).toHaveTextContent(
       'O novo horário deve ser no futuro.',
     );
+    expect(screen.queryByTestId('new-schedule-ends-on-error')).not.toBeInTheDocument();
   });
 
-  it('shows no notice when nothing was refused', () => {
+  it('marks the resource group that still has no pick', async () => {
+    fetchServiceResourceOptions.mockResolvedValue({ requirements: [] });
+    renderFields({
+      service: RESOURCE_SERVICE,
+      draft: { ...DRAFT, serviceId: RESOURCE_SERVICE.id, resourceIds: [] },
+      issues: ['RESOURCE_REQUIRED'],
+    });
+
+    present();
+
+    expect(await screen.findByText('Escolha um recurso.')).toBeInTheDocument();
+  });
+
+  it('shows no pane message when nothing was refused', () => {
     renderFields();
+
+    present();
 
     expect(screen.queryByTestId('new-schedule-notice')).not.toBeInTheDocument();
   });
+
+  it('drops the old hand-rolled notice box: the form-level refusal is no longer in the card', () => {
+    renderFields({ refusal: { kind: 'BOOKING_WINDOW', code: 'BOOKING_SCHEDULED_IN_PAST' } });
+
+    expect(screen.queryByTestId('new-schedule-notice')).not.toBeInTheDocument();
+  });
+
+  it('clears the messages once the person edits', () => {
+    renderFields({ draft: { ...DRAFT, daysOfWeek: [] }, issues: ['WEEKDAY_REQUIRED'] });
+    present();
+    expect(screen.getByText('Escolha pelo menos um dia da semana.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('clear'));
+
+    expect(screen.queryByText('Escolha pelo menos um dia da semana.')).not.toBeInTheDocument();
+  });
 });
+
+function present(): void {
+  fireEvent.click(screen.getByTestId('present'));
+}

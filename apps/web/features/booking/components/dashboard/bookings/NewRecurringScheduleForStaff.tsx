@@ -9,6 +9,7 @@ import {
   NewRecurringScheduleLayout,
 } from '@/features/booking/components/recurring/NewRecurringScheduleLayout';
 import { useResourcePicks } from '@/features/booking/components/recurring/NewRecurringScheduleResources';
+import { useRecurringFormFeedback } from '@/features/booking/components/recurring/use-recurring-form-feedback';
 import { RecurringScheduleFields } from '@/features/booking/components/recurring/RecurringScheduleFields';
 import { useCreateRecurringScheduleAsStaff } from '@/features/booking/hooks/useRecurringSchedules';
 import {
@@ -77,13 +78,19 @@ export function NewRecurringScheduleForStaff({
     { kind: 'PATTERN_REFUSED' }
   > | null>(null);
 
-  const service = services.find((candidate) => candidate.id === draft.serviceId) ?? null;
-
   // Any edit clears the previous refusal: it described the pattern as it was.
-  const handleChange = useCallback((patch: Partial<RecurringScheduleDraft>) => {
-    setDraft((current) => ({ ...current, ...patch }));
-    setRefusal(null);
-  }, []);
+  const service = services.find((candidate) => candidate.id === draft.serviceId) ?? null;
+  const feedback = useRecurringFormFeedback(service, draft);
+  const { clear: clearFeedback, present } = feedback;
+
+  const handleChange = useCallback(
+    (patch: Partial<RecurringScheduleDraft>) => {
+      setDraft((current) => ({ ...current, ...patch }));
+      setRefusal(null);
+      clearFeedback();
+    },
+    [clearFeedback],
+  );
 
   const picks = useResourcePicks({ service, tenantSlug, draft, onChange: handleChange });
 
@@ -116,20 +123,25 @@ export function NewRecurringScheduleForStaff({
     if (service === null) return;
     if (issues.length > 0) {
       setShowIssues(true);
+      present(issues, null);
       return;
     }
     const firstOccurrenceIssue = checkStaffFirstOccurrence(draft, new Date(), timezone);
     if (firstOccurrenceIssue !== null) {
-      setRefusal(refusalForFirstOccurrence(firstOccurrenceIssue));
+      const firstOccurrenceRefusal = refusalForFirstOccurrence(firstOccurrenceIssue);
+      setRefusal(firstOccurrenceRefusal);
+      present(issues, firstOccurrenceRefusal);
       return;
     }
     setRefusal(null);
+    clearFeedback();
     const result = await create.mutateAsync(
       buildStaffCreateRequest(draft, service, customer.customerId),
     );
     if (result.kind === 'PATTERN_REFUSED') {
       setRefusal(result.refusal);
       setShowIssues(true);
+      present(issues, result.refusal);
       return;
     }
     setOutcome(result);
@@ -157,29 +169,34 @@ export function NewRecurringScheduleForStaff({
   );
 
   return (
-    <NewRecurringScheduleLayout testId="new-schedule-staff-form" pane={pane}>
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-          {t('stepPattern')}
-        </p>
-        <h1 className="mt-1 text-lg font-bold text-gray-900">{t('title')}</h1>
-      </div>
-
+    <NewRecurringScheduleLayout
+      testId="new-schedule-staff-form"
+      pane={pane}
+      feedback={feedback.feedback}
+    >
       <Card data-testid="recipient-header">
-        <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-gray-900">{customer.name}</p>
-            <p className="truncate text-xs text-gray-500">
-              {t('customerNote', { email: customer.email })}
+        <CardContent className="flex flex-col gap-4 p-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+              {t('stepPattern')}
             </p>
+            <h1 className="mt-1 text-lg font-bold text-gray-900">{t('title')}</h1>
           </div>
-          <Link
-            href={CHOOSER_HREF}
-            className="text-sm font-semibold text-blue-700 hover:underline"
-            data-testid="change-recipient"
-          >
-            {t('changeCustomer')}
-          </Link>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-gray-900">{customer.name}</p>
+              <p className="truncate text-xs text-gray-500">
+                {t('customerNote', { email: customer.email })}
+              </p>
+            </div>
+            <Link
+              href={CHOOSER_HREF}
+              className="text-sm font-semibold text-blue-700 hover:underline"
+              data-testid="change-recipient"
+            >
+              {t('changeCustomer')}
+            </Link>
+          </div>
         </CardContent>
       </Card>
 
@@ -188,9 +205,7 @@ export function NewRecurringScheduleForStaff({
         service={service}
         draft={draft}
         onChange={handleChange}
-        issues={issues}
-        showIssues={showIssues}
-        refusal={refusal}
+        form={feedback}
         picks={picks}
       />
 

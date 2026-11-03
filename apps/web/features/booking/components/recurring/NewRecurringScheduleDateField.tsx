@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { CalendarIcon } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Calendar } from '@/shared/components/ui/calendar';
+import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover';
 import { localDateFromISO, toLocalISODate } from '@/shared/lib/formatting/calendar-day';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
@@ -20,6 +21,8 @@ interface NewRecurringScheduleDateFieldProps {
   readonly min: string;
   readonly max: string | null;
   readonly error: string | null;
+  /** Registers the field with `useFormFeedback`, so the first invalid one is scrolled to and focused. */
+  readonly fieldRef?: (element: HTMLElement | null) => void;
   readonly onChange: (isoDate: string) => void;
 }
 
@@ -32,6 +35,7 @@ export function NewRecurringScheduleDateField({
   min,
   max,
   error,
+  fieldRef,
   onChange,
 }: NewRecurringScheduleDateFieldProps): React.JSX.Element {
   const t = useTranslations('booking.recurringScheduleForm');
@@ -43,7 +47,7 @@ export function NewRecurringScheduleDateField({
   const errorId = `${testId}-error-message`;
 
   return (
-    <div>
+    <div ref={fieldRef}>
       <p id={labelId} className="mb-1 block text-sm font-semibold text-gray-900">
         {label}
       </p>
@@ -57,7 +61,7 @@ export function NewRecurringScheduleDateField({
             aria-describedby={error === null ? undefined : errorId}
             data-testid={testId}
             className={`min-w-[11rem] justify-start gap-2 px-3 font-normal ${
-              error === null ? '' : 'border-red-400'
+              error === null ? '' : FIELD_INVALID_CLASS
             }`}
           >
             <CalendarIcon className="h-4 w-4 shrink-0 opacity-60" aria-hidden="true" />
@@ -84,16 +88,9 @@ export function NewRecurringScheduleDateField({
           />
         </PopoverContent>
       </Popover>
-      {error !== null && (
-        <p
-          id={errorId}
-          role="alert"
-          data-testid={errorTestId}
-          className="mt-1 text-xs text-red-600"
-        >
-          {error}
-        </p>
-      )}
+      <FieldFeedback id={errorId} testId={errorTestId}>
+        {error}
+      </FieldFeedback>
     </div>
   );
 }

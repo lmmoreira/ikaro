@@ -11,6 +11,7 @@ import {
   renderWithIntl,
   storedLocationRequirement,
 } from '@/test-utils';
+import { useRecurringFormFeedback } from '@/features/booking/components/recurring/use-recurring-form-feedback';
 import { NewRecurringScheduleForm } from './NewRecurringScheduleForm';
 
 const fetchServiceResourceOptions = vi.hoisted(() => vi.fn());
@@ -36,13 +37,37 @@ const DRAFT: RecurringScheduleDraft = {
   endsOn: '',
 };
 
-function renderForm(props: Partial<React.ComponentProps<typeof NewRecurringScheduleForm>> = {}) {
+type FormProps = Omit<React.ComponentProps<typeof NewRecurringScheduleForm>, 'form'>;
+
+// What the page does: own the feedback hook and hand it to the form. The "present" button stands
+// for the page's Revisar handler reporting the issues or the refusal.
+function FormWithFeedback(props: FormProps): React.JSX.Element {
+  const service =
+    props.services.find((candidate) => candidate.id === props.draft.serviceId) ?? null;
+  const form = useRecurringFormFeedback(service, props.draft);
+  return (
+    <>
+      <button
+        type="button"
+        data-testid="present"
+        onClick={() => form.present(props.issues, props.refusal)}
+      />
+      <NewRecurringScheduleForm {...props} form={form} />
+    </>
+  );
+}
+
+function present(): void {
+  fireEvent.click(screen.getByTestId('present'));
+}
+
+function renderForm(props: Partial<FormProps> = {}) {
   const onChange = vi.fn();
   const onReview = vi.fn();
   const queryClient = new QueryClient();
   renderWithIntl(
     <QueryClientProvider client={queryClient}>
-      <NewRecurringScheduleForm
+      <FormWithFeedback
         services={[SERVICE]}
         tenantSlug="lavacar-bh"
         draft={DRAFT}
@@ -111,6 +136,8 @@ describe('NewRecurringScheduleForm', () => {
       showIssues: true,
     });
 
+    present();
+
     expect(screen.getByText('Escolha pelo menos um dia da semana.')).toBeInTheDocument();
     expect(screen.getByTestId('new-schedule-ends-on-error')).toHaveTextContent(
       'Escolha a data em que a recorrência termina.',
@@ -123,17 +150,24 @@ describe('NewRecurringScheduleForm', () => {
       refusal: { kind: 'TERM_EXCEEDED', maxTermDays: 60, latestEndsOn: '2026-12-18' },
     });
 
+    present();
+
     expect(screen.getByTestId('new-schedule-ends-on-error')).toHaveTextContent(
       'passa do limite de 60 dias (até 18/12/2026)',
     );
   });
 
-  it('shows a booking-window refusal as a notice, in the catalog wording', () => {
+  it('shows a booking-window refusal in the action pane, in the catalog wording', () => {
     renderForm({ refusal: { kind: 'BOOKING_WINDOW', code: 'BOOKING_TOO_FAR_AHEAD' } });
+
+    present();
 
     expect(screen.getByTestId('new-schedule-notice')).toHaveTextContent(
       'Esse horário está além do prazo máximo de agendamento.',
     );
+    expect(
+      screen.getByTestId('new-schedule-notice').closest('[data-testid="action-pane-desktop"]'),
+    ).not.toBeNull();
   });
 
   it('cancels back to the list of recurring reservations', () => {
@@ -147,7 +181,7 @@ describe('NewRecurringScheduleForm', () => {
   it('renders in English', () => {
     renderWithIntl(
       <QueryClientProvider client={new QueryClient()}>
-        <NewRecurringScheduleForm
+        <FormWithFeedback
           services={[SERVICE]}
           tenantSlug="lavacar-bh"
           draft={DRAFT}
@@ -183,14 +217,14 @@ describe('NewRecurringScheduleForm — resource requirements', () => {
 
   function renderBundle(
     service: ReturnType<typeof makeHotsiteService>,
-    props: Partial<React.ComponentProps<typeof NewRecurringScheduleForm>> = {},
+    props: Partial<FormProps> = {},
   ) {
     const onChange = vi.fn();
     renderWithIntl(
       <QueryClientProvider
         client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
       >
-        <NewRecurringScheduleForm
+        <FormWithFeedback
           services={[service]}
           tenantSlug="lavacar-bh"
           draft={{ ...DRAFT, resourceIds: ['id-Marina', 'id-Sala Aurora'] }}
@@ -275,6 +309,9 @@ describe('NewRecurringScheduleForm — resource requirements', () => {
       issues: ['RESOURCE_REQUIRED'],
       showIssues: true,
     });
+
+    await screen.findByRole('radiogroup', { name: 'Sala' });
+    present();
 
     expect(await screen.findByText('Escolha o profissional')).toBeInTheDocument();
     expect(screen.queryByText('Escolha a sala')).not.toBeInTheDocument();

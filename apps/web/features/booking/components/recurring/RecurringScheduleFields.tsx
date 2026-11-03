@@ -8,19 +8,17 @@ import {
   latestEndsOn,
   resolveMaxTermDays,
   RECURRING_WEEKDAYS,
-  type DraftIssue,
-  type PatternRefusal,
   type RecurringScheduleDraft,
 } from '@/features/booking/model/recurring-schedule-form';
+import { FieldFeedback } from '@/shared/components/ui/field-feedback';
 import { PillMultiSelect } from '@/shared/components/ui/pill-multi-select';
 import { TimePicker } from '@/shared/components/ui/time-picker';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
-import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
-import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { NewRecurringScheduleDateField } from './NewRecurringScheduleDateField';
 import { ResourceFields, type ResourcePicks } from './NewRecurringScheduleResources';
 import { ServiceField } from './NewRecurringScheduleServiceFields';
+import { RECURRING_FIELD, type RecurringFormFeedback } from './use-recurring-form-feedback';
 
 interface RecurringScheduleFieldsProps {
   /** Already filtered to the recurrence-eligible services. */
@@ -29,18 +27,17 @@ interface RecurringScheduleFieldsProps {
   readonly service: HotsiteServiceResponse;
   readonly draft: RecurringScheduleDraft;
   readonly onChange: (patch: Partial<RecurringScheduleDraft>) => void;
-  /** What is wrong with the draft; shown only once the person has tried to continue. */
-  readonly issues: readonly DraftIssue[];
-  readonly showIssues: boolean;
-  /** The backend (or the first-occurrence check) refused the pattern. */
-  readonly refusal: PatternRefusal | null;
+  /** The shell's `useRecurringFormFeedback`: field messages and registration for the focus. */
+  readonly form: RecurringFormFeedback;
+  /** The shell's title (and banner): inside the card, so the card starts level with the pane. */
+  readonly heading?: React.ReactNode;
   /** The resource options of the service, from `useResourcePicks` (the shell reads `blocked` too). */
   readonly picks: ResourcePicks;
 }
 
 /**
  * The pattern fields of a recurring reservation (service, resources, weekdays, time, dates) and the
- * refusal notice above them, shared by the customer's creation form and the staff's. Both shells
+ * messages under them, shared by the customer's creation form and the staff's. Both shells
  * wrap it in their own title, action pane and help text; the rules behind it are the pure model in
  * `features/booking/model/recurring-schedule-form.ts`.
  */
@@ -49,13 +46,11 @@ export function RecurringScheduleFields({
   service,
   draft,
   onChange,
-  issues,
-  showIssues,
-  refusal,
+  form,
+  heading,
   picks,
 }: RecurringScheduleFieldsProps): React.JSX.Element {
   const t = useTranslations('booking.recurringScheduleForm');
-  const locale = useResolvedLocale();
   const { timezone, timeFormat, formatDate } = useFormatting();
   const formatDateKey = (dateKey: string): string => formatDate(dateKeyToDate(dateKey));
 
@@ -64,41 +59,13 @@ export function RecurringScheduleFields({
   const latest = draft.startsOn === '' ? null : latestEndsOn(draft.startsOn, service);
   const latestText = latest === null ? '' : formatDateKey(latest);
 
-  const visible = (issue: DraftIssue): boolean => showIssues && issues.includes(issue);
-
-  function endsOnError(): string | null {
-    if (visible('END_REQUIRED') || refusal?.kind === 'END_REQUIRED') return t('errorEndRequired');
-    if (visible('END_BEFORE_START') || refusal?.kind === 'END_BEFORE_START') {
-      return t('errorEndBeforeStart');
-    }
-    if (visible('TERM_EXCEEDED') || refusal?.kind === 'TERM_EXCEEDED') {
-      const refused = refusal?.kind === 'TERM_EXCEEDED' ? refusal : null;
-      return t('errorTermExceeded', {
-        maxTermDays: refused?.maxTermDays ?? maxTermDays,
-        latest: refused?.latestEndsOn ? formatDateKey(refused.latestEndsOn) : latestText,
-      });
-    }
-    return null;
-  }
-
-  const notice =
-    refusal?.kind === 'BOOKING_WINDOW' || refusal?.kind === 'NO_OCCURRENCES'
-      ? resolveErrorMessage(refusal.code, locale)
-      : null;
+  const { fieldErrors, registerField, fieldErrorId } = form;
 
   return (
     <>
-      {notice !== null && (
-        <div
-          role="alert"
-          data-testid="new-schedule-notice"
-          className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"
-        >
-          {notice}
-        </div>
-      )}
-
       <div className="flex flex-col gap-5 rounded-xl border border-gray-100 bg-white p-4">
+        {heading}
+
         <ServiceField
           services={services}
           serviceId={draft.serviceId}
@@ -109,11 +76,12 @@ export function RecurringScheduleFields({
           service={service}
           draft={draft}
           picks={picks}
-          showRequired={visible('RESOURCE_REQUIRED')}
+          fieldErrors={fieldErrors}
+          registerField={registerField}
           onChange={onChange}
         />
 
-        <div>
+        <div ref={registerField(RECURRING_FIELD.weekdays)}>
           <PillMultiSelect
             label={t('fieldWeekdays')}
             values={draft.daysOfWeek}
@@ -123,18 +91,20 @@ export function RecurringScheduleFields({
             }))}
             onChange={(daysOfWeek) => onChange({ daysOfWeek })}
             testId="new-schedule-weekday"
-            invalid={visible('WEEKDAY_REQUIRED')}
-            describedBy={visible('WEEKDAY_REQUIRED') ? 'new-schedule-weekday-error' : undefined}
+            invalid={Boolean(fieldErrors[RECURRING_FIELD.weekdays])}
+            describedBy={
+              fieldErrors[RECURRING_FIELD.weekdays]
+                ? fieldErrorId(RECURRING_FIELD.weekdays)
+                : undefined
+            }
           />
-          {visible('WEEKDAY_REQUIRED') && (
-            <p id="new-schedule-weekday-error" role="alert" className="mt-1 text-xs text-red-600">
-              {t('errorWeekdayRequired')}
-            </p>
-          )}
+          <FieldFeedback id={fieldErrorId(RECURRING_FIELD.weekdays)}>
+            {fieldErrors[RECURRING_FIELD.weekdays]}
+          </FieldFeedback>
         </div>
 
         <div className="grid gap-5 sm:grid-cols-2">
-          <div>
+          <div ref={registerField(RECURRING_FIELD.startTime)}>
             <p className="mb-1 block text-sm font-semibold text-gray-900">{t('fieldStartTime')}</p>
             <TimePicker
               value={draft.startTime}
@@ -147,11 +117,9 @@ export function RecurringScheduleFields({
               minuteTestId="new-schedule-time-minute"
               periodTestId="new-schedule-time-period"
             />
-            {visible('START_TIME_REQUIRED') && (
-              <p role="alert" className="mt-1 text-xs text-red-600">
-                {t('errorStartTimeRequired')}
-              </p>
-            )}
+            <FieldFeedback id={fieldErrorId(RECURRING_FIELD.startTime)}>
+              {fieldErrors[RECURRING_FIELD.startTime]}
+            </FieldFeedback>
           </div>
           <div>
             <p className="mb-1 block text-sm font-semibold text-gray-900">{t('fieldDuration')}</p>
@@ -169,7 +137,8 @@ export function RecurringScheduleFields({
             value={draft.startsOn}
             min={today}
             max={null}
-            error={visible('START_DATE_REQUIRED') ? t('errorStartDateRequired') : null}
+            error={fieldErrors[RECURRING_FIELD.startsOn] ?? null}
+            fieldRef={registerField(RECURRING_FIELD.startsOn)}
             onChange={(startsOn) => onChange({ startsOn })}
           />
           <NewRecurringScheduleDateField
@@ -179,7 +148,8 @@ export function RecurringScheduleFields({
             value={draft.endsOn}
             min={draft.startsOn === '' ? today : draft.startsOn}
             max={latest}
-            error={endsOnError()}
+            error={fieldErrors[RECURRING_FIELD.endsOn] ?? null}
+            fieldRef={registerField(RECURRING_FIELD.endsOn)}
             onChange={(endsOn) => onChange({ endsOn })}
           />
         </div>

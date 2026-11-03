@@ -25,6 +25,7 @@ import { NewRecurringScheduleRenewalNotice } from './NewRecurringScheduleRenewal
 import { NewRecurringScheduleResult } from './NewRecurringScheduleResult';
 import { NewRecurringScheduleReview } from './NewRecurringScheduleReview';
 import { buildResourceRecap } from '@/features/booking/components/recurring/resource-recap';
+import { useRecurringFormFeedback } from '@/features/booking/components/recurring/use-recurring-form-feedback';
 import { useRequirementText } from '@/features/booking/components/recurring/use-requirement-text';
 import { RecurringSchedulePendingView } from './RecurringSchedulePendingView';
 
@@ -91,12 +92,18 @@ export function NewRecurringSchedulePage({
   const needsResource = service !== null && choiceRequirements(service).length > 0;
   const resources = useRecurringResourceOptions(tenantSlug, draft.serviceId, needsResource);
   const text = useRequirementText();
+  const feedback = useRecurringFormFeedback(service, draft);
+  const { clear: clearFeedback, present } = feedback;
 
-  // Any edit clears the previous refusal: it described the pattern as it was.
-  const handleChange = useCallback((patch: Partial<RecurringScheduleDraft>) => {
-    setDraft((current) => ({ ...current, ...patch }));
-    setRefusal(null);
-  }, []);
+  // Any edit clears the previous refusal and field marks: they described the pattern as it was.
+  const handleChange = useCallback(
+    (patch: Partial<RecurringScheduleDraft>) => {
+      setDraft((current) => ({ ...current, ...patch }));
+      setRefusal(null);
+      clearFeedback();
+    },
+    [clearFeedback],
+  );
 
   const formHeader =
     renewing === undefined ? undefined : <NewRecurringScheduleRenewalNotice renewing={renewing} />;
@@ -112,6 +119,7 @@ export function NewRecurringSchedulePage({
         issues={[]}
         showIssues={false}
         refusal={null}
+        form={feedback}
         onReview={() => undefined}
         header={formHeader}
         emptyReason={emptyReason}
@@ -127,6 +135,7 @@ export function NewRecurringSchedulePage({
     if (service === null) return;
     if (issues.length > 0) {
       setShowIssues(true);
+      present(issues, null);
       return;
     }
     // A renewal continues the customer's routine, so the backend exempts it from the booking window
@@ -135,10 +144,13 @@ export function NewRecurringSchedulePage({
       ? null
       : checkFirstOccurrence(draft, service, new Date(), timezone);
     if (firstOccurrenceIssue !== null) {
-      setRefusal(refusalForFirstOccurrence(firstOccurrenceIssue));
+      const firstOccurrenceRefusal = refusalForFirstOccurrence(firstOccurrenceIssue);
+      setRefusal(firstOccurrenceRefusal);
+      present(issues, firstOccurrenceRefusal);
       return;
     }
     setRefusal(null);
+    clearFeedback();
     setStep('review');
   }
 
@@ -148,6 +160,7 @@ export function NewRecurringSchedulePage({
     if (result.kind === 'PATTERN_REFUSED') {
       setRefusal(result.refusal);
       setShowIssues(true);
+      present(issues, result.refusal);
       setStep('pattern');
       return;
     }
@@ -212,6 +225,7 @@ export function NewRecurringSchedulePage({
       issues={issues}
       showIssues={showIssues}
       refusal={refusal}
+      form={feedback}
       onReview={handleReview}
       header={formHeader}
       title={formTitle}

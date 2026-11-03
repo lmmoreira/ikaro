@@ -15,6 +15,16 @@ describe('FieldFeedback', () => {
     expect(screen.getByLabelText('Mínimo')).toHaveAccessibleDescription('Informe o mínimo');
   });
 
+  it('carries the test id when one is given', () => {
+    render(
+      <FieldFeedback id="min-error" testId="min-error-testid">
+        Informe o mínimo
+      </FieldFeedback>,
+    );
+
+    expect(screen.getByTestId('min-error-testid')).toHaveTextContent('Informe o mínimo');
+  });
+
   it('renders nothing without a message', () => {
     const { container } = render(<FieldFeedback id="min-error" />);
 

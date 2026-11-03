@@ -131,6 +131,36 @@ describe('NewRecurringSchedulePage — the pattern', () => {
     expect(createRecurringScheduleAsCustomer).not.toHaveBeenCalled();
   });
 
+  it('shows the refusal in the action pane under the buttons, not above the fields, and clears it on the next edit', () => {
+    renderPage({
+      initialDraft: { ...READY, startsOn: today, endsOn: today, startTime: '00:00' },
+    });
+
+    press('new-schedule-review');
+
+    const notice = screen.getByTestId('new-schedule-notice');
+    expect(notice.closest('[data-testid="action-pane-desktop"]')).not.toBeNull();
+    expect(notice).toHaveAttribute('role', 'alert');
+    expect(screen.getByTestId('new-schedule-form')).toContainElement(notice);
+
+    fireEvent.click(screen.getAllByTestId('new-schedule-weekday')[0]!);
+
+    expect(screen.queryByTestId('new-schedule-notice')).not.toBeInTheDocument();
+  });
+
+  it('focuses the first invalid field when the pattern is incomplete', () => {
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: vi.fn(),
+    });
+    renderPage({ initialDraft: { ...READY, daysOfWeek: [], endsOn: '' } });
+
+    press('new-schedule-review');
+
+    expect(document.activeElement).toBe(screen.getAllByTestId('new-schedule-weekday')[0]);
+    expect(screen.getByTestId('new-schedule-ends-on-error')).toBeInTheDocument();
+  });
+
   it('blocks a pattern none of whose weekdays falls in the term', () => {
     // A one-day term (tomorrow only) and a weekday that is not tomorrow's.
     const tomorrowIndex = (new Date(`${tomorrow}T00:00:00Z`).getUTCDay() + 6) % 7; // Monday = 0

@@ -144,6 +144,34 @@ describe('NewRecurringScheduleForStaff — the pattern', () => {
     expect(createRecurringScheduleAsStaff).toHaveBeenCalledTimes(1);
   });
 
+  it('puts the refusal in the action pane and clears it on the next edit', () => {
+    vi.setSystemTime(AFTER_NINE);
+    renderForm();
+
+    fillPattern();
+    press('new-schedule-create');
+
+    const notice = screen.getByTestId('new-schedule-notice');
+    expect(notice.closest('[data-testid="action-pane-desktop"]')).not.toBeNull();
+    expect(notice).toHaveAttribute('role', 'alert');
+
+    pickWeekday('tuesday');
+
+    expect(screen.queryByTestId('new-schedule-notice')).not.toBeInTheDocument();
+  });
+
+  it('focuses the first invalid field when the pattern is incomplete', () => {
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: vi.fn(),
+    });
+    renderForm();
+
+    press('new-schedule-create');
+
+    expect(document.activeElement).toBe(screen.getAllByTestId('new-schedule-weekday')[0]);
+  });
+
   it('refuses a first occurrence that already started on the form itself, keeping the pattern', () => {
     vi.setSystemTime(AFTER_NINE);
     renderForm();
