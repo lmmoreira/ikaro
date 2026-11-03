@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Agendamento — João Silva — BeloAuto</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="../../../shared/feedback-pane.css">
   <style>
     /* Hide bottom nav — detail is a drill-down; back arrow replaces tab nav on mobile */
     .bottom-nav { display: none !important; }
@@ -93,6 +94,10 @@
   <!--
     COMPONENT: BookingDetailPage + BookingActionPanel
     FILE:       apps/web/features/booking/components/dashboard/bookings/BookingDetailPage.tsx  (EXISTS)
+    TD57-S12:   the right panel (BookingDetailAsideCard) becomes the shared ActionPane: the buttons card, and below it a
+                feedback card that exists ONLY while a message exists (idle = nothing, as drawn here). On mobile the fixed
+                bottom bar shows the same message ABOVE its buttons (max-height ~6.5rem, scrolls). The failure states are
+                in 01e-acao-falhou.html. A validation error from a sheet stays inside the sheet.
     PAGE:       apps/web/app/dashboard/bookings/[id]/page.tsx  (EXISTS)
     ROUTE:      /dashboard/bookings/:id
     AUTH:       JWT cookie, STAFF or MANAGER role
@@ -374,6 +379,10 @@
               <a href="01b-slot-conflict.html" style="color: var(--ba-primary);">
                 Alt A1 — conflito de horário ao aprovar →
               </a>
+              ·
+              <a href="01e-acao-falhou.html" style="color: var(--ba-primary);">
+                TD57 — falha ao aprovar/rejeitar/pedir info →
+              </a>
             </p>
 
           </div><!-- /.detail-main -->
@@ -406,6 +415,7 @@
                 O cliente recebe um email de confirmação.
               </p>
             </div>
+            <!-- TD57-S12: feedback card slot — rendered only while a message exists. See 01e-acao-falhou.html -->
           </div>
 
         </div><!-- /.detail-layout -->
@@ -423,6 +433,7 @@
     z-index: 20;
     box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
   ">
+    <!-- TD57-S12: feedback slot — the message sits here, ABOVE the buttons, while one exists (01e) -->
     <!-- UC-003 -->
     <a href="02-approve-success.html" class="btn-primary" style="text-align: center;">
       Aprovar agendamento

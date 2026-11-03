@@ -3,7 +3,7 @@
 **Actor(s):** STAFF | MANAGER  
 **Goal:** Review the daily booking queue, action each request — approve, reject, or request more information — and manage an approved booking through to completion, cancellation, or reschedule  
 **UCs covered:** UC-003, UC-004, UC-005, UC-008, UC-009 (incl. A6 — loyalty redemption during completion) · UC-070 (staff creating a recurrence on a customer's behalf), UC-071, UC-074, UC-108 (staff creating a one-off booking on a customer's behalf) (M23 Cluster 3 — UC-074 appointment no-show ✅ Criado by M23-S27; recurring-schedule creation on behalf ✅ M23-S19 and approval ✅ M23-S13)  
-**Status:** Reviewed — lifecycle screens built in `M13-S19`/`M13-S20`; the M23 extensions are built (`M23-S13`, `S19`, `S27`, `S40`, `S46`, `S47`, `S50`)
+**Status:** Reviewed — lifecycle screens built in `M13-S19`/`M13-S20`; the M23 extensions are built (`M23-S13`, `S19`, `S27`, `S40`, `S46`, `S47`, `S50`); TD57-S12 redraw of the failure states into the action pane: in progress
 
 > Note: the lifecycle screens referenced here were later implemented in M13-S19 and M13-S20; this document remains the prototype and journey reference.
 >
@@ -152,6 +152,10 @@ Folder: `staff/prototypes/agenda/`
 | `03j-booking-detail-precisa-decisao.html` | Detalhe de uma reserva aprovada com o aviso laranja "Esta reserva precisa de uma decisão" e, ao lado (barra no celular), o **painel de decisão** do gerente: Reatribuir, Reagendar e Cancelar (as mesmas três ações de Reservas a resolver, para esta reserva); as ações normais (concluir, não compareceu) não aparecem. Redesenhada em 2026-10-15: o botão "Abrir Reservas a resolver" foi removido | UC-073 · UC-077 | M23-S46 | ✅ Criado |
 | `03k-booking-detail-precisa-decisao-staff.html` | O mesmo aviso para a equipe: sem link e sem painel de decisão (a ação é do gerente), "Peça a um gerente para resolver" | UC-073 · UC-077 | M23-S46 | ✅ Criado |
 | `11-filtro-flutuante.html` | The floating filter movable to any of the four corners: `#cantos` (the pill in each corner, popover toward the centre, drag demo), `#posicao` (the "Posição" row in the popover), `#mobile` (bottom corners clear the bottom nav). Drawn for the Agenda's "Filtrar agenda"; Horários' stacked pair is `horarios/10-filtros-flutuantes.html` | — | M23-S50 | ✅ Criado (M23-S50) |
+| `01e-acao-falhou.html` | **TD57-S12.** Approve, reject, request-info or cancel fails: the message sits **under the buttons in the action pane** (desktop sticky; the fixed mobile bar carries it above its buttons), replacing today's red card at the top of the page. A validation error from a sheet stays inside the sheet | UC-003/004/005/008 | TD57-S12 | 🆕 A desenhar |
+| `04c-concluir-erro.html` | **TD57-S12.** Mark-complete failure under the buttons of the action rail (`MarkCompleteActionRail`) | UC-009 | TD57-S12 | 🆕 A desenhar |
+| `05d-reagendar-erro.html` | **TD57-S12.** A generic reschedule failure under the buttons of the action rail (`RescheduleActionRail`): the chosen slot stays selected and Confirm stays enabled (a slot conflict stays `05b`) | UC-008 Alt A1 | TD57-S12 | 🆕 A desenhar |
+| `12-agenda-erro-carregar.html` | **TD57-S12.** The schedule page's failure states: fetch error (`schedule-fetch-error`), day-grid error (`day-grid-fetch-error`) and the resource filter / resource select errors, each a page-level or inline `FeedbackMessage` with retry | — | TD57-S12 | 🆕 A desenhar |
 
 (Story numbers left as `—` above where they couldn't be confirmed against a specific milestone story — do not guess when citing these in a new story; check `git log` or ask.)
 
@@ -174,6 +178,10 @@ When this audit was written the staff detail (`BookingDetailMain.tsx`) rendered 
 | Duração escolhida (service line note) | **Dropped from M23-S47 (2026-10-16):** the line already shows the duration; saying it was chosen would need the service's current duration mode, which may have changed | — |
 
 Built by M23-S47 (the "Cobrança" and "Duração escolhida" rows excluded, see their rows); the screens were the reference for a "full staff booking detail" story (backend + BFF fields, then the web cards). The customer detail has the matching cards in `customer/prototypes/minha-conta/02*`.
+
+## TD57-S12 — failure states move into the action pane (in progress)
+
+> Source of truth: `td/TD57-INLINE-FEEDBACK-AND-ACTION-PANE-PATTERN.md` Story 12 and `manager/feedback-pane.md`. Result banners (approved, rejected, info requested, cancelled, completed, no-show, rescheduled, the "precisa de decisão" notices, the recurring hold banners) stay as page content and are **not** redrawn. Redrawn: `01-booking-detail.html` (the aside becomes the action pane; the message sits under the buttons, in the fixed mobile bar on small screens) and `03e-no-show-error.html` (the error in the pane; the "Resposta do servidor" line is dropped, the shipped page does not print it). Added: `01e`, `04c`, `05d`, `12`. Screens that differ from the shipped page but are not part of this migration (for example `10b` `#ocupado`, `08b` banner tones) are recorded in `dev-notes.md` § "Prototype vs shipped code — known differences"; code wins there.
 
 ## M23 — Multi-Vertical Scheduling, Cluster 3 extension (UC-071 approval ✅ Criado by M23-S13 · UC-074 no-show ✅ Criado by M23-S27 · staff creation ✅ Criado by M23-S19)
 
