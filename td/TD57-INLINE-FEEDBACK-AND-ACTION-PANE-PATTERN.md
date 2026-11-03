@@ -903,14 +903,30 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Backend use case steps:** none
 **Backend HTTP surface:** none
 **BFF endpoint spec:** none
-**Prototype references:** none
-**New migration / i18n keys / env vars / feature flags:** none expected; any new copy key in both locales in the same change
+**Prototype references:** `journeys/manager/prototypes/feedback-pane/` (the TD's shared prototype; `dev-notes.md`, `index.html`) and its parent `journeys/manager/feedback-pane.md`. The service create, deactivate and list failure states are drawn in discovery, before implementation (CLAUDE.md §15 order: `/docs-audit` baseline, journey `.md`, `use-cases.md`, `journeys/README.md` index, then the prototype files), and listed here once drawn.
+**New migration / i18n keys / env vars / feature flags:** none expected; any new copy key in both locales in the same change. `deactivateFailed` is removed (the backend message replaces it); a list load-failure title/body/retry is added if no existing key fits.
+
+**Discovery decisions (2026-11-03):**
+- **Create → edit.** The `?created=1` success box on the Detalhes tab (`service-created-banner`) becomes a success `FeedbackMessage` in the Detalhes pane, set once on arrival with `useFormFeedback.setSuccess`.
+- **List `showCreatedBanner` removed.** Nothing sends the list `?created=1` (the only sender is `ServiceCreatePage`, which goes to the edit page), so the banner, its prop and its 1800 ms `router.replace` timer are dead code and are deleted, together with the page's `searchParams` read.
+- **Deactivate.** The failure uses `setFromApiError` (backend message + `field`), not the fixed `deactivateFailed` string. On success it redirects to the list with no extra message: the row's inactive status is the confirmation (Story 4's rule).
+- **List load failure.** `app/dashboard/services/page.tsx` currently swallows a fetch failure (`catch { services = [] }`), so the list shows "no services" for a failed load. The page passes a `loadFailed` flag; `ServiceListPage` renders a page-level `FeedbackMessage` with a retry (`router.refresh()`) inside the list card instead of the empty message.
+- **List layout.** The filter chips move inside the list card (header row); the list card is the first box. `FloatingCreateButton` stays outside (the documented exemption).
+- **Detalhes field marking.** `ServiceFormFields` and `ServicePriceDurationFields` use `fieldProps`/`FieldFeedback`/`FIELD_INVALID_CLASS` for name, description, price, duration and points; a server `field` is mapped to those names, an unknown `field` falls back to the form-level message. The create page's duplicate pane text (`createActiveHint` shown both in the card and the pane) is removed from the pane.
 
 **Files to create/modify:**
-- `apps/web/features/booking/components/dashboard/services/ServiceCreatePage.tsx` + `ServiceCreatePage.spec.tsx`
+- `apps/web/features/booking/components/dashboard/services/ServiceCreatePage.tsx` + `ServiceCreatePage.spec.tsx` (`FormActionPane`, `useFormFeedback`)
 - `apps/web/features/booking/components/dashboard/services/ServiceDeactivatePage.tsx` + `ServiceDeactivatePage.spec.tsx`
 - `apps/web/features/booking/components/dashboard/services/ServiceListPage.tsx` + `ServiceListPage.spec.tsx`
-- `apps/web/e2e/services-create.spec.ts` (update ids if the migration renames a `data-testid`)
+- `apps/web/app/dashboard/services/page.tsx` (`loadFailed`; no `showCreatedBanner`)
+- `apps/web/features/booking/components/dashboard/services/ServiceFormFields.tsx` + `ServiceFormFields.spec.tsx`
+- `apps/web/features/booking/components/dashboard/services/ServicePriceDurationFields.tsx` + `ServicePriceDurationFields.spec.tsx`
+- `apps/web/features/booking/components/dashboard/services/ServiceEditDetailsTab.tsx` + `ServiceEditDetailsTab.spec.tsx`
+- `apps/web/features/booking/components/dashboard/services/ServiceEditPage.tsx` + `ServiceEditPage.spec.tsx`
+- `apps/web/features/booking/services/service-form.ts` (drop `submit` from `ServiceFormErrors` if unused)
+- `packages/i18n/locales/{pt-BR,en}/web.json` (both locales, same change)
+- `apps/web/e2e/services-create.spec.ts`, `services-manage.spec.ts`, `services-resource-config.spec.ts` (update ids if the migration renames a `data-testid`)
+- `journeys/manager/prototypes/feedback-pane/dev-notes.md` (file-map rows ✅ DONE for the migrated files)
 
 **Acceptance criteria — product:**
 - [ ] Every error and success message of these screens appears in the place Appendix A prescribes (the pane under the buttons, the field, or the page), announced with `role="alert"` / `role="status"`.
@@ -921,10 +937,13 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 - Unit:
   - [ ] one spec per migrated file asserting the old hand-rolled box no longer renders and the shared component does, with the right `role`
   - [ ] a server `field` error marks and focuses its input; an unknown `field` falls back to the form-level message (own test)
+  - [ ] `ServiceListPage`: `loadFailed` renders the alert with a retry that calls `router.refresh()` and not the empty message; no created banner renders (negative guarantee)
+  - [ ] `ServiceDeactivatePage`: a failed deactivation shows the backend-resolved message in the pane, not the removed fixed string
+  - [ ] `ServiceEditPage`: arriving with `?created=1` shows the success message in the Detalhes pane (replaces `service-created-banner`)
 - Integration: none — frontend story
 - Tenant isolation: none — no data access
 - E2E:
-  - [ ] existing specs updated for any renamed `data-testid`: `services-create.spec.ts`; no new scenario unless a route has none (then one scenario per such route)
+  - [ ] existing specs updated for any renamed `data-testid`: `services-create.spec.ts` (the three `service-created-banner` assertions), `services-manage.spec.ts`, `services-resource-config.spec.ts`; the list (`services-list.spec.ts`), create and deactivate (`services-manage.spec.ts:71`) routes already have a scenario, so no new one
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
@@ -1312,9 +1331,9 @@ comm -23 /tmp/td57-enum.txt /tmp/td57-listed.txt
 
 | File | Class | Skin | Role | Field marking | Action pane | Feedback `data-testid`s | E2E specs | Owner | Message placement | Scroll / focus |
 |---|---|---|---|---|---|---|---|---|---|---|
-| `features/booking/components/dashboard/services/ServiceCreatePage.tsx` | form | SaaS | none | via ServiceFormFields | dashboard aside, sticky, fixed mobile bar | - | `services-create.spec.ts` | new story (Services create/deactivate/list) | no own message (pane/layout only) | none |
-| `features/booking/components/dashboard/services/ServiceDeactivatePage.tsx` | form | SaaS | none | red outline only | dashboard aside, sticky, fixed mobile bar | - | - | new story (Services create/deactivate/list) | no own message (pane/layout only) | none |
-| `features/booking/components/dashboard/services/ServiceListPage.tsx` | page-level | SaaS | none | none | - | - | - | new story (Services create/deactivate/list) | n/a | none |
+| `features/booking/components/dashboard/services/ServiceCreatePage.tsx` | form | SaaS | none | via ServiceFormFields | dashboard aside, sticky, fixed mobile bar | `service-submit-error` (rendered by ServiceFormFields, in the card) | `services-create.spec.ts` | Story 13 | inline in content (no pane) | none |
+| `features/booking/components/dashboard/services/ServiceDeactivatePage.tsx` | form | SaaS | none | red outline only | dashboard aside, sticky, fixed mobile bar | - (fixed `deactivateFailed` string in an unnamed red box, in the card) | `services-manage.spec.ts` | Story 13 | inline in content (no pane) | none |
+| `features/booking/components/dashboard/services/ServiceListPage.tsx` | page-level | SaaS | none | none | - | - (an unnamed green `showCreatedBanner` `<output>`, never reached; a fetch failure is swallowed by `app/dashboard/services/page.tsx` and shows the empty state) | `services-list.spec.ts` | Story 13 | inline in content (no pane) | none |
 
 ### A.9 Recurring schedule forms
 
