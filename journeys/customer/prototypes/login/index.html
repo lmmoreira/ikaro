@@ -13,6 +13,7 @@
     a { color: var(--ba-primary); }
     .tag { display: inline-block; font-size: 0.7rem; font-weight: 600; padding: 0.125rem 0.5rem; border-radius: 99px; margin-left: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; }
     .tag-green { background: #dcfce7; color: #166534; }
+    .tag-gap { background: #fee2e2; color: #b91c1c; }
     .tag-red { background: #fee2e2; color: #991b1b; }
     .checklist { background: var(--ba-secondary); border-radius: var(--ba-radius); padding: 1rem 1.25rem; margin-top: 1.5rem; }
   </style>
@@ -80,6 +81,16 @@
       <a href="./02b-validation-error.html">02b — Erro de validação no telefone</a>
       <span class="tag tag-green">EXISTS</span>
       — PATCH /v1/customers/me retornou 422
+    </li>
+    <li>
+      <a href="./02c-address-error.html">02c — Endereço incompleto</a>
+      <span class="tag tag-gap">GAP: TD57-S11</span>
+      — campos obrigatórios vazios com contorno vermelho
+    </li>
+    <li>
+      <a href="./02d-submit-error.html">02d — Falha ao salvar</a>
+      <span class="tag tag-gap">GAP: TD57-S11</span>
+      — mensagem branded sob os campos
     </li>
   </ul>
 

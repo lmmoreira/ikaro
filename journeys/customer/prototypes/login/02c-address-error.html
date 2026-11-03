@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Complete seu perfil — BeloAuto</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="../../../shared/feedback-pane.css">
+  <style>
+    .scrim { position: fixed; inset: 0; background: rgba(0,0,0,.7); display: flex; align-items: flex-end; justify-content: center; padding: 1rem; overflow-y: auto; }
+    @media (min-width: 640px) { .scrim { align-items: center; } }
+    .sheet { width: 100%; max-width: 24rem; background: var(--ba-background); color: var(--ba-text); border-radius: 1rem 1rem 0 0; padding: 1.5rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,.4); max-height: 100%; overflow-y: auto; }
+    @media (min-width: 640px) { .sheet { max-width: 42rem; border-radius: 1rem; padding: 2rem; } }
+    .row2 { display: grid; gap: .75rem; grid-template-columns: 1fr; }
+    @media (min-width: 640px) { .row2 { grid-template-columns: 1fr 1fr; } }
+    .lbl { display: block; font-size: .875rem; font-weight: 500; margin-bottom: .25rem; }
+    .inp { width: 100%; border: 1px solid var(--ba-secondary); background: var(--ba-secondary); color: var(--ba-text); border-radius: var(--ba-radius); padding: .5rem .75rem; font: inherit; }
+    .inp.bad { border-color: #dc2626; box-shadow: 0 0 0 1px #dc2626; }
+    .phone { display: flex; }
+    .phone .pre { display: flex; align-items: center; border: 1px solid var(--ba-secondary); border-right: 0; padding: 0 .75rem; font-size: .875rem; font-weight: 500; background: var(--ba-secondary); border-radius: var(--ba-radius) 0 0 var(--ba-radius); }
+    .phone .inp { border-radius: 0 var(--ba-radius) var(--ba-radius) 0; flex: 1; min-width: 0; }
+    .fmsg { font-size: .8125rem; color: #dc2626; margin-top: .375rem; font-weight: 500; }
+    .submit { display: block; width: 100%; margin-top: 1.25rem; border: 2px solid var(--ba-btn-border); background: var(--ba-btn-bg); color: var(--ba-btn-text); border-radius: var(--ba-radius); padding: .75rem 1.5rem; font-weight: 600; font: inherit; font-weight: 600; cursor: pointer; }
+    .out { display: block; margin-top: .75rem; text-align: center; font-size: .875rem; opacity: .7; color: var(--ba-text); }
+  </style>
+</head>
+<body>
+  <!--
+    COMPONENT: InformationCompletionPrompt  apps/web/features/customer/components/InformationCompletionPrompt.tsx  (EXISTS — migrated in TD57-S11)
+    LOCATION:  rendered by the [slug] layout over the hotsite for a logged-in customer whose phone or default address is missing. Mandatory, not dismissible.
+    SKIN:      branded (hotsite): reads --ba-* — the one customer screen that uses the tenant theme. Message = BrandedFeedbackMessage (.fb-ba), not FeedbackMessage.
+    BFF CALL:  PATCH /v1/customers/me { phone (E.164), defaultAddress }
+    COPY:      customer "auth" namespace: informationCompletion{Heading,Subtitle,PhoneLabel,AddressLabel,Submit,PhoneError}, signOut.
+    REPLACES:  the earlier phone-only drawing (the shipped prompt also collects the default address).
+    STATE:     the address is incomplete on submit: every required empty field gets the red outline and aria-invalid. There is no message text today (no i18n key), so none is drawn; adding one would need a new key in both locales.
+  -->
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — TD57 Story 11 — modal de completar perfil (tema do estabelecimento: usa --ba-*) · <a href="02-phone-completion.html">ocioso</a> · <a href="02b-validation-error.html">telefone inválido</a> · <a href="02c-address-error.html">endereço incompleto</a> · <a href="02d-submit-error.html">falha ao salvar</a>
+  </div>
+  <div class="scrim" data-testid="information-completion-prompt">
+    <div class="sheet">
+      <h2 style="font-size:1.125rem;font-weight:700;">Complete seu perfil</h2>
+      <p style="font-size:.875rem;opacity:.7;margin-top:.25rem;">Precisamos do seu telefone e endereço para confirmar e organizar seus agendamentos. Você só precisa fazer isso uma vez.</p>
+      <form style="margin-top:1.25rem;" onsubmit="return false" novalidate>
+        <div>
+          <label class="lbl" for="information-completion-phone">Telefone</label>
+          <div class="phone">
+            <span class="pre" data-testid="information-completion-phone-prefix">+55</span>
+            <input id="information-completion-phone" class="inp" type="tel" inputmode="numeric" data-testid="information-completion-phone-input" placeholder="(11) 91234-5678" value="11912345678">
+          </div>
+        </div>
+        <div style="margin-top:1.25rem;">
+          <p style="font-size:.875rem;font-weight:500;margin-bottom:.5rem;">Endereço</p>
+          <div style="display:grid;gap:.75rem;">
+            <div ><label class="lbl">CEP</label><input class="inp bad" aria-invalid="true" placeholder="00000-000" value=""></div>
+            <div class="row2"><div ><label class="lbl">Rua</label><input class="inp bad" aria-invalid="true" placeholder="" value=""></div><div ><label class="lbl">Número</label><input class="inp bad" aria-invalid="true" placeholder="" value=""></div></div>
+            <div ><label class="lbl">Complemento</label><input class="inp" placeholder="" value=""></div>
+            <div ><label class="lbl">Bairro</label><input class="inp bad" aria-invalid="true" placeholder="" value=""></div>
+            <div class="row2"><div ><label class="lbl">Cidade</label><input class="inp bad" aria-invalid="true" placeholder="" value=""></div><div ><label class="lbl">Estado</label><input class="inp bad" aria-invalid="true" placeholder="" value=""></div></div>
+          </div>
+        </div>
+        <button type="submit" class="submit" data-testid="information-completion-submit">Salvar e continuar</button>
+        <a href="#" class="out" data-testid="information-completion-logout">Sair</a>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

@@ -688,8 +688,16 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Agent:** frontend-ts
 **Complexity:** L
 **Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md` (the section added by Story 1); `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` §3; `docs/TESTING_STRATEGY.md` § apps/web Testing Infrastructure; this TD's Appendix A.6
-**Dependencies:** Story 0, Story 1, Story 6
+**Dependencies:** Story 0, Story 1, Story 6. Story 14 depends on this story (not the reverse): this story owns `NewRecurringScheduleLayout.tsx`, whose local `ActionPane` it replaces with the shared one (decided 2026-11-03).
 **Pattern:** plain composition over the Story 1 building blocks and the Story 6 branded component — no named pattern applies
+
+**Decisions locked in discovery (2026-11-02 / 11-03):**
+1. **Mobile:** every customer pane uses the shared fixed bottom bar at `bottom-0` (all pane screens are drill-down routes that hide the customer bottom nav; `CustomerShell` `main` already reserves `pb-24`). The customer-local `action-pane-desktop` / `action-pane-mobile` divs are replaced by `ActionPane`, which keeps the same two `data-testid`s.
+2. **Where each message lands:** cancel booking, end schedule, cancel alert, reschedule, the info form and the new-recurring failure outcome → the pane under the buttons (`useFormFeedback`); load failures (`AvailabilityAlertListStates`, `SwitchTenantClient` fetch, `my-account/error.tsx`, the reschedule picker) → a page-level `FeedbackMessage` with retry; the new-recurring conflict, cap, created and the cancel/reschedule "outside the deadline" outcomes → a page-level box in the main column; the information-completion modal → `BrandedFeedbackMessage` under the fields, the phone error under the phone input, empty required address fields outlined with `aria-invalid` and no new text (no i18n key exists for one).
+3. **Informational banners stay as page content** (points earned, renewal, no-show and ended notices, the reschedule success screen's facts, the per-photo upload status line). `responseSentConfirmation` becomes a `FeedbackMessage` success in the pane.
+4. **The info form moves out of the pane.** `InfoSubmitForm`'s textarea and photo upload sit in a main-column card ("Sua resposta"); the pane holds "Enviar resposta" (a `form=` button) and the cancel action. `BookingDetailPage`, `InfoSubmitForm` and `CustomerPhotoUpload` change accordingly (more than a message swap).
+5. **A generic reschedule failure keeps the slot selected and Confirm enabled** (`reschedule-failure.ts` `shouldReloadSlots` is unchanged); only slotTaken, slotClosed, bundleUnavailable and bookingWindow clear it. Prototype `15k` shows this.
+6. **Not changed here:** the staff-name idea for the info request. See the open item at the end of this story.
 
 **Description:**
 Replace every hand-rolled error/success box listed for this area in Appendix A with the shared pattern (see "Chosen approach"): forms with a primary action show their form-level feedback below the buttons in `ActionPane` (SaaS skin) and route the offending `field` through `useFormFeedback`; page-level load failures use a page-level `FeedbackMessage` with a retry; field-level messages keep `aria-invalid` + `aria-describedby` and gain the red outline where Appendix A shows none. Every feedback box gets a `role` (the audit found most had none, so they were never announced). `InformationCompletionPrompt.tsx` is rendered under the hotsite theme and reads `--ba-*`, so it uses the Story 6 branded component. Includes `app/[slug]/my-account/error.tsx` and `app/[slug]/my-account/alerts/error.tsx` (route error pages, page-level, SaaS skin: they read no `--ba-*`).
@@ -697,7 +705,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Backend use case steps:** none
 **Backend HTTP surface:** none
 **BFF endpoint spec:** none
-**Prototype references:** none
+**Prototype references:** `journeys/customer/prototypes/minha-conta/` (redrawn in place, 2026-11-02 to 11-03, in the Ikaro customer-shell look via `journeys/shared/customer-shell.css`, no `--ba-*`): `02`, `02b`–`02h`, `03`, `03b`–`03d`, `05` (+ `?estado=fetch|switch`), `06`, `06b`–`06h` (`06g` `?estado=falha`), `07d`, `07f`–`07i`, `13c`, `13d`, `15`–`15k`, `17` (new); `journeys/customer/prototypes/login/` `02`, `02b`, `02c`, `02d` (the information-completion modal, branded, `--ba-*`). Dev notes: `minha-conta/dev-notes.md` § Inline feedback in the action pane and § Prototype vs current code — known differences. Journey: `journeys/customer/minha-conta.md` § TD57. List and tab pages (`01`, `04`, `07`, `14`, `16*`, `08`–`12b`) carry no message or pane and are restyled only. The new-recurring form (`13`, `13b`, `13e`–`13h`) belongs to Story 14.
 **New migration / i18n keys / env vars / feature flags:** none expected; any new copy key in both locales in the same change
 
 **Files to create/modify:**
@@ -719,6 +727,14 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 - `apps/web/features/customer/components/my-account/RecurringScheduleEndConfirm.tsx` + `RecurringScheduleEndConfirm.spec.tsx`
 - `apps/web/features/customer/components/my-account/RecurringSchedulePendingView.tsx` + `RecurringSchedulePendingView.spec.tsx`
 - `apps/web/features/customer/components/my-account/RescheduleSuccessView.tsx` + `RescheduleSuccessView.spec.tsx`
+- Files found missing from the original list in discovery (2026-11-03):
+  - `apps/web/features/customer/components/my-account/RescheduleActionPane.tsx` + spec (customer-local pane → shared `ActionPane`)
+  - `apps/web/features/customer/components/my-account/ReschedulePicker.tsx` + spec (its `ErrorAlert variant="dashboard"` load errors → `FeedbackMessage` with retry; Story 1 names it)
+  - `apps/web/features/customer/components/my-account/CancelAction.tsx` + spec and `CancelErrorPage.tsx` + spec (hand-rolled red styling)
+  - `apps/web/features/booking/components/recurring/NewRecurringScheduleLayout.tsx` + `NewRecurringScheduleLayout.spec.tsx` (moved here from Story 14: its local `ActionPane` becomes the shared one; `NewRecurringScheduleResult` depends on it)
+  - `apps/web/features/customer/components/InformationCompletionPhoneField.tsx` + spec (field marking)
+  - `apps/web/e2e/my-account-alerts.spec.ts`: one new assertion for `alerts-load-error` (the only customer route whose error screen has no assertion)
+- Docs and journeys: `journeys/customer/minha-conta.md`, `journeys/customer/login.md`, `journeys/customer/prototypes/*/dev-notes.md` and `journeys/README.md` flip the TD57-S11 "Gap" rows to done; stale-reference sweep for `action-pane-mobile` / `RescheduleActionPane` / the customer-local pane across `docs/*.md`, `.claude/**` and `scripts/**`.
 - `apps/web/features/customer/components/my-account/RescheduleWindowExpiredView.tsx` + `RescheduleWindowExpiredView.spec.tsx`
 - `apps/web/e2e/authenticated-booking.spec.ts` (update ids if the migration renames a `data-testid`)
 - `apps/web/e2e/booking-appointment-end.spec.ts` (update ids if the migration renames a `data-testid`)
@@ -740,18 +756,23 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Acceptance criteria — product:**
 - [ ] Every error and success message of these screens appears in the place Appendix A prescribes (the pane under the buttons, the field, or the page), announced with `role="alert"` / `role="status"`.
 - [ ] A backend `field` marks and focuses the offending input; the first invalid field is scrolled to and focused.
+- [ ] On mobile every pane screen shows its actions and its message in the fixed bottom bar (message above the buttons, scrollable past about 6.5rem); on desktop the pane is sticky with the message below the buttons.
+- [ ] The info-request answer form keeps its fields in the main column and its submit in the pane; an empty answer outlines and focuses the textarea with the existing text "Informe sua resposta antes de enviar.".
 - [ ] Every screen this story owns follows the visual pattern (`docs/ENGINEERING_RULES_FRONTEND.md` § Alignment and cards): every control sits inside a card (no loose label, input or button on the page background), intro text is inside the first card, card headings use the shared `text-sm font-semibold` style, and on desktop the first box starts level with the action pane's card. The Story 0 audit measured only the service edit tabs, so inspect each screen here, top to bottom, and fix what is out of pattern.
 
 **Acceptance criteria — technical:**
 - Unit:
   - [ ] one spec per migrated file asserting the old hand-rolled box no longer renders and the shared component does, with the right `role`
   - [ ] a server `field` error marks and focuses its input; an unknown `field` falls back to the form-level message (own test)
+  - [ ] negative guarantees, each with its own test: a generic reschedule failure leaves the slot selected and Confirm enabled; an informational banner (points earned, renewal, no-show, ended) renders no `role="alert"`; the information-completion modal renders `BrandedFeedbackMessage` and never `FeedbackMessage`
 - Integration: none — frontend story
 - Tenant isolation: none — no data access
 - E2E:
   - [ ] existing specs updated for any renamed `data-testid`: `authenticated-booking.spec.ts`, `booking-appointment-end.spec.ts`, `booking-detail.spec.ts`, `helpers/recurring-schedule.ts`, `information-completion-prompt.spec.ts`, `my-account-alerts.spec.ts`, `my-account-detail-cancel.spec.ts`, `my-account-home-widgets.spec.ts`, `my-account-recurring-schedule-bundle.spec.ts`, `my-account-recurring-schedule-create.spec.ts`, `my-account-recurring-schedule-renew.spec.ts`, `my-account-recurring-schedules.spec.ts`, `my-account-reschedule.spec.ts`, `staff-no-show.spec.ts`, `switch-tenant.spec.ts`; no new scenario unless a route has none (then one scenario per such route)
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
+
+**Open item (not decided): a staff name on the info request.** The prototypes keep the neutral heading "O admin precisa de mais informações". Showing who asked and when needs a backend, BFF and `@ikaro/types` change, and it reverses a deliberate rule: a customer booking read skips the staff-name lookup entirely (`booking-detail-extras.helpers.ts` `includeActorNames: false`) and `toCustomerDetailExtras` never carries an actor name (a pinned negative guarantee). Decide before READY whether to keep the rule (stay neutral, as the termination card does with "O estabelecimento") or to carve out an exception for the info request; if the latter, it joins this story as a small backend/BFF/types change with its own tests.
 
 ### Story 12 — Migrate Bookings dashboard, schedule and scheduling exceptions to the feedback pattern 🟡
 
@@ -884,7 +905,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Agent:** frontend-ts
 **Complexity:** S
 **Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md` (the section added by Story 1); `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` §3; `docs/TESTING_STRATEGY.md` § apps/web Testing Infrastructure; this TD's Appendix A.9
-**Dependencies:** Story 0, Story 1
+**Dependencies:** Story 0, Story 1, Story 11 (Story 11 owns `NewRecurringScheduleLayout.tsx` and replaces its local `ActionPane` with the shared one; this story migrates the form fields on top of it)
 **Pattern:** plain composition over the Story 1 building blocks — no named pattern applies
 
 **Description:**
@@ -898,7 +919,6 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 
 **Files to create/modify:**
 - `apps/web/features/booking/components/recurring/NewRecurringScheduleDateField.tsx` + `NewRecurringScheduleDateField.spec.tsx`
-- `apps/web/features/booking/components/recurring/NewRecurringScheduleLayout.tsx` + `NewRecurringScheduleLayout.spec.tsx`
 - `apps/web/features/booking/components/recurring/NewRecurringScheduleServiceFields.tsx` + `NewRecurringScheduleServiceFields.spec.tsx`
 - `apps/web/features/booking/components/recurring/RecurringScheduleFields.tsx` + `RecurringScheduleFields.spec.tsx`
 - `apps/web/e2e/booking-appointment-end.spec.ts` (update ids if the migration renames a `data-testid`)
@@ -1274,7 +1294,7 @@ comm -23 /tmp/td57-enum.txt /tmp/td57-listed.txt
 |---|---|---|---|---|---|---|---|---|---|---|
 | `features/booking/components/recurring/NewRecurringScheduleConflictList.tsx` | not feedback | SaaS | - | none | - | - | `dashboard-recurring-schedule-create.spec.ts`, `my-account-recurring-schedule-bundle.spec.ts`, `my-account-recurring-schedule-create.spec.ts` | new story (Recurring schedule forms) | n/a | none |
 | `features/booking/components/recurring/NewRecurringScheduleDateField.tsx` | field / section message | SaaS | alert | aria-invalid+red outline | - | - | - | new story (Recurring schedule forms) | inline in content (no pane) | none |
-| `features/booking/components/recurring/NewRecurringScheduleLayout.tsx` | pane only (no feedback of its own) | SaaS | none | none | customer action-pane-*, sticky, in-flow mobile | `action-pane-desktop`, `action-pane-mobile` | `booking-appointment-end.spec.ts`, `helpers/recurring-schedule.ts`, `my-account-detail-cancel.spec.ts`, `my-account-recurring-schedules.spec.ts`, `my-account-reschedule.spec.ts` | new story (Recurring schedule forms) | main column, before the pane markup | none |
+| `features/booking/components/recurring/NewRecurringScheduleLayout.tsx` | pane only (no feedback of its own) | SaaS | none | none | customer action-pane-*, sticky, in-flow mobile | `action-pane-desktop`, `action-pane-mobile` | `booking-appointment-end.spec.ts`, `helpers/recurring-schedule.ts`, `my-account-detail-cancel.spec.ts`, `my-account-recurring-schedules.spec.ts`, `my-account-reschedule.spec.ts` | Story 11 (Customer account; Story 14 builds on it) | main column, before the pane markup | none |
 | `features/booking/components/recurring/NewRecurringScheduleServiceFields.tsx` | field / section message | SaaS | alert | none | - | - | `dashboard-recurring-schedule-create.spec.ts`, `helpers/recurring-schedule.ts`, `my-account-recurring-schedule-bundle.spec.ts`, `my-account-recurring-schedule-default-service.spec.ts` | new story (Recurring schedule forms) | inline in content (no pane) | none |
 | `features/booking/components/recurring/RecurringScheduleFields.tsx` | field / section message | SaaS | alert | via NewRecurringScheduleDateField | - | - | `dashboard-recurring-schedule-create.spec.ts` | new story (Recurring schedule forms) | inline in content (no pane) | none |
 

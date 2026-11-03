@@ -82,11 +82,13 @@ Folder: `customer/prototypes/login/`
 | `00-hotsite.html` | Hotsite entry (redirect → shared/hotsite.html) | — | — | ✅ Criado |
 | `00-login.html` | Customer login screen (redirect → shared/login.html) | UC-021 | M13-S42 | ✅ Criado — implemented |
 | `01-select-tenant.html` | Selecionar estabelecimento (Caso B) | UC-021 Caso B | — | ❌ Descoped — not being built, see scope-change note above |
-| `02-phone-completion.html` | Completar perfil — solicita telefone | UC-021 A3 | M13-S14 | ✅ Criado — use this copy verbatim (see `M13-DASHBOARD-FRONTEND.md`'s `M13-S14`) |
+| `02-phone-completion.html` | Completar perfil — telefone e endereço (modal sobre o hotsite). **Redesenhado 2026-11-03 (TD57-S11)**: o protótipo antigo só pedia telefone; o componente entregue pede também o endereço padrão | UC-021 A3 | M13-S14 · TD57-S11 | ✅ Criado — copy from the real `auth.informationCompletion*` keys |
 | `01b-error.html` | Auth error (no-tenant, email-mismatch, tenant-deactivated) | UC-021 A1 err | M13-S02/S42 | ✅ Criado — implemented |
 | `01b-loading.html` | Carregando estabelecimentos (skeleton) — part of the descoped Caso B picker | UC-021 Caso B | — | ❌ Descoped — not being built (tagged DESCOPED in `index.html`; note the `01b` prefix is shared with the live `01b-error.html`) |
 | `01c-fetch-error.html` | Erro ao carregar estabelecimentos — part of the descoped Caso B picker | UC-021 Caso B | — | ❌ Descoped — not being built (tagged DESCOPED in `index.html`) |
-| `02b-validation-error.html` | Erro de validação no telefone | UC-021 A3 | M13-S14 | ✅ Criado — live, listed in `index.html` and `dev-notes.md` |
+| `02b-validation-error.html` | Erro de validação no telefone — mensagem sob o campo (aria-invalid) | UC-021 A3 | M13-S14 · TD57-S11 | ✅ Criado — live, listed in `index.html` and `dev-notes.md` |
+| `02c-address-error.html` | Endereço incompleto — contorno vermelho nos campos obrigatórios vazios (sem texto: não há chave i18n hoje) | UC-021 A3 | TD57-S11 | ❓ Gap (TD57-S11) |
+| `02d-submit-error.html` | Falha ao salvar — mensagem branded sob os campos, acima do botão | UC-021 A3 | TD57-S11 | ❓ Gap (TD57-S11) |
 | `dev-notes.md` | Implementation handoff | — | M13-S02/S42 | ✅ Criado (predates the scope change — its `/select-tenant`/generic-entry sections are superseded by this file) |
 
 The switch-tenant feature (UC-023) reuses `customer/prototypes/minha-conta/05-trocar-empresa.html`, not a file in this folder.
