@@ -401,4 +401,6 @@ The failure and success states of these screens use the shared feedback pattern 
 | `01` | List | The filter chips sit inside the list card (header row); the list has no created banner (nothing ever sent the list `?created=1`; the banner and its timer are removed). |
 | `01b` | List load fails | The list card holds a page-level `FeedbackMessage` with "Tentar novamente" (`router.refresh()`), not the "no services" empty state. The server page passes `loadFailed`. |
 
+**Copy:** the screens draw the shipped strings: `02c` shows `dashboard.servicesPage.createdSuccessTitle` / `createdSuccessBody`, and `03j` shows the backend-resolved message (the generic "Algo deu errado. Tente novamente." when the response carries no code).
+
 **data-testid:** `form-feedback` (`form-feedback-mobile` inside the mobile bar), `page-feedback`. The ids `service-submit-error` and `service-created-banner` go away.
