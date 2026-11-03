@@ -728,7 +728,7 @@ Sidebar, bottom-nav, and bottom-sheet items that point to another journey (e.g. 
 | CUSTOMER — Book a Service | `customer/book-a-service.md` | `customer/prototypes/book-a-service/` | Reviewed (M23 extension: ✅ built — `M23-S11a`/`S11b`; ✅ built — `M23-S31` alert button on the calendar step) |
 | CUSTOMER — Login & Tenant Selection | `customer/login.md` | `customer/prototypes/login/` | Reviewed |
 | STAFF — Login & First Access | `staff/login.md` | `staff/prototypes/login/` | Shipped (M13-S13); billing extension (suspended notice, UC-121): Draft |
-| STAFF — Agenda (Booking Queue & Lifecycle Management) | `staff/agenda.md` | `staff/prototypes/agenda/` | Reviewed (TD57-S12: failure states move into the action pane — `01`, `03e` redrawn; `01e`, `04c`, `05d`, `12` to draw) |
+| STAFF — Agenda (Booking Queue & Lifecycle Management) | `staff/agenda.md` | `staff/prototypes/agenda/` | Reviewed (TD57-S12: failure states move into the action pane — `01`, `03e` redrawn; `01e`, `04c`, `05d` drawn; the schedule page's failure states are in `staff/prototypes/horarios/11`) |
 | STAFF — Horários (Schedule & Closure Management) | `staff/horarios.md` | `staff/prototypes/horarios/` | Reviewed |
 | CUSTOMER — Minha Conta (Bookings + Loyalty) | `customer/minha-conta.md` | `customer/prototypes/minha-conta/` | Reviewed (M23 extensions: ✅ built — `M23-S30`, `S12`, `S17`, `S22`, `S41`, `S43`; billing extension: tenant-suspended screens `16`–`16c`, Draft; TD57-S11 feedback-pane migration: `03c`/`03d` + in-place updates, ✅ Done) |
 | STAFF — Serviços (Service Catalog) | `staff/servicos.md` | `staff/prototypes/servicos/` | Shipped (M22-S04); public-page tab `03g`–`03i` Built (TD56-S03) |

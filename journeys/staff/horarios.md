@@ -100,6 +100,7 @@ Folder: `staff/prototypes/horarios/`
 | `08-visao-geral-manager.html` | Visão geral do MANAGER: colunas limitadas por recurso | UC-057 | ✅ Criado (M22-S06) |
 | `09-colunas-buffer.html` / `09b-so-walace.html` | Tempo mantido após cada agendamento (buffer) | M18-S10 | ✅ Criado |
 | `10-filtros-flutuantes.html` | Filtros de status e recurso como dock | M23-S50 | ✅ Criado |
+| `11-erros-carregar.html` | **TD57-S12.** Failure states of the schedule page: `#agenda` (`schedule-fetch-error`, page-level with retry), `#colunas` (`day-grid-fetch-error`, replaces the resource columns board), `#filtro` (`resource-filter-error`, inside the floating resource-filter popover), `#recurso` (`resource-select-field-error`, field-level under the Recurso select of the closure/opening sheet) | UC-010 / UC-057 | TD57-S12 | ✅ Criado |
 
 ## BFF calls (verified — all implemented)
 

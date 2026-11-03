@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Concluir — falha — João Silva — BeloAuto</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="../../../shared/feedback-pane.css">
+  <style>
+    .bottom-nav { display: none !important; }
+
+    .detail-layout { display: block; }
+    .detail-aside  { display: none; }
+
+    @media (min-width: 1024px) {
+      .detail-layout {
+        display: grid;
+        grid-template-columns: 1fr 22rem;
+        gap: 1.5rem;
+        align-items: start;
+      }
+      .detail-aside {
+        display: block;
+        position: sticky;
+        top: 1.5rem;
+      }
+      .mobile-action-bar { display: none !important; }
+    }
+
+    .detail-section-label {
+      font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em;
+      text-transform: uppercase; color: rgba(17,24,39,0.4);
+      margin-bottom: 0.625rem;
+    }
+
+    /* Per-line price editor — reuses .service-line's row pattern, adds an editable input */
+    .price-line {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 1rem; padding: 0.625rem 0;
+      border-bottom: 1px solid var(--ba-secondary);
+    }
+    .price-line:last-child { border-bottom: none; }
+    .price-line-name { font-weight: 600; font-size: 0.9375rem; color: var(--ba-text); }
+    .price-line-quoted { font-size: 0.8125rem; opacity: 0.55; color: var(--ba-text); margin-top: 0.125rem; }
+    .price-input-wrap { display: flex; align-items: center; gap: 0.375rem; flex-shrink: 0; }
+    .price-input-wrap span { font-size: 0.875rem; opacity: 0.6; color: var(--ba-text); }
+
+    .photo-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem;
+    }
+    .photo-thumb {
+      aspect-ratio: 1; background: var(--ba-secondary); border-radius: var(--ba-radius);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; opacity: 0.5; color: var(--ba-text); overflow: hidden;
+    }
+  </style>
+</head>
+<body>
+
+  <!--
+    COMPONENT: MarkCompleteBookingPage
+    FILE:       apps/web/features/booking/components/dashboard/bookings/MarkCompleteBookingPage.tsx  (EXISTS —
+                real component is a dedicated page, not a sheet as an earlier draft proposed)
+    PAGE:       apps/web/app/dashboard/bookings/[id]/complete/page.tsx  (EXISTS)
+    ROUTE:      reached from 03-booking-detail-approved.html "Marcar concluído" button
+    AUTH:       JWT cookie, STAFF or MANAGER role
+    BFF CALL:   PATCH /v1/bookings/:id/complete
+      Body: {
+        lines: [{ lineId: uuid, actualPriceCharged: number }],  // required, >= 1
+        afterServicePhotoUrls?: string[],
+        adminNotes?: string
+      }
+      → 200: { bookingId, status: 'COMPLETED', completedAt, totalActualPrice }
+
+    Each line's input is PRE-FILLED with priceAtBooking (quoted price) as a default —
+    staff only edits the value when discounting or waiving (UC-009 step 4).
+
+    Same detail-layout / mobile-action-bar shell as 03-booking-detail-approved.html — the
+    primary action lives in the sticky aside (desktop) / fixed bottom bar (mobile), not inline
+    in the scrolling form, for consistency with every other actionable screen in this prototype.
+  -->
+
+  <div style="
+    background: #fef3c7; border-bottom: 1px solid #d97706;
+    padding: 0.375rem 1rem; font-size: 0.8125rem;
+    text-align: center; color: #92400e;
+  ">
+    Protótipo TD57-S12 — UC-009, a conclusão falhou. A mensagem fica no painel de ações, abaixo dos botões (no mobile, na barra fixa, acima dos botões). Os valores digitados são mantidos.
+  </div>
+
+  <div class="dashboard-topbar">
+    <a href="03-booking-detail-approved.html" style="
+      display: flex; align-items: center; gap: 0.375rem;
+      color: var(--ba-text); text-decoration: none; font-size: 0.9375rem; font-weight: 500;
+    ">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+      <span class="topbar-brand" style="font-weight: 600;">Voltar</span>
+    </a>
+    <h1 class="topbar-page-title">Marcar concluído</h1>
+    <div style="margin-left: auto; display: flex; align-items: center; gap: 0.75rem;">
+      <span class="status-badge status-approved" style="font-size: 0.75rem;">Aprovado</span>
+      <a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
+      <span class="topbar-date">Hoje, 16 de junho de 2026</span>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">B</div>
+        <div>
+          <p class="sidebar-tenant-name">BeloAuto Demo</p>
+          <p class="sidebar-tenant-slug">@beloauto</p>
+        </div>
+      </div>
+      <nav class="sidebar-nav" style="margin-top: 0.5rem;">
+        <a class="sidebar-nav-item active" href="../agenda/00-agenda.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          Agenda
+        </a>
+        <a class="sidebar-nav-item" href="../horarios/00-schedule.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+          Horários
+        </a>
+        <a class="sidebar-nav-item" href="../servicos/01-servicos-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+          </svg>
+          Serviços
+        </a>
+        <a class="sidebar-nav-item" href="../fidelidade/00-customer-search.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+          Fidelidade
+        </a>
+      </nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav">
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/resources/01-resources-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Recursos
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/equipe/01-team-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+          Equipe
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/configuracoes/01-settings-form.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          Configurações
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/hotsite/01-hotsite-editor.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          </svg>
+          Hotsite
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="list-avatar" style="flex-shrink: 0; width: 2rem; height: 2rem; font-size: 0.8125rem;">AP</div>
+        <div style="min-width: 0;">
+          <p class="sidebar-user-name">Ana Pereira</p>
+          <span class="role-badge role-badge-manager">Gerente</span>
+        </div>
+        <a class="sidebar-logout" href="../../../shared/staff-login.html" title="Sair">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </a>
+      </div>
+    </aside>
+
+    <main class="main-content" style="padding-bottom: 8rem;">
+      <div class="dashboard-body">
+        <div class="detail-layout">
+
+          <!-- ── LEFT: form ─────────────────────────────────────── -->
+          <div class="detail-main">
+
+            <!-- Per-line price editor -->
+            <!-- TD57-S12: heading and intro live INSIDE the first card, level with the pane's card -->
+            <div class="card" style="padding: 1.25rem; margin-bottom: 1.25rem;">
+              <p style="font-size: 0.8125rem; font-weight: 700; color: var(--ba-text); margin-bottom: 1rem;">Ajustar valor cobrado (opcional)</p>
+              <p style="font-size: 0.875rem; opacity: 0.7; color: var(--ba-text); margin-bottom: 0.5rem;">João Silva — segunda-feira, 16 de junho de 2026 às 10:00</p>
+              <div class="price-line">
+                <div>
+                  <p class="price-line-name">Lavagem Simples</p>
+                  <p class="price-line-quoted">Cotado: R$ 60,00</p>
+                </div>
+                <div class="price-input-wrap">
+                  <span>R$</span>
+                  <input
+                    type="number"
+                    class="form-input"
+                    style="width: 6rem; text-align: right; font-weight: 600;"
+                    id="price-line-1"
+                    value="60.00"
+                    step="0.01"
+                    min="0"
+                    data-quoted="60.00"
+                    oninput="recalcTotal()"
+                  >
+                </div>
+              </div>
+              <div style="
+                display: flex; justify-content: space-between; align-items: baseline;
+                padding: 0.625rem 0; border-top: 2px solid var(--ba-secondary);
+                margin-top: 0.125rem;
+              ">
+                <span style="font-size: 0.8125rem; font-weight: 700; color: var(--ba-text);">Total a cobrar</span>
+                <span id="total-charged" style="font-weight: 700; color: var(--ba-primary); font-size: 1rem;">R$ 60,00</span>
+              </div>
+            </div>
+
+            <!-- ── LOYALTY STRIP — UC-009 A6 ──────────────────────────
+                 Shown when: customerId != null AND points_per_currency_unit > 0
+                 Hidden for: guest bookings (A4) or when feature is disabled (= 0)
+                 Conversion rate: tenants.settings.loyalty.points_per_currency_unit
+                 BFF call after complete: POST /v1/loyalty/redeem { customerId, pointsToRedeem, bookingId }
+            -->
+            <p class="detail-section-label" style="margin-top: 0.5rem;">Fidelidade do cliente</p>
+            <div class="card" style="padding: 1rem; margin-bottom: 1.25rem;
+                 background: #eff6ff; border: 1px solid #bfdbfe;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+                <div>
+                  <p style="font-size: 0.9375rem; font-weight: 600; color: var(--ba-text);">
+                    João tem <strong>350 pontos</strong> disponíveis
+                  </p>
+                  <p style="font-size: 0.75rem; opacity: 0.6; color: var(--ba-text); margin-top: 0.125rem;">
+                    10 pts = R$ 1,00 · Valor máximo: R$ 35,00
+                  </p>
+                </div>
+                <span style="font-size: 0.75rem; background: #dbeafe; color: #1d4ed8;
+                             padding: 0.125rem 0.5rem; border-radius: 99px; font-weight: 600;">
+                  350 pts
+                </span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.625rem; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 0.375rem; flex: 1; min-width: 10rem;">
+                  <input
+                    type="number"
+                    id="points-to-use"
+                    class="form-input"
+                    style="width: 6.5rem; text-align: right; font-weight: 600;"
+                    value="0"
+                    min="0"
+                    max="350"
+                    step="10"
+                    oninput="recalcWithPoints()"
+                  >
+                  <span style="font-size: 0.875rem; opacity: 0.6; color: var(--ba-text);">pts</span>
+                  <span id="pts-brl" style="font-size: 0.875rem; color: #1d4ed8; font-weight: 600;">= R$ 0,00</span>
+                </div>
+                <button type="button" onclick="useAllPoints()"
+                        style="font-size: 0.8125rem; font-weight: 600; color: var(--ba-primary);
+                               background: none; border: 1px solid var(--ba-primary);
+                               border-radius: var(--ba-radius); padding: 0.375rem 0.75rem; cursor: pointer; white-space: nowrap;">
+                  Usar todos
+                </button>
+              </div>
+              <!-- discount row — appears after entering pts > 0 -->
+              <div id="discount-row" style="display: none; margin-top: 0.625rem; padding-top: 0.625rem;
+                   border-top: 1px solid #bfdbfe;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.875rem;
+                             color: #1d4ed8; font-weight: 600;">
+                  <span>Desconto fidelidade (<span id="discount-pts-label">0</span> pts)</span>
+                  <span>− R$ <span id="discount-amount">0,00</span></span>
+                </div>
+              </div>
+            </div>
+            <!-- END LOYALTY STRIP -->
+
+            <!-- After-service photos -->
+            <p class="detail-section-label">Fotos depois do serviço (opcional)</p>
+            <div class="photo-grid" style="margin-bottom: 0.75rem;">
+              <div class="photo-thumb" style="border: 1px dashed rgba(17,24,39,0.15); cursor: pointer;">
+                <span>+ foto</span>
+              </div>
+            </div>
+            <p style="font-size: 0.75rem; opacity: 0.5; color: var(--ba-text); margin-bottom: 1.25rem;">
+              PNG ou JPG. Opcional — a conclusão não exige fotos (Alt A3).
+            </p>
+
+            <!-- Admin notes -->
+            <p class="detail-section-label">Notas (opcional)</p>
+            <textarea
+              class="form-input"
+              rows="3"
+              placeholder="Ex: Aplicado brilho extra no para-choque."
+              style="resize: none;"
+            ></textarea>
+
+          </div><!-- /.detail-main -->
+
+          <!-- ── RIGHT: confirm panel (desktop only) ─────────────── -->
+          <div class="detail-aside">
+            <div class="card" style="padding: 1.25rem;">
+              <p style="font-size: 0.8125rem; font-weight: 700; color: var(--ba-text); margin-bottom: 1rem;">Confirmar conclusão</p>
+              <button class="btn-primary" style="display: block; width: 100%; text-align: center; margin-bottom: 0.625rem;"
+                      onclick="submitComplete()">
+                Confirmar conclusão
+              </button>
+              <a href="03-booking-detail-approved.html" class="btn-secondary"
+                 style="display: block; text-align: center;">
+                Cancelar
+              </a>
+
+              <hr style="border: none; border-top: 1px solid var(--ba-secondary); margin: 1rem 0;">
+              <p style="font-size: 0.75rem; opacity: 0.5; color: var(--ba-text); line-height: 1.5;">
+                O cliente recebe um email com o resumo cotado vs. cobrado e ganha pontos de fidelidade.
+              </p>
+            </div>
+            <!-- TD57-S12: second card, under the buttons, inside the sticky pane (MarkCompleteActionRail) -->
+            <div class="fb fb-error" role="alert" data-testid="form-feedback" style="margin-top: 0.75rem;">
+              <span class="fb-title">Não foi possível concluir o agendamento. Tente novamente.</span>
+            </div>
+          </div>
+
+        </div><!-- /.detail-layout -->
+      </div>
+    </main>
+
+  </div><!-- /.dashboard-layout -->
+
+  <!-- ═══ MOBILE ACTION BAR ═══ -->
+  <div class="mobile-action-bar" style="
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: white; border-top: 1px solid var(--ba-secondary);
+    padding: 0.875rem 1rem calc(0.875rem + env(safe-area-inset-bottom, 0));
+    display: flex; flex-direction: column; gap: 0.625rem;
+    z-index: 20;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
+  ">
+    <div class="fb fb-error" role="alert" data-testid="form-feedback-mobile" style="max-height: 6.5rem; overflow-y: auto; padding: 0.5rem 0.75rem; font-size: 0.8125rem;">
+      <span class="fb-title">Não foi possível concluir o agendamento. Tente novamente.</span>
+    </div>
+    <button class="btn-primary" style="text-align: center;" onclick="submitComplete()">
+      Confirmar conclusão
+    </button>
+    <a href="03-booking-detail-approved.html" class="btn-secondary" style="text-align: center;">
+      Cancelar
+    </a>
+  </div>
+
+  <script>
+    var PTS_PER_UNIT = 10; // tenants.settings.loyalty.points_per_currency_unit
+    var MAX_POINTS   = 350;
+
+    function getLinesTotal() {
+      var t = 0;
+      document.querySelectorAll('.detail-main .form-input[type="number"]:not(#points-to-use)').forEach(function (i) {
+        t += parseFloat(i.value || '0');
+      });
+      return t;
+    }
+
+    function recalcTotal() {
+      recalcWithPoints();
+    }
+
+    function recalcWithPoints() {
+      var linesTotal = getLinesTotal();
+      var pts = Math.max(0, parseInt(document.getElementById('points-to-use').value || '0', 10));
+      var maxDiscount = Math.floor(linesTotal * PTS_PER_UNIT);
+      pts = Math.min(pts, maxDiscount, MAX_POINTS);
+
+      var discount = pts / PTS_PER_UNIT;
+      var finalTotal = Math.max(0, linesTotal - discount);
+
+      document.getElementById('pts-brl').textContent = '= R$ ' + discount.toFixed(2).replace('.', ',');
+
+      var discountRow = document.getElementById('discount-row');
+      if (pts > 0) {
+        discountRow.style.display = 'block';
+        document.getElementById('discount-pts-label').textContent = pts;
+        document.getElementById('discount-amount').textContent = discount.toFixed(2).replace('.', ',');
+      } else {
+        discountRow.style.display = 'none';
+      }
+
+      document.getElementById('total-charged').textContent = 'R$ ' + finalTotal.toFixed(2).replace('.', ',');
+    }
+
+    function useAllPoints() {
+      var linesTotal = getLinesTotal();
+      var maxPts = Math.min(Math.floor(linesTotal * PTS_PER_UNIT), MAX_POINTS);
+      document.getElementById('points-to-use').value = maxPts;
+      recalcWithPoints();
+    }
+
+    function submitComplete() {
+      window.location.href = '04b-complete-success.html';
+    }
+  </script>
+
+</body>
+</html>

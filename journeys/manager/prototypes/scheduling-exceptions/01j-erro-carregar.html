@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Reservas a resolver — erro — BeloAuto</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="../../../shared/feedback-pane.css">
   
   <style>
     /* Day-group header — same as staff/agenda/00-agenda.html */
@@ -114,7 +115,8 @@
 <body class="">
 
   <!--
-    STATE: GET failed — banner-error (same as staff/agenda/10b) with a retry. Nothing is rendered below it.
+    STATE: GET failed — TD57-S12: a page-level FeedbackMessage (role="alert", data-testid="scheduling-exceptions-load-error") with a
+    retry button (label `retry`, "Tentar de novo"). As shipped, the page intro is NOT rendered in this branch and nothing is rendered below it.
   -->
 
   <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
@@ -198,11 +200,10 @@
 
     <main class="main-content">
       <div class="dashboard-body">
-<p class="intro">Mudanças nos recursos nunca movem clientes automaticamente. Cada reserva abaixo precisa de uma decisão sua — você pode decidir várias de uma vez.</p>
-        <div class="banner banner-error">
-          <p class="t">Não foi possível carregar as reservas</p>
-          <p class="d">Verifique sua conexão e tente novamente.</p>
-          <a href="01-exception-worklist.html" class="btn-secondary">Tentar novamente</a>
+        <div class="fb fb-error" role="alert" data-testid="scheduling-exceptions-load-error">
+          <span class="fb-title">Não foi possível carregar as reservas</span>
+          <span class="fb-hint">Verifique sua conexão e tente novamente.</span>
+          <a href="01-exception-worklist.html" class="fb-retry">Tentar de novo</a>
         </div>
 
       </div>

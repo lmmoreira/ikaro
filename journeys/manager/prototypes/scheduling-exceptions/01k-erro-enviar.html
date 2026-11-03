@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reservas a resolver — erro ao enviar — BeloAuto</title>
+  <title>Reatribuir — erro ao enviar — BeloAuto</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="../../../shared/feedback-pane.css">
   
   <style>
     /* Day-group header — same as staff/agenda/00-agenda.html */
@@ -114,8 +115,13 @@
 <body class="">
 
   <!--
-    STATE: the whole POST /resolve | /dismiss request failed (5xx, network, or 409 on a reschedule slot). NOTHING changed → the list stays, the selection is kept,
-    the error is a banner above the list. DISTINCT from 01d (some bookings changed, some did not).
+    STATE (TD57-S12): the whole POST /resolve | /dismiss request failed (5xx, network, or a 409 on a reschedule slot). NOTHING changed, so the list
+    stays, the selection is kept, and the sheet stays OPEN with the error between its fields and its buttons (BookingActionSheetShell). There is NO
+    list-level banner. DISTINCT from 01d (some bookings changed, some did not).
+    The message is the backend-resolved text when the error is an ApiError, otherwise `submitError` + `submitErrorBody` as drawn.
+    COMPONENT: ReassignSheet  (GAP — M23-S14)   opens from the selection bar or the row "Reatribuir"
+    POST /v1/scheduling-exceptions/resolve   { exceptionIds, resolutionType: 'REASSIGN', target: { mode: 'AUTO' } | { resourceId }, reason? }
+    Uses the shared bottom-sheet (tokens.css) — a modal on desktop, a sheet on mobile. Choices = the union of the selected entries' stored alternatives, each labelled "livre em N de M reservas" (computed client-side); a resource that is not in an entry's alternatives is simply not compatible with it — the data carries no "ocupado" reasons, so none are shown.
   -->
 
   <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
@@ -200,10 +206,6 @@
     <main class="main-content">
       <div class="dashboard-body">
 <p class="intro">Mudanças nos recursos nunca movem clientes automaticamente. Cada reserva abaixo precisa de uma decisão sua — você pode decidir várias de uma vez.</p>
-        <div class="banner banner-error">
-          <p class="t">Não foi possível concluir</p>
-          <p class="d">Nenhuma reserva foi alterada. Sua seleção foi mantida — tente novamente em instantes. Se o erro for de horário ocupado, escolha outro horário.</p>
-        </div>
         <div class="qsec">
           <h2>Box 2 ficou indisponível</h2>
           <div class="line"></div>
@@ -281,6 +283,30 @@
 
   </div>
 
+  <div class="sheet-backdrop open" id="act-backdrop" onclick="location.href='01b-selecionados.html'"></div>
+  <div class="bottom-sheet open" id="act-sheet">
+    <div class="bottom-sheet-handle"></div>
+    <div class="sheet-body">
+      <h2>Reatribuir 2 reservas</h2>
+      <p class="sub">Mesmo dia e horário, outro recurso. Cada reserva é tratada por conta própria — se uma não puder ser movida, ela continua aberta.</p>
+      <label class="choice on"><input type="radio" name="t" checked> <span><strong>Qualquer recurso livre</strong><span class="why">O sistema escolhe um recurso compatível para cada reserva.</span></span></label>
+      <label class="choice"><input type="radio" name="t"> <span><strong>Box 1</strong><span class="why">Livre em 2 de 2 reservas</span></span></label>
+      <label class="choice"><input type="radio" name="t"> <span><strong>Box 3</strong><span class="why">Livre em 1 de 2 reservas — a outra continua aberta</span></span></label>
+      <div class="field" style="margin-top:1rem;">
+        <label class="form-label" for="r">Motivo (opcional)</label>
+        <textarea id="r" class="form-input" rows="2" style="resize:none;" placeholder="Ex: Box 2 em manutenção."></textarea>
+        <p class="field-hint">Fica registrado em cada reserva.</p>
+      </div>
+      <div class="fb fb-error" role="alert" data-testid="action-sheet-error" style="margin-top:1rem;">
+        <span class="fb-title">Não foi possível concluir</span>
+        <span class="fb-hint">Nenhuma reserva foi alterada. Sua seleção foi mantida — tente novamente em instantes.</span>
+      </div>
+      <div class="sheet-actions">
+        <a href="01d-resultado-parcial.html" class="btn-primary">Reatribuir 2 reservas</a>
+        <a href="01b-selecionados.html" class="btn-secondary">Voltar</a>
+      </div>
+    </div>
+  </div>
 
   <nav class="bottom-nav">
     <a class="bottom-nav-item" href="../../../staff/prototypes/agenda/00-agenda.html">

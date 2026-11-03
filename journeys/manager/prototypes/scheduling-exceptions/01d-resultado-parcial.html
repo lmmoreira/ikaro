@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Resultado — BeloAuto</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="../../../shared/feedback-pane.css">
   
   <style>
     /* Day-group header — same as staff/agenda/00-agenda.html */
@@ -89,6 +90,7 @@
     /* Banners + states — same as staff/agenda/10b */
     .banner { border-radius: var(--ba-radius); padding: 1rem 1.25rem; margin-bottom: 1rem; border: 1px solid; }
     .banner-ok { background: #f0fdf4; border-color: #86efac; color: #15803d; }
+    .banner-warn { background: #fffbeb; border-color: #fcd34d; color: #92400e; }   /* any entry still open (BulkResultList: amber; green only when all resolved) */
     .banner-error { background: #fef2f2; border-color: #fca5a5; color: #dc2626; }
     .banner p.t { font-weight: 700; font-size: 0.9375rem; margin-bottom: 0.25rem; }
     .banner p.d { font-size: 0.875rem; line-height: 1.5; }
@@ -200,9 +202,10 @@
 
     <main class="main-content">
       <div class="dashboard-body">
-        <div class="banner banner-ok">
+        <!-- TD57-S12: the result banner is page content (informational), not a FeedbackMessage — it is amber while any entry is open -->
+        <div class="banner banner-warn">
           <p class="t">1 reserva resolvida · 1 continua aberta</p>
-          <p class="d">Cada reserva foi tratada por conta própria. A resolvida já saiu da lista; a que continua aberta precisa de uma nova decisão. João Silva foi avisado por e-mail.</p>
+          <p class="d">Cada reserva foi tratada por conta própria. As resolvidas saíram da lista; as que continuam abertas precisam de uma nova decisão.</p>
         </div>
         <div class="qsec"><h2>Resultado</h2><div class="line"></div><span class="count">2 reservas</span></div>
         <div class="qwrap">
@@ -214,8 +217,6 @@
             </div>
             <p class="qsvc">Lavagem Simples</p>
             <div class="qrow3"><span>Quinta-feira, 13 de agosto · 10:00</span><span>R$ 60,00 · 30min</span></div>
-            <p class="qinfo">Agora em Box 1</p>
-            
           </div>
         </div>
         <div class="qwrap">
@@ -228,7 +229,7 @@
             <p class="qsvc">Polimento Completo</p>
             <div class="qrow3"><span>Sexta-feira, 14 de agosto · 11:00</span><span>R$ 250,00 · 2h</span></div>
             <p class="qinfo open">Continua aberta: o Box 1 foi ocupado por outra reserva enquanto você decidia.</p>
-            <div class="qactions"><a href="01c-reatribuir.html" class="qbtn">Tentar de novo</a><a href="01e-reagendar.html" class="qbtn outline">Reagendar</a><a href="01f-cancelar.html" class="qbtn outline">Cancelar</a></div>
+            <div class="qactions"><a href="01c-reatribuir.html" class="qbtn">Reatribuir</a><a href="01e-reagendar.html" class="qbtn outline">Reagendar</a><a href="01f-cancelar.html" class="qbtn outline">Cancelar</a></div>
           </div>
         </div>
 
