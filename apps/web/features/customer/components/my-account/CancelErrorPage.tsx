@@ -6,9 +6,8 @@ import type { CustomerBookingDetailResponse } from '@ikaro/types';
 import { Card } from '@/shared/components/ui/card';
 import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
-import { digitsOnly } from '@/shared/utils/digits-only';
 import { useCustomerTopbarStatus } from '../customer-topbar-status-context';
-import { OutcomePage } from './OutcomePage';
+import { OutcomePage, whatsappAction } from './OutcomePage';
 
 interface CancelErrorPageProps {
   readonly booking: CustomerBookingDetailResponse;
@@ -74,15 +73,7 @@ export function CancelErrorPage({
         </FeedbackMessage>
       }
       primary={{ label: t('backButton'), href: backHref }}
-      secondary={
-        whatsapp === null
-          ? undefined
-          : {
-              label: t('whatsappCta'),
-              href: `https://wa.me/${digitsOnly(whatsapp)}`,
-              external: true,
-            }
-      }
+      secondary={whatsappAction(t('whatsappCta'), whatsapp)}
     >
       <Card className="rounded-xl border-gray-100 p-4 shadow-none">
         <p className="text-sm font-semibold text-gray-900">{serviceNames}</p>

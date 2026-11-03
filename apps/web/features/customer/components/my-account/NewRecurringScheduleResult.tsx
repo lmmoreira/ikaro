@@ -91,10 +91,14 @@ export function NewRecurringScheduleResult({
           </ActionPane>
         }
       >
-        <Heading eyebrow={service.name} title={tn('createdTitle')} />
-        <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm leading-relaxed text-green-900">
+        <FeedbackMessage
+          variant="success"
+          title={tn('createdTitle')}
+          hint={service.name}
+          testId="new-schedule-created-message"
+        >
           {tn('createdBody', { count, start, end })}
-        </div>
+        </FeedbackMessage>
       </NewRecurringScheduleLayout>
     );
   }

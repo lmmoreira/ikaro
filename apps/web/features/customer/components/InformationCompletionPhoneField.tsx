@@ -4,6 +4,7 @@ import {
   BRANDED_FIELD_INVALID_CLASS,
   BrandedFieldFeedback,
 } from '@/shared/components/hotsite/branded-field-feedback';
+import { BRANDED_FEEDBACK_PALETTE } from '@/shared/components/hotsite/branded-feedback-palette';
 import { cn } from '@/shared/utils/cn';
 import {
   formatPhoneForDisplay,
@@ -65,7 +66,7 @@ export function InformationCompletionPhoneField({
           {...inputProps}
           style={{
             borderRadius: '0 var(--ba-radius) var(--ba-radius) 0',
-            borderColor: error ? '#dc2626' : 'var(--ba-secondary)',
+            borderColor: error ? BRANDED_FEEDBACK_PALETTE.error.border : 'var(--ba-secondary)',
             backgroundColor: 'var(--ba-secondary)',
             color: 'var(--ba-text)',
           }}

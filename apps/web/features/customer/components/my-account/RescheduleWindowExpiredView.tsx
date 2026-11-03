@@ -3,10 +3,9 @@
 import { useTranslations } from 'next-intl';
 import { Card } from '@/shared/components/ui/card';
 import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
-import { digitsOnly } from '@/shared/utils/digits-only';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import type { BookingWindowFacts } from '../../hooks/useDescribeBookingWindow';
-import { OutcomePage } from './OutcomePage';
+import { OutcomePage, whatsappAction } from './OutcomePage';
 import { RescheduleBookingFacts } from './RescheduleBookingFacts';
 
 interface RescheduleWindowExpiredViewProps {
@@ -48,15 +47,7 @@ export function RescheduleWindowExpiredView({
         </FeedbackMessage>
       }
       primary={{ label: t('backButton'), href: backHref }}
-      secondary={
-        whatsapp === null
-          ? undefined
-          : {
-              label: t('whatsappCta'),
-              href: `https://wa.me/${digitsOnly(whatsapp)}`,
-              external: true,
-            }
-      }
+      secondary={whatsappAction(t('whatsappCta'), whatsapp)}
     >
       <Card className="rounded-xl border-gray-100 p-4 shadow-none">
         <p className="mb-2 text-sm font-semibold text-gray-900">{t('currentSectionLabel')}</p>

@@ -55,6 +55,8 @@ describe('NewRecurringScheduleResult', () => {
     });
 
     expect(screen.getByText('Recorrência criada')).toBeInTheDocument();
+    // The result is the shared page-level success message (an <output>), not a hand-rolled box.
+    expect(screen.getByTestId('new-schedule-created-message').tagName).toBe('OUTPUT');
     expect(
       screen.getByText(/Criamos as 13 reservas de 18\/08\/2026 a 10\/11\/2026/),
     ).toBeInTheDocument();

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ActionPane } from '@/shared/components/ui/action-pane';
 import { Button } from '@/shared/components/ui/button';
+import { digitsOnly } from '@/shared/utils/digits-only';
 
 export interface OutcomeAction {
   readonly label: string;
@@ -10,6 +11,13 @@ export interface OutcomeAction {
   /** Opens in a new tab (a WhatsApp link). */
   readonly external?: boolean;
   readonly testId?: string;
+}
+
+/** The "contact via WhatsApp" link, or nothing when the business has no number. */
+export function whatsappAction(label: string, whatsapp: string | null): OutcomeAction | undefined {
+  return whatsapp === null
+    ? undefined
+    : { label, href: `https://wa.me/${digitsOnly(whatsapp)}`, external: true };
 }
 
 interface OutcomePageProps {
