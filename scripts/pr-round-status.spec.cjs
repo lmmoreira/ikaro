@@ -36,6 +36,11 @@ function run(snapshots, env = {}, opts = {}) {
     path.join(dir, 'check-runs.json'),
     JSON.stringify({ check_runs: opts.checkRuns || [] }),
   );
+  // `opts.suiteRuns`: the workflow runs of the check suite that owns a bare check-run row.
+  fs.writeFileSync(
+    path.join(dir, 'suite-runs.json'),
+    JSON.stringify({ workflow_runs: opts.suiteRuns || [] }),
+  );
   fs.writeFileSync(
     path.join(dir, 'gh'),
     `#!/usr/bin/env bash
@@ -48,7 +53,11 @@ if [ "$1" = "pr" ] && [ "$2" = "view" ]; then
   cat "${dir}/comments.json"; exit 0
 fi
 if [ "$1" = "api" ]; then
+  jqexpr=""; prev=""
+  for a in "$@"; do [ "$prev" = "--jq" ] && jqexpr="$a"; prev="$a"; done
   case "$*" in
+    *check-runs/[0-9]*) echo '{"check_suite":{"id":77}}' | jq -r "$jqexpr" ;;
+    *check_suite_id=77*) jq -r "$jqexpr" "${dir}/suite-runs.json" ;;
     *check_name=CodeRabbit*) jq '{check_runs: [.check_runs[] | select(.name == "CodeRabbit")]}' "${dir}/check-runs.json" ;;
     *check-runs*) jq '{check_runs: .check_runs[0:30]}' "${dir}/check-runs.json" ;;
     *) echo '[]' ;;
@@ -399,4 +408,54 @@ test('finds the CodeRabbit check run on a head that carries more runs than one p
 
   assert.equal(result.status, 0);
   assert.match(result.stdout, /CodeRabbit: Finished/);
+});
+
+const ghost = (name) => [name, 'pending', '10s', `https://github.com/lmmoreira/ikaro/runs/555`];
+
+test('gives up with exit code 4 when the only pending check is a ghost of a completed workflow run — PR #712 regression', () => {
+  const rows = [row('ESLint', 'pass'), ghost('actionlint')];
+
+  const result = run([rows], { STUCK_POLLS: '3' }, { suiteRuns: [{ status: 'completed' }] });
+
+  assert.equal(result.status, 4);
+  assert.match(result.stderr, /can no longer finish/);
+  assert.match(result.stderr, /actionlint/);
+  assert.match(result.stderr, /gh run rerun/);
+  assert.equal(result.polls, 4, 'gave up after STUCK_POLLS polls (plus the initial check)');
+});
+
+test('keeps waiting while the workflow run behind a pending check-run is still in progress', () => {
+  const running = [row('ESLint', 'pass'), ghost('actionlint')];
+  const done = [row('ESLint', 'pass'), row('actionlint', 'pass'), row(GATE, 'pass')];
+
+  const result = run(
+    [running, running, running, running, running, done],
+    { STUCK_POLLS: '3' },
+    { suiteRuns: [{ status: 'in_progress' }] },
+  );
+
+  assert.equal(result.status, 0);
+  assert.ok(result.polls >= 6);
+});
+
+test('does not call a pending check stuck while another pending row is a real running job', () => {
+  const rows = [row('Backend Unit Tests', 'pending'), ghost('actionlint')];
+  const done = [row('Backend Unit Tests', 'pass'), row('actionlint', 'pass'), row(GATE, 'pass')];
+
+  const result = run(
+    [rows, rows, rows, rows, rows, done],
+    { STUCK_POLLS: '3' },
+    { suiteRuns: [{ status: 'completed' }] },
+  );
+
+  assert.equal(result.status, 0);
+});
+
+test('ignores a pending check whose suite has no workflow run (SonarCloud, a Terraform Cloud run)', () => {
+  const rows = [row('ESLint', 'pass'), ghost('SonarCloud Code Analysis')];
+  const done = [...rows.slice(0, 1), row('SonarCloud Code Analysis', 'pass'), row(GATE, 'pass')];
+
+  const result = run([rows, rows, rows, rows, rows, done], { STUCK_POLLS: '3' }, { suiteRuns: [] });
+
+  assert.equal(result.status, 0);
 });

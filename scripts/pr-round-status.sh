@@ -49,8 +49,10 @@
 # failed) — Codex/CodeRabbit/Sonar findings are information for the caller to
 # triage, not a script failure. The one other code is 3: --wait-codex was set, no
 # `codex exec` process for this PR is running any more, and no review comment has
-# appeared (the reviewer died without posting — see CODEX_GONE_POLLS below). Polls
-# every 30s with no total timeout (same blocking design as the script it replaces);
+# appeared (the reviewer died without posting — see CODEX_GONE_POLLS below). The other
+# is 4: every pending check belongs to a workflow run that already completed (a reviewdog
+# job that failed to post its result), so it can never finish — see STUCK_POLLS below.
+# Polls every 30s with no total timeout (same blocking design as the script it replaces);
 # Ctrl-C to abort.
 #
 # Usage (inside Claude):  ! bash scripts/pr-round-status.sh
@@ -98,6 +100,44 @@ codex_gone_exit() {
   fi
   echo "   Re-dispatch it, then run this script again with a fresh --since. (CODEX_LIVENESS_CHECK=0 if Codex runs on another machine.)" >&2
   exit 3
+}
+
+# A check-run can stay open forever although the workflow run that owns it has completed: the
+# reviewdog `actionlint` job failed with `failed to post result: PATCH .../check-runs/<id>: 404`,
+# so its check-run was never closed and `gh pr checks` printed it as pending for hours (PR #712,
+# 2026-11-03: 8 hours of waiting with Codex, CodeRabbit and every real job finished). When every
+# pending row is such a ghost for STUCK_POLLS consecutive polls (default 4), give up with exit 4
+# instead of waiting on a check that can no longer finish.
+STUCK_POLLS="${STUCK_POLLS:-4}"
+STUCK_COUNT=0
+
+# Prints "name<TAB>url" for each pending row whose check-run is still open while every workflow
+# run of its check suite has completed. Only rows linked to a bare check-run (`.../runs/<id>`)
+# qualify; a job row (`.../job/<id>`) is handled by correct_ci_output, and a row with no workflow
+# run in its suite (SonarCloud, a Terraform Cloud run) is trusted as-is.
+stuck_pending_rows() {
+  local name bucket elapsed url check_run_id suite verdict
+  while IFS=$'\t' read -r name bucket elapsed url; do
+    [ "$bucket" = "pending" ] || continue
+    check_run_id=$(printf '%s' "$url" | grep -oE '/runs/[0-9]+$' | grep -oE '[0-9]+' || true)
+    [ -n "$check_run_id" ] || continue
+    suite=$(gh api "repos/${REPO}/check-runs/${check_run_id}" --jq '.check_suite.id // empty' 2>/dev/null || true)
+    [ -n "$suite" ] || continue
+    verdict=$(gh api "repos/${REPO}/actions/runs?check_suite_id=${suite}" \
+      --jq 'if (.workflow_runs | length) > 0 and ([.workflow_runs[] | select(.status != "completed")] | length) == 0 then "stuck" else "live" end' \
+      2>/dev/null || true)
+    if [ "$verdict" = "stuck" ]; then
+      printf '%s\t%s\n' "$name" "$url"
+    fi
+  done <<< "$1"
+}
+
+stuck_exit() {
+  echo "❌ PR #${PR_NUMBER}: the only pending check(s) belong to workflow runs that already completed, so they can no longer finish:" >&2
+  printf '%s\n' "$1" | sed 's/^/   /' >&2
+  echo "   Usually a reviewdog job that failed to post its result (404 on the check-run PATCH). Find the run holding the failed job (gh pr checks ${PR_NUMBER}) and re-run it: gh run rerun <run id> --failed" >&2
+  echo "   If mergeStateStatus then reads BLOCKED with every check green, re-run the whole workflow run instead. Then run this script again." >&2
+  exit 4
 }
 
 PR_NUMBER=""
@@ -192,6 +232,17 @@ while true; do
     STABLE_COUNT=0
   fi
   PREV_CI_TOTAL="$CI_ROWS"
+  if [ "$CI_PENDING" -gt 0 ]; then
+    STUCK_ROWS=$(stuck_pending_rows "$CI_OUTPUT")
+    if [ -n "$STUCK_ROWS" ] && [ "$(printf '%s\n' "$STUCK_ROWS" | grep -c .)" -eq "$CI_PENDING" ]; then
+      STUCK_COUNT=$((STUCK_COUNT + 1))
+    else
+      STUCK_COUNT=0
+    fi
+    [ "$STUCK_COUNT" -lt "$STUCK_POLLS" ] || stuck_exit "$STUCK_ROWS"
+  else
+    STUCK_COUNT=0
+  fi
   GATE_TERMINAL=0
   printf '%s\n' "$CI_OUTPUT" | awk -F'\t' -v gate="$GATE_NAME" '$1==gate && $2!="pending"{found=1} END{exit !found}' && GATE_TERMINAL=1
 
