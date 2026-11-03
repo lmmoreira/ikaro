@@ -20,6 +20,16 @@ describe('NewRecurringScheduleLayout', () => {
     expect(within(desktop).getByRole('button', { name: 'Go' })).toBeInTheDocument();
   });
 
+  it('reserves room below the content for the tallest mobile bar (aside plus two stacked links)', () => {
+    render(
+      <NewRecurringScheduleLayout testId="screen" pane={<button type="button">Go</button>}>
+        <p>content</p>
+      </NewRecurringScheduleLayout>,
+    );
+
+    expect(screen.getByTestId('screen')).toHaveClass('pb-56', 'lg:pb-0');
+  });
+
   it('puts the aside text above the pane buttons', () => {
     render(
       <ActionPane aside="Nothing is reserved yet.">
@@ -27,5 +37,40 @@ describe('NewRecurringScheduleLayout', () => {
       </ActionPane>,
     );
     expect(screen.getByText('Nothing is reserved yet.')).toBeInTheDocument();
+  });
+
+  it('uses the shared action pane: a sticky desktop card and a fixed mobile bar', () => {
+    render(
+      <NewRecurringScheduleLayout testId="screen" pane={<button type="button">Go</button>}>
+        <p>content</p>
+      </NewRecurringScheduleLayout>,
+    );
+
+    expect(screen.getByTestId('action-pane-desktop').className).toContain('lg:sticky');
+    expect(screen.getByTestId('action-pane-mobile').className).toContain('fixed');
+  });
+
+  it('shows a failure under the pane buttons, and nothing when there is none', () => {
+    const { rerender } = render(
+      <NewRecurringScheduleLayout testId="screen" pane={<button type="button">Go</button>}>
+        <p>content</p>
+      </NewRecurringScheduleLayout>,
+    );
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    rerender(
+      <NewRecurringScheduleLayout
+        testId="screen"
+        pane={<button type="button">Go</button>}
+        feedback={{ variant: 'error', title: 'Falhou', testId: 'failure' }}
+      >
+        <p>content</p>
+      </NewRecurringScheduleLayout>,
+    );
+
+    expect(within(screen.getByTestId('action-pane-desktop')).getByRole('alert')).toHaveTextContent(
+      'Falhou',
+    );
+    expect(screen.getByTestId('failure')).toBeInTheDocument();
   });
 });

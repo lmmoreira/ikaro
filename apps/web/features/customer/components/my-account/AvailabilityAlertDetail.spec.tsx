@@ -160,4 +160,16 @@ describe('AvailabilityAlertDetail', () => {
       '/vitta/my-account/alerts|backToList',
     );
   });
+
+  it('uses the shared action pane: a sticky desktop card and a fixed mobile bar, each with the back link', () => {
+    render(<AvailabilityAlertDetail alert={makeAlert()} tenantSlug="vitta" />);
+
+    for (const place of ['action-pane-desktop', 'action-pane-mobile']) {
+      expect(
+        within(screen.getByTestId(place)).getByRole('link', { name: 'backButton' }),
+      ).toBeTruthy();
+    }
+    expect(screen.getByTestId('action-pane-mobile').className).toContain('fixed');
+    expect(screen.getByTestId('action-pane-desktop').className).toContain('lg:sticky');
+  });
 });

@@ -319,9 +319,17 @@ describe('BookingDetailPage', () => {
       />,
     );
 
-    // Rendered twice: once inline for mobile, once in the sticky desktop sidebar.
-    expect(screen.getAllByText('Pode confirmar o polimento?')).toHaveLength(2);
-    expect(screen.getAllByLabelText('Mensagem')).toHaveLength(2);
+    // The request and the answer fields sit in the page; the submit button sits in the action pane.
+    expect(screen.getByText('Pode confirmar o polimento?')).toBeInTheDocument();
+    expect(screen.getByLabelText('Mensagem')).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('action-pane-desktop')).getByRole('button', {
+        name: 'Enviar resposta',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('action-pane-desktop')).queryByLabelText('Mensagem'),
+    ).toBeNull();
   });
 
   it('INFO_REQUESTED with a prior response: hides the form', () => {
@@ -353,17 +361,18 @@ describe('BookingDetailPage', () => {
       />,
     );
 
-    // Rendered twice (mobile + desktop sidebar) — act within the desktop pane only.
+    // The answer is typed in the page and sent from the pane's button.
     const desktopPane = screen.getByTestId('action-pane-desktop');
-    await user.type(within(desktopPane).getByLabelText('Mensagem'), 'Sim, pode');
+    await user.type(screen.getByLabelText('Mensagem'), 'Sim, pode');
     await user.click(within(desktopPane).getByRole('button', { name: 'Enviar resposta' }));
 
     await waitFor(() =>
       expect(screen.getByTestId('probe-booking-status')).toHaveTextContent('PENDING'),
     );
-    expect(
-      screen.getByText('Resposta enviada! Nossa equipe vai analisar em breve.'),
-    ).toBeInTheDocument();
+    // The confirmation is the shared success message in the action pane, not a box in the page.
+    const sent = within(desktopPane).getByTestId('info-sent-confirmation');
+    expect(sent).toHaveTextContent('Resposta enviada! Nossa equipe vai analisar em breve.');
+    expect(sent.tagName).toBe('OUTPUT');
     expect(screen.queryByLabelText('Mensagem')).not.toBeInTheDocument();
   });
 

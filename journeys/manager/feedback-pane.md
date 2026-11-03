@@ -38,7 +38,7 @@ Every node in red is a gap: the screens do not use the shared components yet (`T
 | `/dashboard/services/[id]/edit` (Recursos, Políticas, Formulário) | `ServiceResourceModePicker`, `PolicyDurationPricingCard`, `IntakeQuestionsCard` | TD57-S03 | ✅ First box level with the pane on all five tabs (intro inside the first card; the mode picker in a card) |
 | `/dashboard/team` | `MemberRow` | TD57-S04 | ⚠ Exists, success message never visible |
 | `/dashboard/resources` | `ResourceListPage` | TD57-S07 | ⚠ Exists, hand-rolled error box |
-| `/[slug]/my-account/bookings/[id]/cancel` | `CancelConfirmPage` | TD57-S11 | ⚠ Exists, error above the content |
+| `/[slug]/my-account/bookings/[id]/cancel` | `CancelConfirmPage` | TD57-S11 | ✅ Error under the buttons, in the pane |
 | `/[slug]` (lead form) | public lead form + branded feedback component | TD57-S16 | ⚠ Component exists (TD57-S06); form still uses a hand-rolled box |
 | Shared components | `FeedbackMessage`, `ActionPane`, `FieldFeedback`, `useFormFeedback` | TD57-S01 | ✅ EXISTS |
 

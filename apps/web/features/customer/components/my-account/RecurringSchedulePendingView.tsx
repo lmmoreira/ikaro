@@ -4,6 +4,9 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import type { RecurringBookingScheduleListItem } from '@ikaro/types';
+import { ActionPane } from '@/shared/components/ui/action-pane';
+import { Button } from '@/shared/components/ui/button';
+import { Card } from '@/shared/components/ui/card';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { recurringScheduleListPath } from '../../recurring-schedule-model';
 import { useCustomerTopbarStatus } from '../customer-topbar-status-context';
@@ -53,25 +56,23 @@ export function RecurringSchedulePendingView({
   const start = formatDateKey(schedule.startsOn);
   const end = formatDateKey(schedule.endsOn);
 
-  function renderActionPane(): React.JSX.Element {
-    return (
-      <div className="flex flex-col gap-2 rounded-xl border border-gray-100 bg-white p-4">
-        <p className="mb-1 text-sm leading-relaxed text-gray-500">{t('pendingAside')}</p>
-        <Link
-          href={listHref}
-          className="rounded-lg bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-blue-700"
-        >
-          {t('viewMine')}
-        </Link>
-      </div>
-    );
-  }
+  const viewMine = (
+    <Button asChild className="w-full">
+      <Link href={listHref}>{t('viewMine')}</Link>
+    </Button>
+  );
+  const paneActions = (
+    <>
+      <p className="text-sm leading-relaxed text-gray-500">{t('pendingAside')}</p>
+      {viewMine}
+    </>
+  );
 
   return (
-    <div className="w-full" data-testid="recurring-schedule-pending">
-      <div className="lg:grid lg:grid-cols-[1fr_22rem] lg:items-start lg:gap-6">
+    <div className="w-full pb-40 lg:pb-0" data-testid="recurring-schedule-pending">
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-6">
         <div className="flex flex-col gap-4">
-          <div>
+          <Card className="rounded-xl border-gray-100 p-4 shadow-none">
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
               {schedule.serviceName}
             </p>
@@ -84,7 +85,7 @@ export function RecurringSchedulePendingView({
                 service: schedule.serviceName,
               })}
             </p>
-          </div>
+          </Card>
 
           <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
             <p className="text-base font-bold text-gray-900">{t('pendingHoldTitle')}</p>
@@ -108,15 +109,9 @@ export function RecurringSchedulePendingView({
             <p className="font-semibold">{t('pendingSingleTitle')}</p>
             <p className="mt-1.5">{t('pendingSingleBody', { service: schedule.serviceName })}</p>
           </div>
-
-          <div data-testid="action-pane-mobile" className="lg:hidden">
-            {renderActionPane()}
-          </div>
         </div>
 
-        <div data-testid="action-pane-desktop" className="hidden lg:sticky lg:top-6 lg:block">
-          {renderActionPane()}
-        </div>
+        <ActionPane actions={paneActions} mobileActions={viewMine} />
       </div>
     </div>
   );

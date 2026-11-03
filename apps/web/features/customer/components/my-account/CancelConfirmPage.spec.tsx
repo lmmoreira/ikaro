@@ -150,9 +150,11 @@ describe('CancelConfirmPage', () => {
     const desktopPane = screen.getByTestId('action-pane-desktop');
     await user.click(within(desktopPane).getByRole('button', { name: 'Confirmar cancelamento' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
+    expect(await within(desktopPane).findByRole('alert')).toHaveTextContent(
       'Não é possível alterar o status do agendamento para o status solicitado.',
     );
+    // The message sits under the buttons, inside the action pane — not above the page content.
+    expect(within(desktopPane).getByTestId('cancel-confirm-error')).toBeInTheDocument();
     expect(pushMock).not.toHaveBeenCalledWith('/lavacar-bh/my-account/bookings/b1/cancel/error');
   });
 
@@ -164,11 +166,20 @@ describe('CancelConfirmPage', () => {
     const desktopPane = screen.getByTestId('action-pane-desktop');
     await user.click(within(desktopPane).getByRole('button', { name: 'Confirmar cancelamento' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Algo deu errado. Tente novamente.');
+    expect(await within(desktopPane).findByRole('alert')).toHaveTextContent(
+      'Algo deu errado. Tente novamente.',
+    );
     expect(
       within(desktopPane).getByRole('button', { name: 'Confirmar cancelamento' }),
     ).not.toBeDisabled();
     expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it('shows no failure message before anything is submitted', () => {
+    render(<CancelConfirmPage booking={makeBooking()} tenantSlug="lavacar-bh" />);
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('cancel-confirm-error')).not.toBeInTheDocument();
   });
 
   it('"Voltar" calls router.back()', async () => {

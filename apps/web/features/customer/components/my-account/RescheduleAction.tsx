@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
+import { Button } from '@/shared/components/ui/button';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { appendReturnTo } from '../../booking-navigation';
 
@@ -10,6 +11,8 @@ interface RescheduleActionProps {
   readonly bookingId: string;
   readonly eligibleUntil: string;
   readonly returnTo?: string | null;
+  /** `button` for the mobile bar, `note` for the page below lg; the pane shows `full`. */
+  readonly part?: 'full' | 'button' | 'note';
 }
 
 export function RescheduleAction({
@@ -17,6 +20,7 @@ export function RescheduleAction({
   bookingId,
   eligibleUntil,
   returnTo = null,
+  part = 'full',
 }: RescheduleActionProps): React.JSX.Element {
   const t = useTranslations('customer.bookingDetail');
   const { formatDateLong, formatTime } = useFormatting();
@@ -26,20 +30,26 @@ export function RescheduleAction({
     returnTo,
   );
 
+  const note = (
+    <p className="text-xs text-gray-500">
+      {t('rescheduleWindowNote', {
+        date: formatDateLong(deadline),
+        time: formatTime(deadline),
+      })}
+    </p>
+  );
+  const button = (
+    <Button asChild variant="outline" className="w-full">
+      <Link href={href}>{t('rescheduleButton')}</Link>
+    </Button>
+  );
+
+  if (part === 'note') return note;
+  if (part === 'button') return button;
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-gray-100 bg-white p-4">
-      <p className="text-xs text-gray-500">
-        {t('rescheduleWindowNote', {
-          date: formatDateLong(deadline),
-          time: formatTime(deadline),
-        })}
-      </p>
-      <Link
-        href={href}
-        className="rounded-lg border border-gray-200 px-4 py-2.5 text-center text-sm font-semibold text-gray-700 hover:bg-gray-50"
-      >
-        {t('rescheduleButton')}
-      </Link>
-    </div>
+    <>
+      {note}
+      {button}
+    </>
   );
 }

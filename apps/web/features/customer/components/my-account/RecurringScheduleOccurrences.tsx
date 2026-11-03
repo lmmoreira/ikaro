@@ -8,6 +8,7 @@ import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { appendReturnTo } from '../../booking-navigation';
 import { recurringScheduleDetailPath, totalOccurrencePages } from '../../recurring-schedule-model';
+import { DetailSection } from './DetailSection';
 import { OccurrencePager } from './OccurrencePager';
 
 interface RecurringScheduleOccurrencesProps {
@@ -46,16 +47,13 @@ export function RecurringScheduleOccurrences({
   const title = mode === 'upcoming' ? t('upcomingTitle') : t('periodBookingsTitle');
 
   return (
-    <section data-testid="recurring-occurrences">
-      <p className="mb-2.5 text-[0.6875rem] font-bold uppercase tracking-wider text-gray-400">
-        {title}
-      </p>
+    <DetailSection title={title} testId="recurring-occurrences">
       {bookings.length === 0 ? (
-        <p className="rounded-xl border border-gray-100 bg-white p-4 text-sm text-gray-500">
+        <p className="mt-2 text-sm text-gray-500">
           {mode === 'upcoming' ? t('noUpcoming') : t('noPeriodBookings')}
         </p>
       ) : (
-        <ul className="rounded-xl border border-gray-100 bg-white px-4">
+        <ul>
           {bookings.map((booking) => {
             const startsAt = new Date(booking.scheduledAt);
             const minutes = booking.lines.reduce(
@@ -115,6 +113,6 @@ export function RecurringScheduleOccurrences({
         totalPages={totalOccurrencePages(total, limit)}
         hrefForPage={(target) => recurringScheduleDetailPath(tenantSlug, scheduleId, target)}
       />
-    </section>
+    </DetailSection>
   );
 }

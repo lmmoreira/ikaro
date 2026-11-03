@@ -45,7 +45,7 @@ vi.mock('next-intl', () => ({
         statusRejected: 'Rejeitado',
         statusCancelled: 'Cancelado',
         statusCompleted: 'Concluído',
-        infoNeeded: 'Admin precisa de informações',
+        infoNeeded: 'O estabelecimento precisa de informações',
         cancel: 'Cancelar',
         cancelRequest: 'Cancelar solicitação',
         respond: 'Responder',

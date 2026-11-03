@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { CustomerBookingListItem, RecurringBookingScheduleListItem } from '@ikaro/types';
 import {
@@ -280,5 +280,15 @@ describe('RecurringScheduleDetail — PENDING_APPROVAL', () => {
 
     expect(screen.getByTestId('recurring-schedule-pending')).toBeInTheDocument();
     expect(screen.queryByTestId('recurring-occurrences')).not.toBeInTheDocument();
+  });
+
+  it('uses the shared action pane for an active schedule', () => {
+    renderDetail(makeSchedule(), null);
+
+    expect(screen.getByTestId('action-pane-mobile').className).toContain('fixed');
+    expect(screen.getByTestId('action-pane-desktop').className).toContain('lg:sticky');
+    expect(
+      within(screen.getByTestId('action-pane-desktop')).getByTestId('end-schedule-link'),
+    ).toBeTruthy();
   });
 });

@@ -7,6 +7,7 @@ import { BOOKING_STATUS } from '@ikaro/types';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { PhotoTile } from '@/features/booking/components/PhotoTile';
 import { CustomerBookingExtras } from './CustomerBookingExtras';
+import { DetailSection } from './DetailSection';
 
 interface BookingDetailMainProps {
   readonly booking: CustomerBookingDetailResponse;
@@ -18,14 +19,6 @@ interface DetailRowProps {
   readonly label: string;
   readonly value: React.ReactNode;
   readonly last?: boolean;
-}
-
-function SectionLabel({ children }: { readonly children: React.ReactNode }): React.JSX.Element {
-  return (
-    <p className="mb-2.5 text-[0.6875rem] font-bold uppercase tracking-wider text-gray-400">
-      {children}
-    </p>
-  );
 }
 
 function DetailRow({ icon, label, value, last }: DetailRowProps): React.JSX.Element {
@@ -56,9 +49,8 @@ export function BookingDetailMain({
 
   return (
     <div className="flex flex-col gap-5">
-      <section>
-        <SectionLabel>{t('dateTimeTitle')}</SectionLabel>
-        <div className="rounded-xl border border-gray-100 bg-white px-4 shadow-sm">
+      <DetailSection title={t('dateTimeTitle')}>
+        <div>
           <DetailRow
             icon={<Calendar className={iconClass} aria-hidden="true" />}
             label={t('dateLabel')}
@@ -80,11 +72,10 @@ export function BookingDetailMain({
             />
           )}
         </div>
-      </section>
+      </DetailSection>
 
-      <section>
-        <SectionLabel>{t('servicesTitle')}</SectionLabel>
-        <div className="rounded-xl border border-gray-100 bg-white px-4 shadow-sm">
+      <DetailSection title={t('servicesTitle')}>
+        <div>
           {booking.lines.map((line) => (
             <div
               key={line.lineId}
@@ -117,14 +108,13 @@ export function BookingDetailMain({
             </span>
           </div>
         </div>
-      </section>
+      </DetailSection>
 
       {isCompleted && (
-        <section>
-          <SectionLabel>{t('summaryLabel')}</SectionLabel>
+        <DetailSection title={t('summaryLabel')}>
           <div
             data-testid="completion-summary"
-            className="flex flex-col gap-1.5 rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-3.5 text-sm text-blue-900"
+            className="mt-2.5 flex flex-col gap-1.5 rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-3.5 text-sm text-blue-900"
           >
             <p>{t('quotedPrice', { amount: formatMoney(booking.totalPrice.amount) })}</p>
             <p className="font-semibold">
@@ -145,15 +135,14 @@ export function BookingDetailMain({
               </p>
             )}
           </div>
-        </section>
+        </DetailSection>
       )}
 
       <CustomerBookingExtras booking={booking} tenantSlug={tenantSlug} />
 
       {booking.notes !== null && (
-        <section>
-          <SectionLabel>{t('notesTitle')}</SectionLabel>
-          <div className="rounded-xl border border-gray-100 bg-white px-4 shadow-sm">
+        <DetailSection title={t('notesTitle')}>
+          <div>
             <DetailRow
               icon={<MessageSquare className={iconClass} aria-hidden="true" />}
               label=""
@@ -161,22 +150,18 @@ export function BookingDetailMain({
               last
             />
           </div>
-        </section>
+        </DetailSection>
       )}
 
       {booking.infoResponseMessage !== null && (
-        <section>
-          <SectionLabel>{t('yourResponseTitle')}</SectionLabel>
-          <p className="rounded-xl border border-gray-100 bg-white px-4 py-3 text-sm text-gray-700 shadow-sm">
-            {booking.infoResponseMessage}
-          </p>
-        </section>
+        <DetailSection title={t('yourResponseTitle')}>
+          <p className="mt-2 text-sm text-gray-700">{booking.infoResponseMessage}</p>
+        </DetailSection>
       )}
 
       {booking.beforeServicePhotoUrls.length > 0 && (
-        <section>
-          <SectionLabel>{t('beforePhotosTitle')}</SectionLabel>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <DetailSection title={t('beforePhotosTitle')}>
+          <div className="mt-2.5 grid grid-cols-2 gap-2 sm:grid-cols-3">
             {booking.beforeServicePhotoUrls.map((url, index) => (
               <PhotoTile
                 key={`${url}-${index}`}
@@ -188,13 +173,12 @@ export function BookingDetailMain({
               />
             ))}
           </div>
-        </section>
+        </DetailSection>
       )}
 
       {isCompleted && booking.afterServicePhotoUrls.length > 0 && (
-        <section>
-          <SectionLabel>{t('afterPhotosTitle')}</SectionLabel>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <DetailSection title={t('afterPhotosTitle')}>
+          <div className="mt-2.5 grid grid-cols-2 gap-2 sm:grid-cols-3">
             {booking.afterServicePhotoUrls.map((url, index) => (
               <PhotoTile
                 key={`${url}-${index}`}
@@ -206,7 +190,7 @@ export function BookingDetailMain({
               />
             ))}
           </div>
-        </section>
+        </DetailSection>
       )}
     </div>
   );

@@ -34,7 +34,8 @@ test.describe('Information completion prompt (mandatory phone + address)', () =>
     await page.locator('[data-testid="information-completion-phone-input"]').fill('1199999');
     await page.locator('[data-testid="information-completion-submit"]').click();
 
-    await expect(page.locator('[data-testid="information-completion-error"]')).toContainText(
+    // The phone message sits under the phone input (TD57-S11), not in a form-level box.
+    await expect(page.locator('[data-testid="information-completion-phone-error"]')).toContainText(
       'telefone válido',
     );
     // Prompt is still open — submission was blocked client-side

@@ -118,8 +118,8 @@ Folder: `customer/prototypes/minha-conta/`
 | `02e-submit-error.html` | Detalhe — erro ao enviar resposta (rede/5xx no PATCH submit-info) | UC-005 A2 | M13-S28 | ✅ Criado |
 | `03-cancel-confirm.html` | Página de confirmação de cancelamento (dedicated page, not a sheet) | UC-007 | M13-S28 | ✅ Criado |
 | `03b-cancel-error.html` | Erro — cancelamento fora da janela de prazo | UC-007 A1 | M13-S28 | ✅ Criado |
-| `03c-cancel-confirm-feedback.html` | Confirmar cancelamento com o painel de ações do TD57 (título dentro do primeiro cartão, sem mensagem) | UC-007 | TD57-S11 | ❓ Gap (TD57-S11) |
-| `03d-cancel-confirm-feedback-erro.html` | Erro ao cancelar: cartão de mensagem sob os botões, dentro do painel | UC-007 | TD57-S11 | ❓ Gap (TD57-S11) |
+| `03c-cancel-confirm-feedback.html` | Confirmar cancelamento com o painel de ações do TD57 (título dentro do primeiro cartão, sem mensagem) | UC-007 | TD57-S11 | ✅ Done (TD57-S11) |
+| `03d-cancel-confirm-feedback-erro.html` | Erro ao cancelar: cartão de mensagem sob os botões, dentro do painel | UC-007 | TD57-S11 | ✅ Done (TD57-S11) |
 | `04-fidelidade.html` | Minha Fidelidade — saldo + tabs ganhos/resgates | UC-016 | M13-S29 | ✅ Criado |
 | `04b-fidelidade-empty.html` | Fidelidade — estado vazio (0 pontos) | UC-016 | M13-S29 | ✅ Criado |
 | `05-trocar-empresa.html` | Trocar empresa — seleção de tenant (UC-023 trigger) | UC-023 | M13-S30 | ✅ Criado |
@@ -231,7 +231,7 @@ flowchart TD
 | `16-agendamentos-empresa-inativa.html` | Account list with the "Empresa inativa" badge, history visible | UC-121 | planned Billing milestone | ❓ Draft |
 | `16b-detalhe-bloqueado.html` | An open booking's detail is blocked (opened from the list, or by direct URL — UC-121 A1) | UC-121, A1 | planned Billing milestone | ❓ Draft |
 | `16c-novo-agendamento-bloqueado.html` | A new booking is blocked (the disabled "Novo agendamento" button and the refused `/{slug}/booking` request) | UC-121 | planned Billing milestone | ❓ Draft |
-| `17-erro-de-rota.html` | Erro ao carregar a conta: `my-account/error.tsx` como mensagem de página com "Tentar novamente" | — | TD57-S11 | ❓ Gap (TD57-S11) |
+| `17-erro-de-rota.html` | Erro ao carregar a conta: `my-account/error.tsx` como mensagem de página com "Tentar novamente" | — | TD57-S11 | ✅ Done (TD57-S11) |
 
 ---
 
@@ -360,7 +360,7 @@ O detalhe entregue (`BookingDetailMain.tsx` do cliente) mostra data e horário, 
 
 Texto antigo em `02b`: "Horário a confirmar após aprovação" não vale mais — o agendamento sempre tem horário.
 
-## TD57 — Feedback inline e painel de ações (❓ Gap, `TD57-S11`)
+## TD57 — Feedback inline e painel de ações (✅ Done, `TD57-S11`)
 
 Cross-cutting pattern, source of truth `td/TD57-INLINE-FEEDBACK-AND-ACTION-PANE-PATTERN.md` and `manager/feedback-pane.md`. `TD57-S11` migrates every customer screen that shows an error or success message: the message moves to a card under the buttons inside the action pane (page-level load failures get a retry), the offending field is marked, the title and intro sit inside the first card, and every control sits in a card. `03c`/`03d` are the reference; the other pane screens (booking detail and info form, reschedule, end schedule, schedule detail, new-recurring outcomes, alert detail and cancel) and the page-level ones (alerts list error, route error, switch tenant, information-completion modal) are migrated in place. Decided 2026-11-02: customer panes adopt the shared fixed bottom bar (`bottom-0`; these drill-down routes hide the customer bottom nav). Informational banners (points earned, renewal, no-show and ended notices) stay as page content.
 

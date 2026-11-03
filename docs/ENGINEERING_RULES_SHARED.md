@@ -187,6 +187,7 @@ const data = JSON.parse(readFileSync(join(localesRoot, locale, 'notifications.js
 ## Authoring new i18n UI copy keys (`packages/i18n/locales/*/web.json`)
 
 - Always add the key to **both** `pt-BR/web.json` and `en/web.json` in the same commit — never ship a key in one locale only.
+- **The customer area says "o estabelecimento" ("the business" in `en`) for the business, never "admin" or "staff"** — a customer-facing string names the business, not a role or an internal actor (`booking.detailCards.actorEstablishment`, `customer.bookingItem.infoNeeded`).
 - Namespace by UI area, matching existing top-level keys (`hotsite.*`, `auth.*`, `booking.*`, `seo.*`, etc.) rather than inventing a new top-level namespace for a feature that belongs under an existing one.
 - Use ICU placeholders (`{name}`, `{location}`) for interpolated values — see `seo.defaultTitleWithLocation` for the pattern — never string-concatenate translated fragments.
 - Server Components call `useTranslations()` directly (no `'use client'` needed — see Code Standards). Only reach for a Context-based hook like `useFormatting()` when the value also depends on tenant-specific formatting (currency, date), not just translated text.

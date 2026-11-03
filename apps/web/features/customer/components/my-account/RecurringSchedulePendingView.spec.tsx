@@ -110,4 +110,11 @@ describe('RecurringSchedulePendingView', () => {
     expect(screen.queryByTestId('end-schedule-link')).not.toBeInTheDocument();
     expect(screen.queryByTestId('occurrence-skip')).not.toBeInTheDocument();
   });
+
+  it('uses the shared action pane, not the old in-flow copy', () => {
+    render(<RecurringSchedulePendingView schedule={schedule} tenantSlug="lavacar" />);
+
+    expect(screen.getByTestId('action-pane-mobile').className).toContain('fixed');
+    expect(screen.getByTestId('action-pane-desktop').className).toContain('lg:sticky');
+  });
 });

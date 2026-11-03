@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { renderWithIntl } from '@/test-utils';
 import { RescheduleSuccessView } from './RescheduleSuccessView';
@@ -29,13 +29,15 @@ describe('RescheduleSuccessView', () => {
       'Seu agendamento continua aprovado.',
     );
     expect(screen.getByText('Antes')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Ver agendamento' })).toHaveAttribute(
-      'href',
-      '/lavacar-bh/my-account/bookings/b1',
-    );
-    expect(screen.getByRole('link', { name: 'Meus agendamentos' })).toHaveAttribute(
-      'href',
-      '/lavacar-bh/my-account/bookings',
-    );
+    expect(
+      within(screen.getByTestId('action-pane-desktop')).getByRole('link', {
+        name: 'Ver agendamento',
+      }),
+    ).toHaveAttribute('href', '/lavacar-bh/my-account/bookings/b1');
+    expect(
+      within(screen.getByTestId('action-pane-desktop')).getByRole('link', {
+        name: 'Meus agendamentos',
+      }),
+    ).toHaveAttribute('href', '/lavacar-bh/my-account/bookings');
   });
 });

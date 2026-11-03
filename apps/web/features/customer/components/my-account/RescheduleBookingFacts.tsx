@@ -14,6 +14,8 @@ interface RescheduleBookingFactsProps {
   readonly durationMins: number;
   readonly price: number;
   readonly before?: BookingWindowFacts;
+  /** No box of its own: the rows sit inside a card the caller draws. */
+  readonly bare?: boolean;
 }
 
 interface FactRowProps {
@@ -39,13 +41,14 @@ export function RescheduleBookingFacts({
   durationMins,
   price,
   before,
+  bare = false,
 }: RescheduleBookingFactsProps): React.JSX.Element {
   const t = useTranslations('customer.reschedule');
   const { formatMoney } = useFormatting();
   const describe = useDescribeBookingWindow();
 
   return (
-    <div className="rounded-xl border border-gray-100 bg-white px-4 py-2">
+    <div className={bare ? undefined : 'rounded-xl border border-gray-100 bg-white px-4 py-2'}>
       <FactRow label={t('serviceLabel')}>{serviceNames}</FactRow>
       <FactRow label={t('whenLabel')} testId="reschedule-fact-when">
         {describe(when)}

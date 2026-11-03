@@ -87,8 +87,8 @@ Folder: `customer/prototypes/login/`
 | `01b-loading.html` | Carregando estabelecimentos (skeleton) — part of the descoped Caso B picker | UC-021 Caso B | — | ❌ Descoped — not being built (tagged DESCOPED in `index.html`; note the `01b` prefix is shared with the live `01b-error.html`) |
 | `01c-fetch-error.html` | Erro ao carregar estabelecimentos — part of the descoped Caso B picker | UC-021 Caso B | — | ❌ Descoped — not being built (tagged DESCOPED in `index.html`) |
 | `02b-validation-error.html` | Erro de validação no telefone — mensagem sob o campo (aria-invalid) | UC-021 A3 | M13-S14 · TD57-S11 | ✅ Criado — live, listed in `index.html` and `dev-notes.md` |
-| `02c-address-error.html` | Endereço incompleto — contorno vermelho nos campos obrigatórios vazios (sem texto: não há chave i18n hoje) | UC-021 A3 | TD57-S11 | ❓ Gap (TD57-S11) |
-| `02d-submit-error.html` | Falha ao salvar — mensagem branded sob os campos, acima do botão | UC-021 A3 | TD57-S11 | ❓ Gap (TD57-S11) |
+| `02c-address-error.html` | Endereço incompleto — contorno vermelho nos campos obrigatórios vazios (sem texto: não há chave i18n hoje) | UC-021 A3 | TD57-S11 | ✅ Done (TD57-S11) |
+| `02d-submit-error.html` | Falha ao salvar — mensagem branded sob os campos, acima do botão | UC-021 A3 | TD57-S11 | ✅ Done (TD57-S11) |
 | `dev-notes.md` | Implementation handoff | — | M13-S02/S42 | ✅ Criado (predates the scope change — its `/select-tenant`/generic-entry sections are superseded by this file) |
 
 The switch-tenant feature (UC-023) reuses `customer/prototypes/minha-conta/05-trocar-empresa.html`, not a file in this folder.

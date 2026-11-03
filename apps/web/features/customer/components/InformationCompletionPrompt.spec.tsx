@@ -190,10 +190,38 @@ describe('InformationCompletionPrompt', () => {
     await userEvent.type(screen.getByTestId('information-completion-phone-input'), '1199999');
     await userEvent.click(screen.getByTestId('information-completion-submit'));
 
-    expect(await screen.findByTestId('information-completion-error')).toHaveTextContent(
+    expect(await screen.findByTestId('information-completion-phone-error')).toHaveTextContent(
       'Digite um número de telefone válido (10 ou 11 dígitos).',
     );
+    const phone = screen.getByTestId('information-completion-phone-input');
+    expect(phone).toHaveAttribute('aria-invalid', 'true');
+    expect(phone).toHaveAttribute('aria-describedby');
+    await waitFor(() => expect(phone).toHaveFocus());
+    // The message belongs to the field: no form-level box.
+    expect(screen.queryByTestId('information-completion-error')).not.toBeInTheDocument();
     expect(updateHotsiteCustomerProfile).not.toHaveBeenCalled();
+  });
+
+  it('removes the phone message as soon as the customer edits the field', async () => {
+    vi.mocked(getHotsiteCustomerProfile).mockResolvedValue(profileEmpty);
+    renderWithIntl(
+      <InformationCompletionPrompt
+        slug="lavacar-beloauto"
+        phonePrefix="+55"
+        addressSpec={addressSpec}
+      />,
+    );
+    await screen.findByTestId('information-completion-prompt');
+    await userEvent.type(screen.getByTestId('information-completion-phone-input'), '1199999');
+    await userEvent.click(screen.getByTestId('information-completion-submit'));
+    await screen.findByTestId('information-completion-phone-error');
+
+    await userEvent.type(screen.getByTestId('information-completion-phone-input'), '9');
+
+    expect(screen.queryByTestId('information-completion-phone-error')).not.toBeInTheDocument();
+    expect(screen.getByTestId('information-completion-phone-input')).not.toHaveAttribute(
+      'aria-invalid',
+    );
   });
 
   it('highlights address fields and does not submit when phone is valid but address is incomplete', async () => {
@@ -310,8 +338,12 @@ describe('InformationCompletionPrompt', () => {
     await fillAddress();
     await userEvent.click(screen.getByTestId('information-completion-submit'));
 
-    expect(await screen.findByTestId('information-completion-error')).toHaveTextContent(
+    expect(await screen.findByTestId('information-completion-phone-error')).toHaveTextContent(
       'O telefone informado é inválido.',
+    );
+    expect(screen.getByTestId('information-completion-phone-input')).toHaveAttribute(
+      'aria-invalid',
+      'true',
     );
   });
 
@@ -333,8 +365,13 @@ describe('InformationCompletionPrompt', () => {
     await fillAddress();
     await userEvent.click(screen.getByTestId('information-completion-submit'));
 
-    expect(await screen.findByTestId('information-completion-error')).toHaveTextContent(
-      'Algo deu errado. Tente novamente.',
-    );
+    const failure = await screen.findByTestId('information-completion-error');
+    expect(failure).toHaveTextContent('Algo deu errado. Tente novamente.');
+    expect(failure).toHaveAttribute('role', 'alert');
+    // Branded skin: it is painted from the tenant radius, never from the dashboard component.
+    expect(failure.style.borderRadius).toBe('var(--ba-radius)');
+    // Never the dashboard FeedbackMessage (its classes would paint a fixed Tailwind red box).
+    expect(failure.className).not.toContain('bg-red-50');
+    expect(failure.className).not.toContain('border-red-300');
   });
 });

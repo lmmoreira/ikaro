@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fetchCustomerTenants, switchTenant } from '@/features/auth/api';
@@ -46,7 +46,11 @@ describe('SwitchTenantClient', () => {
 
     renderWithIntl(<SwitchTenantClient currentTenantSlug="lavacar-bh" />);
 
-    expect(await screen.findByTestId('switch-tenant-fetch-error')).toBeInTheDocument();
+    const box = await screen.findByTestId('switch-tenant-fetch-error');
+    // The branded page-level message (the page paints the tenant's --ba-* variables), with a retry.
+    expect(within(box).getByRole('alert')).toBeInTheDocument();
+    await userEvent.click(within(box).getByRole('button'));
+    expect(refresh).toHaveBeenCalledTimes(1);
   });
 
   it('renders the current tenant marked "Atual" and other tenants as clickable cards', async () => {
@@ -94,7 +98,8 @@ describe('SwitchTenantClient', () => {
 
     await userEvent.click(screen.getByTestId('switch-tenant-option'));
 
-    expect(await screen.findByTestId('switch-tenant-error')).toBeInTheDocument();
+    const failure = await screen.findByTestId('switch-tenant-error');
+    expect(within(failure).getByRole('alert')).toBeInTheDocument();
     expect(push).not.toHaveBeenCalled();
     expect(screen.getByTestId('switch-tenant-list')).toBeInTheDocument();
   });

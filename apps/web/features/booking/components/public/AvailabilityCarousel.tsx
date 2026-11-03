@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { ErrorAlert } from './ErrorAlert';
+import { PickerLoadError } from './PickerLoadError';
 import type { DaySummary, ResourceSelectionItem } from '@ikaro/types';
 import { fetchAvailabilitySummary } from '@/features/platform/hotsite/api/schedule';
 import {
@@ -99,9 +100,12 @@ export function AvailabilityCarousel({
 
   if (error) {
     return (
-      <ErrorAlert onRetry={handleRetry} retryLabel={t('errors.tryAgain')} variant={variant}>
-        {t('availability.loadError')}
-      </ErrorAlert>
+      <PickerLoadError
+        message={t('availability.loadError')}
+        onRetry={handleRetry}
+        retryLabel={t('errors.tryAgain')}
+        variant={variant}
+      />
     );
   }
 

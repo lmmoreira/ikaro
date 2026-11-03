@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 import type React from 'react';
 import type { HotsiteBrandingResponse, TenantOption } from '@ikaro/types';
 import { fetchCustomerTenants, switchTenant } from '@/features/auth/api';
-import { ErrorAlert } from '@/features/booking/components/public/ErrorAlert';
+import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feedback-message';
 import { TenantAvatar, TenantOptionRow } from './TenantOptionRow';
 
 interface SwitchTenantClientProps {
@@ -111,9 +111,11 @@ export function SwitchTenantClient({
 
         {fetchState === 'error' && (
           <div data-testid="switch-tenant-fetch-error">
-            <ErrorAlert onRetry={() => router.refresh()} retryLabel={t('selectTenantRetry')}>
-              {t('selectTenantError')}
-            </ErrorAlert>
+            <BrandedFeedbackMessage
+              title={t('selectTenantError')}
+              onRetry={() => router.refresh()}
+              retryLabel={t('selectTenantRetry')}
+            />
           </div>
         )}
 
@@ -135,7 +137,7 @@ export function SwitchTenantClient({
 
         {switchError && (
           <div className="mt-4" data-testid="switch-tenant-error">
-            <ErrorAlert>{t('switchTenantError')}</ErrorAlert>
+            <BrandedFeedbackMessage title={t('switchTenantError')} />
           </div>
         )}
 

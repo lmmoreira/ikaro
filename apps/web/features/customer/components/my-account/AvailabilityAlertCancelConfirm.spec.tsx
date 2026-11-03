@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/shared/lib/api/errors';
@@ -85,6 +85,10 @@ describe('AvailabilityAlertCancelConfirm', () => {
     await userEvent.click(confirmButton());
 
     expect(await screen.findByTestId('cancel-alert-error')).toHaveTextContent('cancelErrorTitle');
+    // The shared message: an alert inside the action pane, with the body as its hint.
+    const pane = within(screen.getByTestId('action-pane-desktop'));
+    expect(pane.getByRole('alert')).toBe(screen.getByTestId('cancel-alert-error'));
+    expect(pane.getByRole('alert')).toHaveTextContent('cancelErrorBody');
     expect(pushMock).not.toHaveBeenCalled();
     expect(confirmButton()).toHaveTextContent('retry');
     expect(confirmButton()).toBeEnabled();

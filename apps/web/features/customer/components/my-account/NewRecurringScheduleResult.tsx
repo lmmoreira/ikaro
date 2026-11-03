@@ -19,6 +19,7 @@ import {
   ActionPane,
   NewRecurringScheduleLayout,
 } from '@/features/booking/components/recurring/NewRecurringScheduleLayout';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import { useRecurrenceText } from './use-recurrence-text';
 
 /** The outcomes this component draws; a pending approval and a refused pattern have their own screens. */
@@ -90,10 +91,15 @@ export function NewRecurringScheduleResult({
           </ActionPane>
         }
       >
-        <Heading eyebrow={service.name} title={tn('createdTitle')} />
-        <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm leading-relaxed text-green-900">
+        <h1 className="sr-only">{tn('createdTitle')}</h1>
+        <FeedbackMessage
+          variant="success"
+          title={tn('createdTitle')}
+          hint={service.name}
+          testId="new-schedule-created-message"
+        >
           {tn('createdBody', { count, start, end })}
-        </div>
+        </FeedbackMessage>
       </NewRecurringScheduleLayout>
     );
   }
@@ -127,12 +133,7 @@ export function NewRecurringScheduleResult({
       >
         <Heading eyebrow={service.name} title={tn('conflictTitle')} />
         <p className="text-sm text-gray-500">{tn('conflictIntro', { start, end, count })}</p>
-        <div
-          role="alert"
-          className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900"
-        >
-          {lead}
-        </div>
+        <FeedbackMessage title={lead} testId="new-schedule-conflict-message" />
         {hasList && (
           <NewRecurringScheduleConflictList
             conflicts={conflicts}
@@ -171,12 +172,7 @@ export function NewRecurringScheduleResult({
         }
       >
         <Heading eyebrow={service.name} title={tn('capTitle')} />
-        <div
-          role="alert"
-          className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900"
-        >
-          {tn('capBody')}
-        </div>
+        <FeedbackMessage title={tn('capBody')} testId="new-schedule-cap-message" />
         <div className="rounded-xl border border-gray-100 bg-white p-4">
           <p className="text-sm font-semibold text-gray-900">{tn('nextTitle')}</p>
           <p className="mt-1 text-sm text-gray-600">{tn('capNext')}</p>
@@ -188,6 +184,11 @@ export function NewRecurringScheduleResult({
   return (
     <NewRecurringScheduleLayout
       testId="new-schedule-failure"
+      feedback={{
+        variant: 'error',
+        title: tn('failureBody'),
+        testId: 'new-schedule-failure-message',
+      }}
       pane={
         <ActionPane aside={tn('failureAside')}>
           <button
@@ -206,12 +207,6 @@ export function NewRecurringScheduleResult({
       }
     >
       <Heading eyebrow={service.name} title={tn('failureTitle')} />
-      <div
-        role="alert"
-        className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900"
-      >
-        {tn('failureBody')}
-      </div>
     </NewRecurringScheduleLayout>
   );
 }

@@ -1,6 +1,12 @@
 import type React from 'react';
 import { buildContactPhone } from '@/shared/utils/contact-phone';
 import {
+  BRANDED_FIELD_INVALID_CLASS,
+  BrandedFieldFeedback,
+} from '@/shared/components/hotsite/branded-field-feedback';
+import { BRANDED_FEEDBACK_PALETTE } from '@/shared/components/hotsite/branded-feedback-palette';
+import { cn } from '@/shared/utils/cn';
+import {
   formatPhoneForDisplay,
   phonePlaceholder,
   sanitizePhoneInput,
@@ -11,6 +17,11 @@ interface InformationCompletionPhoneFieldProps {
   readonly localPhoneDigits: string;
   readonly onChangeLocalDigits: (fullPhone: string) => void;
   readonly label: string;
+  readonly error?: string;
+  readonly errorId?: string;
+  readonly inputProps?: React.InputHTMLAttributes<HTMLInputElement> & {
+    readonly ref?: (element: HTMLElement | null) => void;
+  };
 }
 
 export function InformationCompletionPhoneField({
@@ -18,6 +29,9 @@ export function InformationCompletionPhoneField({
   localPhoneDigits,
   onChangeLocalDigits,
   label,
+  error,
+  errorId = 'information-completion-phone-error-message',
+  inputProps,
 }: InformationCompletionPhoneFieldProps): React.JSX.Element {
   return (
     <>
@@ -48,15 +62,21 @@ export function InformationCompletionPhoneField({
             const input = sanitizePhoneInput(e.target.value, phonePrefix);
             onChangeLocalDigits(buildContactPhone(input, phonePrefix));
           }}
-          className="min-w-0 flex-1 border px-3 py-2"
+          className={cn('min-w-0 flex-1 border px-3 py-2', error && BRANDED_FIELD_INVALID_CLASS)}
+          {...inputProps}
           style={{
             borderRadius: '0 var(--ba-radius) var(--ba-radius) 0',
-            borderColor: 'var(--ba-secondary)',
+            borderColor: error ? BRANDED_FEEDBACK_PALETTE.error.border : 'var(--ba-secondary)',
             backgroundColor: 'var(--ba-secondary)',
             color: 'var(--ba-text)',
           }}
         />
       </div>
+      {error && (
+        <div data-testid="information-completion-phone-error">
+          <BrandedFieldFeedback id={errorId}>{error}</BrandedFieldFeedback>
+        </div>
+      )}
     </>
   );
 }

@@ -54,7 +54,11 @@ describe('NewRecurringScheduleResult', () => {
       schedule: { id: 's-1', status: 'ACTIVE', approvalHoldExpiresAt: null },
     });
 
-    expect(screen.getByText('Recorrência criada')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Recorrência criada' }),
+    ).toBeInTheDocument();
+    // The result is the shared page-level success message (an <output>), not a hand-rolled box.
+    expect(screen.getByTestId('new-schedule-created-message').tagName).toBe('OUTPUT');
     expect(
       screen.getByText(/Criamos as 13 reservas de 18\/08\/2026 a 10\/11\/2026/),
     ).toBeInTheDocument();
@@ -131,6 +135,23 @@ describe('NewRecurringScheduleResult', () => {
     const { onRetry } = renderResult({ kind: 'FAILURE' });
     fireEvent.click(screen.getAllByTestId('new-schedule-retry')[0]!);
     expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('failure: the message sits under the retry button in the pane, not above the content', () => {
+    renderResult({ kind: 'FAILURE' });
+
+    const message = within(screen.getByTestId('action-pane-desktop')).getByRole('alert');
+    expect(message).toBe(screen.getByTestId('new-schedule-failure-message'));
+    expect(within(screen.getByTestId('new-schedule-failure')).getAllByRole('alert')).toHaveLength(
+      2,
+    );
+  });
+
+  it('conflict and cap: the message is the shared page-level alert, not a pane message', () => {
+    renderResult({ kind: 'CAP_REACHED' });
+
+    expect(screen.getByTestId('new-schedule-cap-message')).toHaveAttribute('role', 'alert');
+    expect(within(screen.getByTestId('action-pane-desktop')).queryByRole('alert')).toBeNull();
   });
 
   it('failure: the retry button is disabled while retrying', () => {

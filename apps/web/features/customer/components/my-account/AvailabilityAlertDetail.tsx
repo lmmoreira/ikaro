@@ -4,7 +4,10 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import type { AvailabilityAlertResponse, AvailabilityAlertStatus } from '@ikaro/types';
+import { ActionPane } from '@/shared/components/ui/action-pane';
 import { Badge } from '@/shared/components/ui/badge';
+import { Button } from '@/shared/components/ui/button';
+import { Card } from '@/shared/components/ui/card';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { cn } from '@/shared/utils/cn';
@@ -15,6 +18,7 @@ import {
   canCancelAlert,
 } from '../../alert-model';
 import { useCustomerTopbarStatus } from '../customer-topbar-status-context';
+import { DetailSection } from './DetailSection';
 import { useAlertText } from './use-alert-text';
 
 interface AvailabilityAlertDetailProps {
@@ -54,12 +58,9 @@ interface SectionProps {
 
 function Section({ label, children }: SectionProps): React.JSX.Element {
   return (
-    <div>
-      <p className="mb-2.5 text-[0.6875rem] font-bold uppercase tracking-wider text-gray-400">
-        {label}
-      </p>
-      <div className="rounded-xl border border-gray-100 bg-white px-4">{children}</div>
-    </div>
+    <DetailSection title={label}>
+      <div>{children}</div>
+    </DetailSection>
   );
 }
 
@@ -116,51 +117,63 @@ export function AvailabilityAlertDetail({
     return <DetailRow label={t('labelExpiredOn')} value={formatDate(expiresAt)} />;
   }
 
-  function renderActionPane(): React.JSX.Element {
-    return (
-      <div className="flex flex-col gap-2 rounded-xl border border-gray-100 bg-white p-4">
-        {cancellable ? (
-          <>
-            <p className="mb-1 text-sm leading-relaxed text-gray-500">
-              {t('activeAside')}
-              <br />
-              <strong className="text-gray-900">{formatDate(expiresAt)}</strong>
-            </p>
-            <Link
-              href={alertCancelPath(tenantSlug, alert.id)}
-              data-testid="cancel-alert-link"
-              className="rounded-lg border-2 border-red-600 bg-red-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:opacity-90"
-            >
+  const backLink = (
+    <Button asChild variant="outline" className="w-full">
+      <Link href={listHref}>{t('backButton')}</Link>
+    </Button>
+  );
+  const paneActions = (
+    <>
+      {cancellable ? (
+        <>
+          <p className="text-sm leading-relaxed text-gray-500">
+            {t('activeAside')}
+            <br />
+            <strong className="text-gray-900">{formatDate(expiresAt)}</strong>
+          </p>
+          <Button asChild variant="destructive" className="w-full">
+            <Link href={alertCancelPath(tenantSlug, alert.id)} data-testid="cancel-alert-link">
               {t('cancelAction')}
             </Link>
-          </>
-        ) : (
-          <>
-            <p className="mb-1 text-sm leading-relaxed text-gray-500">{t('historyAside')}</p>
-            <Link
-              href={`/${tenantSlug}/booking`}
-              data-testid="alert-new-booking"
-              className="rounded-lg bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-blue-700"
-            >
+          </Button>
+        </>
+      ) : (
+        <>
+          <p className="text-sm leading-relaxed text-gray-500">{t('historyAside')}</p>
+          <Button asChild className="w-full">
+            <Link href={`/${tenantSlug}/booking`} data-testid="alert-new-booking">
               {t('newBookingButton')}
             </Link>
-          </>
-        )}
-        <Link
-          href={listHref}
-          className="rounded-lg border border-gray-200 px-4 py-2.5 text-center text-sm font-semibold text-gray-700 hover:bg-gray-50"
-        >
-          {t('backButton')}
-        </Link>
-      </div>
-    );
-  }
+          </Button>
+        </>
+      )}
+      {backLink}
+    </>
+  );
+  const paneMobileActions = (
+    <div className="grid auto-cols-fr grid-flow-col gap-3">
+      {backLink}
+      {cancellable ? (
+        <Button asChild variant="destructive" className="w-full">
+          <Link href={alertCancelPath(tenantSlug, alert.id)} data-testid="cancel-alert-link">
+            {t('cancelAction')}
+          </Link>
+        </Button>
+      ) : (
+        <Button asChild className="w-full">
+          <Link href={`/${tenantSlug}/booking`} data-testid="alert-new-booking">
+            {t('newBookingButton')}
+          </Link>
+        </Button>
+      )}
+    </div>
+  );
 
   return (
-    <div className="w-full" data-testid="alert-detail">
-      <div className="lg:grid lg:grid-cols-[1fr_22rem] lg:items-start lg:gap-6">
+    <div className="w-full pb-40 lg:pb-0" data-testid="alert-detail">
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-6">
         <div className="flex flex-col gap-4">
-          <div className="flex items-start justify-between gap-3">
+          <Card className="flex items-start justify-between gap-3 rounded-xl border-gray-100 p-4 shadow-none">
             <h1 className="min-w-0 text-lg font-bold text-gray-900">{alert.serviceName}</h1>
             <Badge
               data-testid="alert-status-badge"
@@ -168,7 +181,7 @@ export function AvailabilityAlertDetail({
             >
               {t(STATUS_LABEL_KEY[alert.status])}
             </Badge>
-          </div>
+          </Card>
 
           <Section label={t('sectionService')}>
             <DetailRow label={t('labelService')} value={alert.serviceName} />
@@ -200,15 +213,9 @@ export function AvailabilityAlertDetail({
           <div className="rounded-xl border border-blue-200 bg-blue-50 p-3.5 text-sm leading-relaxed text-blue-900">
             {t('infoBox')}
           </div>
-
-          <div data-testid="action-pane-mobile" className="lg:hidden">
-            {renderActionPane()}
-          </div>
         </div>
 
-        <div data-testid="action-pane-desktop" className="hidden lg:sticky lg:top-6 lg:block">
-          {renderActionPane()}
-        </div>
+        <ActionPane actions={paneActions} mobileActions={paneMobileActions} />
       </div>
     </div>
   );

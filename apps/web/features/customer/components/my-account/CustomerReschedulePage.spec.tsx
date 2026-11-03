@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { useEffect } from 'react';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -277,7 +277,7 @@ describe('CustomerReschedulePage', () => {
 
     await pickSlotAndConfirm();
 
-    const alert = await screen.findByRole('alert');
+    const alert = await within(screen.getByTestId('action-pane-desktop')).findByRole('alert');
     expect(alert).toHaveTextContent('O horário solicitado não está mais disponível.');
     expect(alert).toHaveTextContent('Seu agendamento continua no horário original.');
     expect(screen.getAllByRole('button', { name: 'Confirmar novo horário' })[0]).toBeDisabled();
@@ -299,7 +299,7 @@ describe('CustomerReschedulePage', () => {
 
       await pickSlotAndConfirm();
 
-      const alert = await screen.findByRole('alert');
+      const alert = await within(screen.getByTestId('action-pane-desktop')).findByRole('alert');
       expect(alert).toHaveTextContent(message);
       expect(alert).toHaveTextContent('Seu agendamento continua no horário original.');
       expect(screen.getAllByRole('button', { name: 'Confirmar novo horário' })[0]).toBeDisabled();
@@ -316,7 +316,9 @@ describe('CustomerReschedulePage', () => {
 
       await pickSlotAndConfirm();
 
-      expect(await screen.findByRole('alert')).toHaveTextContent('Nada foi alterado');
+      expect(
+        await within(screen.getByTestId('action-pane-desktop')).findByRole('alert'),
+      ).toHaveTextContent('Nada foi alterado');
       await waitFor(() => expect(pickerMounts.mock.calls.length).toBeGreaterThan(mountsBefore));
     },
   );
@@ -332,7 +334,9 @@ describe('CustomerReschedulePage', () => {
 
     await pickSlotAndConfirm();
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(message);
+    expect(
+      await within(screen.getByTestId('action-pane-desktop')).findByRole('alert'),
+    ).toHaveTextContent(message);
     expect(screen.getAllByRole('button', { name: 'Confirmar novo horário' })[0]).toBeDisabled();
     await waitFor(() => expect(pickerMounts.mock.calls.length).toBeGreaterThan(mountsBefore));
   });
@@ -356,7 +360,9 @@ describe('CustomerReschedulePage', () => {
 
     await pickSlotAndConfirm();
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível reagendar.');
+    expect(
+      await within(screen.getByTestId('action-pane-desktop')).findByRole('alert'),
+    ).toHaveTextContent('Não foi possível reagendar.');
     expect(screen.getAllByRole('button', { name: 'Confirmar novo horário' })[0]).toBeEnabled();
     expect(pickerMounts.mock.calls).toHaveLength(mountsBefore);
   });

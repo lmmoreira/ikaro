@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Trocar empresa — BeloAuto</title>
-  <link rel="stylesheet" href="../../../shared/customer-shell.css">
+  <link rel="stylesheet" href="../../../shared/tokens.css">
   <link rel="stylesheet" href="../../../shared/feedback-pane.css">
   <style>[hidden] { display: none !important; }</style>
 </head>
@@ -38,32 +38,32 @@
   </div>
 
   <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center;
-              background: var(--ik-bg); padding: 1.5rem;">
+              background: var(--ba-background); padding: 1.5rem;">
     <div style="width: 100%; max-width: 28rem;">
 
       <!-- Header — same as select-tenant -->
       <div style="text-align: center; margin-bottom: 2rem;">
         <div style="
           width: 3rem; height: 3rem;
-          background: var(--ik-primary); border-radius: var(--ik-radius);
+          background: var(--ba-primary); border-radius: var(--ba-radius);
           margin: 0 auto 1.25rem;
           display: flex; align-items: center; justify-content: center;
         ">
           <span style="color: white; font-weight: 700; font-size: 1.25rem;">B</span>
         </div>
-        <h1 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.375rem; color: var(--ik-text)">
+        <h1 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.375rem; color: var(--ba-text)">
           Trocar empresa
         </h1>
-        <p style="font-size: 0.875rem; opacity: 0.6; color: var(--ik-text)">
+        <p style="font-size: 0.875rem; opacity: 0.6; color: var(--ba-text)">
           Sua conta está vinculada a mais de um estabelecimento.
         </p>
       </div>
 
       <!-- Load failure (TD57-S11): page-level message with retry, replaces the list -->
       <div data-s="fetch" hidden>
-        <div class="fb fb-error" role="alert" data-testid="switch-tenant-fetch-error">
-          <span class="fb-title">Não foi possível carregar os estabelecimentos.</span>
-          <button type="button" class="fb-retry">Tente novamente</button>
+        <div class="fb-ba fb-ba-error" role="alert" data-testid="switch-tenant-fetch-error">
+          <span class="fb-title">Não foi possível carregar os estabelecimentos.</span><br>
+          <button type="button" style="margin-top:.5rem;border:1px solid #dc2626;background:#fff;color:#991b1b;border-radius:var(--ba-radius);padding:.375rem .875rem;font:inherit;font-weight:600;font-size:.875rem;cursor:pointer;">Tente novamente</button>
         </div>
       </div>
       <!-- Tenant list -->
@@ -73,15 +73,15 @@
         <div style="
           display: flex; align-items: center; gap: 1rem;
           padding: 1rem 1.25rem;
-          border: 2px solid var(--ik-primary);
-          border-radius: var(--ik-radius);
-          background: var(--ik-soft);
+          border: 2px solid var(--ba-primary);
+          border-radius: var(--ba-radius);
+          background: var(--ba-secondary);
           opacity: 0.7;
           cursor: default;
         ">
           <div style="
             width: 2.5rem; height: 2.5rem; flex-shrink: 0;
-            background: var(--ik-primary); border-radius: var(--ik-radius);
+            background: var(--ba-primary); border-radius: var(--ba-radius);
             display: flex; align-items: center; justify-content: center;
           ">
             <span style="color: white; font-weight: 700; font-size: 1rem;">B</span>
@@ -92,7 +92,7 @@
           </div>
           <span style="
             font-size: 0.6875rem; font-weight: 700; padding: 0.2rem 0.625rem;
-            border-radius: 999px; background: var(--ik-primary); color: white;
+            border-radius: 999px; background: var(--ba-primary); color: white;
             white-space: nowrap; flex-shrink: 0;
           ">Atual</span>
         </div>
@@ -103,16 +103,16 @@
           style="
             display: flex; align-items: center; gap: 1rem;
             padding: 1rem 1.25rem;
-            border: 2px solid var(--ik-soft);
-            border-radius: var(--ik-radius);
-            text-decoration: none; color: var(--ik-text);
-            background: white; box-shadow: var(--ik-shadow);
+            border: 2px solid var(--ba-secondary);
+            border-radius: var(--ba-radius);
+            text-decoration: none; color: var(--ba-text);
+            background: white; box-shadow: var(--ba-shadow);
             transition: border-color 0.15s;
           "
         >
           <div style="
             width: 2.5rem; height: 2.5rem; flex-shrink: 0;
-            background: #7c3aed; border-radius: var(--ik-radius);
+            background: #7c3aed; border-radius: var(--ba-radius);
             display: flex; align-items: center; justify-content: center;
           ">
             <span style="color: white; font-weight: 700; font-size: 1rem;">A</span>
@@ -133,15 +133,15 @@
           style="
             display: flex; align-items: center; gap: 1rem;
             padding: 1rem 1.25rem;
-            border: 2px solid var(--ik-soft);
-            border-radius: var(--ik-radius);
-            text-decoration: none; color: var(--ik-text);
-            background: white; box-shadow: var(--ik-shadow);
+            border: 2px solid var(--ba-secondary);
+            border-radius: var(--ba-radius);
+            text-decoration: none; color: var(--ba-text);
+            background: white; box-shadow: var(--ba-shadow);
           "
         >
           <div style="
             width: 2.5rem; height: 2.5rem; flex-shrink: 0;
-            background: #059669; border-radius: var(--ik-radius);
+            background: #059669; border-radius: var(--ba-radius);
             display: flex; align-items: center; justify-content: center;
           ">
             <span style="color: white; font-weight: 700; font-size: 1rem;">S</span>
@@ -160,14 +160,14 @@
 
       <!-- Switch failure (TD57-S11): inline message under the list -->
       <div data-s="switch" hidden style="margin-top: 1rem;">
-        <div class="fb fb-error" role="alert" data-testid="switch-tenant-error">
+        <div class="fb-ba fb-ba-error" role="alert" data-testid="switch-tenant-error">
           <span class="fb-title">Não foi possível trocar de empresa. Tente novamente.</span>
         </div>
       </div>
       <!-- Cancel link — key difference vs. login select-tenant -->
       <p style="margin-top: 1.75rem; text-align: center;">
         <a href="01-minha-conta.html"
-           style="font-size: 0.875rem; color: var(--ik-primary); font-weight: 500; text-decoration: none;">
+           style="font-size: 0.875rem; color: var(--ba-primary); font-weight: 500; text-decoration: none;">
           ← Voltar sem trocar
         </a>
       </p>

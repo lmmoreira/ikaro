@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { Button } from '@/shared/components/ui/button';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 
 /** `07c` — the route's loading UI while the alerts are read. */
 export function AvailabilityAlertListSkeleton(): React.JSX.Element {
@@ -28,15 +28,10 @@ export function AvailabilityAlertListError({
   return (
     <div className="w-full" data-testid="alerts-load-error">
       <h1 className="text-lg font-bold text-gray-900">{t('title')}</h1>
-      <div
-        role="alert"
-        className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-red-900"
-      >
-        <p className="text-sm font-semibold">{t('loadErrorTitle')}</p>
-        <p className="mt-1 text-sm">{t('loadErrorBody')}</p>
-        <Button type="button" variant="secondary" className="mt-4" onClick={onRetry}>
-          {t('retry')}
-        </Button>
+      <div className="mt-6">
+        <FeedbackMessage title={t('loadErrorTitle')} onRetry={onRetry} retryLabel={t('retry')}>
+          {t('loadErrorBody')}
+        </FeedbackMessage>
       </div>
     </div>
   );
