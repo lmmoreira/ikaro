@@ -91,6 +91,7 @@ export function NewRecurringScheduleResult({
           </ActionPane>
         }
       >
+        <h1 className="sr-only">{tn('createdTitle')}</h1>
         <FeedbackMessage
           variant="success"
           title={tn('createdTitle')}

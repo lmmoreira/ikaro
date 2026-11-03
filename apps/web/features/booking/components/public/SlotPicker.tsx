@@ -7,7 +7,7 @@ import { isSlotBookable } from '@/features/booking/model/booking-window';
 import { fetchAvailability } from '@/features/platform/hotsite/api/schedule';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { cn } from '@/shared/utils/cn';
-import { ErrorAlert } from './ErrorAlert';
+import { PickerLoadError } from './PickerLoadError';
 
 interface SlotPickerProps {
   readonly slug: string;
@@ -79,9 +79,12 @@ export function SlotPicker({
 
   if (errorDate === date) {
     return (
-      <ErrorAlert onRetry={handleRetry} retryLabel={t('errors.tryAgain')} variant={variant}>
-        {t('slotPicker.loadError')}
-      </ErrorAlert>
+      <PickerLoadError
+        message={t('slotPicker.loadError')}
+        onRetry={handleRetry}
+        retryLabel={t('errors.tryAgain')}
+        variant={variant}
+      />
     );
   }
 

@@ -54,7 +54,9 @@ describe('NewRecurringScheduleResult', () => {
       schedule: { id: 's-1', status: 'ACTIVE', approvalHoldExpiresAt: null },
     });
 
-    expect(screen.getByText('Recorrência criada')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Recorrência criada' }),
+    ).toBeInTheDocument();
     // The result is the shared page-level success message (an <output>), not a hand-rolled box.
     expect(screen.getByTestId('new-schedule-created-message').tagName).toBe('OUTPUT');
     expect(

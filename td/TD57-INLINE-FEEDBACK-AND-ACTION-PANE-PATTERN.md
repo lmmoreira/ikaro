@@ -774,7 +774,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-**Decided (2026-11-03): no staff name on the info request.** The customer keeps the neutral heading "O admin precisa de mais informações". The customer booking read skips the staff-name lookup on purpose (`booking-detail-extras.helpers.ts` `includeActorNames: false`) and `toCustomerDetailExtras` never carries an actor name (a pinned negative guarantee), so this story changes no backend, BFF or `@ikaro/types` code.
+**Decided (2026-11-03): no staff name on the info request.** The customer keeps the neutral heading "O estabelecimento precisa de informações". The customer booking read skips the staff-name lookup on purpose (`booking-detail-extras.helpers.ts` `includeActorNames: false`) and `toCustomerDetailExtras` never carries an actor name (a pinned negative guarantee), so this story changes no backend, BFF or `@ikaro/types` code.
 
 ### Story 12 — Migrate Bookings dashboard, schedule and scheduling exceptions to the feedback pattern 🟡
 
