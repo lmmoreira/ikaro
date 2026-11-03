@@ -7,7 +7,7 @@
 
 > Note: the lifecycle screens referenced here were later implemented in M13-S19 and M13-S20; this document remains the prototype and journey reference.
 >
-> Validation note (2026-06-29): `apps/web/e2e/staff-booking-lifecycle.spec.ts` now covers the queue card detail shortcut, quick approve, reject, request info, complete success, reschedule success, and cancel success flows.
+> Validation note (2026-06-29): `apps/web/e2e/staff-booking-lifecycle.spec.ts` now covers the queue card detail shortcut, quick approve, reject, request info, complete success, reschedule success, cancel success and a loyalty flow (8 tests); there is no e2e for no-show, slot conflict, new booking or recurring.
 
 ## Flow
 
@@ -27,17 +27,17 @@ flowchart TD
 
     ActionChoice -->|"UC-003 Aprovar"| ApproveBtn(("Click Aprovar"))
     ApproveBtn --> SlotCheck{"409 Conflict?"}
-    SlotCheck -- "não → PATCH 200" --> ApproveSuccess["estado inline<br/>PENDING → APPROVED<br/>toast verde + badge atualiza"]
+    SlotCheck -- "não → PATCH 200" --> ApproveSuccess["estado inline<br/>PENDING → APPROVED<br/>banner verde + badge atualiza"]
     SlotCheck -- "sim → 409" --> SlotConflict["estado de erro inline<br/>Mostra slots adjacentes livres"]
     SlotConflict --> AltSlot(("Seleciona slot alternativo"))
     AltSlot --> ApproveSuccess
 
     ActionChoice -->|"UC-004 Rejeitar"| RejectBtn(("Click Rejeitar"))
-    RejectBtn --> RejectSheet["Bottom sheet<br/>Motivo (≥ 10 chars)"]
-    RejectSheet --> RejectValid{"reason ≥ 10?"}
+    RejectBtn --> RejectSheet["Bottom sheet<br/>Motivo (≥ 10 chars, validado pelo BFF)"]
+    RejectSheet --> RejectValid{"BFF: reason ≥ 10?"}
     RejectValid -- não --> RejectSheet
     RejectValid -- sim --> RejectSubmit(("Confirmar rejeição"))
-    RejectSubmit --> RejectSuccess["estado inline<br/>PENDING → REJECTED<br/>toast vermelho + badge"]
+    RejectSubmit --> RejectSuccess["estado inline<br/>PENDING → REJECTED<br/>banner vermelho + badge"]
 
     ActionChoice -->|"UC-005 Pedir info"| InfoBtn(("Click Pedir info"))
     InfoBtn --> InfoSheet["Bottom sheet<br/>Texto da pergunta"]
@@ -61,7 +61,7 @@ flowchart TD
     ApprovedActionChoice -->|"UC-008 Cancelar"| AdminCancelBtn(("Click Cancelar"))
     AdminCancelBtn --> AdminCancelSheet["AdminCancelBookingSheet<br/>Motivo (opcional)"]
     AdminCancelSheet --> AdminCancelSubmit(("Confirmar cancelamento"))
-    AdminCancelSubmit --> AdminCancelSuccess["estado inline<br/>APPROVED → CANCELLED<br/>toast vermelho"]
+    AdminCancelSubmit --> AdminCancelSuccess["estado inline<br/>APPROVED → CANCELLED<br/>banner vermelho"]
 
     ApprovedActionChoice -->|"UC-008 A1 Reagendar"| RescheduleBtn(("Click Reagendar"))
     RescheduleBtn --> RescheduleCalendar["RescheduleBookingPage<br/>Seleciona novo slot no calendário"]
@@ -84,13 +84,13 @@ flowchart TD
 | Page / Route | Component | Story | Status |
 |---|---|---|---|
 | `/dashboard/bookings` | `BookingQueuePage` | M125-S03 | ✅ Done |
-| `/dashboard/bookings/[id]` | `BookingDetailPage` + `BookingActionPanel` | M125-S05 | ✅ Done |
-| Slot conflict inline state | `SlotConflictAlert` within `BookingActionPanel` | M125-S05 | ✅ Done |
+| `/dashboard/bookings/[id]` | `BookingDetailPage` + `BookingDetailAsideCard` (mounts `BookingActionPanel`) | M125-S05 | ✅ Done |
+| Slot conflict inline state | `SlotConflictAlert` in the main column of `BookingDetailPage` | M125-S05 | ✅ Done |
 | Approve success inline state | inline banner within `BookingDetailPage` | M125-S05 | ✅ Done |
 | Reject bottom sheet | `RejectBookingSheet` within `BookingDetailPage` | M125-S05 | ✅ Done |
 | Request info bottom sheet | `RequestInfoSheet` within `BookingDetailPage` | M125-S05 | ✅ Done |
 | Mark-complete screen | `MarkCompleteBookingPage` (per-line `actualPriceCharged` override + loyalty redemption strip UC-009 A6 + after-photo upload + notes) | M13 | ✅ Done |
-| Complete success inline state | inline banner within `BookingDetailPage` (shows per-line cotado vs cobrado + optional loyalty discount row) | M13 | ✅ Done |
+| Complete success state | `MarkCompleteSuccessView` on the `/complete` route (shows per-line cotado vs cobrado + optional loyalty discount row) | M13 | ✅ Done |
 | Admin cancel bottom sheet | `AdminCancelBookingSheet` within `BookingDetailPage` | M13 | ✅ Done |
 | Reschedule screen | `RescheduleBookingPage` (reuses UC-011 availability calendar) | M13 | ✅ Done |
 | Reschedule slot-conflict state | inline within `RescheduleBookingPage` | M13 | ✅ Done |
@@ -98,15 +98,15 @@ flowchart TD
 ## Open questions / gaps
 
 - [x] **Success state UX** — **Resolved.** The admin stays on the detail page after approval; production renders the inline success banner in place (no navigation). The prototype shows `02-approve-success.html` as a separate page only for review clarity — see its `STATE`/`PROTOTYPE` HTML comment, which states "same page, no navigation" explicitly. The aside panel's only action is "Voltar à agenda", a manual back-link, not an auto-redirect.
-- [x] **Reject/info success** — **Resolved.** Same pattern as approval: after REJECTED or INFO_REQUESTED, the admin stays on the detail page with an inline banner (`01c-reject-success.html`, `01d-info-success.html`) and a manual "Voltar à agenda" link — no auto-navigate. The same pattern is also used for cancel (`03b-cancel-success.html`), complete (`04b-complete-success.html`), and reschedule (`05c-reschedule-success.html`), confirming this is the system-wide convention for every booking-lifecycle action, not just approve.
+- [x] **Reject/info success** — **Resolved.** Same pattern as approval: after REJECTED or INFO_REQUESTED, the admin stays on the detail page with an inline banner (`01c-reject-success.html`, `01d-info-success.html`) and a manual "Voltar à agenda" link (shown for reject; an info-requested booking keeps Aprovar and Rejeitar in the aside instead, with no link) — no auto-navigate. The same pattern is also used for cancel (`03b-cancel-success.html`), complete (`04b-complete-success.html`), and reschedule (`05c-reschedule-success.html`), confirming this is the system-wide convention for every booking-lifecycle action, not just approve.
 - [x] **Queue scope** — **Resolved 2026-06-16; the filter sentence below was superseded 2026-10-08 by M23-S13 (see the M23 section).** Grouped by urgency, not by date: "Precisa de ação" (PENDING + INFO_REQUESTED inside the visible window, sorted by `scheduledAt`; the window is `welcomeStaffScreenDays` days from today, `app/dashboard/bookings/page.tsx`. Decided 2026-10-21 (owner): no previous days; a request for a date that has already passed is not something staff can act on, so the queue starts at today) → "Hoje" (today's APPROVED, actionable) → "Próximos dias" (future APPROVED, read-only glance, no quick actions). The previous date-first grouping split same-kind triage work across day sections (a PENDING booking for tomorrow was separated from today's PENDING items). Decorative filter tabs (Pendentes/Info solicitada/Confirmados/Todos) were removed — the sections themselves were the filter. *(2026-10-08: once recurrence requests join "Precisa de ação" the sections can no longer tell the two kinds apart, so M23-S13 adds one real, floating "Filtrar agenda" balloon — not tabs — that shows or hides the four blocks.)*
 - [ ] **Queue real-time updates** — polling interval or WebSocket? Two staff members might be viewing the same booking simultaneously.
-- [ ] **Slot conflict suggestion count** — prototype shows 3 adjacent free slots. Is 3 the right number? What if all remaining slots in the day are taken?
+- [x] **Slot conflict suggestion count** — prototype shows 3 adjacent free slots. **Resolved:** the web shows every free slot the availability call returns for the day (not 3), with a loading and an empty state.
 - [ ] **Notification on approve** — `BookingApproved` event triggers email to customer. Confirm the "email enviado" note in the success banner is accurate for the MVP notification flow.
 - [ ] **INFO_REQUESTED → PENDING re-entry** — UC-005 Alt flow A2 (customer submits info) is handled in `customer/` and `guest/` journeys. Confirm: does the booking return to the PENDING queue automatically when the customer responds, or must staff re-find it manually?
 - [x] **Queue surfacing of APPROVED bookings** — **Resolved 2026-06-16** by the "Hoje" and "Próximos dias" sections above — see `00-agenda.html`.
 - [x] **Week-strip click target for future days** — **Resolved by the shipped page (redrawn 2026-10-14):** picking a day in `WeekNav` filters the "Próximos dias — confirmados" section to that day (title becomes "Próximos dias — dd/mm", cards are emphasized; clicking the day again clears it). It does not touch "Precisa de ação" (PENDING bookings of any date stay there).
-- [ ] **Mark-complete UX** — per-line `actualPriceCharged` override: inline editable fields next to each line (as shown in UC-009's doc example), or a separate "review charges" step before confirming? Photo upload — does it reuse the same upload component as the guest/customer "before" photos (UC-001 step 8)?
+- [x] **Mark-complete UX** — **Resolved:** shipped as the dedicated `MarkCompleteBookingPage` with per-line inputs. Original question: per-line `actualPriceCharged` override: inline editable fields next to each line (as shown in UC-009's doc example), or a separate "review charges" step before confirming? Photo upload — does it reuse the same upload component as the guest/customer "before" photos (UC-001 step 8)?
 - [x] **Reschedule calendar reuse** — does `RescheduleBookingPage` reuse the guest/customer booking flow's `AvailabilityCarousel` + `SlotPicker` (UC-011), or does staff need a simplified version? — **Resolved.** Confirmed reused; reschedule duration is frozen at the existing booking's `totalDurationMins` (no basket/duration recompute) (`M13-S19`).
 - [x] **Admin cancel reason validation** — backend `CancelBookingAsAdminBody.reason` is optional with no minimum length (unlike UC-004 Reject's required ≥10 chars). — **Resolved.** Genuinely optional, no minimum length, confirmed against `CancelBookingAsAdminBody` (`M13-S19`).
 - [ ] **Cancel vs. Reschedule entry point** — does the Detail page show both "Cancelar" and "Reagendar" as equally-weighted buttons, or is one primary and the other a secondary/menu action (to avoid accidental cancellation of a confirmed booking)?

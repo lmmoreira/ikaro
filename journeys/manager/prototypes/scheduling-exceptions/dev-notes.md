@@ -2,7 +2,7 @@
 
 ## Overview
 
-A MANAGER-only worklist at `/dashboard/scheduling-exceptions` for `M23-S14`, backed by `M23-S08` (backend + BFF; notifications are `M23-S23`). Built in `M23-S14` (backend + BFF: `M23-S08`). An entry is one **future booking** affected by a deactivated resource (directly, or because its staff member was deactivated); the manager resolves entries **one by one or many at once**. See `docs/DOMAIN_MODEL.md` § `FutureCommitmentException` and `../../scheduling-exceptions.md` for the decisions.
+A MANAGER-only worklist at `/dashboard/scheduling-exceptions` built in `M23-S14`, backed by `M23-S08` (backend + BFF; notifications are `M23-S23`). An entry is one **future booking** affected by a deactivated resource (directly, or because its staff member was deactivated); the manager resolves entries **one by one or many at once**. See `docs/DOMAIN_MODEL.md` § `FutureCommitmentException` and `../../scheduling-exceptions.md` for the decisions.
 
 ## Design system — what the prototypes reuse (redrawn 2026-10-14)
 
@@ -81,15 +81,15 @@ POST /v1/scheduling-exceptions/dismiss      (exists in the API; NOT called by th
 Cards are the queue's `BookingCard` shape, grouped by the unavailable resource with `BookingQueueSection`'s header. Row actions: **Reatribuir** (primary), **Reagendar** (APPROVED only, secondary), **Cancelar** (secondary). There is deliberately no Manter / Dispensar — see § Why no Manter / Dispensar.
 
 - Entries are grouped by the resource that became unavailable ("Camila ficou indisponível · 3 reservas" — `groupTitle` + `groupCount`), with a per-group "Selecionar todos". Grouping key: the entry's `sourceId` (the deactivated resource).
-- Each row: checkbox, date/time and service names, contact name, the current resource, a status badge (`Confirmada` = `APPROVED`, `Pendente` = `PENDING`/`INFO_REQUESTED`), the stored alternative ("Juliana Prado está livre neste horário") or "Sem alternativa compatível", and per-row actions.
-- **Reagendar is enabled only for a confirmed booking** and only when exactly one entry is in play (disabled with a tooltip in a row that is pending, and in the bulk bar).
-- Selecting one or more rows shows the fixed selection bar (`01b`): "N selecionados · Reatribuir · Cancelar"; on mobile it sits above the bottom nav, which stays. A hint in the bar says Reagendar is one entry at a time.
+- Each row: checkbox, date/time and service names, contact name, a Cliente/Visitante pill, a status badge (`Confirmada` = `APPROVED`, `Pendente` = `PENDING`/`INFO_REQUESTED`), the stored alternative ("Juliana Prado está livre neste horário") or "Sem alternativa compatível", and per-row actions.
+- **Reagendar is enabled only for a confirmed booking** and only when exactly one entry is in play (the link is not rendered in a row that is pending; the bulk bar has no Reagendar button, only a hint line).
+- Selecting one or more rows shows the fixed selection bar (`01b`): "N selecionadas · Reatribuir · Cancelar" (`selectedCount`, feminine); on mobile it sits above the bottom nav, which stays. A hint in the bar says Reagendar is one entry at a time.
 
 **States:** loading (`01i`) → list / empty (`01h`) / fetch error (`01j`).
 
 ## Screen: ReassignSheet (`01c`)
 
-Choose the target: "Qualquer recurso livre" (`reassignAutoLabel`; `{ mode: 'AUTO' }`, the default) or a specific resource from the union of the selected entries' current alternatives (recomputed on every read of an open entry, so a resource reactivated or a slot freed since the entry was raised shows up), each labelled "livre em N de M reservas" (computed client-side). A resource missing from an entry's alternatives is simply not compatible with it: the data carries no "ocupado" reasons, so none are drawn. A reason field (recorded on each entry). Submit label carries the count: "Reatribuir N compromissos".
+Choose the target: "Qualquer recurso livre" (`reassignAutoLabel`; `{ mode: 'AUTO' }`, the default) or a specific resource from the union of the selected entries' current alternatives (recomputed on every read of an open entry, so a resource reactivated or a slot freed since the entry was raised shows up), each labelled "Livre em N de M reservas" (`reassignFreeIn`) (computed client-side). A resource missing from an entry's alternatives is simply not compatible with it: the data carries no "ocupado" reasons, so none are drawn. A reason field (recorded on each entry). Submit label carries the count: "Reatribuir N compromissos".
 
 ## Screen: reschedule route (`01e`)
 
@@ -97,15 +97,15 @@ The existing staff `RescheduleBookingPage`, parametrized (see the file map). One
 
 ## Screen: BulkResultList (`01d`)
 
-Shown after any bulk action. One line per entry, `RESOLVED` or `STILL_OPEN` with the reason it stayed open; a still-open entry shows its reason and stays in the worklist — as built there are no per-row actions in the result view, only a back-to-list button (`backToList`); the code also renders a "not processed" group (`resultNotProcessed`) for entries never attempted after a batch stopped, a state no prototype draws. **Distinct from a whole-request failure (`01k`):** a partial result means some bookings changed; an error means nothing did.
+Shown after any bulk action. One line per entry, `RESOLVED` or `STILL_OPEN` with the reason it stayed open; a still-open entry shows its reason and stays in the worklist — as built a still-open row keeps its actions (Reatribuir, disabled when no alternative exists; Reagendar, APPROVED only; Cancelar), wired to the same sheets, and a full-width back-to-list button (`backToList`) closes the view; a resolved row shows only its "Resolvida" pill; the code also renders a "not processed" group (`resultNotProcessed`) for entries never attempted after a batch stopped, a state no prototype draws. **Distinct from a whole-request failure (`01k`):** a partial result means some bookings changed; an error means nothing did.
 
 **Validation:**
 | Field | Rule | Error message |
 |---|---|---|
 | Reassign / cancel reason | optional | — |
-| Reschedule new time | required, one option picked | "Escolha um novo horário." |
+| Reschedule new time | required, one option picked | "Escolha um novo horário antes de continuar." (`dashboard.bookingDetail.rescheduleRequired`, shown in the reschedule action rail) |
 
-**Error messages (pt-BR, as shipped — `dashboard.schedulingExceptionsPage` in `packages/i18n/locales/pt-BR/web.json`):** fetch error (`loadError`) "Não foi possível carregar as reservas" · submit error (`submitErrorBody`) "Nenhuma reserva foi alterada. Sua seleção foi mantida — tente novamente em instantes." · partial result: an ICU plural `resultResolved` ("# reserva resolvida" / "# reservas resolvidas") plus `resultBody` ("Cada reserva foi tratada por conta própria. As resolvidas saíram da lista; as que continuam abertas precisam de uma nova decisão."). The prototype screens still draw the earlier "compromissos" wording.
+**Error messages (pt-BR, as shipped — `dashboard.schedulingExceptionsPage` in `packages/i18n/locales/pt-BR/web.json`):** fetch error (`loadError`) "Não foi possível carregar as reservas" · submit error (`submitErrorBody`) "Nenhuma reserva foi alterada. Sua seleção foi mantida — tente novamente em instantes." · load error body (`loadErrorBody`) and retry button (`retry`, "Tentar de novo"); partial result: an ICU plural `resultResolved` ("# reserva resolvida" / "# reservas resolvidas") plus `resultBody` ("Cada reserva foi tratada por conta própria. As resolvidas saíram da lista; as que continuam abertas precisam de uma nova decisão."). Also defined: `resultOpen`, `stillOpenReason`, `notProcessedReason`, `resultNotProcessed`; `submitError` ("Não foi possível concluir") exists in both locales but no component reads it. The prototype screens still draw the earlier "compromissos" wording.
 
 **Mobile notes:** the bulk bar is sticky at the bottom of the list; rows stack; per-row actions wrap. The prototype is a single responsive layout — no separate mobile screens.
 

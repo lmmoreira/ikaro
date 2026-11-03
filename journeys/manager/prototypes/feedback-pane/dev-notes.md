@@ -3,7 +3,7 @@
 **Journey:** MANAGER — Feedback e painel de ações (`manager/feedback-pane.md`)
 **UCs:** none — a cross-cutting UI pattern, not a use case. Source: `td/TD57-INLINE-FEEDBACK-AND-ACTION-PANE-PATTERN.md`
 **Prototype:** `manager/prototypes/feedback-pane/`
-**Status:** In progress — the shared components shipped with TD57-S01; the service edit screen (all five tabs) and the five New-booking steps use them; TD57-S02 also split the policy error into per-reason codes. TD57-S03 made every service edit tab start with a card level with the pane. Done: S04 (rows), S06 (branded component), S07 (Resources), S08 (Team, deactivate screens, tenant picker) and S09 (Settings); pending: S05 (lint guard) and S10–S16 (area migrations).
+**Status:** In progress — the shared components shipped with TD57-S01; the service edit screen (all five tabs) and the five New-booking steps use them; TD57-S02 also split the policy error into per-reason codes. TD57-S03 made every service edit tab start with a card level with the pane. Done: S04 (rows), S06 (branded component), S07 (Resources), S08 (Team, deactivate screens, tenant picker), S09 (Settings), S10 (Hotsite editor) and S11 (Customer account); pending: S05 (lint guard) and S12–S16 (area migrations).
 
 ---
 
@@ -25,8 +25,8 @@ Shared CSS: `journeys/shared/feedback-pane.css` (`.fb*` SaaS skin, `.fb-pane*`, 
 | `apps/web/shared/components/hotsite/branded-feedback-message.tsx` (+ `branded-field-feedback.tsx`, `branded-feedback-palette.ts`) | ✅ EXISTS | TD57-S06 — branded counterpart: `variant` error (`role="alert"`) / success (`<output>`), `title`, `children`, `hint`, `onRetry`/`retryLabel`, `focusOnMount`; fixed semantic palette on its own white surface, 4px accent bar, a fixed dark 1px ring and a faint shadow; reads only `--ba-radius`, `--ba-body-font`, `--ba-heading-font`. Callers still on `ErrorAlert` until TD57-S16 |
 | `apps/web/features/booking/components/dashboard/services/ServiceEditPanels.tsx` | ✅ DONE | TD57-S02 — pane + mobile bar render through `ActionPane`; each tab registers its `feedback` with the action (`useTabFeedback`); Detalhes passes its own |
 | `apps/web/features/booking/components/dashboard/services/ServiceResourceModePicker.tsx` | ✅ DONE | TD57-S03 — the mode buttons sit in a `Card` headed by the question, level with the pane |
-| `apps/web/features/staff/components/team/MemberRow.tsx` | ✅ EXISTS | Drop the unseen success text; inline failure — TD57-S04 |
-| `apps/web/features/customer/components/my-account/CancelConfirmPage.tsx` | ✅ EXISTS | Move the error into the pane — TD57-S11 |
+| `apps/web/features/staff/components/team/MemberRow.tsx` | ✅ DONE | TD57-S04 — the changed badge/button is the confirmation; an inline failure beside the row |
+| `apps/web/features/customer/components/my-account/CancelConfirmPage.tsx` | ✅ DONE | TD57-S11 — the error renders under the buttons, in the pane |
 
 ## Screen 01 / 01b / 01c / 01d — Service edit, Políticas (`ServiceEditPanels` + `ActionPane`)
 
@@ -73,7 +73,7 @@ Load failures and route `error.tsx` use a page-level `FeedbackMessage` with a re
 
 - ⚠ The desktop pane and the mobile bar both contain the message in these static files. The real component renders one of them at a time.
 - Branded error colour is a fixed semantic red/green on the box's own white surface, never derived from tenant tokens (decided in TD57-S06 discovery: a tenant colour equal to the message colour would make the box vanish).
-- ✅ Customer screens use the same fixed bottom bar (TD57-S11). `ActionPane` ships only the fixed bar, with a `mobileOffsetClassName` prop; whether the customer account adopts it or needs an inline mobile mode is decided in TD57-S11.
+- ✅ Customer screens use the same fixed bottom bar (TD57-S11). `ActionPane` ships only the fixed bar, with a `mobileOffsetClassName` prop; the customer account adopts it (decided in TD57-S11).
 - ⚠ The first-box alignment numbers (screen 02) are from the current implementation. This prototype shows the target, not the current layout.
 
 ## data-testid changes

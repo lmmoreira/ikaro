@@ -5,7 +5,7 @@
 **UCs covered:** UC-073 (System raises), UC-077 (Manager resolves)  
 **Status:** Built — M23, Multi-Vertical Scheduling, Cluster 3. Backend + BFF shipped in `M23-S08` (✅); this frontend shipped in `M23-S14` (✅). Prototypes redrawn 2026-10-14 inside the real dashboard shell, reusing the agenda's cards, sheets and the staff reschedule picker (`dev-notes.md` § Design system). Customer/manager notifications for the worklist: `M23-S23`.
 
-> Promoted from `docs/discovery/multivertical-booking/multivertical-booking_USECASES.md` (CAND-47, CAND-56) via `/discovery-to-milestone`. See `docs/DOMAIN_MODEL.md` § `FutureCommitmentException` for the full domain model. This worklist never silently moves or invalidates a commitment — every entry ends in an explicit manager decision (keep, reassign, reschedule, cancel) or a dismissal.
+> Promoted from `docs/discovery/multivertical-booking/multivertical-booking_USECASES.md` (CAND-47, CAND-56) via `/discovery-to-milestone`. See `docs/DOMAIN_MODEL.md` § `FutureCommitmentException` for the full domain model. This worklist never silently moves or invalidates a commitment — every entry ends in an explicit manager decision (reassign, reschedule or cancel; the backend still supports `KEEP` and dismissal, but this page does not offer them — see the 2026-10-14 note below).
 
 > **Decided in `M23-S08` (2026-09-30):**
 > - An entry is one **future booking** (`PENDING`, `INFO_REQUESTED` or `APPROVED`) occupying a resource that was deactivated — either directly (UC-047) or because its staff member was deactivated (UC-048). A recurring schedule has **no entry of its own**: each of its occurrences is a booking and appears as its own entry.
@@ -80,7 +80,7 @@ Folder: `manager/prototypes/scheduling-exceptions/` — relocated from `docs/dis
 
 ## Open questions / gaps
 
-- [x] Stories exist: `M23-S08` (backend + BFF), `M23-S14` (this page), `M23-S23` (notifications). `M23-S14` still begins with `/story-discovery`.
+- [x] Stories exist: `M23-S08` (backend + BFF), `M23-S14` (this page), `M23-S23` (notifications). `M23-S14` is built.
 - [x] Reassign, reschedule, bulk and the "no entry per schedule" rules were decided in `M23-S08` and are drawn here (2026-09-30).
 - [x] Nav placement — a new MANAGER-only sidebar item ("Reservas a resolver", right below "Agenda", with a count badge; in "Mais" on mobile) is drawn in the shell and shipped with `M23-S14` (nav placement re-checked at its discovery, 2026-10-14).
 - [x] Slot source for `01e` — the existing staff availability endpoint; the route reuses the staff `RescheduleBookingPage` with an injected confirm (decided at `M23-S14`'s discovery, 2026-10-14).

@@ -5,7 +5,7 @@
 > **Prototype:** `journeys/staff/prototypes/agenda/`
 > **Production:** `apps/web/features/booking/components/dashboard/bookings/**` — Next.js 16 + React 19 + shadcn/ui + Tailwind
 >
-> Validation note (2026-06-29): `apps/web/e2e/staff-booking-lifecycle.spec.ts` covers queue detail, quick approve, reject, request info, complete success, reschedule success, and cancel success.
+> Validation note (2026-06-29): `apps/web/e2e/staff-booking-lifecycle.spec.ts` covers queue detail, quick approve, reject, request info, complete success, reschedule success, cancel success and a loyalty flow (8 tests). There is no e2e for no-show, slot conflict, new booking or recurring.
 
 ---
 
@@ -24,7 +24,7 @@
 | `BookingCompletionSummary.tsx`, `AfterServicePhotoUpload.tsx`, `BookingOutcomeActionRail.tsx`, `BookingDetailMain.tsx`, `BookingActionSheetShell.tsx`, `BookingClientCard.tsx`, `BookingCard.tsx` | Additional supporting sub-components not anticipated in the original draft |
 | `apps/web/features/booking/api/booking.ts` (+ `booking.server.ts`) | BFF fetchers (`listBookings`, `getBooking`, `approveBooking`, `rejectBooking`, ...) |
 
-The real composition doesn't have a single `BookingLifecyclePanel` component as originally planned — the APPROVED-state actions are composed across `BookingDetailMain`/`BookingOutcomeActionRail` instead. Verify the exact split by reading `BookingDetailPage.tsx` directly before extending it further; this file doesn't attempt to fully re-document that internal composition.
+The real composition doesn't have a single `BookingLifecyclePanel` component as originally planned — the actions of every state are rendered by `BookingDetailAsideCard` (which mounts `BookingActionPanel` for PENDING, INFO_REQUESTED, APPROVED and NO_SHOW); `BookingDetailMain` has no actions, and `BookingOutcomeActionRail` is only a layout rail for the mark-complete and new-booking outcome pages. Verify the exact split by reading `BookingDetailPage.tsx` directly before extending it further; this file doesn't attempt to fully re-document that internal composition.
 
 ---
 
@@ -51,7 +51,7 @@ The prototype uses plain HTML + `tokens.css`. Production uses shadcn/ui componen
 
 ```ts
 type ActionState =
-  | 'idle'              // default — action panel with 3 buttons (PENDING/INFO_REQUESTED) or 3 buttons (APPROVED)
+  | 'idle'              // default — action panel with 3 buttons (PENDING) or 2 (INFO_REQUESTED: Aprovar, Rejeitar) or 4 (APPROVED: Marcar concluído, Reagendar, Marcar não compareceu, Cancelar)
   | 'submitting'        // any action in-flight — buttons disabled
   | 'approved'          // UC-003 success — green banner, no action buttons
   | 'rejected'          // UC-004 success — red banner, no action buttons (terminal)
@@ -64,7 +64,7 @@ type ActionState =
 
 (`BookingDetailActionState` in `BookingDetailMainBanner.tsx`; the no-show members are `BookingNoShowActionState` in `BookingNoShowBanner.tsx`.) There is **no** `completed`, `rescheduled` or `reschedule-conflict` member: "Marcar concluído" and "Reagendar" leave this page for `MarkCompleteBookingPage` and `RescheduleBookingPage`, which render their own `MarkCompleteSuccessView` / `RescheduleSuccessView` and, on a 409, their own `SlotConflictAlert` (the `conflictStartsAt` / `slotSuggestions` state in `RescheduleBookingPage`). The tables below keep those names as the *screen* states they draw.
 
-`BookingDetailPage` derives its **initial** action set from `booking.status`: `PENDING | INFO_REQUESTED` renders `BookingActionPanel` (Aprovar/Rejeitar/Pedir info); `APPROVED` renders the lifecycle actions (Marcar concluído/Reagendar/Cancelar), composed across `BookingDetailMain`/`BookingOutcomeActionRail` (there is no `BookingLifecyclePanel` component). Both panels write into the same `actionState` machine.
+`BookingDetailPage` derives its **initial** action set from `booking.status`: `PENDING | INFO_REQUESTED` renders `BookingActionPanel` (Aprovar/Rejeitar/Pedir info; an info-requested booking shows Aprovar and Rejeitar only); `APPROVED` renders the lifecycle actions in the same `BookingActionPanel` (Marcar concluído/Reagendar/Marcar não compareceu — disabled with a hint before the appointment ends — /Cancelar); there is no `BookingLifecyclePanel` component. Both write into the same `actionState` machine.
 
 ### Transition rules — triage (PENDING / INFO_REQUESTED)
 
@@ -98,7 +98,7 @@ type ActionState =
 | `idle` | Click "Marcar concluído" | — | Navigates to the dedicated `/dashboard/bookings/[id]/complete` page (`MarkCompleteBookingPage`; too much content for a bottom sheet) |
 | `MarkCompleteBookingPage` confirm | `PATCH .../complete` → 200 | `completed` | Green banner with cotado-vs-cobrado summary; no further actions (terminal) |
 | `idle` | Click "Reagendar" | — | Navigates to `RescheduleBookingPage` (full screen/route) |
-| `RescheduleBookingPage` confirm | `PATCH .../reschedule` → 200 | `rescheduled` | Green banner with old/new slot; **status stays APPROVED — action buttons return** (not terminal, unlike approve/reject/complete/cancel) |
+| `RescheduleBookingPage` confirm | `PATCH .../reschedule` → 200 | `rescheduled` | Green banner with old/new slot; **status stays APPROVED** (not terminal, unlike approve/reject/complete/cancel); the success page offers only "Ver detalhe atualizado" and "Voltar à agenda" — the action buttons are back once the detail page is reopened |
 | `RescheduleBookingPage` confirm | `PATCH .../reschedule` → 409 | `reschedule-conflict` | Inline error + adjacent slot suggestions, same pattern as `slot-conflict` |
 | `idle` | Click "Cancelar" | — | Opens `AdminCancelBookingSheet` (no state change yet) |
 | `AdminCancelBookingSheet` confirm | `PATCH /v1/bookings/:id/cancel` → 200 | `cancelled` | Red banner; no further actions (terminal) |
@@ -116,6 +116,8 @@ type ActionState =
 ---
 
 ## BFF calls
+
+**Roles (verified in `bookings.controller.ts`):** approve, reject, request-info and complete are `MANAGER`/`STAFF`; cancel, reschedule, the list and `GET :id` also allow `CUSTOMER` (customer scoping happens in the use case); no-show is `MANAGER`/`STAFF`, no-show correction is `MANAGER` only. Success responses return `bookingId`, not `id`.
 
 The real fetchers live in `apps/web/features/booking/api/booking.ts` (`apps/web/lib/api/bookings-staff.ts` never existed). All calls require `Authorization: Bearer <jwt>` (handled by the BFF session layer).
 
@@ -178,7 +180,7 @@ PATCH /v1/bookings/:id/approve
 Auth: Bearer JWT (the tenant comes from the JWT)
 Body (optional): { scheduledAt?: string /* ISO datetime — approve at an alternative slot */ }   // ApproveBookingBodySchema, defaults to {}
 
-→ 200: { id, status: 'APPROVED', approvedAt }
+→ 200: { bookingId, status: 'APPROVED', approvedAt }
 → 409 (no suggestions in the body: the web loads adjacent slots from GET /schedule/availability and passes { startsAt, appointmentEndsAt, endsAt }[] to SlotConflictAlert, which shows appointmentEndsAt)
 ```
 
@@ -188,7 +190,7 @@ PATCH /v1/bookings/:id/reject
 Auth: Bearer JWT (the tenant comes from the JWT)
 Body: { reason: string }   // BFF: .trim().min(10) (RejectBookingBodySchema); the web sheet also caps at maxLength 200
 
-→ 200: { id, status: 'REJECTED', rejectedAt }
+→ 200: { bookingId, status: 'REJECTED', rejectedAt }
 ```
 
 ### Request more info (M125-S05)
@@ -197,26 +199,26 @@ PATCH /v1/bookings/:id/request-info
 Auth: Bearer JWT (the tenant comes from the JWT)
 Body: { message: string }   // BFF: .trim().min(20) (RequestMoreInfoBodySchema); the web sheet also caps at maxLength 200
 
-→ 200: { id, status: 'INFO_REQUESTED', infoRequestedAt }
+→ 200: { bookingId, status: 'INFO_REQUESTED', infoRequestedAt }
 ```
 
 ### Cancel — admin (UC-008, ✅ shipped)
 ```
 PATCH /v1/bookings/:id/cancel        ← unified BFF route, not a literal .../cancel-admin path
 Auth: Bearer JWT (the tenant comes from the JWT)
-Body: { reason?: string }   // OPTIONAL — no minimum length (unlike Reject's 10-char rule)
+Body: { reason?: string }   // OPTIONAL — if sent, at least 1 character (the page omits a blank reason); no 10-char rule (unlike Reject)
 
-→ 200: { id, status: 'CANCELLED', cancelledAt }
+→ 200: { bookingId, status: 'CANCELLED' }
 ```
-The BFF's `PATCH /v1/bookings/:id/cancel` (`apps/bff/src/features/booking/bookings.controller.ts`) internally dispatches to the backend's `cancel-admin` or `cancel-customer` use case based on `user.role` — there is no separate `.../cancel-admin` BFF endpoint (an earlier draft of this file assumed one). `CancelBookingAsAdminBody.reason` has no validation beyond being a string.
+The BFF's `PATCH /v1/bookings/:id/cancel` (`apps/bff/src/features/booking/bookings.controller.ts`) internally dispatches to the backend's `cancel-admin` or `cancel-customer` use case based on `user.role` — there is no separate `.../cancel-admin` BFF endpoint (an earlier draft of this file assumed one). `CancelBookingAsAdminBody.reason` has no validation beyond being a non-empty string when present (BFF: `z.string().min(1).optional()`, defaulted to `{}`).
 
 ### Reschedule (UC-008 A1, ✅ shipped)
 ```
 PATCH /v1/bookings/:id/reschedule
 Auth: Bearer JWT (the tenant comes from the JWT)
-Body: { scheduledAt: string /* ISO8601 */, adminNotes?: string }
+Body: { scheduledAt: string /* ISO8601 */, adminNotes?: string }   // the BFF schema also accepts resourceSelections (max 100) and durationMinutes; the web sends only these two
 
-→ 200: { id, status: 'APPROVED', scheduledAt }
+→ 200: { bookingId, status: 'APPROVED', scheduledAt }   // may also carry quoteRevision
 → 409 (same handling as approve's 409)
 ```
 Booking status does **not** change — stays `APPROVED`. `adminNotes` is freeform (not auto-generated — see `docs/USE_CASES.md` UC-008 A1, fixed in the 2026-06-16 UC audit).
@@ -232,7 +234,7 @@ Body: {
   discountByPoints?: { pointsUsed: number /* positive int */, amountDeducted: number /* positive */ }   // loyalty redemption at close-out
 }
 
-→ 200: { id, status: 'COMPLETED', completedAt, totalActualPrice: number }
+→ 200: { bookingId, status: 'COMPLETED', completedAt, totalActualPrice: { amount, currency } }
 ```
 Every line in the booking must have an entry in `lines[]` (backend requires it, even if `actualPriceCharged === priceAtBooking` unchanged). Pre-fill each input with `priceAtBooking` so staff only edits when discounting/waiving (UC-009 step 4). Loyalty points are computed server-side from `pointsValueAtBooking` — **never send a points value from the client**.
 
@@ -250,10 +252,12 @@ app/dashboard/bookings/[id]/page.tsx     ← Server component
   └── calls loadBookingDetailRouteData(token, id)   (shells/dashboard/model/booking-route.server.ts)
   └── renders <BookingDetailPage booking tenantSlug showHeaderStatusBadge
                                 initialActionState returnTo />      ← 'use client'
-        └── <BookingActionPanel />                     ← receives actionState + callbacks
-        └── <RejectBookingSheet />                     ← Sheet, unmounts when closed
-        └── <RequestInfoSheet />                       ← Sheet, unmounts when closed
+        └── <BookingDetailMainBanner />                ← status banner (approve/reject/cancel/complete/no-show results)
+        └── <BookingDecisionBanner />                  ← "precisa de decisão" (scheduling exception)
         └── <SlotConflictAlert />                      ← renders only when actionState === 'slot-conflict'
+        └── <BookingDetailAsideCard />                 ← mounts <BookingActionPanel /> per status; receives actionState + callbacks
+        └── <BookingDetailSheets />                    ← mounts <RejectBookingSheet /> / <RequestInfoSheet /> / cancel / no-show sheets; unmount when closed
+        (also takes initialConflictCode from the `?conflict=1&reason=` query)
 ```
 
 `page.tsx` files are **not unit-tested** (Next.js runtime deps — Playwright E2E only, per CLAUDE.md §7).  
@@ -274,7 +278,7 @@ app/dashboard/bookings/[id]/page.tsx     ← Server component
 | Complete `afterServicePhotoUrls` | optional (BFF default `[]`); each item is a `tmp/<...>` staging path, not a URL | UC-009 A3 — completion must work with zero photos |
 | Complete `adminNotes` | optional; BFF `.trim().min(1).max(500)` | UC-009 |
 
-Bounds above are from `apps/bff/src/features/booking/bookings.schemas.ts`; the 200-char caps are client-side only. Validate client-side in the Sheet before calling the BFF and show a char counter (`{chars}/200`) below each textarea.
+Bounds above are from `apps/bff/src/features/booking/bookings.schemas.ts`; the 200-char caps are client-side only. The Sheets check only that the text is non-empty before calling the BFF (the 10/20-character minimums are enforced by the BFF and its message is mapped back into the Sheet) and show a char counter (`{chars}/200`) below each textarea.
 
 ---
 
@@ -287,7 +291,7 @@ After any successful action, **the admin stays on the detail page**. Do not call
 - Info request → blue banner shown inline (Approve + Reject remain — UC-005 A3)
 - Cancel (UC-008) → red banner replaces lifecycle panel inline (terminal — no further actions)
 - Mark complete (UC-009) → green banner with cotado-vs-cobrado summary (terminal — no further actions)
-- Reschedule (UC-008 A1) → green banner with old/new slot; **NOT terminal** — lifecycle panel buttons return, since the booking stays APPROVED and can still be cancelled/completed/rescheduled again
+- Reschedule (UC-008 A1) → green banner with old/new slot; **NOT terminal** — the booking stays APPROVED and can still be cancelled/completed/rescheduled again; the success page offers "Ver detalhe atualizado" and "Voltar à agenda", and the lifecycle buttons are back on the reopened detail
 
 "Voltar à agenda" is a manual link back, not auto-triggered.
 
@@ -367,7 +371,7 @@ Not copied here, so they cannot drift: read the real definitions.
 **Prototype screens (revised 2026-10-08):**
 - `00-agenda.html` (built in M23-S13; the former `00c` was folded in) — the recurrence-request card in "Precisa de ação" and the floating **"Filtrar agenda"** balloon. Card: teal `Recorrência` badge, teal left border, pattern as title, "Decidir até HH:mm", one **"Ver pedido"** button (no quick approve — one decision creates the whole term). Balloon: checkboxes grouped *Precisa de ação* (Agendamentos, Recorrências) and *Confirmados* (Hoje, Próximos dias); default all on; "Padrão" resets; a count badge on the trigger shows how many are hidden; empty state "Limpar filtro". The header count is computed from what is visible.
 - `08-recurring-schedule-approval.html` — rebuilt on `01-booking-detail.html`'s `detail-layout` (details centred, action panel right on desktop, fixed action bar on mobile, bottom nav hidden). Approve and reject each open a confirmation sheet. Reject has **no reason field** — `POST …/reject` takes no body. The request card ends with a **"Solicitado em"** row (`createdAt`, tenant timezone, same wording as `01`'s Origem card): the schedule read gains `createdAt` in M23-S13 (decided 2026-10-15), hidden when the field is absent.
-- `08b-recurring-approval-result.html` — the detail page in its decided/failed states (`#aprovada`, `#recusada`, `#conflito`, `#expirada`, `#telefone`, `#falha`) — result banner on top of the centre column, the request data kept visible, the right-hand action panel (mobile bar) swapped to "Voltar à agenda" or, when the request is still pending, to retry/reject. Same convention as `01c`/`04b`/`05c`. `09` and `09b` follow the create-form convention of `servicos/02` (form in the centre, action panel on the right, fixed action bar on mobile), and `09c` follows the inline-state convention too: the staff-creation outcomes are banners over a recap of the pattern with an action panel, not a separate result page.
+- `08b-recurring-approval-result.html` — the detail page in its decided/failed states (`#aprovada`, `#aprovada-parcial`, `#recusada`, `#conflito`, `#expirada`, `#passada`, `#inelegivel`, `#telefone`, `#falha`) — result banner on top of the centre column, the request data kept visible, the right-hand action panel (mobile bar) swapped to "Voltar à agenda" or, when the request is still pending, to retry/reject. Same convention as `01c`/`04b`/`05c`. `09` and `09b` follow the create-form convention of `servicos/02` (form in the centre, action panel on the right, fixed action bar on mobile), and `09c` follows the inline-state convention too: the staff-creation outcomes are banners over a recap of the pattern with an action panel, not a separate result page.
 - **Expired hold, not drawn (added 2026-10-15 after manual testing):** a request still `PENDING_APPROVAL` whose 30-minute hold has passed (the expiry job has not cancelled it yet — in local development it never does). The Agenda card reads "Prazo encerrado" in red instead of "Decidir até HH:mm"; `08` shows a red banner "O prazo para decidir terminou às HH:mm. Não é mais possível aprovar este pedido. Recuse-o para tirá-lo da fila; se ninguém o fizer, o sistema o cancela sozinho." in place of the amber deadline banner, hides the approve button and the approve paragraph of "O que acontece", and keeps **Recusar**. A `409 NOT_PENDING_APPROVAL` on such a request (still pending after the re-read) is shown the same way, not as `#expirada`.
 
 **"+ Novo" menu (added 2026-10-08):** one button above the queue opening a menu — *Agendamento* (UC-108, M23-S39/S40) and *Recorrência* (UC-070, M23-S19), both live and both drawn in `00-agenda.html` (`NEW_MENU_ITEMS` in `NewMenu.tsx`). Both start at the shared customer chooser `09-escolher-cliente.html?tipo=agendamento|recorrencia`.
@@ -380,7 +384,7 @@ Not copied here, so they cannot drift: read the real definitions.
 | `10-novo-agendamento.html` | The booking steps in the dashboard skin; summary + actions in the right pane | `/dashboard/bookings/new/booking` |
 | `10b-novo-agendamento-resultado.html` | Inline outcomes (`#criado`, `#ocupado`, `#janela`, `#telefone`, `#cliente`, `#falha`) | same route, result states |
 
-**BFF calls:** `GET /customers?search=&limit=` (name, e-mail or **phone**, ≥5 characters; result items carry `phone`), then the same public reads the customer flow uses (services, resource options, duration quote, availability), then `POST /bookings/staff` with either `customerId` or `contactName`+`contactPhone`+`contactEmail` (never both).
+**BFF calls:** `GET /customers?search=&limit=` (name, e-mail or **phone**; the BFF accepts 1+ characters, the web search starts at 5 — `MIN_CUSTOMER_SEARCH_LENGTH`; result items carry `phone`), then the same public reads the customer flow uses (services, resource options, duration quote, availability), then `POST /bookings/staff` with either `customerId` or `contactName`+`contactPhone`+`contactEmail` (never both).
 
 **Rules the screen shows:** the booking is created `APPROVED` (no waiting state, no manager alert, the customer or guest gets the confirmation e-mail); slots inside the tenant's minimum notice are offered (marked with a dot) because the backend skips that one rule for staff, while past dates and dates beyond the maximum advance stay blocked; the guest option is disabled for a recurrence because a recurrence needs an account.
 
@@ -440,7 +444,7 @@ Added 2026-09-29 as a deliberately small first pass in the same staff dashboard 
 ```
 POST /recurring-booking-schedules
   Body: { customerId, serviceId, recurrence: { frequency: "WEEKLY", daysOfWeek, startTime, durationMinutes },
-          resourceSelections?: [{ resourceType, resourceId }], startsOn, endsOn }   // the server derives the assignment policy (TD49 Story 0)
+          resourceSelections?: [{ resourceType, resourceId }], startsOn, endsOn, renewsScheduleId? }   // the server derives the assignment policy (TD49 Story 0)
   Response 201: { id, status: "ACTIVE" | "PENDING_APPROVAL", approvalHoldExpiresAt }
 ```
 `endsOn` is **required** and at most `startsOn` + the service's maximum term (`recurringHorizonDays`, 90 days by default) — a `422` `BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE` otherwise. The schedule is fixed-term: every occurrence of the term is checked and created once (immediately, or when staff approve in `08`); there is no rolling generation and no Pause. `customerId` is required for a staff actor: the backend returns `404` `BOOKING_CUSTOMER_NOT_FOUND` when it is missing, unknown, or the actor is not an active staff member.

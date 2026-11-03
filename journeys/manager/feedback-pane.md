@@ -3,7 +3,7 @@
 **Actor(s):** MANAGER (dashboard), CUSTOMER (conta do cliente), GUEST/CUSTOMER (hotsite público)
 **Goal:** When a save, action or load fails or succeeds, the user sees the result next to the action they just took, with the offending field marked — on every surface of `apps/web`.
 **UCs covered:** none — a cross-cutting UI pattern. Source of truth: `td/TD57-INLINE-FEEDBACK-AND-ACTION-PANE-PATTERN.md`. Lives under `manager/` because the dashboard is its main surface. The customer-account and public-hotsite screens live in their own actor folders, as the folder convention requires: `customer/prototypes/minha-conta/03c`–`03d` and `guest/prototypes/lead-form/01j`–`01k`; the hub `index.html` here links to them.
-**Status:** In progress (TD57) — the shared components shipped with TD57-S01 and the service edit screen uses them since TD57-S02; the other screens below still use their own boxes until their stories land. The service-edit error that triggered it is real: a 422 rendered below four cards, out of view.
+**Status:** In progress (TD57) — the shared components shipped with TD57-S01 and the service edit screen uses them since TD57-S02; the screens below marked ⚠ still use their own boxes until their stories land. The service-edit error that triggered it is real: a 422 rendered below four cards, out of view.
 
 ## Flow
 
@@ -28,7 +28,7 @@ flowchart TD
     class Ok,Err,Badge,RowErr,Page,PubMsg gap
 ```
 
-Every node in red is a gap: the screens do not use the shared components yet (`TD57-S02` onward). The shared components exist since `TD57-S01`; the branded counterpart for the public hotsite exists since `TD57-S06` and its callers migrate in `TD57-S16`.
+Every node in red is a gap: the screens not yet migrated do not use the shared components (the area stories `TD57-S12`–`S16` remain). The shared components exist since `TD57-S01`; the branded counterpart for the public hotsite exists since `TD57-S06` and its callers migrate in `TD57-S16`.
 
 ## Pages referenced
 
@@ -36,8 +36,8 @@ Every node in red is a gap: the screens do not use the shared components yet (`T
 |---|---|---|---|
 | `/dashboard/services/[id]/edit` (all five tabs) | `ServiceEditPanels` + `ActionPane` | TD57-S02 | ✅ Feedback in the pane; per-reason policy errors; pre-send validation |
 | `/dashboard/services/[id]/edit` (Recursos, Políticas, Formulário) | `ServiceResourceModePicker`, `PolicyDurationPricingCard`, `IntakeQuestionsCard` | TD57-S03 | ✅ First box level with the pane on all five tabs (intro inside the first card; the mode picker in a card) |
-| `/dashboard/team` | `MemberRow` | TD57-S04 | ⚠ Exists, success message never visible |
-| `/dashboard/resources` | `ResourceListPage` | TD57-S07 | ⚠ Exists, hand-rolled error box |
+| `/dashboard/team` | `MemberRow` | TD57-S04 | ✅ The changed badge/button is the confirmation; failures show inline beside the row |
+| `/dashboard/resources` | `ResourceListPage` | TD57-S07 | ✅ Feedback in the pane / shared components |
 | `/[slug]/my-account/bookings/[id]/cancel` | `CancelConfirmPage` | TD57-S11 | ✅ Error under the buttons, in the pane |
 | `/[slug]` (lead form) | public lead form + branded feedback component | TD57-S16 | ⚠ Component exists (TD57-S06); form still uses a hand-rolled box |
 | Shared components | `FeedbackMessage`, `ActionPane`, `FieldFeedback`, `useFormFeedback` | TD57-S01 | ✅ EXISTS |
