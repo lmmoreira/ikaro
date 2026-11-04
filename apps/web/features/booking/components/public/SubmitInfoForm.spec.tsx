@@ -130,6 +130,20 @@ describe('SubmitInfoForm', () => {
     expect(screen.getByTestId('response-input')).toHaveFocus();
   });
 
+  it('falls back to the form-level message and marks no input when the server names an unknown field', async () => {
+    vi.mocked(submitGuestBookingInfo).mockRejectedValue(
+      new ApiError(400, 'Invalid', { code: 'GENERIC_FIELD_REQUIRED', field: 'somethingElse' }),
+    );
+    const user = userEvent.setup();
+    renderWithIntl(<SubmitInfoForm bookingId={BOOKING_ID} token={TOKEN} summary={null} />);
+
+    await user.type(screen.getByTestId('response-input'), 'texto');
+    await user.click(screen.getByRole('button', { name: 'Enviar resposta' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Falha ao enviar');
+    expect(screen.getByTestId('response-input')).not.toHaveAttribute('aria-invalid');
+  });
+
   it('submits successfully and replaces the form with the success screen', async () => {
     vi.mocked(submitGuestBookingInfo).mockResolvedValue({
       bookingId: BOOKING_ID,
