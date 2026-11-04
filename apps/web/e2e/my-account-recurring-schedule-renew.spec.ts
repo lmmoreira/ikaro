@@ -10,6 +10,7 @@ import {
   NEW_SCHEDULE_PATH,
   pickCalendarDay,
   seedRecurrenceEligibleService,
+  DEFAULT_TERM_STARTS_IN,
   tenantDate,
 } from './helpers/recurring-schedule';
 
@@ -21,7 +22,7 @@ import {
 const LIST_URL = `/${TENANT_SLUG}/my-account/recurring-schedules`;
 const TERM_DAYS = 27;
 // The renewal starts the day after the old term ends.
-const RENEWAL_STARTS_IN = 5 + TERM_DAYS + 1;
+const RENEWAL_STARTS_IN = DEFAULT_TERM_STARTS_IN + TERM_DAYS + 1;
 
 test.describe('customer my-account: renewing a recurring reservation (M23-S22, UC-070)', () => {
   test('an ended schedule offers "Renovar", which opens the form pre-filled from it', async ({

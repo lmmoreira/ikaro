@@ -8,6 +8,7 @@ import {
   seedDefaultShapeRecurringService,
   seedRecurrenceEligibleService,
   seedRecurringBundle,
+  termDate,
   tenantDate,
 } from './helpers/recurring-schedule';
 import { recurringCard } from './helpers/recurring-approval';
@@ -64,8 +65,8 @@ test.describe('staff dashboard: creating a recurring reservation for a customer 
       await createStaffThroughForm(page, {
         service,
         weekdays: WEEKDAYS,
-        startsOn: tenantDate(5),
-        endsOn: tenantDate(18),
+        startsOn: termDate(5),
+        endsOn: termDate(18),
       });
 
       await expect(outcome(page, 'ACTIVE')).toContainText('Recorrência criada para');
@@ -166,8 +167,8 @@ test.describe('staff dashboard: creating a recurring reservation for a customer 
         service,
         weekdays: WEEKDAYS,
         startTime,
-        startsOn: tenantDate(5),
-        endsOn: tenantDate(8),
+        startsOn: termDate(5),
+        endsOn: termDate(8),
       });
       await submitStaffForm(page);
 
@@ -209,8 +210,8 @@ test.describe('staff dashboard: creating a recurring reservation for a customer 
       await createStaffThroughForm(page, {
         service,
         weekdays: WEEKDAYS,
-        startsOn: tenantDate(5),
-        endsOn: tenantDate(18),
+        startsOn: termDate(5),
+        endsOn: termDate(18),
       });
 
       await expect(outcome(page, 'ACTIVE')).toBeVisible();
@@ -243,8 +244,8 @@ test.describe('staff dashboard: creating a recurring reservation for a customer 
       await createStaffThroughForm(page, {
         service: bundle.service,
         weekdays: ['tuesday'],
-        startsOn: tenantDate(5),
-        endsOn: tenantDate(19),
+        startsOn: termDate(5),
+        endsOn: termDate(19),
         picks: [bundle.staffs[1]!.id],
       });
       await expect(outcome(page, 'ACTIVE')).toBeVisible();
@@ -269,8 +270,8 @@ test.describe('staff dashboard: creating a recurring reservation for a customer 
         service: bundle.service,
         weekdays: WEEKDAYS,
         startTime: held!.recurrence.startTime,
-        startsOn: tenantDate(5),
-        endsOn: tenantDate(8),
+        startsOn: termDate(5),
+        endsOn: termDate(8),
         picks: [bundle.staffs[0]!.id],
       });
       await submitStaffForm(page);
@@ -308,8 +309,8 @@ test.describe('staff dashboard: creating a recurring reservation for a customer 
       await createStaffThroughForm(page, {
         service,
         weekdays: WEEKDAYS,
-        startsOn: tenantDate(5),
-        endsOn: tenantDate(18),
+        startsOn: termDate(5),
+        endsOn: termDate(18),
       });
 
       await expect(outcome(page, 'ACTIVE')).toBeVisible();
@@ -334,8 +335,8 @@ test.describe('staff dashboard: creating a recurring reservation for a customer 
       service,
       weekdays: WEEKDAYS,
       startTime: '11:00',
-      startsOn: tenantDate(5),
-      endsOn: tenantDate(18),
+      startsOn: termDate(5),
+      endsOn: termDate(18),
     });
     await submitStaffForm(page);
 
