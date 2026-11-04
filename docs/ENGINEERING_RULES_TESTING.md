@@ -108,6 +108,10 @@ Two test files per controller: `.spec.ts` (unit) + `.component.spec.ts` (compone
 
 A component's error handling can depend on the class of the error it catches. In TD57-S08 the unit specs for the tenant picker threw an `ApiError`, but the real helper (`AuthFetchError`, a `FetchError`) was not read by `extractProblemDetailShape`, so a refused switch always showed the generic message. Only the Playwright run exposed it. When a spec makes a mocked helper fail, throw the error class the real helper throws (read its source), and give any shared resolver a spec for each error class it accepts.
 
+### Vitest does not type-check — run `tsc` on new or edited specs before committing
+
+Vitest transpiles and never type-checks, so a spec with a type error (a `querySelector` result used without `?.`, a hook stub missing a member of the real shape) passes every local test run and is only rejected by the pre-push `tsc` of `ci:fast`, which costs a rejected push and an amend. TD57-S16 hit it twice (`LeadFormFields.spec.tsx`, `IntakeQuestionField.spec.tsx`). After writing or editing a spec in `apps/web`, run `pnpm --filter @ikaro/web type-check` before the commit, not just `vitest`.
+
 ---
 
 
