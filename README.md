@@ -164,6 +164,9 @@ pnpm db:seed
 | Ikaro | `ikaro` | admin@ikaro.com.br | `google-sub-admin-ikaro` |
 | Lavacar BeloAuto | `lavacar-beloauto` | admin@lavacar.com.br | `google-sub-admin-a` |
 | AutoSpa Premium | `autospa-premium` | admin@autospa.com.br | `google-sub-admin-b` |
+| Equipe E2E | `equipe-e2e` | admin@equipe-e2e.com.br | `google-sub-admin-team` |
+
+`equipe-e2e` exists for the E2E team-list specs only (the team page shows the first 100 members, and the booking specs fill the other tenants' lists).
 
 Staff (Lavacar BeloAuto): `funcionario@lavacar.com.br` — `google-sub-worker-a`
 
