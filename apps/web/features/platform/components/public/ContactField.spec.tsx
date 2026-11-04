@@ -9,6 +9,7 @@ function baseProps() {
     htmlId: 'lead-form-name',
     testId: 'lead-form-name',
     errorTestId: 'lead-form-name-error',
+    errorId: 'name-error',
     label: 'Nome',
     placeholder: 'Seu nome completo',
     value: '',
@@ -30,6 +31,30 @@ describe('ContactField', () => {
   it('shows the error message with the given errorTestId when error is set', () => {
     render(<ContactField {...baseProps()} error="Campo obrigatório" />);
     expect(screen.getByTestId('lead-form-name-error')).toHaveTextContent('Campo obrigatório');
+  });
+
+  it('renders the message with the id the input points to, and marks the input invalid', () => {
+    render(
+      <ContactField
+        {...baseProps()}
+        error="Campo obrigatório"
+        binding={{ 'aria-invalid': true, 'aria-describedby': 'name-error' }}
+      />,
+    );
+
+    const input = screen.getByTestId('lead-form-name');
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(input).toHaveAttribute('aria-describedby', 'name-error');
+    expect(input.className).toContain('border-red-600');
+    expect(screen.getByText('Campo obrigatório')).toHaveAttribute('id', 'name-error');
+  });
+
+  it('leaves the input unmarked without a binding', () => {
+    render(<ContactField {...baseProps()} />);
+
+    const input = screen.getByTestId('lead-form-name');
+    expect(input).not.toHaveAttribute('aria-invalid');
+    expect(input.className).not.toContain('border-red-600');
   });
 
   it('does not render an error element when error is undefined', () => {

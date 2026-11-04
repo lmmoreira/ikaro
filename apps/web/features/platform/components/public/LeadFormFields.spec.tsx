@@ -4,7 +4,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { LeadFormQuestion } from '@ikaro/types';
-import { LeadFormFields } from './LeadFormFields';
+import { LeadFormFields, type LeadFormFeedback } from './LeadFormFields';
 
 vi.mock('./TurnstileWidget', () => ({
   TurnstileWidget: () => <div data-testid="turnstile-mock" />,
@@ -13,6 +13,30 @@ vi.mock('./TurnstileWidget', () => ({
 const QUESTIONS: LeadFormQuestion[] = [
   { id: 'q1', label: 'Qual serviço?', type: 'TEXT', required: true, order: 1 },
 ];
+
+function feedbackStub(overrides: Partial<LeadFormFeedback> = {}): LeadFormFeedback {
+  return {
+    error: null,
+    success: null,
+    feedback: null,
+    fieldErrors: {},
+    fieldProps: () => ({
+      ref: vi.fn(),
+      'aria-invalid': undefined,
+      'aria-describedby': undefined,
+    }),
+    fieldErrorId: (name: string) => `${name}-error`,
+    setError: vi.fn(),
+    setFieldErrors: vi.fn(),
+    focusFirstInvalid: vi.fn(),
+    registerField: vi.fn(),
+    clear: vi.fn(),
+    edit: vi.fn(),
+    setSuccess: vi.fn(),
+    setFromApiError: vi.fn(),
+    ...overrides,
+  };
+}
 
 function baseProps() {
   return {
@@ -28,8 +52,7 @@ function baseProps() {
     showPrefilledNote: false,
     answers: {},
     onAnswerChange: vi.fn(),
-    fieldErrors: { questions: {} },
-    showValidationBanner: false,
+    feedback: feedbackStub(),
     isCaptchaError: false,
     isTurnstileVerified: false,
     isSubmitting: false,
@@ -51,15 +74,68 @@ describe('LeadFormFields', () => {
     expect(screen.getByTestId('lead-form-submit')).toHaveTextContent('Enviar');
   });
 
-  it('shows the validation banner when showValidationBanner is true', () => {
-    renderWithIntl(<LeadFormFields {...baseProps()} showValidationBanner />);
-    expect(screen.getByTestId('lead-form-validation-banner')).toBeInTheDocument();
+  it('shows the form message as a branded alert under the submit button', () => {
+    renderWithIntl(
+      <LeadFormFields
+        {...baseProps()}
+        feedback={feedbackStub({ error: 'Corrija os campos destacados abaixo antes de enviar.' })}
+      />,
+    );
+
+    const banner = screen.getByTestId('lead-form-validation-banner');
+    expect(banner).toHaveAttribute('role', 'alert');
+    expect(banner).toHaveTextContent('Não foi possível enviar');
+    expect(banner).toHaveTextContent('Corrija os campos destacados abaixo antes de enviar.');
+    expect(
+      screen.getByTestId('lead-form-submit').compareDocumentPosition(banner) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
-  it('shows the captcha banner and relabels the submit button when isCaptchaError is true', () => {
+  it('shows no form message when the feedback has none', () => {
+    renderWithIntl(<LeadFormFields {...baseProps()} />);
+    expect(screen.queryByTestId('lead-form-validation-banner')).not.toBeInTheDocument();
+  });
+
+  it('shows the captcha message as a branded alert (not an amber banner) and relabels the submit button', () => {
     renderWithIntl(<LeadFormFields {...baseProps()} isCaptchaError />);
-    expect(screen.getByTestId('lead-form-captcha-banner')).toBeInTheDocument();
+
+    const banner = screen.getByTestId('lead-form-captcha-banner');
+    expect(banner).toHaveAttribute('role', 'alert');
+    expect(banner).toHaveTextContent('Verificação de segurança expirou');
+    expect(banner.className).not.toContain('amber');
     expect(screen.getByTestId('lead-form-submit')).toHaveTextContent('Tentar novamente');
+  });
+
+  it('marks and describes an invalid contact field and a question from the feedback', () => {
+    renderWithIntl(
+      <LeadFormFields
+        {...baseProps()}
+        feedback={feedbackStub({
+          fieldErrors: {
+            email: 'Informe um e-mail válido.',
+            'question:q1': 'Resposta obrigatória.',
+          },
+          fieldProps: (name: string) => ({
+            ref: vi.fn(),
+            'aria-invalid': true as const,
+            'aria-describedby': `${name}-error`,
+          }),
+        })}
+      />,
+    );
+
+    expect(screen.getByTestId('lead-form-email')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByTestId('lead-form-email')).toHaveAttribute(
+      'aria-describedby',
+      'email-error',
+    );
+    expect(screen.getByTestId('lead-form-email-error')).toHaveTextContent(
+      'Informe um e-mail válido.',
+    );
+    expect(screen.getByTestId('lead-form-question-error')).toHaveTextContent(
+      'Resposta obrigatória.',
+    );
   });
 
   it('disables the fieldset and shows "Enviando..." while submitting', () => {

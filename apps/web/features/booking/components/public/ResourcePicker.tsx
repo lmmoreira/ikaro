@@ -3,9 +3,9 @@
 import type React from 'react';
 import { useTranslations } from 'next-intl';
 import type { HotsiteServiceResourceOptionsRequirement, ResourceSelectionItem } from '@ikaro/types';
+import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feedback-message';
 import { pickHintOf, resourceInitials } from '@/features/booking/model/resource-picker-copy';
 import { findPick } from '@/features/booking/model/resource-picks';
-import { ErrorAlert } from './ErrorAlert';
 
 export type ResourcePickerStatus = 'loading' | 'error' | 'ready';
 
@@ -21,7 +21,6 @@ interface ResourcePickerProps {
     resourceId: string,
   ) => void;
   readonly onRetry: () => void;
-  readonly reselectMessage: string | null;
 }
 
 interface SectionProps {
@@ -101,7 +100,6 @@ export function ResourcePicker({
   picks,
   onPick,
   onRetry,
-  reselectMessage,
 }: ResourcePickerProps): React.JSX.Element {
   const t = useTranslations('booking.resourcePicker');
   const tb = useTranslations('booking');
@@ -123,14 +121,6 @@ export function ResourcePicker({
       )}
       {summaryLine && <p className="mt-1 text-sm opacity-75">{summaryLine}</p>}
 
-      {reselectMessage && (
-        <div className="mt-4" data-testid="picker-reselect-error">
-          <ErrorAlert hint={t('reselectHint')} focusOnMount>
-            {reselectMessage}
-          </ErrorAlert>
-        </div>
-      )}
-
       {status === 'loading' && (
         <output className="mt-4 block" aria-busy="true" data-testid="picker-loading">
           {t('loading')}
@@ -139,13 +129,12 @@ export function ResourcePicker({
 
       {status === 'error' && (
         <div className="mt-4" data-testid="picker-load-error">
-          <ErrorAlert
+          <BrandedFeedbackMessage
+            title={t('loadError')}
             hint={t('loadErrorHint')}
             onRetry={onRetry}
             retryLabel={tb('errors.tryAgain')}
-          >
-            {t('loadError')}
-          </ErrorAlert>
+          />
         </div>
       )}
 

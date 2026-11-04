@@ -13,7 +13,7 @@ import { composeBasket, type ChosenDuration } from '@/features/booking/model/bas
 import { useBasketTotalText } from '@/features/booking/hooks/useBasketText';
 import { BasketLines } from './BasketLines';
 import { BookingSubmittedDetails } from './BookingSubmittedDetails';
-import { ErrorAlert } from './ErrorAlert';
+import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feedback-message';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 
 export type BookingSubmissionStatus = 'idle' | 'submitting' | 'success' | 'error';
@@ -124,12 +124,6 @@ export function ConfirmationStep({
         {formatTime(new Date(selectedSlot.appointmentEndsAt))}
       </p>
 
-      {status === 'error' && errorMessage && (
-        <div className="mt-4" data-testid="confirmation-error">
-          <ErrorAlert>{errorMessage}</ErrorAlert>
-        </div>
-      )}
-
       <div className="mt-6 flex gap-3">
         <button
           type="button"
@@ -155,6 +149,12 @@ export function ConfirmationStep({
           {status === 'submitting' ? t('confirmation.sending') : t('confirmation.submit')}
         </button>
       </div>
+
+      {status === 'error' && errorMessage && (
+        <div className="mt-4" data-testid="confirmation-error">
+          <BrandedFeedbackMessage title={errorMessage} />
+        </div>
+      )}
     </div>
   );
 }

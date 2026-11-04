@@ -7,9 +7,9 @@ import { useServiceRateText } from '@/features/booking/hooks/useServicePriceText
 import { useVariableDurationStep } from '@/features/booking/hooks/useVariableDurationStep';
 import type { StepError } from '@/features/booking/hooks/useBookingFlow';
 import type { ChosenDuration } from '@/features/booking/model/basket-lines';
+import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feedback-message';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
-import { ErrorAlert } from './ErrorAlert';
 
 interface VariableDurationStepProps {
   readonly slug: string;
@@ -93,7 +93,7 @@ export function VariableDurationStep({
       </p>
 
       {options.length === 0 ? (
-        <ErrorAlert>{t('duration.unavailable')}</ErrorAlert>
+        <BrandedFeedbackMessage title={t('duration.unavailable')} />
       ) : (
         <div className="border p-4" style={cardStyle}>
           <label
@@ -152,9 +152,11 @@ export function VariableDurationStep({
           )}
           {state.status === 'error' && (
             <div className="mt-2" data-testid="duration-quote-error">
-              <ErrorAlert onRetry={retry} retryLabel={t('errors.tryAgain')}>
-                {t('duration.quoteError')}
-              </ErrorAlert>
+              <BrandedFeedbackMessage
+                title={t('duration.quoteError')}
+                onRetry={retry}
+                retryLabel={t('errors.tryAgain')}
+              />
             </div>
           )}
           {state.status === 'ready' && (
@@ -171,12 +173,6 @@ export function VariableDurationStep({
               </p>
             </>
           )}
-        </div>
-      )}
-
-      {error && (
-        <div className="mt-4" data-testid="duration-error">
-          <ErrorAlert focusOnMount>{error.message}</ErrorAlert>
         </div>
       )}
 
@@ -204,6 +200,12 @@ export function VariableDurationStep({
           {tc('next')}
         </button>
       </div>
+
+      {error && (
+        <div className="mt-4" data-testid="duration-error">
+          <BrandedFeedbackMessage focusOnMount title={error.message} />
+        </div>
+      )}
     </div>
   );
 }

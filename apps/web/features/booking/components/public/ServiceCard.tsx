@@ -4,6 +4,7 @@ import type React from 'react';
 import { useTranslations } from 'next-intl';
 import type { HotsiteServiceResponse } from '@ikaro/types';
 import { useServicePriceText } from '@/features/booking/hooks/useServicePriceText';
+import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feedback-message';
 
 interface ServiceCardProps {
   readonly service: HotsiteServiceResponse;
@@ -88,15 +89,13 @@ export function ServiceCard({
         </div>
       </label>
       {isUnavailable && (
-        <div
-          role="alert"
-          className="mt-2 p-3 text-sm"
-          style={{ backgroundColor: '#fef2f2', color: '#b91c1c', borderRadius: 'var(--ba-radius)' }}
-          data-testid="service-unavailable"
-        >
-          <strong>{t('serviceSelection.unavailable')}</strong>
-          <br />
-          {t('serviceSelection.unavailableHint', { name: service.name })}
+        <div className="mt-2">
+          <BrandedFeedbackMessage
+            testId="service-unavailable"
+            title={t('serviceSelection.unavailable')}
+          >
+            {t('serviceSelection.unavailableHint', { name: service.name })}
+          </BrandedFeedbackMessage>
         </div>
       )}
     </>

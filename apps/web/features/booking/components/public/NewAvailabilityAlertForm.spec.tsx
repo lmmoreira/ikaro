@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
@@ -425,6 +425,11 @@ describe('NewAvailabilityAlertForm', () => {
 
       const alert = await screen.findByTestId('alert-submit-error');
       expect(alert).toBeInTheDocument();
+      expect(within(alert).getByRole('alert')).toHaveFocus();
+      expect(
+        screen.getByTestId('alert-submit').compareDocumentPosition(alert) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
       expect(screen.getByTestId('availability-alert-form')).toBeInTheDocument();
     });
 

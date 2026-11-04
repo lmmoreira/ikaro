@@ -250,6 +250,11 @@ describe('ConfirmationStep', () => {
     expect(screen.getByTestId('confirmation-error')).toHaveTextContent(
       'Horário indisponível, escolha outro',
     );
+    const alert = within(screen.getByTestId('confirmation-error')).getByRole('alert');
+    expect(
+      screen.getByTestId('step-confirm').compareDocumentPosition(alert) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it('shows the success message and hides the form when status is "success"', () => {

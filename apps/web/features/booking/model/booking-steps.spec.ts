@@ -230,6 +230,15 @@ describe('resolveBookingSubmitErrorRoute', () => {
     expect(resolveBookingSubmitErrorRoute(problem(code), 'pt-BR').message).toBe(message);
   });
 
+  it('carries the rejected request field so the owning step can mark and focus it', () => {
+    const route = resolveBookingSubmitErrorRoute(
+      problem(BookingErrorCode.PICKUP_ADDRESS_REQUIRED, 'pickupAddress'),
+      'pt-BR',
+    );
+
+    expect(route).toMatchObject({ target: 'services', field: 'pickupAddress' });
+  });
+
   it('sends a 401 to the login', () => {
     expect(resolveBookingSubmitErrorRoute(new AuthError('x'), 'pt-BR').target).toBe('login');
   });
@@ -261,6 +270,25 @@ describe('resolveErrorStep', () => {
       message: 'm',
       code: 'X',
     });
+  });
+
+  it('keeps the rejected field on the step it routes to', () => {
+    const route = { target: 'personal' as const, message: 'm', field: 'contactAddress' };
+
+    expect(resolveErrorStep(route, list, 'pt-BR', null)).toMatchObject({
+      kind: 'step',
+      stepId: 'personal',
+      field: 'contactAddress',
+    });
+  });
+
+  it('drops the field when the error falls back to Confirmation', () => {
+    const route = { target: 'duration' as const, message: 'm', field: 'durationMinutes' };
+
+    expect(resolveErrorStep(route, list, 'pt-BR', null)).not.toHaveProperty(
+      'field',
+      'durationMinutes',
+    );
   });
 
   it('returns the duration step when the basket has one (BOOKING_DURATION_OUT_OF_RANGE)', () => {

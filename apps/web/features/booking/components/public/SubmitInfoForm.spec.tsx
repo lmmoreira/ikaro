@@ -72,6 +72,64 @@ describe('SubmitInfoForm', () => {
     expect(submitGuestBookingInfo).not.toHaveBeenCalled();
   });
 
+  it('marks the empty response, links it to its message and focuses it', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<SubmitInfoForm bookingId={BOOKING_ID} token={TOKEN} summary={null} />);
+
+    await user.click(screen.getByRole('button', { name: 'Enviar resposta' }));
+
+    const response = screen.getByTestId('response-input');
+    expect(response).toHaveAttribute('aria-invalid', 'true');
+    expect(response).toHaveFocus();
+    expect(response.className).toContain('border-red-600');
+    const message = document.getElementById(response.getAttribute('aria-describedby') ?? '');
+    expect(message).toHaveTextContent('Informe sua resposta antes de enviar.');
+    expect(message?.closest('[role="alert"]')).not.toBeNull();
+    expect(screen.queryByText('Falha ao enviar')).not.toBeInTheDocument();
+  });
+
+  it('clears the response mark when the visitor types', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<SubmitInfoForm bookingId={BOOKING_ID} token={TOKEN} summary={null} />);
+    await user.click(screen.getByRole('button', { name: 'Enviar resposta' }));
+
+    await user.type(screen.getByTestId('response-input'), 'a');
+
+    expect(screen.getByTestId('response-input')).not.toHaveAttribute('aria-invalid');
+  });
+
+  it('shows a failed submit as a branded alert under the submit button', async () => {
+    vi.mocked(submitGuestBookingInfo).mockRejectedValue(new ApiError(500, 'Internal server error'));
+    const user = userEvent.setup();
+    renderWithIntl(<SubmitInfoForm bookingId={BOOKING_ID} token={TOKEN} summary={null} />);
+
+    await user.type(screen.getByTestId('response-input'), 'texto');
+    await user.click(screen.getByRole('button', { name: 'Enviar resposta' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Falha ao enviar');
+    expect(
+      screen.getByTestId('submit-button').compareDocumentPosition(alert) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('marks and focuses the response when the server rejects that field', async () => {
+    vi.mocked(submitGuestBookingInfo).mockRejectedValue(
+      new ApiError(400, 'Invalid', { code: 'GENERIC_FIELD_REQUIRED', field: 'response' }),
+    );
+    const user = userEvent.setup();
+    renderWithIntl(<SubmitInfoForm bookingId={BOOKING_ID} token={TOKEN} summary={null} />);
+
+    await user.type(screen.getByTestId('response-input'), 'texto');
+    await user.click(screen.getByRole('button', { name: 'Enviar resposta' }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('response-input')).toHaveAttribute('aria-invalid', 'true'),
+    );
+    expect(screen.getByTestId('response-input')).toHaveFocus();
+  });
+
   it('submits successfully and replaces the form with the success screen', async () => {
     vi.mocked(submitGuestBookingInfo).mockResolvedValue({
       bookingId: BOOKING_ID,

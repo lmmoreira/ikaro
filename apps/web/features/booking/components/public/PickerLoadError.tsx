@@ -1,7 +1,7 @@
 'use client';
 
+import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feedback-message';
 import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
-import { ErrorAlert } from './ErrorAlert';
 
 interface PickerLoadErrorProps {
   readonly message: string;
@@ -12,7 +12,7 @@ interface PickerLoadErrorProps {
 
 /**
  * The load failure of the date and slot pickers: the shared feedback message on the unbranded
- * (customer account) look, the branded alert on the public hotsite.
+ * (customer account) look, the branded message on the public hotsite.
  */
 export function PickerLoadError({
   message,
@@ -23,9 +23,5 @@ export function PickerLoadError({
   if (variant === 'dashboard') {
     return <FeedbackMessage title={message} onRetry={onRetry} retryLabel={retryLabel} />;
   }
-  return (
-    <ErrorAlert onRetry={onRetry} retryLabel={retryLabel} variant={variant}>
-      {message}
-    </ErrorAlert>
-  );
+  return <BrandedFeedbackMessage title={message} onRetry={onRetry} retryLabel={retryLabel} />;
 }

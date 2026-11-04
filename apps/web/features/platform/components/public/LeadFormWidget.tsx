@@ -11,8 +11,9 @@ import {
   submitLeadFormClient,
 } from '@/features/platform/hotsite/api/lead-form';
 import { extractProblemDetailShape } from '@/shared/lib/api/errors';
+import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import { Unavailable } from '@/shells/hotsite/components/Unavailable';
-import { LeadFormFields, type LeadFormAnswers, type LeadFormFieldErrors } from './LeadFormFields';
+import { LeadFormFields, questionFieldName, type LeadFormAnswers } from './LeadFormFields';
 import { LeadFormLoginRequiredGate } from './LeadFormLoginRequiredGate';
 import { LeadFormSkeleton } from './LeadFormSkeleton';
 import { LeadFormSuccess } from './LeadFormSuccess';
@@ -65,7 +66,7 @@ export function LeadFormWidget({
   const phone = phoneOverride ?? customerProfile?.phone ?? '';
 
   const [answers, setAnswers] = useState<LeadFormAnswers>({});
-  const [fieldErrors, setFieldErrors] = useState<LeadFormFieldErrors>({ questions: {} });
+  const feedback = useFormFeedback();
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileKey, setTurnstileKey] = useState(0);
   const [phase, setPhase] = useState<SubmitPhase>('idle');
@@ -117,9 +118,11 @@ export function LeadFormWidget({
 
   async function handleSubmit(): Promise<void> {
     if (!config) return;
+    feedback.clear();
     const validationErrors = validate();
     if (validationErrors) {
-      setFieldErrors(validationErrors);
+      feedback.setError(t('leadForm.validationBanner'));
+      feedback.setFieldErrors(validationErrors);
       setPhase('validation-error');
       return;
     }
@@ -128,7 +131,6 @@ export function LeadFormWidget({
       return;
     }
 
-    setFieldErrors({ questions: {} });
     setPhase('submitting');
 
     const result = await submitLeadFormClient(slug, {
@@ -146,32 +148,29 @@ export function LeadFormWidget({
 
     setTurnstileToken(null);
     setTurnstileKey((k) => k + 1);
-    setPhase(resolveErrorPhase(result));
-    if (result.field === 'name' || result.field === 'email' || result.field === 'phone') {
-      setFieldErrors({ questions: {}, [result.field]: fieldRequiredMessage(result.field, t) });
+    const nextPhase = resolveErrorPhase(result);
+    setPhase(nextPhase);
+    if (nextPhase === 'validation-error') {
+      feedback.setError(t('leadForm.validationBanner'));
+      if (result.field === 'name' || result.field === 'email' || result.field === 'phone') {
+        feedback.setFieldErrors({ [result.field]: fieldRequiredMessage(result.field, t) });
+      }
     }
   }
 
-  function validate(): LeadFormFieldErrors | null {
+  function validate(): Record<string, string> | null {
     if (!config) return null;
-    const questionErrors: Record<string, string> = {};
+    const errors: Record<string, string> = {};
+    if (!name.trim()) errors.name = t('leadForm.nameRequired');
+    if (!EMAIL_SCHEMA.safeParse(email).success) errors.email = t('leadForm.emailRequired');
+    if (!phone.trim()) errors.phone = t('leadForm.phoneRequired');
     for (const question of config.questions) {
       if (question.required && isAnswerBlank(answers[question.id])) {
-        questionErrors[question.id] =
+        errors[questionFieldName(question.id)] =
           question.type === 'TEXT' ? t('leadForm.questionRequired') : t('leadForm.selectOption');
       }
     }
-
-    const errors: LeadFormFieldErrors = {
-      name: name.trim() ? undefined : t('leadForm.nameRequired'),
-      email: EMAIL_SCHEMA.safeParse(email).success ? undefined : t('leadForm.emailRequired'),
-      phone: phone.trim() ? undefined : t('leadForm.phoneRequired'),
-      questions: questionErrors,
-    };
-
-    const hasErrors =
-      !!errors.name || !!errors.email || !!errors.phone || Object.keys(errors.questions).length > 0;
-    return hasErrors ? errors : null;
+    return Object.keys(errors).length > 0 ? errors : null;
   }
 
   if (moduleUnavailable) {
@@ -239,16 +238,16 @@ export function LeadFormWidget({
       email={email}
       phone={phone}
       phonePrefix={phonePrefix}
-      onNameChange={setNameOverride}
-      onEmailChange={setEmailOverride}
-      onPhoneChange={setPhoneOverride}
+      onNameChange={feedback.edit(setNameOverride)}
+      onEmailChange={feedback.edit(setEmailOverride)}
+      onPhoneChange={feedback.edit(setPhoneOverride)}
       showPrefilledNote={!!customerProfile}
       answers={answers}
-      onAnswerChange={(questionId, value) =>
-        setAnswers((prev) => ({ ...prev, [questionId]: value }))
-      }
-      fieldErrors={fieldErrors}
-      showValidationBanner={phase === 'validation-error'}
+      onAnswerChange={(questionId, value) => {
+        feedback.clear();
+        setAnswers((prev) => ({ ...prev, [questionId]: value }));
+      }}
+      feedback={feedback}
       isCaptchaError={phase === 'captcha-error'}
       isTurnstileVerified={!!turnstileToken}
       isSubmitting={phase === 'submitting'}
@@ -293,6 +292,5 @@ function fieldRequiredMessage(
   t: ReturnType<typeof useTranslations>,
 ): string {
   if (field === 'email') return t('leadForm.emailRequired');
-  if (field === 'phone') return t('leadForm.phoneRequired');
-  return t('leadForm.nameRequired');
+  return field === 'phone' ? t('leadForm.phoneRequired') : t('leadForm.nameRequired');
 }

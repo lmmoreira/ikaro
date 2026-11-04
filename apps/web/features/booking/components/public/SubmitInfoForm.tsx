@@ -8,8 +8,13 @@ import { BffErrorCode } from '@ikaro/types';
 import { submitGuestBookingInfo } from '@/features/booking/api/public';
 import { formatDateLong, formatTime } from '@/shared/lib/formatting/format-time';
 import { resolveSupportedLocale } from '@/shared/lib/i18n/get-messages';
-import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import { extractProblemDetailShape } from '@/shared/lib/api/errors';
+import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feedback-message';
+import {
+  BRANDED_FIELD_INVALID_CLASS,
+  BrandedFieldFeedback,
+} from '@/shared/components/hotsite/branded-field-feedback';
+import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import { BrandHeader } from './BrandHeader';
 import { PhotoUpload } from './PhotoUpload';
 import { SubmitInfoSuccessView, type SubmitInfoFormSummary } from './SubmitInfoSuccessView';
@@ -38,7 +43,9 @@ type FormState =
   | { readonly status: 'idle' }
   | { readonly status: 'submitting' }
   | { readonly status: 'success'; readonly infoSubmittedAt: string }
-  | { readonly status: 'error'; readonly kind: 'retry' | 'expired'; readonly message: string };
+  | { readonly status: 'error'; readonly kind: 'retry' | 'expired' };
+
+const RESPONSE_FIELD = 'response';
 
 const btnStyle: React.CSSProperties = {
   backgroundColor: 'var(--ba-btn-bg)',
@@ -62,8 +69,10 @@ export function SubmitInfoForm({
   const resolvedLocale = resolveSupportedLocale(locale);
   const [response, setResponse] = useState('');
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
-  const [validationError, setValidationError] = useState(false);
+  const feedback = useFormFeedback();
   const [state, setState] = useState<FormState>({ status: 'idle' });
+
+  const responseInvalid = !!feedback.fieldErrors[RESPONSE_FIELD];
 
   function formatScheduledAt(iso: string): string {
     const date = new Date(iso);
@@ -74,10 +83,10 @@ export function SubmitInfoForm({
     event.preventDefault();
 
     if (response.trim().length < 1) {
-      setValidationError(true);
+      feedback.setFieldErrors({ [RESPONSE_FIELD]: t('validationError') });
       return;
     }
-    setValidationError(false);
+    feedback.clear();
     setState({ status: 'submitting' });
 
     try {
@@ -89,11 +98,8 @@ export function SubmitInfoForm({
     } catch (err) {
       const code = extractProblemDetailShape(err)?.code;
       const expired = code !== undefined && EXPIRED_LINK_CODES.has(code);
-      setState({
-        status: 'error',
-        kind: expired ? 'expired' : 'retry',
-        message: resolveErrorMessage(code, resolvedLocale),
-      });
+      feedback.setFromApiError(err, resolvedLocale);
+      setState({ status: 'error', kind: expired ? 'expired' : 'retry' });
     }
   }
 
@@ -134,27 +140,6 @@ export function SubmitInfoForm({
             <p className="mb-1 font-bold">{summary.serviceSummary}</p>
             <p className="mb-0.5 text-sm opacity-60">{formatScheduledAt(summary.scheduledAt)}</p>
             <p className="text-sm opacity-50">{summary.contactName}</p>
-          </div>
-        )}
-
-        {state.status === 'error' && (
-          <div
-            className="mb-5 flex items-start gap-3 rounded-md border p-3.5"
-            style={{
-              backgroundColor: '#fef2f2',
-              borderColor: '#fecaca',
-              borderRadius: 'var(--ba-radius)',
-            }}
-            role="alert"
-          >
-            <div>
-              <p className="mb-1 text-[0.9375rem] font-bold" style={{ color: '#dc2626' }}>
-                {t('submitErrorTitle')}
-              </p>
-              <p className="text-sm" style={{ color: '#7f1d1d' }}>
-                {state.message}
-              </p>
-            </div>
           </div>
         )}
 
@@ -200,28 +185,27 @@ export function SubmitInfoForm({
               data-testid="response-input"
               rows={5}
               value={response}
-              onChange={(e) => setResponse(e.target.value)}
+              onChange={(e) => {
+                feedback.clear();
+                setResponse(e.target.value);
+              }}
               placeholder={t('responsePlaceholder')}
               aria-required="true"
-              aria-invalid={validationError}
-              aria-describedby={validationError ? 'response-error' : undefined}
-              className="mb-1.5 w-full resize-y rounded-md border p-3 text-sm"
+              {...feedback.fieldProps(RESPONSE_FIELD)}
+              className={`mb-1.5 w-full resize-y rounded-md border p-3 text-sm${responseInvalid ? ` ${BRANDED_FIELD_INVALID_CLASS}` : ''}`}
               style={{
-                borderColor: validationError ? '#ef4444' : 'var(--ba-secondary)',
+                ...(responseInvalid ? {} : { borderColor: 'var(--ba-secondary)' }),
                 borderRadius: 'var(--ba-radius)',
                 minHeight: '7rem',
               }}
               disabled={state.status === 'submitting'}
             />
-            {validationError && (
-              <p
-                id="response-error"
-                role="alert"
-                className="mb-3 text-sm"
-                style={{ color: '#ef4444' }}
-              >
-                {t('validationError')}
-              </p>
+            {responseInvalid && (
+              <div role="alert" className="mb-3">
+                <BrandedFieldFeedback id={feedback.fieldErrorId(RESPONSE_FIELD)}>
+                  {feedback.fieldErrors[RESPONSE_FIELD]}
+                </BrandedFieldFeedback>
+              </div>
             )}
 
             <div className="mt-4">
@@ -243,6 +227,14 @@ export function SubmitInfoForm({
               {state.status === 'submitting' ? t('submittingButton') : t('submitButton')}
             </button>
           </form>
+        )}
+
+        {state.status === 'error' && feedback.error && (
+          <div className="mt-4">
+            <BrandedFeedbackMessage title={t('submitErrorTitle')}>
+              {feedback.error}
+            </BrandedFeedbackMessage>
+          </div>
         )}
 
         <p className="mt-4 text-center text-xs opacity-45">{t('linkValidityNote')}</p>

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { renderWithIntl } from '@/test-utils';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DaySummary } from '@ikaro/types';
@@ -207,6 +207,9 @@ describe('AvailabilityCarousel', () => {
     expect(await screen.findByTestId('fully-booked-message')).toHaveTextContent(
       'Nenhum horário disponível nos próximos dias',
     );
+    expect(
+      within(screen.getByTestId('fully-booked-message')).getByRole('alert'),
+    ).toBeInTheDocument();
     await screen.findAllByTestId('day-option');
     expect(getDayOption('2026-06-15')).toBeDisabled();
   });

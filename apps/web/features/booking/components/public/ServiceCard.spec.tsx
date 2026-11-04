@@ -81,5 +81,7 @@ describe('ServiceCard', () => {
     const alert = screen.getByTestId('service-unavailable');
     expect(alert).toHaveTextContent('Este serviço não está disponível para reserva no momento.');
     expect(alert).toHaveTextContent('Massagem Relaxante — escolha outro serviço para continuar.');
+    expect(alert).toHaveAttribute('role', 'alert');
+    expect(alert.className).not.toContain('bg-red-50');
   });
 });

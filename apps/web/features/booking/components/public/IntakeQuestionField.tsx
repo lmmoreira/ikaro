@@ -3,17 +3,41 @@
 import type React from 'react';
 import { useTranslations } from 'next-intl';
 import type { ServiceIntakeQuestionItem } from '@ikaro/types';
+import {
+  BRANDED_FIELD_INVALID_CLASS,
+  BrandedFieldFeedback,
+} from '@/shared/components/hotsite/branded-field-feedback';
 
-export const INTAKE_ERROR_COLOR = '#b91c1c';
+/** The classes of an intake control, with the branded outline when it is invalid. */
+export function intakeInputClass(base: string, hasError: boolean): string {
+  return hasError ? `${base} ${BRANDED_FIELD_INVALID_CLASS}` : base;
+}
 
-// A field error sits on the tenant's own page colour, which can be dark: a fixed pale chip paired
-// with fixed dark-red text stays legible whatever the branding (axe caught red-on-navy otherwise).
-export const INTAKE_ERROR_CHIP_CLASS = 'mt-1 inline-block px-2 py-1 text-sm';
-export const INTAKE_ERROR_CHIP_STYLE = {
-  backgroundColor: '#fef2f2',
-  color: INTAKE_ERROR_COLOR,
-  borderRadius: 'var(--ba-radius)',
-} as const;
+interface IntakeFieldMessageProps {
+  readonly id: string;
+  readonly testId: string;
+  readonly fieldKey?: string;
+  readonly className?: string;
+  readonly children: React.ReactNode;
+}
+
+/**
+ * A field's message on the branded component: it sits on the tenant's own page colour, which can
+ * be dark, so it paints its own surface. The wrapper keeps the `data-testid` the E2E specs read.
+ */
+export function IntakeFieldMessage({
+  id,
+  testId,
+  fieldKey,
+  className,
+  children,
+}: IntakeFieldMessageProps): React.JSX.Element {
+  return (
+    <div className={className} data-testid={testId} data-field-key={fieldKey}>
+      <BrandedFieldFeedback id={id}>{children}</BrandedFieldFeedback>
+    </div>
+  );
+}
 
 interface IntakeQuestionFieldProps {
   readonly question: ServiceIntakeQuestionItem;
@@ -24,7 +48,7 @@ interface IntakeQuestionFieldProps {
 
 const inputStyle = (hasError: boolean): React.CSSProperties => ({
   borderRadius: 'var(--ba-radius)',
-  borderColor: hasError ? INTAKE_ERROR_COLOR : 'var(--ba-secondary)',
+  ...(hasError ? {} : { borderColor: 'var(--ba-secondary)' }),
   backgroundColor: 'var(--ba-secondary)',
   color: 'var(--ba-text)',
 });
@@ -32,15 +56,13 @@ const inputStyle = (hasError: boolean): React.CSSProperties => ({
 function FieldError({ fieldKey }: { readonly fieldKey: string }): React.JSX.Element {
   const t = useTranslations('booking.intake');
   return (
-    <p
+    <IntakeFieldMessage
       id={`intake-error-${fieldKey}`}
-      className={INTAKE_ERROR_CHIP_CLASS}
-      style={INTAKE_ERROR_CHIP_STYLE}
-      data-testid="intake-field-error"
-      data-field-key={fieldKey}
+      testId="intake-field-error"
+      fieldKey={fieldKey}
     >
       {t('requiredError')}
-    </p>
+    </IntakeFieldMessage>
   );
 }
 
@@ -135,7 +157,7 @@ export function IntakeQuestionField(props: IntakeQuestionFieldProps): React.JSX.
         data-testid="intake-input"
         data-field-key={question.fieldKey}
         rows={2}
-        className="w-full border px-3 py-2"
+        className={intakeInputClass('w-full border px-3 py-2', hasError)}
         style={inputStyle(hasError)}
         value={typeof value === 'string' ? value : ''}
         onChange={(e) => onChange(e.target.value)}

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AvailabilityResponse, DaySummary } from '@ikaro/types';
@@ -93,6 +93,25 @@ describe('AvailabilityStep', () => {
     );
 
     expect(screen.getByTestId('step2-error')).toHaveTextContent('Erro no passo 2');
+  });
+
+  it('announces the step2 error as a branded alert under the buttons and focuses it', () => {
+    vi.mocked(fetchAvailabilitySummary).mockResolvedValue([day]);
+    renderWithIntl(
+      <AvailabilityStep
+        {...baseProps()}
+        datePickerType="carousel"
+        error={{ message: 'Erro no passo 2' }}
+      />,
+    );
+
+    const alert = within(screen.getByTestId('step2-error')).getByRole('alert');
+    expect(alert).toHaveTextContent('Erro no passo 2');
+    expect(alert).toHaveFocus();
+    expect(
+      screen.getByTestId('step-next').compareDocumentPosition(alert) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it('disables the next button until a slot is selected, then calls onNext when clicked', async () => {

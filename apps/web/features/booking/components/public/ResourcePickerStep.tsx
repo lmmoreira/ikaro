@@ -7,6 +7,7 @@ import type {
   HotsiteServiceResponse,
   ResourceSelectionItem,
 } from '@ikaro/types';
+import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feedback-message';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import type { PickerUnit } from '@/features/booking/model/booking-steps';
@@ -91,7 +92,6 @@ export function ResourcePickerStep({
         picks={picks}
         onPick={onPick}
         onRetry={onRetry}
-        reselectMessage={reselectMessage}
       />
       <div className="mt-6 flex gap-3">
         <button
@@ -117,6 +117,12 @@ export function ResourcePickerStep({
           {tc('next')}
         </button>
       </div>
+
+      {reselectMessage && (
+        <div className="mt-4" data-testid="picker-reselect-error">
+          <BrandedFeedbackMessage focusOnMount title={reselectMessage} hint={t('reselectHint')} />
+        </div>
+      )}
     </div>
   );
 }

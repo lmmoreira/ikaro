@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import type React from 'react';
 import { BookingErrorCode } from '@ikaro/types';
 import type { Address, HotsiteAddressSpec, HotsiteServiceResponse } from '@ikaro/types';
+import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feedback-message';
+import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { isAddressFilled } from '@/features/booking/model/personal-info';
@@ -12,8 +14,9 @@ import { summarizeSelection } from '@/features/booking/model/selection-totals';
 import type { BookingFormDataStatus } from '@/features/booking/hooks/useBookingFormData';
 import type { StepError } from '@/features/booking/hooks/useBookingFlow';
 import { AddressFields } from './AddressFields';
-import { ErrorAlert } from './ErrorAlert';
 import { ServiceCard } from './ServiceCard';
+
+const PICKUP_ADDRESS_FIELD = 'pickupAddress';
 
 interface ServiceSelectionStepProps {
   readonly services: readonly HotsiteServiceResponse[];
@@ -80,7 +83,16 @@ export function ServiceSelectionStep({
 }: ServiceSelectionStepProps): React.JSX.Element {
   const t = useTranslations('booking');
   const tc = useTranslations('common');
-  const [error, setError] = useState<string | null>(null);
+  const feedback = useFormFeedback();
+  const { setFieldErrors } = feedback;
+  const addressMessageId = feedback.fieldErrorId(PICKUP_ADDRESS_FIELD);
+  const serverMarksAddress = submitError?.field === PICKUP_ADDRESS_FIELD;
+
+  // The server rejected the pickup address: mark and focus it like a local validation failure.
+  useEffect(() => {
+    if (serverMarksAddress && submitError)
+      setFieldErrors({ [PICKUP_ADDRESS_FIELD]: submitError.message });
+  }, [serverMarksAddress, submitError, setFieldErrors]);
 
   const selected = services.filter((service) => selectedServiceIds.includes(service.id));
   const hasUnavailable = selected.some((service) => unavailableServiceIds.includes(service.id));
@@ -89,10 +101,12 @@ export function ServiceSelectionStep({
   function handleNext() {
     if (selected.length === 0) return;
     if (requiresPickupAddress && !isAddressFilled(pickupAddress, addressSpec.requireNeighborhood)) {
-      setError(t('serviceSelection.pickupAddressError'));
+      const message = t('serviceSelection.pickupAddressError');
+      feedback.setError(message);
+      feedback.setFieldErrors({ [PICKUP_ADDRESS_FIELD]: message });
       return;
     }
-    setError(null);
+    feedback.clear();
     onNext();
   }
 
@@ -126,46 +140,14 @@ export function ServiceSelectionStep({
             value={pickupAddress}
             onChange={(address) => {
               onPickupAddressChange(address);
-              setError(null);
+              feedback.clear();
             }}
             idPrefix="pickup-address"
             addressSpec={addressSpec}
-            hasError={!!error}
+            hasError={!!feedback.fieldErrors[PICKUP_ADDRESS_FIELD]}
+            describedBy={addressMessageId}
+            firstFieldRef={feedback.registerField(PICKUP_ADDRESS_FIELD)}
           />
-        </div>
-      )}
-
-      {error && (
-        <div className="mt-4" data-testid="step1-error">
-          <ErrorAlert>{error}</ErrorAlert>
-        </div>
-      )}
-
-      {submitError && (
-        <div className="mt-4" data-testid="step1-submit-error">
-          <ErrorAlert
-            focusOnMount
-            hint={
-              submitError.code === BookingErrorCode.INVALID_MULTIPLE_VARIABLE_SERVICES
-                ? t('serviceSelection.multipleVariableHint')
-                : undefined
-            }
-          >
-            {submitError.message}
-          </ErrorAlert>
-        </div>
-      )}
-
-      {formStatus === 'error' && (
-        <div className="mt-4" data-testid="step1-form-error">
-          <ErrorAlert
-            focusOnMount
-            hint={t('serviceSelection.formLoadError')}
-            onRetry={handleNext}
-            retryLabel={t('errors.tryAgain')}
-          >
-            {t('serviceSelection.formLoadErrorTitle')}
-          </ErrorAlert>
         </div>
       )}
 
@@ -193,6 +175,42 @@ export function ServiceSelectionStep({
           {isLoading ? tc('loading') : tc('next')}
         </button>
       </div>
+
+      {feedback.error && (
+        <div id={addressMessageId} className="mt-4" data-testid="step1-error">
+          <BrandedFeedbackMessage title={feedback.error} />
+        </div>
+      )}
+
+      {submitError && (
+        <div
+          id={!feedback.error && serverMarksAddress ? addressMessageId : undefined}
+          className="mt-4"
+          data-testid="step1-submit-error"
+        >
+          <BrandedFeedbackMessage
+            focusOnMount
+            title={submitError.message}
+            hint={
+              submitError.code === BookingErrorCode.INVALID_MULTIPLE_VARIABLE_SERVICES
+                ? t('serviceSelection.multipleVariableHint')
+                : undefined
+            }
+          />
+        </div>
+      )}
+
+      {formStatus === 'error' && (
+        <div className="mt-4" data-testid="step1-form-error">
+          <BrandedFeedbackMessage
+            focusOnMount
+            title={t('serviceSelection.formLoadErrorTitle')}
+            hint={t('serviceSelection.formLoadError')}
+            onRetry={handleNext}
+            retryLabel={t('errors.tryAgain')}
+          />
+        </div>
+      )}
     </div>
   );
 }

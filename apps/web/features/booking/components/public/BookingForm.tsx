@@ -11,7 +11,6 @@ import { buildAvailabilityAlertLink } from '@/features/booking/model/availabilit
 import { findVariableDurationService } from '@/features/booking/model/duration-options';
 import { AvailabilityStep } from './AvailabilityStep';
 import { ConfirmationStep } from './ConfirmationStep';
-import { ErrorAlert } from './ErrorAlert';
 import { IntakeAnswersStep } from './IntakeAnswersStep';
 import { PersonalInfoStep } from './PersonalInfoStep';
 import { ResourcePickerStep } from './ResourcePickerStep';
@@ -139,30 +138,24 @@ export function BookingForm({
         )}
 
         {stepId === 'personal' && selectedDate && selectedSlot && (
-          <>
-            <PersonalInfoStep
-              slug={slug}
-              value={selections.personalInfo}
-              onChange={selections.setPersonalInfo}
-              services={c.bookable}
-              selectedServiceIds={selectedServiceIds}
-              selectedDate={selectedDate}
-              selectedSlot={selectedSlot}
-              phonePrefix={phonePrefix}
-              addressSpec={addressSpec}
-              hideContactFields={c.isAuthenticatedCustomer}
-              picks={selections.picks}
-              requirements={formData.requirements}
-              duration={selections.duration}
-              onNext={flow.goNext}
-              onBack={flow.goBack}
-            />
-            {flow.errors.personal && (
-              <div className="mt-4" data-testid="step3-submit-error">
-                <ErrorAlert focusOnMount>{flow.errors.personal.message}</ErrorAlert>
-              </div>
-            )}
-          </>
+          <PersonalInfoStep
+            slug={slug}
+            value={selections.personalInfo}
+            onChange={selections.setPersonalInfo}
+            services={c.bookable}
+            selectedServiceIds={selectedServiceIds}
+            selectedDate={selectedDate}
+            selectedSlot={selectedSlot}
+            phonePrefix={phonePrefix}
+            addressSpec={addressSpec}
+            hideContactFields={c.isAuthenticatedCustomer}
+            picks={selections.picks}
+            requirements={formData.requirements}
+            duration={selections.duration}
+            submitError={flow.errors.personal ?? null}
+            onNext={flow.goNext}
+            onBack={flow.goBack}
+          />
         )}
 
         {stepId === 'intake' && formData.intakeSchema && (

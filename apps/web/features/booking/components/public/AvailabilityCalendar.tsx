@@ -12,7 +12,7 @@ import {
 } from '@/features/booking/model/booking-window';
 import { resolveDayPickerLocale } from '@/shared/lib/i18n/day-picker-locale';
 import { cn } from '@/shared/utils/cn';
-import { ErrorAlert } from './ErrorAlert';
+import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feedback-message';
 import { DAY_PICKER_COMPONENTS } from './AvailabilityCalendarDayPicker';
 
 interface AvailabilityCalendarProps {
@@ -192,9 +192,11 @@ export function AvailabilityCalendar({
 
   if (error) {
     return (
-      <ErrorAlert onRetry={handleRetry} retryLabel={t('errors.tryAgain')}>
-        {t('availability.loadError')}
-      </ErrorAlert>
+      <BrandedFeedbackMessage
+        title={t('availability.loadError')}
+        onRetry={handleRetry}
+        retryLabel={t('errors.tryAgain')}
+      />
     );
   }
 
@@ -260,9 +262,9 @@ export function AvailabilityCalendar({
 
       {outOfRangeMessageKey === currentRangeKey && (
         <div className="mt-3" data-testid="calendar-out-of-range-message">
-          <ErrorAlert>
-            {t('availability.outOfRangeMessage', { days: maxBookingAdvanceDays })}
-          </ErrorAlert>
+          <BrandedFeedbackMessage
+            title={t('availability.outOfRangeMessage', { days: maxBookingAdvanceDays })}
+          />
         </div>
       )}
     </div>

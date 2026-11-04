@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useAvailabilityAlertForm } from '@/features/booking/hooks/useAvailabilityAlertForm';
 import { useResolvedAlertResource } from '@/features/booking/hooks/useResolvedAlertResource';
 import type { AvailabilityAlertFieldKey } from '@/features/booking/model/availability-alert-form';
+import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feedback-message';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { CriteriaChoice, SummaryRow, WeekdayPicker } from './AvailabilityAlertFields';
 import { DateTimeField, ExpirySelect, TimeField } from './AvailabilityAlertPickers';
@@ -20,7 +21,6 @@ import {
   alertSecondaryButtonClass,
   alertSecondaryButtonStyle,
 } from './availability-alert-styles';
-import { ErrorAlert } from './ErrorAlert';
 
 export interface AvailabilityAlertFormService {
   readonly id: string;
@@ -114,9 +114,11 @@ export function NewAvailabilityAlertForm({
           </dl>
           {resource.status === 'error' && (
             <div className="mt-2" data-testid="alert-resource-error">
-              <ErrorAlert onRetry={retryResource} retryLabel={t('errors.tryAgain')}>
-                {t('availabilityAlert.resourceError')}
-              </ErrorAlert>
+              <BrandedFeedbackMessage
+                title={t('availabilityAlert.resourceError')}
+                onRetry={retryResource}
+                retryLabel={t('errors.tryAgain')}
+              />
             </div>
           )}
           {service.isComposite && (
@@ -207,14 +209,6 @@ export function NewAvailabilityAlertForm({
 
         <p className="text-xs opacity-60">{t('availabilityAlert.notice', { email })}</p>
 
-        {state.submitError && (
-          <div data-testid="alert-submit-error">
-            <ErrorAlert focusOnMount hint={t('availabilityAlert.errors.submitFailedHint')}>
-              {state.submitError}
-            </ErrorAlert>
-          </div>
-        )}
-
         <div className="flex flex-wrap gap-3">
           <Link
             href={`/${slug}/booking`}
@@ -235,6 +229,16 @@ export function NewAvailabilityAlertForm({
               : t('availabilityAlert.actions.submit')}
           </button>
         </div>
+
+        {state.submitError && (
+          <div data-testid="alert-submit-error">
+            <BrandedFeedbackMessage
+              focusOnMount
+              title={state.submitError}
+              hint={t('availabilityAlert.errors.submitFailedHint')}
+            />
+          </div>
+        )}
       </form>
     </AvailabilityAlertShell>
   );

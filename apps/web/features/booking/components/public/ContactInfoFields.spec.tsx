@@ -42,6 +42,32 @@ describe('ContactInfoFields', () => {
     expect(screen.getByTestId('input-phone')).not.toHaveAttribute('aria-invalid');
   });
 
+  it('links the invalid field to its message, outlines it and registers every input for focus', () => {
+    const registerField = vi.fn(() => vi.fn());
+    renderWithIntl(
+      <ContactInfoFields
+        contactName=""
+        contactEmail=""
+        contactPhone=""
+        phonePrefix="+55"
+        fieldError={{ field: 'phone', message: 'Informe seu telefone.' }}
+        describedBy="contact-message"
+        registerField={registerField}
+        onContactNameChange={vi.fn()}
+        onContactEmailChange={vi.fn()}
+        onContactPhoneChange={vi.fn()}
+      />,
+    );
+
+    const phone = screen.getByTestId('input-phone');
+    expect(phone).toHaveAttribute('aria-describedby', 'contact-message');
+    expect(phone.className).toContain('border-red-600');
+    expect(screen.getByTestId('input-name')).not.toHaveAttribute('aria-describedby');
+    expect(registerField).toHaveBeenCalledWith('name');
+    expect(registerField).toHaveBeenCalledWith('email');
+    expect(registerField).toHaveBeenCalledWith('phone');
+  });
+
   it('calls onContactNameChange and onContactEmailChange when typing', async () => {
     const user = userEvent.setup();
     const onContactNameChange = vi.fn();

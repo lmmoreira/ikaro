@@ -3,7 +3,7 @@ import { renderWithIntl } from '@/test-utils';
 import { useState } from 'react';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Address, HotsiteAddressSpec } from '@ikaro/types';
 import type { AddressLookup } from '@/shared/lib/address/address-lookup.port';
 import { InMemoryAddressLookup } from '@/shared/lib/address/in-memory-address-lookup';
@@ -155,5 +155,55 @@ describe('AddressFields', () => {
     renderWithIntl(<Wrapper addressSpec={MISSING_NEIGHBORHOOD_LABEL_SPEC} />);
 
     expect(screen.getByLabelText('Bairro')).toBeInTheDocument();
+  });
+
+  it('marks every required input and links it to the form message when the address is invalid', () => {
+    renderWithIntl(
+      <AddressFields
+        value={emptyAddress()}
+        onChange={() => undefined}
+        idPrefix="pickup"
+        addressSpec={BR_SPEC}
+        hasError
+        describedBy="address-message"
+      />,
+    );
+
+    for (const label of ['CEP', 'Rua', 'Número', 'Bairro', 'Cidade', 'UF']) {
+      const input = screen.getByLabelText(label);
+      expect(input).toHaveAttribute('aria-invalid', 'true');
+      expect(input).toHaveAttribute('aria-describedby', 'address-message');
+    }
+    expect(screen.getByLabelText('Complemento')).not.toHaveAttribute('aria-invalid');
+  });
+
+  it('hands the first input to the form so it can focus the address', () => {
+    const firstFieldRef = vi.fn();
+    renderWithIntl(
+      <AddressFields
+        value={emptyAddress()}
+        onChange={() => undefined}
+        idPrefix="pickup"
+        addressSpec={BR_SPEC}
+        firstFieldRef={firstFieldRef}
+      />,
+    );
+
+    expect(firstFieldRef).toHaveBeenCalledWith(screen.getByLabelText('CEP'));
+  });
+
+  it('marks an optional address too when the server rejects it (required={false} with an error)', () => {
+    renderWithIntl(
+      <AddressFields
+        value={emptyAddress()}
+        onChange={() => undefined}
+        idPrefix="contact"
+        addressSpec={BR_SPEC}
+        required={false}
+        hasError
+      />,
+    );
+
+    expect(screen.getByLabelText('CEP')).toHaveAttribute('aria-invalid', 'true');
   });
 });

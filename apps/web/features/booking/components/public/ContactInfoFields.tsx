@@ -1,6 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { BRANDED_FIELD_INVALID_CLASS } from '@/shared/components/hotsite/branded-field-feedback';
 import { buildContactPhone } from '@/shared/utils/contact-phone';
 import {
   formatPhoneForDisplay,
@@ -17,10 +18,14 @@ export interface FieldError {
 function errorBorderStyle(isInvalid: boolean): React.CSSProperties {
   return {
     borderRadius: 'var(--ba-radius)',
-    borderColor: isInvalid ? '#dc2626' : 'var(--ba-secondary)',
+    ...(isInvalid ? {} : { borderColor: 'var(--ba-secondary)' }),
     backgroundColor: 'var(--ba-secondary)',
     color: 'var(--ba-text)',
   };
+}
+
+function inputClass(base: string, isInvalid: boolean): string {
+  return isInvalid ? `${base} ${BRANDED_FIELD_INVALID_CLASS}` : base;
 }
 
 interface ContactInfoFieldsProps {
@@ -29,6 +34,10 @@ interface ContactInfoFieldsProps {
   readonly contactPhone: string;
   readonly phonePrefix: string;
   readonly fieldError: FieldError | null;
+  /** The id of the message that explains the invalid field; announced with the input. */
+  readonly describedBy?: string;
+  /** Registers an input with the form so the first invalid one can be focused. */
+  readonly registerField?: (name: ErrorField) => React.Ref<HTMLInputElement>;
   readonly onContactNameChange: (value: string) => void;
   readonly onContactEmailChange: (value: string) => void;
   readonly onContactPhoneChange: (value: string) => void;
@@ -43,6 +52,8 @@ export function ContactInfoFields({
   contactPhone,
   phonePrefix,
   fieldError,
+  describedBy,
+  registerField,
   onContactNameChange,
   onContactEmailChange,
   onContactPhoneChange,
@@ -66,9 +77,11 @@ export function ContactInfoFields({
           data-testid="input-name"
           value={contactName}
           onChange={(e) => onContactNameChange(e.target.value)}
-          className="w-full border px-3 py-2"
+          ref={registerField?.('name')}
+          className={inputClass('w-full border px-3 py-2', fieldError?.field === 'name')}
           style={errorBorderStyle(fieldError?.field === 'name')}
           aria-invalid={fieldError?.field === 'name' ? true : undefined}
+          aria-describedby={fieldError?.field === 'name' ? describedBy : undefined}
         />
       </div>
 
@@ -87,9 +100,11 @@ export function ContactInfoFields({
           data-testid="input-email"
           value={contactEmail}
           onChange={(e) => onContactEmailChange(e.target.value)}
-          className="w-full border px-3 py-2"
+          ref={registerField?.('email')}
+          className={inputClass('w-full border px-3 py-2', fieldError?.field === 'email')}
           style={errorBorderStyle(fieldError?.field === 'email')}
           aria-invalid={fieldError?.field === 'email' ? true : undefined}
+          aria-describedby={fieldError?.field === 'email' ? describedBy : undefined}
         />
       </div>
 
@@ -107,7 +122,7 @@ export function ContactInfoFields({
             className="flex items-center border border-r-0 px-3 text-sm font-medium"
             style={{
               borderRadius: 'var(--ba-radius) 0 0 var(--ba-radius)',
-              borderColor: fieldError?.field === 'phone' ? '#dc2626' : 'var(--ba-secondary)',
+              ...(fieldError?.field === 'phone' ? {} : { borderColor: 'var(--ba-secondary)' }),
               backgroundColor: 'var(--ba-secondary)',
               color: 'var(--ba-text)',
             }}
@@ -131,14 +146,16 @@ export function ContactInfoFields({
               const input = sanitizePhoneInput(e.target.value, phonePrefix);
               onContactPhoneChange(buildContactPhone(input, phonePrefix));
             }}
-            className="min-w-0 flex-1 border px-3 py-2"
+            ref={registerField?.('phone')}
+            className={inputClass('min-w-0 flex-1 border px-3 py-2', fieldError?.field === 'phone')}
             style={{
               borderRadius: '0 var(--ba-radius) var(--ba-radius) 0',
-              borderColor: fieldError?.field === 'phone' ? '#dc2626' : 'var(--ba-secondary)',
+              ...(fieldError?.field === 'phone' ? {} : { borderColor: 'var(--ba-secondary)' }),
               backgroundColor: 'var(--ba-secondary)',
               color: 'var(--ba-text)',
             }}
             aria-invalid={fieldError?.field === 'phone' ? true : undefined}
+            aria-describedby={fieldError?.field === 'phone' ? describedBy : undefined}
           />
         </div>
       </div>

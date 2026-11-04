@@ -1,15 +1,21 @@
+import { BrandedFieldFeedback } from '@/shared/components/hotsite/branded-field-feedback';
 import { buildContactPhone } from '@/shared/utils/contact-phone';
 import {
   formatPhoneForDisplay,
   phonePlaceholder,
   sanitizePhoneInput,
 } from '@/shared/utils/phone-format';
+import { leadFormControlClass, type LeadFormFieldBinding } from './lead-form-field-binding';
 
 interface LeadFormPhoneFieldProps {
   readonly label: string;
   readonly value: string;
   readonly phonePrefix: string;
   readonly error?: string;
+  /** The id the input's `aria-describedby` points to; the message renders with it. */
+  readonly errorId: string;
+  /** Focus registration and the invalid attributes from the form's feedback hook. */
+  readonly binding?: LeadFormFieldBinding;
   readonly onChange: (value: string) => void;
 }
 
@@ -22,6 +28,8 @@ export function LeadFormPhoneField({
   value,
   phonePrefix,
   error,
+  errorId,
+  binding,
   onChange,
 }: LeadFormPhoneFieldProps): React.JSX.Element {
   return (
@@ -42,7 +50,7 @@ export function LeadFormPhoneField({
           type="tel"
           inputMode="numeric"
           data-testid="lead-form-phone"
-          className="min-w-0 flex-1 border px-3 py-2"
+          className={leadFormControlClass('min-w-0 flex-1 border px-3 py-2', binding)}
           style={{ borderRadius: '0 var(--ba-radius) var(--ba-radius) 0' }}
           placeholder={phonePlaceholder(phonePrefix)}
           value={formatPhoneForDisplay(
@@ -53,12 +61,13 @@ export function LeadFormPhoneField({
             const input = sanitizePhoneInput(e.target.value, phonePrefix);
             onChange(buildContactPhone(input, phonePrefix));
           }}
+          {...binding}
         />
       </div>
       {error && (
-        <p className="mt-1.5 text-sm text-red-600" data-testid="lead-form-phone-error">
-          {error}
-        </p>
+        <div data-testid="lead-form-phone-error">
+          <BrandedFieldFeedback id={errorId}>{error}</BrandedFieldFeedback>
+        </div>
       )}
     </div>
   );

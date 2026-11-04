@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import type { AvailabilityAlertResponse } from '@ikaro/types';
+import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feedback-message';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { AvailabilityAlertShell } from './AvailabilityAlertShell';
 import {
@@ -95,13 +96,6 @@ export function AvailabilityAlertCapReached({ slug, onBack }: CapReachedProps): 
   return (
     <AvailabilityAlertShell testId="availability-alert-cap-reached">
       <h1 className="mb-4 text-2xl font-bold">{t('availabilityAlert.cap.title')}</h1>
-      <div
-        role="alert"
-        className="border border-red-300 bg-red-50 p-6 text-red-900"
-        style={{ borderRadius: 'var(--ba-radius)' }}
-      >
-        <p className="leading-relaxed">{t('availabilityAlert.cap.body')}</p>
-      </div>
       <div className="mt-6 flex flex-wrap gap-3">
         <button
           type="button"
@@ -120,6 +114,9 @@ export function AvailabilityAlertCapReached({ slug, onBack }: CapReachedProps): 
           {t('availabilityAlert.cap.viewAlerts')}
         </Link>
       </div>
+      <div className="mt-4">
+        <BrandedFeedbackMessage title={t('availabilityAlert.cap.body')} />
+      </div>
     </AvailabilityAlertShell>
   );
 }
@@ -136,17 +133,13 @@ export function AvailabilityAlertIneligible({ slug }: IneligibleProps): React.JS
   return (
     <AvailabilityAlertShell testId="availability-alert-ineligible">
       <h1 className="mb-4 text-2xl font-bold">{t('availabilityAlert.ineligible.title')}</h1>
-      <div
-        role="alert"
-        className="border border-red-300 bg-red-50 p-6 text-red-900"
-        style={{ borderRadius: 'var(--ba-radius)' }}
-      >
-        <p className="leading-relaxed">{t('availabilityAlert.ineligible.body')}</p>
-      </div>
       <div className="mt-6">
         <Link href={`/${slug}`} className={alertPrimaryButtonClass} style={alertPrimaryButtonStyle}>
           {t('availabilityAlert.ineligible.backToSite')}
         </Link>
+      </div>
+      <div className="mt-4">
+        <BrandedFeedbackMessage title={t('availabilityAlert.ineligible.body')} />
       </div>
     </AvailabilityAlertShell>
   );

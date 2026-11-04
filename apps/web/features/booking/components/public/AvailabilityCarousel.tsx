@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { ErrorAlert } from './ErrorAlert';
 import { PickerLoadError } from './PickerLoadError';
+import { PickerNotice } from './PickerNotice';
 import type { DaySummary, ResourceSelectionItem } from '@ikaro/types';
 import { fetchAvailabilitySummary } from '@/features/platform/hotsite/api/schedule';
 import {
@@ -175,7 +175,7 @@ export function AvailabilityCarousel({
 
       {fullyBooked && (
         <div className="mt-3" data-testid="fully-booked-message">
-          <ErrorAlert variant={variant}>{t('availability.noSlots')}</ErrorAlert>
+          <PickerNotice message={t('availability.noSlots')} variant={variant} />
         </div>
       )}
     </div>

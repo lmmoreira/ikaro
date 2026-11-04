@@ -196,9 +196,8 @@ describe('IntakeAnswersStep', () => {
 
     expect(consent).toHaveAttribute('aria-invalid', 'true');
     expect(consent).toHaveAttribute('aria-describedby', 'intake-consent-error');
-    expect(screen.getByTestId('intake-consent-error')).toHaveAttribute(
-      'id',
-      'intake-consent-error',
-    );
+    const message = document.getElementById('intake-consent-error');
+    expect(message).toBeInTheDocument();
+    expect(screen.getByTestId('intake-consent-error')).toContainElement(message);
   });
 });

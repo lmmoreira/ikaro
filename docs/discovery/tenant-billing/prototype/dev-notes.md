@@ -14,7 +14,7 @@
 
 ## What is real vs invented
 
-- **Real:** `--ba-*` tokens (`journeys/shared/tokens.css`), the dashboard shell, hotsite and customer-dashboard pages, `ErrorAlert`, status badge and detail-layout patterns.
+- **Real:** `--ba-*` tokens (`journeys/shared/tokens.css`), the dashboard shell, hotsite and customer-dashboard pages, `FeedbackMessage`, status badge and detail-layout patterns.
 - **Invented:** tenants "Lavacar BeloAuto" and "Ikaro"; the example selection and dates (the BR catalog prices are the decided ones: HOTSITE R$ 49, BOOKING R$ 109 (includes recurring reservations and availability alerts), LOYALTY R$ 29, CHATBOT BASIC R$ 39 / PLUS R$ 79, LEAD_FORM R$ 19; default total R$ 245. US: HOTSITE US$ 12, BOOKING US$ 26, LOYALTY US$ 7, CHATBOT US$ 9 / 19, LEAD_FORM US$ 5; total US$ 59). Only five features exist: HOTSITE, BOOKING, LOYALTY, CHATBOT, LEAD_FORM, dates, the `ikaro.app/` URL prefix, tier names.
 - **New nav item, not in today's IA:** "Assinatura" under "Somente Gerente" (also in the mobile "Mais" sheet).
 
@@ -80,7 +80,7 @@ Same gate and tab behaviour. No charge is open while canceled: the card shows th
 Tab bar rendered immediately; every panel shows skeleton blocks (GAP: check `apps/web/shared/components/ui/` for a skeleton before building one). No buttons while loading.
 
 ## Screen 7 — Load error — manager-01g-billing-load-error.html
-`ErrorAlert` (EXISTS, dashboard variant) inside each panel (the summary failed, so status is unknown) + retry (refetch both queries). Copy: "Não foi possível carregar sua assinatura" / "Tivemos um problema ao buscar os dados. Verifique sua conexão e tente novamente. Se continuar, fale com a gente." Primary "Tentar novamente"; secondary "Falar com a gente".
+`FeedbackMessage` (EXISTS) inside each panel (the summary failed, so status is unknown) + retry (refetch both queries). Copy: "Não foi possível carregar sua assinatura" / "Tivemos um problema ao buscar os dados. Verifique sua conexão e tente novamente. Se continuar, fale com a gente." Primary "Tentar novamente"; secondary "Falar com a gente".
 
 ## Screen 8 — No charges (Cobranças tab) — manager-01h-billing-no-charges.html
 Opens on the Cobranças tab. Empty history: "Nenhuma cobrança paga ainda" / "Assim que a primeira cobrança for paga, ela aparece aqui com a situação de cada pagamento. A cobrança em aberto está na aba Resumo." (`pagination.total === 0`). No primary button on this tab; Resumo still has "Pagar agora" for the first charge.
@@ -192,7 +192,7 @@ File: `manager-03-locked-feature.html` — Status: `SettingsForm` EXISTS (Chatbo
 Props: `feature: 'CHATBOT'`, `tier?: 'BASIC'|'PLUS'` (copy mentions tiers), `lockedFeatures: FeatureKey[]` on sidebar/bottom nav.
 BFF: `GET /v1/billing/access`. No settings write while locked; stored `chatbot.*` settings are kept untouched.
 Behaviour: locked sidebar / bottom-nav entries keep their real href and show a padlock (never hidden); the Fidelidade entry here points to screen 2. Chatbot form fields are not rendered while locked.
-States: loaded-locked (this file); loading = existing skeleton of the page; load-error = existing `ErrorAlert` with retry; entitled = existing Chatbot section (journeys 01d).
+States: loaded-locked (this file); loading = existing skeleton of the page; load-error = existing `FeedbackMessage` with retry; entitled = existing Chatbot section (journeys 01d).
 Single primary: **"Contratar este recurso"** -> `manager-08-plan-edit.html` (Plano tab; self-service, R11). "Ver minha assinatura" is a secondary button; "Falar com a gente" is only a small text link ("Dúvidas sobre preço?"). Copy: "Recurso não contratado", badge "Não contratado", "Suas configurações foram mantidas.", "Você escolhe o nível ao contratar, na aba Plano da assinatura."
 Mobile: padlock on the tab icon; card stacks icon above text; "Mais" sheet unchanged.
 
