@@ -103,7 +103,12 @@ describe('CustomerLoyaltyEntriesTab', () => {
       />,
     );
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Falha ao carregar');
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveAttribute('data-testid', 'load-more-feedback');
+    expect(alert).toHaveTextContent('Falha ao carregar');
+    expect(alert.tagName).toBe('DIV');
+    expect(alert.className).not.toContain('text-red-600');
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
   });
 
   it('renders the load-more button when there are more entries than shown, hidden otherwise', () => {

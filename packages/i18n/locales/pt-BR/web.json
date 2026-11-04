@@ -2789,6 +2789,8 @@
       "noResultsTitle": "Nenhum cliente encontrado",
       "noResultsBody": "Verifique o nome ou e-mail e tente novamente.",
       "searchErrorTitle": "Não foi possível carregar os clientes",
+      "routeErrorTitle": "Não foi possível carregar a fidelidade do cliente",
+      "routeErrorBody": "Tente novamente em instantes.",
       "pointsBadge": "{count, plural, one {# pt} other {# pts}}",
       "balanceLabelActive": "pontos ativos",
       "balanceLabelEmpty": "pontos acumulados",

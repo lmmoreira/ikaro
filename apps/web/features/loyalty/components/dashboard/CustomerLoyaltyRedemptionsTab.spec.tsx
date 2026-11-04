@@ -102,7 +102,12 @@ describe('CustomerLoyaltyRedemptionsTab', () => {
       />,
     );
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Falha ao carregar');
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveAttribute('data-testid', 'load-more-feedback');
+    expect(alert).toHaveTextContent('Falha ao carregar');
+    expect(alert.tagName).toBe('DIV');
+    expect(alert.className).not.toContain('text-red-600');
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
   });
 
   it('renders the load-more button only when there are more redemptions than shown', () => {

@@ -28,17 +28,19 @@ export function CustomerLoyaltyHeader({
 }): React.JSX.Element {
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-      <header className="flex items-center gap-4">
-        <Avatar className="h-12 w-12 shrink-0">
-          <AvatarFallback className="bg-blue-600 text-sm font-bold text-white">
-            {getInitials(customer.name)}
-          </AvatarFallback>
-        </Avatar>
-        <div className="min-w-0">
-          <p className="truncate text-lg font-bold text-gray-900">{customer.name}</p>
-          <p className="truncate text-sm text-gray-500">{customer.email}</p>
-        </div>
-      </header>
+      <Card className="shadow-none lg:self-center">
+        <header className="flex items-center gap-4 px-5 py-4">
+          <Avatar className="h-12 w-12 shrink-0">
+            <AvatarFallback className="bg-blue-600 text-sm font-bold text-white">
+              {getInitials(customer.name)}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0">
+            <p className="truncate text-lg font-bold text-gray-900">{customer.name}</p>
+            <p className="truncate text-sm text-gray-500">{customer.email}</p>
+          </div>
+        </header>
+      </Card>
 
       <Card
         className={cn(

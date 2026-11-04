@@ -105,6 +105,22 @@ describe('LoyaltySearchPage', () => {
     expect(screen.getByText('Algo deu errado. Tente novamente.')).toBeInTheDocument();
   });
 
+  it('retries the search from the failure message and clears it on success', async () => {
+    const user = userEvent.setup();
+    searchCustomers.mockRejectedValueOnce(new Error('network error'));
+
+    renderWithIntl(<LoyaltySearchPage />);
+
+    expect(await screen.findByTestId('page-feedback')).toBeInTheDocument();
+    expect(searchCustomers).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+
+    expect(await screen.findByText('João Silva')).toBeInTheDocument();
+    expect(searchCustomers).toHaveBeenCalledTimes(2);
+    expect(screen.queryByTestId('page-feedback')).not.toBeInTheDocument();
+  });
+
   it('shows the specific translated message for a search failure with a known code', async () => {
     searchCustomers.mockRejectedValue(new ApiError(403, 'Forbidden', { code: 'AUTH_FORBIDDEN' }));
 

@@ -68,6 +68,7 @@ describe('CustomerLoyaltyHeader', () => {
     expect(screen.getByText('João Silva')).toBeInTheDocument();
     expect(screen.getByText('joao@example.com')).toBeInTheDocument();
     expect(screen.getByText('JS')).toBeInTheDocument();
+    expect(screen.getByRole('banner').parentElement?.className).toContain('border');
   });
 
   it('renders the active balance label and points when hasPoints is true', () => {

@@ -48,7 +48,7 @@ flowchart TD
 | `/dashboard/loyalty/[customerId]` | `CustomerLoyaltyPage` | M13-S25 | ✅ Done |
 | Estado vazio — sem resultados | inline em `LoyaltySearchPage` | M13-S25 | ✅ Done |
 | Estado vazio — sem pontos | inline em `CustomerLoyaltyPage` | M13-S25 | ✅ Done |
-| Falha na busca, falha do "Carregar mais", `error.tsx` do detalhe | `LoyaltySearchResults`, `CustomerLoyaltyEntriesTab` / `RedemptionsTab`, `[customerId]/error.tsx` | TD57-S15 | ⏳ Prototype drawn; build pending — shared `FeedbackMessage` (`manager/feedback-pane.md`) |
+| Falha na busca, falha do "Carregar mais", `error.tsx` do detalhe | `LoyaltySearchResults`, `CustomerLoyaltyEntriesTab` / `RedemptionsTab`, `[customerId]/error.tsx` | TD57-S15 | ✅ Done — shared `FeedbackMessage` (`manager/feedback-pane.md`) |
 
 ## Prototype
 

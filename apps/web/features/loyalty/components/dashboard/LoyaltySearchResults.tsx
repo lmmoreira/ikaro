@@ -5,6 +5,7 @@ import type { CustomerSearchListResponse } from '@ikaro/types';
 import { Avatar, AvatarFallback } from '@/shared/components/ui/avatar';
 import { Badge } from '@/shared/components/ui/badge';
 import { Card } from '@/shared/components/ui/card';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import { cn } from '@/shared/utils/cn';
 import { getInitials } from '@/shared/utils/initials';
 
@@ -101,6 +102,8 @@ export function LoyaltySearchResults({
   isLoading,
   isError,
   errorMessage,
+  onRetry,
+  retryLabel,
   isRecent,
   pointsBadge,
   t,
@@ -109,6 +112,8 @@ export function LoyaltySearchResults({
   readonly isLoading: boolean;
   readonly isError: boolean;
   readonly errorMessage: string | null;
+  readonly onRetry: () => void;
+  readonly retryLabel: string;
   readonly isRecent: boolean;
   readonly pointsBadge: (count: number) => string;
   readonly t: ReturnType<typeof useTranslations>;
@@ -118,7 +123,18 @@ export function LoyaltySearchResults({
   }
 
   if (isError) {
-    return <LoyaltySearchEmptyState title={t('searchErrorTitle')} body={errorMessage ?? ''} />;
+    return (
+      <Card className="p-5 shadow-none">
+        <FeedbackMessage
+          title={t('searchErrorTitle')}
+          onRetry={onRetry}
+          retryLabel={retryLabel}
+          testId="page-feedback"
+        >
+          {errorMessage}
+        </FeedbackMessage>
+      </Card>
+    );
   }
 
   if (customers.length > 0) {

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { useTranslations } from 'next-intl';
 import type { PaginatedLoyaltyRedemptionsResponse } from '@ikaro/types';
 import { Button } from '@/shared/components/ui/button';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import { appendReturnTo } from '@/features/booking/model/booking-navigation';
 import { EmptyState, LoyaltyHistoryRow } from './LoyaltyHistoryHelpers';
 
@@ -111,9 +112,7 @@ export function CustomerLoyaltyRedemptionsTab({
           })}
         </p>
         {loadMoreRedemptionsError && (
-          <p role="alert" className="text-center text-xs font-medium text-red-600">
-            {loadMoreRedemptionsError}
-          </p>
+          <FeedbackMessage title={loadMoreRedemptionsError} testId="load-more-feedback" />
         )}
         {redemptions.items.length < redemptions.total && (
           <Button

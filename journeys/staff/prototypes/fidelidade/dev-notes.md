@@ -106,7 +106,7 @@ searchCustomers(term?: string, limit?: number): Promise<CustomerSearchListRespon
 
 - **Entry into this page from booking detail:** UC-003 already shows the customer's balance in the booking detail card, but there's no "Ver histórico completo →" link from there into `/dashboard/loyalty/[customerId]` yet — still an open discoverability gap, not addressed by this story.
 
-## TD57-S15 — feedback pattern on the loyalty screens (drawn 2026-11-04)
+## TD57-S15 — feedback pattern on the loyalty screens (drawn 2026-11-04, built 2026-11-04)
 
 The failure states use the shared feedback pattern (`manager/prototypes/feedback-pane/`, `docs/ENGINEERING_RULES_FRONTEND.md` § A form's error or success message lives in the action pane), not their own boxes. These screens have no primary action, so there is no `ActionPane`: every message is a page-level `FeedbackMessage`. Screens: `00c`, `01d`, `01e`; `00`, `00b`, `01`, `01b`, `01c` only gain the card alignment.
 
@@ -124,4 +124,4 @@ The failure states use the shared feedback pattern (`manager/prototypes/feedback
 
 | Gap | Status |
 |---|---|
-| Hand-rolled boxes replaced by `FeedbackMessage` on `00c`, `01d`, `01e`; header and search input in cards | ⏳ GAP — TD57-S15 (drawn here first) |
+| Hand-rolled boxes replaced by `FeedbackMessage` on `00c`, `01d`, `01e`; header and search input in cards | ✅ DONE — TD57-S15 |
