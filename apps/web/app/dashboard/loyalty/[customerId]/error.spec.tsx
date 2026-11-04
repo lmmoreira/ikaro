@@ -16,6 +16,7 @@ describe('CustomerLoyaltyRouteError', () => {
     expect(alert).toHaveAttribute('data-testid', 'page-feedback');
     expect(alert).toHaveTextContent('Não foi possível carregar a fidelidade do cliente');
     expect(alert).toHaveTextContent('Tente novamente em instantes.');
+    expect(alert.parentElement?.className).toContain('border');
 
     await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
     expect(reset).toHaveBeenCalledOnce();

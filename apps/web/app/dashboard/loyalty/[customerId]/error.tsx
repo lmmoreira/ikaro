@@ -1,6 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { Card } from '@/shared/components/ui/card';
 import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 
 interface CustomerLoyaltyRouteErrorProps {
@@ -17,14 +18,16 @@ export default function CustomerLoyaltyRouteError({
 
   return (
     <section className="mx-auto w-full max-w-lg py-10">
-      <FeedbackMessage
-        title={t('routeErrorTitle')}
-        onRetry={reset}
-        retryLabel={bookingT('errors.tryAgain')}
-        testId="page-feedback"
-      >
-        {t('routeErrorBody')}
-      </FeedbackMessage>
+      <Card className="p-5 shadow-none">
+        <FeedbackMessage
+          title={t('routeErrorTitle')}
+          onRetry={reset}
+          retryLabel={bookingT('errors.tryAgain')}
+          testId="page-feedback"
+        >
+          {t('routeErrorBody')}
+        </FeedbackMessage>
+      </Card>
     </section>
   );
 }
