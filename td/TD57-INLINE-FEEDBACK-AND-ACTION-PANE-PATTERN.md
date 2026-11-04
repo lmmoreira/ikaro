@@ -1006,7 +1006,7 @@ Decisions locked in discovery: (1) `RecurringScheduleFields` does not own the pa
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-### Story 15 — Migrate Loyalty screens and route-level error pages to the feedback pattern 🟡
+### Story 15 — Migrate Loyalty screens and route-level error pages to the feedback pattern 🟡 ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** S
