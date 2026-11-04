@@ -25,10 +25,10 @@ flowchart TD
     Pub["Hotsite público<br/>(sem painel de ações)"] -->|"componente com a marca"| PubMsg["Mensagem sob o botão de envio"]
 
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
-    class Ok,Err,Badge,RowErr,Page,PubMsg gap
+    class PubMsg gap
 ```
 
-Every node in red is a gap: the screens not yet migrated do not use the shared components (the area story `TD57-S16` remains; `TD57-S14` migrated the recurring-schedule form fields). The shared components exist since `TD57-S01`; the branded counterpart for the public hotsite exists since `TD57-S06` and its callers migrate in `TD57-S16`.
+The node in red is the one gap left: the public hotsite forms still use their hand-rolled box (the area story `TD57-S16` remains). Every other node is built: the shared components exist since `TD57-S01`, the area stories `TD57-S02`–`TD57-S15` migrated their screens, and the branded counterpart for the public hotsite exists since `TD57-S06` with its callers migrating in `TD57-S16`.
 
 ## Pages referenced
 

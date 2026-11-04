@@ -311,6 +311,8 @@ describe('CustomerLoyaltyPage', () => {
     await user.click(screen.getByRole('button', { name: 'Carregar mais resgates' }));
 
     await waitFor(() => expect(screen.queryByTestId('load-more-feedback')).not.toBeInTheDocument());
+    expect(screen.getByText('Resgate no agendamento')).toBeInTheDocument();
+    expect(await screen.findByText('Resgate adicional')).toBeInTheDocument();
     expect(getCustomerLoyaltyRedemptions).toHaveBeenCalledTimes(2);
   });
 

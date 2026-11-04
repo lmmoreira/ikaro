@@ -68,7 +68,6 @@ describe('CustomerLoyaltyHeader', () => {
     expect(screen.getByText('João Silva')).toBeInTheDocument();
     expect(screen.getByText('joao@example.com')).toBeInTheDocument();
     expect(screen.getByText('JS')).toBeInTheDocument();
-    // the identity header sits in a card (TD57-S15: every block on the page is in a card)
     expect(screen.getByRole('banner').parentElement?.className).toContain('border');
   });
 
