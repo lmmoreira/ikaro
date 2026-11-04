@@ -1061,7 +1061,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-### Story 16 — Migrate Public hotsite booking, lead and login forms to the feedback pattern 🟡
+### Story 16 — Migrate Public hotsite booking, lead and login forms to the feedback pattern 🟡 ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** L
