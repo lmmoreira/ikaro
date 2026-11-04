@@ -22,7 +22,7 @@ import {
   seedRecurrenceEligibleService,
   seedRecurringBundle,
   submitRecurringForm,
-  tenantDate,
+  termDate,
 } from './helpers/recurring-schedule';
 import { createService, setBookingPolicy, setResourceRequirements } from './helpers/services';
 
@@ -56,8 +56,8 @@ test.describe('customer my-account: recurring reservation of a bundle (TD49-S02,
         {
           service: bundle.service,
           weekdays: WEEKDAYS,
-          startsOn: tenantDate(5),
-          endsOn: tenantDate(19),
+          startsOn: termDate(5),
+          endsOn: termDate(19),
           picks: [bundle.staffs[1]!.id],
         },
         'new-schedule-created',
@@ -90,8 +90,8 @@ test.describe('customer my-account: recurring reservation of a bundle (TD49-S02,
         service: bundle.service,
         weekdays: WEEKDAYS,
         startTime: '11:00',
-        startsOn: tenantDate(5),
-        endsOn: tenantDate(19),
+        startsOn: termDate(5),
+        endsOn: termDate(19),
         picks: [bundle.staffs[1]!.id],
       });
       await desktopPane(customer.page).getByTestId('new-schedule-review').click();
@@ -129,8 +129,8 @@ test.describe('customer my-account: recurring reservation of a bundle (TD49-S02,
         service: bundle.service,
         weekdays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
         startTime,
-        startsOn: tenantDate(5),
-        endsOn: tenantDate(8),
+        startsOn: termDate(5),
+        endsOn: termDate(8),
         picks: [bundle.staffs[0]!.id],
       });
       await submitRecurringForm(customer.page);
@@ -164,8 +164,8 @@ test.describe('customer my-account: recurring reservation of a bundle (TD49-S02,
         {
           service: bundle.service,
           weekdays: WEEKDAYS,
-          startsOn: tenantDate(5),
-          endsOn: tenantDate(19),
+          startsOn: termDate(5),
+          endsOn: termDate(19),
           picks: [bundle.staffs[0]!.id],
         },
         'recurring-schedule-pending',
@@ -210,7 +210,7 @@ test.describe('customer my-account: recurring reservation of a bundle (TD49-S02,
 
       await createThroughForm(
         customer.page,
-        { service: plain, weekdays: WEEKDAYS, startsOn: tenantDate(5), endsOn: tenantDate(19) },
+        { service: plain, weekdays: WEEKDAYS, startsOn: termDate(5), endsOn: termDate(19) },
         'new-schedule-created',
       );
       await customer.page.goto(NEW_SCHEDULE_PATH);
@@ -219,8 +219,8 @@ test.describe('customer my-account: recurring reservation of a bundle (TD49-S02,
         {
           service: bundle.service,
           weekdays: ['thursday'],
-          startsOn: tenantDate(5),
-          endsOn: tenantDate(19),
+          startsOn: termDate(5),
+          endsOn: termDate(19),
           picks: [bundle.staffs[0]!.id],
         },
         'new-schedule-created',

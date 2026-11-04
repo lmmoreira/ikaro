@@ -9,6 +9,7 @@ import {
 } from '@/features/booking/components/recurring/NewRecurringScheduleLayout';
 import { useResourcePicks } from '@/features/booking/components/recurring/NewRecurringScheduleResources';
 import { RecurringScheduleFields } from '@/features/booking/components/recurring/RecurringScheduleFields';
+import type { RecurringFormFeedback } from '@/features/booking/components/recurring/use-recurring-form-feedback';
 import type {
   DraftIssue,
   PatternRefusal,
@@ -29,6 +30,8 @@ interface NewRecurringScheduleFormProps {
   readonly showIssues: boolean;
   /** The backend (or the first-occurrence check) refused the pattern. */
   readonly refusal: PatternRefusal | null;
+  /** The page's `useRecurringFormFeedback`: field messages, focus and the pane message. */
+  readonly form: RecurringFormFeedback;
   readonly onReview: () => void;
   /** Shown under the heading: the renewal banner or its not-found notice. */
   readonly header?: React.ReactNode;
@@ -49,6 +52,7 @@ export function NewRecurringScheduleForm({
   issues,
   showIssues,
   refusal,
+  form,
   onReview,
   header,
   title,
@@ -97,24 +101,28 @@ export function NewRecurringScheduleForm({
   }
 
   return (
-    <NewRecurringScheduleLayout testId="new-schedule-form" pane={renderPane()}>
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-          {tn('stepPattern')}
-        </p>
-        <h1 className="mt-1 text-lg font-bold text-gray-900">{title ?? tn('title')}</h1>
-      </div>
-
-      {header}
-
+    <NewRecurringScheduleLayout
+      testId="new-schedule-form"
+      pane={renderPane()}
+      feedback={form.feedback}
+    >
       <RecurringScheduleFields
         services={services}
         service={service}
         draft={draft}
         onChange={onChange}
-        issues={issues}
-        showIssues={showIssues}
-        refusal={refusal}
+        form={form}
+        heading={
+          <div className="flex flex-col gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                {tn('stepPattern')}
+              </p>
+              <h1 className="mt-1 text-lg font-bold text-gray-900">{title ?? tn('title')}</h1>
+            </div>
+            {header}
+          </div>
+        }
         picks={picks}
       />
 

@@ -41,11 +41,11 @@ interface HarnessProps {
   readonly service: HotsiteServiceResponse;
   readonly draft: RecurringScheduleDraft;
   readonly onChange: (patch: Partial<RecurringScheduleDraft>) => void;
-  readonly showRequired?: boolean;
+  readonly fieldErrors?: Readonly<Record<string, string>>;
 }
 
 // What the form does with the two exports: ask for the options, then render the groups.
-function Harness({ service, draft, onChange, showRequired = false }: HarnessProps) {
+function Harness({ service, draft, onChange, fieldErrors = {} }: HarnessProps) {
   const picks = useResourcePicks({ service, tenantSlug: 'lavacar-bh', draft, onChange });
   return (
     <>
@@ -54,7 +54,8 @@ function Harness({ service, draft, onChange, showRequired = false }: HarnessProp
         service={service}
         draft={draft}
         picks={picks}
-        showRequired={showRequired}
+        fieldErrors={fieldErrors}
+        registerField={() => () => undefined}
         onChange={onChange}
       />
     </>
@@ -181,7 +182,7 @@ describe('ResourceFields', () => {
       service,
       draft: { ...DRAFT, resourceIds: ['s1', null] },
       onChange: vi.fn(),
-      showRequired: true,
+      fieldErrors: { 'resource-0': 'Escolha o profissional', 'resource-1': 'Escolha a sala' },
     });
 
     expect(await screen.findByText('Escolha a sala')).toBeInTheDocument();

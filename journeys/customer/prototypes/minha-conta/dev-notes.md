@@ -430,3 +430,22 @@ The redrawn screens show the **target** layout (messages in the pane, fixed mobi
 - `06g`: "2 horas" and "13 reservas criadas" in the summary; `07f`: "30 dias após a criação"; `15`: the "O que vai mudar" summary repeated in the main column on mobile (the code shows it in the pane only).
 
 **Fixed in the prototypes (they were wrong):** `15k` no longer disables "Confirmar novo horário" after a generic submit failure; only a taken slot, a closed time, an unavailable bundle part or a booking-window refusal clears the selection (`reschedule-failure.ts` `shouldReloadSlots` ✔).
+
+---
+
+## Inline feedback on the new-recurring form (`13`, `13e`, `13f`, `13h`; `NewRecurringScheduleForm`)
+
+**Status:** ✅ Done — TD57-S14. The pattern, its shared CSS and the rules are in `manager/prototypes/feedback-pane/dev-notes.md`.
+
+The pattern step (service, resources, weekdays, time, dates) moves to the shared layout: the title and the "Passo 1 de 2" label sit inside the first card (so it starts level with the pane's card); a renewal banner (`13f`) is inside that card too. Messages:
+- **Field level** (`13e` A, A2, A3; `13h` C): under the field with the red outline, `aria-invalid` + `aria-describedby`; "Revisar" focuses the first invalid field (the weekday pills and the time picker through their wrapper).
+- **Form level** (`13e` A4, A5, B): a booking-window refusal, "nenhum dia cai no período" and a send failure are the pane's second card, under the buttons (above them on the mobile bar); they clear on the next edit.
+- **Resource groups** (`13h` H): a load failure is a feedback message with "Tentar novamente"; an empty list is a feedback message and keeps "Revisar" disabled.
+
+**Audited, unchanged:** `13b` (review) and `13g` (no services) are not touched by this story's components; their loose heading and notice box are a known gap to pick up with the review and empty-state components. `13c`, `13d` were migrated by TD57-S11.
+
+## Prototype vs current code — new-recurring form (TD57-S14, compared 2026-11-03)
+
+- The time field is drawn as a native time input; the code uses the shared `TimePicker`. The date fields are drawn as native date inputs; the code uses the `Popover` + `Calendar` pair.
+- The weekday chips are drawn as checkboxes; the code uses the `PillMultiSelect` toggle buttons.
+- `13e` shows every state on one page for review; in the app only one message is on screen at a time.

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Nova reserva recorrente — Vitta Studio</title>
   <link rel="stylesheet" href="../../../shared/customer-shell.css">
+  <link rel="stylesheet" href="../../../shared/feedback-pane.css">
   <style>
     details summary { list-style: none; }
     details summary::-webkit-details-marker { display: none; }
@@ -130,15 +131,15 @@
   <div class="dashboard-layout">
     <main class="main-content">
       <div class="dashboard-body">
-        <div class="detail-layout">
+        <div class="fb-layout">
 
           <!-- MAIN CONTENT -->
-          <div>
+          <div style="min-width:0;">
 
-        <h1 class="page-title" style="margin-bottom:.25rem;">Nova reserva recorrente</h1>
-        <p class="step-label">Passo 1 de 2 · Padrão</p>
 
-        <div class="card" style="margin-top:1rem;">
+        <div class="card">
+          <p class="step-label">Passo 1 de 2 · Padrão</p>
+          <h1 class="page-title" style="margin-bottom:1rem;">Nova reserva recorrente</h1>
           <div class="field">
             <label class="form-label" for="service">Serviço</label>
             <select class="form-input" id="service">
@@ -190,31 +191,36 @@
           </div>
         </div>
 
-        <div class="notice">
+        <div class="card" style="margin-top:1.25rem;">
           <strong>Como funciona</strong>
           <p class="meta">Todas as reservas do período são verificadas e criadas de uma vez, e o horário fica garantido até a data final. Você pode pular, reagendar ou encerrar a recorrência quando quiser.</p>
         </div>
 
 
-            <!-- Mobile-only actions -->
-            <div class="mobile-actions" style="margin-top:1rem;">
-              <a class="btn-primary" href="13b-nova-recorrencia-revisar.html" style="display:block;text-align:center;padding:0.8125rem;margin-bottom:0.625rem;">Revisar</a>
-              <a class="btn-secondary" href="14-recorrentes-lista.html" style="display:block;text-align:center;padding:0.8125rem;">Cancelar</a>
-            </div>
+            <div class="fb-mobile-clearance"></div>
           </div>
 
-          <!-- DESKTOP SIDEBAR (action pane) -->
-          <div class="detail-aside">
+          <!-- ACTION PANE (SaaS skin, TD57): buttons card + a second card only while there is a message -->
+          <aside class="fb-pane" aria-label="Ações" data-testid="action-pane-desktop">
             <div class="card">
-              <p style="font-size:0.875rem;opacity:0.6;color:var(--ik-text);margin-bottom:1rem;line-height:1.5;">Escolha o padrão da recorrência. Nada é reservado até você revisar e confirmar.</p>
-              <a class="btn-primary" href="13b-nova-recorrencia-revisar.html" style="display:block;text-align:center;padding:0.75rem;margin-bottom:0.625rem;">Revisar</a>
-              <a class="btn-secondary" href="14-recorrentes-lista.html" style="display:block;text-align:center;padding:0.75rem;">Cancelar</a>
+              <p style="font-size:0.875rem;opacity:0.6;color:var(--ik-text);line-height:1.5;">Escolha o padrão da recorrência. Nada é reservado até você revisar e confirmar.</p>
+              <div class="fb-buttons">
+                <a class="btn-primary" href="13b-nova-recorrencia-revisar.html">Revisar</a>
+                <a class="btn-secondary" href="14-recorrentes-lista.html">Cancelar</a>
+              </div>
             </div>
-          </div>
+          </aside>
 
         </div>
       </div>
     </main>
+  </div>
+
+  <div class="fb-mobile-bar" data-testid="action-pane-mobile">
+    <div class="fb-buttons">
+      <a class="btn-secondary" href="14-recorrentes-lista.html">Cancelar</a>
+      <a class="btn-primary" href="13b-nova-recorrencia-revisar.html">Revisar</a>
+    </div>
   </div>
 
 </body>

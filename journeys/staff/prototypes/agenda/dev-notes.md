@@ -597,3 +597,12 @@ Source of truth: `td/TD57-INLINE-FEEDBACK-AND-ACTION-PANE-PATTERN.md` Story 12 a
 - `08b` draws `#recusada` neutral and `#expirada` red; the shipped banners are danger and info respectively. `#aguardando` in `09c` is not rendered.
 - `10b` `#ocupado` is drawn as an outcome page; the shipped flow returns to the date step and shows a `FeedbackMessage` (`step2-error`). `#janela` is an outcome only for window codes; `SLOT_CLOSED` / `OUTSIDE_BUSINESS_HOURS` also return to the date step.
 
+---
+
+## TD57-S14 — the new-recurring form in the action pane (✅ built — `TD57-S14`)
+
+Source of truth: `td/TD57-INLINE-FEEDBACK-AND-ACTION-PANE-PATTERN.md` Story 14 and `journeys/manager/prototypes/feedback-pane/dev-notes.md`. `09b` moves the two form-level refusals (the first occurrence already passed, no chosen day falls in the period) from a box above the form to the action pane's second card under "Criar recorrência" (above the buttons on the mobile bar); they clear on the next edit. The title and the step label sit inside the customer card, which starts level with the pane's card. Field errors (weekdays, end date, a bundle group without a pick) are under the field with the red outline and the first invalid one gets the focus; a bundle group that failed to load shows a feedback message with its retry.
+
+**Audited, unchanged:** `09` (customer chooser) and `09c` (outcomes, migrated by TD57-S12) show no form feedback of this form.
+
+Differences from the code: the prototype draws native date and time inputs and checkbox chips; the code uses the shared `Popover` + `Calendar`, `TimePicker` and `PillMultiSelect`.

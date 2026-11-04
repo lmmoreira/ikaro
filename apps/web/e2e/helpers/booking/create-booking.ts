@@ -3,7 +3,7 @@ import { loginAsCustomer } from '../auth/customer-login';
 import { uniqueTestEmail } from '../auth';
 import { WEB_INTERNAL_KEY } from '../auth/shared';
 import { completeCustomerProfile } from '../customer';
-import { parseDayOffset, parseSoonestSlot } from './slot-seed';
+import { daySlotCandidates, soonestSlotCandidates } from './slot-seed';
 
 const BFF_URL = process.env.PLAYWRIGHT_BFF_URL ?? 'http://localhost:3002/v1';
 const SERVICE_SIMPLES_ID = '00000000-0000-7000-8003-000000000001';
@@ -33,12 +33,7 @@ export async function createAuthenticatedBooking(
   const serviceIds = options.serviceIds ?? [SERVICE_SIMPLES_ID];
   let lastError: string | null = null;
 
-  for (let attempt = 0; attempt < 12; attempt += 1) {
-    const seed = `${contactEmail}:${attempt}`;
-    const scheduledAt =
-      options.daysAhead === 'soonest'
-        ? parseSoonestSlot(seed)
-        : parseDayOffset(options.daysAhead, seed);
+  for (const scheduledAt of bookingCandidates(options.daysAhead, contactEmail)) {
     const res = await page.request.post(`${BFF_URL}/bookings/authenticated`, {
       data: {
         scheduledAt,
@@ -67,4 +62,18 @@ export async function createAuthenticatedBooking(
   throw new Error(
     `authenticated booking setup failed after retrying available slots: ${lastError ?? '409 conflict'}`,
   );
+}
+
+// This tenant has one degenerate LOCATION resource with no per-time-of-day capacity, and a booking
+// holds it for 90 minutes, so a weekday fits about four bookings however many specs ask for it.
+// A fixed `daysAhead` therefore tries every slot of its day once, then moves on to the following
+// days; 'soonest' has no later day (a later one is outside the window it exists for), so it tries
+// every open slot of the window once.
+const DAYS_WALKED = 12;
+
+function bookingCandidates(daysAhead: number | 'soonest', seed: string): string[] {
+  if (daysAhead === 'soonest') return soonestSlotCandidates(seed);
+  return Array.from({ length: DAYS_WALKED }, (_, step) =>
+    daySlotCandidates(daysAhead + step, seed),
+  ).flat();
 }

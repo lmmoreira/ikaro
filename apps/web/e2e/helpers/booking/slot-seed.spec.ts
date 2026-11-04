@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { parseSoonestSlot } from './slot-seed';
+import { daySlotCandidates, parseSoonestSlot, soonestSlotCandidates } from './slot-seed';
 
 const HOUR_MS = 60 * 60 * 1000;
 const HALF_HOUR_MS = HOUR_MS / 2;
@@ -95,5 +95,50 @@ test.describe('parseSoonestSlot', () => {
       Array.from({ length: 40 }, (_, index) => parseSoonestSlot(`seed-${index}`, { now })),
     );
     expect(slots.size).toBeGreaterThan(3);
+  });
+});
+
+test.describe('daySlotCandidates', () => {
+  test('lists the twelve open starts of one weekday, each exactly once, whatever the seed', () => {
+    for (const seed of ['a', 'b', 'a-much-longer-seed@example.com']) {
+      const candidates = daySlotCandidates(9, seed);
+      const days = new Set(candidates.map((slot) => slot.slice(0, 10)));
+
+      expect(candidates).toHaveLength(12);
+      expect(new Set(candidates).size).toBe(12);
+      expect(days.size).toBe(1);
+    }
+  });
+
+  test('starts at the slot the seed picks, so different callers do not all try the same one first', () => {
+    const firsts = new Set(
+      Array.from({ length: 40 }, (_, index) => daySlotCandidates(9, `seed-${index}`)[0]),
+    );
+
+    expect(firsts.size).toBeGreaterThan(3);
+  });
+
+  test('moves to a later weekday for a later offset', () => {
+    expect(
+      daySlotCandidates(10, 'seed')[0]!.slice(0, 10) >
+        daySlotCandidates(9, 'seed')[0]!.slice(0, 10),
+    ).toBe(true);
+  });
+});
+
+test.describe('soonestSlotCandidates', () => {
+  test('lists every open slot of the window exactly once, starting at the one the seed picks', () => {
+    const now = new Date('2026-10-27T00:00:00Z');
+    const candidates = soonestSlotCandidates('seed', { now });
+
+    expect(new Set(candidates).size).toBe(candidates.length);
+    expect(candidates[0]).toBe(parseSoonestSlot('seed', { now }));
+    expect(candidates.length).toBeGreaterThan(12);
+  });
+
+  test('throws when the window has no open slot, like parseSoonestSlot', () => {
+    const now = new Date('2026-10-31T17:00:00Z');
+
+    expect(() => soonestSlotCandidates('seed', { now, withinHours: 2 })).toThrow(/no open slot/);
   });
 });

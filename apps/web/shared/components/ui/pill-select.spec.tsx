@@ -143,4 +143,30 @@ describe('PillSelect', () => {
 
     expect(onChange).toHaveBeenCalledWith('sharp');
   });
+
+  it('marks the group invalid and ties it to the caller message, with a red outline on the pills', () => {
+    render(
+      <PillSelect
+        label="Cantos"
+        value="rounded"
+        options={OPTIONS}
+        onChange={vi.fn()}
+        invalid
+        describedBy="cantos-error"
+      />,
+    );
+
+    const group = screen.getByRole('radiogroup', { name: 'Cantos' });
+    expect(group).toHaveAttribute('aria-invalid', 'true');
+    expect(group).toHaveAttribute('aria-describedby', 'cantos-error');
+    expect(screen.getByRole('radio', { name: 'Retos' }).className).toContain('border-red-600');
+  });
+
+  it('carries no invalid marks while valid', () => {
+    render(<PillSelect label="Cantos" value="rounded" options={OPTIONS} onChange={vi.fn()} />);
+
+    const group = screen.getByRole('radiogroup', { name: 'Cantos' });
+    expect(group).not.toHaveAttribute('aria-invalid');
+    expect(group).not.toHaveAttribute('aria-describedby');
+  });
 });

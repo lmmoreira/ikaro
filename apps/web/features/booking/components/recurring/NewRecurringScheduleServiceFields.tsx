@@ -2,6 +2,8 @@
 
 import { useTranslations } from 'next-intl';
 import type { HotsiteServiceResourceOption, HotsiteServiceResponse } from '@ikaro/types';
+import { FieldFeedback } from '@/shared/components/ui/field-feedback';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import { PillSelect } from '@/shared/components/ui/pill-select';
 import {
   Select,
@@ -63,13 +65,18 @@ export function ServiceField({
 
 interface ResourceFieldProps {
   /** Only the loading and error state of the shared options request. */
-  readonly query: Pick<ReturnType<typeof useRecurringResourceOptions>, 'isError' | 'isPending'>;
+  readonly query: Pick<
+    ReturnType<typeof useRecurringResourceOptions>,
+    'isError' | 'isPending' | 'refetch'
+  >;
   readonly title: string;
   /** The options of this one requirement. */
   readonly options: readonly HotsiteServiceResourceOption[];
   readonly resourceId: string | null;
-  readonly required: boolean;
-  readonly requiredMessage: string;
+  /** The "pick one" message, set once the person tried to continue without a pick. */
+  readonly error: string | null;
+  /** Registers the group with `useFormFeedback`, so it can be scrolled to and focused. */
+  readonly fieldRef?: (element: HTMLElement | null) => void;
   readonly noOptionsMessage: string;
   /** Distinguishes the groups of a bundle in test ids. */
   readonly index?: number;
@@ -86,29 +93,29 @@ export function ResourceField({
   title,
   options,
   resourceId,
-  required,
-  requiredMessage,
+  error,
+  fieldRef,
   noOptionsMessage,
   index = 0,
   onChange,
 }: ResourceFieldProps): React.JSX.Element {
   const tn = useTranslations('booking.recurringScheduleForm');
+  const errorId = `new-schedule-resource-${index}-error`;
 
   function renderChoice(): React.JSX.Element {
     if (query.isError) {
       return (
-        <p role="alert" className="text-sm text-red-600">
-          {tn('resourcesError')}
-        </p>
+        <FeedbackMessage
+          title={tn('resourcesError')}
+          onRetry={() => void query.refetch()}
+          retryLabel={tn('resourcesRetry')}
+          testId="new-schedule-resource-error"
+        />
       );
     }
     if (query.isPending) return <p className="text-sm text-gray-500">{tn('resourcesLoading')}</p>;
     if (options.length === 0) {
-      return (
-        <p role="alert" data-testid="new-schedule-resource-empty" className="text-sm text-red-600">
-          {noOptionsMessage}
-        </p>
-      );
+      return <FeedbackMessage title={noOptionsMessage} testId="new-schedule-resource-empty" />;
     }
     return (
       <PillSelect
@@ -117,18 +124,16 @@ export function ResourceField({
         options={options.map((resource) => ({ value: resource.resourceId, label: resource.name }))}
         onChange={onChange}
         testId="new-schedule-resource-option"
+        invalid={error !== null}
+        describedBy={error === null ? undefined : errorId}
       />
     );
   }
 
   return (
-    <div data-testid="new-schedule-resource" data-index={index}>
+    <div ref={fieldRef} data-testid="new-schedule-resource" data-index={index}>
       {renderChoice()}
-      {required && (
-        <p role="alert" className="mt-1 text-xs text-red-600">
-          {requiredMessage}
-        </p>
-      )}
+      <FieldFeedback id={errorId}>{error}</FieldFeedback>
       <p className="mt-1 text-xs text-gray-500">{tn('resourceHint')}</p>
     </div>
   );

@@ -28,7 +28,7 @@ flowchart TD
     class Ok,Err,Badge,RowErr,Page,PubMsg gap
 ```
 
-Every node in red is a gap: the screens not yet migrated do not use the shared components (the area stories `TD57-S14`–`S16` remain). The shared components exist since `TD57-S01`; the branded counterpart for the public hotsite exists since `TD57-S06` and its callers migrate in `TD57-S16`.
+Every node in red is a gap: the screens not yet migrated do not use the shared components (the area stories `TD57-S15`–`S16` remain; `TD57-S14` migrated the recurring-schedule form fields). The shared components exist since `TD57-S01`; the branded counterpart for the public hotsite exists since `TD57-S06` and its callers migrate in `TD57-S16`.
 
 ## Pages referenced
 

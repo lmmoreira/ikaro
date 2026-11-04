@@ -10,7 +10,7 @@ import {
   NEW_SCHEDULE_PATH,
   seedBundleServiceWithRecurrenceOn,
   seedDefaultShapeRecurringService,
-  tenantDate,
+  termDate,
   type DefaultServiceShape,
 } from './helpers/recurring-schedule';
 
@@ -37,7 +37,7 @@ test.describe('customer my-account: recurring reservation of a default-shape ser
         await customer.page.goto(NEW_SCHEDULE_PATH);
         await createThroughForm(
           customer.page,
-          { service, weekdays: WEEKDAYS, startsOn: tenantDate(5), endsOn: tenantDate(19) },
+          { service, weekdays: WEEKDAYS, startsOn: termDate(5), endsOn: termDate(19) },
           'new-schedule-created',
         );
         await expect(customer.page.getByTestId('new-schedule-created')).toContainText(

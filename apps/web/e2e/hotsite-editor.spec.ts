@@ -1396,7 +1396,15 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
 
     await expect.poll(order).toEqual([...pinned, second, first, ...rest]);
 
+    // Publishing promotes the draft's images before it answers, which can take longer than the
+    // five seconds the banner assertion allows on a loaded runner: wait for the response itself.
+    const published = page.waitForResponse(
+      (response) =>
+        response.url().includes('/tenants/hotsite/publish') &&
+        response.request().method() === 'POST',
+    );
     await page.locator(visualCommand('publish')).click();
+    expect((await published).ok()).toBe(true);
     await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
     const saved = await getHotsiteConfig(page);
     expect(saved.layout.map((module) => module.type)).toEqual([...pinned, second, first, ...rest]);

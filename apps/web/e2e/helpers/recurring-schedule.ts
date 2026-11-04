@@ -21,6 +21,21 @@ export function tenantDate(daysAhead: number): string {
   );
 }
 
+// A recurring term holds the tenant's single LOCATION on every day it covers (a weekday schedule
+// holds it all week), and the one-off booking fixtures of the other specs book that same location
+// within the next weeks. Terms start 14 weeks out instead, a multiple of seven so a weekday stays
+// the weekday the spec names, where no one-off fixture goes: a schedule then cannot take a slot
+// another spec is about to book, nor find every start time already taken.
+export const TERM_SHIFT_DAYS = 98;
+
+/** `tenantDate` for a recurring term: `daysAhead` counted from the start of the shifted window. */
+export function termDate(daysAhead: number): string {
+  return tenantDate(daysAhead + TERM_SHIFT_DAYS);
+}
+
+/** Where `createRecurringScheduleViaApi` starts a term that names no start of its own. */
+export const DEFAULT_TERM_STARTS_IN = 5 + TERM_SHIFT_DAYS;
+
 // M23-S12 — a fixed-duration service that accepts recurring schedules, seeded by a signed-in
 // manager `page`. Recurrence needs a service without legs and with every requirement of quantity 1
 // (a bundle qualifies, see `seedRecurringBundle`), and the policy flag is off by default. The service gets its own room in a fungible pool, which matches the
@@ -166,7 +181,7 @@ export async function createRecurringScheduleViaApi(
   term: ScheduleTerm = {},
 ): Promise<CreatedSchedule> {
   const {
-    startsInDays = 5,
+    startsInDays = DEFAULT_TERM_STARTS_IN,
     termDays = 27,
     startTimes = CANDIDATE_START_TIMES,
     resourceSelections,

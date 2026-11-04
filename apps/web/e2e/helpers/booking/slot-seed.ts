@@ -40,6 +40,19 @@ export function parseDayOffset(daysAhead: number, seed: string): string {
 }
 
 const SLOT_COUNT = 12;
+
+// Every open start of the `daysAhead`-th weekday, each exactly once, beginning at a slot picked by
+// `seed` and wrapping round. A caller that retries on a 409 walks this list instead of re-drawing
+// from the seed: a draw repeats slots (twelve draws from twelve slots cover about two thirds of
+// them), so a day with a single free slot was reported as full.
+export function daySlotCandidates(daysAhead: number, seed: string): string[] {
+  const first = new Date(parseDayOffset(daysAhead, seed));
+  const day = new Date(first);
+  const start = hashSeed(seed) % SLOT_COUNT;
+  return Array.from({ length: SLOT_COUNT }, (_, offset) =>
+    slotAt(day, (start + offset) % SLOT_COUNT).toISOString(),
+  );
+}
 const FIRST_SLOT_HOUR_UTC = 13;
 // São Paulo closes at 14:00 on Saturday (17:00Z); the last half hour that still leaves room for the
 // 90-minute booking is 15:30Z, the sixth of the twelve slots.
@@ -81,6 +94,19 @@ interface SoonestSlotOptions {
 // be no slot at all (a Saturday afternoon has few), in which case this throws rather than hand back
 // a start that makes the scenario assert nothing.
 export function parseSoonestSlot(seed: string, options: SoonestSlotOptions = {}): string {
+  const slots = openSoonestSlots(options);
+  return slots[hashSeed(seed) % slots.length].toISOString();
+}
+
+// Every open slot `parseSoonestSlot` chooses from, each once, beginning at the one `seed` picks and
+// wrapping round: the list a retry on a 409 walks, so no slot is skipped or tried twice.
+export function soonestSlotCandidates(seed: string, options: SoonestSlotOptions = {}): string[] {
+  const slots = openSoonestSlots(options);
+  const start = hashSeed(seed) % slots.length;
+  return slots.map((_, offset) => slots[(start + offset) % slots.length].toISOString());
+}
+
+function openSoonestSlots(options: SoonestSlotOptions): Date[] {
   const { withinHours = DEFAULT_WITHIN_HOURS, now = new Date() } = options;
   const earliest = now.getTime() + SOONEST_LEAD_MS;
   const latest = now.getTime() + withinHours * HOUR_MS;
@@ -93,5 +119,5 @@ export function parseSoonestSlot(seed: string, options: SoonestSlotOptions = {})
   if (slots.length === 0) {
     throw new Error(`no open slot within ${withinHours}h of ${now.toISOString()}`);
   }
-  return slots[hashSeed(seed) % slots.length].toISOString();
+  return slots;
 }

@@ -32,36 +32,15 @@ export async function createFreshApprovedBooking(
     readonly serviceIds?: readonly string[];
   } = {},
 ): Promise<AuthenticatedBookingSetup> {
-  let lastError: string | null = null;
-
-  // 'soonest' has no later day to move on to (a later open day is outside the window it exists
-  // for), and createAuthenticatedBooking already cycles the open slots of its one day.
-  const attempts = daysAhead === 'soonest' ? 1 : 12;
-
-  for (let attempt = 0; attempt < attempts; attempt += 1) {
-    try {
-      const setup = await createAuthenticatedBooking(page, {
-        tenantSlug: STAFF_TENANT_SLUG,
-        emailPrefix: `lifecycle-${daysAhead}`,
-        daysAhead: daysAhead === 'soonest' ? daysAhead : daysAhead + attempt,
-        ...(options.contactEmail ? { contactEmail: options.contactEmail } : {}),
-        ...(options.serviceIds ? { serviceIds: options.serviceIds } : {}),
-      });
-      await approveBookingAsStaff(page, setup.bookingId, staffEmail);
-      return setup;
-    } catch (error) {
-      // A day whose every candidate slot is already occupied (this tenant's single degenerate
-      // LOCATION resource has no per-time-of-day capacity, so a handful of prior approved
-      // bookings on the same day can exhaust createAuthenticatedBooking's own 12 hour-slot
-      // candidates) must not abort the whole setup — move on to the next day instead.
-      lastError = error instanceof Error ? error.message : String(error);
-      if (!lastError.includes('409')) {
-        throw error;
-      }
-    }
-  }
-
-  throw new Error(
-    `approved booking setup failed after retrying available slots: ${lastError ?? '409 conflict'}`,
-  );
+  // createAuthenticatedBooking tries every slot of the day and then the following days, so there is
+  // no capacity retry to do here: a 409 from it means the tenant has no room left at all.
+  const setup = await createAuthenticatedBooking(page, {
+    tenantSlug: STAFF_TENANT_SLUG,
+    emailPrefix: `lifecycle-${daysAhead}`,
+    daysAhead,
+    ...(options.contactEmail ? { contactEmail: options.contactEmail } : {}),
+    ...(options.serviceIds ? { serviceIds: options.serviceIds } : {}),
+  });
+  await approveBookingAsStaff(page, setup.bookingId, staffEmail);
+  return setup;
 }

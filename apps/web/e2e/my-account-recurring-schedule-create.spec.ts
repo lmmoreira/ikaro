@@ -11,6 +11,7 @@ import {
   NEW_SCHEDULE_PATH,
   seedRecurrenceEligibleService,
   submitRecurringForm,
+  termDate,
   tenantDate,
   weekdayOf,
 } from './helpers/recurring-schedule';
@@ -39,8 +40,8 @@ test.describe('customer my-account: creating a recurring reservation (M23-S17, U
         {
           service,
           weekdays: WEEKDAYS,
-          startsOn: tenantDate(5),
-          endsOn: tenantDate(18),
+          startsOn: termDate(5),
+          endsOn: termDate(18),
         },
         'new-schedule-created',
       );
@@ -73,7 +74,7 @@ test.describe('customer my-account: creating a recurring reservation (M23-S17, U
       await customer.page.goto(NEW_SCHEDULE_PATH);
       await createThroughForm(
         customer.page,
-        { service, weekdays: WEEKDAYS, startsOn: tenantDate(5), endsOn: tenantDate(18) },
+        { service, weekdays: WEEKDAYS, startsOn: termDate(5), endsOn: termDate(18) },
         'recurring-schedule-pending',
       );
 
@@ -110,8 +111,8 @@ test.describe('customer my-account: creating a recurring reservation (M23-S17, U
         service,
         weekdays: WEEKDAYS,
         startTime,
-        startsOn: tenantDate(5),
-        endsOn: tenantDate(8),
+        startsOn: termDate(5),
+        endsOn: termDate(8),
       });
       await submitRecurringForm(customer.page);
 
@@ -140,7 +141,7 @@ test.describe('customer my-account: creating a recurring reservation (M23-S17, U
   }) => {
     await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
     const service = await seedRecurrenceEligibleService(page);
-    const closedDay = tenantDate(6);
+    const closedDay = termDate(6);
     const closure = await createScheduleClosureAt(page, closedDay, {
       reason: 'MAINTENANCE',
       resourceId: service.roomId,
@@ -153,8 +154,8 @@ test.describe('customer my-account: creating a recurring reservation (M23-S17, U
         service,
         weekdays: [weekdayOf(closedDay)],
         startTime: '11:00',
-        startsOn: tenantDate(5),
-        endsOn: tenantDate(12),
+        startsOn: termDate(5),
+        endsOn: termDate(12),
       });
       await submitRecurringForm(customer.page);
 

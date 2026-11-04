@@ -13,7 +13,7 @@ const SERVICE = makeHotsiteService({
 type Query = React.ComponentProps<typeof ResourceField>['query'];
 
 function query(overrides: Record<string, unknown>): Query {
-  return { isError: false, isPending: false, ...overrides } as unknown as Query;
+  return { isError: false, isPending: false, refetch: vi.fn(), ...overrides } as unknown as Query;
 }
 
 describe('ServiceField', () => {
@@ -37,20 +37,14 @@ describe('ResourceField', () => {
   const base = {
     title: 'Sala',
     options,
-    requiredMessage: 'Escolha a sala',
+    error: null,
     noOptionsMessage: 'Nenhuma sala está disponível para este serviço no momento.',
   };
 
   it('offers one pill per resource under its title and reports the pick', () => {
     const onChange = vi.fn();
     renderWithIntl(
-      <ResourceField
-        {...base}
-        query={query({})}
-        resourceId="room-a"
-        required={false}
-        onChange={onChange}
-      />,
+      <ResourceField {...base} query={query({})} resourceId="room-a" onChange={onChange} />,
     );
 
     expect(screen.getByRole('radiogroup', { name: 'Sala' })).toBeInTheDocument();
@@ -68,7 +62,6 @@ describe('ResourceField', () => {
         {...base}
         query={query({ isPending: true })}
         resourceId={null}
-        required={false}
         onChange={vi.fn()}
       />,
     );
@@ -80,11 +73,41 @@ describe('ResourceField', () => {
         {...base}
         query={query({ isError: true })}
         resourceId={null}
-        required={false}
         onChange={vi.fn()}
       />,
     );
     expect(screen.getByRole('alert')).toHaveTextContent('Não foi possível carregar os recursos');
+  });
+
+  it('offers a retry of the options request when it failed', () => {
+    const refetch = vi.fn();
+    renderWithIntl(
+      <ResourceField
+        {...base}
+        query={query({ isError: true, refetch })}
+        resourceId={null}
+        onChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the empty state as a feedback message, not a hand-rolled box', () => {
+    renderWithIntl(
+      <ResourceField
+        {...base}
+        options={[]}
+        query={query({})}
+        resourceId={null}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('new-schedule-resource-empty')).toHaveAttribute('role', 'alert');
+    expect(screen.getByTestId('new-schedule-resource-empty').className).toContain('bg-red-50');
   });
 
   it('says so when the requirement has no options', () => {
@@ -94,7 +117,6 @@ describe('ResourceField', () => {
         options={[]}
         query={query({})}
         resourceId={null}
-        required={false}
         onChange={vi.fn()}
       />,
     );
@@ -106,21 +128,31 @@ describe('ResourceField', () => {
 
   it('shows the missing-pick message it was given when required', () => {
     renderWithIntl(
-      <ResourceField {...base} query={query({})} resourceId={null} required onChange={vi.fn()} />,
+      <ResourceField
+        {...base}
+        error="Escolha a sala"
+        query={query({})}
+        resourceId={null}
+        onChange={vi.fn()}
+      />,
     );
     expect(screen.getByText('Escolha a sala')).toBeInTheDocument();
+    expect(screen.getByText('Escolha a sala')).toHaveAttribute(
+      'id',
+      'new-schedule-resource-0-error',
+    );
+    expect(screen.getByRole('radiogroup', { name: 'Sala' })).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
+    expect(screen.getByRole('radiogroup', { name: 'Sala' })).toHaveAccessibleDescription(
+      'Escolha a sala',
+    );
   });
 
   it('numbers each group of a bundle in a data attribute', () => {
     renderWithIntl(
-      <ResourceField
-        {...base}
-        query={query({})}
-        resourceId={null}
-        required={false}
-        index={1}
-        onChange={vi.fn()}
-      />,
+      <ResourceField {...base} query={query({})} resourceId={null} index={1} onChange={vi.fn()} />,
     );
     expect(screen.getByTestId('new-schedule-resource')).toHaveAttribute('data-index', '1');
   });

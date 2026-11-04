@@ -61,4 +61,27 @@ describe('NewRecurringScheduleDateField', () => {
     expect(screen.getByTestId('f-error')).toHaveTextContent('Escolha a data');
     expect(screen.getByTestId('f')).toHaveAttribute('aria-invalid', 'true');
   });
+
+  it('paints the shared red outline on the control and describes it by the message', () => {
+    renderField({ error: 'Escolha a data em que a recorrência termina.' });
+
+    expect(screen.getByTestId('f').className).toContain('ring-red-600');
+    expect(screen.getByTestId('f')).toHaveAccessibleDescription(
+      'Escolha a data em que a recorrência termina.',
+    );
+  });
+
+  it('has no outline and no message while valid', () => {
+    renderField({});
+
+    expect(screen.getByTestId('f').className).not.toContain('ring-red-600');
+    expect(screen.queryByTestId('f-error')).not.toBeInTheDocument();
+  });
+
+  it('hands its wrapper to the registry so the field can be focused', () => {
+    const fieldRef = vi.fn();
+    renderField({ fieldRef });
+
+    expect(fieldRef).toHaveBeenCalledWith(expect.any(HTMLElement));
+  });
 });

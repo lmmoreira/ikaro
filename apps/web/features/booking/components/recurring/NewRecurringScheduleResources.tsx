@@ -15,6 +15,7 @@ import {
 } from '@/features/booking/model/recurring-requirements';
 import type { RecurringScheduleDraft } from '@/features/booking/model/recurring-schedule-form';
 import { useRecurringResourceOptions } from '../../hooks/useRecurringResourceOptions';
+import { resourceFieldName } from './use-recurring-form-feedback';
 import { AutoResourceLine, ResourceField } from './NewRecurringScheduleServiceFields';
 import { useRequirementText } from './use-requirement-text';
 
@@ -73,8 +74,10 @@ interface ResourceFieldsProps {
   readonly service: HotsiteServiceResponse;
   readonly draft: RecurringScheduleDraft;
   readonly picks: ResourcePicks;
-  /** Show the missing-pick message under a group that has none. */
-  readonly showRequired: boolean;
+  /** Field messages by field name; a group's "pick one" message is under `resource-<choiceIndex>`. */
+  readonly fieldErrors: Readonly<Record<string, string>>;
+  /** Registers a group with `useFormFeedback`. */
+  readonly registerField: (name: string) => (element: HTMLElement | null) => void;
   readonly onChange: (patch: Partial<RecurringScheduleDraft>) => void;
 }
 
@@ -87,7 +90,8 @@ export function ResourceFields({
   service,
   draft,
   picks,
-  showRequired,
+  fieldErrors,
+  registerField,
   onChange,
 }: ResourceFieldsProps): React.JSX.Element {
   const tn = useTranslations('booking.recurringScheduleForm');
@@ -115,10 +119,10 @@ export function ResourceFields({
             title={bundle ? text.bundleTitle(line) : text.singleTitle()}
             options={picks.options === undefined ? [] : optionsForChoice(picks.options, line)}
             resourceId={picked}
-            required={showRequired && picked === null}
-            requiredMessage={
-              bundle ? text.bundleRequiredMessage(line) : text.singleRequiredMessage()
+            error={
+              picked === null ? (fieldErrors[resourceFieldName(line.choiceIndex)] ?? null) : null
             }
+            fieldRef={registerField(resourceFieldName(line.choiceIndex))}
             noOptionsMessage={text.noOptionsMessage(line)}
             index={line.choiceIndex}
             onChange={(resourceId) =>

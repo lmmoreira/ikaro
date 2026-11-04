@@ -2,9 +2,16 @@ import { expect, test } from '@playwright/test';
 import { loginAsStaff, uniqueTestEmail } from './helpers/auth';
 import { getMemberRow, getRoleOption, inviteStaff } from './helpers/staff';
 
+// These specs assert on the team list, which shows the first 100 members (oldest first). The booking
+// specs invite a staff member for every STAFF resource they seed and never remove them, so on
+// lavacar-beloauto the list is full by the time these run and a member created here is not on it.
+// equipe-e2e is a tenant of its own (seed.ts) that no other spec invites staff into.
+const TEAM_TENANT = 'equipe-e2e';
+const TEAM_MANAGER = 'admin@equipe-e2e.com.br';
+
 test.describe('team invite flow', () => {
   test.beforeEach(async ({ page }) => {
-    await loginAsStaff(page, 'admin@lavacar.com.br', 'lavacar-beloauto');
+    await loginAsStaff(page, TEAM_MANAGER, TEAM_TENANT);
   });
 
   test('invites a new STAFF member and shows it as pending on the list', async ({ page }) => {
@@ -58,7 +65,7 @@ test.describe('team invite flow', () => {
     await page.goto('/dashboard/team/invite');
     await page.getByTestId('invite-first-name-input').fill('Duplicado');
     await page.getByTestId('invite-last-name-input').fill('Teste');
-    await page.getByTestId('invite-email-input').fill('admin@lavacar.com.br');
+    await page.getByTestId('invite-email-input').fill(TEAM_MANAGER);
     await page.getByRole('button', { name: 'Enviar convite' }).click();
 
     // The message is the input's accessible description (aria-describedby points at it).
