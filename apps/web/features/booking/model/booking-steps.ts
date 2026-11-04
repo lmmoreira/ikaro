@@ -114,6 +114,8 @@ export interface BookingSubmitErrorRoute {
   readonly target: BookingErrorTarget;
   readonly message: string;
   readonly code?: string;
+  /** The request field the server rejected, so the step that owns it can mark and focus it. */
+  readonly field?: string;
 }
 
 const CODE_TARGETS: Readonly<Record<string, BookingErrorTarget>> = {
@@ -150,7 +152,12 @@ export function resolveBookingSubmitErrorRoute(
     (shape.code ? CODE_TARGETS[shape.code] : undefined) ??
     (shape.field ? FIELD_TARGETS[shape.field] : undefined) ??
     'confirmation';
-  return { target, message: resolveErrorMessage(shape.code, locale), code: shape.code };
+  return {
+    target,
+    message: resolveErrorMessage(shape.code, locale),
+    code: shape.code,
+    field: shape.field,
+  };
 }
 
 export type ResolvedErrorStep =
@@ -160,6 +167,7 @@ export type ResolvedErrorStep =
       readonly stepId: BookingStepId;
       readonly message: string;
       readonly code?: string;
+      readonly field?: string;
     };
 
 /**
@@ -176,7 +184,7 @@ export function resolveErrorStep(
   if (route.target === 'login') return { kind: 'login' };
   const stepId = route.target === 'picker' ? invalidPickerStepId : route.target;
   if (stepId && steps.includes(stepId)) {
-    return { kind: 'step', stepId, message: route.message, code: route.code };
+    return { kind: 'step', stepId, message: route.message, code: route.code, field: route.field };
   }
   return { kind: 'step', stepId: 'confirmation', message: resolveErrorMessage(undefined, locale) };
 }

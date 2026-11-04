@@ -1,10 +1,16 @@
 import { useTranslations } from 'next-intl';
 import type { LeadFormQuestion } from '@ikaro/types';
+import { BrandedFieldFeedback } from '@/shared/components/hotsite/branded-field-feedback';
+import { leadFormControlClass, type LeadFormFieldBinding } from './lead-form-field-binding';
 
 interface LeadFormQuestionFieldProps {
   readonly question: LeadFormQuestion;
   readonly value: string | string[] | undefined;
   readonly error?: string;
+  /** The id the question's `aria-describedby` points to; the message renders with it. */
+  readonly errorId: string;
+  /** Focus registration and the invalid attributes from the form's feedback hook. */
+  readonly binding?: LeadFormFieldBinding;
   readonly onChange: (value: string | string[]) => void;
 }
 
@@ -12,12 +18,13 @@ export function LeadFormQuestionField({
   question,
   value,
   error,
+  errorId,
+  binding,
   onChange,
 }: LeadFormQuestionFieldProps): React.JSX.Element {
   const t = useTranslations('hotsite');
   const selected = (value as string[] | undefined) ?? [];
   const labelId = `lead-form-question-${question.id}-label`;
-  const errorId = `lead-form-question-${question.id}-error`;
 
   const requiredOrOptionalSuffix = question.required ? (
     <span className="text-red-600"> *</span>
@@ -26,14 +33,9 @@ export function LeadFormQuestionField({
   );
 
   const errorMessage = error && (
-    <p
-      className="mt-1.5 text-sm text-red-600"
-      id={errorId}
-      data-testid="lead-form-question-error"
-      data-question-id={question.id}
-    >
-      {error}
-    </p>
+    <div data-testid="lead-form-question-error" data-question-id={question.id}>
+      <BrandedFieldFeedback id={errorId}>{error}</BrandedFieldFeedback>
+    </div>
   );
 
   // Radio/checkbox choices are grouped in a <fieldset>/<legend> — not just a labelled <span> —
@@ -42,7 +44,7 @@ export function LeadFormQuestionField({
   // browser-default border/padding/margin so it matches the plain <div> this replaces visually.
   if (question.type === 'SINGLE_CHOICE' || question.type === 'MULTIPLE_CHOICE') {
     return (
-      <fieldset className="m-0 mb-5 border-0 p-0" aria-describedby={error ? errorId : undefined}>
+      <fieldset className="m-0 mb-5 border-0 p-0" {...binding}>
         <legend className="mb-2 block p-0 font-medium">
           {question.label}
           {requiredOrOptionalSuffix}
@@ -101,8 +103,8 @@ export function LeadFormQuestionField({
         data-testid="lead-form-question"
         data-question-id={question.id}
         aria-labelledby={labelId}
-        aria-describedby={error ? errorId : undefined}
-        className="w-full border px-3 py-2"
+        className={leadFormControlClass('w-full border px-3 py-2', binding)}
+        {...binding}
         style={{ borderRadius: 'var(--ba-radius)' }}
         rows={3}
         value={(value as string) ?? ''}

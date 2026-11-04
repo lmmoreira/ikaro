@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { renderWithIntl } from '@/test-utils';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DaySummary } from '@ikaro/types';
@@ -171,6 +171,9 @@ describe('AvailabilityCalendar', () => {
     expect(await screen.findByTestId('calendar-out-of-range-message')).toHaveTextContent(
       'além do limite de 3 dias',
     );
+    expect(
+      within(screen.getByTestId('calendar-out-of-range-message')).getByRole('alert'),
+    ).toBeInTheDocument();
   });
 
   it('uses singular "dia" (not "1 dias") when maxBookingAdvanceDays is 1', async () => {

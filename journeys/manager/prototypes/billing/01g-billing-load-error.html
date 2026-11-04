@@ -121,9 +121,9 @@
     Now a TAB of the single "Assinatura" page (Resumo tab pre-selected): one page, 5 tabs (Resumo | Plano | Cobranças | Dados de cobrança | Cobrança automática), switched with showTab() like servicos/03-service-edit.html.
     COMPONENT: BillingPage (GAP) with BillingTabs (reuses the existing tab pattern .editor-tabs/.editor-tab/.editor-panel — EXISTS in ServiceEditPage and the hotsite editor; the billing content is GAP)
                -> ResumoTab (GAP), PlanoTab (GAP: FeatureToggleCard, ChatbotTierPicker, PlanChangePreview), CobrancasTab (GAP), DadosCobrancaTab (GAP), CobrancaAutomaticaTab (GAP)
-    FOCUS:     ErrorAlert existente (apps/web shared/components/ui, variant dashboard) dentro de cada painel
+    FOCUS:     FeedbackMessage existente (apps/web shared/components/ui) dentro de cada painel
     BFF CALL:  GET /v1/billing/summary -> 5xx / rede
-    Estado: Status desconhecido (GET /v1/billing/summary falhou): ErrorAlert com retry em todas as abas. Se o status já era SUSPENDED (cache do guard), o shell continua restrito.
+    Estado: Status desconhecido (GET /v1/billing/summary falhou): FeedbackMessage com retry em todas as abas. Se o status já era SUSPENDED (cache do guard), o shell continua restrito.
     ACTION PANE: like ServiceEditPage — desktop (>=1024px) sticky .detail-aside card (22rem) with the current tab's single primary button (label/href swap in showTab via updateAside), secondary links, hint and the red "Cancelar assinatura →" link; below 1024px the aside is hidden and the bottom .form-actions row is the single primary.
     Single primary action on this tab: "Tentar novamente" (refaz as consultas); "Falar com a gente" secundário.
   -->

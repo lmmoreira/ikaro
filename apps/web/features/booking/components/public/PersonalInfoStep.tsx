@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type React from 'react';
 import type {
@@ -10,13 +10,15 @@ import type {
   HotsiteServiceResponse,
   ResourceSelectionItem,
 } from '@ikaro/types';
+import type { StepError } from '@/features/booking/hooks/useBookingFlow';
 import type { ChosenDuration } from '@/features/booking/model/basket-lines';
+import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feedback-message';
+import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import { findContactError } from '@/features/booking/model/contact-validation';
 import type { PersonalInfoValue } from '@/features/booking/model/personal-info';
 import { AddressFields } from './AddressFields';
 import { BookingSummaryCard } from './BookingSummaryCard';
 import { ContactInfoFields, type ErrorField, type FieldError } from './ContactInfoFields';
-import { ErrorAlert } from './ErrorAlert';
 import { PhotoUpload } from './PhotoUpload';
 
 interface PersonalInfoStepProps {
@@ -34,9 +36,14 @@ interface PersonalInfoStepProps {
   readonly picks?: readonly ResourceSelectionItem[];
   readonly requirements?: readonly HotsiteServiceResourceOptionsRequirement[];
   readonly duration?: ChosenDuration | null;
+  /** The server's rejection of this step; a `contactAddress` field marks the address. */
+  readonly submitError?: StepError | null;
   readonly onNext: () => void;
   readonly onBack: () => void;
 }
+
+const CONTACT_FIELDS: readonly ErrorField[] = ['name', 'email', 'phone'];
+const CONTACT_ADDRESS_FIELD = 'contactAddress';
 
 const btnStyle: React.CSSProperties = {
   backgroundColor: 'var(--ba-btn-bg)',
@@ -59,13 +66,30 @@ export function PersonalInfoStep({
   picks,
   requirements,
   duration,
+  submitError = null,
   onNext,
   onBack,
 }: PersonalInfoStepProps): React.JSX.Element {
   const t = useTranslations('booking');
   const tc = useTranslations('common');
-  const [showContactAddress, setShowContactAddress] = useState(false);
-  const [fieldError, setFieldError] = useState<FieldError | null>(null);
+  // The step is remounted when a server rejection of the contact address sends the customer back
+  // to it, so the section starts open then and the effect below only marks and focuses it.
+  const [showContactAddress, setShowContactAddress] = useState(
+    submitError?.field === CONTACT_ADDRESS_FIELD,
+  );
+  const feedback = useFormFeedback();
+  const invalidField = CONTACT_FIELDS.find((field) => feedback.fieldErrors[field]);
+  const fieldError: FieldError | null = invalidField
+    ? { field: invalidField, message: feedback.fieldErrors[invalidField] }
+    : null;
+
+  const { setFieldErrors } = feedback;
+  const serverMarksAddress = submitError?.field === CONTACT_ADDRESS_FIELD;
+
+  useEffect(() => {
+    if (!serverMarksAddress || !submitError) return;
+    setFieldErrors({ [CONTACT_ADDRESS_FIELD]: submitError.message });
+  }, [serverMarksAddress, submitError, setFieldErrors]);
 
   function validate(v: PersonalInfoValue): FieldError | null {
     if (hideContactFields) return null;
@@ -79,15 +103,16 @@ export function PersonalInfoStep({
   function handleNext() {
     const result = validate(value);
     if (result) {
-      setFieldError(result);
+      feedback.setError(result.message);
+      feedback.setFieldErrors({ [result.field]: result.message });
       return;
     }
-    setFieldError(null);
+    feedback.clear();
     onNext();
   }
 
   function clearErrorFor(field: ErrorField) {
-    if (fieldError?.field === field) setFieldError(null);
+    if (fieldError?.field === field) feedback.clear();
   }
 
   return (
@@ -103,6 +128,8 @@ export function PersonalInfoStep({
           contactPhone={value.contactPhone}
           phonePrefix={phonePrefix}
           fieldError={fieldError}
+          describedBy={invalidField ? feedback.fieldErrorId(invalidField) : undefined}
+          registerField={feedback.registerField}
           onContactNameChange={(contactName) => {
             onChange({ ...value, contactName });
             clearErrorFor('name');
@@ -116,12 +143,6 @@ export function PersonalInfoStep({
             clearErrorFor('phone');
           }}
         />
-      )}
-
-      {fieldError && (
-        <div className="mt-4" data-testid="personal-info-error">
-          <ErrorAlert>{fieldError.message}</ErrorAlert>
-        </div>
       )}
 
       {!hideContactFields && (
@@ -140,10 +161,16 @@ export function PersonalInfoStep({
             <div className="mt-3">
               <AddressFields
                 value={value.contactAddress}
-                onChange={(address) => onChange({ ...value, contactAddress: address })}
+                onChange={(address) => {
+                  onChange({ ...value, contactAddress: address });
+                  if (serverMarksAddress) feedback.clear();
+                }}
                 idPrefix="contact-address"
                 addressSpec={addressSpec}
                 required={false}
+                hasError={!!feedback.fieldErrors[CONTACT_ADDRESS_FIELD]}
+                describedBy={feedback.fieldErrorId(CONTACT_ADDRESS_FIELD)}
+                firstFieldRef={feedback.registerField(CONTACT_ADDRESS_FIELD)}
               />
             </div>
           )}
@@ -192,6 +219,26 @@ export function PersonalInfoStep({
           {tc('next')}
         </button>
       </div>
+
+      {submitError && (
+        <div
+          id={serverMarksAddress ? feedback.fieldErrorId(CONTACT_ADDRESS_FIELD) : undefined}
+          className="mt-4"
+          data-testid="step3-submit-error"
+        >
+          <BrandedFeedbackMessage focusOnMount={!serverMarksAddress} title={submitError.message} />
+        </div>
+      )}
+
+      {fieldError && (
+        <div
+          id={feedback.fieldErrorId(fieldError.field)}
+          className="mt-4"
+          data-testid="personal-info-error"
+        >
+          <BrandedFeedbackMessage title={fieldError.message} />
+        </div>
+      )}
     </div>
   );
 }

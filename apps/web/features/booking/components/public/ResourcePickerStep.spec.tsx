@@ -57,6 +57,7 @@ function renderStep(
   unit: PickerUnit,
   requirements: HotsiteServiceResourceOptionsRequirement[],
   picks: ResourceSelectionItem[] = [],
+  reselectMessage: string | null = null,
 ) {
   const props = {
     onPick: vi.fn(),
@@ -71,7 +72,7 @@ function renderStep(
       requirements={requirements}
       picks={picks}
       status="ready"
-      reselectMessage={null}
+      reselectMessage={reselectMessage}
       {...props}
     />,
   );
@@ -79,6 +80,33 @@ function renderStep(
 }
 
 describe('ResourcePickerStep', () => {
+  it('shows the re-pick message with its hint under the buttons and focuses the alert', () => {
+    renderStep(
+      flatUnit,
+      [requirement('STAFF', null)],
+      [],
+      'É necessário escolher um recurso para este serviço.',
+    );
+
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent('É necessário escolher um recurso para este serviço.');
+    expect(alert).toHaveTextContent(
+      'Escolha novamente. Seus serviços e as demais escolhas foram mantidos.',
+    );
+    expect(alert).toHaveFocus();
+    expect(screen.getByTestId('picker-reselect-error')).toBeInTheDocument();
+    expect(
+      screen.getByTestId('step-next').compareDocumentPosition(alert) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('shows no re-pick message by default', () => {
+    renderStep(flatUnit, [requirement('STAFF', null)]);
+
+    expect(screen.queryByTestId('picker-reselect-error')).not.toBeInTheDocument();
+  });
+
   it('headed by the resource type for a single-section flat unit, with the service line', () => {
     renderStep(flatUnit, [requirement('STAFF', null)]);
 

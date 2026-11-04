@@ -3,11 +3,7 @@
 import type React from 'react';
 import { useTranslations } from 'next-intl';
 import { newAttendeeDraft, type AttendeeDraft } from '@/features/booking/model/intake-answers';
-import {
-  INTAKE_ERROR_CHIP_CLASS,
-  INTAKE_ERROR_CHIP_STYLE,
-  INTAKE_ERROR_COLOR,
-} from './IntakeQuestionField';
+import { IntakeFieldMessage, intakeInputClass } from './IntakeQuestionField';
 
 interface IntakeAttendeesListProps {
   readonly attendees: readonly AttendeeDraft[];
@@ -45,11 +41,13 @@ export function IntakeAttendeesList({
             type="text"
             data-testid="intake-attendee-name"
             maxLength={255}
-            className="min-w-0 flex-1 border px-3 py-2"
+            className={intakeInputClass(
+              'min-w-0 flex-1 border px-3 py-2',
+              hasError && row.name.trim() === '',
+            )}
             style={{
               borderRadius: 'var(--ba-radius)',
-              borderColor:
-                hasError && row.name.trim() === '' ? INTAKE_ERROR_COLOR : 'var(--ba-secondary)',
+              ...(hasError && row.name.trim() === '' ? {} : { borderColor: 'var(--ba-secondary)' }),
               backgroundColor: 'var(--ba-secondary)',
               color: 'var(--ba-text)',
             }}
@@ -80,13 +78,13 @@ export function IntakeAttendeesList({
         </div>
       ))}
       {hasError && (
-        <p
-          className={`${INTAKE_ERROR_CHIP_CLASS} mb-2`}
-          style={INTAKE_ERROR_CHIP_STYLE}
-          data-testid="intake-field-error-attendees"
+        <IntakeFieldMessage
+          id="intake-error-attendees"
+          testId="intake-field-error-attendees"
+          className="mb-2"
         >
           {t('attendeeNameError')}
-        </p>
+        </IntakeFieldMessage>
       )}
       <button
         type="button"

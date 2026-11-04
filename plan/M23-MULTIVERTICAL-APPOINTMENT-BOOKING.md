@@ -2594,7 +2594,7 @@ It reuses `resolveEffectiveRescheduleWindowHours`, `deriveResourceSelectionsFrom
 - `apps/web/features/booking/api/customer.ts` — `rescheduleBookingAsCustomer(id, { scheduledAt })` (+ `customer.spec.ts` case) (new export)
 - `apps/web/features/customer/booking-sections.ts` — `canRescheduleBooking({ status, reschedule })` pure helper (+ spec); `BookingDetailPage.tsx` / `CancelAction.tsx` neighbour gains the "Reagendar" link (+ specs)
 - `apps/web/features/booking/model/reschedule-failure.ts` — `classifyRescheduleFailure`/`shouldReloadSlots`, the booking-domain mapping of the reschedule error codes to a UI failure kind (+ spec); `apps/web/features/customer/hooks/useDescribeBookingWindow.ts` — the shared "long date · start–end" formatter (+ spec)
-- `apps/web/features/booking/components/public/AvailabilityCarousel.tsx`, `SlotPicker.tsx`, `ErrorAlert.tsx` (modify, + specs) — the `dashboard` variant no longer reads a tenant `--ba-*` variable (the selected day chip, the empty-state radius, the alert radius): inside `app/[slug]/` those variables are defined with the tenant's branding, which the customer shell must never show
+- `apps/web/features/booking/components/public/AvailabilityCarousel.tsx`, `SlotPicker.tsx`, `ErrorAlert.tsx` (modify, + specs; `ErrorAlert` was later removed by TD57-S16 — `PickerLoadError` now picks `FeedbackMessage` for the `dashboard` variant) — the `dashboard` variant no longer reads a tenant `--ba-*` variable (the selected day chip, the empty-state radius, the alert radius): inside `app/[slug]/` those variables are defined with the tenant's branding, which the customer shell must never show
 - `packages/i18n/locales/{pt-BR,en}/web.json` — `customer.reschedule.*` keys (both locales in the same commit); the kept-pick labels reuse the existing resource-type keys
 - `apps/web/e2e/my-account-reschedule.spec.ts` + helpers under `apps/web/e2e/helpers/customer/` (new; precedent `my-account-detail-cancel.spec.ts`)
 - `docs/API_CONTRACTS.md`, `docs/USE_CASES.md` UC-069, `docs/REPOSITORY_STRUCTURE.md`, `.copilot/context.md` §11 (modify — done at discovery, listed so the DoD sweep finds them)
@@ -3362,7 +3362,7 @@ Add the server side of UC-108. A staff member books a one-off appointment for so
 
 | Public component | `--ba-*` | Staff flow |
 |---|---|---|
-| `ErrorAlert`, `SlotPicker`, `AvailabilityCarousel` | 2 / 3 / 7 | reused through their existing `variant="dashboard"`; no change |
+| `ErrorAlert` (removed by TD57-S16; `PickerLoadError` → `FeedbackMessage` now), `SlotPicker`, `AvailabilityCarousel` | 2 / 3 / 7 | reused through their existing `variant="dashboard"`; no change |
 | `AvailabilityStep` | 8 | not reused; dashboard `NewBookingAvailabilityStep` composes the carousel and slot picker with `minBookingAdvanceHours = 0` (decision 6) |
 | `ServiceSelectionStep`, `ServiceCard`, `AddressTextField`/`AddressFields` | 10 / 6 / 5 / 0 | new dashboard services step (pickup address included) over the shared selection hook |
 | `ResourcePickerStep`, `ResourcePicker` | 7 / 6 | new dashboard picker view over `resolvePickerUnits()` and the picks hook |

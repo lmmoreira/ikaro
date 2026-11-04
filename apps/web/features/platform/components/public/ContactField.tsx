@@ -1,3 +1,6 @@
+import { BrandedFieldFeedback } from '@/shared/components/hotsite/branded-field-feedback';
+import { leadFormControlClass, type LeadFormFieldBinding } from './lead-form-field-binding';
+
 interface ContactFieldProps {
   readonly htmlId: string;
   readonly testId: string;
@@ -6,6 +9,10 @@ interface ContactFieldProps {
   readonly placeholder: string;
   readonly value: string;
   readonly error?: string;
+  /** The id the field's `aria-describedby` points to; the message renders with it. */
+  readonly errorId: string;
+  /** Focus registration and the invalid attributes from the form's feedback hook. */
+  readonly binding?: LeadFormFieldBinding;
   readonly type?: string;
   readonly onChange: (value: string) => void;
 }
@@ -21,6 +28,8 @@ export function ContactField({
   placeholder,
   value,
   error,
+  errorId,
+  binding,
   type,
   onChange,
 }: ContactFieldProps): React.JSX.Element {
@@ -33,16 +42,17 @@ export function ContactField({
         id={htmlId}
         type={type ?? 'text'}
         data-testid={testId}
-        className="w-full border px-3 py-2"
+        className={leadFormControlClass('w-full border px-3 py-2', binding)}
         style={{ borderRadius: 'var(--ba-radius)' }}
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        {...binding}
       />
       {error && (
-        <p className="mt-1.5 text-sm text-red-600" data-testid={errorTestId}>
-          {error}
-        </p>
+        <div data-testid={errorTestId}>
+          <BrandedFieldFeedback id={errorId}>{error}</BrandedFieldFeedback>
+        </div>
       )}
     </div>
   );

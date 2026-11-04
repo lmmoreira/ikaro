@@ -47,7 +47,12 @@ describe('LeadFormQuestionField', () => {
   it('renders a TEXT question as a textarea and reports changes, marked optional', () => {
     const onChange = vi.fn();
     const { container } = renderWithIntl(
-      <LeadFormQuestionField question={TEXT_QUESTION} value={undefined} onChange={onChange} />,
+      <LeadFormQuestionField
+        errorId="question-error"
+        question={TEXT_QUESTION}
+        value={undefined}
+        onChange={onChange}
+      />,
     );
 
     expect(screen.getByText('(opcional)')).toBeInTheDocument();
@@ -62,6 +67,7 @@ describe('LeadFormQuestionField', () => {
     const onChange = vi.fn();
     const { container } = renderWithIntl(
       <LeadFormQuestionField
+        errorId="question-error"
         question={SINGLE_CHOICE_QUESTION}
         value="Lavagem completa"
         onChange={onChange}
@@ -79,6 +85,7 @@ describe('LeadFormQuestionField', () => {
     const onChange = vi.fn();
     const { container } = renderWithIntl(
       <LeadFormQuestionField
+        errorId="question-error"
         question={MULTIPLE_CHOICE_QUESTION}
         value={['Manhã']}
         onChange={onChange}
@@ -94,6 +101,7 @@ describe('LeadFormQuestionField', () => {
   it('shows the error message when provided', () => {
     const { container } = renderWithIntl(
       <LeadFormQuestionField
+        errorId="question-error"
         question={SINGLE_CHOICE_QUESTION}
         value={undefined}
         error="Selecione uma opção."
@@ -110,6 +118,7 @@ describe('LeadFormQuestionField', () => {
   it('groups a SINGLE_CHOICE question in a fieldset/legend, not a bare labelled span', () => {
     const { container } = renderWithIntl(
       <LeadFormQuestionField
+        errorId="question-error"
         question={SINGLE_CHOICE_QUESTION}
         value={undefined}
         onChange={vi.fn()}
@@ -124,6 +133,8 @@ describe('LeadFormQuestionField', () => {
   it("associates the group's error with the fieldset via aria-describedby", () => {
     renderWithIntl(
       <LeadFormQuestionField
+        errorId="question-error"
+        binding={{ 'aria-invalid': true, 'aria-describedby': 'question-error' }}
         question={SINGLE_CHOICE_QUESTION}
         value={undefined}
         error="Selecione uma opção."
@@ -132,8 +143,8 @@ describe('LeadFormQuestionField', () => {
     );
 
     const group = screen.getByRole('group');
-    const errorId = group.getAttribute('aria-describedby');
-    expect(errorId).toBeTruthy();
-    expect(document.getElementById(errorId!)).toHaveTextContent('Selecione uma opção.');
+    expect(group).toHaveAttribute('aria-describedby', 'question-error');
+    expect(group).toHaveAttribute('aria-invalid', 'true');
+    expect(document.getElementById('question-error')).toHaveTextContent('Selecione uma opção.');
   });
 });

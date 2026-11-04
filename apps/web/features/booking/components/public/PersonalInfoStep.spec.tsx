@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import { renderWithIntl, hotsiteServiceBookingDefaults } from '@/test-utils';
 import { useState } from 'react';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { AvailableSlot, HotsiteAddressSpec, HotsiteServiceResponse } from '@ikaro/types';
+import type { StepError } from '@/features/booking/hooks/useBookingFlow';
 import { emptyPersonalInfo, type PersonalInfoValue } from '@/features/booking/model/personal-info';
 import { PersonalInfoStep } from './PersonalInfoStep';
 
@@ -50,12 +51,14 @@ function Wrapper({
   phonePrefix = '+55',
   addressSpec = BR_ADDRESS_SPEC,
   hideContactFields = false,
+  submitError = null,
 }: {
   readonly onNext?: () => void;
   readonly onBack?: () => void;
   readonly phonePrefix?: string;
   readonly addressSpec?: HotsiteAddressSpec;
   readonly hideContactFields?: boolean;
+  readonly submitError?: StepError | null;
 }) {
   const [value, setValue] = useState<PersonalInfoValue>(emptyPersonalInfo());
   return (
@@ -70,6 +73,7 @@ function Wrapper({
       phonePrefix={phonePrefix}
       addressSpec={addressSpec}
       hideContactFields={hideContactFields}
+      submitError={submitError}
       onNext={onNext}
       onBack={onBack}
     />
@@ -212,5 +216,61 @@ describe('PersonalInfoStep', () => {
     expect(screen.getByText('Lavagem Simples')).toBeInTheDocument();
     expect(screen.getByText('R$ 60,00 — 30 min')).toBeInTheDocument();
     expect(screen.getByText('Quinta-feira, 18 de junho · 10:00 – 11:00')).toBeInTheDocument();
+  });
+
+  describe('feedback', () => {
+    it('shows the validation message as a branded alert under the buttons and links the invalid input to it', async () => {
+      const user = userEvent.setup();
+      renderWithIntl(<Wrapper />);
+
+      await user.click(screen.getByRole('button', { name: 'Próximo' }));
+
+      const message = screen.getByTestId('personal-info-error');
+      expect(within(message).getByRole('alert')).toHaveTextContent('Informe seu nome.');
+      expect(
+        screen.getByTestId('step-next').compareDocumentPosition(message) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      const name = screen.getByTestId('input-name');
+      expect(name).toHaveAttribute('aria-invalid', 'true');
+      expect(name).toHaveAttribute('aria-describedby', message.id);
+      expect(name.className).toContain('border-red-600');
+      expect(name).toHaveFocus();
+    });
+
+    it('focuses the first invalid contact field and clears the marks once it is edited', async () => {
+      const user = userEvent.setup();
+      renderWithIntl(<Wrapper />);
+      await user.type(screen.getByTestId('input-name'), 'Maria Silva');
+
+      await user.click(screen.getByRole('button', { name: 'Próximo' }));
+      expect(screen.getByTestId('input-email')).toHaveFocus();
+      expect(screen.getByTestId('input-email')).toHaveAttribute('aria-invalid', 'true');
+
+      await user.type(screen.getByTestId('input-email'), 'm');
+      expect(screen.queryByTestId('personal-info-error')).not.toBeInTheDocument();
+      expect(screen.getByTestId('input-email')).not.toHaveAttribute('aria-invalid');
+    });
+
+    it('shows a server rejection of the step as a branded alert', () => {
+      renderWithIntl(<Wrapper submitError={{ message: 'Não foi possível concluir.' }} />);
+
+      const message = screen.getByTestId('step3-submit-error');
+      expect(within(message).getByRole('alert')).toHaveTextContent('Não foi possível concluir.');
+      expect(within(message).getByRole('alert')).toHaveFocus();
+    });
+
+    it('opens, marks and focuses the contact address when the server rejects contactAddress', () => {
+      renderWithIntl(
+        <Wrapper
+          submitError={{ message: 'O endereço informado é inválido.', field: 'contactAddress' }}
+        />,
+      );
+
+      const zip = document.getElementById('contact-address-zip-code');
+      expect(zip).toHaveAttribute('aria-invalid', 'true');
+      expect(zip).toHaveAttribute('aria-describedby', screen.getByTestId('step3-submit-error').id);
+      expect(zip).toHaveFocus();
+    });
   });
 });

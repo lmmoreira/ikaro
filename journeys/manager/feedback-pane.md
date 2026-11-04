@@ -3,7 +3,7 @@
 **Actor(s):** MANAGER (dashboard), CUSTOMER (conta do cliente), GUEST/CUSTOMER (hotsite público)
 **Goal:** When a save, action or load fails or succeeds, the user sees the result next to the action they just took, with the offending field marked — on every surface of `apps/web`.
 **UCs covered:** none — a cross-cutting UI pattern. Source of truth: `td/TD57-INLINE-FEEDBACK-AND-ACTION-PANE-PATTERN.md`. Lives under `manager/` because the dashboard is its main surface. The customer-account and public-hotsite screens live in their own actor folders, as the folder convention requires: `customer/prototypes/minha-conta/03c`–`03d` and `guest/prototypes/lead-form/01j`–`01k`; the hub `index.html` here links to them.
-**Status:** In progress (TD57) — the shared components shipped with TD57-S01 and the service edit screen uses them since TD57-S02; the screens below marked ⚠ still use their own boxes until their stories land (done: TD57-S01–S04 and S06–S15; pending: S05 and S16). The service-edit error that triggered it is real: a 422 rendered below four cards, out of view.
+**Status:** In progress (TD57) — the shared components shipped with TD57-S01 and the service edit screen uses them since TD57-S02; the screens below marked ⚠ still use their own boxes until their stories land (done: TD57-S01–S04 and S06–S16; pending: S05). The service-edit error that triggered it is real: a 422 rendered below four cards, out of view.
 
 ## Flow
 
@@ -24,11 +24,9 @@ flowchart TD
     Cust["Conta do cliente<br/>(ex: cancelar)"] -->|"mesmo painel"| Ok
     Pub["Hotsite público<br/>(sem painel de ações)"] -->|"componente com a marca"| PubMsg["Mensagem sob o botão de envio"]
 
-    classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
-    class PubMsg gap
 ```
 
-The node in red is the one gap left: the public hotsite forms still use their hand-rolled box (the area story `TD57-S16` remains). Every other node is built: the shared components exist since `TD57-S01`, the area stories `TD57-S02`–`TD57-S15` migrated their screens, and the branded counterpart for the public hotsite exists since `TD57-S06` with its callers migrating in `TD57-S16`.
+Every node is built: the shared components exist since `TD57-S01`, the area stories `TD57-S02`–`TD57-S16` migrated their screens, and the branded counterpart for the public hotsite exists since `TD57-S06`, used by every public form since `TD57-S16`.
 
 ## Pages referenced
 
@@ -48,7 +46,7 @@ The node in red is the one gap left: the public hotsite forms still use their ha
 | `/dashboard/services` | `ServiceListPage` | TD57-S13 | ✅ Load failure with retry, chips inside the list card — `staff/prototypes/servicos/01`, `01b` |
 | `/dashboard/loyalty` | `LoyaltySearchPage`, `LoyaltySearchResults` | TD57-S15 | ✅ Search failure is a page-level `FeedbackMessage` with retry — `staff/prototypes/fidelidade/00c` |
 | `/dashboard/loyalty/[customerId]` | `CustomerLoyaltyEntriesTab`, `CustomerLoyaltyRedemptionsTab`, `error.tsx` | TD57-S15 | ✅ "Carregar mais" failure under the count line, route error with retry — `staff/prototypes/fidelidade/01d`, `01e` |
-| `/[slug]` (lead form) | public lead form + branded feedback component | TD57-S16 | ⚠ Component exists (TD57-S06); form still uses a hand-rolled box — prototypes drawn (`guest/prototypes/lead-form` `01c`, `01d`; booking, submit-info, chatbot and login screens in their folders), build pending |
+| `/[slug]` and the public booking, submit-info, chatbot and login screens | `LeadFormWidget`, `BookingForm` steps, `SubmitInfoForm`, `ChatbotPanel`, `app/[slug]/login/page.tsx` | TD57-S16 | ✅ Branded message under the action; a server `field` marks and focuses the input through `useFormFeedback`; `ErrorAlert` removed — `guest/prototypes/{book-a-service,submit-info,lead-form,ask-chatbot}`, `customer/prototypes/{book-a-service,login}` |
 | Shared components | `FeedbackMessage`, `ActionPane`, `FieldFeedback`, `useFormFeedback` | TD57-S01 | ✅ EXISTS |
 
 ## Open questions / gaps

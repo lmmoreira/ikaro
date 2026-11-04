@@ -32,6 +32,30 @@ describe('IntakeQuestionField', () => {
     expect(intakeFieldError('goal')).toBeInTheDocument();
   });
 
+  it('draws a required error with the branded field message and outline, linked to the input', () => {
+    renderWithIntl(
+      <IntakeQuestionField question={text(true)} value="" hasError onChange={vi.fn()} />,
+    );
+
+    const input = screen.getByRole('textbox', { name: /Objetivo/ });
+    const wrapper = intakeFieldError('goal');
+    const message = wrapper?.querySelector('#intake-error-goal');
+    expect(message).toHaveTextContent('Este campo é obrigatório.');
+    expect(message?.getAttribute('style')).toContain('--ba-body-font');
+    expect(input).toHaveAttribute('aria-describedby', 'intake-error-goal');
+    expect(input.className).toContain('border-red-600');
+  });
+
+  it('does not outline a valid question', () => {
+    renderWithIntl(
+      <IntakeQuestionField question={text(true)} value="x" hasError={false} onChange={vi.fn()} />,
+    );
+
+    expect(screen.getByRole('textbox', { name: /Objetivo/ }).className).not.toContain(
+      'border-red-600',
+    );
+  });
+
   it('marks an optional free-text question "(opcional)"', () => {
     renderWithIntl(
       <IntakeQuestionField question={text(false)} value="" hasError={false} onChange={vi.fn()} />,

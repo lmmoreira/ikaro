@@ -201,13 +201,13 @@ All steps use `max-w-2xl mx-auto px-6` (from `BookingForm` wrapper).
 These were real component-behavior gaps found while building this prototype. All four are now fixed in production; the fixes matched what was proposed below.
 
 - ~~`AvailabilityCarousel` has no "fully booked" empty state.~~ — **Resolved.** Renders `data-testid="fully-booked-message"` with `t('availability.noSlots')` when `days.every(d => !d.available)`. See `02d-fully-booked.html`.
-- ~~`AvailabilityCarousel` fetch-error has no retry action.~~ — **Resolved.** Has `retryCount` state + `handleRetry()` wired into `ErrorAlert onRetry`. See `02c-availability-error.html`.
+- ~~`AvailabilityCarousel` fetch-error has no retry action.~~ — **Resolved.** Has `retryCount` state + `handleRetry()` wired into the load-error message's `onRetry` (`PickerLoadError`). See `02c-availability-error.html`.
 - ~~`SlotPicker` fetch-error has no retry action.~~ — **Resolved.** `SlotPicker.tsx` has the identical `retryCount`/`handleRetry()` pattern. See `02f-slot-fetch-error.html`.
 - ~~`PhotoUpload` errored items are a dead end.~~ — **Resolved.** "Remover" now renders for `status === 'done' || status === 'error'`. See `03c-photo-states.html`.
 
 ## Accessibility note (also resolved)
 
-The "Inline validation errors are plain `<p>` elements with no `role=\"alert\"`" note above is stale — all of these now render through a shared `ErrorAlert` component whose wrapping `<div>` already has `role="alert"`.
+The "Inline validation errors are plain `<p>` elements with no `role=\"alert\"`" note above is stale — all of these now render through the branded feedback message (`ErrorAlert` was removed in TD57-S16), which carries `role="alert"`.
 
 ## No new files needed
 

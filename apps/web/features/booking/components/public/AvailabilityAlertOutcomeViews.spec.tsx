@@ -114,6 +114,18 @@ describe('AvailabilityAlertCapReached', () => {
     );
   });
 
+  it('announces the cap as a branded alert under the actions', () => {
+    renderWithIntl(<AvailabilityAlertCapReached slug="acme" onBack={vi.fn()} />);
+
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent('Cancele um aviso');
+    expect(
+      screen.getByTestId('availability-alert-view-alerts').compareDocumentPosition(alert) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(alert.className).not.toContain('bg-red-50');
+  });
+
   it('returns to the form through the Voltar action', async () => {
     const onBack = vi.fn();
     renderWithIntl(<AvailabilityAlertCapReached slug="acme" onBack={onBack} />);
@@ -156,5 +168,16 @@ describe('AvailabilityAlertIneligible', () => {
       screen.getByRole('heading', { name: 'Este serviço não aceita avisos' }),
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Voltar ao site' })).toHaveAttribute('href', '/acme');
+  });
+
+  it('announces why as a branded alert under the way back', () => {
+    renderWithIntl(<AvailabilityAlertIneligible slug="acme" />);
+
+    const alert = screen.getByRole('alert');
+    expect(alert.className).not.toContain('bg-red-50');
+    expect(
+      screen.getByRole('link', { name: 'Voltar ao site' }).compareDocumentPosition(alert) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 });

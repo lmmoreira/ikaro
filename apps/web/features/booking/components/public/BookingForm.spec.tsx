@@ -521,6 +521,42 @@ describe('BookingForm', () => {
     expect(screen.getByText('Seus dados')).toBeInTheDocument();
   });
 
+  it('marks and focuses the contact address when the server rejects the contactAddress field', async () => {
+    const user = userEvent.setup();
+    vi.mocked(createBooking).mockRejectedValue(
+      new ApiError(400, 'Invalid ZIP Code', {
+        code: 'ADDRESS_POSTAL_CODE_INVALID',
+        field: 'contactAddress',
+      }),
+    );
+
+    await advanceToStep3(user, [makeService()]);
+    await fillContactFields(user);
+    await user.click(screen.getByRole('button', { name: 'Confirmar agendamento' }));
+
+    const message = await screen.findByTestId('step3-submit-error');
+    const zip = document.getElementById('contact-address-zip-code');
+    expect(zip).toHaveAttribute('aria-invalid', 'true');
+    expect(zip).toHaveAttribute('aria-describedby', message.id);
+    expect(zip).toHaveFocus();
+  });
+
+  it('falls back to the confirmation message and marks no input when the server names a field the wizard does not own', async () => {
+    const user = userEvent.setup();
+    vi.mocked(createBooking).mockRejectedValue(
+      new ApiError(400, 'Invalid', { code: 'ADDRESS_POSTAL_CODE_INVALID', field: 'unknownField' }),
+    );
+
+    await advanceToStep3(user, [makeService()]);
+    await fillContactFields(user);
+    await user.click(screen.getByRole('button', { name: 'Confirmar agendamento' }));
+
+    expect(await screen.findByTestId('confirmation-error')).toHaveTextContent(
+      'O CEP informado é inválido.',
+    );
+    expect(document.querySelector('[aria-invalid="true"]')).toBeNull();
+  });
+
   it('returns to Step 1 with an address-specific error message when the pickup address is rejected', async () => {
     const user = userEvent.setup();
     const service = makeService({ requiresPickupAddress: true });

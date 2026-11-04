@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { renderWithIntl } from '@/test-utils';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DaySummary } from '@ikaro/types';
@@ -207,8 +207,26 @@ describe('AvailabilityCarousel', () => {
     expect(await screen.findByTestId('fully-booked-message')).toHaveTextContent(
       'Nenhum horário disponível nos próximos dias',
     );
+    expect(
+      within(screen.getByTestId('fully-booked-message')).getByRole('alert'),
+    ).toBeInTheDocument();
     await screen.findAllByTestId('day-option');
     expect(getDayOption('2026-06-15')).toBeDisabled();
+  });
+
+  it.each([
+    ['hotsite' as const, true],
+    ['dashboard' as const, false],
+  ])('draws the fully booked notice in the %s look', async (variant, branded) => {
+    vi.mocked(fetchAvailabilitySummary).mockResolvedValue([
+      { date: '2026-06-15', available: false, slotCount: 0 },
+    ]);
+
+    renderCarousel({ variant });
+
+    const notice = within(await screen.findByTestId('fully-booked-message')).getByRole('alert');
+    expect(notice.getAttribute('style')?.includes('--ba-radius') ?? false).toBe(branded);
+    expect(notice.className.includes('bg-red-50')).toBe(!branded);
   });
 
   it('shows the fully booked message regardless of carouselDays value', async () => {

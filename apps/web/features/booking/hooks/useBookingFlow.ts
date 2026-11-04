@@ -20,6 +20,8 @@ interface UseBookingFlowParams {
 export interface StepError {
   readonly message: string;
   readonly code?: string;
+  /** The request field the server rejected; the step that owns it marks and focuses the input. */
+  readonly field?: string;
 }
 
 export interface BookingFlow {

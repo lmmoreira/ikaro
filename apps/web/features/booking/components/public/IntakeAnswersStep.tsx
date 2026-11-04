@@ -1,17 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import type React from 'react';
 import { useTranslations } from 'next-intl';
 import type { ServiceIntakeSchemaVersion } from '@ikaro/types';
+import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feedback-message';
 import { validateIntake, type IntakeAnswersValue } from '@/features/booking/model/intake-answers';
 import { IntakeAttendeesList } from './IntakeAttendeesList';
-import {
-  INTAKE_ERROR_CHIP_CLASS,
-  INTAKE_ERROR_CHIP_STYLE,
-  INTAKE_ERROR_COLOR,
-  IntakeQuestionField,
-} from './IntakeQuestionField';
+import { IntakeFieldMessage, IntakeQuestionField, intakeInputClass } from './IntakeQuestionField';
 
 interface IntakeAnswersStepProps {
   readonly schema: ServiceIntakeSchemaVersion;
@@ -32,7 +28,7 @@ const btnStyle: React.CSSProperties = {
 
 const fieldBorder = (hasError: boolean): React.CSSProperties => ({
   borderRadius: 'var(--ba-radius)',
-  borderColor: hasError ? INTAKE_ERROR_COLOR : 'var(--ba-secondary)',
+  ...(hasError ? {} : { borderColor: 'var(--ba-secondary)' }),
   backgroundColor: 'var(--ba-secondary)',
   color: 'var(--ba-text)',
 });
@@ -51,17 +47,12 @@ export function IntakeAnswersStep({
   const t = useTranslations('booking.intake');
   const tc = useTranslations('common');
   const [attempts, setAttempts] = useState(0);
-  const summaryRef = useRef<HTMLDivElement>(null);
   const validation = validateIntake(schema, value);
   const showFieldErrors = attempts > 0;
   const summary =
     showFieldErrors && validation.count > 0
       ? t('summaryFields', { count: validation.count })
       : serverError;
-
-  useEffect(() => {
-    if (attempts > 0 || serverError) summaryRef.current?.focus();
-  }, [attempts, serverError]);
 
   function handleNext() {
     if (validation.count > 0) {
@@ -79,25 +70,6 @@ export function IntakeAnswersStep({
       <p className="mt-1 mb-4 text-sm opacity-70">
         {t('description', { version: schema.version })}
       </p>
-
-      {summary && (
-        <div
-          ref={summaryRef}
-          role="alert"
-          tabIndex={-1}
-          className="my-4 p-3.5 text-sm"
-          style={{
-            backgroundColor: '#fef2f2',
-            color: INTAKE_ERROR_COLOR,
-            borderRadius: 'var(--ba-radius)',
-          }}
-          data-testid="intake-error-summary"
-        >
-          <strong>{t('summaryTitle')}</strong>
-          <br />
-          {summary}
-        </div>
-      )}
 
       {schema.questions.map((question) => (
         <IntakeQuestionField
@@ -125,20 +97,22 @@ export function IntakeAnswersStep({
             data-testid="intake-participants"
             type="number"
             min={1}
-            className="w-32 border px-3 py-2"
+            className={intakeInputClass(
+              'w-32 border px-3 py-2',
+              showFieldErrors && validation.participants,
+            )}
             style={fieldBorder(showFieldErrors && validation.participants)}
             value={value.participantCount}
             onChange={(e) => onChange({ ...value, participantCount: e.target.value })}
             aria-invalid={showFieldErrors && validation.participants ? true : undefined}
           />
           {showFieldErrors && validation.participants && (
-            <p
-              className={INTAKE_ERROR_CHIP_CLASS}
-              style={INTAKE_ERROR_CHIP_STYLE}
-              data-testid="intake-field-error-participants"
+            <IntakeFieldMessage
+              id="intake-participants-error"
+              testId="intake-field-error-participants"
             >
               {t('participantsError')}
-            </p>
+            </IntakeFieldMessage>
           )}
         </div>
       )}
@@ -166,14 +140,13 @@ export function IntakeAnswersStep({
         <span>{schema.consentText}</span>
       </label>
       {showFieldErrors && validation.consent && (
-        <p
+        <IntakeFieldMessage
           id="intake-consent-error"
-          className={`${INTAKE_ERROR_CHIP_CLASS} ml-7`}
-          style={INTAKE_ERROR_CHIP_STYLE}
-          data-testid="intake-consent-error"
+          testId="intake-consent-error"
+          className="ml-7"
         >
           {t('consentError')}
-        </p>
+        </IntakeFieldMessage>
       )}
 
       <div className="mt-6 flex gap-3">
@@ -199,6 +172,19 @@ export function IntakeAnswersStep({
           {tc('next')}
         </button>
       </div>
+
+      {summary && (
+        <div className="mt-4">
+          <BrandedFeedbackMessage
+            key={attempts}
+            focusOnMount
+            testId="intake-error-summary"
+            title={t('summaryTitle')}
+          >
+            {summary}
+          </BrandedFeedbackMessage>
+        </div>
+      )}
     </div>
   );
 }

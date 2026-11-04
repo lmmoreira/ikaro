@@ -24,13 +24,15 @@ describe('PickerLoadError', () => {
     },
   );
 
-  it('uses the shared feedback message on the dashboard look and the branded alert on the hotsite', () => {
+  it('uses the shared feedback message on the dashboard look and the branded message on the hotsite', () => {
     const { container, rerender } = render(
       <PickerLoadError message="x" onRetry={vi.fn()} retryLabel="r" variant="dashboard" />,
     );
     expect(container.querySelector('.border-red-300.bg-red-50.rounded-lg')).not.toBeNull();
+    expect(container.querySelector('[style*="--ba-radius"]')).toBeNull();
 
     rerender(<PickerLoadError message="x" onRetry={vi.fn()} retryLabel="r" variant="hotsite" />);
     expect(container.querySelector('.rounded-lg')).toBeNull();
+    expect(container.querySelector('[style*="--ba-radius"]')).not.toBeNull();
   });
 });

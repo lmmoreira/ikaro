@@ -27,6 +27,50 @@ describe('AddressTextField', () => {
     expect(onChange).toHaveBeenCalledWith('X');
   });
 
+  it('marks an invalid field with the branded outline and links it to its message', () => {
+    render(
+      <AddressTextField
+        id="street"
+        label="Rua"
+        value=""
+        onChange={vi.fn()}
+        hasError
+        describedBy="address-message"
+      />,
+    );
+
+    const input = screen.getByLabelText('Rua');
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(input).toHaveAttribute('aria-describedby', 'address-message');
+    expect(input.className).toContain('border-red-600');
+  });
+
+  it('leaves a valid field unmarked even when given a message id', () => {
+    render(
+      <AddressTextField
+        id="street"
+        label="Rua"
+        value=""
+        onChange={vi.fn()}
+        describedBy="address-message"
+      />,
+    );
+
+    const input = screen.getByLabelText('Rua');
+    expect(input).not.toHaveAttribute('aria-invalid');
+    expect(input).not.toHaveAttribute('aria-describedby');
+    expect(input.className).not.toContain('border-red-600');
+  });
+
+  it('hands the input to the form for focus', () => {
+    const inputRef = vi.fn();
+    render(
+      <AddressTextField id="street" label="Rua" value="" onChange={vi.fn()} inputRef={inputRef} />,
+    );
+
+    expect(inputRef).toHaveBeenCalledWith(screen.getByLabelText('Rua'));
+  });
+
   it('marks the field required when required is true', () => {
     render(<AddressTextField id="street" label="Rua" value="" onChange={vi.fn()} required />);
 

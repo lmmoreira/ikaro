@@ -123,6 +123,14 @@ describe('ChatbotPanel', () => {
     );
   });
 
+  it('announces the validation error as a branded alert (it used to be a bare red line)', () => {
+    renderWithIntl(<ChatbotPanel {...baseProps({ validationError: 'Mensagem muito longa' })} />);
+
+    const error = screen.getByTestId('chatbot-validation-error');
+    expect(error).toHaveAttribute('role', 'alert');
+    expect(error.getAttribute('style')).toContain('--ba-radius');
+  });
+
   it('renders no validation error element when null', () => {
     renderWithIntl(<ChatbotPanel {...baseProps({ validationError: null })} />);
 

@@ -16,6 +16,10 @@ interface AddressFieldsProps {
   readonly addressLookup?: AddressLookup;
   readonly required?: boolean;
   readonly hasError?: boolean;
+  /** The id of the form message that explains the error; every invalid input points to it. */
+  readonly describedBy?: string;
+  /** Focus target for the form when the address is the first invalid group: the first input. */
+  readonly firstFieldRef?: React.Ref<HTMLInputElement>;
 }
 
 export function AddressFields({
@@ -26,6 +30,8 @@ export function AddressFields({
   addressLookup = viaCepAddressLookup,
   required = true,
   hasError = false,
+  describedBy,
+  firstFieldRef,
 }: AddressFieldsProps): React.JSX.Element {
   const t = useTranslations('booking.address');
   const { isLookingUp, lookupFailed, changeZipCode } = useAddressLookup({
@@ -40,12 +46,14 @@ export function AddressFields({
       <div className="sm:col-span-2">
         <AddressTextField
           id={`${idPrefix}-zip-code`}
+          inputRef={firstFieldRef}
           label={addressSpec.postalLabel}
           value={value.zipCode}
           onChange={changeZipCode}
           placeholder={addressSpec.postalPlaceholder}
           required={required}
-          hasError={required && hasError}
+          hasError={hasError}
+          describedBy={describedBy}
         />
         {isLookingUp && (
           <p
@@ -74,7 +82,8 @@ export function AddressFields({
           value={value.street}
           onChange={(street) => onChange({ ...value, street })}
           required={required}
-          hasError={required && hasError}
+          hasError={hasError}
+          describedBy={describedBy}
         />
       </div>
 
@@ -85,7 +94,8 @@ export function AddressFields({
           value={value.number}
           onChange={(number) => onChange({ ...value, number })}
           required={required}
-          hasError={required && hasError}
+          hasError={hasError}
+          describedBy={describedBy}
         />
       </div>
 
@@ -106,7 +116,8 @@ export function AddressFields({
             value={value.neighborhood ?? ''}
             onChange={(neighborhood) => onChange({ ...value, neighborhood })}
             required={required}
-            hasError={required && hasError}
+            hasError={hasError}
+            describedBy={describedBy}
           />
         </div>
       )}
@@ -118,7 +129,8 @@ export function AddressFields({
           value={value.city}
           onChange={(city) => onChange({ ...value, city })}
           required={required}
-          hasError={required && hasError}
+          hasError={hasError}
+          describedBy={describedBy}
         />
       </div>
 
@@ -129,7 +141,8 @@ export function AddressFields({
           value={value.state}
           onChange={(state) => onChange({ ...value, state })}
           required={required}
-          hasError={required && hasError}
+          hasError={hasError}
+          describedBy={describedBy}
         />
       </div>
     </div>

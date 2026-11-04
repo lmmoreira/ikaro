@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { renderWithIntl, hotsiteServiceBookingDefaults } from '@/test-utils';
 import { BookingErrorCode } from '@ikaro/types';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import type { HotsiteAddressSpec, HotsiteServiceResponse } from '@ikaro/types';
 import { emptyAddress } from '@/features/booking/model/personal-info';
@@ -378,5 +379,113 @@ describe('ServiceSelectionStep', () => {
     );
 
     expect(screen.getByTestId('step1-submit-error')).not.toHaveTextContent('Desmarque');
+  });
+
+  describe('the pickup address feedback', () => {
+    function PickupHarness({
+      submitError = null,
+    }: {
+      readonly submitError?: { readonly message: string; readonly field?: string } | null;
+    }) {
+      const [address, setAddress] = useState(emptyAddress());
+      const service = makeService({ requiresPickupAddress: true });
+      return (
+        <ServiceSelectionStep
+          services={[service]}
+          selectedServiceIds={[service.id]}
+          onToggleService={vi.fn()}
+          onNext={vi.fn()}
+          {...defaultPickupProps}
+          requiresPickupAddress
+          pickupAddress={address}
+          onPickupAddressChange={setAddress}
+          submitError={submitError}
+        />
+      );
+    }
+
+    it('shows the missing-address message as a branded alert under the buttons, marks and focuses the address', async () => {
+      const user = userEvent.setup();
+      renderWithIntl(<PickupHarness />);
+
+      await user.click(screen.getByTestId('step-next'));
+
+      const message = screen.getByTestId('step1-error');
+      expect(within(message).getByRole('alert')).toHaveTextContent(
+        'Informe o endereço de coleta para continuar.',
+      );
+      expect(
+        screen.getByTestId('step-next').compareDocumentPosition(message) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      const zip = document.getElementById('pickup-address-zip-code');
+      expect(zip).toHaveAttribute('aria-invalid', 'true');
+      expect(zip).toHaveAttribute('aria-describedby', message.id);
+      expect(zip).toHaveFocus();
+      expect(document.getElementById('pickup-address-street')).toHaveAttribute(
+        'aria-invalid',
+        'true',
+      );
+    });
+
+    it('clears the message and the marks as soon as the address is edited', async () => {
+      const user = userEvent.setup();
+      renderWithIntl(<PickupHarness />);
+
+      await user.click(screen.getByTestId('step-next'));
+      await user.type(document.getElementById('pickup-address-street') as HTMLElement, 'R');
+
+      expect(screen.queryByTestId('step1-error')).not.toBeInTheDocument();
+      expect(document.getElementById('pickup-address-street')).not.toHaveAttribute('aria-invalid');
+    });
+
+    it('marks and focuses the address when the server rejects the pickupAddress field', () => {
+      renderWithIntl(
+        <PickupHarness
+          submitError={{ message: 'O endereço de coleta é inválido.', field: 'pickupAddress' }}
+        />,
+      );
+
+      const message = screen.getByTestId('step1-submit-error');
+      expect(within(message).getByRole('alert')).toHaveTextContent(
+        'O endereço de coleta é inválido.',
+      );
+      const zip = document.getElementById('pickup-address-zip-code');
+      expect(zip).toHaveAttribute('aria-invalid', 'true');
+      expect(zip).toHaveAttribute('aria-describedby', message.id);
+      expect(zip).toHaveFocus();
+    });
+
+    it('leaves the address unmarked for a server rejection that names no address field', () => {
+      renderWithIntl(<PickupHarness submitError={{ message: 'Este serviço não está ativo.' }} />);
+
+      expect(document.getElementById('pickup-address-zip-code')).not.toHaveAttribute(
+        'aria-invalid',
+      );
+    });
+  });
+
+  it('shows the server rejection and the form-load failure as branded alerts under the buttons', () => {
+    const service = makeService();
+    renderWithIntl(
+      <ServiceSelectionStep
+        services={[service]}
+        selectedServiceIds={[service.id]}
+        onToggleService={vi.fn()}
+        onNext={vi.fn()}
+        {...defaultPickupProps}
+        formStatus="error"
+        submitError={{ message: 'Este serviço não está ativo no momento.' }}
+      />,
+    );
+
+    for (const id of ['step1-submit-error', 'step1-form-error']) {
+      const box = screen.getByTestId(id);
+      expect(within(box).getByRole('alert')).toBeInTheDocument();
+      expect(
+        screen.getByTestId('step-next').compareDocumentPosition(box) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
   });
 });

@@ -44,7 +44,7 @@ Screens `03`/`03b` map to `FeatureGate` / `LockedFeaturePage`; the public signup
 
 ## What is real vs invented
 
-- **Real:** `--ba-*` tokens (`journeys/shared/tokens.css`), the dashboard shell, `ErrorAlert`, status badge and detail-layout patterns.
+- **Real:** `--ba-*` tokens (`journeys/shared/tokens.css`), the dashboard shell, `FeedbackMessage`, status badge and detail-layout patterns.
 - **Invented:** tenants "Lavacar BeloAuto" and "Sunrise Auto Spa"; the example selection and dates (BR catalog: HOTSITE R$ 49, BOOKING R$ 109 (includes recurring reservations and availability alerts), LOYALTY R$ 29, CHATBOT BASIC R$ 39 / PLUS R$ 79, LEAD_FORM R$ 19; default total R$ 245. US: HOTSITE US$ 12, BOOKING US$ 26, LOYALTY US$ 7, CHATBOT US$ 9 / 19, LEAD_FORM US$ 5; total US$ 59).
 - **New nav item, not in today's IA:** "Assinatura" under "Somente Gerente" (also in the mobile "Mais" sheet).
 
@@ -100,7 +100,7 @@ Same gate and tab behaviour. No charge is open while canceled: the card shows th
 Tab bar rendered immediately; every panel shows skeleton blocks (GAP: check `apps/web/shared/components/ui/` for a skeleton before building one). No buttons while loading.
 
 ## Screen 7 — Load error — 01g-billing-load-error.html
-`ErrorAlert` (EXISTS, dashboard variant) inside each panel (the summary failed, so status is unknown) + retry (refetch both queries). Copy: "Não foi possível carregar sua assinatura" / "Tivemos um problema ao buscar os dados. Verifique sua conexão e tente novamente. Se continuar, fale com a gente." Primary "Tentar novamente"; secondary "Falar com a gente".
+`FeedbackMessage` (EXISTS) inside each panel (the summary failed, so status is unknown) + retry (refetch both queries). Copy: "Não foi possível carregar sua assinatura" / "Tivemos um problema ao buscar os dados. Verifique sua conexão e tente novamente. Se continuar, fale com a gente." Primary "Tentar novamente"; secondary "Falar com a gente".
 
 ## Screen 8 — No charges (Cobranças tab) — 01h-billing-no-charges.html
 Opens on the Cobranças tab. Empty history: "Nenhuma cobrança paga ainda" / "Assim que a primeira cobrança for paga, ela aparece aqui com a situação de cada pagamento. A cobrança em aberto está na aba Resumo." (`pagination.total === 0`). No primary button on this tab; Resumo still has "Pagar agora" for the first charge.
@@ -256,9 +256,9 @@ After payment the banner disappears immediately; a short "pagamento recebido, re
 | Annual billing: price-change notice for an annual subscription | Addendum 5 | `01k` variant: new annual amounts, applied at the next annual renewal |
 | Annual billing: renewal reminder e-mails and the annual invoice e-mail | Addendum 5 | Templates (pt-BR, en): invoice issued 30 days before the period start, plus reminders; designed with the notification templates |
 | Annual billing: Plano tab of an active annual subscription, cancel-scheduled screen with annual dates, Cobranças tab with add-on charges, PAST_DUE annual Resumo | Addendum 5 | Not drawn; `11` shows Resumo only and `13` confirms into the monthly `06b` |
-| Per-tab loading and fetch-error states (Cobranças, Dados, Plano) | Screen 1 ("Tabs fetch lazily") | Skeleton inside the tab panel and a tab-level `ErrorAlert` with "Tentar novamente"; the tab bar and badge stay. Only the page-level `01f`/`01g` are drawn |
+| Per-tab loading and fetch-error states (Cobranças, Dados, Plano) | Screen 1 ("Tabs fetch lazily") | Skeleton inside the tab panel and a tab-level `FeedbackMessage` with "Tentar novamente"; the tab bar and badge stay. Only the page-level `01f`/`01g` are drawn |
 | `409 BILLING_PLAN_ALREADY_CONFIRMED` on "Confirmar plano" | UC-136 / API contract | Inline notice that the plan was already confirmed (another session), then refresh the summary; no error page |
-| Payment-link failure on "Pagar agora" (`BILLING_CHARGE_NOT_PAYABLE`, `BILLING_PROVIDER_UNAVAILABLE`) | UC-119 | `ErrorAlert` above the open-charge card ("Não foi possível abrir a página de pagamento"), the button stays enabled; `NOT_PAYABLE` refreshes the summary |
+| Payment-link failure on "Pagar agora" (`BILLING_CHARGE_NOT_PAYABLE`, `BILLING_PROVIDER_UNAVAILABLE`) | UC-119 | `FeedbackMessage` above the open-charge card ("Não foi possível abrir a página de pagamento"), the button stays enabled; `NOT_PAYABLE` refreshes the summary |
 | Discard before M27 (`canDiscard` false) | M26 non-goals, UC-141 | "Descartar este teste" is not rendered; the Resumo shows a plain line "Para descartar este teste, fale com a gente" with the "Falar com a gente" link |
 
 ## Addendum 3
@@ -343,7 +343,7 @@ File: `03-locked-feature.html` — Status: `SettingsForm` EXISTS (Chatbot sectio
 Props: `feature: 'CHATBOT'`, `tier?: 'BASIC'|'PLUS'` (copy mentions tiers), `lockedFeatures: FeatureKey[]` on sidebar/bottom nav.
 BFF: `GET /v1/billing/access`. No settings write while locked; stored `chatbot.*` settings are kept untouched.
 Behaviour: locked sidebar / bottom-nav entries keep their real href and show a padlock (never hidden); the Fidelidade entry here points to `03b-locked-feature-direct-url.html`. Chatbot form fields are not rendered while locked.
-States: loaded-locked (this file); loading = existing skeleton of the page; load-error = existing `ErrorAlert` with retry; entitled = existing Chatbot section (journeys 01d).
+States: loaded-locked (this file); loading = existing skeleton of the page; load-error = existing `FeedbackMessage` with retry; entitled = existing Chatbot section (journeys 01d).
 Single primary: **"Contratar este recurso"** -> `08-plan-edit.html` (Plano tab; self-service, UC-136). "Ver minha assinatura" is a secondary button; "Falar com a gente" is only a small text link ("Dúvidas sobre preço?"). Copy: "Recurso não contratado", badge "Não contratado", "Suas configurações foram mantidas.", "Você escolhe o nível ao contratar, na aba Plano da assinatura."
 Mobile: padlock on the tab icon; card stacks icon above text; "Mais" sheet unchanged.
 

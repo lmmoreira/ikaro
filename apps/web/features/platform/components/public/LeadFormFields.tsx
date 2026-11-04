@@ -1,17 +1,16 @@
 import { useTranslations } from 'next-intl';
 import type { LeadFormQuestion } from '@ikaro/types';
+import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feedback-message';
+import type { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 import { ContactField } from './ContactField';
+import { questionFieldName } from './lead-form-field-binding';
 import { LeadFormPhoneField } from './LeadFormPhoneField';
 import { LeadFormQuestionField } from './LeadFormQuestionField';
 import { TurnstileWidget } from './TurnstileWidget';
 
-export interface LeadFormFieldErrors {
-  readonly name?: string;
-  readonly email?: string;
-  readonly phone?: string;
-  readonly questions: Record<string, string>;
-}
+/** The form's feedback state: the banner message, the field marks and the focus registry. */
+export type LeadFormFeedback = ReturnType<typeof useFormFeedback>;
 
 export type LeadFormAnswers = Record<string, string | string[]>;
 
@@ -36,8 +35,7 @@ interface LeadFormFieldsProps {
   readonly showPrefilledNote: boolean;
   readonly answers: LeadFormAnswers;
   readonly onAnswerChange: (questionId: string, value: string | string[]) => void;
-  readonly fieldErrors: LeadFormFieldErrors;
-  readonly showValidationBanner: boolean;
+  readonly feedback: LeadFormFeedback;
   readonly isCaptchaError: boolean;
   readonly isTurnstileVerified: boolean;
   readonly isSubmitting: boolean;
@@ -66,8 +64,7 @@ export function LeadFormFields({
   showPrefilledNote,
   answers,
   onAnswerChange,
-  fieldErrors,
-  showValidationBanner,
+  feedback,
   isCaptchaError,
   isTurnstileVerified,
   isSubmitting,
@@ -103,31 +100,6 @@ export function LeadFormFields({
         <h1 className="mb-1.5 text-2xl font-bold">{title}</h1>
         {subtitle && <p className="mb-7 opacity-65">{subtitle}</p>}
 
-        {showValidationBanner && (
-          <div
-            role="alert"
-            data-testid="lead-form-validation-banner"
-            className="mb-4 border border-red-300 bg-red-50 p-3.5 text-sm text-red-800"
-            style={{ borderRadius: 'var(--ba-radius)' }}
-          >
-            {t('leadForm.validationBanner')}
-          </div>
-        )}
-
-        {isCaptchaError && (
-          <div
-            role="alert"
-            data-testid="lead-form-captcha-banner"
-            className="mb-4 border border-amber-400 bg-amber-50 p-4"
-            style={{ borderRadius: 'var(--ba-radius)' }}
-          >
-            <p className="font-bold text-amber-800">{t('leadForm.captchaErrorTitle')}</p>
-            <p className="mt-1 text-sm leading-relaxed text-amber-800 opacity-90">
-              {t('leadForm.captchaErrorBody')}
-            </p>
-          </div>
-        )}
-
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -162,7 +134,9 @@ export function LeadFormFields({
               label={t('leadForm.nameLabel')}
               placeholder={t('leadForm.namePlaceholder')}
               value={name}
-              error={fieldErrors.name}
+              error={feedback.fieldErrors.name}
+              errorId={feedback.fieldErrorId('name')}
+              binding={feedback.fieldProps('name')}
               onChange={onNameChange}
             />
             <ContactField
@@ -173,14 +147,18 @@ export function LeadFormFields({
               label={t('leadForm.emailLabel')}
               placeholder={t('leadForm.emailPlaceholder')}
               value={email}
-              error={fieldErrors.email}
+              error={feedback.fieldErrors.email}
+              errorId={feedback.fieldErrorId('email')}
+              binding={feedback.fieldProps('email')}
               onChange={onEmailChange}
             />
             <LeadFormPhoneField
               label={t('leadForm.phoneLabel')}
               value={phone}
               phonePrefix={phonePrefix}
-              error={fieldErrors.phone}
+              error={feedback.fieldErrors.phone}
+              errorId={feedback.fieldErrorId('phone')}
+              binding={feedback.fieldProps('phone')}
               onChange={onPhoneChange}
             />
 
@@ -192,7 +170,9 @@ export function LeadFormFields({
                 key={question.id}
                 question={question}
                 value={answers[question.id]}
-                error={fieldErrors.questions[question.id]}
+                error={feedback.fieldErrors[questionFieldName(question.id)]}
+                errorId={feedback.fieldErrorId(questionFieldName(question.id))}
+                binding={feedback.fieldProps(questionFieldName(question.id))}
                 onChange={(value) => onAnswerChange(question.id, value)}
               />
             ))}
@@ -221,6 +201,28 @@ export function LeadFormFields({
             >
               {submitButtonLabel}
             </button>
+
+            {feedback.error && (
+              <div className="mt-3.5">
+                <BrandedFeedbackMessage
+                  testId="lead-form-validation-banner"
+                  title={t('leadForm.submissionErrorTitle')}
+                >
+                  {feedback.error}
+                </BrandedFeedbackMessage>
+              </div>
+            )}
+
+            {isCaptchaError && (
+              <div className="mt-3.5">
+                <BrandedFeedbackMessage
+                  testId="lead-form-captcha-banner"
+                  title={t('leadForm.captchaErrorTitle')}
+                >
+                  {t('leadForm.captchaErrorBody')}
+                </BrandedFeedbackMessage>
+              </div>
+            )}
           </fieldset>
         </form>
       </div>

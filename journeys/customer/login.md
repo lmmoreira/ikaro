@@ -81,7 +81,7 @@ Folder: `customer/prototypes/login/`
 | `index.html` | Navigation hub | — | — | ✅ Criado (pre-dates the 2026-06-24 scope change — its Caso B section is no longer being built) |
 | `00-hotsite.html` | Hotsite entry (redirect → shared/hotsite.html) | — | — | ✅ Criado |
 | `00-login.html` | Customer login screen (redirect → shared/login.html) | UC-021 | M13-S42 | ✅ Criado — implemented |
-| `00b-login-error.html` | Falha ao entrar (`/{slug}/login?error=`) — erro branded abaixo do botão Google, `role="alert"` | UC-021 | TD57-S16 | 🟡 Desenhado, build pendente (TD57-S16) |
+| `00b-login-error.html` | Falha ao entrar (`/{slug}/login?error=`) — erro branded abaixo do botão Google, `role="alert"` | UC-021 | TD57-S16 | ✅ Criado — TD57-S16 |
 | `01-select-tenant.html` | Selecionar estabelecimento (Caso B) | UC-021 Caso B | — | ❌ Descoped — not being built, see scope-change note above |
 | `02-phone-completion.html` | Completar perfil — telefone e endereço (modal sobre o hotsite). **Redesenhado 2026-11-03 (TD57-S11)**: o protótipo antigo só pedia telefone; o componente entregue pede também o endereço padrão | UC-021 A3 | M13-S14 · TD57-S11 | ✅ Criado — copy from the real `auth.informationCompletion*` keys |
 | `01b-error.html` | Auth error (no-tenant, email-mismatch, tenant-deactivated) | UC-021 A1 err | M13-S02/S42 | ✅ Criado — implemented |

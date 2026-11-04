@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import { getTranslations } from 'next-intl/server';
+import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feedback-message';
 import { fetchManifest } from '@/features/platform/api.server';
 import { buildGoogleOAuthUrl } from '@/features/auth/google-oauth';
 import { resolveHotsiteDisplayName } from '@/features/platform/hotsite/page-model';
@@ -63,15 +64,6 @@ export default async function LoginPage({ params, searchParams }: LoginPageProps
         <h1 className="text-2xl font-bold">{t('heading', { name: displayName })}</h1>
         <p className="mt-2 text-sm opacity-70">{t('subtitle')}</p>
 
-        {error && (
-          <div
-            role="alert"
-            className="mt-6 rounded-[var(--ba-radius)] border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700"
-          >
-            {t('signInError')}
-          </div>
-        )}
-
         <a
           href={googleHref}
           data-testid="google-login"
@@ -85,6 +77,12 @@ export default async function LoginPage({ params, searchParams }: LoginPageProps
         >
           {t('signInWith', { provider: 'Google' })}
         </a>
+
+        {error && (
+          <div className="mt-4 text-left">
+            <BrandedFeedbackMessage title={t('signInError')} />
+          </div>
+        )}
 
         <p className="mt-6 text-xs opacity-50">{t('disclaimer')}</p>
       </div>

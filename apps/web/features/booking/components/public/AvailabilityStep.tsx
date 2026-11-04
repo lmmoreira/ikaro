@@ -2,11 +2,11 @@
 
 import { useTranslations } from 'next-intl';
 import type { AvailableSlot, ResourceSelectionItem } from '@ikaro/types';
+import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feedback-message';
 import type { StepError } from '@/features/booking/hooks/useBookingFlow';
 import { AvailabilityAlertEntry } from './AvailabilityAlertEntry';
 import { AvailabilityCalendar } from './AvailabilityCalendar';
 import { AvailabilityCarousel } from './AvailabilityCarousel';
-import { ErrorAlert } from './ErrorAlert';
 import { SlotPicker } from './SlotPicker';
 
 interface AvailabilityStepProps {
@@ -102,12 +102,6 @@ export function AvailabilityStep({
         </div>
       )}
 
-      {error && (
-        <div className="mt-4" data-testid="step2-error">
-          <ErrorAlert focusOnMount>{error.message}</ErrorAlert>
-        </div>
-      )}
-
       <div className="mt-6 flex flex-wrap gap-3">
         <button
           type="button"
@@ -138,6 +132,12 @@ export function AvailabilityStep({
           {tc('next')}
         </button>
       </div>
+
+      {error && (
+        <div className="mt-4" data-testid="step2-error">
+          <BrandedFeedbackMessage focusOnMount title={error.message} />
+        </div>
+      )}
     </div>
   );
 }

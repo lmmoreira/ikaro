@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { useState } from 'react';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchServiceQuote } from '@/features/booking/api/public';
@@ -121,6 +121,9 @@ describe('VariableDurationStep', () => {
     renderWithIntl(<Harness />);
 
     expect(await screen.findByText('Não foi possível calcular o total.')).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('duration-quote-error')).getByRole('alert'),
+    ).toBeInTheDocument();
     expect(screen.getByTestId('step-next')).toBeDisabled();
 
     await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
@@ -131,9 +134,13 @@ describe('VariableDurationStep', () => {
   it('does not preselect a duration while the step shows an out-of-range error', () => {
     renderWithIntl(<Harness error={{ message: 'A duração escolhida está fora do permitido.' }} />);
 
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      'A duração escolhida está fora do permitido.',
-    );
+    const alert = within(screen.getByTestId('duration-error')).getByRole('alert');
+    expect(alert).toHaveTextContent('A duração escolhida está fora do permitido.');
+    expect(alert).toHaveFocus();
+    expect(
+      screen.getByTestId('step-next').compareDocumentPosition(alert) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(screen.getByTestId('duration-select')).toHaveValue('');
     expect(screen.getByTestId('step-next')).toBeDisabled();
     expect(fetchServiceQuote).not.toHaveBeenCalled();

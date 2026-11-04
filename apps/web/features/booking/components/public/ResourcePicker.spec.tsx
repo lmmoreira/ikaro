@@ -33,7 +33,6 @@ function renderPicker(overrides: Partial<React.ComponentProps<typeof ResourcePic
     picks: [],
     onPick: vi.fn(),
     onRetry: vi.fn(),
-    reselectMessage: null,
     ...overrides,
   };
   renderWithIntl(<ResourcePicker {...props} />);
@@ -124,17 +123,6 @@ describe('ResourcePicker', () => {
     await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
 
     expect(onRetry).toHaveBeenCalled();
-  });
-
-  it('shows the re-pick message with its hint and focuses the alert', () => {
-    renderPicker({ reselectMessage: 'É necessário escolher um recurso para este serviço.' });
-
-    const alert = screen.getByRole('alert');
-    expect(alert).toHaveTextContent('É necessário escolher um recurso para este serviço.');
-    expect(alert).toHaveTextContent(
-      'Escolha novamente. Seus serviços e as demais escolhas foram mantidos.',
-    );
-    expect(alert).toHaveFocus();
   });
 
   it('renders the subtitle and summary line when given', () => {

@@ -157,7 +157,11 @@ function useErrorRouting(state: FormState, onLogin: () => void) {
     // The duration the server rejected is dropped (with the slot searched for it): the duration
     // step reopens on a valid choice only, never on the stale one.
     if (resolved.code === BookingErrorCode.DURATION_OUT_OF_RANGE) selections.clearDuration();
-    flow.setError(resolved.stepId, { message: resolved.message, code: resolved.code });
+    flow.setError(resolved.stepId, {
+      message: resolved.message,
+      code: resolved.code,
+      field: resolved.field,
+    });
     flow.goTo(resolved.stepId);
   };
 }

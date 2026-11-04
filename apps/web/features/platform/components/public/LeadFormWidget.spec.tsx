@@ -167,6 +167,55 @@ describe('LeadFormWidget — guest happy path (GUEST_AND_CUSTOMER)', () => {
     expect(submitLeadFormClient).not.toHaveBeenCalled();
   });
 
+  it('marks every invalid field, links each to its message and focuses the first one', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" phonePrefix="+55" />);
+
+    await screen.findByTestId('lead-form-name');
+    await user.click(screen.getByTestId('turnstile-mock-verify'));
+    await user.click(screen.getByTestId('lead-form-submit'));
+
+    const name = screen.getByTestId('lead-form-name');
+    expect(name).toHaveFocus();
+    expect(name).toHaveAttribute('aria-invalid', 'true');
+    expect(name.className).toContain('border-red-600');
+    const message = document.getElementById(name.getAttribute('aria-describedby') ?? '');
+    expect(message).toHaveTextContent('Informe seu nome.');
+    expect(screen.getByTestId('lead-form-question')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByTestId('lead-form-phone')).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('shows the form message as a branded alert under the submit button', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" phonePrefix="+55" />);
+
+    await screen.findByTestId('lead-form-name');
+    await user.click(screen.getByTestId('turnstile-mock-verify'));
+    await user.click(screen.getByTestId('lead-form-submit'));
+
+    const banner = screen.getByTestId('lead-form-validation-banner');
+    expect(banner).toHaveAttribute('role', 'alert');
+    expect(banner).toHaveTextContent('Corrija os campos destacados acima antes de enviar.');
+    expect(
+      screen.getByTestId('lead-form-submit').compareDocumentPosition(banner) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('clears the message and the marks as soon as the visitor edits a field', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" phonePrefix="+55" />);
+
+    await screen.findByTestId('lead-form-name');
+    await user.click(screen.getByTestId('turnstile-mock-verify'));
+    await user.click(screen.getByTestId('lead-form-submit'));
+    await user.type(screen.getByTestId('lead-form-name'), 'C');
+
+    expect(screen.queryByTestId('lead-form-validation-banner')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('lead-form-name-error')).not.toBeInTheDocument();
+    expect(screen.getByTestId('lead-form-name')).not.toHaveAttribute('aria-invalid');
+  });
+
   // The <input type="email"> plus a custom validate() means the <form> must carry noValidate —
   // without it, the browser's own constraint validation can swallow the submit event before this
   // component's handler ever runs, so the localized emailRequired error never renders (Codex
@@ -303,6 +352,53 @@ describe('LeadFormWidget — guest happy path (GUEST_AND_CUSTOMER)', () => {
 
     expect(await screen.findByTestId('lead-form-validation-banner')).toBeInTheDocument();
     expect(screen.getByTestId('lead-form-email-error')).toBeInTheDocument();
+    expect(screen.getByTestId('lead-form-email')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByTestId('lead-form-email')).toHaveFocus();
+  });
+
+  it('marks and focuses the question when the server rejects answers.<questionId>', async () => {
+    const user = userEvent.setup();
+    vi.mocked(submitLeadFormClient).mockResolvedValue({
+      ok: false,
+      status: 400,
+      code: 'GENERIC_FIELD_REQUIRED',
+      field: 'answers.q1',
+    });
+    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" phonePrefix="+55" />);
+
+    await fillContactFields(user);
+    await user.type(screen.getByTestId('lead-form-question'), 'Lavagem completa');
+    await user.click(screen.getByTestId('turnstile-mock-verify'));
+    await user.click(screen.getByTestId('lead-form-submit'));
+
+    expect(await screen.findByTestId('lead-form-validation-banner')).toBeInTheDocument();
+    const question = screen.getByTestId('lead-form-question');
+    expect(question).toHaveAttribute('aria-invalid', 'true');
+    expect(question).toHaveFocus();
+    expect(screen.getByTestId('lead-form-question-error')).toHaveAttribute(
+      'data-question-id',
+      'q1',
+    );
+  });
+
+  it('falls back to the form-level message when the server names a field the form does not have', async () => {
+    const user = userEvent.setup();
+    vi.mocked(submitLeadFormClient).mockResolvedValue({
+      ok: false,
+      status: 400,
+      code: 'GENERIC_FIELD_REQUIRED',
+      field: 'unknown',
+    });
+    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" phonePrefix="+55" />);
+
+    await fillContactFields(user);
+    await user.type(screen.getByTestId('lead-form-question'), 'Lavagem completa');
+    await user.click(screen.getByTestId('turnstile-mock-verify'));
+    await user.click(screen.getByTestId('lead-form-submit'));
+
+    expect(await screen.findByTestId('lead-form-validation-banner')).toBeInTheDocument();
+    expect(screen.queryByTestId('lead-form-email-error')).not.toBeInTheDocument();
+    expect(screen.getByTestId('lead-form-name')).not.toHaveAttribute('aria-invalid');
   });
 
   it('shows the submission-error terminal card and lets the visitor retry back into the filled form', async () => {

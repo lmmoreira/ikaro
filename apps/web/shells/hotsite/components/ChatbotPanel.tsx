@@ -1,6 +1,7 @@
 import { useTranslations } from 'next-intl';
 import type { RefObject } from 'react';
 import type { HotsiteBusinessInfoResponse } from '@ikaro/types';
+import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feedback-message';
 import { digitsOnly } from '@/shared/utils/digits-only';
 import { BotIcon, CloseIcon, SendIcon } from './chatbot-icons';
 import type { ChatTurn } from './chatbot-widget-storage';
@@ -207,12 +208,8 @@ export function ChatbotPanel({
         </button>
       </div>
       {validationError && (
-        <div
-          data-testid="chatbot-validation-error"
-          className="px-4 pb-3 text-center text-xs"
-          style={{ color: '#dc2626' }}
-        >
-          {validationError}
+        <div className="px-3 pb-3">
+          <BrandedFeedbackMessage testId="chatbot-validation-error" title={validationError} />
         </div>
       )}
     </div>

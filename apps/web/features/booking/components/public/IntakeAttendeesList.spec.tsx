@@ -69,8 +69,27 @@ describe('IntakeAttendeesList', () => {
       />,
     );
 
-    expect(screen.getByTestId('intake-field-error-attendees')).toHaveTextContent(
-      'Informe o nome do participante.',
+    const wrapper = screen.getByTestId('intake-field-error-attendees');
+    expect(wrapper).toHaveTextContent('Informe o nome do participante.');
+    expect(wrapper.querySelector('#intake-error-attendees')?.getAttribute('style')).toContain(
+      '--ba-body-font',
     );
+  });
+
+  it('outlines only the attendee rows with a blank name', () => {
+    renderWithIntl(
+      <IntakeAttendeesList
+        attendees={[
+          { id: 'r1', name: 'Ana', isMinor: false },
+          { id: 'r2', name: ' ', isMinor: false },
+        ]}
+        hasError
+        onChange={vi.fn()}
+      />,
+    );
+
+    const [filled, blank] = screen.getAllByTestId('intake-attendee-name');
+    expect(filled.className).not.toContain('border-red-600');
+    expect(blank.className).toContain('border-red-600');
   });
 });

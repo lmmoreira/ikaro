@@ -1,8 +1,10 @@
 'use client';
 
+import { useId } from 'react';
 import { useTranslations } from 'next-intl';
 import type { AvailabilityAlertWeekday } from '@ikaro/types';
 import { ALERT_WEEKDAYS } from '@/features/booking/model/availability-alert-form';
+import { BrandedFieldFeedback } from '@/shared/components/hotsite/branded-field-feedback';
 import { cn } from '@/shared/utils/cn';
 
 // The small building blocks of the alert form that have no shadcn/ui equivalent: summary rows,
@@ -38,11 +40,12 @@ export function FieldError({
 }: {
   readonly message: string | null;
 }): React.JSX.Element | null {
+  const id = useId();
   if (!message) return null;
   return (
-    <p role="alert" className="mt-1 text-sm text-red-600" data-testid="alert-field-error">
-      {message}
-    </p>
+    <div role="alert" data-testid="alert-field-error">
+      <BrandedFieldFeedback id={id}>{message}</BrandedFieldFeedback>
+    </div>
   );
 }
 
