@@ -2,15 +2,26 @@ import { expect, test } from '@playwright/test';
 import { loginAsStaff } from './helpers/auth';
 import { getMemberRow, getRoleOption, seedStaffMember } from './helpers/staff';
 
+// These specs assert on the team list, which shows the first 100 members (oldest first). The booking
+// specs invite a staff member for every STAFF resource they seed and never remove them, so on
+// lavacar-beloauto the list is full by the time these run and a member created here is not on it.
+// equipe-e2e is a tenant of its own (seed.ts) that no other spec invites staff into.
+const TEAM_TENANT = 'equipe-e2e';
+const TEAM_MANAGER = 'admin@equipe-e2e.com.br';
+
 test.describe('team member detail/edit flow', () => {
   test.beforeEach(async ({ page }) => {
-    await loginAsStaff(page, 'admin@lavacar.com.br', 'lavacar-beloauto');
+    await loginAsStaff(page, TEAM_MANAGER, TEAM_TENANT);
   });
 
   test('edits a member name and role, returns to the list with updated values', async ({
     page,
   }) => {
-    const member = await seedStaffMember(page, { firstName: 'Antes', lastName: 'Editar' });
+    const member = await seedStaffMember(page, {
+      tenantSlug: TEAM_TENANT,
+      firstName: 'Antes',
+      lastName: 'Editar',
+    });
     const updatedName = 'Depois Editado';
 
     await page.goto(`/dashboard/team/${member.staffId}`);
@@ -27,7 +38,7 @@ test.describe('team member detail/edit flow', () => {
   });
 
   test('shows inline validation when the name is cleared', async ({ page }) => {
-    const member = await seedStaffMember(page);
+    const member = await seedStaffMember(page, { tenantSlug: TEAM_TENANT });
 
     await page.goto(`/dashboard/team/${member.staffId}`);
     await page.getByTestId('staff-detail-name-input').fill('');
@@ -61,7 +72,7 @@ test.describe('team member detail/edit flow', () => {
   });
 
   test('renders the email field as read-only', async ({ page }) => {
-    const member = await seedStaffMember(page);
+    const member = await seedStaffMember(page, { tenantSlug: TEAM_TENANT });
 
     await page.goto(`/dashboard/team/${member.staffId}`);
 
@@ -70,7 +81,11 @@ test.describe('team member detail/edit flow', () => {
   });
 
   test('cancel returns to the team list without saving', async ({ page }) => {
-    const member = await seedStaffMember(page, { firstName: 'Original', lastName: 'Nome' });
+    const member = await seedStaffMember(page, {
+      tenantSlug: TEAM_TENANT,
+      firstName: 'Original',
+      lastName: 'Nome',
+    });
 
     await page.goto(`/dashboard/team/${member.staffId}`);
     await page.getByTestId('staff-detail-name-input').fill('Nao Deve Salvar');

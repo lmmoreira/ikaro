@@ -20,11 +20,13 @@ const IDS = {
   tenantIkaro: '00000000-0000-7000-8000-000000000003',
   tenantA: '00000000-0000-7000-8000-000000000001',
   tenantB: '00000000-0000-7000-8000-000000000002',
+  tenantTeam: '00000000-0000-7000-8000-000000000004',
 
   staffAdminIkaro: '00000000-0000-7000-8001-000000000004',
   staffAdminA: '00000000-0000-7000-8001-000000000001',
   staffWorkerA: '00000000-0000-7000-8001-000000000002',
   staffAdminB: '00000000-0000-7000-8001-000000000003',
+  staffAdminTeam: '00000000-0000-7000-8001-000000000005',
 
   customerA1: '00000000-0000-7000-8002-000000000001', // cliente@ in tenant A
   customerA2: '00000000-0000-7000-8002-000000000002', // cliente@ in tenant B
@@ -39,6 +41,7 @@ const IDS = {
   hotsiteIkaro: '00000000-0000-7000-8004-000000000003',
   hotsiteA: '00000000-0000-7000-8004-000000000001',
   hotsiteB: '00000000-0000-7000-8004-000000000002',
+  hotsiteTeam: '00000000-0000-7000-8004-000000000004',
 
   bookingPending: '00000000-0000-7000-8005-000000000001',
   bookingApproved: '00000000-0000-7000-8005-000000000002',
@@ -55,6 +58,7 @@ const IDS = {
   resourceLocationIkaro: '00000000-0000-7000-8008-000000000001',
   resourceLocationA: '00000000-0000-7000-8008-000000000002',
   resourceLocationB: '00000000-0000-7000-8008-000000000003',
+  resourceLocationTeam: '00000000-0000-7000-8008-000000000004',
 };
 
 // Matches TenantSettingsData exactly — camelCase keys, null for closed days
@@ -148,6 +152,7 @@ async function seed(): Promise<void> {
       // before this change) picks up its tenants' LOCATION resources on the next `pnpm seed`,
       // instead of silently staying without them forever (CodeRabbit finding, PR #458).
       await seedResources(q);
+      await seedTeamTenant(q);
       await q.commitTransaction();
       process.stdout.write('✓ Database already seeded — backfilled any missing resources.\n');
       return;
@@ -161,6 +166,7 @@ async function seed(): Promise<void> {
     await seedResources(q);
     await seedBookings(q);
     await seedNotificationTemplates(q);
+    await seedTeamTenant(q);
 
     await q.commitTransaction();
     printSummary();
@@ -398,6 +404,54 @@ async function seedNotificationTemplates(
   );
 }
 
+// A tenant of its own for the E2E team-list specs. The team page lists the first 100 members of a
+// tenant, and the booking specs invite a staff member for every STAFF resource they seed on the
+// shared tenants (a staff member can back one resource only), so those lists fill up during a run
+// and a member created late in it never shows. Nothing but the team specs invites staff here, and
+// it keeps the one MANAGER the "last active manager" spec needs. Every statement is idempotent
+// because this also runs against a database that was seeded before the tenant existed.
+async function seedTeamTenant(q: ReturnType<DataSource['createQueryRunner']>): Promise<void> {
+  await q.query(
+    `INSERT INTO platform.tenants (id, name, slug, settings, is_active)
+     VALUES ($1, 'Equipe E2E', 'equipe-e2e', $2, true)
+     ON CONFLICT (id) DO NOTHING`,
+    [IDS.tenantTeam, JSON.stringify(TENANT_SETTINGS_BR)],
+  );
+  await q.query(
+    `INSERT INTO platform.hotsite_configs (id, tenant_id, branding, layout, is_published)
+     VALUES ($1, $2, $3, $4, true)
+     ON CONFLICT (id) DO NOTHING`,
+    [
+      IDS.hotsiteTeam,
+      IDS.tenantTeam,
+      JSON.stringify({ ...SEED_HOTSITE_BASE_BRANDING, ...SEED_HOTSITE_BRANDING_OVERRIDES.tenantB }),
+      JSON.stringify(SEED_HOTSITE_LAYOUT_B),
+    ],
+  );
+  await q.query(
+    `INSERT INTO staff.staff (id, tenant_id, email, role, google_oauth_id, is_active)
+     VALUES ($1, $2, 'admin@equipe-e2e.com.br', 'MANAGER', 'google-sub-admin-team', true)
+     ON CONFLICT (id) DO NOTHING`,
+    [IDS.staffAdminTeam, IDS.tenantTeam],
+  );
+  await q.query(
+    `INSERT INTO booking.resources
+      (id, tenant_id, type, ref_id, name, working_hours, turnover_minutes, max_capacity, is_active)
+     VALUES ($1, $2, 'LOCATION', NULL, 'Localização Principal', NULL, 0, NULL, true)
+     ON CONFLICT (id) DO NOTHING`,
+    [IDS.resourceLocationTeam, IDS.tenantTeam],
+  );
+  await q.query(
+    `INSERT INTO notification.notification_templates
+       (id, tenant_id, trigger_event, channel, subject, body, created_at, updated_at)
+     SELECT gen_random_uuid(), $1, g.trigger_event, g.channel, g.subject, g.body, now(), now()
+     FROM notification.notification_templates g
+     WHERE g.tenant_id IS NULL
+     ON CONFLICT DO NOTHING`,
+    [IDS.tenantTeam],
+  );
+}
+
 // ── Summary ──────────────────────────────────────────────────────────────────
 
 function printSummary(): void {
@@ -409,11 +463,13 @@ function printSummary(): void {
     '║  Tenant 1  │ Ikaro (US)          │ ikaro                       ║',
     '║  Tenant 2  │ Lavacar BeloAuto (BR)│ lavacar-beloauto           ║',
     '║  Tenant 3  │ AutoSpa Premium (BR) │ autospa-premium            ║',
+    '║  Tenant 4  │ Equipe E2E (BR)      │ equipe-e2e                 ║',
     '╠════════════════════════════════════════════════════════════════╣',
     '║  Staff     │ admin@ikaro.com            (MANAGER, Ikaro)       ║',
     '║            │ admin@lavacar.com.br       (MANAGER, BeloAuto)    ║',
     '║            │ funcionario@lavacar.com.br (STAFF,   BeloAuto)    ║',
     '║            │ admin@autospa.com.br       (MANAGER, AutoSpa)     ║',
+    '║            │ admin@equipe-e2e.com.br    (MANAGER, Equipe E2E)  ║',
     '╠════════════════════════════════════════════════════════════════╣',
     '║  Customer  │ cliente@email.com.br (BeloAuto + AutoSpa)         ║',
     '╠════════════════════════════════════════════════════════════════╣',
@@ -421,12 +477,13 @@ function printSummary(): void {
     '║            │ google-sub-admin-a     (MANAGER, BeloAuto)        ║',
     '║            │ google-sub-worker-a    (STAFF,   BeloAuto)        ║',
     '║            │ google-sub-admin-b     (MANAGER, AutoSpa)         ║',
+    '║            │ google-sub-admin-team  (MANAGER, Equipe E2E)      ║',
     '║            │ google-sub-customer-a (CUSTOMER, BeloAuto+AutoSpa)║',
     '╠════════════════════════════════════════════════════════════════╣',
     '║  Bookings  │ BeloAuto: 1 PENDING, 1 APPROVED, 1 COMPLETED      ║',
     '║            │ Loyalty: 10 pts earned on COMPLETED booking       ║',
     '╠════════════════════════════════════════════════════════════════╣',
-    '║  Notifs    │ Global templates copied to all 3 tenants          ║',
+    '║  Notifs    │ Global templates copied to all 4 tenants          ║',
     '╚════════════════════════════════════════════════════════════════╝',
     '',
   ];

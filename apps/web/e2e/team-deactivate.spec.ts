@@ -2,15 +2,23 @@ import { expect, test } from '@playwright/test';
 import { loginAsStaff } from './helpers/auth';
 import { deactivateStaff, getMemberRow, seedStaffMember } from './helpers/staff';
 
+// These specs assert on the team list, which shows the first 100 members (oldest first). The booking
+// specs invite a staff member for every STAFF resource they seed and never remove them, so on
+// lavacar-beloauto the list is full by the time these run and a member created here is not on it.
+// equipe-e2e is a tenant of its own (seed.ts) that no other spec invites staff into.
+const TEAM_TENANT = 'equipe-e2e';
+const TEAM_MANAGER = 'admin@equipe-e2e.com.br';
+
 test.describe('team member deactivate/activate flow', () => {
   test.beforeEach(async ({ page }) => {
-    await loginAsStaff(page, 'admin@lavacar.com.br', 'lavacar-beloauto');
+    await loginAsStaff(page, TEAM_MANAGER, TEAM_TENANT);
   });
 
   test('deactivates an active member from the list, redirects and updates the badge', async ({
     page,
   }) => {
     const member = await seedStaffMember(page, {
+      tenantSlug: TEAM_TENANT,
       emailPrefix: 'e2e-deactivate',
       firstName: 'Ativo',
       lastName: 'Alvo',
@@ -31,6 +39,7 @@ test.describe('team member deactivate/activate flow', () => {
 
   test('activates a deactivated member directly from the list, no navigation', async ({ page }) => {
     const member = await seedStaffMember(page, {
+      tenantSlug: TEAM_TENANT,
       emailPrefix: 'e2e-activate',
       firstName: 'Inativo',
       lastName: 'Alvo',
@@ -53,7 +62,7 @@ test.describe('team member deactivate/activate flow', () => {
   });
 
   test('blocks self-deactivation with an inline 403 error', async ({ page }) => {
-    const { sub } = await loginAsStaff(page, 'admin@lavacar.com.br', 'lavacar-beloauto');
+    const { sub } = await loginAsStaff(page, TEAM_MANAGER, TEAM_TENANT);
 
     // Direct navigation — the list never renders Desativar on the caller's own row,
     // this exercises the API-level defensive guard behind that UI-level hiding.
