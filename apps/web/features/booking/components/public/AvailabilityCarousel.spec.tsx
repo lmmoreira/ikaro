@@ -214,6 +214,21 @@ describe('AvailabilityCarousel', () => {
     expect(getDayOption('2026-06-15')).toBeDisabled();
   });
 
+  it.each([
+    ['hotsite' as const, true],
+    ['dashboard' as const, false],
+  ])('draws the fully booked notice in the %s look', async (variant, branded) => {
+    vi.mocked(fetchAvailabilitySummary).mockResolvedValue([
+      { date: '2026-06-15', available: false, slotCount: 0 },
+    ]);
+
+    renderCarousel({ variant });
+
+    const notice = within(await screen.findByTestId('fully-booked-message')).getByRole('alert');
+    expect(notice.getAttribute('style')?.includes('--ba-radius') ?? false).toBe(branded);
+    expect(notice.className.includes('bg-red-50')).toBe(!branded);
+  });
+
   it('shows the fully booked message regardless of carouselDays value', async () => {
     const days: DaySummary[] = [{ date: '2026-06-15', available: false, slotCount: 0 }];
     vi.mocked(fetchAvailabilitySummary).mockResolvedValue(days);

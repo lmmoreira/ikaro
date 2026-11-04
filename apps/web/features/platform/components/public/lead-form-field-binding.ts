@@ -10,7 +10,11 @@ export interface LeadFormFieldBinding {
   readonly 'aria-describedby'?: string;
 }
 
-/** The classes of a lead-form control, with the branded outline when its binding marks it invalid. */
+/** The feedback field name of a question (the contact fields use `name`, `email`, `phone`). */
+export function questionFieldName(questionId: string): string {
+  return `question:${questionId}`;
+}
+
 export function leadFormControlClass(base: string, binding?: LeadFormFieldBinding): string {
   return binding?.['aria-invalid'] ? `${base} ${BRANDED_FIELD_INVALID_CLASS}` : base;
 }

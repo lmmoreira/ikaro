@@ -590,7 +590,7 @@
       "turnstilePendingTitle": "Verificando segurança...",
       "turnstileVerifiedTitle": "Verificação de segurança concluída",
       "turnstileRedoTitle": "Refaça a verificação de segurança",
-      "validationBanner": "Corrija os campos destacados abaixo antes de enviar.",
+      "validationBanner": "Corrija os campos destacados acima antes de enviar.",
       "captchaErrorTitle": "Verificação de segurança expirou",
       "captchaErrorBody": "Isso acontece se o desafio ficou aberto por muito tempo. Seus dados preenchidos não foram perdidos — refaça a verificação abaixo e envie novamente.",
       "rateLimitedTitle": "Muitas solicitações no momento",

@@ -4,17 +4,13 @@ import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feed
 import type { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 import { ContactField } from './ContactField';
+import { questionFieldName } from './lead-form-field-binding';
 import { LeadFormPhoneField } from './LeadFormPhoneField';
 import { LeadFormQuestionField } from './LeadFormQuestionField';
 import { TurnstileWidget } from './TurnstileWidget';
 
 /** The form's feedback state: the banner message, the field marks and the focus registry. */
 export type LeadFormFeedback = ReturnType<typeof useFormFeedback>;
-
-/** The feedback field name of a question (the contact fields use `name`, `email`, `phone`). */
-export function questionFieldName(questionId: string): string {
-  return `question:${questionId}`;
-}
 
 export type LeadFormAnswers = Record<string, string | string[]>;
 

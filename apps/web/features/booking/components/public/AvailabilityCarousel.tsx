@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feedback-message';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import { PickerLoadError } from './PickerLoadError';
-import { PickerNotice } from './PickerNotice';
 import type { DaySummary, ResourceSelectionItem } from '@ikaro/types';
 import { fetchAvailabilitySummary } from '@/features/platform/hotsite/api/schedule';
 import {
@@ -175,7 +176,11 @@ export function AvailabilityCarousel({
 
       {fullyBooked && (
         <div className="mt-3" data-testid="fully-booked-message">
-          <PickerNotice message={t('availability.noSlots')} variant={variant} />
+          {variant === 'dashboard' ? (
+            <FeedbackMessage title={t('availability.noSlots')} />
+          ) : (
+            <BrandedFeedbackMessage title={t('availability.noSlots')} />
+          )}
         </div>
       )}
     </div>

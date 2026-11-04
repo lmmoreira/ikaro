@@ -590,7 +590,7 @@
       "turnstilePendingTitle": "Verifying security...",
       "turnstileVerifiedTitle": "Security check completed",
       "turnstileRedoTitle": "Redo the security check",
-      "validationBanner": "Fix the highlighted fields below before submitting.",
+      "validationBanner": "Fix the highlighted fields above before submitting.",
       "captchaErrorTitle": "Security check expired",
       "captchaErrorBody": "This happens if the challenge stayed open too long. Your filled-in data wasn't lost — redo the check below and submit again.",
       "rateLimitedTitle": "Too many requests right now",

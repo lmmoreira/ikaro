@@ -13,8 +13,10 @@ import {
 import { extractProblemDetailShape } from '@/shared/lib/api/errors';
 import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import { Unavailable } from '@/shells/hotsite/components/Unavailable';
-import { LeadFormFields, questionFieldName, type LeadFormAnswers } from './LeadFormFields';
+import { LeadFormFields, type LeadFormAnswers } from './LeadFormFields';
 import { LeadFormLoginRequiredGate } from './LeadFormLoginRequiredGate';
+import { questionFieldName } from './lead-form-field-binding';
+import { serverFieldError } from './lead-form-server-field';
 import { LeadFormSkeleton } from './LeadFormSkeleton';
 import { LeadFormSuccess } from './LeadFormSuccess';
 import { LeadFormTerminalCard } from './LeadFormTerminalCard';
@@ -152,9 +154,8 @@ export function LeadFormWidget({
     setPhase(nextPhase);
     if (nextPhase === 'validation-error') {
       feedback.setError(t('leadForm.validationBanner'));
-      if (result.field === 'name' || result.field === 'email' || result.field === 'phone') {
-        feedback.setFieldErrors({ [result.field]: fieldRequiredMessage(result.field, t) });
-      }
+      const fieldErrors = serverFieldError(result.field, config.questions, t);
+      if (fieldErrors) feedback.setFieldErrors(fieldErrors);
     }
   }
 
@@ -285,12 +286,4 @@ function resolveErrorPhase(result: { readonly code?: string }): SubmitPhase {
     return 'validation-error';
   }
   return 'submission-error';
-}
-
-function fieldRequiredMessage(
-  field: 'name' | 'email' | 'phone',
-  t: ReturnType<typeof useTranslations>,
-): string {
-  if (field === 'email') return t('leadForm.emailRequired');
-  return field === 'phone' ? t('leadForm.phoneRequired') : t('leadForm.nameRequired');
 }

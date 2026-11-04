@@ -1,5 +1,6 @@
 import type React from 'react';
 import { BRANDED_FIELD_INVALID_CLASS } from '@/shared/components/hotsite/branded-field-feedback';
+import { cn } from '@/shared/utils/cn';
 
 interface AddressTextFieldProps {
   readonly id: string;
@@ -58,7 +59,7 @@ export function AddressTextField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         ref={inputRef}
-        className={`w-full border px-3 py-2${hasError ? ` ${BRANDED_FIELD_INVALID_CLASS}` : ''}`}
+        className={cn('w-full border px-3 py-2', hasError && BRANDED_FIELD_INVALID_CLASS)}
         style={fieldBorderStyle(!!hasError)}
         aria-invalid={hasError ? true : undefined}
         aria-describedby={hasError ? describedBy : undefined}

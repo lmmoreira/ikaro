@@ -78,14 +78,14 @@ describe('LeadFormFields', () => {
     renderWithIntl(
       <LeadFormFields
         {...baseProps()}
-        feedback={feedbackStub({ error: 'Corrija os campos destacados abaixo antes de enviar.' })}
+        feedback={feedbackStub({ error: 'Corrija os campos destacados acima antes de enviar.' })}
       />,
     );
 
     const banner = screen.getByTestId('lead-form-validation-banner');
     expect(banner).toHaveAttribute('role', 'alert');
     expect(banner).toHaveTextContent('Não foi possível enviar');
-    expect(banner).toHaveTextContent('Corrija os campos destacados abaixo antes de enviar.');
+    expect(banner).toHaveTextContent('Corrija os campos destacados acima antes de enviar.');
     expect(
       screen.getByTestId('lead-form-submit').compareDocumentPosition(banner) &
         Node.DOCUMENT_POSITION_FOLLOWING,

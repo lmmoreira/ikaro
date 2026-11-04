@@ -15,6 +15,7 @@ import {
   BrandedFieldFeedback,
 } from '@/shared/components/hotsite/branded-field-feedback';
 import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
+import { cn } from '@/shared/utils/cn';
 import { BrandHeader } from './BrandHeader';
 import { PhotoUpload } from './PhotoUpload';
 import { SubmitInfoSuccessView, type SubmitInfoFormSummary } from './SubmitInfoSuccessView';
@@ -192,7 +193,10 @@ export function SubmitInfoForm({
               placeholder={t('responsePlaceholder')}
               aria-required="true"
               {...feedback.fieldProps(RESPONSE_FIELD)}
-              className={`mb-1.5 w-full resize-y rounded-md border p-3 text-sm${responseInvalid ? ` ${BRANDED_FIELD_INVALID_CLASS}` : ''}`}
+              className={cn(
+                'mb-1.5 w-full resize-y rounded-md border p-3 text-sm',
+                responseInvalid && BRANDED_FIELD_INVALID_CLASS,
+              )}
               style={{
                 ...(responseInvalid ? {} : { borderColor: 'var(--ba-secondary)' }),
                 borderRadius: 'var(--ba-radius)',

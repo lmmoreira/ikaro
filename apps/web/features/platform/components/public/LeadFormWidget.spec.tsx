@@ -195,7 +195,7 @@ describe('LeadFormWidget — guest happy path (GUEST_AND_CUSTOMER)', () => {
 
     const banner = screen.getByTestId('lead-form-validation-banner');
     expect(banner).toHaveAttribute('role', 'alert');
-    expect(banner).toHaveTextContent('Corrija os campos destacados abaixo antes de enviar.');
+    expect(banner).toHaveTextContent('Corrija os campos destacados acima antes de enviar.');
     expect(
       screen.getByTestId('lead-form-submit').compareDocumentPosition(banner) &
         Node.DOCUMENT_POSITION_FOLLOWING,
@@ -354,6 +354,31 @@ describe('LeadFormWidget — guest happy path (GUEST_AND_CUSTOMER)', () => {
     expect(screen.getByTestId('lead-form-email-error')).toBeInTheDocument();
     expect(screen.getByTestId('lead-form-email')).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByTestId('lead-form-email')).toHaveFocus();
+  });
+
+  it('marks and focuses the question when the server rejects answers.<questionId>', async () => {
+    const user = userEvent.setup();
+    vi.mocked(submitLeadFormClient).mockResolvedValue({
+      ok: false,
+      status: 400,
+      code: 'GENERIC_FIELD_REQUIRED',
+      field: 'answers.q1',
+    });
+    renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" phonePrefix="+55" />);
+
+    await fillContactFields(user);
+    await user.type(screen.getByTestId('lead-form-question'), 'Lavagem completa');
+    await user.click(screen.getByTestId('turnstile-mock-verify'));
+    await user.click(screen.getByTestId('lead-form-submit'));
+
+    expect(await screen.findByTestId('lead-form-validation-banner')).toBeInTheDocument();
+    const question = screen.getByTestId('lead-form-question');
+    expect(question).toHaveAttribute('aria-invalid', 'true');
+    expect(question).toHaveFocus();
+    expect(screen.getByTestId('lead-form-question-error')).toHaveAttribute(
+      'data-question-id',
+      'q1',
+    );
   });
 
   it('falls back to the form-level message when the server names a field the form does not have', async () => {
