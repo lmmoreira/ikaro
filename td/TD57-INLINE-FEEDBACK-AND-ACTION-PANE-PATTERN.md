@@ -1006,28 +1006,40 @@ Decisions locked in discovery: (1) `RecurringScheduleFields` does not own the pa
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-### Story 15 — Migrate Loyalty tabs and route-level error pages to the feedback pattern 🟡
+### Story 15 — Migrate Loyalty screens and route-level error pages to the feedback pattern 🟡
 
 **Agent:** frontend-ts
 **Complexity:** S
-**Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md` (the section added by Story 1); `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` §3; `docs/TESTING_STRATEGY.md` § apps/web Testing Infrastructure; this TD's Appendix A.10
+**Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md` (the section added by Story 1; § Alignment and cards); `journeys/staff/prototypes/fidelidade/dev-notes.md` § TD57-S15; `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` §3; `docs/TESTING_STRATEGY.md` § apps/web Testing Infrastructure; this TD's Appendix A.10
 **Dependencies:** Story 0, Story 1
-**Pattern:** plain composition over the Story 1 building blocks — no named pattern applies
+**Pattern:** plain composition over the Story 1 building blocks — no named pattern applies. No `ActionPane`: none of these screens has a primary action, so every message is a page-level `FeedbackMessage`.
 
 **Description:**
 Replace every hand-rolled error/success box listed for this area in Appendix A with the shared pattern (see "Chosen approach"): forms with a primary action show their form-level feedback below the buttons in `ActionPane` (SaaS skin) and route the offending `field` through `useFormFeedback`; page-level load failures use a page-level `FeedbackMessage` with a retry; field-level messages keep `aria-invalid` + `aria-describedby` and gain the red outline where Appendix A shows none. Every feedback box gets a `role` (the audit found most had none, so they were never announced). Includes `app/dashboard/loyalty/[customerId]/error.tsx`; every route `error.tsx` is migrated, none is exempt.
 
+**Decisions locked in discovery (2026-11-04):**
+1. **Search failure is in scope.** `LoyaltySearchResults` renders a search failure as `LoyaltySearchEmptyState` (icon, no `role`, no retry); Appendix A missed it because its enumeration matched `role="alert"` and red styling. It becomes a page-level `FeedbackMessage` in a card (title `searchErrorTitle`, body the backend-resolved message, retry re-runs the debounced search with `booking.errors.tryAgain`).
+2. **Route error copy.** `error.tsx` read a key that exists in neither locale (`searchErrorBody`, shown raw) and borrowed the search title. It gets new keys `dashboard.loyaltyPage.routeErrorTitle` ("Não foi possível carregar a fidelidade do cliente") and `routeErrorBody` ("Tente novamente em instantes.") in both locales; retry is `reset()`.
+3. **Load-more failure.** A `FeedbackMessage` titled with the backend-resolved message (`resolveErrorMessageFromApiError`), under the "Exibindo X de Y" line and above the button, with no retry of its own: "Carregar mais" stays enabled and is the retry; the rows already loaded stay. Same in both tabs.
+4. **Cards.** The search input sits in its own card, the customer header (`CustomerLoyaltyHeader`: avatar, name, e-mail) sits in a card, the tabs and lists stay in one card, the balance card is unchanged.
+5. **Prototypes drawn in discovery:** see "Prototype references". `data-testid`: `page-feedback`, `load-more-feedback`.
+
 **Backend use case steps:** none
 **Backend HTTP surface:** none
 **BFF endpoint spec:** none
-**Prototype references:** none
-**New migration / i18n keys / env vars / feature flags:** none expected; any new copy key in both locales in the same change
+**Prototype references:** `journeys/staff/prototypes/fidelidade/` `00c` (redrawn), `01d`, `01e` (new), and `00`, `00b`, `01`, `01b`, `01c` (card alignment only); `dev-notes.md` § TD57-S15; journey `journeys/staff/fidelidade.md`; hub `journeys/manager/feedback-pane.md`
+**New migration / i18n keys / env vars / feature flags:** i18n keys `dashboard.loyaltyPage.routeErrorTitle` and `routeErrorBody` in `packages/i18n/locales/{pt-BR,en}/web.json` (same change); no migration, env var or flag. The `searchErrorBody` reference goes away with the rewrite.
 
 **Files to create/modify:**
 - `apps/web/app/dashboard/loyalty/[customerId]/error.tsx` + `error.spec.tsx`
+- `apps/web/features/loyalty/components/dashboard/LoyaltySearchPage.tsx` + `LoyaltySearchPage.spec.tsx` (search input in a card; retry)
+- `apps/web/features/loyalty/components/dashboard/LoyaltySearchResults.tsx` + `LoyaltySearchResults.spec.tsx` (search failure as `FeedbackMessage`)
+- `apps/web/features/loyalty/components/dashboard/CustomerLoyaltyHeader.tsx` + `CustomerLoyaltyHeader.spec.tsx` (header in a card)
+- `packages/i18n/locales/pt-BR/web.json`, `packages/i18n/locales/en/web.json` (the two route-error keys)
 - `apps/web/features/loyalty/components/dashboard/CustomerLoyaltyEntriesTab.tsx` + `CustomerLoyaltyEntriesTab.spec.tsx`
 - `apps/web/features/loyalty/components/dashboard/CustomerLoyaltyRedemptionsTab.tsx` + `CustomerLoyaltyRedemptionsTab.spec.tsx`
 - `apps/web/e2e/loyalty-screen.spec.ts` (update ids if the migration renames a `data-testid`)
+- Journeys (flip the TD57-S15 gap rows): `journeys/staff/prototypes/fidelidade/dev-notes.md`, `journeys/staff/fidelidade.md`, `journeys/manager/feedback-pane.md`, `journeys/manager/prototypes/feedback-pane/dev-notes.md` and `journeys/README.md`; stale-reference sweep for `searchErrorBody` and `LoyaltySearchEmptyState` across `docs/*.md`, `.claude/**` and `scripts/**`
 
 **Acceptance criteria — product:**
 - [ ] Every error and success message of these screens appears in the place Appendix A prescribes (the pane under the buttons, the field, or the page), announced with `role="alert"` / `role="status"`.
@@ -1037,11 +1049,15 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Acceptance criteria — technical:**
 - Unit:
   - [ ] one spec per migrated file asserting the old hand-rolled box no longer renders and the shared component does, with the right `role`
-  - [ ] a server `field` error marks and focuses its input; an unknown `field` falls back to the form-level message (own test)
+  - [ ] `error.spec.tsx`: renders the new title and body (not a raw key, pinned against the real `pt-BR` and `en` catalogs, not a mock), `role="alert"`, and the retry calls `reset` once
+  - [ ] each tab: a failing "Carregar mais" shows `load-more-feedback` with the resolved message, keeps the loaded rows, keeps the button enabled, and the message clears on the next attempt (own test per tab); a non-`ApiError` rejection shows the generic message
+  - [ ] search: a failing search shows `page-feedback` with the retry, and the retry re-runs the search and clears the message
+  - [ ] negative guarantee: no bare `<p role="alert">` remains in the two tabs (pinned by the absence assertion above)
+  - [ ] not applicable: server `field` marking (no forms on these screens)
 - Integration: none — frontend story
 - Tenant isolation: none — no data access
 - E2E:
-  - [ ] existing specs updated for any renamed `data-testid`: `loyalty-screen.spec.ts`; no new scenario unless a route has none (then one scenario per such route)
+  - [ ] existing specs updated for any renamed `data-testid`: `loyalty-screen.spec.ts`; no new scenario: the story has one route (`/dashboard/loyalty/[customerId]`), already covered by `loyalty-screen.spec.ts`, and the failure states are unit-tested
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
@@ -1364,6 +1380,7 @@ comm -23 /tmp/td57-enum.txt /tmp/td57-listed.txt
 | `app/dashboard/loyalty/[customerId]/error.tsx` | page-level | SaaS | alert | none | - | - | - | new story (Loyalty and page-level) | inline in content (no pane) | none |
 | `features/loyalty/components/dashboard/CustomerLoyaltyEntriesTab.tsx` | page-level | SaaS | alert | none | - | - | `loyalty-screen.spec.ts` | new story (Loyalty and page-level) | inline in content (no pane) | none |
 | `features/loyalty/components/dashboard/CustomerLoyaltyRedemptionsTab.tsx` | page-level | SaaS | alert | none | - | - | `loyalty-screen.spec.ts` | new story (Loyalty and page-level) | inline in content (no pane) | none |
+| `features/loyalty/components/dashboard/LoyaltySearchResults.tsx` (added in Story 15 discovery) | page-level | SaaS | none (empty state, no `role`) | none | - | - | - | Story 15 | inline in content (no pane) | none |
 
 ### A.11 Public hotsite
 

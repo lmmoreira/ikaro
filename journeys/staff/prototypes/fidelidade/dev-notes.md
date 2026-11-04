@@ -12,6 +12,10 @@ Staff and managers can look up any customer's loyalty balance, earning history, 
 | `apps/web/app/dashboard/loyalty/[customerId]/page.tsx` | ✅ Exists — path segment, not a query param |
 | `apps/web/features/loyalty/components/dashboard/LoyaltySearchPage.tsx` | ✅ Exists |
 | `apps/web/features/loyalty/components/dashboard/CustomerLoyaltyPage.tsx` | ✅ Exists |
+| `apps/web/features/loyalty/components/dashboard/LoyaltySearchResults.tsx` | ✅ Exists — result list, skeleton and the search failure state |
+| `apps/web/features/loyalty/components/dashboard/CustomerLoyaltyHeader.tsx` | ✅ Exists — avatar, name, e-mail and the balance card |
+| `apps/web/features/loyalty/components/dashboard/CustomerLoyaltyEntriesTab.tsx`, `CustomerLoyaltyRedemptionsTab.tsx` | ✅ Exists — the two tab bodies, each with its own "Carregar mais" |
+| `apps/web/app/dashboard/loyalty/[customerId]/error.tsx` | ✅ Exists — route error boundary |
 | `apps/web/features/loyalty/dashboard-api.ts` (`getCustomerLoyaltyEntries`, `getCustomerLoyaltyRedemptions`) | ✅ Exists |
 | `apps/web/features/customer/api.ts` (`searchCustomers`) | ✅ Exists |
 
@@ -33,7 +37,7 @@ Response: CustomerSearchListResponse { items: [{ customerId, name, email, phone,
 - Loading: `LoyaltySearchSkeleton` — 3 skeleton rows (see `00b-loading.html`)
 - Results: "Resultados para {term}" — `limit=20`, customer rows link to `/dashboard/loyalty/{customerId}`
 - No results: empty state, `t('noResultsTitle')`/`t('noResultsBody')` (see `01c-no-results.html`)
-- Fetch error: empty state reused with `t('searchErrorTitle')` + the resolved API error message (see `00c-search-error.html`)
+- Fetch error: page-level `FeedbackMessage` (`role="alert"`, title `t('searchErrorTitle')`, body the resolved API error message, retry re-runs the search) inside a card (see `00c-search-error.html`; TD57-S15 — was the empty state with an icon)
 - Avatar background cycles through 5 fixed colors by row index (`bg-blue-600`/`violet-600`/`cyan-600`/`amber-600`/`pink-600`) — not tenant-branded.
 
 ## Screen 01 — Customer Loyalty Detail (`CustomerLoyaltyPage`)
@@ -101,3 +105,23 @@ searchCustomers(term?: string, limit?: number): Promise<CustomerSearchListRespon
 ## Known limitations
 
 - **Entry into this page from booking detail:** UC-003 already shows the customer's balance in the booking detail card, but there's no "Ver histórico completo →" link from there into `/dashboard/loyalty/[customerId]` yet — still an open discoverability gap, not addressed by this story.
+
+## TD57-S15 — feedback pattern on the loyalty screens (drawn 2026-11-04)
+
+The failure states use the shared feedback pattern (`manager/prototypes/feedback-pane/`, `docs/ENGINEERING_RULES_FRONTEND.md` § A form's error or success message lives in the action pane), not their own boxes. These screens have no primary action, so there is no `ActionPane`: every message is a page-level `FeedbackMessage`. Screens: `00c`, `01d`, `01e`; `00`, `00b`, `01`, `01b`, `01c` only gain the card alignment.
+
+| Screen | State | Rule |
+|---|---|---|
+| `00c` | Customer search fails | Page-level `FeedbackMessage` in a card, title `searchErrorTitle`, body the backend-resolved message, "Tentar novamente" re-runs the debounced search. Replaces the empty state with the search icon. |
+| `01d` | "Carregar mais" fails (either tab) | `FeedbackMessage` titled with the backend-resolved message, under "Exibindo X de Y" and above the button, no retry button of its own: "Carregar mais" stays enabled and is the retry. The rows already loaded stay. |
+| `01e` | `[customerId]/error.tsx` | Page-level `FeedbackMessage` with `reset()` as the retry. Copy: new keys `dashboard.loyaltyPage.routeErrorTitle` / `routeErrorBody` (the old build read a missing `searchErrorBody` key and showed it raw, and borrowed the search title). |
+
+**Cards:** the search input sits in its own card; the customer header (avatar, name, e-mail) sits in a card; the tabs and both lists sit in one card (as built since M13-S25 — `01` did not draw it before). The balance card is unchanged.
+
+**data-testid:** `page-feedback` (search failure, route error), `load-more-feedback` (load-more failure in either tab).
+
+**Files:** `apps/web/app/dashboard/loyalty/[customerId]/error.tsx`, `CustomerLoyaltyEntriesTab.tsx`, `CustomerLoyaltyRedemptionsTab.tsx`, `LoyaltySearchPage.tsx`, `LoyaltySearchResults.tsx`, `CustomerLoyaltyHeader.tsx`.
+
+| Gap | Status |
+|---|---|
+| Hand-rolled boxes replaced by `FeedbackMessage` on `00c`, `01d`, `01e`; header and search input in cards | ⏳ GAP — TD57-S15 (drawn here first) |

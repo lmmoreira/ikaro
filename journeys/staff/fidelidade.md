@@ -30,7 +30,12 @@ flowchart TD
     NoEntries --> Back
     Back --> SearchPage
 
-    class SearchPage,Detail,NoResults,NoEntries existing
+    Results -->|"Falha ao buscar"| SearchError["mensagem de página<br/>+ Tentar novamente"]
+    SearchError --> Input
+    Detail -->|"Falha ao carregar"| RouteError["error.tsx<br/>mensagem de página + Tentar novamente"]
+    Balance -->|"Carregar mais falha"| LoadMoreError["mensagem sob 'Exibindo X de Y'<br/>o botão é a nova tentativa"]
+
+    class SearchPage,Detail,NoResults,NoEntries,SearchError,RouteError,LoadMoreError existing
 ```
 
 **Note (2026-07-31 docs audit):** the detail route's shape drifted from the original query-param design (`/dashboard/loyalty?customerId=`) to a path segment (`/dashboard/loyalty/[customerId]`), and tabs are named `entries`/`redemptions`, not `earn`/`redeem`.
@@ -43,6 +48,7 @@ flowchart TD
 | `/dashboard/loyalty/[customerId]` | `CustomerLoyaltyPage` | M13-S25 | ✅ Done |
 | Estado vazio — sem resultados | inline em `LoyaltySearchPage` | M13-S25 | ✅ Done |
 | Estado vazio — sem pontos | inline em `CustomerLoyaltyPage` | M13-S25 | ✅ Done |
+| Falha na busca, falha do "Carregar mais", `error.tsx` do detalhe | `LoyaltySearchResults`, `CustomerLoyaltyEntriesTab` / `RedemptionsTab`, `[customerId]/error.tsx` | TD57-S15 | ⏳ Prototype drawn; build pending — shared `FeedbackMessage` (`manager/feedback-pane.md`) |
 
 ## Prototype
 
@@ -57,6 +63,8 @@ Folder: `staff/prototypes/fidelidade/`
 | `01-customer-loyalty.html` | Fidelidade do cliente: saldo, histórico e resgates | UC-016 | ✅ Criado |
 | `01b-no-entries.html` | Cliente sem pontos (abas com estado vazio próprio) | UC-016 | ✅ Criado |
 | `01c-no-results.html` | Busca sem resultados | UC-016 | ✅ Criado |
+| `01d-load-more-error.html` | Falha ao "Carregar mais" (abas Ganhos / Resgates) | UC-016 | ✅ Criado (TD57-S15) |
+| `01e-route-error.html` | Erro de rota do detalhe do cliente (`error.tsx`) | UC-016 | ✅ Criado (TD57-S15) |
 
 ## Open questions / gaps
 

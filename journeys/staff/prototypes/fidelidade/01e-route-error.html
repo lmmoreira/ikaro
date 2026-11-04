@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fidelidade — Erro de rota — BeloAuto</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="../../../shared/feedback-pane.css">
+</head>
+<body>
+
+  <!--
+    COMPONENT: CustomerLoyaltyRouteError (route error boundary)
+    FILE:      apps/web/app/dashboard/loyalty/[customerId]/error.tsx  (EXISTS — hand-rolled box, migrated in TD57-S15)
+    Shown when the server component of /dashboard/loyalty/[customerId] throws while loading the customer's
+    loyalty data. Page-level FeedbackMessage with a retry (reset()); no ActionPane (no primary action).
+    Copy: dashboard.loyaltyPage.routeErrorTitle / routeErrorBody (new keys, both locales — the old build
+    read a missing key, searchErrorBody, and showed it raw); retry = booking.errors.tryAgain.
+  -->
+
+  <div class="dashboard-topbar">
+    <div style="display: flex; align-items: center; gap: 0.625rem;">
+      <div class="topbar-logo-mark">B</div>
+      <span class="topbar-brand" style="font-weight: 700;">BeloAuto Demo</span>
+    </div>
+    <h1 class="topbar-page-title">Fidelidade</h1>
+    <div style="margin-left: auto;">
+      <a href="../../../shared/staff-login.html" class="list-avatar" title="Sair">AP</a>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">B</div>
+        <div><p class="sidebar-tenant-name">BeloAuto Demo</p><p class="sidebar-tenant-slug">@beloauto</p></div>
+      </div>
+      <nav class="sidebar-nav" style="margin-top: 0.5rem;">
+        <a class="sidebar-nav-item" href="../agenda/00-agenda.html">Agenda</a>
+        <a class="sidebar-nav-item" href="../horarios/00-schedule.html">Horários</a>
+        <a class="sidebar-nav-item" href="../servicos/01-servicos-list.html">Serviços</a>
+        <a class="sidebar-nav-item active" href="./00-customer-search.html">Fidelidade</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
+        <div style="min-width:0;"><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div>
+        <a class="sidebar-logout" href="../../../shared/staff-login.html" title="Sair">Sair</a>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="dashboard-body">
+
+        <div class="card" style="padding:1.25rem;">
+          <div class="fb fb-error" role="alert" data-testid="page-feedback">
+            <span class="fb-title">Não foi possível carregar a fidelidade do cliente</span>
+            <span>Tente novamente em instantes.</span>
+            <button type="button" class="fb-retry">Tentar novamente</button>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+</body>
+</html>
