@@ -1,37 +1,34 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { renderWithIntl } from '@/test-utils';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import CustomerLoyaltyRouteError from './error';
 
-vi.mock('next-intl', () => ({
-  useTranslations: (namespace: string) => (key: string) => {
-    const map: Record<string, Record<string, string>> = {
-      'dashboard.loyaltyPage': {
-        searchErrorTitle: 'Não foi possível carregar a fidelidade',
-        searchErrorBody: 'Tente novamente em instantes.',
-      },
-      booking: {
-        'errors.tryAgain': 'Tentar novamente',
-      },
-    };
-
-    return map[namespace]?.[key] ?? key;
-  },
-}));
-
 describe('CustomerLoyaltyRouteError', () => {
-  it('renders the fallback message and retry action', async () => {
+  it('renders the page-level message with the real pt-BR copy and a retry', async () => {
     const user = userEvent.setup();
     const reset = vi.fn();
 
-    render(<CustomerLoyaltyRouteError error={new Error('boom')} reset={reset} />);
+    renderWithIntl(<CustomerLoyaltyRouteError error={new Error('boom')} reset={reset} />);
 
-    expect(screen.getByRole('alert')).toBeInTheDocument();
-    expect(screen.getByText('Não foi possível carregar a fidelidade')).toBeInTheDocument();
-    expect(screen.getByText('Tente novamente em instantes.')).toBeInTheDocument();
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveAttribute('data-testid', 'page-feedback');
+    expect(alert).toHaveTextContent('Não foi possível carregar a fidelidade do cliente');
+    expect(alert).toHaveTextContent('Tente novamente em instantes.');
 
     await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
     expect(reset).toHaveBeenCalledOnce();
+  });
+
+  it('renders the real en copy, never a raw translation key', () => {
+    renderWithIntl(<CustomerLoyaltyRouteError error={new Error('boom')} reset={vi.fn()} />, {
+      locale: 'en',
+    });
+
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent("Could not load the customer's loyalty");
+    expect(alert).toHaveTextContent('Please try again in a moment.');
+    expect(alert.textContent).not.toMatch(/routeError|searchErrorBody/);
   });
 });

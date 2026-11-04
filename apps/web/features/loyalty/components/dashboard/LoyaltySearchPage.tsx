@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Search } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { CustomerSearchListResponse } from '@ikaro/types';
+import { Card } from '@/shared/components/ui/card';
 import { searchCustomers } from '@/features/customer/api';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
@@ -14,6 +15,7 @@ const SEARCH_LIMIT = 20;
 
 export function LoyaltySearchPage(): React.JSX.Element {
   const t = useTranslations('dashboard.loyaltyPage');
+  const bookingT = useTranslations('booking');
   const locale = useResolvedLocale();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -21,6 +23,7 @@ export function LoyaltySearchPage(): React.JSX.Element {
   const [resolvedSearch, setResolvedSearch] = useState<string | null>(null);
   const [errorSearch, setErrorSearch] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     const timeout = globalThis.setTimeout(() => {
@@ -52,18 +55,23 @@ export function LoyaltySearchPage(): React.JSX.Element {
     return () => {
       active = false;
     };
-  }, [debouncedSearch, locale]);
+  }, [debouncedSearch, locale, attempt]);
 
   const isLoading = resolvedSearch !== debouncedSearch;
   const isError = errorSearch === debouncedSearch;
   const isRecent = debouncedSearch.length === 0;
   const heading = isRecent ? t('recentCustomers') : t('resultsFor', { term: debouncedSearch });
   const pointsBadge = (count: number) => t('pointsBadge', { count });
+  const retrySearch = (): void => {
+    setErrorSearch(null);
+    setResolvedSearch(null);
+    setAttempt((current) => current + 1);
+  };
 
   return (
     <section className="w-full space-y-0">
-      <div className="relative mb-6">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+      <Card className="relative mb-6 p-3 shadow-none">
+        <Search className="pointer-events-none absolute left-6 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
         <input
           type="search"
           value={search}
@@ -72,7 +80,7 @@ export function LoyaltySearchPage(): React.JSX.Element {
           aria-label={t('searchPlaceholder')}
           className="h-11 w-full rounded-lg border border-gray-200 bg-white pl-10 pr-4 text-sm text-gray-900 shadow-none outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
         />
-      </div>
+      </Card>
 
       <p className="mb-2 text-xs font-bold uppercase tracking-[0.06em] text-gray-400">{heading}</p>
 
@@ -81,6 +89,8 @@ export function LoyaltySearchPage(): React.JSX.Element {
         isLoading={isLoading}
         isError={isError}
         errorMessage={errorMessage}
+        onRetry={retrySearch}
+        retryLabel={bookingT('errors.tryAgain')}
         isRecent={isRecent}
         pointsBadge={pointsBadge}
         t={t}

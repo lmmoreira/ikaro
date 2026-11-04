@@ -2789,6 +2789,8 @@
       "noResultsTitle": "No customers found",
       "noResultsBody": "Check the name or email and try again.",
       "searchErrorTitle": "Could not load customers",
+      "routeErrorTitle": "Could not load the customer's loyalty",
+      "routeErrorBody": "Please try again in a moment.",
       "pointsBadge": "{count, plural, one {# pt} other {# pts}}",
       "balanceLabelActive": "active points",
       "balanceLabelEmpty": "accumulated points",

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
 import type { useTranslations } from 'next-intl';
 import type { CustomerSearchItem } from '@ikaro/types';
 import { LoyaltySearchResults } from './LoyaltySearchResults';
@@ -31,6 +32,8 @@ describe('LoyaltySearchResults', () => {
         isLoading
         isError={false}
         errorMessage={null}
+        onRetry={vi.fn()}
+        retryLabel="Tentar novamente"
         isRecent={false}
         pointsBadge={pointsBadge}
         t={fakeT}
@@ -43,21 +46,31 @@ describe('LoyaltySearchResults', () => {
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 
-  it('renders the error message when isError is true', () => {
+  it('renders the search failure as a page-level message with a retry, not the empty state', async () => {
+    const user = userEvent.setup();
+    const onRetry = vi.fn();
     render(
       <LoyaltySearchResults
         customers={[]}
         isLoading={false}
         isError
         errorMessage="Falha ao buscar"
+        onRetry={onRetry}
+        retryLabel="Tentar novamente"
         isRecent={false}
         pointsBadge={pointsBadge}
         t={fakeT}
       />,
     );
 
-    expect(screen.getByText('searchErrorTitle')).toBeInTheDocument();
-    expect(screen.getByText('Falha ao buscar')).toBeInTheDocument();
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveAttribute('data-testid', 'page-feedback');
+    expect(alert).toHaveTextContent('searchErrorTitle');
+    expect(alert).toHaveTextContent('Falha ao buscar');
+    expect(screen.queryByText('noResultsTitle')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+    expect(onRetry).toHaveBeenCalledOnce();
   });
 
   it('renders a row per customer with name, email, and points badge when customers is non-empty', () => {
@@ -70,6 +83,8 @@ describe('LoyaltySearchResults', () => {
         isLoading={false}
         isError={false}
         errorMessage={null}
+        onRetry={vi.fn()}
+        retryLabel="Tentar novamente"
         isRecent={false}
         pointsBadge={pointsBadge}
         t={fakeT}
@@ -90,6 +105,8 @@ describe('LoyaltySearchResults', () => {
         isLoading={false}
         isError={false}
         errorMessage={null}
+        onRetry={vi.fn()}
+        retryLabel="Tentar novamente"
         isRecent={false}
         pointsBadge={pointsBadge}
         t={fakeT}
@@ -106,6 +123,8 @@ describe('LoyaltySearchResults', () => {
         isLoading={false}
         isError={false}
         errorMessage={null}
+        onRetry={vi.fn()}
+        retryLabel="Tentar novamente"
         isRecent
         pointsBadge={pointsBadge}
         t={fakeT}
@@ -123,6 +142,8 @@ describe('LoyaltySearchResults', () => {
         isLoading={false}
         isError={false}
         errorMessage={null}
+        onRetry={vi.fn()}
+        retryLabel="Tentar novamente"
         isRecent={false}
         pointsBadge={pointsBadge}
         t={fakeT}

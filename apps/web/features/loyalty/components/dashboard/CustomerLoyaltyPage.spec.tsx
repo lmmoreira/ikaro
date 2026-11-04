@@ -267,6 +267,53 @@ describe('CustomerLoyaltyPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Algo deu errado. Tente novamente.');
   });
 
+  it('keeps the button enabled as the retry and clears the entries failure on the next attempt', async () => {
+    const user = userEvent.setup();
+    getCustomerLoyaltyEntries.mockRejectedValueOnce(new Error('network error'));
+
+    renderWithIntl(
+      <CustomerLoyaltyPage
+        customer={customer}
+        balance={balance}
+        entries={entries}
+        redemptions={redemptions}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Carregar mais entradas' }));
+    expect(await screen.findByTestId('load-more-feedback')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Carregar mais entradas' })).toBeEnabled();
+
+    await user.click(screen.getByRole('button', { name: 'Carregar mais entradas' }));
+
+    expect(await screen.findByText('Lavagem Completa')).toBeInTheDocument();
+    expect(screen.queryByTestId('load-more-feedback')).not.toBeInTheDocument();
+  });
+
+  it('keeps the button enabled as the retry and clears the redemptions failure on the next attempt', async () => {
+    const user = userEvent.setup();
+    getCustomerLoyaltyRedemptions.mockRejectedValueOnce(new Error('network error'));
+
+    renderWithIntl(
+      <CustomerLoyaltyPage
+        customer={customer}
+        balance={balance}
+        entries={entries}
+        redemptions={redemptions}
+        initialActiveTab="redemptions"
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Carregar mais resgates' }));
+    expect(await screen.findByTestId('load-more-feedback')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Carregar mais resgates' })).toBeEnabled();
+
+    await user.click(screen.getByRole('button', { name: 'Carregar mais resgates' }));
+
+    await waitFor(() => expect(screen.queryByTestId('load-more-feedback')).not.toBeInTheDocument());
+    expect(getCustomerLoyaltyRedemptions).toHaveBeenCalledTimes(2);
+  });
+
   it('links redemption rows back to the redemptions tab on booking detail return', async () => {
     renderWithIntl(
       <CustomerLoyaltyPage

@@ -3,7 +3,7 @@
 **Actor(s):** MANAGER (dashboard), CUSTOMER (conta do cliente), GUEST/CUSTOMER (hotsite público)
 **Goal:** When a save, action or load fails or succeeds, the user sees the result next to the action they just took, with the offending field marked — on every surface of `apps/web`.
 **UCs covered:** none — a cross-cutting UI pattern. Source of truth: `td/TD57-INLINE-FEEDBACK-AND-ACTION-PANE-PATTERN.md`. Lives under `manager/` because the dashboard is its main surface. The customer-account and public-hotsite screens live in their own actor folders, as the folder convention requires: `customer/prototypes/minha-conta/03c`–`03d` and `guest/prototypes/lead-form/01j`–`01k`; the hub `index.html` here links to them.
-**Status:** In progress (TD57) — the shared components shipped with TD57-S01 and the service edit screen uses them since TD57-S02; the screens below marked ⚠ still use their own boxes until their stories land (done: TD57-S01–S04 and S06–S14; pending: S05, S15 and S16). The service-edit error that triggered it is real: a 422 rendered below four cards, out of view.
+**Status:** In progress (TD57) — the shared components shipped with TD57-S01 and the service edit screen uses them since TD57-S02; the screens below marked ⚠ still use their own boxes until their stories land (done: TD57-S01–S04 and S06–S15; pending: S05 and S16). The service-edit error that triggered it is real: a 422 rendered below four cards, out of view.
 
 ## Flow
 
@@ -28,7 +28,7 @@ flowchart TD
     class Ok,Err,Badge,RowErr,Page,PubMsg gap
 ```
 
-Every node in red is a gap: the screens not yet migrated do not use the shared components (the area stories `TD57-S15`–`S16` remain; `TD57-S14` migrated the recurring-schedule form fields). The shared components exist since `TD57-S01`; the branded counterpart for the public hotsite exists since `TD57-S06` and its callers migrate in `TD57-S16`.
+Every node in red is a gap: the screens not yet migrated do not use the shared components (the area story `TD57-S16` remains; `TD57-S14` migrated the recurring-schedule form fields). The shared components exist since `TD57-S01`; the branded counterpart for the public hotsite exists since `TD57-S06` and its callers migrate in `TD57-S16`.
 
 ## Pages referenced
 
@@ -46,8 +46,8 @@ Every node in red is a gap: the screens not yet migrated do not use the shared c
 | `/dashboard/services/new`, `/dashboard/services/[id]/edit` (Detalhes) | `ServiceCreatePage`, `ServiceFormFields`, `ServiceEditDetailsTab` | TD57-S13 | ✅ Field marked and focused from a server `field`; created success in the Detalhes pane — `staff/prototypes/servicos/02b`, `02c` |
 | `/dashboard/services/[id]/deactivate` | `ServiceDeactivatePage` | TD57-S13 | ✅ Failure under the buttons of the shared `ActionPane` — `staff/prototypes/servicos/03b`, `03j` |
 | `/dashboard/services` | `ServiceListPage` | TD57-S13 | ✅ Load failure with retry, chips inside the list card — `staff/prototypes/servicos/01`, `01b` |
-| `/dashboard/loyalty` | `LoyaltySearchPage`, `LoyaltySearchResults` | TD57-S15 | ⏳ Search failure becomes a page-level `FeedbackMessage` with retry — `staff/prototypes/fidelidade/00c` |
-| `/dashboard/loyalty/[customerId]` | `CustomerLoyaltyEntriesTab`, `CustomerLoyaltyRedemptionsTab`, `error.tsx` | TD57-S15 | ⏳ "Carregar mais" failure under the count line, route error with retry — `staff/prototypes/fidelidade/01d`, `01e` |
+| `/dashboard/loyalty` | `LoyaltySearchPage`, `LoyaltySearchResults` | TD57-S15 | ✅ Search failure is a page-level `FeedbackMessage` with retry — `staff/prototypes/fidelidade/00c` |
+| `/dashboard/loyalty/[customerId]` | `CustomerLoyaltyEntriesTab`, `CustomerLoyaltyRedemptionsTab`, `error.tsx` | TD57-S15 | ✅ "Carregar mais" failure under the count line, route error with retry — `staff/prototypes/fidelidade/01d`, `01e` |
 | `/[slug]` (lead form) | public lead form + branded feedback component | TD57-S16 | ⚠ Component exists (TD57-S06); form still uses a hand-rolled box |
 | Shared components | `FeedbackMessage`, `ActionPane`, `FieldFeedback`, `useFormFeedback` | TD57-S01 | ✅ EXISTS |
 

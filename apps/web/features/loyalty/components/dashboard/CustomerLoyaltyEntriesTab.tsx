@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { useTranslations } from 'next-intl';
 import type { PaginatedLoyaltyEntriesResponse } from '@ikaro/types';
 import { Button } from '@/shared/components/ui/button';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import { cn } from '@/shared/utils/cn';
 import { appendReturnTo } from '@/features/booking/model/booking-navigation';
 import {
@@ -116,9 +117,7 @@ export function CustomerLoyaltyEntriesTab({
           })}
         </p>
         {loadMoreEntriesError && (
-          <p role="alert" className="text-center text-xs font-medium text-red-600">
-            {loadMoreEntriesError}
-          </p>
+          <FeedbackMessage title={loadMoreEntriesError} testId="load-more-feedback" />
         )}
         {entries.items.length < entries.total && (
           <Button
