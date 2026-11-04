@@ -26,6 +26,18 @@ describe('FieldError', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Informe o início do período.');
   });
 
+  it('keeps the alert-field-error test id on the alert and draws the message with the branded field feedback', () => {
+    renderWithIntl(<FieldError message="Informe o início do período." />);
+
+    const alert = screen.getByTestId('alert-field-error');
+    expect(alert).toBe(screen.getByRole('alert'));
+    const message = screen.getByText('Informe o início do período.');
+    expect(alert).toContainElement(message);
+    expect(message.id).not.toBe('');
+    expect(message.getAttribute('style')).toContain('--ba-body-font');
+    expect(message.className).not.toContain('text-red-600');
+  });
+
   it('renders nothing without a message', () => {
     renderWithIntl(<FieldError message={null} />);
 
