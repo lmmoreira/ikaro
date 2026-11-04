@@ -386,6 +386,7 @@ Add a `no-restricted-syntax` selector in `apps/web/eslint.config.js` (alongside 
 - `docs/ANTI_PATTERNS.md`
 - `docs/ENGINEERING_RULES_FRONTEND.md`
 - `.copilot/context.md` (never through the `CLAUDE.md` symlink)
+- `packages/architecture-check/agent-context-policy.json` (the file and §7 budgets, set to the new sizes: the `CI-enforced` bullet is one line and about 300 characters over the ratchet, the precedent of the earlier close-out rows)
 
 **Acceptance criteria — product:**
 - [ ] A new `role="alert"` or `role="status"` box outside the shared component fails lint with a message naming `FeedbackMessage`.
