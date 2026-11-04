@@ -4,18 +4,26 @@ import { useTranslations } from 'next-intl';
 import type { ContactField } from '@/features/booking/model/contact-validation';
 import type { StaffGuestContact } from '@/features/booking/hooks/useStaffGuestContact';
 import { buildContactPhone } from '@/shared/utils/contact-phone';
+import { cn } from '@/shared/utils/cn';
 import {
   formatPhoneForDisplay,
   phonePlaceholder,
   sanitizePhoneInput,
 } from '@/shared/utils/phone-format';
-import { FieldFeedback } from '@/shared/components/ui/field-feedback';
+import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
+import type { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import { INPUT_CLASS, LABEL_CLASS } from './new-booking/new-booking-styles';
+
+type GuestFormFeedback = Pick<
+  ReturnType<typeof useFormFeedback>,
+  'fieldErrors' | 'fieldProps' | 'fieldErrorId'
+>;
 
 interface GuestContactFormProps {
   readonly value: StaffGuestContact;
   readonly phonePrefix: string;
-  readonly errorField: ContactField | null;
+  /** The owner's `useFormFeedback()`: marks and focuses the invalid input, names its message. */
+  readonly feedback: GuestFormFeedback;
   readonly onChange: (value: StaffGuestContact) => void;
 }
 
@@ -24,13 +32,22 @@ interface GuestContactFormProps {
 export function GuestContactForm({
   value,
   phonePrefix,
-  errorField,
+  feedback,
   onChange,
 }: GuestContactFormProps): React.JSX.Element {
   const t = useTranslations('dashboard.newBooking.chooser');
   const localPhone = value.contactPhone.startsWith(phonePrefix)
     ? value.contactPhone.slice(phonePrefix.length)
     : value.contactPhone;
+  const { fieldErrors, fieldProps, fieldErrorId } = feedback;
+  const inputClass = (field: ContactField, base: string = INPUT_CLASS): string =>
+    cn(base, fieldErrors[field] && FIELD_INVALID_CLASS);
+  const message = (field: ContactField): React.JSX.Element | null =>
+    fieldErrors[field] ? (
+      <div data-testid="guest-error">
+        <FieldFeedback id={fieldErrorId(field)}>{fieldErrors[field]}</FieldFeedback>
+      </div>
+    ) : null;
 
   return (
     <div className="space-y-4" data-testid="guest-contact-form">
@@ -41,13 +58,13 @@ export function GuestContactForm({
         <input
           id="guest-name"
           data-testid="guest-name"
-          className={INPUT_CLASS}
+          className={inputClass('name')}
           value={value.contactName}
           maxLength={255}
-          aria-invalid={errorField === 'name' ? true : undefined}
-          aria-describedby={errorField === 'name' ? 'guest-error-message' : undefined}
+          {...fieldProps('name')}
           onChange={(event) => onChange({ ...value, contactName: event.target.value })}
         />
+        {message('name')}
       </div>
       <div>
         <label htmlFor="guest-phone" className={LABEL_CLASS}>
@@ -62,17 +79,17 @@ export function GuestContactForm({
             type="tel"
             inputMode="numeric"
             data-testid="guest-phone"
-            className={`${INPUT_CLASS} rounded-l-none`}
+            className={inputClass('phone', `${INPUT_CLASS} rounded-l-none`)}
             placeholder={phonePlaceholder(phonePrefix)}
             value={formatPhoneForDisplay(localPhone, phonePrefix)}
-            aria-invalid={errorField === 'phone' ? true : undefined}
-            aria-describedby={errorField === 'phone' ? 'guest-error-message' : undefined}
+            {...fieldProps('phone')}
             onChange={(event) => {
               const input = sanitizePhoneInput(event.target.value, phonePrefix);
               onChange({ ...value, contactPhone: buildContactPhone(input, phonePrefix) });
             }}
           />
         </div>
+        {message('phone')}
       </div>
       <div>
         <label htmlFor="guest-email" className={LABEL_CLASS}>
@@ -82,18 +99,13 @@ export function GuestContactForm({
           id="guest-email"
           type="email"
           data-testid="guest-email"
-          className={INPUT_CLASS}
+          className={inputClass('email')}
           value={value.contactEmail}
-          aria-invalid={errorField === 'email' ? true : undefined}
-          aria-describedby={errorField === 'email' ? 'guest-error-message' : undefined}
+          {...fieldProps('email')}
           onChange={(event) => onChange({ ...value, contactEmail: event.target.value })}
         />
+        {message('email')}
       </div>
-      {errorField && (
-        <div data-testid="guest-error">
-          <FieldFeedback id="guest-error-message">{t('guestRequired')}</FieldFeedback>
-        </div>
-      )}
       <p className="text-sm text-gray-600">{t('guestNote')}</p>
     </div>
   );

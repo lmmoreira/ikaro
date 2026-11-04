@@ -538,7 +538,8 @@ describe('BookingForm', () => {
     const zip = document.getElementById('contact-address-zip-code');
     expect(zip).toHaveAttribute('aria-invalid', 'true');
     expect(zip).toHaveAttribute('aria-describedby', message.id);
-    expect(zip).toHaveFocus();
+    // the hook focuses after the commit that marks the address, one effect after the message
+    await vi.waitFor(() => expect(zip).toHaveFocus());
   });
 
   it('falls back to the confirmation message and marks no input when the server names a field the wizard does not own', async () => {

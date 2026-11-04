@@ -333,6 +333,7 @@
         "weeklyToRequired": "Enter the end time.",
         "weeklyEnd": "The end time must be after the start time.",
         "submitFailed": "We could not create the alert.",
+        "validationSummary": "Fix the highlighted fields above before creating the alert.",
         "submitFailedHint": "Check your connection and try again. Nothing was saved.",
         "rangeFromInvalid": "That time does not exist on that date. Choose another.",
         "rangeToInvalid": "That time does not exist on that date. Choose another."

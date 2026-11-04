@@ -113,13 +113,38 @@ describe('CustomerChooserStep — Novo contato', () => {
     return result;
   }
 
-  it('refuses an incomplete contact and names the problem', async () => {
+  it('refuses an incomplete contact, names the problem and focuses the first invalid field', async () => {
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: vi.fn(),
+    });
     const { onContinue } = await openGuest();
 
     await userEvent.click(screen.getAllByTestId('chooser-continue')[0]!);
 
     expect(onContinue).not.toHaveBeenCalled();
+    expect(screen.getByTestId('guest-error')).toHaveTextContent(
+      'Nome, telefone e e-mail são obrigatórios.',
+    );
+    const name = screen.getByTestId('guest-name');
+    expect(name).toHaveAttribute('aria-invalid', 'true');
+    expect(name).toHaveFocus();
+    expect(name).toHaveAccessibleDescription('Nome, telefone e e-mail são obrigatórios.');
+  });
+
+  it('clears the mark when the contact is edited', async () => {
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: vi.fn(),
+    });
+    await openGuest();
+    await userEvent.click(screen.getAllByTestId('chooser-continue')[0]!);
     expect(screen.getByTestId('guest-error')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByTestId('guest-name'), { target: { value: 'Maria' } });
+
+    expect(screen.queryByTestId('guest-error')).not.toBeInTheDocument();
+    expect(screen.getByTestId('guest-name')).not.toHaveAttribute('aria-invalid');
   });
 
   it('continues with the contact trio and no customer id', async () => {

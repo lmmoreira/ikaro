@@ -333,6 +333,7 @@
         "weeklyToRequired": "Informe o horário final.",
         "weeklyEnd": "O horário final precisa ser depois do inicial.",
         "submitFailed": "Não foi possível criar o aviso.",
+        "validationSummary": "Corrija os campos destacados acima antes de criar o aviso.",
         "submitFailedHint": "Verifique sua conexão e tente de novo. Nada foi salvo.",
         "rangeFromInvalid": "Esse horário não existe nessa data. Escolha outro.",
         "rangeToInvalid": "Esse horário não existe nessa data. Escolha outro."
