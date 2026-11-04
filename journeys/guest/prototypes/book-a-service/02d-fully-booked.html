@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Passo 2 — Sem horários disponíveis</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="../../../shared/feedback-pane.css">
 </head>
 <body>
   <!--
@@ -76,17 +77,7 @@
       PROPOSED FIX (not implemented — for discussion).
       When days.every(d => !d.available), render a message below the carousel.
     -->
-    <div role="alert" style="
-      display: flex; align-items: flex-start; gap: 0.625rem;
-      background: #fef2f2; border: 1.5px solid #fca5a5;
-      border-radius: var(--ba-radius); padding: 0.75rem 1rem;
-      margin-top: 1rem;
-    ">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;">
-        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-      </svg>
-      <span style="font-size: 0.875rem; color: #dc2626; font-weight: 500;">Nenhum horário disponível nos próximos dias. Entre em contato conosco para agendar.</span>
-    </div>
+    
 
     <div class="nav-buttons" style="flex-wrap:wrap;">
       <a class="btn-secondary" href="01-service-selection.html">Voltar</a>
@@ -101,6 +92,7 @@
       <a class="btn-secondary" data-testid="availability-alert-entry" href="17-login-aviso.html" style="color:var(--ba-primary);border-color:var(--ba-primary);">Avise-me quando abrir</a>
       <button class="btn-primary" disabled style="opacity: 0.6; cursor: not-allowed;">Próximo</button>
     </div>
+    <div class="fb-ba fb-ba-error" role="alert" style="margin-top:1rem;"><span class="fb-title">Nenhum horário disponível nos próximos dias. Entre em contato conosco para agendar.</span></div>
   </div>
 </body>
 </html>

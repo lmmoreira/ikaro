@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Passo 1 — Erro ao carregar o formulário</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="../../../shared/feedback-pane.css">
   <style>
     .staff-card { display:flex; align-items:center; gap:0.875rem; padding:0.875rem; cursor:pointer; }
     .staff-avatar { width:3rem; height:3rem; border-radius:9999px; flex-shrink:0; background:var(--ba-primary); color:white;
@@ -13,11 +14,6 @@
     .section-title { font-size:0.875rem; font-weight:700; color:var(--ba-text); margin:1.25rem 0 0.5rem; }
     .section-title small { font-weight:500; opacity:0.65; }
     .hint { font-size:0.8125rem; opacity:0.7; }
-    .alert-err { display:flex; align-items:flex-start; gap:0.625rem; background:#fef2f2; border:1.5px solid #fca5a5;
-      border-radius:var(--ba-radius); padding:0.75rem 1rem; margin:1rem 0; color:#991b1b; }
-    .alert-err p { margin:0; }
-    .alert-err .t { font-weight:700; }
-    .alert-err .d { font-size:0.8125rem; margin-top:0.25rem; }
     .skeleton { background:linear-gradient(90deg,#e5e7eb,#f3f4f6,#e5e7eb); border-radius:var(--ba-radius); height:4.25rem; margin-bottom:0.75rem; }
     .leg-timeline { position:relative; padding-left:1.75rem; }
     .leg-item { position:relative; padding-bottom:1.5rem; }
@@ -58,8 +54,9 @@
       <li><label class="card" data-service-id="svc-haircut" style="display:flex;gap:0.75rem;align-items:flex-start;cursor:pointer;"><input type="checkbox" style="margin-top:0.25rem;width:1.125rem;height:1.125rem;"><div style="flex:1;"><p style="font-weight:600;color:var(--ba-text);">Corte + Escova</p><p class="hint">Corte e finalização</p></div><div style="text-align:right;"><p style="font-weight:600;color:var(--ba-text);">R$ 90,00</p><p class="rate">50 min</p></div></label></li>
     </ul>
     <p style="font-weight:600;color:var(--ba-text);margin-top:1rem;" data-testid="selection-total">1 serviço — R$ 120,00 — 60 min</p>
-    <div class="alert-err" role="alert" data-testid="step1-error"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b91c1c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:2px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><div><p class="t">Não foi possível continuar.</p><p class="d">Não conseguimos carregar as informações deste serviço. Tente novamente.</p></div></div>
+    
     <div class="nav-buttons"><a class="btn-secondary" href="00-hotsite.html">Voltar</a><button class="btn-primary" data-testid="step1-retry">Tentar novamente</button></div>
+    <div class="fb-ba fb-ba-error" role="alert" data-testid="step1-error"><span class="fb-title">Não foi possível continuar.</span> Não conseguimos carregar as informações deste serviço. Tente novamente.</div>
   </div>
 </body>
 </html>

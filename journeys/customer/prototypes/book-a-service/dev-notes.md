@@ -215,3 +215,17 @@ Error routing, step paths and the design decisions: `journeys/guest/prototypes/b
 **UI building blocks:** hotsite tree — tenant branding via `--ba-*` for the page's own surfaces (frame, cards, buttons, weekday pills), painting its own `backgroundColor: 'var(--ba-background)'`. The date, time and duration controls are the project's shared shadcn/ui primitives, used as the rest of the app uses them (CLAUDE.md § Web styling boundary "prefer shadcn/ui primitives"; the M20 plan's rule that a date control is "shadcn/ui's `Calendar` via `Popover` + `Calendar`, not a native date input"): a day is a `Popover` + `Button` + `Calendar` (`LeadFormDateRangeControl`, `ScheduleDateTimeRangeSheet`; two months shown, outside days hidden), an hour is the shared `TimePicker` (settings business hours; `timeFormat` from `useFormatting()`), and the alert duration is the shadcn `Select`. The shadcn tokens are defined globally (`app/globals.css`), so these render in the fixed SaaS palette inside the tenant-branded page, as they do wherever they are used; the page's own surfaces (frame, cards, buttons, pills) keep the tenant's `--ba-*` branding. The prototypes draw native date/time inputs only because that is this repo's prototype convention — they are not the implementation. Do **not** use dashboard/account patterns here. Rule: `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` §2, `docs/ENGINEERING_RULES_FRONTEND.md` § Hotsite full-page components.
 
 **BFF call:** `POST /availability-alerts` (customer-only) — body `{ serviceId, preferredResourceId?, criteriaType, acceptableStartAt?, acceptableEndAt?, weekdays?, localStartTime?, localEndTime?, durationMinutes?, expiresAt? }` (`participantCount` exists in the API but this page never sends it).
+
+## TD57-S16 — branded feedback on the public hotsite forms (drawn 2026-11-04)
+
+The public hotsite uses the branded feedback pattern (`manager/prototypes/feedback-pane/`, `docs/ENGINEERING_RULES_FRONTEND.md` § A form's error or success message lives in the action pane; branded counterpart from TD57-S06), not hand-rolled boxes. There is no shell and no `ActionPane`: a form-level message sits directly under the primary button (`.fb-ba .fb-ba-error`, `role="alert"`); a field message is `.fb-field-msg` with `aria-invalid` + `aria-describedby` on the input (`.fb-field-invalid`). `ErrorAlert` is removed. Every `data-testid` is kept on the same element. Drawn 2026-11-04 (build: TD57-S16).
+
+| Screen | State | Rule |
+|---|---|---|
+| `03c`, `03e` | Intake answers | Same as guest `13b`/`13c`. |
+| `04c` | Submission failed | Branded error `confirmation-error`. |
+| `16b` | Create alert fails | `#falha` is a branded error; the period field is `.fb-field-invalid` + message. |
+| `16e`, `16f` | Alert limit / service unavailable | Branded errors (state notices in red, no new variant). |
+| `16g`, `16i` | Field errors | `.fb-field-msg` with `aria-invalid`. |
+
+`16`, `16c`, `16d`, `16h` show no error and are unchanged (`16d` is the saved destination view).

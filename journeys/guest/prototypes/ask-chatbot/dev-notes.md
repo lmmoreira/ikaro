@@ -173,3 +173,11 @@ All resolved at M19-S11 story-discovery (2026-08-17):
 - **Client transport:** resolved via `bffClient` with an explicit `X-Tenant-Slug` header — the
   same pattern `fetchServicesClient()` (`apps/web/features/platform/hotsite/api/services.ts`)
   already uses for the identical case (see File map above).
+
+## TD57-S16 — branded feedback on the public hotsite forms (drawn 2026-11-04)
+
+The public hotsite uses the branded feedback pattern (`manager/prototypes/feedback-pane/`, `docs/ENGINEERING_RULES_FRONTEND.md` § A form's error or success message lives in the action pane; branded counterpart from TD57-S06), not hand-rolled boxes. There is no shell and no `ActionPane`: a form-level message sits directly under the primary button (`.fb-ba .fb-ba-error`, `role="alert"`); a field message is `.fb-field-msg` with `aria-invalid` + `aria-describedby` on the input (`.fb-field-invalid`). `ErrorAlert` is removed. Every `data-testid` is kept on the same element. Drawn 2026-11-04 (build: TD57-S16).
+
+| Screen | State | Rule |
+|---|---|---|
+| `01e` (new) | Message too long | `chatbot-validation-error` is a branded error (`role="alert"`) under the input row; copy `chatbot.messageTooLong`. Was a bare 12px red line with no role. |

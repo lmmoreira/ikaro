@@ -382,3 +382,24 @@ Summary banner on any failure: `data-testid="intake-error-summary"`, `role="aler
 - **Duration preselection:** the duration step opens with `durationMinMinutes` selected and its quote fetched (`12` now shows 1 hora / R$ 50,00).
 
 `03d` and `04e` are exact copies of `03`/`04` apart from the step indicator and the Próximo/Voltar targets. A path with both a choice and a duration adds one step to each count (6 / 7 with intake). The `04b`/`04c`/`04d` states are shared by every path and are not duplicated.
+
+## TD57-S16 — branded feedback on the public hotsite forms (drawn 2026-11-04)
+
+The public hotsite uses the branded feedback pattern (`manager/prototypes/feedback-pane/`, `docs/ENGINEERING_RULES_FRONTEND.md` § A form's error or success message lives in the action pane; branded counterpart from TD57-S06), not hand-rolled boxes. There is no shell and no `ActionPane`: a form-level message sits directly under the primary button (`.fb-ba .fb-ba-error`, `role="alert"`); a field message is `.fb-field-msg` with `aria-invalid` + `aria-describedby` on the input (`.fb-field-invalid`). `ErrorAlert` is removed. Every `data-testid` is kept on the same element. Drawn 2026-11-04 (build: TD57-S16).
+
+| Screen | State | Rule |
+|---|---|---|
+| `01b` | Pickup address missing | Form-level `BrandedFeedbackMessage` (`step1-error`) under the buttons; each empty address field `.fb-field-invalid`. |
+| `01d`, `01f` | Variable-duration conflict; form load failure | Title + body in one branded box (`step1-error`). |
+| `01g` | Service unavailable | Branded error (`step1-service-unavailable`), not a state card: the service cannot be booked, so it is a failure the visitor must act on. |
+| `02c`, `02f` | Availability / slot fetch fails | Branded error with a "Tentar novamente" retry (`onRetry`). |
+| `02d` | Fully booked | Branded error (`fully-booked-message`): no new variant; same id and `role`. |
+| `02e` | Slot conflict at submit | Branded error `step2-error`, under the nav buttons. |
+| `03b` | Invalid e-mail | Field `.fb-field-invalid` + message; form-level `personal-info-error` under the buttons. |
+| `04c` | Submission failed | Branded error `confirmation-error` under the buttons. |
+| `05d`, `05e` | Resource picker load / invalid selection | Branded error (`resource-picker-error`, `resource-picker-submit-error`); the load error retries. |
+| `09b`, `10b` | Bundle / leg no longer available | Branded error `availability-error`. |
+| `12b`, `12c` | Duration invalid / total not computed | Branded error (`duration-error`, `duration-quote-error`). |
+| `13b`, `13c` | Intake answers | Field messages `.fb-field-msg` (`intake-field-error-*`, `intake-consent-error`); summary `intake-error-summary` under the buttons. |
+
+Destination pages (`04`, `04e`–`04i`, the saved/success views) are page content and are unchanged. **Not drawn separately:** the out-of-range notice (`AvailabilityCalendar`, `calendar-out-of-range-message`) is the same branded error as `02d`; `AvailabilityCarousel`'s `variant="dashboard"` (used by the staff New-booking flow) renders the SaaS `FeedbackMessage`, drawn in `manager/prototypes/feedback-pane/`.

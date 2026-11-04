@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Serviço sem aviso — BeloAuto Demo</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="../../../shared/feedback-pane.css">
   <style>
     /* Alert page — hotsite tree: tenant branding only (--ba-* tokens), same shell as the booking steps. */
     .field { margin-bottom: 1.125rem; }
@@ -89,12 +90,11 @@
   <div class="step-container">
     <p class="step-indicator">Aviso de disponibilidade</p>
     <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; color: var(--ba-text)">Este serviço não aceita avisos</h2>
-    <div class="notice notice-error" role="alert" style="margin-top:0;">
-      <p style="line-height:1.55;font-size:.9375rem;">Não é possível criar um aviso de disponibilidade para este serviço. Você pode ver outros horários ou falar com o estabelecimento.</p>
-    </div>
+    
     <div class="nav-buttons">
       <a class="btn-primary" href="../../../shared/hotsite-logged-in.html">Voltar ao site</a>
     </div>
+    <div class="fb-ba fb-ba-error" role="alert"><span class="fb-title">Não é possível criar um aviso de disponibilidade para este serviço. Você pode ver outros horários ou falar com o estabelecimento.</span></div>
   </div>
 </body>
 </html>

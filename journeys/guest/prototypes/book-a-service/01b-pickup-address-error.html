@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Passo 1 — Erro: endereço de coleta</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="../../../shared/feedback-pane.css">
 </head>
 <body>
   <!--
@@ -97,15 +98,15 @@
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
         <div style="grid-column: span 2;">
           <label class="form-label" for="zip">CEP</label>
-          <input id="zip" class="form-input" type="text" placeholder="00000-000" maxlength="9" style="border-color: #dc2626;">
+          <input id="zip" class="form-input fb-field-invalid" type="text" placeholder="00000-000" maxlength="9" aria-invalid="true">
         </div>
         <div style="grid-column: span 2;">
           <label class="form-label" for="street">Rua</label>
-          <input id="street" class="form-input" type="text" style="border-color: #dc2626;">
+          <input id="street" class="form-input fb-field-invalid" type="text" aria-invalid="true">
         </div>
         <div>
           <label class="form-label" for="number">Número</label>
-          <input id="number" class="form-input" type="text" style="border-color: #dc2626;">
+          <input id="number" class="form-input fb-field-invalid" type="text" aria-invalid="true">
         </div>
         <div>
           <label class="form-label" for="complement">Complemento</label>
@@ -113,28 +114,18 @@
         </div>
         <div>
           <label class="form-label" for="neighborhood">Bairro</label>
-          <input id="neighborhood" class="form-input" type="text" style="border-color: #dc2626;">
+          <input id="neighborhood" class="form-input fb-field-invalid" type="text" aria-invalid="true">
         </div>
         <div>
           <label class="form-label" for="city">Cidade</label>
-          <input id="city" class="form-input" type="text" style="border-color: #dc2626;">
+          <input id="city" class="form-input fb-field-invalid" type="text" aria-invalid="true">
         </div>
         <div>
           <label class="form-label" for="state">Estado (UF)</label>
-          <input id="state" class="form-input" type="text" maxlength="2" placeholder="SP" style="border-color: #dc2626;">
+          <input id="state" class="form-input fb-field-invalid" type="text" maxlength="2" placeholder="SP" aria-invalid="true">
         </div>
       </div>
-      <div role="alert" style="
-        display: flex; align-items: flex-start; gap: 0.625rem;
-        background: #fef2f2; border: 1.5px solid #fca5a5;
-        border-radius: var(--ba-radius); padding: 0.75rem 1rem;
-        margin-top: 0.75rem;
-      " data-testid="step1-error">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;">
-          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-        </svg>
-        <span style="font-size: 0.875rem; color: #dc2626; font-weight: 500;">Informe o endereço de coleta para continuar.</span>
-      </div>
+      <div class="fb-ba fb-ba-error" role="alert" data-testid="step1-error" style="margin-top:0.75rem;"><span class="fb-title">Informe o endereço de coleta para continuar.</span></div>
     </div>
 
     <div class="nav-buttons">

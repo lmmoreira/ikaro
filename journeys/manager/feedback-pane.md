@@ -48,7 +48,7 @@ The node in red is the one gap left: the public hotsite forms still use their ha
 | `/dashboard/services` | `ServiceListPage` | TD57-S13 | ✅ Load failure with retry, chips inside the list card — `staff/prototypes/servicos/01`, `01b` |
 | `/dashboard/loyalty` | `LoyaltySearchPage`, `LoyaltySearchResults` | TD57-S15 | ✅ Search failure is a page-level `FeedbackMessage` with retry — `staff/prototypes/fidelidade/00c` |
 | `/dashboard/loyalty/[customerId]` | `CustomerLoyaltyEntriesTab`, `CustomerLoyaltyRedemptionsTab`, `error.tsx` | TD57-S15 | ✅ "Carregar mais" failure under the count line, route error with retry — `staff/prototypes/fidelidade/01d`, `01e` |
-| `/[slug]` (lead form) | public lead form + branded feedback component | TD57-S16 | ⚠ Component exists (TD57-S06); form still uses a hand-rolled box |
+| `/[slug]` (lead form) | public lead form + branded feedback component | TD57-S16 | ⚠ Component exists (TD57-S06); form still uses a hand-rolled box — prototypes drawn (`guest/prototypes/lead-form` `01c`, `01d`; booking, submit-info, chatbot and login screens in their folders), build pending |
 | Shared components | `FeedbackMessage`, `ActionPane`, `FieldFeedback`, `useFormFeedback` | TD57-S01 | ✅ EXISTS |
 
 ## Open questions / gaps

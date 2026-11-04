@@ -76,4 +76,5 @@ Folder: `guest/prototypes/ask-chatbot/`
 | `01b-interrupted.html` | Limite atingido / provedor falhou | UC-033 A1/A2/A4 | ✅ Criado |
 | `01c-not-available.html` | Indisponível (nada renderizado) | UC-034 | ✅ Criado |
 | `01d-inline-variant.html` | Variante `inline` (configuração alternativa, não é unhappy path) | UC-033 | ✅ Criado |
+| `01e-validation-error.html` | Mensagem longa demais — erro branded sob o campo, `role="alert"` (TD57-S16) | UC-033 | 🟡 Desenhado, build pendente (TD57-S16) |
 | `dev-notes.md` | Implementation handoff (file map, props, BFF calls, validação, máquina de estados) | — | ✅ Criado |

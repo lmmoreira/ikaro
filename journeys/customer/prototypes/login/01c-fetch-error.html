@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Selecionar Estabelecimento — Erro — Ikaro</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="../../../shared/feedback-pane.css">
 </head>
 <body>
 
@@ -42,31 +43,7 @@
         </p>
       </div>
 
-      <div role="alert" style="
-        background: #fef2f2; border: 1.5px solid #fca5a5;
-        border-radius: var(--ba-radius); padding: 0.75rem 1rem;
-      ">
-        <div style="display: flex; align-items: flex-start; gap: 0.625rem;">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;">
-            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-          </svg>
-          <span style="font-size: 0.875rem; color: #dc2626; font-weight: 500;" data-testid="select-tenant-error">
-            Não foi possível carregar seus estabelecimentos.
-          </span>
-        </div>
-        <button
-          onclick="location.reload()"
-          style="
-            margin-top: 0.625rem; margin-left: 1.625rem;
-            font-size: 0.875rem; font-weight: 600; color: #dc2626;
-            background: none; border: 1.5px solid #fca5a5;
-            border-radius: var(--ba-radius); padding: 0.375rem 0.875rem;
-            cursor: pointer;
-          "
-        >
-          Tentar novamente
-        </button>
-      </div>
+      <div class="fb-ba fb-ba-error" role="alert"><span class="fb-title">Não foi possível carregar seus estabelecimentos.</span> <button type="button" class="fb-retry" onclick="location.reload()">Tentar novamente</button></div>
 
       <p style="margin-top: 1.75rem; text-align: center; font-size: 0.75rem; opacity: 0.4; color: var(--ba-text);">
         Você pode trocar de estabelecimento a qualquer momento após entrar.

@@ -99,6 +99,18 @@ Single-column `step-container` layout throughout (same wrapper `guest/prototypes
 
 ## Branded inline feedback (`01j-erro-feedback.html`, `01k-sucesso-feedback.html`)
 
-**Status:** ❌ Gap — the component shipped with TD57-S06 (`shared/components/hotsite/branded-feedback-message.tsx`); TD57-S16 migrates this form onto it. The pattern, its shared CSS (`shared/feedback-pane.css`, `.fb-ba*`) and the rules are in `manager/prototypes/feedback-pane/dev-notes.md`.
+**Status:** the component shipped with TD57-S06 (`shared/components/hotsite/branded-feedback-message.tsx`); the form migrates to it in TD57-S16 (prototype drawn, build pending). See § TD57-S16 below. The pattern, its shared CSS (`shared/feedback-pane.css`, `.fb-ba*`) and the rules are in `manager/prototypes/feedback-pane/dev-notes.md`.
 
 The public hotsite has no shell and no `ActionPane`, so the message card sits directly under the submit button and reads `--ba-*` (font, radius). The offending field gets a red outline and its own message (`aria-invalid` + `aria-describedby`). Errors use `role="alert"`, success `role="status"`. Decided in TD57-S06: the colour is a fixed semantic red/green on the box's own white surface with a 4px accent bar, a fixed dark 1px ring and a faint shadow; only radius and fonts follow the tenant.
+
+## TD57-S16 — branded feedback on the public hotsite forms (drawn 2026-11-04)
+
+The public hotsite uses the branded feedback pattern (`manager/prototypes/feedback-pane/`, `docs/ENGINEERING_RULES_FRONTEND.md` § A form's error or success message lives in the action pane; branded counterpart from TD57-S06), not hand-rolled boxes. There is no shell and no `ActionPane`: a form-level message sits directly under the primary button (`.fb-ba .fb-ba-error`, `role="alert"`); a field message is `.fb-field-msg` with `aria-invalid` + `aria-describedby` on the input (`.fb-field-invalid`). `ErrorAlert` is removed. Every `data-testid` is kept on the same element. Drawn 2026-11-04 (build: TD57-S16).
+
+| Screen | State | Rule |
+|---|---|---|
+| `01c` | Validation | Banner `lead-form-validation-banner` is a branded error under "Enviar"; each invalid field `.fb-field-invalid` + `.fb-field-msg`. |
+| `01d` | Captcha expired | The amber banner is now a branded error (`lead-form-captcha-banner`) under "Tentar novamente": no new variant, the only visual change is amber → red. |
+| `01j`, `01k` | Field + form error, success | Already branded (TD57-S06); `01k` success is `<output>`. |
+
+`01e` (rate limited) and `01i` (generic failure) replace the whole form with `LeadFormTerminalCard` — destination pages, unchanged.

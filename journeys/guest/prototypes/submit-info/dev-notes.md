@@ -119,3 +119,14 @@ Shows: green check icon + "Resposta enviada!" + booking summary card + "Ir para 
 - Textarea min-height 7rem; user can expand
 - Submit button full-width at bottom
 - No auth bar, no nav, no bottom-tab — this is a standalone page
+
+## TD57-S16 — branded feedback on the public hotsite forms (drawn 2026-11-04)
+
+The public hotsite uses the branded feedback pattern (`manager/prototypes/feedback-pane/`, `docs/ENGINEERING_RULES_FRONTEND.md` § A form's error or success message lives in the action pane; branded counterpart from TD57-S06), not hand-rolled boxes. There is no shell and no `ActionPane`: a form-level message sits directly under the primary button (`.fb-ba .fb-ba-error`, `role="alert"`); a field message is `.fb-field-msg` with `aria-invalid` + `aria-describedby` on the input (`.fb-field-invalid`). `ErrorAlert` is removed. Every `data-testid` is kept on the same element. Drawn 2026-11-04 (build: TD57-S16).
+
+| Screen | State | Rule |
+|---|---|---|
+| `01d` | Empty response | Field `.fb-field-invalid` + `.fb-field-msg` (`aria-describedby`); focused on submit. |
+| `01e` | Submit failed | Branded error under "Tentar novamente"; the typed response and photos are kept. |
+
+`01b` (invalid link) is a page state, not feedback, and is unchanged.

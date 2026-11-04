@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Limite de avisos — BeloAuto Demo</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="../../../shared/feedback-pane.css">
   <style>
     /* Alert page — hotsite tree: tenant branding only (--ba-* tokens), same shell as the booking steps. */
     .field { margin-bottom: 1.125rem; }
@@ -89,13 +90,12 @@
   <div class="step-container">
     <p class="step-indicator">Aviso de disponibilidade</p>
     <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; color: var(--ba-text)">Você já tem 10 avisos ativos</h2>
-    <div class="notice notice-error" role="alert" style="margin-top:0;">
-      <p style="line-height:1.55;font-size:.9375rem;">Cancele um aviso que não precisa mais e tente de novo.</p>
-    </div>
+    
     <div class="nav-buttons">
       <a class="btn-secondary" href="16-novo-aviso.html">Voltar</a>
       <a class="btn-primary" href="../minha-conta/07-availability-alert.html">Ir para Meus avisos</a>
     </div>
+    <div class="fb-ba fb-ba-error" role="alert"><span class="fb-title">Cancele um aviso que não precisa mais e tente de novo.</span></div>
   </div>
 </body>
 </html>

@@ -71,3 +71,15 @@ UC-021 A3 — phone or default address missing:
 UC-023 — switch tenant (multi-tenant customer):
   POST /v1/auth/switch-tenant { targetTenantId } → { tenantSlug, expiresIn } → redirect
 ```
+
+## TD57-S16 — branded feedback on the public hotsite forms (drawn 2026-11-04)
+
+The public hotsite uses the branded feedback pattern (`manager/prototypes/feedback-pane/`, `docs/ENGINEERING_RULES_FRONTEND.md` § A form's error or success message lives in the action pane; branded counterpart from TD57-S06), not hand-rolled boxes. There is no shell and no `ActionPane`: a form-level message sits directly under the primary button (`.fb-ba .fb-ba-error`, `role="alert"`); a field message is `.fb-field-msg` with `aria-invalid` + `aria-describedby` on the input (`.fb-field-invalid`). `ErrorAlert` is removed. Every `data-testid` is kept on the same element. Drawn 2026-11-04 (build: TD57-S16).
+
+| Screen | State | Rule |
+|---|---|---|
+| `00b` (new) | `/{slug}/login?error=` | `app/[slug]/login/page.tsx` shows the branded error above the Google button and keeps the button. Copy `signInError`. |
+| `01c` | Establishments fail to load (descoped Caso B picker) | Restyled to the branded error only for consistency; not built. |
+| `02`–`02d` | Phone completion | Already branded. |
+
+`01b` (auth error) is a page, unchanged.

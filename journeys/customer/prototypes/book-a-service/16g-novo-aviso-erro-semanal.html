@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Avise-me quando abrir — erro (semanal) — BeloAuto Demo</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="../../../shared/feedback-pane.css">
   <style>
     /* Alert page — hotsite tree: tenant branding only (--ba-* tokens), same shell as the booking steps. */
     .field { margin-bottom: 1.125rem; }
@@ -104,12 +105,12 @@
       <div class="field" style="margin-top:.75rem;">
         <p class="form-label">Dias da semana</p>
         <div style="display:flex;flex-wrap:wrap;gap:.5rem;"><button type="button" class="slot-btn">Seg</button><button type="button" class="slot-btn">Ter</button><button type="button" class="slot-btn">Qua</button><button type="button" class="slot-btn">Qui</button><button type="button" class="slot-btn">Sex</button><button type="button" class="slot-btn">Sáb</button><button type="button" class="slot-btn">Dom</button></div>
-        <p class="field-error" role="alert">Escolha pelo menos um dia da semana.</p>
+        <p class="fb-field-msg" role="alert">Escolha pelo menos um dia da semana.</p>
         <label class="form-label" for="alert-wfrom" style="margin-top:.75rem;">Entre</label>
         <input id="alert-wfrom" type="time" class="form-input" value="12:00">
         <label class="form-label" for="alert-wto" style="margin-top:.75rem;">E</label>
-        <input id="alert-wto" type="time" class="form-input invalid" value="09:00">
-        <p class="field-error" role="alert">O horário final precisa ser depois do inicial.</p>
+        <input id="alert-wto" type="time" class="form-input fb-field-invalid" value="09:00">
+        <p class="fb-field-msg" role="alert">O horário final precisa ser depois do inicial.</p>
         <p class="field-hint">Horários no fuso do estabelecimento (America/Sao_Paulo).</p>
       </div>
 

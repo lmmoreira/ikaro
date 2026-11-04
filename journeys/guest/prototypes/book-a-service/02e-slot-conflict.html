@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Passo 2 — Horário indisponível (409)</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="../../../shared/feedback-pane.css">
 </head>
 <body>
   <!--
@@ -86,22 +87,13 @@
       </div>
     </div>
 
-    <div role="alert" style="
-      display: flex; align-items: flex-start; gap: 0.625rem;
-      background: #fef2f2; border: 1.5px solid #fca5a5;
-      border-radius: var(--ba-radius); padding: 0.75rem 1rem;
-      margin-top: 1rem;
-    " data-testid="step2-error">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;">
-        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-      </svg>
-      <span style="font-size: 0.875rem; color: #dc2626; font-weight: 500;">Este horário não está mais disponível. Por favor, escolha outro.</span>
-    </div>
+    
 
     <div class="nav-buttons">
       <a class="btn-secondary" href="01-service-selection.html">Voltar</a>
       <a class="btn-primary" href="03-personal-info.html">Próximo</a>
     </div>
+    <div class="fb-ba fb-ba-error" role="alert" data-testid="step2-error" style="margin-top:1rem;"><span class="fb-title">Este horário não está mais disponível. Por favor, escolha outro.</span></div>
   </div>
 </body>
 </html>

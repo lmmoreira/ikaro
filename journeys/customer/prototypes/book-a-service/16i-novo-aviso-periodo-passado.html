@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Avise-me quando abrir — erro — BeloAuto Demo</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="../../../shared/feedback-pane.css">
   <style>
     /* Alert page — hotsite tree: tenant branding only (--ba-* tokens), same shell as the booking steps. */
     .field { margin-bottom: 1.125rem; }
@@ -105,8 +106,8 @@
         <label class="form-label" for="alert-from">De</label>
         <input id="alert-from" type="datetime-local" class="form-input" value="2026-09-28T09:00">
         <label class="form-label" for="alert-to" style="margin-top:.75rem;">Até</label>
-        <input id="alert-to" type="datetime-local" class="form-input invalid" value="2026-10-01T18:00">
-        <p class="field-error" role="alert">O período precisa terminar no futuro.</p>
+        <input id="alert-to" type="datetime-local" class="form-input fb-field-invalid" value="2026-10-01T18:00">
+        <p class="fb-field-msg" role="alert">O período precisa terminar no futuro.</p>
       </div>
       <div id="panel-week" class="crit-panel field" style="margin-top:.75rem;" hidden>
         <p class="form-label">Dias da semana</p>
