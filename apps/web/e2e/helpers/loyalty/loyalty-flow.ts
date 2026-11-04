@@ -23,8 +23,7 @@ export async function createCompletedLoyaltyFlow(
   });
 
   await page.goto(`/dashboard/bookings/${earnedSetup.bookingId}/complete`);
-  await page.getByRole('button', { name: 'Confirmar conclusão' }).click();
-  await page.getByTestId('booking-loyalty-points-active').waitFor();
+  await confirmCompletion(page, earnedSetup.bookingId);
 
   const redeemSetup = await createFreshApprovedBooking(page, 10, staffEmail, {
     contactEmail: customerEmail,
@@ -35,8 +34,7 @@ export async function createCompletedLoyaltyFlow(
   await page.goto(`/dashboard/bookings/${redeemSetup.bookingId}/complete`);
   await waitForEarnedPoints(page);
   await page.getByRole('button', { name: 'Usar todos' }).click();
-  await page.getByRole('button', { name: 'Confirmar conclusão' }).click();
-  await page.getByTestId('booking-loyalty-points-active').waitFor();
+  await confirmCompletion(page, redeemSetup.bookingId);
   await waitForRedemption(page, customerEmail);
 
   return {
@@ -44,6 +42,19 @@ export async function createCompletedLoyaltyFlow(
     earnedBookingId: earnedSetup.bookingId,
     redeemBookingId: redeemSetup.bookingId,
   };
+}
+
+// "points active" is rendered by the completion page itself, before anything is sent, so it proves
+// nothing: the next navigation could cancel the request and leave the booking approved. The
+// request's own answer is the signal that the booking is completed.
+async function confirmCompletion(page: Page, bookingId: string): Promise<void> {
+  const completed = page.waitForResponse(
+    (response) =>
+      response.url().endsWith(`/bookings/${bookingId}/complete`) &&
+      response.request().method() === 'PATCH',
+  );
+  await page.getByRole('button', { name: 'Confirmar conclusão' }).click();
+  expect((await completed).ok()).toBe(true);
 }
 
 // Points are credited by the loyalty handler when it consumes BookingCompleted, not by the request
