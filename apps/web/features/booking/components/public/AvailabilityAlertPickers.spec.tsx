@@ -90,10 +90,19 @@ describe('DateTimeField — the day', () => {
     expect(screen.getByTestId('alert-date')).toBeDisabled();
   });
 
-  it('shows the field error', () => {
+  it('links the date and time group to the field error, which has no role', () => {
     renderDateTime({ error: 'O período precisa terminar no futuro.' });
 
-    expect(screen.getByRole('alert')).toHaveTextContent('O período precisa terminar no futuro.');
+    const group = screen.getByRole('group');
+    expect(group).toHaveAccessibleDescription('O período precisa terminar no futuro.');
+    expect(screen.getByTestId('alert-field-error')).toHaveTextContent('terminar no futuro');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('describes the group by nothing while there is no error', () => {
+    renderDateTime();
+
+    expect(screen.getByRole('group')).not.toHaveAttribute('aria-describedby');
   });
 });
 
@@ -160,7 +169,7 @@ describe('TimeField', () => {
     expect(screen.getByRole('combobox', { name: 'And: period' })).toHaveTextContent('PM');
   });
 
-  it('shows the field error', () => {
+  it('links the time group to the field error, which has no role', () => {
     renderWithIntl(
       <TimeField
         rowKey="weeklyTo"
@@ -172,7 +181,11 @@ describe('TimeField', () => {
       />,
     );
 
-    expect(screen.getByRole('alert')).toHaveTextContent('O horário final');
+    expect(screen.getByRole('group')).toHaveAccessibleDescription(
+      'O horário final precisa ser depois do inicial.',
+    );
+    expect(screen.getByTestId('alert-field-error')).toHaveTextContent('O horário final');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });
 

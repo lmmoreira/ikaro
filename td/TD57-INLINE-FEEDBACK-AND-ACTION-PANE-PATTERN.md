@@ -1124,7 +1124,7 @@ Replace every hand-rolled error box on the public hotsite and delete `ErrorAlert
 - Unit:
   - [ ] one spec per migrated file asserting the old hand-rolled box no longer renders and the branded component does, with the right `role` and the preserved `data-testid`
   - [ ] for each form that receives a backend `field` (lead form, submit-info, booking submit): a server `field` error marks and focuses its input, including the lead form's `answers.<questionId>`; an unknown `field` falls back to the form-level message (own test per form)
-  - [ ] availability-alert form (no backend `field`): a local validation error shows the branded field message (`alert-field-error`, `role="alert"`) and a submit failure shows the branded message under the buttons
+  - [ ] availability-alert form (no backend `field`): a local validation error shows the branded field message (`alert-field-error`; built with `role="alert"`, removed by TD57-S05 in favour of `aria-describedby` on the field group) and a submit failure shows the branded message under the buttons
   - [ ] the four non-error notices (fully booked, out of range, service unavailable, captcha) render as branded errors with their original ids
   - [ ] `AvailabilityCarousel` (fully booked) and `PickerLoadError`: `variant="dashboard"` renders `FeedbackMessage`, `variant="hotsite"` renders `BrandedFeedbackMessage` (own test each)
   - [ ] negative guarantees: `ErrorAlert` no longer exists (the deleted spec and a grep in the sweep); no raw `border-red-*`/`bg-red-*` message box remains in the files listed above

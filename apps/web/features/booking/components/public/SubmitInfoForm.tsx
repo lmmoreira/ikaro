@@ -205,7 +205,7 @@ export function SubmitInfoForm({
               disabled={state.status === 'submitting'}
             />
             {responseInvalid && (
-              <div role="alert" className="mb-3">
+              <div className="mb-3">
                 <BrandedFieldFeedback id={feedback.fieldErrorId(RESPONSE_FIELD)}>
                   {feedback.fieldErrors[RESPONSE_FIELD]}
                 </BrandedFieldFeedback>

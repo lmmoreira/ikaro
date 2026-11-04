@@ -77,8 +77,9 @@ describe('NewBookingServiceCard', () => {
     );
 
     expect(screen.getByTestId('service-unavailable')).toHaveTextContent('Lavagem Simples');
-    // TD57-S12: announced, outlined with the shared invalid class, and referenced by the checkbox
-    expect(screen.getByTestId('service-unavailable')).toHaveAttribute('role', 'alert');
+    // TD57-S12: outlined with the shared invalid class and referenced by the checkbox; the field
+    // message has no role (TD57-S05: only the shared message components write one)
+    expect(screen.getByTestId('service-unavailable')).not.toHaveAttribute('role');
     expect(screen.getByTestId('service-card')).toHaveClass('ring-red-600');
     expect(screen.getByRole('checkbox')).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByRole('checkbox')).toHaveAccessibleDescription(/Lavagem Simples/);

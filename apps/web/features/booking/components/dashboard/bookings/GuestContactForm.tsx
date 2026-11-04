@@ -90,7 +90,7 @@ export function GuestContactForm({
         />
       </div>
       {errorField && (
-        <div role="alert" data-testid="guest-error">
+        <div data-testid="guest-error">
           <FieldFeedback id="guest-error-message">{t('guestRequired')}</FieldFeedback>
         </div>
       )}

@@ -67,7 +67,7 @@ export function NewBookingServiceCard({
         </span>
       </label>
       {isUnavailable && (
-        <div role="alert" data-testid="service-unavailable">
+        <div data-testid="service-unavailable">
           <FieldFeedback id={`service-unavailable-${service.id}`}>
             <strong>{t('unavailable')}</strong> {t('unavailableHint', { name: service.name })}
           </FieldFeedback>

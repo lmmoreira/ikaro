@@ -102,6 +102,30 @@ const CSS_PROPERTIES_BARE_SELECTOR = {
   message:
     "Don't cast a function's return value with `as CSSProperties` — return `React.CSSProperties & Record<`--ba-${string}`, string>` instead (docs/ANTI_PATTERNS.md).",
 };
+// A hand-drawn `role="alert"` / `role="status"` box skips the one feedback pattern (TD57): the
+// shared components pick the role, the placement, the retry and the field marking, so a message
+// that writes its own role is a message drawn outside that pattern. Only the two shared message
+// components may write the role (feedbackRoleAllowedPaths below); a field message has no role at
+// all (docs/ENGINEERING_RULES_FRONTEND.md § A form's error or success message lives in the action
+// pane). The value test is shared by every shape, which covers the three documented bypass classes
+// (docs/ENGINEERING_RULES_SHARED.md § `no-restricted-syntax` selectors must be checked): a JSX
+// attribute value is a Literal, a `role={'alert'}` / ternary value is a Literal nested in the
+// expression container (descendant combinator), `role={`alert`}` is a TemplateElement, and a spread
+// `{...{ role: 'alert' }}`, `createElement('div', { role: 'alert' })` or a computed `['role']` key
+// are Property nodes. `<output>` carries an implicit status role no attribute shows; it is mostly a
+// loading state, so it is deliberately not covered (docs/ANTI_PATTERNS.md).
+const FEEDBACK_ROLE_VALUE = '/^(alert|status)$/';
+const FEEDBACK_ROLE_VALUE_NODE = `:matches(Literal[value=${FEEDBACK_ROLE_VALUE}], TemplateElement[value.cooked=${FEEDBACK_ROLE_VALUE}])`;
+const FEEDBACK_ROLE_SELECTOR = {
+  selector: `:matches(JSXAttribute[name.name='role'], Property[key.name='role'][computed=false], Property[key.value='role']) ${FEEDBACK_ROLE_VALUE_NODE}`,
+  message:
+    'A hand-written role="alert"/role="status" message box bypasses the feedback pattern. Use FeedbackMessage (dashboard and account) or BrandedFeedbackMessage (public hotsite); a field message takes FieldFeedback / BrandedFieldFeedback with aria-describedby and no role (docs/ENGINEERING_RULES_FRONTEND.md § A form\'s error or success message lives in the action pane; TD57).',
+};
+// The only files that may write the role: the two shared message components.
+const feedbackRoleAllowedPaths = [
+  'shared/components/ui/feedback-message.tsx',
+  'shared/components/hotsite/branded-feedback-message.tsx',
+];
 // Imported (not redefined) from @ikaro/config/eslint-base.js so the uuid/email selectors have one
 // source of truth (CodeRabbit review, PR #375) — still repeated into this file's own blocks
 // below, because ESLint flat config replaces, not merges, a rule's options per matching file.
@@ -172,6 +196,7 @@ const NON_FETCH_SELECTORS = [
   ZOD_EMAIL_SELECTOR,
   E2E2_SELECTOR,
   E2E3_SELECTOR,
+  FEEDBACK_ROLE_SELECTOR,
 ];
 
 module.exports = [
@@ -259,6 +284,20 @@ module.exports = [
         'error',
         RAW_FETCH_SELECTOR,
         ...NON_FETCH_SELECTORS.filter((entry) => entry !== IMAGE_BASE_URL_SELECTOR),
+      ],
+    },
+  },
+  // The two shared message components write the role; every other ban still applies to them, so
+  // this block restates the list minus FEEDBACK_ROLE_SELECTOR (a later block REPLACES the earlier
+  // one's selector list for the files it matches).
+  {
+    files: feedbackRoleAllowedPaths,
+    ignores: ['**/*.spec.ts', '**/*.spec.tsx'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        RAW_FETCH_SELECTOR,
+        ...NON_FETCH_SELECTORS.filter((entry) => entry !== FEEDBACK_ROLE_SELECTOR),
       ],
     },
   },

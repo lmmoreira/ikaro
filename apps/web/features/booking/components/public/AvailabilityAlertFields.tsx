@@ -35,15 +35,18 @@ export function SummaryRow({ label, value, testId }: SummaryRowProps): React.JSX
   );
 }
 
+// The message of a button group or picker that no single input can carry. It has no role (a field
+// message never does); the group it belongs to links to it with `aria-describedby={id}`.
 export function FieldError({
+  id,
   message,
 }: {
+  readonly id: string;
   readonly message: string | null;
 }): React.JSX.Element | null {
-  const id = useId();
   if (!message) return null;
   return (
-    <div role="alert" data-testid="alert-field-error">
+    <div data-testid="alert-field-error">
       <BrandedFieldFeedback id={id}>{message}</BrandedFieldFeedback>
     </div>
   );
@@ -115,10 +118,14 @@ export function WeekdayPicker({
   onToggle,
 }: WeekdayPickerProps): React.JSX.Element {
   const t = useTranslations('booking');
+  const labelId = useId();
+  const errorId = useId();
 
   return (
-    <div>
-      <p className="mb-1 block text-sm font-medium">{t('availabilityAlert.weekly.weekdays')}</p>
+    <div role="group" aria-labelledby={labelId} aria-describedby={error ? errorId : undefined}>
+      <p id={labelId} className="mb-1 block text-sm font-medium">
+        {t('availabilityAlert.weekly.weekdays')}
+      </p>
       <div className="flex flex-wrap gap-2">
         {ALERT_WEEKDAYS.map((day) => {
           const isSelected = selected.includes(day);
@@ -142,7 +149,7 @@ export function WeekdayPicker({
           );
         })}
       </div>
-      <FieldError message={error} />
+      <FieldError id={errorId} message={error} />
     </div>
   );
 }

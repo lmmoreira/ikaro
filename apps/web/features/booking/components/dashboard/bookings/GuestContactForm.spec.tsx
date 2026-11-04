@@ -42,8 +42,9 @@ describe('GuestContactForm', () => {
     expect(screen.getByTestId('guest-error')).toHaveTextContent(
       'Nome, telefone e e-mail são obrigatórios.',
     );
-    // TD57-S12: the message is announced and referenced by the invalid input
-    expect(screen.getByTestId('guest-error')).toHaveAttribute('role', 'alert');
+    // TD57-S12: the message is referenced by the invalid input; a field message has no role
+    // (TD57-S05: only the shared message components write one)
+    expect(screen.getByTestId('guest-error')).not.toHaveAttribute('role');
     expect(screen.getByTestId('guest-email')).toHaveAttribute(
       'aria-describedby',
       'guest-error-message',

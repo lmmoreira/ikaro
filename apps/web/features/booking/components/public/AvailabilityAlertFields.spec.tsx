@@ -20,28 +20,31 @@ describe('SummaryRow', () => {
 });
 
 describe('FieldError', () => {
-  it('renders the message as an alert', () => {
-    renderWithIntl(<FieldError message="Informe o início do período." />);
+  it('renders the message without a role (a field message never has one)', () => {
+    renderWithIntl(<FieldError id="field-error" message="Informe o início do período." />);
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Informe o início do período.');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByTestId('alert-field-error')).not.toHaveAttribute('role');
+    expect(screen.getByTestId('alert-field-error')).toHaveTextContent(
+      'Informe o início do período.',
+    );
   });
 
-  it('keeps the alert-field-error test id on the alert and draws the message with the branded field feedback', () => {
-    renderWithIntl(<FieldError message="Informe o início do período." />);
+  it('keeps the alert-field-error test id on the wrapper and draws the message with the branded field feedback under the given id', () => {
+    renderWithIntl(<FieldError id="field-error" message="Informe o início do período." />);
 
-    const alert = screen.getByTestId('alert-field-error');
-    expect(alert).toBe(screen.getByRole('alert'));
+    const wrapper = screen.getByTestId('alert-field-error');
     const message = screen.getByText('Informe o início do período.');
-    expect(alert).toContainElement(message);
-    expect(message.id).not.toBe('');
+    expect(wrapper).toContainElement(message);
+    expect(message.id).toBe('field-error');
     expect(message.getAttribute('style')).toContain('--ba-body-font');
     expect(message.className).not.toContain('text-red-600');
   });
 
   it('renders nothing without a message', () => {
-    renderWithIntl(<FieldError message={null} />);
+    renderWithIntl(<FieldError id="field-error" message={null} />);
 
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('alert-field-error')).not.toBeInTheDocument();
   });
 });
 
@@ -131,7 +134,7 @@ describe('WeekdayPicker', () => {
     expect(onToggle).toHaveBeenCalledWith('wednesday');
   });
 
-  it('shows the error under the pills', () => {
+  it('links the pills group to the error under it, with no role on the message', () => {
     renderWithIntl(
       <WeekdayPicker
         selected={[]}
@@ -141,7 +144,18 @@ describe('WeekdayPicker', () => {
       />,
     );
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Escolha pelo menos um dia');
+    const group = screen.getByRole('group', { name: 'Dias da semana' });
+    expect(group).toHaveAccessibleDescription('Escolha pelo menos um dia da semana.');
+    expect(screen.getByTestId('alert-field-error')).toHaveTextContent('Escolha pelo menos um dia');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('describes the group by nothing while there is no error', () => {
+    renderWithIntl(
+      <WeekdayPicker selected={[]} disabled={false} error={null} onToggle={vi.fn()} />,
+    );
+
+    expect(screen.getByRole('group')).not.toHaveAttribute('aria-describedby');
   });
 });
 

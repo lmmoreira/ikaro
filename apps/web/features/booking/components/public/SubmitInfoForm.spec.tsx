@@ -84,7 +84,7 @@ describe('SubmitInfoForm', () => {
     expect(response.className).toContain('border-red-600');
     const message = document.getElementById(response.getAttribute('aria-describedby') ?? '');
     expect(message).toHaveTextContent('Informe sua resposta antes de enviar.');
-    expect(message?.closest('[role="alert"]')).not.toBeNull();
+    expect(message?.closest('[role]')).toBeNull();
     expect(screen.queryByText('Falha ao enviar')).not.toBeInTheDocument();
   });
 
