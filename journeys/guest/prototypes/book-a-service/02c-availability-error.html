@@ -45,13 +45,14 @@
       in AvailabilityCarousel state, which re-triggers the useEffect fetch.
       In this static prototype, onclick reloads the page to simulate the retry.
     -->
-    
+
+    <div class="fb-ba fb-ba-error" role="alert" style="margin:1rem 0;"><span class="fb-title">Não foi possível carregar a disponibilidade.</span> <button type="button" class="fb-retry" onclick="location.reload()">Tentar novamente</button></div>
 
     <div class="nav-buttons">
       <a class="btn-secondary" href="01-service-selection.html">Voltar</a>
       <button class="btn-primary" disabled style="opacity: 0.6; cursor: not-allowed;">Próximo</button>
     </div>
-    <div class="fb-ba fb-ba-error" role="alert" style="margin-top:0.5rem;"><span class="fb-title">Não foi possível carregar a disponibilidade.</span> <button type="button" class="fb-retry" onclick="location.reload()">Tentar novamente</button></div>
+
   </div>
 </body>
 </html>

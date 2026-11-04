@@ -387,12 +387,14 @@ Summary banner on any failure: `data-testid="intake-error-summary"`, `role="aler
 
 The public hotsite uses the branded feedback pattern (`manager/prototypes/feedback-pane/`, `docs/ENGINEERING_RULES_FRONTEND.md` § A form's error or success message lives in the action pane; branded counterpart from TD57-S06), not hand-rolled boxes. There is no shell and no `ActionPane`: a form-level message sits directly under the primary button (`.fb-ba .fb-ba-error`, `role="alert"`); a field message is `.fb-field-msg` with `aria-invalid` + `aria-describedby` on the input (`.fb-field-invalid`). `ErrorAlert` is removed. Every `data-testid` is kept on the same element. Drawn 2026-11-04 (build: TD57-S16).
 
+**Placement rule (one rule for every screen):** an *action* failure (the visitor pressed Próximo, Enviar or Entrar) is under the buttons; a *load* failure with its own retry (`02c`, `02f`, `05d`, `12c`) replaces the content that failed to load.
+
 | Screen | State | Rule |
 |---|---|---|
 | `01b` | Pickup address missing | Form-level `BrandedFeedbackMessage` (`step1-error`) under the buttons; each empty address field `.fb-field-invalid`. |
 | `01d`, `01f` | Variable-duration conflict; form load failure | Title + body in one branded box (`step1-error`). |
 | `01g` | Service unavailable | Branded error (`step1-service-unavailable`), not a state card: the service cannot be booked, so it is a failure the visitor must act on. |
-| `02c`, `02f` | Availability / slot fetch fails | Branded error with a "Tentar novamente" retry (`onRetry`). |
+| `02c`, `02f` | Availability / slot fetch fails | Load failure: the branded error **replaces the content that failed to load**, with a "Tentar novamente" retry (`onRetry`). Not under the buttons. |
 | `02d` | Fully booked | Branded error (`fully-booked-message`): no new variant; same id and `role`. |
 | `02e` | Slot conflict at submit | Branded error `step2-error`, under the nav buttons. |
 | `03b` | Invalid e-mail | Field `.fb-field-invalid` + message; form-level `personal-info-error` under the buttons. |

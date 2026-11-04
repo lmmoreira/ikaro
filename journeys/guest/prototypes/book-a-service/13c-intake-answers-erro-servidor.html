@@ -26,7 +26,7 @@
     <p class="step-indicator">Passo 4 de 5</p>
     <h1 style="font-size:1.5rem">Dados do serviço</h1>
     <p style="opacity:.7">Estas perguntas dependem do serviço escolhido. O que você enviar fica registrado com a versão atual do formulário (v<span id="schema-version">2</span>).</p>
-    <div class="fb-ba fb-ba-error" role="alert" data-testid="intake-error-summary" style="margin:1rem 0;"><span class="fb-title">Não foi possível continuar</span> É necessário responder às perguntas obrigatórias e aceitar os termos.</div>
+
     <form id="intake-form">
       <div class="field"><label for="q-goal">Qual o objetivo da reserva? <span aria-hidden="true">*</span></label><textarea id="q-goal" class="form-input" rows="2" required></textarea></div>
       <div class="field"><label for="q-access">Necessidades de acesso <span aria-hidden="true">(opcional)</span></label><textarea id="q-access" class="form-input" rows="2" placeholder="Ex.: acesso sem escadas"></textarea></div>
@@ -52,6 +52,7 @@
       </fieldset>
       <label style="display:flex;gap:.625rem;align-items:flex-start;font-size:.875rem"><input id="terms" type="checkbox" required> <span>Li e aceito os termos de uso aplicáveis a esta reserva.</span></label>
       <div class="nav-buttons"><a class="btn-secondary" href="03d-personal-info-with-intake.html">Voltar</a><button id="next" class="btn-primary" type="submit" disabled>Próximo</button></div>
+      <div class="fb-ba fb-ba-error" role="alert" data-testid="intake-error-summary" style="margin-top:1rem;"><span class="fb-title">Não foi possível continuar</span> É necessário responder às perguntas obrigatórias e aceitar os termos.</div>
     </form>
   </main>
   <script>

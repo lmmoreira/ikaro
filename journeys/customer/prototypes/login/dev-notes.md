@@ -78,7 +78,7 @@ The public hotsite uses the branded feedback pattern (`manager/prototypes/feedba
 
 | Screen | State | Rule |
 |---|---|---|
-| `00b` (new) | `/{slug}/login?error=` | `app/[slug]/login/page.tsx` shows the branded error above the Google button and keeps the button. Copy `signInError`. |
+| `00b` (new) | `/{slug}/login?error=` | `app/[slug]/login/page.tsx` shows the branded error under the Google button and keeps the button. Copy `signInError`. |
 | `01c` | Establishments fail to load (descoped Caso B picker) | Restyled to the branded error only for consistency; not built. |
 | `02`–`02d` | Phone completion | Already branded. |
 
