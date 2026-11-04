@@ -118,14 +118,13 @@ export function WeekdayPicker({
   onToggle,
 }: WeekdayPickerProps): React.JSX.Element {
   const t = useTranslations('booking');
-  const labelId = useId();
   const errorId = useId();
 
   return (
-    <div role="group" aria-labelledby={labelId} aria-describedby={error ? errorId : undefined}>
-      <p id={labelId} className="mb-1 block text-sm font-medium">
+    <fieldset className="min-w-0" aria-describedby={error ? errorId : undefined}>
+      <legend className="mb-1 block text-sm font-medium">
         {t('availabilityAlert.weekly.weekdays')}
-      </p>
+      </legend>
       <div className="flex flex-wrap gap-2">
         {ALERT_WEEKDAYS.map((day) => {
           const isSelected = selected.includes(day);
@@ -150,6 +149,6 @@ export function WeekdayPicker({
         })}
       </div>
       <FieldError id={errorId} message={error} />
-    </div>
+    </fieldset>
   );
 }

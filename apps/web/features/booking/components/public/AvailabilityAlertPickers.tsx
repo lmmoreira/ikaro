@@ -157,10 +157,10 @@ export function DateTimeField({
   const label = t(`availabilityAlert.${labelKey}`);
 
   return (
-    <div role="group" aria-labelledby={labelId} aria-describedby={error ? errorId : undefined}>
-      <p id={labelId} className="mb-1 block text-sm font-medium">
+    <fieldset className="min-w-0" aria-describedby={error ? errorId : undefined}>
+      <legend id={labelId} className="mb-1 block text-sm font-medium">
         {label}
-      </p>
+      </legend>
       <div className="flex flex-wrap items-center gap-2">
         <DatePopover
           rowKey={rowKey}
@@ -178,7 +178,7 @@ export function DateTimeField({
         />
       </div>
       <FieldError id={errorId} message={error} />
-    </div>
+    </fieldset>
   );
 }
 
@@ -201,15 +201,12 @@ export function TimeField({
   onChange,
 }: TimeFieldProps): React.JSX.Element {
   const t = useTranslations('booking');
-  const labelId = useId();
   const errorId = useId();
   const label = t(`availabilityAlert.${labelKey}`);
 
   return (
-    <div role="group" aria-labelledby={labelId} aria-describedby={error ? errorId : undefined}>
-      <p id={labelId} className="mb-1 block text-sm font-medium">
-        {label}
-      </p>
+    <fieldset className="min-w-0" aria-describedby={error ? errorId : undefined}>
+      <legend className="mb-1 block text-sm font-medium">{label}</legend>
       <TimeControl
         rowKey={rowKey}
         label={label}
@@ -218,7 +215,7 @@ export function TimeField({
         onChange={onChange}
       />
       <FieldError id={errorId} message={error} />
-    </div>
+    </fieldset>
   );
 }
 
