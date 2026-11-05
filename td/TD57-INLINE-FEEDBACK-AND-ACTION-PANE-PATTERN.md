@@ -354,7 +354,7 @@ Apply the row-action rule. Remove the unreachable success branches: `resource-ro
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-### Story 5 — ESLint guard against new hand-rolled alert boxes, plus anti-pattern docs 🟡
+### Story 5 — ESLint guard against new hand-rolled alert boxes, plus anti-pattern docs 🟡 ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** M
