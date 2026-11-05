@@ -6,6 +6,8 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { LeadFormQuestion, LeadFormQuestionType } from '@ikaro/types';
 import { Button } from '@/shared/components/ui/button';
+import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
+import { cn } from '@/shared/utils/cn';
 
 export type AdminQuestion = LeadFormQuestion & { hasSubmissions?: boolean };
 
@@ -44,6 +46,10 @@ export function LeadFormSortableQuestion({
   });
   const options = question.options ?? [];
   const invalid = hasQuestionValidationError(question);
+  const labelError = invalid && question.label.trim() === '';
+  const labelErrorId = `lead-question-label-error-${question.id}`;
+  const optionsError = invalid && (options.length < 2 || options.length > 10);
+  const optionsErrorId = `lead-question-options-error-${question.id}`;
   // `open` starts in sync with `invalid` (a freshly added/invalid question is expanded by
   // default) but is then user-controlled — deriving it straight from `invalid` on every render
   // would force the <details> shut the moment the admin's first keystroke makes the question
@@ -111,12 +117,17 @@ export function LeadFormSortableQuestion({
             data-testid="lead-form-question-label"
             value={question.label}
             onChange={(event) => update({ label: event.target.value })}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            aria-invalid={labelError || undefined}
+            aria-describedby={labelError ? labelErrorId : undefined}
+            className={cn(
+              'w-full rounded-md border border-gray-300 px-3 py-2 text-sm',
+              labelError && FIELD_INVALID_CLASS,
+            )}
           />
+          <FieldFeedback id={labelErrorId} testId="lead-form-question-label-error">
+            {labelError ? t('validation.questionLabel') : null}
+          </FieldFeedback>
         </div>
-        {invalid && question.label.trim() === '' && (
-          <p className="text-sm text-red-600">{t('validation.questionLabel')}</p>
-        )}
         <div>
           <label
             htmlFor={`lead-question-type-${question.id}`}
@@ -156,12 +167,17 @@ export function LeadFormSortableQuestion({
                   aria-label={t('question.optionLabel', { index: optionIndex + 1 })}
                   data-testid="lead-form-question-option-input"
                   data-option-index={optionIndex}
+                  aria-invalid={optionsError || undefined}
+                  aria-describedby={optionsError ? optionsErrorId : undefined}
                   onChange={(event) => {
                     const next = [...options];
                     next[optionIndex] = event.target.value;
                     update({ options: next });
                   }}
-                  className="min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
+                  className={cn(
+                    'min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm',
+                    optionsError && FIELD_INVALID_CLASS,
+                  )}
                 />
                 <Button
                   type="button"
@@ -177,13 +193,14 @@ export function LeadFormSortableQuestion({
               type="button"
               variant="outline"
               disabled={options.length >= 10}
+              aria-describedby={optionsError ? optionsErrorId : undefined}
               onClick={() => update({ options: [...options, ''] })}
             >
               {t('question.addOption')}
             </Button>
-            {invalid && (options.length < 2 || options.length > 10) && (
-              <p className="text-sm text-red-600">{t('validation.options')}</p>
-            )}
+            <FieldFeedback id={optionsErrorId} testId="lead-form-question-options-error">
+              {optionsError ? t('validation.options') : null}
+            </FieldFeedback>
           </div>
         )}
         <Button type="button" variant="ghost" className="text-red-600" onClick={onRemove}>

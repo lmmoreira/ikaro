@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import type { ServiceIntakeQuestionType } from '@ikaro/types';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
+import { FieldFeedback } from '@/shared/components/ui/field-feedback';
 import { IntakeQuestionCard, type IntakeQuestionDraft } from './IntakeQuestionCard';
 
 interface IntakeQuestionsCardProps {
@@ -23,6 +24,26 @@ interface IntakeQuestionsCardProps {
   readonly intro?: string;
 }
 
+const DUPLICATE_ID = 'intake-duplicate-fieldkey-error';
+const BLANK_ID = 'intake-blank-label-error';
+const EMPTY_KEY_ID = 'intake-empty-key-error';
+
+// The label input is the one control a manager edits to fix any of the three messages (the field
+// key is derived from it), so a row's label links to every message that applies to it. A blank
+// row also resolves to an empty key, and two blank rows share it, so one row can need several.
+function labelMessageIds(
+  question: IntakeQuestionDraft,
+  resolvedKey: string,
+  keyCounts: ReadonlyMap<string, number>,
+): string[] {
+  const blank = question.label.trim().length === 0;
+  const ids: string[] = [];
+  if (blank) ids.push(BLANK_ID);
+  else if (resolvedKey === '') ids.push(EMPTY_KEY_ID);
+  if ((keyCounts.get(resolvedKey) ?? 0) > 1) ids.push(DUPLICATE_ID);
+  return ids;
+}
+
 export function IntakeQuestionsCard({
   questions,
   resolveFieldKey,
@@ -39,6 +60,9 @@ export function IntakeQuestionsCard({
   intro,
 }: IntakeQuestionsCardProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
+  const resolvedKeys = questions.map((question) => resolveFieldKey(question));
+  const keyCounts = new Map<string, number>();
+  for (const key of resolvedKeys) keyCounts.set(key, (keyCounts.get(key) ?? 0) + 1);
 
   return (
     <Card>
@@ -64,7 +88,8 @@ export function IntakeQuestionsCard({
               index={index}
               isFirst={index === 0}
               isLast={index === questions.length - 1}
-              resolvedFieldKey={resolveFieldKey(question)}
+              resolvedFieldKey={resolvedKeys[index]}
+              labelMessageIds={labelMessageIds(question, resolvedKeys[index], keyCounts)}
               onMove={(direction) => onMove(question.key, direction)}
               onRemove={() => onRemove(question.key)}
               onChangeLabel={(label) => onChangeLabel(question.key, label)}
@@ -75,21 +100,21 @@ export function IntakeQuestionsCard({
         </div>
 
         {hasDuplicateFieldKeys && (
-          <p data-testid="intake-duplicate-fieldkey-error" className="text-sm text-red-600">
+          <FieldFeedback id={DUPLICATE_ID} testId="intake-duplicate-fieldkey-error">
             {t('formularioDuplicateFieldKeyError')}
-          </p>
+          </FieldFeedback>
         )}
 
         {hasBlankLabel && (
-          <p data-testid="intake-blank-label-error" className="text-sm text-red-600">
+          <FieldFeedback id={BLANK_ID} testId="intake-blank-label-error">
             {t('formularioBlankLabelError')}
-          </p>
+          </FieldFeedback>
         )}
 
         {hasEmptyFieldKey && (
-          <p data-testid="intake-empty-key-error" className="text-sm text-red-600">
+          <FieldFeedback id={EMPTY_KEY_ID} testId="intake-empty-key-error">
             {t('formularioEmptyFieldKeyError')}
-          </p>
+          </FieldFeedback>
         )}
 
         <Button

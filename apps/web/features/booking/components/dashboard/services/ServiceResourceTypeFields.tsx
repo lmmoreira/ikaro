@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import type { ResourceRequirementItem, ResourceResponse, ResourceType } from '@ikaro/types';
-import { FIELD_INVALID_CLASS } from '@/shared/components/ui/field-feedback';
+import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
 import { cn } from '@/shared/utils/cn';
 import { countQuantityCandidates, hasStaleEligiblePool } from './resource-requirement-quantity';
 import { EligiblePoolPicker } from './EligiblePoolPicker';
@@ -175,16 +175,12 @@ export function ServiceResourceTypeFields({
               )}
             />
             {quantityExceedsCandidates && (
-              <p
-                id={`${quantityId}-error`}
-                data-testid="resource-type-quantity-error"
-                className="mt-1 text-xs text-red-600"
-              >
+              <FieldFeedback id={`${quantityId}-error`} testId="resource-type-quantity-error">
                 {t('resourceQuantityExceedsCandidates', {
                   quantity: requiredQuantity,
                   count: candidateCount,
                 })}
-              </p>
+              </FieldFeedback>
             )}
           </div>
 

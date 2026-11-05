@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import { MAX_RECURRING_HORIZON_DAYS, MIN_RECURRING_HORIZON_DAYS } from '@ikaro/types';
 import type { RecurrenceBlocker } from '@/features/booking/model/recurrence-shape';
 import { Card, CardContent } from '@/shared/components/ui/card';
+import { FieldFeedback } from '@/shared/components/ui/field-feedback';
 import { parseNullableNumber, toNumberInput, type PolicyCardProps } from './policy-card-helpers';
 import { isValidRecurringHorizonDays } from './recurring-horizon';
 
@@ -87,16 +88,15 @@ export function PolicyWhoHowCard({
             {t('politicasHorizonHint')}
           </p>
           {!horizonValid && (
-            <p
+            <FieldFeedback
               id="policy-recurring-horizon-error"
-              data-testid="policy-recurring-horizon-error"
-              className="mt-1 text-xs text-red-600"
+              testId="policy-recurring-horizon-error"
             >
               {t('politicasHorizonError', {
                 min: MIN_RECURRING_HORIZON_DAYS,
                 max: MAX_RECURRING_HORIZON_DAYS,
               })}
-            </p>
+            </FieldFeedback>
           )}
         </div>
         <label className="flex items-center gap-2 text-sm">

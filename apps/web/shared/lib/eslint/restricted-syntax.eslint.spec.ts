@@ -460,4 +460,110 @@ describe('TD37-S04 restricted syntax (web)', () => {
       ).toHaveLength(0);
     });
   });
+
+  describe('hand-written red field message ban (TD57-S17)', () => {
+    const isRedFieldMessage = (message: { message: string }): boolean =>
+      message.message.includes('hand-written red field message');
+    const COMPONENT = 'features/booking/components/dashboard/services/Example.tsx';
+
+    it.each([
+      [
+        'a literal className and data-testid',
+        'export const A = () => <p data-testid="x-error" className="text-sm text-red-600">x</p>;',
+      ],
+      [
+        'an invalid-named test id',
+        'export const A = () => <p className="mt-1 text-xs text-red-600" data-testid="buffer-invalid">x</p>;',
+      ],
+      [
+        'expression-container values',
+        "export const A = () => <p className={'text-red-600'} data-testid={'x-error'}>x</p>;",
+      ],
+      [
+        'template literal values',
+        'export const A = () => <p className={`text-red-600`} data-testid={`x-error`}>x</p>;',
+      ],
+      [
+        'a class nested in a cn() call',
+        "export const A = () => <p className={cn('mt-1', 'text-red-600')} data-testid=\"x-error\">x</p>;",
+      ],
+      [
+        'a class and test id nested in conditionals',
+        "export const A = ({ on }: { on: boolean }) => <p className={on ? 'text-red-600' : 'text-gray-500'} data-testid={on ? 'x-error' : 'x-hint'}>x</p>;",
+      ],
+      [
+        'a spread object',
+        "export const A = () => <p {...{ className: 'text-red-600', 'data-testid': 'x-error' }}>x</p>;",
+      ],
+      [
+        'a test id declared before the class in createElement props',
+        "export const a = () => createElement('p', { 'data-testid': 'x-error', className: 'text-red-600' });",
+      ],
+      [
+        'createElement props',
+        "export const a = () => createElement('p', { className: 'text-red-600', 'data-testid': 'x-error' });",
+      ],
+      [
+        'a props object built apart',
+        "const props = { className: 'text-red-600', 'data-testid': 'x-error' }; export const a = () => createElement('p', props);",
+      ],
+    ])('rejects %s', (_label, source) => {
+      const messages = lint(source, COMPONENT).filter(isRedFieldMessage);
+
+      expect(messages).not.toHaveLength(0);
+      expect(messages[0].message).toContain('FieldFeedback');
+      expect(messages[0].message).toContain('BrandedFieldFeedback');
+    });
+
+    it.each([
+      ['a red required marker', 'export const A = () => <span className="text-red-600">*</span>;'],
+      [
+        'a red element whose test id does not name an error',
+        'export const A = () => <p data-testid="outcome-banner-title" className="text-red-700">x</p>;',
+      ],
+      [
+        'an error-named element with no red class',
+        'export const A = () => <p data-testid="x-error" className="text-sm text-gray-600">x</p>;',
+      ],
+      [
+        'an error test id and a red class on different elements',
+        'export const A = () => <div data-testid="x-error"><span className="text-red-600">x</span></div>;',
+      ],
+      [
+        'a red class on a nested object and an error test id on the outer one',
+        "export const a = { inner: { className: 'text-red-600' }, 'data-testid': 'x-error' };",
+      ],
+      [
+        'a red class on an element nested in a prop and an error test id on the outer element',
+        'export const A = () => <Foo render={<span className="text-red-600" />} data-testid="x-error" />;',
+      ],
+      [
+        'a test id passed through a variable (the field components themselves)',
+        'export const A = ({ testId }: { testId: string }) => <p data-testid={testId} className="text-red-600">x</p>;',
+      ],
+    ])('does not flag %s', (_label, source) => {
+      expect(lint(source, COMPONENT).filter(isRedFieldMessage)).toHaveLength(0);
+    });
+
+    it.each([
+      'shared/components/ui/field-feedback.tsx',
+      'shared/components/hotsite/branded-field-feedback.tsx',
+    ])('does not flag the shared field component %s (its test id is a prop)', (filePath) => {
+      expect(
+        lint(
+          'export const A = ({ testId }: { testId?: string }) => <p data-testid={testId} className="text-red-600">x</p>;',
+          filePath,
+        ).filter(isRedFieldMessage),
+      ).toHaveLength(0);
+    });
+
+    it('does not lint a spec file', () => {
+      expect(
+        lint(
+          'it("x", () => { render(<p data-testid="x-error" className="text-red-600">x</p>); });',
+          'features/booking/components/dashboard/services/Example.spec.tsx',
+        ).filter(isRedFieldMessage),
+      ).toHaveLength(0);
+    });
+  });
 });

@@ -104,4 +104,70 @@ describe('LeadFormSortableQuestion', () => {
     expect(screen.getByTestId('lead-form-question')).toHaveAttribute('open');
     expect(screen.getByText('Adicione entre 2 e 10 opções.')).toBeInTheDocument();
   });
+
+  it('links a blank label to its field message and marks the input invalid', () => {
+    renderWithIntl(
+      <LeadFormSortableQuestion
+        question={{ id: 'q1', label: '', type: 'TEXT', required: false, order: 0 }}
+        index={0}
+        onChange={vi.fn()}
+        onRemove={vi.fn()}
+      />,
+    );
+
+    const message = screen.getByTestId('lead-form-question-label-error');
+    expect(message).not.toHaveAttribute('role');
+    const input = screen.getByTestId('lead-form-question-label');
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(input).toHaveAttribute('aria-describedby', message.id);
+    expect(screen.queryByTestId('lead-form-question-options-error')).not.toBeInTheDocument();
+  });
+
+  it('links the option inputs and the add button to the options message', () => {
+    renderWithIntl(
+      <LeadFormSortableQuestion
+        question={{
+          id: 'q1',
+          label: 'Escolha',
+          type: 'SINGLE_CHOICE',
+          required: false,
+          order: 0,
+          options: ['A'],
+        }}
+        index={0}
+        onChange={vi.fn()}
+        onRemove={vi.fn()}
+      />,
+    );
+
+    const message = screen.getByTestId('lead-form-question-options-error');
+    expect(message).not.toHaveAttribute('role');
+    const option = screen.getByTestId('lead-form-question-option-input');
+    expect(option).toHaveAttribute('aria-invalid', 'true');
+    expect(option).toHaveAttribute('aria-describedby', message.id);
+    expect(option.className).toContain('border-red-600');
+    expect(screen.queryByTestId('lead-form-question-label-error')).not.toBeInTheDocument();
+  });
+
+  it('shows no field message and no link for a valid question', () => {
+    renderWithIntl(
+      <LeadFormSortableQuestion
+        question={{
+          id: 'q1',
+          label: 'Escolha',
+          type: 'SINGLE_CHOICE',
+          required: false,
+          order: 0,
+          options: ['A', 'B'],
+        }}
+        index={0}
+        onChange={vi.fn()}
+        onRemove={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId('lead-form-question-label-error')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('lead-form-question-options-error')).not.toBeInTheDocument();
+    expect(screen.getByTestId('lead-form-question-label')).not.toHaveAttribute('aria-invalid');
+  });
 });

@@ -8,7 +8,7 @@
 - **Created**: 2026-10-29
 - **Discovered**: Manager report on the service edit screen: saving the Políticas tab with `durationPolicy = CUSTOMER_SELECTED` and empty min/max/increment returned a 422 whose message rendered at the very bottom of a long form; follow-up read-only audit of `apps/web` showed the problem is systemic.
 - **Decision status**: Pattern decided in the 2026-10-29 session (see "Chosen approach"). Ready for discovery in the dependency order below; Story 0 produces the migration list that scopes Stories 7+ (Story 6 is the branded hotsite counterpart, decided in discovery); every story still begins with `/story-discovery`.
-- **Progress (2026-11-05)**: Stories 0–16 ✅ Done, including the lint guard (Story 5, #718). Story 17 (added after a post-merge review: four role-less red validation messages, the detector decision, closing the TD) is pending; the TD is complete when it merges.
+- **Progress (2026-11-05)**: Stories 0–16 ✅ Done, including the role lint guard (Story 5, #718). Story 17 (added after a post-merge review: nine role-less red field messages, a naming-heuristic lint rule for the class, closing the TD) is built and awaiting merge; the TD is complete when it merges.
 - **Related**: `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives; `docs/ANTI_PATTERNS.md` (the "hand-built control" row); `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`; TD23 (error-code → i18n pipeline, `resolveErrorMessage`)
 
 ## Problem
@@ -1344,7 +1344,7 @@ comm -23 /tmp/td57-enum.txt /tmp/td57-listed.txt
 | `features/platform/components/hotsite/modules/ChatbotConfigPanel.tsx` | page-level | SaaS | alert | red outline only | - | `chatbot-cap-reached-banner` | `hotsite-editor.spec.ts` | new story (Hotsite editor) | inline in content (no pane) | none |
 | `features/platform/components/hotsite/modules/GalleryImageManager.tsx` | page-level | SaaS | none | none | - | `gallery-upload-error` | `hotsite-editor.spec.ts` | new story (Hotsite editor) | inline in content (no pane) | none |
 | `features/platform/components/hotsite/modules/LeadFormConfigPanel.tsx` | page-level | SaaS | alert | none | - | - | `hotsite-editor.spec.ts` | new story (Hotsite editor) | inline in content (no pane) | none |
-| `features/platform/components/hotsite/modules/LeadFormSortableQuestion.tsx` | not feedback | SaaS | - | red outline only | - | - | `authenticated-lead-form.spec.ts`, `guest-lead-form.spec.ts`, `hotsite-editor.spec.ts`, `leads-golden-path.spec.ts`, `leads-search.spec.ts` | new story (Hotsite editor) | n/a | none |
+| `features/platform/components/hotsite/modules/LeadFormSortableQuestion.tsx` | field / section message | SaaS | none | aria-invalid + red outline (label and option inputs) | - | `lead-form-question-label-error`, `lead-form-question-options-error` (S17: two raw `<p>` messages migrated to `FieldFeedback`; the row was first filed as "not feedback") | `authenticated-lead-form.spec.ts`, `guest-lead-form.spec.ts`, `hotsite-editor.spec.ts`, `leads-golden-path.spec.ts`, `leads-search.spec.ts` | new story (Hotsite editor) | inline under the field | none |
 | `features/platform/components/hotsite/modules/ModuleConfigShell.tsx` | pane only (no feedback of its own) | SaaS | none | none | dashboard aside, sticky, fixed mobile bar | - | `hotsite-editor.spec.ts` | new story (Hotsite editor) | no own message (pane/layout only) | none |
 | `features/platform/components/hotsite/modules/TestimonialsConfigPanel.tsx` | not feedback | SaaS | - | none | - | - | `hotsite-editor.spec.ts` | new story (Hotsite editor) | n/a | none |
 
@@ -1491,5 +1491,8 @@ comm -23 /tmp/td57-enum.txt /tmp/td57-listed.txt
 | `shared/components/ui/color-picker.tsx` | not feedback | SaaS | - | aria-invalid+red outline | - | - | - | - | n/a | none |
 | `shared/components/ui/pill-multi-select.tsx` | not feedback | SaaS | - | red outline only | - | - | - | - | n/a | none |
 | `shells/dashboard/components/MoreSheet.tsx` | not feedback | SaaS | - | none | - | - | - | - | n/a | none |
+| `features/booking/components/dashboard/bookings/AfterServicePhotoUpload.tsx`, `features/booking/components/public/PhotoUpload.tsx`, `features/customer/components/my-account/CustomerPhotoUpload.tsx` | not feedback (S17 confirmed) | SaaS / branded | - | none | - | - | - | - | per-file upload status line (progress), decided in Stories 11 and 16 | none |
+| `features/platform/components/hotsite/SingleImageUploadField.tsx`, `features/platform/components/hotsite/modules/GalleryImageManager.tsx` (the red remove links) | not feedback (S17 confirmed) | SaaS | - | none | - | - | - | - | destructive action (their upload errors were migrated in Story 10) | none |
+| `features/booking/components/dashboard/services/EligiblePoolPicker.tsx` (stale-pool `<output>`) | section notice (S17 confirmed) | SaaS | status (implicit) | none | - | `resource-type-stale-pool` | - | - | section notice kept as text, decided in Story 2 | none |
 | `shells/dashboard/components/Sidebar.tsx` | not feedback | SaaS | - | none | dashboard aside, sticky, no mobile bar | - | - | - | no own message (pane/layout only) | none |
 

@@ -121,6 +121,28 @@ const FEEDBACK_ROLE_SELECTOR = {
   message:
     'A hand-written role="alert"/role="status" message box bypasses the feedback pattern. Use FeedbackMessage (dashboard and account) or BrandedFeedbackMessage (public hotsite); a field message takes FieldFeedback / BrandedFieldFeedback with aria-describedby and no role (docs/ENGINEERING_RULES_FRONTEND.md § A form\'s error or success message lives in the action pane; TD57).',
 };
+// A hand-drawn red field message is the role-less half of the same defect (TD57-S17): a `<p>` with
+// `text-red-*` that a manager reads as "this input is wrong" but that skips FieldFeedback (the id,
+// the shared look) and so tends to skip the `aria-describedby` link too. A red class alone is far
+// too broad (page banners, the required `*` marker, destructive links, status badges), so the rule
+// keys on the pair every such message carried: a red class AND a `data-testid` naming an
+// error/invalid state. That is a naming heuristic, not proof: a message with no test id, or one
+// named otherwise, still needs the review-time check (docs/ANTI_PATTERNS.md). The field components
+// themselves pass `data-testid={testId}` (an Identifier), so they need no exemption. The shapes
+// mirror FEEDBACK_ROLE_SELECTOR for the same three bypass classes: a Literal nested in an
+// expression container, call or conditional (descendant combinator), a TemplateElement, and an
+// object (spread, createElement props) with both keys. The two markers must be sibling attributes
+// (or sibling properties) of the same element or object (`~`, in both orders), so a red class on a
+// nested element or object never pairs with a test id elsewhere.
+const RED_CLASS_NODE =
+  ':matches(Literal[value=/text-red-/], TemplateElement[value.cooked=/text-red-/])';
+const ERROR_TESTID_NODE =
+  ':matches(Literal[value=/(error|invalid)/], TemplateElement[value.cooked=/(error|invalid)/])';
+const FEEDBACK_FIELD_MESSAGE_SELECTOR = {
+  selector: `:matches(JSXAttribute[name.name='data-testid']:has(${ERROR_TESTID_NODE}) ~ JSXAttribute[name.name='className'] ${RED_CLASS_NODE}, JSXAttribute[name.name='className']:has(${RED_CLASS_NODE}) ~ JSXAttribute[name.name='data-testid'] ${ERROR_TESTID_NODE}, Property[key.value='data-testid']:has(${ERROR_TESTID_NODE}) ~ Property[key.name='className'] ${RED_CLASS_NODE}, Property[key.name='className']:has(${RED_CLASS_NODE}) ~ Property[key.value='data-testid'] ${ERROR_TESTID_NODE})`,
+  message:
+    "A hand-written red field message (a text-red-* class on an element whose data-testid names an error) bypasses FieldFeedback. Use FieldFeedback (dashboard and account) or BrandedFieldFeedback (public hotsite) with an id, and link the input to it with aria-invalid + aria-describedby (docs/ENGINEERING_RULES_FRONTEND.md § A form's error or success message lives in the action pane; TD57).",
+};
 // The only files that may write the role: the two shared message components.
 const feedbackRoleAllowedPaths = [
   'shared/components/ui/feedback-message.tsx',
@@ -197,6 +219,7 @@ const NON_FETCH_SELECTORS = [
   E2E2_SELECTOR,
   E2E3_SELECTOR,
   FEEDBACK_ROLE_SELECTOR,
+  FEEDBACK_FIELD_MESSAGE_SELECTOR,
 ];
 
 module.exports = [

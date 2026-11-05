@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Serviço — Validação do formulário e das etapas — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="../../../shared/feedback-pane.css">
+  <style>
+    .f-group { margin-bottom: 1rem; min-width: 0; }
+    .f-label { display: block; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: rgba(17,24,39,0.55); margin-bottom: 0.375rem; }
+    .f-input { width: 100%; box-sizing: border-box; border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius); padding: 0.6875rem 0.875rem; font-size: 0.9375rem; font-family: inherit; color: var(--ba-text); background: white; }
+    .f-grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem; }
+    @media (max-width: 640px) { .f-grid3 { grid-template-columns: minmax(0, 1fr); } }
+    .f-tabs { display: flex; gap: 1.25rem; border-bottom: 1px solid var(--ba-secondary); margin-bottom: 1rem; overflow-x: auto; }
+    .f-tab { padding: 0.625rem 0; font-size: 0.9375rem; color: rgba(17,24,39,0.55); text-decoration: none; white-space: nowrap; border-bottom: 2px solid transparent; }
+    .f-tab.active { color: var(--ba-text); font-weight: 600; border-bottom-color: #2563eb; }
+    .f-h2 { font-size: 1rem; font-weight: 700; color: var(--ba-text); margin: 0 0 0.25rem; }
+    .f-intro { font-size: 0.875rem; color: rgba(17,24,39,0.6); margin: 0 0 1rem; }
+    .proto-note { background: #fef3c7; border: 1px dashed #d97706; color: #92400e; border-radius: 6px; padding: 0.5rem 0.75rem; font-size: 0.8125rem; margin: 0 0 1rem; }
+    .pill { display: inline-block; font-size: 0.75rem; font-weight: 600; padding: 0.125rem 0.5rem; border-radius: 9999px; }
+    .pill-on  { background: #dcfce7; color: #166534; }
+    .pill-off { background: #f3f4f6; color: #4b5563; }
+    .pill-pend { background: #fef3c7; color: #92400e; }
+
+  </style>
+</head>
+<body>
+
+  <!--
+    COMPONENT: IntakeQuestionsCard + IntakeQuestionCard + ServiceLegsPanel (FieldFeedback)
+    FILE:      apps/web/features/booking/components/dashboard/services/IntakeQuestionsCard.tsx, IntakeQuestionCard.tsx, ServiceLegsPanel.tsx  (DONE — TD57-S17)
+    STATE:     live validation hints, not submit results. No role, no focus move: the control the manager edits
+               (the question label, the "Adicionar etapa" button) carries aria-invalid + aria-describedby pointing at the
+               message, and the action it blocks (Publicar formulário / Salvar) is disabled while the message holds.
+               A blank label also derives an empty key and two blank labels share it, so one label can point at several messages.
+  -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — TD57-S17 — dicas de validação ao vivo: mensagem ligada ao campo, Salvar desabilitado, sem cartão de erro
+  </div>
+
+  <div class="dashboard-topbar">
+    <a href="../../../staff/prototypes/servicos/01-servicos-list.html" style="display:flex;align-items:center;gap:0.375rem;color:var(--ba-text);text-decoration:none;font-size:0.9375rem;font-weight:500;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      <span style="font-weight:600;">Serviços</span>
+    </a>
+    <h1 class="topbar-page-title">Lavagem Completa</h1>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
+      <a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
+      <span class="topbar-date">Hoje, 29 de outubro de 2026</span>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">V</div>
+        <div><p class="sidebar-tenant-name">Vitta Studio</p><p class="sidebar-tenant-slug">@vittastudio</p></div>
+      </div>
+      <nav class="sidebar-nav" style="margin-top:0.5rem;">
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/agenda/00-agenda.html">Agenda</a>
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/horarios/00-schedule.html">Horários</a>
+        <a class="sidebar-nav-item active" href="../../../staff/prototypes/servicos/01-servicos-list.html">Serviços</a>
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/turmas/01-turmas-proximas.html">Turmas</a>
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/fidelidade/00-customer-search.html">Fidelidade</a>
+      </nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav">
+        <a class="sidebar-nav-item" href="../resources/01-resources-list.html">Recursos</a>
+        <a class="sidebar-nav-item" href="../equipe/01-team-list.html">Equipe</a>
+        <a class="sidebar-nav-item" href="../configuracoes/01-settings-form.html">Configurações</a>
+        <a class="sidebar-nav-item" href="../hotsite/01-hotsite-editor.html">Hotsite</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
+        <div style="min-width:0;"><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div>
+        <a class="sidebar-logout" href="../../../shared/staff-login.html" title="Sair">Sair</a>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="dashboard-body">
+        
+        <!-- Only the tab bar sits above the grid (layout rule, TD57 Story 3). -->
+        <nav class="f-tabs" aria-label="Seções do serviço">
+          <a class="f-tab" href="02-servico-recursos-alinhado.html">Detalhes</a>
+          <a class="f-tab" href="02-servico-recursos-alinhado.html">Recursos</a>
+          <a class="f-tab" href="01-servico-politicas.html">Políticas</a>
+          <a class="f-tab active" href="01e-servico-validacao-intake-pernas.html">Formulário</a>
+          <a class="f-tab" href="02-servico-recursos-alinhado.html">Página pública</a>
+        </nav>
+
+        <div class="fb-layout">
+          <div style="min-width:0;">
+            <div class="card" style="padding:1.25rem;margin-bottom:1rem;">
+              <h2 class="f-h2">Perguntas do formulário</h2>
+              <p class="f-intro">Perguntas que o cliente responde ao reservar.</p>
+              <div class="proto-note" style="margin-bottom:0.75rem;">Duas perguntas em branco: o rótulo aponta para a mensagem de rótulo em branco e para a de chave repetida.</div>
+              <div class="card" style="padding:1rem;margin-bottom:0.75rem;border:1px solid var(--ba-secondary);">
+                <label class="f-label" for="q1">Texto da pergunta</label>
+                <input id="q1" class="f-input fb-field-invalid" aria-invalid="true" aria-describedby="intake-blank-label-error intake-duplicate-fieldkey-error" value="">
+              </div>
+              <div class="card" style="padding:1rem;margin-bottom:0.75rem;border:1px solid var(--ba-secondary);">
+                <label class="f-label" for="q2">Texto da pergunta</label>
+                <input id="q2" class="f-input fb-field-invalid" aria-invalid="true" aria-describedby="intake-blank-label-error intake-duplicate-fieldkey-error" value="">
+              </div>
+              <div class="card" style="padding:1rem;margin-bottom:0.75rem;border:1px solid var(--ba-secondary);">
+                <label class="f-label" for="q3">Texto da pergunta</label>
+                <input id="q3" class="f-input fb-field-invalid" aria-invalid="true" aria-describedby="intake-empty-key-error" value="!!!">
+              </div>
+              <button type="button" class="btn-secondary">+ Adicionar pergunta</button>
+              <p class="fb-field-msg" id="intake-blank-label-error" data-testid="intake-blank-label-error">Toda pergunta precisa de um texto — preencha ou remova as perguntas em branco.</p>
+              <p class="fb-field-msg" id="intake-empty-key-error" data-testid="intake-empty-key-error">Um rótulo precisa ter ao menos uma letra ou um número (A–Z, 0–9) para gerar a chave interna da pergunta — ajuste o texto.</p>
+              <p class="fb-field-msg" id="intake-duplicate-fieldkey-error" data-testid="intake-duplicate-fieldkey-error">Duas perguntas geraram a mesma chave interna — ajuste os rótulos para torná-los únicos.</p>
+            </div>
+            <div class="card" style="padding:1.25rem;margin-bottom:1rem;">
+              <h2 class="f-h2">Etapas (aba Recursos, modo por etapas)</h2>
+              <p class="f-intro">Uma etapa só: o botão que resolve é o que aponta para a mensagem.</p>
+              <div class="card" style="padding:1rem;margin-bottom:0.75rem;border:1px solid var(--ba-secondary);"><label class="f-label" for="leg-1-name">Etapa 1</label><input id="leg-1-name" class="f-input" value="Sauna"></div>
+              <button type="button" class="btn-secondary" aria-describedby="legs-min-required-error" data-testid="legs-add-button">+ Adicionar etapa</button>
+              <p class="fb-field-msg" id="legs-min-required-error" data-testid="legs-min-required-error">São necessárias pelo menos 2 etapas.</p>
+            </div>
+            <div class="fb-mobile-clearance"></div>
+          </div>
+
+          <!-- ActionPane (desktop): buttons card only. No feedback card: these are hints, and Publicar is disabled. -->
+          <aside class="fb-pane" aria-label="Ações do serviço" data-testid="action-pane-desktop">
+            <div class="card">
+              <div class="fb-buttons">
+                <button type="button" class="btn-primary" disabled style="opacity:0.5;cursor:not-allowed;">Publicar formulário</button>
+                <a href="../../../staff/prototypes/servicos/01-servicos-list.html" class="btn-secondary">Cancelar</a>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ActionPane (mobile): fixed bottom bar, message ABOVE the buttons, bounded height + scroll -->
+  <div class="fb-mobile-bar" data-testid="action-pane-mobile">
+    <div class="fb-buttons">
+      <a href="../../../staff/prototypes/servicos/01-servicos-list.html" class="btn-secondary">Cancelar</a>
+      <button type="button" class="btn-primary" disabled style="opacity:0.5;cursor:not-allowed;">Publicar formulário</button>
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <a class="bottom-nav-item" href="../../../staff/prototypes/agenda/00-agenda.html">Agenda</a>
+    <a class="bottom-nav-item" href="../../../staff/prototypes/horarios/00-schedule.html">Horários</a>
+    <a class="bottom-nav-item active" href="../../../staff/prototypes/servicos/01-servicos-list.html">Serviços</a>
+    <a class="bottom-nav-item" href="../../../staff/prototypes/turmas/01-turmas-proximas.html">Turmas</a>
+    <a class="bottom-nav-item" href="../resources/01-resources-list.html">Recursos</a>
+  </nav>
+
+</body>
+</html>

@@ -277,6 +277,13 @@ describe('ServiceResourceTypeFields', () => {
       'A quantidade necessária (2) é maior que o número de recursos elegíveis (1)',
     );
     expect(screen.getByTestId('resource-type-quantity')).toHaveAttribute('aria-invalid', 'true');
+    // Field message pattern (TD57): FieldFeedback, linked from the input, never a role.
+    const message = screen.getByTestId('resource-type-quantity-error');
+    expect(message).not.toHaveAttribute('role');
+    expect(screen.getByTestId('resource-type-quantity')).toHaveAttribute(
+      'aria-describedby',
+      message.id,
+    );
   });
 
   it('shows no quantity error when the eligible resources cover the quantity', () => {

@@ -2,6 +2,8 @@
 
 import { useTranslations } from 'next-intl';
 import type { ServiceIntakeQuestionType } from '@ikaro/types';
+import { FIELD_INVALID_CLASS } from '@/shared/components/ui/field-feedback';
+import { cn } from '@/shared/utils/cn';
 
 export interface IntakeQuestionDraft {
   readonly key: string;
@@ -17,6 +19,7 @@ interface IntakeQuestionCardProps {
   readonly isFirst: boolean;
   readonly isLast: boolean;
   readonly resolvedFieldKey: string;
+  readonly labelMessageIds?: readonly string[];
   readonly onMove: (direction: -1 | 1) => void;
   readonly onRemove: () => void;
   readonly onChangeLabel: (label: string) => void;
@@ -33,6 +36,7 @@ export function IntakeQuestionCard({
   isFirst,
   isLast,
   resolvedFieldKey,
+  labelMessageIds = [],
   onMove,
   onRemove,
   onChangeLabel,
@@ -43,6 +47,7 @@ export function IntakeQuestionCard({
   const labelId = `intake-question-${question.key}-label`;
   const typeId = `intake-question-${question.key}-type`;
   const requiredId = `intake-question-${question.key}-required`;
+  const labelInvalid = labelMessageIds.length > 0;
 
   return (
     <div
@@ -102,7 +107,12 @@ export function IntakeQuestionCard({
             value={question.label}
             onChange={(event) => onChangeLabel(event.target.value)}
             maxLength={500}
-            className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
+            aria-invalid={labelInvalid || undefined}
+            aria-describedby={labelInvalid ? labelMessageIds.join(' ') : undefined}
+            className={cn(
+              'w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500',
+              labelInvalid && FIELD_INVALID_CLASS,
+            )}
           />
           <p
             data-testid="intake-question-fieldkey"
