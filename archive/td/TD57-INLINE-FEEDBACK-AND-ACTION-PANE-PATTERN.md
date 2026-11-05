@@ -8,7 +8,7 @@
 - **Created**: 2026-10-29
 - **Discovered**: Manager report on the service edit screen: saving the Políticas tab with `durationPolicy = CUSTOMER_SELECTED` and empty min/max/increment returned a 422 whose message rendered at the very bottom of a long form; follow-up read-only audit of `apps/web` showed the problem is systemic.
 - **Decision status**: Pattern decided in the 2026-10-29 session (see "Chosen approach"). Ready for discovery in the dependency order below; Story 0 produces the migration list that scopes Stories 7+ (Story 6 is the branded hotsite counterpart, decided in discovery); every story still begins with `/story-discovery`.
-- **Progress (2026-11-05)**: Complete. Stories 0–17 ✅ Done: the role lint guard shipped in Story 5 (#718), and Story 17 (added after a post-merge review: nine role-less red field messages migrated, a naming-heuristic lint rule for the class, the TD closed) shipped in #719.
+- **Progress (2026-11-05)**: Complete and archived (moved to `archive/td/`). Stories 0–17 ✅ Done: the role lint guard shipped in Story 5 (#718), and Story 17 (added after a post-merge review: nine role-less red field messages migrated, a naming-heuristic lint rule for the class, the TD closed) shipped in #719.
 - **Related**: `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives; `docs/ANTI_PATTERNS.md` (the "hand-built control" row); `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`; TD23 (error-code → i18n pipeline, `resolveErrorMessage`)
 
 ## Problem

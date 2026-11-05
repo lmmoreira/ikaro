@@ -574,7 +574,7 @@ Drawn 2026-10-16. Frontend only (no BFF, no migration). Behavior and decisions: 
 
 ## TD57-S12 — failure states in the action pane (✅ built — `TD57-S12`)
 
-Source of truth: `td/TD57-INLINE-FEEDBACK-AND-ACTION-PANE-PATTERN.md` Story 12 and `journeys/manager/prototypes/feedback-pane/dev-notes.md`. Result banners (approved, rejected, info requested, cancelled, completed, no-show, rescheduled, "precisa de decisão", recurring hold banners) stay page content and render no `role="alert"`.
+Source of truth: `archive/td/TD57-INLINE-FEEDBACK-AND-ACTION-PANE-PATTERN.md` Story 12 and `journeys/manager/prototypes/feedback-pane/dev-notes.md`. Result banners (approved, rejected, info requested, cancelled, completed, no-show, rescheduled, "precisa de decisão", recurring hold banners) stay page content and render no `role="alert"`.
 
 | Screen | Component(s) | What it draws | Status |
 |---|---|---|---|
@@ -601,7 +601,7 @@ Source of truth: `td/TD57-INLINE-FEEDBACK-AND-ACTION-PANE-PATTERN.md` Story 12 a
 
 ## TD57-S14 — the new-recurring form in the action pane (✅ built — `TD57-S14`)
 
-Source of truth: `td/TD57-INLINE-FEEDBACK-AND-ACTION-PANE-PATTERN.md` Story 14 and `journeys/manager/prototypes/feedback-pane/dev-notes.md`. `09b` moves the two form-level refusals (the first occurrence already passed, no chosen day falls in the period) from a box above the form to the action pane's second card under "Criar recorrência" (above the buttons on the mobile bar); they clear on the next edit. The title and the step label sit inside the customer card, which starts level with the pane's card. Field errors (weekdays, end date, a bundle group without a pick) are under the field with the red outline and the first invalid one gets the focus; a bundle group that failed to load shows a feedback message with its retry.
+Source of truth: `archive/td/TD57-INLINE-FEEDBACK-AND-ACTION-PANE-PATTERN.md` Story 14 and `journeys/manager/prototypes/feedback-pane/dev-notes.md`. `09b` moves the two form-level refusals (the first occurrence already passed, no chosen day falls in the period) from a box above the form to the action pane's second card under "Criar recorrência" (above the buttons on the mobile bar); they clear on the next edit. The title and the step label sit inside the customer card, which starts level with the pane's card. Field errors (weekdays, end date, a bundle group without a pick) are under the field with the red outline and the first invalid one gets the focus; a bundle group that failed to load shows a feedback message with its retry.
 
 **Audited, unchanged:** `09` (customer chooser) and `09c` (outcomes, migrated by TD57-S12) show no form feedback of this form.
 
