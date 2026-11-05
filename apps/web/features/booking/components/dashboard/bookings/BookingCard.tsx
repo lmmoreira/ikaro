@@ -98,7 +98,8 @@ function BookingCardInner(props: BookingCardProps): React.JSX.Element {
           {booking.hasOpenException ? (
             <Badge
               data-testid="booking-needs-decision-pill"
-              className="shrink-0 gap-1 border-0 bg-orange-100 text-xs text-orange-800"
+              variant="warning"
+              className="shrink-0 gap-1"
             >
               <AlertTriangle className="h-3 w-3" aria-hidden="true" />
               {t('needsDecision')}

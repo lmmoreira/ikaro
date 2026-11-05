@@ -11,8 +11,6 @@ import { ReassignSheet } from '@/features/booking/components/dashboard/schedulin
 import { useBookingDecision } from '@/features/booking/hooks/useBookingDecision';
 import { appendReturnTo } from '@/features/booking/model/booking-navigation';
 
-const SECONDARY_BUTTON = 'w-full border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50';
-
 interface BookingDecisionPanelProps {
   readonly booking: StaffBookingDetailResponse;
   // The booking as the server has it after a resolve; the page replaces its own copy with it.
@@ -98,7 +96,8 @@ export function BookingDecisionPanel({
           <div key={entry.id}>
             <Button
               type="button"
-              className={index === 0 ? 'w-full' : SECONDARY_BUTTON}
+              variant={index === 0 ? 'default' : 'surface'}
+              className="w-full"
               disabled={noAlternative || decision.isSubmitting}
               aria-describedby={noAlternative ? hintId : undefined}
               onClick={() => decision.openSheet('reassign', [entry.id])}
@@ -121,7 +120,8 @@ export function BookingDecisionPanel({
       {entries.length > 0 && booking.status === BOOKING_STATUS.APPROVED && (
         <Button
           type="button"
-          className={SECONDARY_BUTTON}
+          variant="surface"
+          className="w-full"
           disabled={decision.isSubmitting}
           onClick={reschedule}
         >
@@ -132,7 +132,8 @@ export function BookingDecisionPanel({
       {entries.length > 0 && (
         <Button
           type="button"
-          className={SECONDARY_BUTTON}
+          variant="surface"
+          className="w-full"
           disabled={decision.isSubmitting}
           onClick={() =>
             decision.openSheet(

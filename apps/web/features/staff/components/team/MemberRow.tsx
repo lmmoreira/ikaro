@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { StaffListItem, StaffStatus } from '@ikaro/types';
 import { useActivateStaff, useInviteStaff } from '@/features/staff/hooks/useStaff';
+import { Badge } from '@/shared/components/ui/badge';
 import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import { resolveApiErrorFeedback } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
@@ -191,9 +192,9 @@ export function MemberRow({ member, isCurrentUser }: MemberRowProps): React.JSX.
         </p>
         <p className="truncate text-sm text-gray-500">{member.email}</p>
       </div>
-      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+      <Badge variant="neutral" className="py-1">
         {member.role === 'MANAGER' ? t('roleManager') : t('roleStaff')}
-      </span>
+      </Badge>
       <span
         className={cn(
           'rounded-full px-2.5 py-1 text-xs font-semibold',

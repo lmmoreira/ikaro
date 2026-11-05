@@ -31,7 +31,7 @@ export function BookingDetailMain({ booking }: BookingDetailMainProps): React.JS
               {t('infoExchangeSection')}
             </p>
             {booking.status === 'INFO_REQUESTED' && (
-              <Badge className="border-0 bg-blue-100 text-[0.6875rem] text-blue-800">
+              <Badge variant="info" size="sm">
                 {t('infoSentLabel')}
               </Badge>
             )}

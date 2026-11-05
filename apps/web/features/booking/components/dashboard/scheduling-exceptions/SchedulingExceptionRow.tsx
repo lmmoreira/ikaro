@@ -72,7 +72,7 @@ function RowPills({ booking, resolved }: RowPillsProps): React.JSX.Element {
         {booking.isCustomer ? cardT('customerType') : cardT('guestType')}
       </Badge>
       {resolved ? (
-        <Badge className="shrink-0 border-0 bg-green-100 text-xs text-green-800">
+        <Badge variant="success" className="shrink-0">
           {t('resolvedBadge')}
         </Badge>
       ) : (

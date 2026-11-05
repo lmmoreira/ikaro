@@ -50,10 +50,7 @@ export function RescheduleActionRail({
           <Button type="submit" disabled={pendingSubmit} className="w-full">
             {t('submitReschedule')}
           </Button>
-          <Button
-            asChild
-            className="w-full border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50"
-          >
+          <Button asChild variant="surface" className="w-full">
             <Link href={backHref}>{commonT('cancel')}</Link>
           </Button>
 

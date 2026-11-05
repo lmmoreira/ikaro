@@ -173,7 +173,7 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 - Unit:
   - [ ] `badge.spec.tsx`: each tone and size renders its classes; default behaviour unchanged
   - [ ] `button.spec.tsx`: `surface` and `destructive-outline` render their classes; existing variants unchanged
-  - [ ] Existing specs of all migrated files pass unchanged
+  - [ ] Existing specs of all migrated files pass unchanged, with one recorded exception: `BookingCard.spec.tsx` mocks `Badge` with a stub that renders only `className`, so a tone moved into `variant` would never reach its colour assertions. Its mock now wraps the real `Badge` (forcing the same `data-testid="badge"`); every assertion in the spec is unchanged
 - E2E:
   - [ ] none — covered by unit; the booking action screens are browser-verified after asking per `CLAUDE.md` §0
 - [ ] The verbatim override strings named in this TD no longer appear in `features/` (grep proof)

@@ -70,13 +70,18 @@ vi.mock('next/link', () => ({
   ),
 }));
 
-vi.mock('@/shared/components/ui/badge', () => ({
-  Badge: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <span className={className} data-testid="badge">
-      {children}
-    </span>
-  ),
-}));
+// Wraps the real Badge so a tone variant still renders its colour classes; only the test id is
+// forced, as before.
+vi.mock('@/shared/components/ui/badge', async () => {
+  const actual = await vi.importActual<typeof import('@/shared/components/ui/badge')>(
+    '@/shared/components/ui/badge',
+  );
+  return {
+    Badge: (props: React.ComponentProps<typeof actual.Badge>) => (
+      <actual.Badge {...props} data-testid="badge" />
+    ),
+  };
+});
 
 vi.mock('@/shared/components/ui/card', () => ({
   Card: ({ children, className }: { children: React.ReactNode; className?: string }) => (
