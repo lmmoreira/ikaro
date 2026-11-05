@@ -1,3 +1,6 @@
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
+
 interface ConfigTextFieldProps {
   readonly id: string;
   readonly label: string;
@@ -15,16 +18,13 @@ export function ConfigTextField({
 }: ConfigTextFieldProps): React.JSX.Element {
   return (
     <div>
-      <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-gray-900">
-        {label}
-      </label>
-      <input
+      <Label htmlFor={id}>{label}</Label>
+      <Input
         id={id}
         type="text"
         value={value}
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
       />
     </div>
   );

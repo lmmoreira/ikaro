@@ -10,6 +10,9 @@ import {
   writeModuleData,
   type ModuleConfigPanelProps,
 } from './module-config-panel.types';
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
+import { Textarea } from '@/shared/components/ui/textarea';
 
 // The only module config panel that reads its own data (GET /tenants/chatbot/cap-status) rather
 // than operating purely on `data`/`onChange` — see docs/HOTSITE_DYNAMIC_ARCHITECTURE.md §
@@ -43,37 +46,25 @@ export function ChatbotConfigPanel({ data, onChange }: ModuleConfigPanelProps): 
       </div>
 
       <div>
-        <label
-          htmlFor="chatbot-bot-name"
-          className="mb-1.5 block text-sm font-semibold text-gray-900"
-        >
-          {t('botNameLabel')}
-        </label>
-        <input
+        <Label htmlFor="chatbot-bot-name">{t('botNameLabel')}</Label>
+        <Input
           id="chatbot-bot-name"
           type="text"
           value={chatbot.botName ?? ''}
           placeholder={t('botNamePlaceholder')}
           onChange={(event) => update({ botName: event.target.value })}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         />
         <p className="mt-1 text-xs text-gray-400">{t('botNameHint')}</p>
       </div>
 
       <div>
-        <label
-          htmlFor="chatbot-welcome-message"
-          className="mb-1.5 block text-sm font-semibold text-gray-900"
-        >
-          {t('welcomeMessageLabel')}
-        </label>
-        <textarea
+        <Label htmlFor="chatbot-welcome-message">{t('welcomeMessageLabel')}</Label>
+        <Textarea
           id="chatbot-welcome-message"
           value={chatbot.welcomeMessage ?? ''}
           placeholder={t('welcomeMessagePlaceholder')}
           onChange={(event) => update({ welcomeMessage: event.target.value })}
           rows={2}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         />
         <p className="mt-1 text-xs text-gray-400">{t('welcomeMessageHint')}</p>
       </div>

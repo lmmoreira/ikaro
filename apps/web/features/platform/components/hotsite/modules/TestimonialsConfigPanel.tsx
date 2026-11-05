@@ -16,6 +16,9 @@ import {
   writeModuleData,
   type ModuleConfigPanelProps,
 } from './module-config-panel.types';
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
+import { Textarea } from '@/shared/components/ui/textarea';
 
 const EMPTY_TESTIMONIAL: Testimonial = { authorName: '', text: '' };
 
@@ -60,37 +63,25 @@ export function TestimonialsConfigPanel({
   return (
     <div className="space-y-5">
       <div>
-        <label
-          htmlFor="testimonials-title"
-          className="mb-1.5 block text-sm font-semibold text-gray-900"
-        >
-          {t('titleLabel')}
-        </label>
-        <input
+        <Label htmlFor="testimonials-title">{t('titleLabel')}</Label>
+        <Input
           id="testimonials-title"
           type="text"
           value={testimonials.title ?? ''}
           placeholder={t('titlePlaceholder')}
           onChange={(event) => update({ title: event.target.value })}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         />
         <p className="mt-1 text-xs text-gray-400">{t('titleHint')}</p>
       </div>
 
       <div>
-        <label
-          htmlFor="testimonials-eyebrow"
-          className="mb-1.5 block text-sm font-semibold text-gray-900"
-        >
-          {t('eyebrowLabel')}
-        </label>
-        <input
+        <Label htmlFor="testimonials-eyebrow">{t('eyebrowLabel')}</Label>
+        <Input
           id="testimonials-eyebrow"
           type="text"
           value={testimonials.eyebrow ?? ''}
           placeholder={t('eyebrowPlaceholder')}
           onChange={(event) => update({ eyebrow: event.target.value })}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         />
       </div>
 
@@ -135,36 +126,24 @@ export function TestimonialsConfigPanel({
               className="rounded-md border border-gray-200 p-3"
             >
               <div className="mb-3">
-                <label
-                  htmlFor={`testimonial-author-${index}`}
-                  className="mb-1.5 block text-sm font-semibold text-gray-900"
-                >
-                  {t('authorNameLabel')}
-                </label>
-                <input
+                <Label htmlFor={`testimonial-author-${index}`}>{t('authorNameLabel')}</Label>
+                <Input
                   id={`testimonial-author-${index}`}
                   type="text"
                   value={item.authorName}
                   placeholder={t('authorNamePlaceholder')}
                   onChange={(event) => updateItem(index, { authorName: event.target.value })}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                 />
               </div>
 
               <div className="mb-3">
-                <label
-                  htmlFor={`testimonial-text-${index}`}
-                  className="mb-1.5 block text-sm font-semibold text-gray-900"
-                >
-                  {t('textLabel')}
-                </label>
-                <textarea
+                <Label htmlFor={`testimonial-text-${index}`}>{t('textLabel')}</Label>
+                <Textarea
                   id={`testimonial-text-${index}`}
                   value={item.text}
                   placeholder={t('textPlaceholder')}
                   onChange={(event) => updateItem(index, { text: event.target.value })}
                   rows={3}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                 />
               </div>
 

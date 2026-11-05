@@ -10,6 +10,8 @@ import {
   NAVIGATION_LABEL_MAX_LENGTH,
   NAVIGATION_TARGETS,
 } from '@/features/platform/hotsite/navigation-links';
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
 
 export type TargetEnabled = (target: HotsiteNavigationTarget) => boolean;
 
@@ -67,19 +69,13 @@ export function NavigationItemRow({
           </svg>
         </button>
         <div className="flex-1">
-          <label
-            htmlFor={`navigation-item-label-${index}`}
-            className="mb-1.5 block text-sm font-semibold text-gray-900"
-          >
-            {t('itemLabel', { position })}
-          </label>
-          <input
+          <Label htmlFor={`navigation-item-label-${index}`}>{t('itemLabel', { position })}</Label>
+          <Input
             id={`navigation-item-label-${index}`}
             type="text"
             value={item.label}
             maxLength={NAVIGATION_LABEL_MAX_LENGTH}
             onChange={(event) => onChange({ ...item, label: event.target.value })}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
           />
         </div>
         <Button

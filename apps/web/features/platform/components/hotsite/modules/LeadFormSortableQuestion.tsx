@@ -6,7 +6,10 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { LeadFormQuestion, LeadFormQuestionType } from '@ikaro/types';
 import { Button } from '@/shared/components/ui/button';
+import { Checkbox } from '@/shared/components/ui/checkbox';
 import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
 import { cn } from '@/shared/utils/cn';
 
 export type AdminQuestion = LeadFormQuestion & { hasSubmissions?: boolean };
@@ -106,35 +109,22 @@ export function LeadFormSortableQuestion({
       </summary>
       <div className="space-y-4 border-t border-gray-100 p-4">
         <div>
-          <label
-            htmlFor={`lead-question-label-${question.id}`}
-            className="mb-1.5 block text-sm font-semibold text-gray-900"
-          >
-            {t('question.label')}
-          </label>
-          <input
+          <Label htmlFor={`lead-question-label-${question.id}`}>{t('question.label')}</Label>
+          <Input
             id={`lead-question-label-${question.id}`}
             data-testid="lead-form-question-label"
             value={question.label}
             onChange={(event) => update({ label: event.target.value })}
             aria-invalid={labelError || undefined}
             aria-describedby={labelError ? labelErrorId : undefined}
-            className={cn(
-              'w-full rounded-md border border-gray-300 px-3 py-2 text-sm',
-              labelError && FIELD_INVALID_CLASS,
-            )}
+            className={cn(labelError && FIELD_INVALID_CLASS)}
           />
           <FieldFeedback id={labelErrorId} testId="lead-form-question-label-error">
             {labelError ? t('validation.questionLabel') : null}
           </FieldFeedback>
         </div>
         <div>
-          <label
-            htmlFor={`lead-question-type-${question.id}`}
-            className="mb-1.5 block text-sm font-semibold text-gray-900"
-          >
-            {t('question.type')}
-          </label>
+          <Label htmlFor={`lead-question-type-${question.id}`}>{t('question.type')}</Label>
           <select
             id={`lead-question-type-${question.id}`}
             data-testid="lead-form-question-type"
@@ -150,8 +140,7 @@ export function LeadFormSortableQuestion({
           </select>
         </div>
         <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
+          <Checkbox
             checked={question.required}
             onChange={(event) => update({ required: event.target.checked })}
           />
@@ -162,7 +151,7 @@ export function LeadFormSortableQuestion({
             <span className="block text-sm font-semibold">{t('question.options')}</span>
             {options.map((option, optionIndex) => (
               <div key={`${question.id}-${optionIndex}`} className="flex gap-2">
-                <input
+                <Input
                   value={option}
                   aria-label={t('question.optionLabel', { index: optionIndex + 1 })}
                   data-testid="lead-form-question-option-input"
@@ -174,10 +163,7 @@ export function LeadFormSortableQuestion({
                     next[optionIndex] = event.target.value;
                     update({ options: next });
                   }}
-                  className={cn(
-                    'min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm',
-                    optionsError && FIELD_INVALID_CLASS,
-                  )}
+                  className={cn('min-w-0 flex-1', optionsError && FIELD_INVALID_CLASS)}
                 />
                 <Button
                   type="button"

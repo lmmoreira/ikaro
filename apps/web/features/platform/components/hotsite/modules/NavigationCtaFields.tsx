@@ -5,6 +5,8 @@ import type { NavigationModuleData } from '@ikaro/types';
 import { PillSelect } from '@/shared/components/ui/pill-select';
 import { SwitchField } from '@/shared/components/ui/switch-field';
 import { NAVIGATION_LABEL_MAX_LENGTH } from '@/features/platform/hotsite/navigation-links';
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
 
 export type NavigationCta = NonNullable<NavigationModuleData['cta']>;
 
@@ -34,19 +36,13 @@ export function NavigationCtaFields({
       {cta && (
         <>
           <div>
-            <label
-              htmlFor="navigation-cta-label"
-              className="mb-1.5 block text-sm font-semibold text-gray-900"
-            >
-              {t('ctaLabel')}
-            </label>
-            <input
+            <Label htmlFor="navigation-cta-label">{t('ctaLabel')}</Label>
+            <Input
               id="navigation-cta-label"
               type="text"
               value={cta.label}
               maxLength={NAVIGATION_LABEL_MAX_LENGTH}
               onChange={(event) => onChange({ ...cta, label: event.target.value })}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
             />
           </div>
           <PillSelect<NavigationCta['target']>

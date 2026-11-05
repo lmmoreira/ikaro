@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { ColorPicker } from '@/shared/components/ui/color-picker';
 import { HEX_COLOR_REGEX } from '@/shared/utils/hex-color';
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
 
 // A field left on its default is simply absent from the stored presentation, so a module the
 // manager never touched keeps rendering exactly as it did before `presentation` existed.
@@ -35,10 +37,8 @@ interface OpacityFieldProps {
 export function OpacityField({ id, label, value, onChange }: OpacityFieldProps): React.JSX.Element {
   return (
     <div>
-      <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-gray-900">
-        {label}
-      </label>
-      <input
+      <Label htmlFor={id}>{label}</Label>
+      <Input
         id={id}
         data-testid={id}
         type="number"
@@ -51,7 +51,6 @@ export function OpacityField({ id, label, value, onChange }: OpacityFieldProps):
           const next = fromPercent(event.target.value);
           if (next !== null) onChange(next);
         }}
-        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
       />
     </div>
   );

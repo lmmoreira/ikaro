@@ -13,6 +13,8 @@ import {
   writeModuleData,
   type ModuleConfigPanelProps,
 } from './module-config-panel.types';
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
 
 export function FooterConfigPanel({ data, onChange }: ModuleConfigPanelProps): React.JSX.Element {
   const t = useTranslations('dashboard.hotsitePage.layout.panels.footer');
@@ -25,36 +27,24 @@ export function FooterConfigPanel({ data, onChange }: ModuleConfigPanelProps): R
   return (
     <div className="space-y-5">
       <div>
-        <label
-          htmlFor="footer-tagline"
-          className="mb-1.5 block text-sm font-semibold text-gray-900"
-        >
-          {t('taglineLabel')}
-        </label>
-        <input
+        <Label htmlFor="footer-tagline">{t('taglineLabel')}</Label>
+        <Input
           id="footer-tagline"
           type="text"
           value={footer.tagline ?? ''}
           placeholder={t('taglinePlaceholder')}
           onChange={(event) => update({ tagline: event.target.value })}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         />
       </div>
 
       <div>
-        <label
-          htmlFor="footer-copyright-note"
-          className="mb-1.5 block text-sm font-semibold text-gray-900"
-        >
-          {t('copyrightNoteLabel')}
-        </label>
-        <input
+        <Label htmlFor="footer-copyright-note">{t('copyrightNoteLabel')}</Label>
+        <Input
           id="footer-copyright-note"
           type="text"
           value={footer.copyrightNote ?? ''}
           placeholder={t('copyrightNotePlaceholder')}
           onChange={(event) => update({ copyrightNote: event.target.value })}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         />
       </div>
 
