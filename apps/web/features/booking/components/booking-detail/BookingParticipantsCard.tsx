@@ -30,7 +30,7 @@ export function BookingParticipantsCard({
         >
           <span>{attendee.name}</span>
           {attendee.isMinor && (
-            <Badge className="border-0 bg-gray-100 text-[0.6875rem] font-semibold text-gray-600">
+            <Badge variant="neutral" size="sm">
               {t('minorTag')}
             </Badge>
           )}

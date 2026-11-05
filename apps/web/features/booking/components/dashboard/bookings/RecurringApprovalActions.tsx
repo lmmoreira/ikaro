@@ -59,8 +59,8 @@ export function RecurringApprovalActions({
                 ) : null}
                 <Button
                   type="button"
-                  variant="outline"
-                  className="w-full border-red-200 text-red-700 hover:bg-red-50"
+                  variant="destructive-outline"
+                  className="w-full"
                   disabled={isSubmitting}
                   onClick={onReject}
                 >

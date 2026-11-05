@@ -137,10 +137,7 @@ export function BookingOutcomeLayout({
                 <Link href={primaryAction.href}>{primaryAction.label}</Link>
               </Button>
               {secondaryAction && (
-                <Button
-                  asChild
-                  className="w-full border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50"
-                >
+                <Button asChild variant="surface" className="w-full">
                   <Link href={secondaryAction.href}>{secondaryAction.label}</Link>
                 </Button>
               )}

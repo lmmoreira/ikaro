@@ -42,7 +42,7 @@ export function RecurringScheduleCard({ schedule }: RecurringScheduleCardProps):
         name={name}
         badges={
           <>
-            <Badge className="shrink-0 border-0 bg-blue-100 text-xs text-blue-800">
+            <Badge variant="info" className="shrink-0">
               {typeT('customerType')}
             </Badge>
             <Badge className="shrink-0 border-0 bg-teal-100 text-xs text-teal-800">

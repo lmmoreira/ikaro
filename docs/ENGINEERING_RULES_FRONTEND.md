@@ -144,11 +144,11 @@ A secondary trap in the same incident: a component with a *fixed*, non-branded a
 | The label of a field | `ui/label` (`htmlFor` association; carries the shared `mb-1.5 block text-sm font-semibold text-gray-900` look) | `ConfigTextField`, `AboutConfigPanel` |
 | A tick box | `ui/checkbox` (a native `<input type="checkbox">`, found by `getByRole('checkbox')`) | `LeadFormSortableQuestion` |
 | Multi-line text | `ui/textarea` | `ManifestTab`, `AboutConfigPanel` |
-| A status or count chip | `ui/badge` | `Topbar`, `LoyaltySearchResults` |
+| A status or count chip | `ui/badge`; a chip with a fixed meaning uses a tone variant (`neutral`, `info`, `success`, `warning`, all borderless) and `size="sm"` for the compact text; a chip whose colour comes from data (a status or type class map) keeps passing its own `className` | `Topbar`, `LoyaltySearchResults`; tones: `BookingParticipantsCard`, `BookingCard` |
 | A grouped surface | `ui/card`, `ui/section-card` | `CustomerLoyaltyPage`, `BrandingTab` |
 | A save, submit or action result (error or success), or a page-level load failure | `ui/feedback-message`; in a screen with a primary action also `ui/action-pane` and `shared/lib/feedback/use-form-feedback`; a field's own message is `ui/field-feedback` — never a new `role="alert"` box (§ A form's error or success message lives in the action pane) | `NewBookingServicesStep` (`FeedbackMessage`); `ResourceCreateForm`, `InviteForm` (`ActionPane` through `FormActionPane`) |
 | The save and cancel buttons of a create or edit form (desktop pane, mobile bar, message under the buttons) | `ui/form-action-pane` | `ResourceCreateForm`, `InviteForm`, `StaffDetailPage` |
-| A button | `ui/button` | `DiscardChangesDialog` |
+| A button | `ui/button`; a secondary action beside a primary one on an action rail is `variant="surface"`, a destructive one that has to stand out from the neutral rail (rejecting a recurring-schedule request beside approve) is `variant="destructive-outline"`, while a neutral triage action on the booking action panel (reject, request info, cancel) stays `surface`; add width with `className`, never re-spell the colours | `DiscardChangesDialog`; variants: `BookingActionPanel`, `RecurringApprovalActions` |
 | The mobile create action of a list screen (a round "+" floating above the bottom nav; desktop uses the topbar) | `ui/floating-create-button` | `ResourceListPage`, `ServiceListPage`, `TeamListPage` |
 | A user's avatar | `ui/avatar` | `Topbar`, `Sidebar` |
 | A searchable list inside a popover | `ui/command` | `ui/font-picker` |

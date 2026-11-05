@@ -48,7 +48,7 @@ export function BookingIntakeCard({
         <BookingDetailRow label={t('consentLabel')}>
           {t('consentAccepted', { date: formatDate(consentAt), time: formatTime(consentAt) })}
           {audience === 'staff' && consentVersion !== null && (
-            <Badge className="ml-2 border-0 bg-gray-100 text-[0.6875rem] font-semibold text-gray-600">
+            <Badge variant="neutral" size="sm" className="ml-2">
               {t('consentVersion', { version: consentVersion })}
             </Badge>
           )}
@@ -57,7 +57,7 @@ export function BookingIntakeCard({
       {consentAt === null && audience === 'staff' && (
         <BookingDetailRow label={t('consentLabel')}>
           {t('consentNotCollected')}
-          <Badge className="ml-2 border-0 bg-gray-100 text-[0.6875rem] font-semibold text-gray-600">
+          <Badge variant="neutral" size="sm" className="ml-2">
             {t('consentNotCollectedTag')}
           </Badge>
         </BookingDetailRow>

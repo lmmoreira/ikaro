@@ -31,10 +31,7 @@ export function MarkCompleteActionRail({
           <Button type="submit" disabled={isSubmitting} className="w-full">
             {t('submitComplete')}
           </Button>
-          <Button
-            asChild
-            className="w-full border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50"
-          >
+          <Button asChild variant="surface" className="w-full">
             <Link href={backHref}>{commonT('cancel')}</Link>
           </Button>
         </div>

@@ -134,11 +134,7 @@ export function CustomerChooserStep({
             >
               {t('continue')}
             </Button>
-            <Button
-              type="button"
-              className="w-full border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50"
-              onClick={onCancel}
-            >
+            <Button type="button" variant="surface" className="w-full" onClick={onCancel}>
               {tc('cancel')}
             </Button>
           </CardContent>

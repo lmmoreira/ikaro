@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import type { CustomerLoyaltyEntriesResponse } from '@ikaro/types';
+import { Badge } from '@/shared/components/ui/badge';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { appendReturnTo } from '../../booking-navigation';
 
@@ -39,11 +40,7 @@ export function LoyaltyEntriesPanel({
               <p className="text-sm font-semibold text-gray-900">{entry.serviceName}</p>
               <div className="mt-0.5 flex items-center gap-2 text-xs text-gray-500">
                 <span>{formatDate(new Date(entry.earnedAt))}</span>
-                {entry.expired && (
-                  <span className="rounded-full bg-gray-100 px-2 py-0.5 font-semibold text-gray-500">
-                    {t('expiredBadge')}
-                  </span>
-                )}
+                {entry.expired && <Badge variant="neutral">{t('expiredBadge')}</Badge>}
               </div>
             </div>
             <span

@@ -13,6 +13,11 @@ const buttonVariants = cva(
         outline:
           'border border-border bg-background shadow-sm hover:bg-muted hover:text-foreground',
         secondary: 'bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/90',
+        // A white, borderless secondary action beside a primary one (the booking action rails).
+        surface: 'border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50',
+        // A destructive action that is not the primary one (reject beside approve).
+        'destructive-outline':
+          'border border-red-200 bg-background text-red-700 shadow-sm hover:bg-red-50 hover:text-red-700',
         ghost: 'text-primary hover:bg-accent hover:text-accent-foreground',
         link: 'text-primary underline-offset-4 hover:underline',
       },

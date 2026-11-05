@@ -36,8 +36,6 @@ type BookingActionPanelProps = {
   readonly compact?: boolean;
 } & (PendingActionPanelProps | ApprovedActionPanelProps | NoShowActionPanelProps);
 
-const SECONDARY_BUTTON_CLASS = 'w-full border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50';
-
 function PaneHeading(): React.JSX.Element {
   const t = useTranslations('dashboard.bookingDetail');
 
@@ -105,7 +103,8 @@ function ApprovedActions({
       </Button>
       <Button
         type="button"
-        className={SECONDARY_BUTTON_CLASS}
+        variant="surface"
+        className="w-full"
         onClick={onOpenReschedule}
         disabled={isSubmitting}
       >
@@ -114,7 +113,8 @@ function ApprovedActions({
       <div>
         <Button
           type="button"
-          className={SECONDARY_BUTTON_CLASS}
+          variant="surface"
+          className="w-full"
           onClick={onOpenNoShow}
           disabled={isSubmitting || noShowAvailableAt !== null}
           aria-describedby={noShowAvailableAt === null ? undefined : hintId}
@@ -129,7 +129,8 @@ function ApprovedActions({
       </div>
       <Button
         type="button"
-        className={SECONDARY_BUTTON_CLASS}
+        variant="surface"
+        className="w-full"
         onClick={onOpenCancel}
         disabled={isSubmitting}
       >
@@ -163,7 +164,8 @@ function TriageActions({
       >
         <Button
           type="button"
-          className={SECONDARY_BUTTON_CLASS}
+          variant="surface"
+          className="w-full"
           onClick={onOpenReject}
           disabled={isSubmitting}
         >
@@ -172,7 +174,8 @@ function TriageActions({
         {!isInfoRequested && (
           <Button
             type="button"
-            className={SECONDARY_BUTTON_CLASS}
+            variant="surface"
+            className="w-full"
             onClick={onOpenRequestInfo}
             disabled={isSubmitting}
           >

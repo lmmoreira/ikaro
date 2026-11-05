@@ -48,7 +48,8 @@ export function NewBookingStepLayout({
               <Button
                 type="button"
                 data-testid="step-back"
-                className="w-full border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50"
+                variant="surface"
+                className="w-full"
                 onClick={onBack}
               >
                 {t('back')}

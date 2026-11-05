@@ -36,7 +36,7 @@ export function BookingResourcesCard({
         >
           {entry.resourceName ?? t('poolLabel')}
           {entry.origin !== null && (
-            <Badge className="ml-2 border-0 bg-gray-100 text-[0.6875rem] font-semibold text-gray-600">
+            <Badge variant="neutral" size="sm" className="ml-2">
               {entry.origin === 'CUSTOMER_CHOICE' ? t('originChosen') : t('originAssigned')}
             </Badge>
           )}

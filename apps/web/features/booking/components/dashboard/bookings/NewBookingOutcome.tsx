@@ -10,8 +10,6 @@ import { BookingOutcomeActionRail } from './BookingOutcomeActionRail';
 
 type OutcomeTone = 'success' | 'danger';
 
-const SECONDARY_BUTTON = 'w-full border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50';
-
 interface OutcomeShellProps {
   readonly tone: OutcomeTone;
   readonly title: string;
@@ -82,10 +80,10 @@ export function NewBookingCreatedOutcome({
           <Button asChild className="w-full">
             <Link href={`/dashboard/bookings/${booking.bookingId}`}>{t('viewBooking')}</Link>
           </Button>
-          <Button asChild className={SECONDARY_BUTTON}>
+          <Button asChild variant="surface" className="w-full">
             <Link href="/dashboard/bookings/new">{t('createAnother')}</Link>
           </Button>
-          <Button asChild className={SECONDARY_BUTTON}>
+          <Button asChild variant="surface" className="w-full">
             <Link href="/dashboard/bookings">{t('backToAgenda')}</Link>
           </Button>
         </>
@@ -146,7 +144,7 @@ export function NewBookingFailureOutcome({
               {t('retry')}
             </Button>
           )}
-          <Button asChild className={SECONDARY_BUTTON}>
+          <Button asChild variant="surface" className="w-full">
             <Link href="/dashboard/bookings">{t('backToAgenda')}</Link>
           </Button>
         </>
