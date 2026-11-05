@@ -193,17 +193,25 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 
 **Description:** Two repeated patterns. (1) The uppercase section eyebrow: 25 identical occurrences plus ~45 drifting near-variants. **First decision for discovery, before any code:** the single canonical look (size, weight, tracking, colour) — the near-variants disagree and normalising them is a design call, so migrate the 25 exact matches mechanically and only normalise the drifting ones after the canonical look is chosen. Add `ui/section-label.tsx` (`as`, `tone`, `className`). (2) The empty-state card: add `ui/empty-state.tsx` (icon, title, body, optional action slot) covering only the **three** structurally identical copies; do not absorb the divergent loyalty, worklist and tab variants. The component takes already-translated strings, so it adds no i18n keys of its own.
 
+**Locked in discovery (2026-11-05; supersedes the wording above where they differ):**
+- **Canonical eyebrow look:** `text-xs font-bold uppercase tracking-[0.07em] text-gray-400`, the 25 exact sites (it also matches the validated prototype's `.bottom-sheet-label` weight and tracking). Colour contrast is a known issue and deliberately not changed here: gray-400 is about 2.5:1 on white, below WCAG AA, and jest-axe cannot see it in jsdom. Moving to gray-500 is a separate, visible decision for a later pass.
+- **`SectionLabel`:** `as` is one of `p | h2 | h3 | span | legend | div`, default `p`; `tone` is `default` (gray-400) or `info` (`text-blue-700`); `className` merges via `cn()` so a caller's margin still applies.
+- **Migration set:** the 25 exact sites in 17 files, plus the blue form `text-xs font-bold uppercase tracking-[0.07em] text-blue-700` (9 sites in `NewBookingSummaryCard`, `MarkCompleteSummaryCard`, `RescheduleActionRail`) as `tone="info"`. This is a no-visual-change refactor.
+- **Deferred, left untouched (not drift to fix here):** about 17 gray eyebrows in `features/booking` that differ only by tracking, weight or shade (for example `BookingQueueSection`, `BulkResultList`, `SchedulingExceptionGroups`, `FloatingFilterMenu`, `AgendaFilterMenu`, `ScheduleDayHeader`, `ScheduleRemovalSummary`, `ServiceEditPanels`); table headers and uppercase field labels (`ResourceListPage`, `EligiblePoolPicker`, `ServiceResourceTypeFields`); coloured outcome headings; `shells/hotsite` and other branded files; and the customer-account copies.
+- **`EmptyState`:** renders its own `<section>` rather than composing `Card`, because the three copies are `rounded-2xl border-gray-100` and `Card` is `rounded-lg border-border`. It takes translated strings and an icon node, and forwards `data-testid` and `className` (the two inline copies keep `mt-6` through `className`). The CTA is an action slot: callers keep their own `<Link className="mt-5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">`, so that string stays duplicated three times (a later pass could move the CTAs to `Button asChild`; that changes radius and hover slightly). `BookingEmptyState` stays as a thin wrapper around `EmptyState`, so its two consumers (`HomeDashboard`, `BookingsList`) and its spec are untouched.
+
 New migration / i18n keys / env vars / feature flags: none (copy stays in the callers' existing keys). Backend HTTP surface: none.
 
 **Files to create/modify:**
 - `apps/web/shared/components/ui/section-label.tsx` + `section-label.spec.tsx` (new)
 - `apps/web/shared/components/ui/empty-state.tsx` + `empty-state.spec.tsx` (new)
 - Eyebrow sites (modify): `features/booking/components/booking-detail/{BookingDetailSection,BookingItineraryCard}.tsx`; `.../dashboard/services/{ServicePickupSwitch,ServiceCreatePage}.tsx`; `.../dashboard/bookings/{MarkCompleteSummaryCard,MarkCompleteBookingPage,BookingDetailMain,RecurringDecisionExplainer,RescheduleSuccessView,CustomerSearchPanel,RecurringApprovalActions,MarkCompleteLoyaltyPanel,MarkCompleteLineFields,MarkCompleteSuccessView,RecurringScheduleRequestSummary,NewRecurringScheduleForStaffResult,BookingStatusHistory}.tsx`
+- Blue (`tone="info"`) eyebrow sites (modify): `.../dashboard/bookings/{NewBookingSummaryCard,RescheduleActionRail}.tsx` (`MarkCompleteSummaryCard` is already listed above)
 - Empty-state sites (modify): `features/customer/components/my-account/{BookingEmptyState,RecurringScheduleList,AvailabilityAlertList}.tsx` (preserve the two inline copies' `data-testid`s)
 - `docs/ENGINEERING_RULES_FRONTEND.md` (table rows — doc gate)
 
 **Acceptance criteria — product:**
-- [ ] Section eyebrows look identical across the booking screens (one canonical style), and the three customer empty states are visually unchanged.
+- [ ] Every migrated eyebrow (gray and blue) and the three customer empty states render as before (browser-verified: booking detail, mark-complete and its success view, reschedule success, the recurring approval pages, `/dashboard/services/new`, and the bookings, recurring-schedules and alerts empty states).
 
 **Acceptance criteria — technical:**
 - Unit:
@@ -212,7 +220,8 @@ New migration / i18n keys / env vars / feature flags: none (copy stays in the ca
   - [ ] Existing specs of all migrated files pass unchanged
 - E2E:
   - [ ] none — covered by unit; browser-verified after asking per `CLAUDE.md` §0
-- [ ] The 25 exact eyebrow strings no longer appear in `features/booking` (grep proof)
+- [ ] The 25 exact eyebrow strings and the 9 blue-700 ones no longer appear in `features/booking` (grep proof)
+- [ ] Negative guarantee, pinned by the diff: no `shells/hotsite`, `booking/components/public` or other branded file appears in the diff, and the deferred near-variants listed above are unchanged
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
