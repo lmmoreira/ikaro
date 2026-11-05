@@ -139,7 +139,7 @@ Backend HTTP surface: none (web only). Prototype references: none (no new screen
 
 ---
 
-### Story 1 — `Badge` tone and `Button` surface/destructive-outline variants
+### Story 1 — `Badge` tone and `Button` surface/destructive-outline variants ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** M
