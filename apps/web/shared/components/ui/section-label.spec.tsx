@@ -16,7 +16,7 @@ describe('SectionLabel', () => {
       'font-bold',
       'uppercase',
       'tracking-[0.07em]',
-      'text-gray-400',
+      'text-gray-500',
     );
   });
 
@@ -54,7 +54,7 @@ describe('SectionLabel', () => {
 
     const label = screen.getByText('Customer');
     expect(label).toHaveClass('text-blue-700', 'uppercase', 'tracking-[0.07em]');
-    expect(label).not.toHaveClass('text-gray-400');
+    expect(label).not.toHaveClass('text-gray-500');
   });
 
   it('merges a custom className and lets it override the tone colour', () => {
@@ -66,7 +66,7 @@ describe('SectionLabel', () => {
 
     const label = screen.getByTestId('label');
     expect(label).toHaveClass('mb-2', 'text-red-700', 'font-bold');
-    expect(label).not.toHaveClass('text-gray-400');
+    expect(label).not.toHaveClass('text-gray-500');
   });
 
   it('forwards a ref to the rendered element', () => {

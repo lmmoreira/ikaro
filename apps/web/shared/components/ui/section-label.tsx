@@ -13,7 +13,7 @@ export interface SectionLabelProps extends React.HTMLAttributes<HTMLElement> {
 }
 
 const TONE_CLASSES: Record<SectionLabelTone, string> = {
-  default: 'text-gray-400',
+  default: 'text-gray-500',
   info: 'text-blue-700',
 };
 
