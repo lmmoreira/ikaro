@@ -496,6 +496,10 @@ describe('TD37-S04 restricted syntax (web)', () => {
         "export const A = () => <p {...{ className: 'text-red-600', 'data-testid': 'x-error' }}>x</p>;",
       ],
       [
+        'a test id declared before the class in createElement props',
+        "export const a = () => createElement('p', { 'data-testid': 'x-error', className: 'text-red-600' });",
+      ],
+      [
         'createElement props',
         "export const a = () => createElement('p', { className: 'text-red-600', 'data-testid': 'x-error' });",
       ],
@@ -524,6 +528,14 @@ describe('TD37-S04 restricted syntax (web)', () => {
       [
         'an error test id and a red class on different elements',
         'export const A = () => <div data-testid="x-error"><span className="text-red-600">x</span></div>;',
+      ],
+      [
+        'a red class on a nested object and an error test id on the outer one',
+        "export const a = { inner: { className: 'text-red-600' }, 'data-testid': 'x-error' };",
+      ],
+      [
+        'a red class on an element nested in a prop and an error test id on the outer element',
+        'export const A = () => <Foo render={<span className="text-red-600" />} data-testid="x-error" />;',
       ],
       [
         'a test id passed through a variable (the field components themselves)',

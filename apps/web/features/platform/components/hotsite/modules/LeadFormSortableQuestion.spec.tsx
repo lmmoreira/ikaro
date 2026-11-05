@@ -142,10 +142,10 @@ describe('LeadFormSortableQuestion', () => {
 
     const message = screen.getByTestId('lead-form-question-options-error');
     expect(message).not.toHaveAttribute('role');
-    expect(screen.getByTestId('lead-form-question-option-input')).toHaveAttribute(
-      'aria-describedby',
-      message.id,
-    );
+    const option = screen.getByTestId('lead-form-question-option-input');
+    expect(option).toHaveAttribute('aria-invalid', 'true');
+    expect(option).toHaveAttribute('aria-describedby', message.id);
+    expect(option.className).toContain('border-red-600');
     expect(screen.queryByTestId('lead-form-question-label-error')).not.toBeInTheDocument();
   });
 

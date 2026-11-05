@@ -131,13 +131,15 @@ const FEEDBACK_ROLE_SELECTOR = {
 // themselves pass `data-testid={testId}` (an Identifier), so they need no exemption. The shapes
 // mirror FEEDBACK_ROLE_SELECTOR for the same three bypass classes: a Literal nested in an
 // expression container, call or conditional (descendant combinator), a TemplateElement, and an
-// object (spread, createElement props) with both keys.
+// object (spread, createElement props) with both keys. The two markers must be sibling attributes
+// (or sibling properties) of the same element or object (`~`, in both orders), so a red class on a
+// nested element or object never pairs with a test id elsewhere.
 const RED_CLASS_NODE =
   ':matches(Literal[value=/text-red-/], TemplateElement[value.cooked=/text-red-/])';
 const ERROR_TESTID_NODE =
   ':matches(Literal[value=/(error|invalid)/], TemplateElement[value.cooked=/(error|invalid)/])';
 const FEEDBACK_FIELD_MESSAGE_SELECTOR = {
-  selector: `:matches(JSXOpeningElement:has(JSXAttribute[name.name='className'] ${RED_CLASS_NODE}):has(JSXAttribute[name.name='data-testid'] ${ERROR_TESTID_NODE}), ObjectExpression:has(Property[key.name='className'] ${RED_CLASS_NODE}):has(Property[key.value='data-testid'] ${ERROR_TESTID_NODE}))`,
+  selector: `:matches(JSXAttribute[name.name='data-testid']:has(${ERROR_TESTID_NODE}) ~ JSXAttribute[name.name='className'] ${RED_CLASS_NODE}, JSXAttribute[name.name='className']:has(${RED_CLASS_NODE}) ~ JSXAttribute[name.name='data-testid'] ${ERROR_TESTID_NODE}, Property[key.value='data-testid']:has(${ERROR_TESTID_NODE}) ~ Property[key.name='className'] ${RED_CLASS_NODE}, Property[key.name='className']:has(${RED_CLASS_NODE}) ~ Property[key.value='data-testid'] ${ERROR_TESTID_NODE})`,
   message:
     "A hand-written red field message (a text-red-* class on an element whose data-testid names an error) bypasses FieldFeedback. Use FieldFeedback (dashboard and account) or BrandedFieldFeedback (public hotsite) with an id, and link the input to it with aria-invalid + aria-describedby (docs/ENGINEERING_RULES_FRONTEND.md § A form's error or success message lives in the action pane; TD57).",
 };

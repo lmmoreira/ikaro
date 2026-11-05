@@ -174,7 +174,10 @@ export function LeadFormSortableQuestion({
                     next[optionIndex] = event.target.value;
                     update({ options: next });
                   }}
-                  className="min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
+                  className={cn(
+                    'min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm',
+                    optionsError && FIELD_INVALID_CLASS,
+                  )}
                 />
                 <Button
                   type="button"

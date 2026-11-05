@@ -19,7 +19,6 @@ interface IntakeQuestionCardProps {
   readonly isFirst: boolean;
   readonly isLast: boolean;
   readonly resolvedFieldKey: string;
-  // Ids of the validation messages about this row's label (TD57-S17); empty when the row is valid.
   readonly labelMessageIds?: readonly string[];
   readonly onMove: (direction: -1 | 1) => void;
   readonly onRemove: () => void;
