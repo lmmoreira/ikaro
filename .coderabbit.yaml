@@ -1,305 +1,506 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+#
+# CodeRabbit config for Ikaro.
+# Philosophy (mirrors .copilot/context.md §7): path instructions only list what CI
+# (ESLint, architecture-check, SonarCloud) CANNOT catch, plus a pointer to the doc that
+# owns the rule. Rules CI already enforces are deliberately NOT restated here — they only
+# burn the comment budget. The deep semantic lenses live in .claude/commands/pr-review.md.
 language: 'en-US'
 
+# Hard limit: 250 chars.
+tone_instructions: |
+  Be direct and precise. Act as a senior engineer focused on correctness, tenant isolation and production safety. Cite the violated doc/rule. Skip praise; report only real issues.
+
 knowledge_base:
+  # Learnings stay scoped to this repo.
+  learnings:
+    scope: local
   code_guidelines:
     enabled: true
+    # CLAUDE.md / AGENTS.md / .github/copilot-instructions.md / .github/instructions/** are
+    # already in CodeRabbit's defaults. Listing a doc here only loads it for the paths in
+    # `applyTo`, so a Dockerfile review is not loaded with frontend rules.
     filePatterns:
       - '.copilot/context.md'
-      - 'docs/CODE_STANDARDS.md'
-      - 'docs/ENGINEERING_RULES_SHARED.md'
-      - 'docs/ENGINEERING_RULES_BACKEND.md'
-      - 'docs/ENGINEERING_RULES_INFRA.md'
-      - 'docs/ENGINEERING_RULES_FRONTEND.md'
-      - 'docs/ENGINEERING_RULES_TESTING.md'
-      - 'docs/ANTI_PATTERNS.md'
-      - 'docs/AGENT_PATTERNS.md'
-
-tone_instructions: |
-  Be direct and precise. Act as a senior engineer focused on correctness, maintainability, and production safety. Flag architectural drift early. State issues clearly, explain why, and reference the violated pattern. Skip praise; focus on issues.
+      - files: 'docs/ANTI_PATTERNS.md, docs/CODE_STANDARDS.md, docs/AGENT_PATTERNS.md, docs/ENGINEERING_RULES_SHARED.md'
+        applyTo: 'apps/**, packages/**'
+      - files: 'docs/ENGINEERING_RULES_BACKEND.md, docs/LOCK_CATALOG.md, docs/TENANT_ISOLATION_STRATEGY.md, docs/DATABASE_SCHEMA.md'
+        applyTo: 'apps/backend/**'
+      - files: 'docs/BFF_ARCHITECTURE.md, docs/ENGINEERING_RULES_BACKEND.md'
+        applyTo: 'apps/bff/**'
+      - files: 'docs/ENGINEERING_RULES_FRONTEND.md, docs/DASHBOARD_FRONTEND_ARCHITECTURE.md'
+        applyTo: 'apps/web/**'
+      - files: 'docs/HOTSITE_DYNAMIC_ARCHITECTURE.md'
+        applyTo: 'apps/web/app/**, apps/web/shells/hotsite/**, apps/web/features/platform/hotsite/**'
+      - files: 'docs/ENGINEERING_RULES_TESTING.md, docs/TESTING_STRATEGY.md'
+        applyTo: '**/*.spec.ts, **/*.spec.tsx, **/*.integration.spec.ts, apps/web/e2e/**, apps/backend/src/test/**'
+      - files: 'docs/ENGINEERING_RULES_INFRA.md, docs/OBSERVABILITY_STRATEGY.md, docs/GITHUB_WORKFLOWS_GUIDELINES.md, docs/CI_CD_PIPELINE.md'
+        applyTo: 'infra/**, .github/**, **/Dockerfile, packages/observability/**'
+      - files: 'docs/DEFINITION_OF_DONE.md'
+        applyTo: '**'
 
 reviews:
   profile: assertive
   auto_review:
+    # Re-review of later pushes is intentionally off: /pr-land triages CodeRabbit in round 1 only.
     auto_incremental_review: false
     base_branches:
-      - main
+      - '^main$'
   high_level_summary: true
   poem: false
   collapse_walkthrough: false
   sequence_diagrams: true
+  # Shows ignored files, suppressed comments and the config actually applied — keep on
+  # while tuning this file, then reconsider.
+  review_details: true
+  # Work is tracked as stories/TDs in plan/ and td/, not GitHub issues; reviewers and labels
+  # are not used in this workflow.
+  assess_linked_issues: false
+  related_issues: false
+  suggested_labels: false
+  suggested_reviewers: false
+  # Inline comments carry a "prompt for AI agents" block — /pr-land consumes them.
+  enable_prompt_for_ai_agents: true
+
+  path_filters:
+    - '!journeys/**/prototypes/**'
+    - '!archive/**'
+    - '!**/coverage/**'
+    - '!apps/web/playwright-report/**'
+    - '!apps/web/test-results/**'
+
+  # CodeRabbit's generic docstring/description defaults warn on every PR and are not
+  # actionable here (documented in .claude/commands/pr-land.md); comment discipline is
+  # defined by docs/CODE_STANDARDS.md § Comments and abstraction discipline.
+  pre_merge_checks:
+    docstrings:
+      mode: 'off'
+    description:
+      mode: 'off'
+    issue_assessment:
+      mode: 'off'
+    custom_checks:
+      - name: 'Tenant scoping on new queries'
+        mode: warning
+        instructions: |
+          Fail if the PR adds or changes a repository method, query builder, raw SQL or
+          migration touching a tenant-owned table WITHOUT filtering on tenant_id, or adds a
+          table without `tenant_id UUID NOT NULL`, a composite index whose first column is
+          tenant_id, and composite FKs on (tenant_id, id). Pass if no data-access code changed.
+      - name: 'Contract docs updated with code'
+        mode: warning
+        instructions: |
+          Fail if the PR changes any of these without updating the matching doc in the same PR:
+          an HTTP endpoint or response shape -> docs/API_CONTRACTS.md; a domain event ->
+          docs/DOMAIN_EVENTS.md; a migration/table -> docs/DATABASE_SCHEMA.md; a tenants.settings
+          key -> docs/TENANTS_SETTINGS_SCHEMA.md; a new error code -> docs/ERROR_CATALOG.md;
+          a new lock -> docs/LOCK_CATALOG.md. Pass if none of these changed.
+      - name: 'i18n and error-code locale parity'
+        mode: warning
+        instructions: |
+          Fail if the PR adds visible UI copy or a new error code in @ikaro/types but adds the
+          key to only one of packages/i18n/locales/pt-BR/ and packages/i18n/locales/en/, or
+          hardcodes visible copy in a dashboard component instead of useTranslations().
+          Pass if no UI copy or error code changed.
+      - name: 'New DomainEvent is wired'
+        mode: warning
+        instructions: |
+          Fail if the PR adds a class extending DomainEvent without (a) a subscribe(...,
+          LogDomainEventUseCase.CONSUMER_NAME) line in its context's <Context>AuditLogHandler
+          and (b) the event documented in docs/DOMAIN_EVENTS.md. Pass if no new DomainEvent.
+      - name: 'Cross-service I/O outside transactions'
+        mode: warning
+        instructions: |
+          Fail if the PR adds an HTTP call, Pub/Sub/outbox-relay publish, storage call or any
+          other cross-service network I/O inside an ITransactionManager.run() callback, or a
+          save() that is not textually inside txManager.run(). Pass otherwise.
+      - name: 'No workarounds'
+        mode: warning
+        instructions: |
+          Fail if the PR introduces `as unknown as` to silence a type error, a pnpm override
+          pinning a transitive dependency instead of upgrading the direct dependency, a skipped
+          or disabled test/lint/CI check, or `git push --no-verify`-style bypasses, without an
+          explicit written rationale that no proper fix exists. Pass otherwise.
 
   path_instructions:
     # ── Backend: Domain layer ──────────────────────────────────────────────
     - path: 'apps/backend/src/contexts/**/domain/**'
       instructions: |
-        This is the pure domain layer — zero framework or infrastructure
-        dependencies allowed. Enforce strictly:
-        - No NestJS decorators (@Injectable, @Inject, etc.) in domain files.
-        - Aggregates must expose state changes only through named methods
-          (approve/cancel/complete etc.); never mutate props directly from
-          outside the aggregate.
-        - Every state-changing method must call addDomainEvent() — never
-          publish events directly.
-        - Value objects must validate in create() and skip validation in
-          reconstitute(). Plain Error throws in shared VOs are a bug:
-          they fall through error mappers to 500s — require typed error classes.
-        - Domain errors must call Object.setPrototypeOf(this, new.target.prototype)
-          after super() or instanceof checks will silently fail in every mapper.
-        - Classes must be ≤ 200 lines, functions ≤ 20 lines (project rule).
-        - No barrel index.ts in ports/ or shared/domain/.
+        Pure domain layer — zero framework or infrastructure dependencies.
+        - No NestJS decorators or framework imports in domain files.
+        - Aggregates expose state changes only through named methods; never mutate props from
+          outside. Every state-changing method records a domain event (addDomainEvent) — never
+          publish directly.
+        - Booking status changes go only through the private transitionTo(toStatus, actor,
+          correlationId, reason?) — never assign this.props.status directly — and call it only
+          after every validation that can throw. Check transitions against the state machine in
+          .copilot/context.md §5 (NO_SHOW only from APPROVED, corrected only to COMPLETED).
+        - Value objects validate in create() and skip validation in reconstitute(). A shared VO
+          throwing a plain Error falls through the error mappers to a 500 — require a typed domain
+          error. Domain errors call Object.setPrototypeOf(this, new.target.prototype) after
+          super() or instanceof checks silently fail.
+        - Domain-validated fields use shared value objects, not primitives; money uses the Money
+          VO (Decimal.js), never native float arithmetic.
+        - Size limits are enforced by ESLint (functions <= 40 lines, files <= 250 lines; reviewed
+          exceptions live in architecture-policy.json) — do not comment on length.
 
     # ── Backend: Application layer (use cases, ports) ─────────────────────
     - path: 'apps/backend/src/contexts/**/application/**'
       instructions: |
-        Application layer — orchestration only, no SQL, no HTTP-framework
-        coupling (no @Body()/@Req()/@Res(), no Express/Fastify types, no
-        HttpException). NestJS DI decorators (@Injectable(), @Inject(TOKEN))
-        ARE the established pattern here — every use case in this codebase
-        uses them to inject ports (repositories, transaction manager, etc.);
-        do NOT flag their presence as a layer violation.
-        Flag these violations:
-        - eventBus.publish() called directly from a use case or job — ALL
-          publishes must go through the transactional outbox written inside
-          the same txManager.run() as the aggregate save. This is the project's
-          highest-risk bug: a direct publish after commit silently loses events
-          on crash/SIGTERM.
-        - clearDomainEvents() called BEFORE txManager.run() — flush must happen
-          AFTER the transaction commits.
-        - Re-emitting a follow-on event (e.g. ServicePointsEarned) AFTER
-          markProcessed is committed — if the process dies between, the event
-          is permanently unrecoverable because the idempotency guard blocks retry.
-          The follow-on event must be in the outbox inside the same txn.
-        - Use case injecting a Repository token directly — use ports (interfaces).
-        - Business logic in a controller — controllers call use cases only.
-        - HttpException thrown from a use case — domain errors only; HTTP
-          mapping belongs in mapXxxError() at the infrastructure layer.
-        - correlationId generated with uuidv7() inside a use case or handler —
-          it must come from RequestContext.correlationId or the event envelope.
-        - RequestContext injected into a use case that is also called from a
-          cron/event handler — shared infrastructure must never read RequestContext
-          directly (cron jobs and event handlers run outside the HTTP interceptor).
+        Application layer — orchestration only: no SQL, no HTTP-framework coupling
+        (@Body()/@Req()/Express types/HttpException). NestJS DI decorators (@Injectable(),
+        @Inject(TOKEN)) are the established pattern for injecting ports — do NOT flag them.
+        Flag (see docs/ENGINEERING_RULES_BACKEND.md § Aggregate domain events → outbox):
+        - Any publish through EVENT_BUS from a use case or job. All events go through the
+          transactional outbox (OUTBOX_PUBLISHER) in the same txManager.run() as the write.
+        - For the 7 auto-draining aggregates (Booking, RecurringBookingSchedule,
+          AvailabilityAlert, FutureCommitmentException, Staff, Tenant, LeadFormSubmission): a
+          use case that still loops over clearDomainEvents() — repo.save() already drains them.
+          Non-aggregate events (cron Commands, a consumer's re-emit) must be published through
+          OUTBOX_PUBLISHER inside their own txManager.run().
+        - A follow-on event re-emitted AFTER markProcessed commits — if the process dies between,
+          the idempotency guard blocks retry and the event is lost. It must be in the outbox in
+          the same transaction as markProcessed.
+        - Cross-service network I/O inside txManager.run().
+        - A use case injecting a concrete repository/TypeORM class instead of a port.
+        - HttpException from a use case — throw domain errors; HTTP mapping belongs in
+          mapXxxError() at the infrastructure layer.
+        - correlationId generated with uuidv7() inside a use case/handler — it must come from
+          RequestContext or the event envelope.
+        - RequestContext read inside a use case also called from a cron/event handler (those run
+          outside the HTTP request context).
+        - Hardcoded business thresholds (cancellation window, expiry, points) that should read
+          from tenants.settings (docs/TENANTS_SETTINGS_SCHEMA.md).
+        - Read use cases for cross-context data: events first, BFF orchestration second,
+          Port+Adapter last — never a cross-context SQL JOIN.
 
     # ── Backend: Infrastructure layer ────────────────────────────────────
     - path: 'apps/backend/src/contexts/**/infrastructure/**'
       instructions: |
         Infrastructure layer — adapters, repositories, controllers, migrations.
-        - Every repository query MUST filter WHERE tenant_id = :tenantId.
-          A query missing this is a cross-tenant data leak — block the PR.
-        - Repositories must query only their own context's schema — no cross-
-          context SQL JOINs.
-        - Controllers call use cases only. No domain logic, no direct repo access.
-        - Every new entity/migration must be registered in
-          integration-global-setup.ts in the same commit or integration tests
-          will fail silently.
-        - Adapters registered as useExisting when the class has an
-          onApplicationBootstrap — use useClass instead, otherwise the class
-          instantiates even when the token is overridden in tests (ECONNREFUSED).
-        - New cross-context adapter: grep infrastructure/cross-context/ first —
-          if an adapter already exists between the same two contexts, extend it
-          with a new method rather than creating a parallel one.
-        - Booking save(): linesModified flag must be set before save() or line
-          changes are silently dropped.
-        - mapXxxError() files: a final `if (err instanceof Error) throw err`
-          fallthrough is intentional, not an info-disclosure bug — NestJS's
-          default BaseExceptionFilter already converts any non-HttpException
-          into a generic 500 with no detail and logs the real exception
-          server-side only (verified against the installed @nestjs/core).
-          Do not flag this as Critical/info-disclosure unless a custom global
-          exception filter has been added that changes this default behavior.
+        - Every repository query MUST filter WHERE tenant_id = :tenantId. A miss is a
+          cross-tenant data leak — block the PR. A user-supplied LIKE term goes through
+          escapeLikePattern().
+        - Repositories query only their own context's schema — no cross-context JOINs.
+        - Controllers call use cases only: no domain logic, no direct repository access.
+        - A repository that wholesale-replaces a child collection on every save() needs a dirty
+          flag so an untouched save skips the delete+reinsert (Booking uses linesModified).
+        - Race conditions: the primitive must fit the shape — exclusion constraint (rows exist,
+          must not overlap) / findByIdForUpdate() (read-then-write one row) /
+          pg_advisory_xact_lock (no row yet). A lock only orders callers who all acquire it.
+          Multiple rows are locked in ONE batched query with explicit order. New lock methods need
+          a docs/LOCK_CATALOG.md entry.
+        - A response field referring to a stored object is a full URL from
+          IStorageService.getPublicUrl(), never a raw path.
+        - New cross-context adapter: grep infrastructure/cross-context/ first and extend the
+          existing adapter for that context pair instead of creating a parallel one.
+        - mapXxxError(): a final `if (err instanceof Error) throw err` fallthrough is
+          intentional, not an info-disclosure bug — NestJS's default BaseExceptionFilter turns any
+          non-HttpException into a generic 500 and logs the detail server-side only. Do not flag
+          it unless a custom global exception filter changes that default.
 
     # ── Backend: Events ──────────────────────────────────────────────────
     - path: 'apps/backend/src/contexts/**/events/**'
       instructions: |
         Event handlers and domain events — thin by law.
-        - Handler handle() method must call exactly one use case and rethrow.
-          Zero domain logic in handlers.
-        - Domain events belong in the publishing context's domain/events/ folder
-          (e.g. StaffInvited in staff/domain/events/, not platform/).
-        - Every event envelope must include: eventId (uuid-v7), tenantId,
-          occurredAt (ISO-8601 UTC), correlationId, eventName, eventVersion.
-        - Cron-generated events (BookingReminderDue, AdminDailyScheduleReminder)
-          need a deterministic eventId (e.g. uuidv5(bookingId+type+date)) so
-          scheduler retries and overlapping window invocations don't send
-          duplicate emails — a new random uuidv7() per run defeats consumer dedup.
-        - PII in event payloads (email, phone, address) is a LGPD concern —
-          flag it; prefer reference IDs + lookup over embedding raw PII.
+        - handle() calls exactly one use case and rethrows; zero domain logic; passes
+          event.correlationId into the DTO.
+        - Domain events live in the PUBLISHING context's domain/events/ folder.
+        - Envelope: eventId (uuid-v7), tenantId, occurredAt (ISO-8601 UTC), correlationId,
+          eventName, eventVersion. Consumers are idempotent via eventId (at-least-once delivery).
+        - A new handler's class name must be unique across the whole codebase (the Pub/Sub
+          generator keys by bare class name). A new event needs the <Context>AuditLogHandler
+          subscribe(...) line and its Pub/Sub topic/subscription/DLQ bindings in staging AND prod.
+        - Cron-generated events need a deterministic eventId (e.g. uuidv5(bookingId+type+date)) so
+          scheduler retries do not send duplicates — a random uuidv7() per run defeats dedup.
+        - PII in payloads (email, phone, address) is an LGPD concern — prefer reference IDs.
+        - Customer-visible side effects (emails/notifications) must not fire before the
+          transaction commits or twice on redelivery.
 
     # ── Backend: Shared ──────────────────────────────────────────────────
     - path: 'apps/backend/src/shared/**'
       instructions: |
-        Shared cross-cutting infrastructure — highest blast radius for any change.
-        - No domain objects here — shared/ is for logger, OTel, IEventBus port,
-          tenant-context, VOs, utils only.
-        - deepMerge: any merge of admin-supplied JSON must strip __proto__,
-          constructor, prototype keys before merging (prototype pollution risk).
-        - RequestInterceptor: skips /health, /internal, /cron — flag any new
-          route prefix that bypasses it without a documented reason.
-        - InternalApiGuard is a global APP_GUARD — any new route that needs to
-          be public must explicitly bypass it with a decorator, not by removing
-          the guard.
-        - Money VO: always use Decimal.js arithmetic — never native JS floats.
+        Shared cross-cutting infrastructure — highest blast radius.
+        - No domain objects here; shared/ is logger, OTel, ports, tenant-context, VOs, utils.
+        - deepMerge of admin-supplied JSON must strip __proto__, constructor and prototype keys.
+        - Anything that must also run for a Guard-rejected request must be Express middleware, not
+          a NestJS Interceptor (Interceptors never run for a Guard-rejected request).
+        - RequestInterceptor skips /health, /internal, /cron — flag any new prefix bypassing it
+          without a documented reason. InternalApiGuard is a global APP_GUARD: a public route opts
+          out with a decorator; the guard is never removed.
+        - Logs, traces and business log-based counters carry tenant attribution; OTel metrics
+          (e.g. per-route HTTP duration) must NOT get a tenant_id label (cardinality) —
+          docs/OBSERVABILITY_STRATEGY.md § Metrics, Tenant labels.
+        - PII must not appear in logs, span attributes, metric labels or error messages.
 
     # ── Backend: Tests ───────────────────────────────────────────────────
     - path: 'apps/backend/src/**/*.spec.ts'
       instructions: |
-        Unit tests — enforce the project's test quality standards:
-        - Builders are mandatory for constructing aggregates/entities used as
-          test fixtures (e.g. TenantBuilder, BookingBuilder) — never raw
-          `new Entity()` or hand-built property bags for fixture setup. This
-          does NOT apply to plain request/DTO parameters passed directly into
-          a use case's execute(dto) or a controller method — inline object
-          literals there (e.g. `useCase.execute(tenantId, { name: 'X' })`) are
-          the established, codebase-wide pattern; do not flag them.
-          InMemory doubles over jest.fn() for repositories and ports.
-        - No .skip(), .only(), setTimeout() in committed tests.
-        - Every use case needs at least one tenant-isolation test: attempt the
-          same action with a different tenantId and assert it's blocked/not found.
-        - Idempotency tests: deliver the same eventId twice and assert exactly
-          one effect (one LoyaltyEntry, one email, etc.).
+        Unit tests — judge whether they would FAIL if the logic broke.
+        - Aggregate/entity fixtures come from builders (class + withXxx()/build()), never `new
+          Entity()` or hand-built property bags. This does NOT apply to plain request/DTO
+          arguments passed into execute(dto) or a controller method — inline literals are the
+          codebase-wide pattern; do not flag them.
+        - Port-typed dependencies use InMemoryXxx doubles, not jest.fn(). Builder date defaults
+          are computed from Date.now(), never hardcoded calendar dates.
+        - Flag tautological assertions, assertions only on "was called", and coverage padding.
+        - No .skip()/.only()/setTimeout(). "Today" is computed in the tenant timezone
+          (America/Sao_Paulo), not the runner's clock.
+        - Each new use case/query needs a cross-tenant test (tenant B cannot see/modify tenant A's
+          row), a forbidden-role test where roles apply, and the failure path of each alt flow.
+        - Idempotency: deliver the same eventId twice and assert exactly one effect.
 
     - path: 'apps/backend/src/**/*.integration.spec.ts'
       instructions: |
-        Integration tests — real Postgres via Testcontainers:
-        - Each test suite must use a unique inline tenant UUID for count
-          assertions (never share tenant state across suites).
-        - New entity/migration: registered in integration-global-setup.ts in
-          the same commit or the suite will fail silently on a missing table.
-        - Concurrency paths that MUST have integration tests:
-          (a) two concurrent approvals for the same booking slot — assert exactly
-              one succeeds;
-          (b) stale aggregate save — assert OptimisticLockVersionMismatchError;
-          (c) duplicate eventId delivery — assert exactly one DB write.
-          Flag any PR touching slot-approval or loyalty-entry logic that doesn't
-          have or update these cases.
+        Integration tests — real Postgres via Testcontainers.
+        - Unique inline tenant UUID per suite for count assertions; fixed-UUID fixtures need
+          symmetric, complete setup AND teardown (containers are reused across runs in CI).
+        - A new entity/migration must be registered in
+          apps/backend/src/test/integration-global-setup.ts in the same commit.
+        - Concurrency-sensitive paths need a real concurrent test: two simultaneous approvals for
+          the same slot (exactly one succeeds), a stale aggregate save
+          (OptimisticLockVersionMismatchError), duplicate eventId delivery (exactly one write).
+          Flag a PR touching slot-approval, resource occupancy or loyalty-entry logic without them.
 
     # ── BFF ──────────────────────────────────────────────────────────────
     - path: 'apps/bff/src/**'
       instructions: |
-        BFF — the public API surface and auth boundary.
-        - BackendHttpService forwards X-Actor-ID/Type/Role and X-Tenant-ID;
-          these must never be set from client-supplied headers — only from the
-          validated JWT payload or internal logic.
-        - All authenticated routes must go through JwtAuthGuard + TenantGuard.
-          New public (@Public()) routes need a stated reason.
-        - BFF modules are named after bounded contexts (platform/, not tenants/).
-          Public (hotsite) controllers: <context>.public.controller.ts.
-        - No direct domain knowledge — the BFF orchestrates, never owns domain
-          logic. No business rules in controllers.
-        - BackendHttpService is Scope.REQUEST — every provider that injects it
-          becomes request-scoped (DI scope bubbling). Flag new injections and
-          ask if the overhead is justified.
-        - bff-client.ts (apps/web) holds module-level auth state — this must
-          never be imported into a Server Component (add 'client-only' guard
-          if not present). Flag any server-side import.
-        - BackendHttpService's catch-all re-throw of unmapped backend errors
-          is intentional (tracked as td/TD10-BFF-BACKEND-UNREACHABLE-GENERIC-500.md,
-          Low priority) — NestJS's default exception filter already sanitizes
-          it to a generic 500 before it reaches the client. Re-verify against
-          the installed @nestjs/core before re-flagging this as Critical.
+        BFF — the public API surface and auth boundary (docs/BFF_ARCHITECTURE.md).
+        - X-Actor-ID/Type/Role and X-Tenant-ID are derived only from the validated JWT — never
+          from client-supplied headers. JWT `sub` is the backend entity UUID. Authenticated routes
+          go through JwtAuthGuard + TenantGuard (global APP_GUARDs); a new @Public() route needs a
+          stated reason, rate limiting/Turnstile where applicable, and no existence-enumeration.
+        - Role checks in the BFF alone are not enough where the backend can also verify.
+        - Slices live in features/<domain>/ (<domain>.controller.ts, .public.controller.ts,
+          .mapper.ts, .types.ts, .schemas.ts), named after bounded contexts. Response types and Zod
+          schemas live in sibling .types.ts/.schemas.ts, not inline in the controller. Business
+          rules never live in the BFF — it orchestrates.
+        - Validate request bodies at the boundary; flag mass assignment (tenantId, role, status,
+          price/points accepted from the client) and unconstrained z.record(...) where a "field X
+          never inside field Y" invariant is documented. A Zod rule changed here needs its backend
+          twin checked (and vice versa).
+        - BackendHttpService is Scope.REQUEST: every provider injecting it becomes request-scoped.
+          Flag new injections and ask whether the overhead is justified.
+        - BackendHttpService's catch-all re-throw of unmapped backend errors is intentional
+          (known Low-priority gap: unreachable backend collapses to a generic 500); NestJS's
+          default exception filter sanitizes it. Re-verify against the installed @nestjs/core
+          before re-flagging as Critical.
+        - Errors are RFC 9457 Problem Details; a new @ikaro/types error code needs entries in both
+          packages/i18n/locales/{pt-BR,en}/errors.json.
 
-    # ── Web: Hotsite ─────────────────────────────────────────────────────
+    # ── Web ──────────────────────────────────────────────────────────────
     - path: 'apps/web/**'
       instructions: |
-        Next.js 16 / React 19 frontend — hotsite (public) + dashboard (in progress).
-        Architecture rules:
-        - Hotsite module components (HeroModule, ServiceListModule, etc.) must
-          be Server Components — no 'use client' unless they use state/effects/
-          DOM APIs or a Context-based hook like useFormatting().
-        - useTranslations() from next-intl works in Server Components — adding
-          'use client' just for translations is wrong.
-        - All readonly props interfaces — every field must be readonly (SonarCloud
-          S6759 fires on every new component missing this).
-        - Import Node.js built-ins with the node: prefix (node:path, node:fs).
-        - CSS custom property return types: React.CSSProperties &
-          Record<`--ba-${string}`, string> — never use `as React.CSSProperties`.
-        Performance:
-        - Font loading: flag if new fonts are added to font-config.ts without
-          a corresponding per-tenant selection gate. All 8 fonts loading on every
-          hotsite is a known LCP regression.
-        - ISR: revalidate values must be literals (not imported constants) in
-          page-level segment config — Next.js does static analysis only.
+        Next.js 16 / React 19 — hotsite (public, tenant-branded) and dashboard/account (SaaS).
+        Two separate styling systems; never mix them.
+        Architecture:
+        - Web -> BFF only via bffServerFetch / bffPublicFetch / bffClient — never a raw fetch()
+          URL. useTenant() is the only tenantId source in hooks. No client-readable token.
+        - bff-client.ts holds module-level auth state: never import it into a Server Component.
+        - app/**/page.tsx and layout.tsx stay thin; logic goes to shared/lib/** with unit tests.
+          Protected-area layouts use resolveSupportedLocale(payload.locale ?? 'pt-BR'), never a
+          hardcoded locale.
+        - A control that already exists in apps/web/shared/components/ui/ (calendar, date/time
+          picker, select, popover, dialog, switch, badge, card) must be reused — a hand-rolled one
+          or bare <input type="date"> is an Important finding.
+        - Form/error/success messages use FeedbackMessage / BrandedFeedbackMessage — no
+          hand-written role="alert"/role="status".
+        - Every visible string uses useTranslations() with keys in BOTH pt-BR and en; dates,
+          numbers and currency use the project formatting helpers (pt-BR / BRL).
+        - Before adding an interface under api/** or shared/types/**, check @ikaro/types.
+        - A server-component generateMetadata() needing the page's data shares one fetch via
+          React cache().
+        Styling boundary:
+        - --ba-* CSS variables exist only under app/[slug]/ (hotsite). Dashboard and account
+          components use Tailwind + shadcn. A component needing both variants is two
+          implementations. A new full-page hotsite component paints
+          backgroundColor: 'var(--ba-background)'.
+        - CSS custom property types use React.CSSProperties & Record<`--ba-${string}`, string>,
+          never `as React.CSSProperties`.
+        Hotsite specifics:
+        - Hotsite module components are Server Components unless they need state/effects/DOM or a
+          Context hook; useTranslations() does not require 'use client'.
+        - ISR revalidate values must be literals in page-level segment config.
+        - New fonts in font-config.ts need a per-tenant selection gate (all fonts on every hotsite
+          is a known LCP regression).
+        - A CSP allowance for a new external resource must cover every page a user could
+          soft-navigate FROM.
         Security:
-        - dangerouslySetInnerHTML: only allowed for the JSON-LD script with the
-          toJsonLdScript() escape (which escapes <). Any other usage is a block.
-        - Markdown must go through rehype-sanitize — raw HTML rendering is a block.
-        - Module data from the manifest (admin-authored) must be parsed with
-          Schema.safeParse() — a thrown .parse() takes down the whole hotsite;
-          fail-soft per module.
+        - dangerouslySetInnerHTML only for the JSON-LD script via toJsonLdScript(). Markdown goes
+          through rehype-sanitize (see RestrictedMarkdown).
+        - Admin-authored manifest module data is parsed with safeParse(); a thrown parse() takes
+          down the whole hotsite — fail soft per module.
+        Accessibility: semantic elements, labels bound to inputs, keyboard operability and focus
+        management in dialogs, visible focus, no information carried by color alone.
+
+    - path: 'apps/web/**/*.spec.tsx'
+      instructions: |
+        Vitest + @testing-library/react (not Jest). Every new component under features/**/components,
+        shells/**/components or shared/components ships its .spec.tsx in the same commit. Interactive
+        UI gets an axe check. Assert behavior and rendered output, not implementation details.
+
+    - path: 'apps/web/e2e/**'
+      instructions: |
+        Playwright specs are test cases only; reusable flows live in apps/web/e2e/helpers/<feature>/**.
+        Turnstile: wait on the hidden `cf-turnstile-response` input value, never an iframe selector.
+        "Today" must match the app's tenant-timezone computation, not the runner's clock. A fixed
+        time-slot booking fixture on a shared tenant needs a retry-on-conflict loop. Use
+        scrollIntoView({ block: 'center' }), not 'start', for toBeInViewport() checks.
 
     # ── CI / GitHub Actions ──────────────────────────────────────────────
     - path: '.github/workflows/**'
       instructions: |
         CI/CD — supply-chain and pipeline quality.
-        - Third-party actions MUST be pinned to a full commit SHA, not @master
-          or a floating major tag. @master is a supply-chain risk: it executes
-          arbitrary upstream code with access to SONAR_TOKEN, SNYK_TOKEN, and
-          GITHUB_TOKEN. Block any PR adding or updating an action to a non-SHA ref.
-        - Every workflow must declare permissions: { contents: read } at the top;
-          elevate per-job only where needed (e.g. security-events: write for SARIF).
-        - PR workflows should have a concurrency group to cancel superseded runs:
-          concurrency: { group: "${{ github.workflow }}-${{ github.ref }}",
-          cancel-in-progress: true }
-        - Coverage suites must not run twice (test job + sonar job) — generate
-          once, pass via artifacts.
+        - Third-party actions pinned to a full commit SHA (all current ones are) — block any
+          @master or floating tag; they execute upstream code with access to repo secrets.
+        - Top-level `permissions: { contents: read }`; elevate per job only where needed.
+        - Untrusted `${{ }}` (PR title, branch name, comment body) must not be interpolated
+          directly into `run:` — pass via env.
+        - PR workflows have a concurrency group with cancel-in-progress.
+        - Coverage suites run once and are shared via artifacts, not regenerated per job.
+        - Two independently-triggered workflows with a producer->consumer relationship (one
+          publishes an image/digest another deploys) need guaranteed ordering (needs:,
+          workflow_run, or a live-state check); disjoint `paths:` filters race.
+        - Never add a check to required_status_checks before its workflow has merged to main.
+        - A path-diff filter checks one commit's diff, never live state; `gh run rerun` cannot
+          clear it.
 
     # ── Dockerfiles ──────────────────────────────────────────────────────
     - path: '**/Dockerfile'
       instructions: |
         Container build quality and supply-chain:
-        - Base images must be pinned to a digest only (FROM node@sha256:...),
-          never a floating tag and never tag+digest together — this repo's
-          SonarCloud rule docker:S8431 fails the build on tag+digest (both
-          forms are equally secure; digest-only is the decided convention
-          here). A floating tag alone is non-reproducible and silently pulls
-          a compromised upstream on next build. When a Dependabot digest bump
-          is proposed, verify it still resolves to the same image
-          variant/family (e.g. alpine, not debian) before merging — digest-
-          only pins give Dependabot no tag to anchor updates to, so it can
-          silently drift to a same-repo-different-variant digest (PR #309
-          precedent, 2026-08-03).
-        - pnpm install must use --frozen-lockfile --ignore-scripts.
-          --ignore-scripts is the single most effective supply-chain control
-          (blocks malicious postinstall at build time) — never remove it.
-        - Runtime stage must run as a non-root user (uid 1001).
-        - npm/npx must be removed from the runner stage (eliminates npm's
-          bundled CVEs).
-        - No rm -rf workarounds for known-vulnerable packages — fix the override
-          in pnpm-workspace.yaml so the package doesn't resolve at all; a
-          hardcoded path string will silently stop working after a version bump.
+        - Base images pinned by digest ONLY (FROM node@sha256:...) — never a floating tag and
+          never tag+digest together (SonarCloud docker:S8431 fails the build on tag+digest). A
+          Dependabot digest bump must be verified to stay in the same image variant/family (e.g.
+          alpine, not debian) — digest-only pins give Dependabot no tag to anchor on.
+        - pnpm install uses --frozen-lockfile --ignore-scripts; never remove --ignore-scripts.
+        - Runtime stage runs as non-root (uid 1001); npm/npx removed from the runner stage.
+        - No `rm -rf` workarounds for vulnerable packages — fix the override in
+          pnpm-workspace.yaml so the package does not resolve at all.
+
+    # ── Terraform / infra ────────────────────────────────────────────────
+    - path: 'infra/terraform/**'
+      instructions: |
+        Terraform (see infra/terraform/README.md, docs/ENGINEERING_RULES_INFRA.md).
+        - IAM least-privilege: role scoped to the resource, never roles/editor or roles/owner; a
+          broad predefined role where the workflow uses a subset is a finding (§ IAM binding
+          review discipline).
+        - No plaintext secret in .tfvars, module defaults or state. Secrets come from Secret
+          Manager. `sensitive = true` only masks terminal display — never `output` a value derived
+          from a secret attribute. A `type = string` variable meant to be non-empty needs a
+          `validation` block (no default does not reject "").
+        - Separate roots/states (foundation, envs/staging, envs/prod) do not exchange outputs
+          automatically — check apply order. Prod-affecting changes go through plan-then-approve.
+        - A module with a passing `terraform test` is not proof a real root applies it — a new or
+          changed module must be referenced by a real `module` block, and have .tftest.hcl coverage.
+          Prefer an existing module in infra/terraform/modules/ over an ad hoc resource.
+        - Ingress/egress: public exposure of something internal-only; Cloud Run vpc_egress mode
+          decides whether outbound calls reach the VPC firewall/NAT at all.
+        - New DomainEvent/cron/subscribe() sites need topic + subscription + DLQ in BOTH staging
+          and prod (pubsub-catalog.json).
+        - Cost: min/max instances and DB tier need a load reason, not copy-paste; flag orphaned
+          resources a refactor left behind.
+        - Live-verification: a PR touching Terraform/IAM/Pub/Sub/CI-CD should evidence the concrete
+          live check it implies (real module block, resolving IAM grant, `terraform plan
+          -refresh-only`); if absent, say so.
 
     # ── Migrations ───────────────────────────────────────────────────────
     - path: 'apps/backend/src/**/migrations/**'
       instructions: |
-        Database migrations — zero-downtime, expand/contract discipline:
-        - No DROP COLUMN, DROP TABLE, or NOT NULL constraint on existing columns
-          without a multi-step expand/contract plan. Adding a NOT NULL column
-          to a live table without a default or backfill step will lock the table.
-        - Every new table must have tenant_id UUID NOT NULL and tenant_id must
-          be the first column in every composite index.
-        - New composite foreign keys must use (tenant_id, id) — never id alone —
-          to enforce cross-tenant referential integrity at the DB level.
-        - Every new entity/table must be registered in
-          integration-global-setup.ts in the same PR commit.
+        Database migrations — zero-downtime, expand/contract (docs/DEFINITION_OF_DONE.md,
+        docs/ENGINEERING_RULES_BACKEND.md § Migration backfills).
+        - No DROP COLUMN/DROP TABLE/new NOT NULL on a live column without a multi-step plan. A
+          NOT NULL column without default or backfill locks the table.
+        - A CHECK on an existing table with live rows: ADD CONSTRAINT ... NOT VALID plus a separate
+          VALIDATE CONSTRAINT — a plain ADD CONSTRAINT takes ACCESS EXCLUSIVE.
+        - Before skipping a backfill because "no data can exist yet", check whether the
+          endpoint/controller already merged to main.
+        - Every new table: tenant_id UUID NOT NULL, tenant_id first in every composite index,
+          composite FKs on (tenant_id, id). A new cross-tenant system job needs its own standalone
+          index on its filter column. A child table with only a composite PK cannot represent
+          "declared but empty".
+        - Privilege grants to infrastructure-created DB roles must enforce provisioning order or
+          reconcile convergently. Migrations never run at app startup.
+        - Register the new entity/table in apps/backend/src/test/integration-global-setup.ts.
+        - Large-table queries: ask for an EXPLAIN when index choice is non-obvious.
 
     # ── Packages ─────────────────────────────────────────────────────────
     - path: 'packages/**'
       instructions: |
         Shared workspace packages — highest blast radius; changes affect all apps.
-        - @ikaro/types: adding a required field to a response type is a breaking
-          change for all consumers — prefer optional fields or a new type.
-        - @ikaro/env-validation: new required env vars must have sensible
-          validation (z.string().min(32) for secrets) and be documented in
-          .env.example.
-        - Non-TypeScript static files (e.g. packages/i18n/locales/**) must be
-          read via require.resolve, not relative paths, from consuming packages.
+        - @ikaro/types: a new required field on a response type breaks every consumer — prefer
+          optional or a new type. API/event shape changes must be mirrored in web and BFF copies.
+        - @ikaro/env-validation: new required env vars need strict validation
+          (z.string().min(32) for secrets) and a .env.example entry.
+        - Non-TypeScript static files (e.g. packages/i18n/locales/**) are read via
+          require.resolve, not relative paths. A change to a package's exports needs a rebuild
+          before a local type-check can be trusted.
+        - packages/architecture-check/architecture-policy.json: every exception needs an exact
+          path (never a wildcard), rationale, owner and review date; cross-context imports go in
+          contextDependencyMatrix.permittedEdges.
 
     # ── pnpm workspace ───────────────────────────────────────────────────
     - path: 'pnpm-workspace.yaml'
       instructions: |
-        Dependency management — supply-chain critical file:
-        - New entries in allowBuilds must be justified — this is a default-deny
-          list for native install scripts. Each new entry is a supply-chain
-          trust decision; require a comment explaining why it's necessary.
-        - New overrides: verify the override actually dedupes the vulnerable
-          version (run pnpm why <package>) — a hand-deleted path in a Dockerfile
-          is not an acceptable substitute for a working override.
+        Supply-chain critical file.
+        - New allowBuilds entries are a default-deny trust decision — require a comment explaining
+          why a native install script is needed.
+        - New overrides are temporary compatibility boundaries: first ask whether upgrading the
+          direct dependency removes the need, and verify with `pnpm why <package>` that the
+          override actually dedupes the vulnerable version.
+
+    # ── Docs / plans / agent commands ────────────────────────────────────
+    - path: 'docs/**'
+      instructions: |
+        Docs are agent-first and token-optimised: pointers over restating a rule owned by another
+        doc; no PR-number or ISO-date literals in .copilot/context.md. A new top-level docs/*.md
+        needs the `> **When to load:**` and `> **Tags:**` header lines. Flag a rule restated in full
+        in a second canonical doc, and any claim that contradicts the code or a sibling doc.
+        Every doc pointer (`file § heading`) must resolve.
+
+    - path: '{plan,td}/**'
+      instructions: |
+        Stories follow docs/STORY_SCHEMA.md. Acceptance criteria are concrete and testable; a
+        story citing a UC that .copilot/context.md §6 lists as a trap (UC-014, UC-015, UC-017, or
+        the renumbered UC-030) is a Critical finding. Non-Goals are explicit.
+
+    - path: '.claude/commands/**'
+      instructions: |
+        Agent workflow commands. The CLAUDE.md gates (story-discovery first, /pre-pr before
+        `gh pr create`, ask before merging, never `git push --no-verify`) must not be weakened.
+        Flag stale references to files, scripts, docs or sections that no longer exist.
+
+  tools:
+    # ~50 reference docs would drown in style findings; Sonar/Prettier own code style.
+    markdownlint:
+      enabled: false
+    languagetool:
+      enabled: false
+    # Keep the pipeline/IaC/supply-chain linters on explicitly.
+    actionlint:
+      enabled: true
+    zizmor:
+      enabled: true
+    checkov:
+      enabled: true
+    hadolint:
+      enabled: true
+    gitleaks:
+      enabled: true
+    shellcheck:
+      enabled: true
+    yamllint:
+      enabled: true
+    eslint:
+      enabled: true
+
+  finishing_touches:
+    # Comment discipline is defined by docs/CODE_STANDARDS.md; generated docstrings/tests
+    # would fight it.
+    docstrings:
+      enabled: false
+    unit_tests:
+      enabled: false
+
+chat:
+  auto_reply: true
