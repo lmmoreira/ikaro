@@ -382,7 +382,7 @@ Add a `no-restricted-syntax` selector in `apps/web/eslint.config.js` (alongside 
 **Files to create/modify:**
 - `apps/web/eslint.config.js`
 - `apps/web/shared/lib/eslint/restricted-syntax.eslint.spec.ts`
-- `apps/web/features/booking/components/dashboard/bookings/new-booking/NewBookingServiceCard.tsx` and `apps/web/features/booking/components/public/SubmitInfoForm.tsx` (drop the wrapper role), `GuestContactForm.tsx` and `CustomerChooserStep.tsx` (the guest step moves to `useFormFeedback`), `AvailabilityAlertFields.tsx`, `AvailabilityAlertPickers.tsx` (group role and `aria-describedby`), `useAvailabilityAlertForm.ts`, `NewAvailabilityAlertForm.tsx` and the new `AvailabilityAlertFormMessages.tsx` (the refused-submit summary), each with its `.spec.tsx`; `packages/i18n/locales/{pt-BR,en}/web.json` (`booking.availabilityAlert.errors.validationSummary`)
+- `apps/web/features/booking/components/dashboard/bookings/new-booking/NewBookingServiceCard.tsx` and `apps/web/features/booking/components/public/SubmitInfoForm.tsx` (drop the wrapper role), `GuestContactForm.tsx` and `CustomerChooserStep.tsx` (the guest step moves to `useFormFeedback`), `AvailabilityAlertFields.tsx`, `AvailabilityAlertPickers.tsx` (each group a `<fieldset>` + `<legend>` with `aria-describedby`), `useAvailabilityAlertForm.ts`, `NewAvailabilityAlertForm.tsx` and the new `AvailabilityAlertFormMessages.tsx` (the refused-submit summary), each with its `.spec.tsx`; `packages/i18n/locales/{pt-BR,en}/web.json` (`booking.availabilityAlert.errors.validationSummary`)
 - `docs/ANTI_PATTERNS.md`
 - `docs/ENGINEERING_RULES_FRONTEND.md`
 - `.copilot/context.md` (never through the `CLAUDE.md` symlink)
