@@ -14,6 +14,8 @@ import {
   writeModuleData,
   type ModuleConfigPanelProps,
 } from './module-config-panel.types';
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
 
 export function ContactConfigPanel({ data, onChange }: ModuleConfigPanelProps): React.JSX.Element {
   const t = useTranslations('dashboard.hotsitePage.layout.panels.contact');
@@ -26,34 +28,25 @@ export function ContactConfigPanel({ data, onChange }: ModuleConfigPanelProps): 
   return (
     <div className="space-y-5">
       <div>
-        <label htmlFor="contact-title" className="mb-1.5 block text-sm font-semibold text-gray-900">
-          {t('titleLabel')}
-        </label>
-        <input
+        <Label htmlFor="contact-title">{t('titleLabel')}</Label>
+        <Input
           id="contact-title"
           type="text"
           value={contact.title ?? ''}
           placeholder={t('titlePlaceholder')}
           onChange={(event) => update({ title: event.target.value })}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         />
         <p className="mt-1 text-xs text-gray-400">{t('titleHint')}</p>
       </div>
 
       <div>
-        <label
-          htmlFor="contact-eyebrow"
-          className="mb-1.5 block text-sm font-semibold text-gray-900"
-        >
-          {t('eyebrowLabel')}
-        </label>
-        <input
+        <Label htmlFor="contact-eyebrow">{t('eyebrowLabel')}</Label>
+        <Input
           id="contact-eyebrow"
           type="text"
           value={contact.eyebrow ?? ''}
           placeholder={t('eyebrowPlaceholder')}
           onChange={(event) => update({ eyebrow: event.target.value })}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         />
       </div>
 
@@ -112,19 +105,13 @@ export function ContactConfigPanel({ data, onChange }: ModuleConfigPanelProps): 
       />
 
       <div>
-        <label
-          htmlFor="contact-whatsapp-cta-label"
-          className="mb-1.5 block text-sm font-semibold text-gray-900"
-        >
-          {t('whatsappCtaLabelLabel')}
-        </label>
-        <input
+        <Label htmlFor="contact-whatsapp-cta-label">{t('whatsappCtaLabelLabel')}</Label>
+        <Input
           id="contact-whatsapp-cta-label"
           type="text"
           value={contact.whatsappCtaLabel ?? ''}
           placeholder={t('whatsappCtaLabelPlaceholder')}
           onChange={(event) => update({ whatsappCtaLabel: event.target.value })}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         />
       </div>
       <SectionPresentationFields

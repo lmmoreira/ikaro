@@ -14,6 +14,8 @@ import {
   writeModuleData,
   type ModuleConfigPanelProps,
 } from './module-config-panel.types';
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
 
 export function GalleryConfigPanel({ data, onChange }: ModuleConfigPanelProps): React.JSX.Element {
   const t = useTranslations('dashboard.hotsitePage.layout.panels.gallery');
@@ -26,34 +28,25 @@ export function GalleryConfigPanel({ data, onChange }: ModuleConfigPanelProps): 
   return (
     <div className="space-y-5">
       <div>
-        <label htmlFor="gallery-title" className="mb-1.5 block text-sm font-semibold text-gray-900">
-          {t('titleLabel')}
-        </label>
-        <input
+        <Label htmlFor="gallery-title">{t('titleLabel')}</Label>
+        <Input
           id="gallery-title"
           type="text"
           value={gallery.title ?? ''}
           placeholder={t('titlePlaceholder')}
           onChange={(event) => update({ title: event.target.value })}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         />
         <p className="mt-1 text-xs text-gray-400">{t('titleHint')}</p>
       </div>
 
       <div>
-        <label
-          htmlFor="gallery-eyebrow"
-          className="mb-1.5 block text-sm font-semibold text-gray-900"
-        >
-          {t('eyebrowLabel')}
-        </label>
-        <input
+        <Label htmlFor="gallery-eyebrow">{t('eyebrowLabel')}</Label>
+        <Input
           id="gallery-eyebrow"
           type="text"
           value={gallery.eyebrow ?? ''}
           placeholder={t('eyebrowPlaceholder')}
           onChange={(event) => update({ eyebrow: event.target.value })}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         />
       </div>
 
@@ -90,19 +83,14 @@ export function GalleryConfigPanel({ data, onChange }: ModuleConfigPanelProps): 
       )}
 
       <div>
-        <label
-          htmlFor="gallery-max-visible"
-          className="mb-1.5 block text-sm font-semibold text-gray-900"
-        >
-          {t('maxVisibleLabel')}
-        </label>
-        <input
+        <Label htmlFor="gallery-max-visible">{t('maxVisibleLabel')}</Label>
+        <Input
           id="gallery-max-visible"
           type="number"
           min={1}
           value={gallery.maxVisible}
           onChange={(event) => update({ maxVisible: Number(event.target.value) || 1 })}
-          className="w-32 rounded-md border border-gray-300 px-3 py-2 text-sm"
+          className="w-32"
         />
       </div>
 

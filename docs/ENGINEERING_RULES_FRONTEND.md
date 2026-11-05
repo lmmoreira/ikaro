@@ -140,7 +140,10 @@ A secondary trap in the same incident: a component with a *fixed*, non-branded a
 | A choice from a list | `ui/select`, or `ui/pill-select` for a few short options | `TimeSelectField`, `BrandingTab` |
 | An on/off setting | `ui/switch-field` | `ResourceWorkingHoursEditor`, `LayoutTab` |
 | A confirm / destructive prompt | `ui/alert-dialog` (or a dedicated confirmation page where the journey says so) | `DiscardChangesDialog` |
-| Multi-line text | `ui/textarea` | `ManifestTab` |
+| Single-line text, number or other native text-like input | `ui/input` (same look as `ui/textarea`; `className` overrides the default `w-full`) | `ConfigTextField`, `GalleryConfigPanel` |
+| The label of a field | `ui/label` (`htmlFor` association; carries the shared `mb-1.5 block text-sm font-semibold text-gray-900` look) | `ConfigTextField`, `AboutConfigPanel` |
+| A tick box | `ui/checkbox` (a native `<input type="checkbox">`, found by `getByRole('checkbox')`) | `LeadFormSortableQuestion` |
+| Multi-line text | `ui/textarea` | `ManifestTab`, `AboutConfigPanel` |
 | A status or count chip | `ui/badge` | `Topbar`, `LoyaltySearchResults` |
 | A grouped surface | `ui/card`, `ui/section-card` | `CustomerLoyaltyPage`, `BrandingTab` |
 | A save, submit or action result (error or success), or a page-level load failure | `ui/feedback-message`; in a screen with a primary action also `ui/action-pane` and `shared/lib/feedback/use-form-feedback`; a field's own message is `ui/field-feedback` — never a new `role="alert"` box (§ A form's error or success message lives in the action pane) | `NewBookingServicesStep` (`FeedbackMessage`); `ResourceCreateForm`, `InviteForm` (`ActionPane` through `FormActionPane`) |

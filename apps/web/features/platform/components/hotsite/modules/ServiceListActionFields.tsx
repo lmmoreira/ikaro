@@ -9,6 +9,8 @@ import type {
 import { PillSelect } from '@/shared/components/ui/pill-select';
 import { SwitchField } from '@/shared/components/ui/switch-field';
 import { SERVICE_DETAIL_PAGE_DEFAULTS } from '@/features/platform/hotsite/service-detail';
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
 
 // Same bound as itemCtaLabel / detailPage.bookingCtaLabel in the shared schema.
 const SERVICE_ITEM_CTA_MAX_LENGTH = 40;
@@ -56,20 +58,14 @@ export function ServiceListActionFields({
 
       {(serviceList.itemAction === 'details' || serviceList.itemAction === 'booking') && (
         <div>
-          <label
-            htmlFor="service-list-item-cta-label"
-            className="mb-1.5 block text-sm font-semibold text-gray-900"
-          >
-            {t('itemCtaLabel')}
-          </label>
-          <input
+          <Label htmlFor="service-list-item-cta-label">{t('itemCtaLabel')}</Label>
+          <Input
             id="service-list-item-cta-label"
             type="text"
             value={serviceList.itemCtaLabel ?? ''}
             maxLength={SERVICE_ITEM_CTA_MAX_LENGTH}
             placeholder={t('itemCtaPlaceholder')}
             onChange={(event) => update({ itemCtaLabel: event.target.value || undefined })}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
           />
         </div>
       )}
@@ -118,13 +114,10 @@ export function ServiceListActionFields({
           testId="service-list-detail-show-points"
         />
         <div>
-          <label
-            htmlFor="service-list-detail-booking-cta-label"
-            className="mb-1.5 block text-sm font-semibold text-gray-900"
-          >
+          <Label htmlFor="service-list-detail-booking-cta-label">
             {t('detailBookingCtaLabel')}
-          </label>
-          <input
+          </Label>
+          <Input
             id="service-list-detail-booking-cta-label"
             type="text"
             value={detailPage.bookingCtaLabel ?? ''}
@@ -133,7 +126,6 @@ export function ServiceListActionFields({
             onChange={(event) =>
               updateDetailPage({ bookingCtaLabel: event.target.value || undefined })
             }
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
           />
         </div>
       </fieldset>

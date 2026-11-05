@@ -27,6 +27,9 @@ import {
   writeModuleData,
   type ModuleConfigPanelProps,
 } from './module-config-panel.types';
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
+import { Textarea } from '@/shared/components/ui/textarea';
 
 const DEFAULT = 'default';
 type Align = NonNullable<ContentBlockModuleData['align']>;
@@ -93,53 +96,35 @@ export function ContentBlockConfigPanel({
       )}
 
       <div>
-        <label
-          htmlFor="content-block-eyebrow"
-          className="mb-1.5 block text-sm font-semibold text-gray-900"
-        >
-          {t('eyebrowLabel')}
-        </label>
-        <input
+        <Label htmlFor="content-block-eyebrow">{t('eyebrowLabel')}</Label>
+        <Input
           id="content-block-eyebrow"
           type="text"
           value={block.eyebrow ?? ''}
           maxLength={limits.eyebrow}
           onChange={(event) => setCommon({ eyebrow: event.target.value })}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         />
       </div>
 
       <div>
-        <label
-          htmlFor="content-block-title"
-          className="mb-1.5 block text-sm font-semibold text-gray-900"
-        >
-          {t('titleLabel')}
-        </label>
-        <input
+        <Label htmlFor="content-block-title">{t('titleLabel')}</Label>
+        <Input
           id="content-block-title"
           type="text"
           value={block.title}
           maxLength={limits.title}
           onChange={(event) => emit({ ...block, title: event.target.value })}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         />
       </div>
 
       <div>
-        <label
-          htmlFor="content-block-body"
-          className="mb-1.5 block text-sm font-semibold text-gray-900"
-        >
-          {t('bodyLabel')}
-        </label>
-        <textarea
+        <Label htmlFor="content-block-body">{t('bodyLabel')}</Label>
+        <Textarea
           id="content-block-body"
           value={block.body ?? ''}
           maxLength={limits.body}
           rows={5}
           onChange={(event) => setCommon({ body: event.target.value })}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         />
         <p className="mt-1 text-xs text-gray-400">{t('bodyHint')}</p>
         {block.body && (
@@ -176,13 +161,8 @@ export function ContentBlockConfigPanel({
         {block.cta && (
           <>
             <div>
-              <label
-                htmlFor="content-block-cta-label"
-                className="mb-1.5 block text-sm font-semibold text-gray-900"
-              >
-                {t('ctaLabel')}
-              </label>
-              <input
+              <Label htmlFor="content-block-cta-label">{t('ctaLabel')}</Label>
+              <Input
                 id="content-block-cta-label"
                 type="text"
                 value={block.cta.label}
@@ -190,7 +170,6 @@ export function ContentBlockConfigPanel({
                 onChange={(event) =>
                   setCommon({ cta: { ...block.cta!, label: event.target.value } })
                 }
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
               />
             </div>
             <PillSelect<ContentBlockCtaTarget>

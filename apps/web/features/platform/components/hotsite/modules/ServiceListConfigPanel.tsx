@@ -15,6 +15,8 @@ import {
   writeModuleData,
   type ModuleConfigPanelProps,
 } from './module-config-panel.types';
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
 
 export function ServiceListConfigPanel({
   data,
@@ -35,37 +37,25 @@ export function ServiceListConfigPanel({
   return (
     <div className="space-y-5">
       <div>
-        <label
-          htmlFor="service-list-title"
-          className="mb-1.5 block text-sm font-semibold text-gray-900"
-        >
-          {t('titleLabel')}
-        </label>
-        <input
+        <Label htmlFor="service-list-title">{t('titleLabel')}</Label>
+        <Input
           id="service-list-title"
           type="text"
           value={serviceList.title ?? ''}
           placeholder={t('titlePlaceholder')}
           onChange={(event) => update({ title: event.target.value })}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         />
         <p className="mt-1 text-xs text-gray-400">{t('titleHint')}</p>
       </div>
 
       <div>
-        <label
-          htmlFor="service-list-eyebrow"
-          className="mb-1.5 block text-sm font-semibold text-gray-900"
-        >
-          {t('eyebrowLabel')}
-        </label>
-        <input
+        <Label htmlFor="service-list-eyebrow">{t('eyebrowLabel')}</Label>
+        <Input
           id="service-list-eyebrow"
           type="text"
           value={serviceList.eyebrow ?? ''}
           placeholder={t('eyebrowPlaceholder')}
           onChange={(event) => update({ eyebrow: event.target.value })}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         />
       </div>
 

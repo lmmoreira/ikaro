@@ -4,6 +4,8 @@ import { useTranslations } from 'next-intl';
 import { PillSelect } from '@/shared/components/ui/pill-select';
 import { SingleImageUploadField } from '../SingleImageUploadField';
 import { ConfigTextField } from './ConfigTextField';
+import { Label } from '@/shared/components/ui/label';
+import { Textarea } from '@/shared/components/ui/textarea';
 
 export type LeadFormTeaserDraft = {
   title: string;
@@ -36,17 +38,11 @@ export function LeadFormTeaserFields({
         onChange={(title) => onChange({ title })}
       />
       <div>
-        <label
-          htmlFor="lead-form-teaser-subtitle"
-          className="mb-1.5 block text-sm font-semibold text-gray-900"
-        >
-          {t('teaser.subtitleLabel')}
-        </label>
-        <textarea
+        <Label htmlFor="lead-form-teaser-subtitle">{t('teaser.subtitleLabel')}</Label>
+        <Textarea
           id="lead-form-teaser-subtitle"
           value={draft.subtitle ?? ''}
           onChange={(event) => onChange({ subtitle: event.target.value })}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         />
       </div>
       <ConfigTextField
