@@ -229,7 +229,7 @@ Notification Context subscribes:
 - Listen to `BookingCompleted` from Booking Context. When the booking has a `customerId`, insert a `LoyaltyEntry` and increment `LoyaltyBalance` in one transaction.
 - **M24 Cluster 4:** also listens to `ClassSessionBookingCompleted` — same insert-and-increment transaction, sourced from `class_session_booking_id` instead of `booking_line_id`. Not consumed for a guest attendee (no `customerId`) or a `NO_SHOW` outcome.
 - Allow admin to record a redemption via `POST /v1/loyalty/redeem` — insert `LoyaltyRedemption` and decrement `LoyaltyBalance` atomically.
-- Run a **daily expiry cron** at 02:00 UTC: compute points from `loyalty_entries` that expired that day and decrement `loyalty_balances.current_points` accordingly. Idempotent via `balance_expiry_log`.
+- Run a **daily expiry cron** at 02:00 UTC: compute points from `loyalty_entries` that expired that day and decrement `loyalty_balances.current_points` accordingly. Idempotent via `balance_expiry_log`. *(Planned with Billing: effective expiry accounts for the tenant's recorded suspension pauses, `loyalty.tenant_expiry_pauses`, written by handlers on `SubscriptionSuspended` / `SubscriptionReactivated`; `LoyaltyEntry` stays append-only — `docs/DOMAIN_MODEL.md` § Expiration window.)*
 - Run a **weekly cron** (Mondays 06:00 UTC) to emit `PointsExpiringSoon` warnings for entries expiring within the next 7 days.
 
 **Database:** `loyalty` schema

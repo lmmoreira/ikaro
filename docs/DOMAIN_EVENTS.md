@@ -780,7 +780,7 @@ Customer clicks "Cancel"
   ```json
   { "reason": "string" }
   ```
-- **Consumers:** Billing (`cancel-subscription-on-tenant-deactivation`) → cancels any open charge locally and at the provider, clears `cancelAt`, suspends the subscription as `CANCELED` and starts the clean-up clock — it emits **both** `SubscriptionCancelled` and `SubscriptionSuspended` (reason `CANCELED`), because access-cache invalidation and hotsite revalidation hang on `SubscriptionSuspended`; an `exempt` tenant is unchanged; `audit-log` (`PlatformAuditLogHandler`)
+- **Consumers:** Billing (`cancel-subscription-on-tenant-deactivation`) → cancels any open charge locally and at the provider, clears `cancelAt`, suspends the subscription as `CANCELED` and starts the clean-up clock — it emits **both** `SubscriptionCancelled` and `SubscriptionSuspended` (reason `CANCELED`), because hotsite revalidation hangs on `SubscriptionSuspended` (the access cache is invalidated by the use case itself); an `exempt` tenant is unchanged; `audit-log` (`PlatformAuditLogHandler`)
 
 ---
 
@@ -808,12 +808,12 @@ Ikaro charging its tenants (`docs/DOMAIN_MODEL.md` § Billing Context, `docs/USE
 #### **SubscriptionSuspended**
 - **Trigger:** the sweep (`NON_PAYMENT`, `CANCELED`), a full refund/lost chargeback (`PAYMENT_REVERSED`), an immediate cancel, a deactivated tenant (UC-142: reason `CANCELED`, raised together with `SubscriptionCancelled`), or the operator (`OPERATOR`; never for an `exempt` tenant, `BILLING_EXEMPT_PROTECTED`)
 - **Data:** `subscriptionId`, `reason` (`NON_PAYMENT` | `CANCELED` | `PAYMENT_REVERSED` | `OPERATOR`), `suspendedAt`, `purgeAt`, `recipientEmail?`
-- **Consumers:** Notification; hotsite revalidation (`IFrontendRevalidationPort.revalidate(slug)`); access-cache invalidation (best-effort, on the handling instance); `audit-log`
+- **Consumers:** Notification; hotsite revalidation (`IFrontendRevalidationPort.revalidate(slug)`); `audit-log` (the access cache is not an event consumer: the use case that changes the state invalidates it best-effort after commit, on its own instance)
 
 #### **SubscriptionReactivated**
 - **Trigger:** a recovery charge was paid, an `exempt` flag was set on a suspended tenant, or an `OPERATOR` suspension was lifted (`unsuspend`)
 - **Data:** `subscriptionId`, `reactivatedAt`, `recipientEmail?`
-- **Consumers:** Notification; hotsite revalidation; access-cache invalidation; `audit-log`
+- **Consumers:** Notification; hotsite revalidation; `audit-log` (the access cache is invalidated by the state-changing use case, not by a consumer)
 
 #### **SubscriptionCancelled**
 - **Trigger:** the manager cancels (UC-133), or a deactivated tenant is cancelled (UC-142, which also raises `SubscriptionSuspended` with reason `CANCELED`)

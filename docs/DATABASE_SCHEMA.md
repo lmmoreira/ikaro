@@ -1209,7 +1209,7 @@ Audit trail of every notification send attempt. Consumer idempotency is handled 
 | notification_type | VARCHAR(64) | NOT NULL — `NotificationTemplateKey` value (the longest key today is 43 characters; a longer key needs a widening migration) |
 | channel | VARCHAR(32) | NOT NULL — `'EMAIL'` \| `'SMS'` \| `'WHATSAPP'` |
 | recipient_email | VARCHAR(255) | NOT NULL DEFAULT `''` |
-| status | VARCHAR(20) | NOT NULL DEFAULT `'PENDING'`, `CHK_notification_logs_status` CHECK IN (`'PENDING'`, `'SENT'`, `'FAILED'`) — **to be widened by the Billing release** (`docs/DATABASE_SCHEMA.md` § Schema: `billing`): new values `SKIPPED_TENANT_SUSPENDED` and `SKIPPED_NOT_ALLOWLISTED` need a wider column and a replaced CHECK |
+| status | VARCHAR(20) today → VARCHAR(40) | NOT NULL DEFAULT `'PENDING'`, `CHK_notification_logs_status` CHECK IN (`'PENDING'`, `'SENT'`, `'FAILED'`) today — **widened by the Billing release** (planned with Billing, M25-S23; § Schema: `billing`): the column becomes `VARCHAR(40)` (metadata-only on PG17) and the CHECK adds `SKIPPED_TENANT_SUSPENDED` and `SKIPPED_NOT_ALLOWLISTED`; one transaction drops the old CHECK, widens the column and adds the new CHECK `NOT VALID`, and a separate step runs `VALIDATE CONSTRAINT` |
 | retry_count | SMALLINT | NOT NULL DEFAULT 0 |
 | error_message | TEXT | NULLABLE |
 | sent_at | TIMESTAMP WITH TIME ZONE | NULLABLE |
@@ -1428,10 +1428,42 @@ Created **before** the tenant exists, by every non-exempt provisioning path (sel
 The trial rule is checked under `pg_advisory_xact_lock(hashtextextended('signup:'||google_sub, 0))` (`docs/LOCK_CATALOG.md`). The row is deleted by the purge's `BILLING` step and, immediately, by the self-service discard of a never-paid tenant (which frees the trial eligibility). **Retention:** a `COMPLETED` row keeps only the minimum needed for the trial-eligibility rule (`google_sub`, `terms_version` / `terms_accepted_at`, `tenant_id`; the tax id is already cleared) until the tenant is purged, then it is deleted; there is no separate TTL while the tenant lives because the eligibility rule needs it. Only a `RESERVED` row has a TTL (released after one hour). Retention summary: `docs/DATA_RETENTION_AND_PRIVACY.md` § Billing.
 
 ### `billing.tenant_purge_jobs` / `billing.tenant_purge_steps` — erasure coordinator *(slice G)*
-`tenant_purge_jobs`: `id`, `tenant_id`, `reason` (`SUSPENSION_AGE` \| `SELF_SERVICE_DISCARD` \| `OPERATOR_REQUEST`), `status` (`REQUESTED` \| `IN_PROGRESS` \| `FAILED` \| `COMPLETED`), `requested_at`, `completed_at`, `last_error`, audit timestamps; `UNIQUE(tenant_id) WHERE status <> 'COMPLETED'` permits one in-flight purge. `tenant_purge_steps`: one idempotent completion per required participant (`BOOKING`, `CUSTOMER`, `STAFF`, `LOYALTY`, `NOTIFICATION`, `PLATFORM`, `BILLING`, `STORAGE`, `PROVIDER`) with `completed_at` and diagnostic metadata. Execution record only: the suspension timestamp decides eligibility, and the job is **not** a `Subscription` status. The `BILLING` step anonymizes in place: it keeps `subscriptions` (no personal data) and every `charges` / `charge_lines` / `charge_tax_lines` row for fiscal reasons (`tenant_id` stays as an opaque id), and deletes the `billing_accounts` personal fields, the `signup_registrations` row, `provider_events` and the `operator_audit` payloads.
+`tenant_purge_jobs`: `id`, `tenant_id`, `reason` (`SUSPENSION_AGE` \| `SELF_SERVICE_DISCARD` \| `OPERATOR_REQUEST`), `status` (`REQUESTED` \| `IN_PROGRESS` \| `FAILED` \| `COMPLETED`), `requested_at`, `completed_at`, `last_error`, audit timestamps; `UNIQUE(tenant_id) WHERE status <> 'COMPLETED'` permits one in-flight purge. `tenant_purge_steps`: one idempotent completion per required participant (`BOOKING`, `CUSTOMER`, `STAFF`, `LOYALTY`, `NOTIFICATION`, `PLATFORM`, `BILLING`, `STORAGE`, `PROVIDER`) with `completed_at` and diagnostic metadata. DDL-level minimum (M25-S03 creates both tables; the coordinator that writes them is a later slice):
+
+| Table | Column | Type | Constraints |
+|---|---|---|---|
+| `tenant_purge_jobs` | `id` | UUID | PRIMARY KEY (UUID v7) |
+| | `tenant_id` | UUID | NOT NULL, no FK to Platform (cross-schema); `UNIQUE(tenant_id, id)` |
+| | `reason` | VARCHAR(32) | NOT NULL, CHECK IN (`SUSPENSION_AGE`, `SELF_SERVICE_DISCARD`, `OPERATOR_REQUEST`) |
+| | `status` | VARCHAR(16) | NOT NULL DEFAULT `'REQUESTED'`, CHECK IN (`REQUESTED`, `IN_PROGRESS`, `FAILED`, `COMPLETED`) |
+| | `requested_at` | TIMESTAMPTZ | NOT NULL |
+| | `completed_at` | TIMESTAMPTZ | NULLABLE |
+| | `last_error` | TEXT | NULLABLE |
+| | `created_at` / `updated_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() |
+| `tenant_purge_steps` | `tenant_id` | UUID | NOT NULL |
+| | `job_id` | UUID | NOT NULL, composite FK `(tenant_id, job_id)` to `tenant_purge_jobs (tenant_id, id)` |
+| | `participant` | VARCHAR(16) | NOT NULL, CHECK IN (`BOOKING`, `CUSTOMER`, `STAFF`, `LOYALTY`, `NOTIFICATION`, `PLATFORM`, `BILLING`, `STORAGE`, `PROVIDER`) |
+| | `completed_at` | TIMESTAMPTZ | NOT NULL |
+| | `metadata` | JSONB | NULLABLE (diagnostics) |
+| | | | PRIMARY KEY `(tenant_id, job_id, participant)` (one idempotent completion per participant) |
+
+Indexes: the partial unique `UQ_billing_tenant_purge_jobs_in_flight` on `(tenant_id) WHERE status <> 'COMPLETED'`. This is the minimum the slice needs; column types are chosen here because the discovery data model is prose only.
+
+Execution record only: the suspension timestamp decides eligibility, and the job is **not** a `Subscription` status. The `BILLING` step anonymizes in place: it keeps `subscriptions` (no personal data) and every `charges` / `charge_lines` / `charge_tax_lines` row for fiscal reasons (`tenant_id` stays as an opaque id), and deletes the `billing_accounts` personal fields, the `signup_registrations` row, `provider_events` and the `operator_audit` payloads.
 
 ### `billing.provider_health` *(no `tenant_id`)*
-One row per `merchant_profile_key`: `last_reconcile_ok_at`, `webhook_status` (`OK` \| `PAUSED` \| `UNKNOWN`), `freeze_active`, `freeze_since`, `updated_at`. Written by the reconcile and provider-health jobs; read by the status sweep, which suspends nobody while `freeze_active`.
+One row per `merchant_profile_key`: `last_reconcile_ok_at`, `webhook_status` (`OK` \| `PAUSED` \| `UNKNOWN`), `freeze_active`, `freeze_since`, `updated_at`.
+
+| Column | Type | Constraints |
+|---|---|---|
+| `merchant_profile_key` | VARCHAR(40) | PRIMARY KEY |
+| `last_reconcile_ok_at` | TIMESTAMPTZ | NULLABLE |
+| `webhook_status` | VARCHAR(16) | NOT NULL DEFAULT `'UNKNOWN'`, CHECK IN (`OK`, `PAUSED`, `UNKNOWN`) |
+| `freeze_active` | BOOLEAN | NOT NULL DEFAULT false |
+| `freeze_since` | TIMESTAMPTZ | NULLABLE; CHECK `freeze_active = (freeze_since IS NOT NULL)` |
+| `updated_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() |
+
+Types are the minimum M25-S03 needs (the discovery data model lists column names only). Written by the reconcile and provider-health jobs; read by the status sweep, which suspends nobody while `freeze_active`.
 
 ### `billing.operator_audit` — who changed what
 | Column | Type | Constraints |
