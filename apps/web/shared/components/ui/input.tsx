@@ -1,5 +1,3 @@
-'use client';
-
 import * as React from 'react';
 import { cn } from '@/shared/utils/cn';
 
@@ -8,7 +6,7 @@ export type InputProps = React.ComponentPropsWithoutRef<'input'>;
 // Same look as `ui/textarea`. Border and background use the semantic tokens (`--input` and
 // `--background` resolve to a visually equivalent value). The text, placeholder and focus colours
 // stay on the palette because no token resolves to an equivalent one (`--ring` is blue-600 and
-// `--muted-foreground` is far darker than gray-400); TD58 Story 7 can tokenise both primitives.
+// `--muted-foreground` is far darker than gray-400); tokenise this and `ui/textarea` together.
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, type = 'text', ...props }, ref) => (
     <input
