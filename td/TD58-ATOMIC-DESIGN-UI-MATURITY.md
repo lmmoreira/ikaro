@@ -103,6 +103,13 @@ Stories 0, 1, 2, 4, 5, 8 and 9 have no dependency on each other and can run in a
 
 **Description:** There is no `Input`, `Label` or `Checkbox` in `ui/`, so 70 files hand-build `<input>` and 91 hand-build `<label>`. Add the three atoms, built like `shared/components/ui/textarea.tsx`: `forwardRef`, `cn()`-merged classes, spreading native props, and the look of `ui/textarea` (decision 3 above). `Checkbox` must remain a native `<input type="checkbox">` (or a Radix checkbox only if the discovery proves a native one cannot meet the existing usages' a11y and test queries) so existing `getByRole('checkbox')` specs keep passing. Then adopt them in the 16 hotsite-editor files that carry the identical `w-full rounded-md border border-gray-300 px-3 py-2 text-sm` string — the one place the duplication is mechanical and concentrated — and add the three rows to the primitives table. Do **not** migrate other raw controls here (Story 3) and do **not** touch branded public views (decision 1).
 
+**Locked in discovery (2026-11-05):**
+- **Real breakdown of the 32 string occurrences** (grep): about 26 `<input>`, 5 `<textarea>` (`ChatbotConfigPanel`, `AboutConfigPanel`, `ContentBlockConfigPanel`, `TestimonialsConfigPanel`, `LeadFormTeaserFields`) and 1 `<select>` (`LeadFormSortableQuestion`, question type). The 5 textareas move to the existing `ui/textarea` (its `min-h-[80px]` and `shadow-sm` are accepted, browser-verified). The `<select>` stays raw here and belongs to Story 3 (Radix `Select` is not a drop-in).
+- **`Label`** is a plain `forwardRef` `<label>` (no Radix package) whose default class is `mb-1.5 block text-sm font-semibold text-gray-900`. Every `<label htmlFor>` carrying that exact class in the 16 files migrates; the checkbox wrapper label in `LeadFormSortableQuestion` stays and wraps the new `Checkbox`.
+- **`Input` tokens:** `border-input` and `bg-background`; raw `text-gray-950`, `placeholder:text-gray-400` and `focus:border-blue-500 focus:ring-blue-500` stay (no token resolves to an equivalent value; `--ring` is blue-600 and `--muted-foreground` is far darker than gray-400), with a one-line file comment saying why. Story 7 can tokenise `Input` and `Textarea` together.
+- **`Checkbox`** is a native `<input type="checkbox">` with a light default style (`h-4 w-4 rounded border-gray-300 accent-blue-600`); the small visible change on the one existing checkbox is accepted.
+- **Docs:** the primitives-table rows (`input`, `label`, `checkbox`) land in this story's PR, not before (documentation policy above).
+
 New migration / i18n keys / env vars / feature flags: none.
 Backend HTTP surface: none (web only). Prototype references: none (no new screen; the existing editor must look unchanged apart from the one-shade border, decision 3).
 
@@ -125,7 +132,8 @@ Backend HTTP surface: none (web only). Prototype references: none (no new screen
   - [ ] Existing specs of the 16 migrated files pass unchanged
 - E2E:
   - [ ] none — covered by unit; the hotsite-editor screens are browser-verified after asking per `CLAUDE.md` §0 (local verification gate)
-- [ ] The literal `w-full rounded-md border border-gray-300 px-3 py-2 text-sm` no longer appears anywhere in `apps/web` (grep proof)
+- [ ] No `<input>` or `<textarea>` in `apps/web` carries the literal `w-full rounded-md border border-gray-300 px-3 py-2 text-sm` (grep proof); the single `<select>` in `LeadFormSortableQuestion.tsx` still does and is Story 3's
+- [ ] `Checkbox` stays a native `getByRole('checkbox')` control (named test: toggles and is found by role, so the negative guarantee "still a native checkbox" is pinned)
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
@@ -218,6 +226,7 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 - `features/platform/components/settings/{SettingsFormFields,SettingsHoursSection}.tsx`; `features/platform/components/hotsite/{SeoTab}.tsx`; `.../hotsite/modules/{LeadFormSortableQuestion,BookingPhotoPicker,TestimonialsConfigPanel,AboutConfigPanel,ContentBlockConfigPanel,LeadFormTeaserFields,ChatbotConfigPanel}.tsx`
 - `features/booking/components/dashboard/schedule/{ClosureFormSheet,ResourceSelectField,ScheduleDateTimeRangeSheet}.tsx`; `.../dashboard/services/{PolicyDurationPolicyField,PolicyDurationPricingCard,IntakeParticipantsAndConsentCards,ServiceFormFields,EligiblePoolPicker,IntakeQuestionCard}.tsx`; `.../dashboard/bookings/{RejectBookingSheet,MarkCompleteBookingPage,NoShowSheet,AdminCancelBookingSheet,RequestInfoSheet,CorrectNoShowSheet,RescheduleNotesCard}.tsx`; `.../bookings/new-booking/{NewBookingDurationStep,NewBookingIntakeStep}.tsx`; `.../dashboard/resources/ResourceIdentityFields.tsx`; `.../dashboard/scheduling-exceptions/{ReassignSheet,CancelSheet}.tsx`
 - `features/customer/components/my-account/InfoSubmitForm.tsx`
+- Also in scope (found in Story 0 discovery, missing from the list above): the raw controls still left in `features/platform/components/hotsite/modules/` after Story 0 — `GalleryImageManager.tsx`, `BookingCtaConfigPanel.tsx` (number input), the remaining raw inputs in `ContentBlockConfigPanel.tsx` and `ServiceListActionFields.tsx`, and the `<select>` in `LeadFormSortableQuestion.tsx`. Discovery re-greps the folder for the exact list.
 - Specs for each modified file stay and must pass unchanged unless a deviation is recorded
 
 **Acceptance criteria — product:**
