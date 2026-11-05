@@ -9,6 +9,7 @@ import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { PhotoTile } from '../../PhotoTile';
 import { BookingClientCard } from './BookingClientCard';
 import { StaffBookingExtras } from './StaffBookingExtras';
+import { SectionLabel } from '@/shared/components/ui/section-label';
 
 interface BookingDetailMainProps {
   readonly booking: StaffBookingDetailResponse;
@@ -27,9 +28,7 @@ export function BookingDetailMain({ booking }: BookingDetailMainProps): React.JS
       {booking.infoRequestMessage && (
         <section>
           <div className="mb-2 flex items-center justify-between gap-3">
-            <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-              {t('infoExchangeSection')}
-            </p>
+            <SectionLabel>{t('infoExchangeSection')}</SectionLabel>
             {booking.status === 'INFO_REQUESTED' && (
               <Badge variant="info" size="sm">
                 {t('infoSentLabel')}
@@ -54,9 +53,7 @@ export function BookingDetailMain({ booking }: BookingDetailMainProps): React.JS
       )}
 
       <section>
-        <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-          {t('scheduleSection')}
-        </p>
+        <SectionLabel className="mb-2">{t('scheduleSection')}</SectionLabel>
         <Card>
           <CardContent className="flex items-center gap-3 p-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-700">
@@ -88,9 +85,7 @@ export function BookingDetailMain({ booking }: BookingDetailMainProps): React.JS
       </section>
 
       <section>
-        <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-          {t('servicesSection')}
-        </p>
+        <SectionLabel className="mb-2">{t('servicesSection')}</SectionLabel>
         <Card>
           <CardHeader className="pb-3">
             <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-3 text-[0.6875rem] font-bold uppercase tracking-[0.07em] text-gray-400">
@@ -138,9 +133,7 @@ export function BookingDetailMain({ booking }: BookingDetailMainProps): React.JS
 
       {(booking.beforeServicePhotoUrls.length > 0 || booking.afterServicePhotoUrls.length > 0) && (
         <section>
-          <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-            {t('photosSection')}
-          </p>
+          <SectionLabel className="mb-2">{t('photosSection')}</SectionLabel>
           <div className="space-y-4">
             {booking.beforeServicePhotoUrls.length > 0 && (
               <div>

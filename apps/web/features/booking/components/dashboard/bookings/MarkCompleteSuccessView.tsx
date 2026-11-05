@@ -7,6 +7,7 @@ import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { BookingCompletionSummary } from './BookingCompletionSummary';
 import { BookingOutcomeLayout } from './BookingOutcomeLayout';
+import { SectionLabel } from '@/shared/components/ui/section-label';
 
 interface MarkCompleteSuccessViewProps {
   readonly booking: StaffBookingDetailResponse;
@@ -65,9 +66,7 @@ export function MarkCompleteSuccessView({
       primaryAction={{ label: t('backToAgenda'), href: backHref }}
     >
       <section>
-        <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-          {t('scheduleSection')}
-        </p>
+        <SectionLabel className="mb-2">{t('scheduleSection')}</SectionLabel>
         <Card>
           <CardContent className="p-4">
             <p className="text-sm font-semibold text-gray-900">{formatDateLong(scheduledAt)}</p>
@@ -81,9 +80,7 @@ export function MarkCompleteSuccessView({
 
       {completedBookingForDisplay.afterServicePhotoUrls.length > 0 && (
         <section>
-          <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-            {t('afterPhotosLabel')}
-          </p>
+          <SectionLabel className="mb-2">{t('afterPhotosLabel')}</SectionLabel>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {completedBookingForDisplay.afterServicePhotoUrls.map((url, index) => (
               /* eslint-disable-next-line @next/next/no-img-element -- signed storage URLs are rendered as native thumbnails */
@@ -101,9 +98,7 @@ export function MarkCompleteSuccessView({
 
       {beforePhotos.length > 0 && (
         <section>
-          <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-            {t('beforePhotosLabel')}
-          </p>
+          <SectionLabel className="mb-2">{t('beforePhotosLabel')}</SectionLabel>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {beforePhotos.map((url, index) => (
               /* eslint-disable-next-line @next/next/no-img-element -- signed storage URLs are rendered as native thumbnails */

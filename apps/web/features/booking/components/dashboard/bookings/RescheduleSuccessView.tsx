@@ -3,6 +3,7 @@ import type { StaffBookingDetailResponse } from '@ikaro/types';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { BookingOutcomeLayout } from './BookingOutcomeLayout';
+import { SectionLabel } from '@/shared/components/ui/section-label';
 
 interface RescheduleSuccessViewProps {
   readonly booking: StaffBookingDetailResponse;
@@ -45,23 +46,17 @@ export function RescheduleSuccessView({
       secondaryAction={{ label: t('backToAgenda'), href: agendaHref }}
     >
       <section>
-        <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-          {t('rescheduledSummaryLabel')}
-        </p>
+        <SectionLabel className="mb-2">{t('rescheduledSummaryLabel')}</SectionLabel>
         <Card>
           <CardContent className="space-y-3 p-4">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-                {t('rescheduledFromLabel')}
-              </p>
+              <SectionLabel>{t('rescheduledFromLabel')}</SectionLabel>
               <p className="mt-1 text-sm font-semibold text-gray-900">
                 {formatDateLong(oldStart)} · {formatTime(oldStart)}–{formatTime(oldEnd)}
               </p>
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-                {t('rescheduledToLabel')}
-              </p>
+              <SectionLabel>{t('rescheduledToLabel')}</SectionLabel>
               <p className="mt-1 text-sm font-semibold text-gray-900">
                 {formatDateLong(newStart)} · {formatTime(newStart)}–{formatTime(newEnd)}
               </p>

@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { Card, CardContent } from '@/shared/components/ui/card';
+import { SectionLabel } from '@/shared/components/ui/section-label';
 
 interface RecurringDecisionExplainerProps {
   readonly customerName: string;
@@ -22,9 +23,7 @@ export function RecurringDecisionExplainer({
 
   return (
     <div className="space-y-2" data-testid="recurring-what-happens">
-      <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-        {t('whatHappens')}
-      </p>
+      <SectionLabel>{t('whatHappens')}</SectionLabel>
       <Card>
         <CardContent className="space-y-3 p-4 text-sm leading-6 text-gray-600">
           <p>{t('noneCreatedYet')}</p>

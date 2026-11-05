@@ -5,6 +5,7 @@ import type { BookingStatusHistoryEntry } from '@ikaro/types';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { buildBookingStatusLabels } from '@/features/booking/model/booking-status';
+import { SectionLabel } from '@/shared/components/ui/section-label';
 
 interface BookingStatusHistoryProps {
   readonly entries: readonly BookingStatusHistoryEntry[];
@@ -35,9 +36,7 @@ export function BookingStatusHistory({ entries }: BookingStatusHistoryProps): Re
 
   return (
     <section data-testid="booking-status-history">
-      <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-        {t('statusHistoryTitle')}
-      </p>
+      <SectionLabel className="mb-2">{t('statusHistoryTitle')}</SectionLabel>
       <Card>
         <CardContent className="p-4">
           <ol className="divide-y divide-gray-100">

@@ -10,6 +10,7 @@ import {
 } from '@/features/booking/hooks/useCustomerSearch';
 import { resourceInitials } from '@/features/booking/model/resource-picker-copy';
 import { INPUT_CLASS, LABEL_CLASS } from './new-booking/new-booking-styles';
+import { SectionLabel } from '@/shared/components/ui/section-label';
 
 interface CustomerSearchPanelProps {
   readonly selectedId: string | null;
@@ -102,9 +103,7 @@ export function CustomerSearchPanel({
 
       {!search.isError && (
         <>
-          <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-            {search.term ? t('resultsHeading') : t('listHeading')}
-          </p>
+          <SectionLabel>{search.term ? t('resultsHeading') : t('listHeading')}</SectionLabel>
           {!search.isLoading && search.items.length === 0 && (
             <p className="text-sm text-gray-600" data-testid="customer-no-result">
               {search.term ? t('noResult', { term: search.term }) : t('empty')}

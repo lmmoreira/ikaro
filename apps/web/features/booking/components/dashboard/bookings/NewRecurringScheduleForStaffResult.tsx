@@ -21,6 +21,7 @@ import {
 import type { StaffCreateOutcome } from '@/features/booking/model/recurring-staff-create';
 import { Button } from '@/shared/components/ui/button';
 import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
+import { SectionLabel } from '@/shared/components/ui/section-label';
 
 export interface StaffScheduleCustomer {
   readonly customerId: string;
@@ -174,9 +175,9 @@ function RecapRow({
 }): React.JSX.Element {
   return (
     <div className="flex flex-col gap-0.5 border-b border-gray-100 py-2 last:border-b-0 sm:flex-row sm:gap-4">
-      <dt className="w-32 shrink-0 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
+      <SectionLabel as="dt" className="w-32 shrink-0">
         {label}
-      </dt>
+      </SectionLabel>
       <dd className="text-gray-900">
         {value}
         {note !== undefined && <span className="block text-xs text-gray-500">{note}</span>}

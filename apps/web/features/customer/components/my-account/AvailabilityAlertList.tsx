@@ -5,6 +5,7 @@ import { Bell } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { AvailabilityAlertResponse, AvailabilityAlertStatus } from '@ikaro/types';
 import { Badge } from '@/shared/components/ui/badge';
+import { EmptyState } from '@/shared/components/ui/empty-state';
 import { cn } from '@/shared/utils/cn';
 import {
   ALERT_STATUS_CLASSES,
@@ -115,21 +116,22 @@ export function AvailabilityAlertList({
       <h1 className="text-lg font-bold text-gray-900">{t('title')}</h1>
 
       {isEmpty ? (
-        <section
+        <EmptyState
           data-testid="alerts-empty"
-          className="mt-6 flex flex-col items-center rounded-2xl border border-gray-100 bg-white px-6 py-12 text-center shadow-sm"
-        >
-          <Bell className="h-10 w-10 text-gray-300" aria-hidden="true" />
-          <p className="mt-4 text-base font-semibold text-gray-900">{t('emptyTitle')}</p>
-          <p className="mt-1 max-w-sm text-sm text-gray-500">{t('emptyBody')}</p>
-          <Link
-            href={`/${tenantSlug}/booking`}
-            data-testid="alerts-empty-cta"
-            className="mt-5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-          >
-            {t('newBooking')}
-          </Link>
-        </section>
+          className="mt-6"
+          icon={<Bell className="h-10 w-10 text-gray-300" aria-hidden="true" />}
+          title={t('emptyTitle')}
+          body={t('emptyBody')}
+          action={
+            <Link
+              href={`/${tenantSlug}/booking`}
+              data-testid="alerts-empty-cta"
+              className="mt-5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+            >
+              {t('newBooking')}
+            </Link>
+          }
+        />
       ) : (
         <div className="mt-4">
           <p className="rounded-xl border border-blue-200 bg-blue-50 p-3.5 text-sm text-blue-900">
