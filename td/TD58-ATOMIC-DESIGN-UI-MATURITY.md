@@ -93,7 +93,7 @@ Stories 0, 1, 2, 4, 5, 8 and 9 have no dependency on each other and can run in a
 
 ---
 
-### Story 0 — `ui/input`, `ui/label`, `ui/checkbox` atoms and first adoption
+### Story 0 — `ui/input`, `ui/label`, `ui/checkbox` atoms and first adoption ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** M
