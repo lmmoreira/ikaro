@@ -349,4 +349,115 @@ describe('TD37-S04 restricted syntax (web)', () => {
       ).toHaveLength(0);
     });
   });
+
+  describe('hand-written feedback role ban (TD57-S05)', () => {
+    const isFeedbackRoleMessage = (message: { message: string }): boolean =>
+      message.message.includes('bypasses the feedback pattern');
+    const COMPONENT = 'features/booking/components/public/Example.tsx';
+    const SHARED_UI = 'shared/components/ui/feedback-message.tsx';
+    const SHARED_BRANDED = 'shared/components/hotsite/branded-feedback-message.tsx';
+
+    it.each([
+      ['a literal role="alert"', 'export const A = () => <div role="alert">x</div>;'],
+      ['a literal role="status"', 'export const A = () => <div role="status">x</div>;'],
+      [
+        "an expression container role={'alert'}",
+        "export const A = () => <div role={'alert'}>x</div>;",
+      ],
+      ['a template literal role={`alert`}', 'export const A = () => <div role={`alert`}>x</div>;'],
+      [
+        'a conditional value',
+        "export const A = ({ on }: { on: boolean }) => <div role={on ? 'alert' : undefined}>x</div>;",
+      ],
+      ['a spread object', "export const A = () => <div {...{ role: 'alert' }}>x</div>;"],
+      [
+        'a spread object with a string key',
+        "export const A = () => <div {...{ 'role': 'status' }}>x</div>;",
+      ],
+      ['a computed role key', "export const A = () => <div {...{ ['role']: 'alert' }}>x</div>;"],
+      [
+        'createElement with a props object',
+        "export const a = () => createElement('div', { role: 'alert' });",
+      ],
+      [
+        'a props object built apart',
+        "const props = { role: 'status', className: 'x' }; export const a = () => createElement('div', props);",
+      ],
+    ])('rejects %s', (_label, source) => {
+      const messages = lint(source, COMPONENT).filter(isFeedbackRoleMessage);
+
+      expect(messages).not.toHaveLength(0);
+      expect(messages[0].message).toContain('FeedbackMessage');
+      expect(messages[0].message).toContain('BrandedFeedbackMessage');
+    });
+
+    it('rejects it in a plain .ts file too', () => {
+      expect(
+        lint("export const a = { role: 'alert' };", 'features/booking/model/example.ts').filter(
+          isFeedbackRoleMessage,
+        ),
+      ).not.toHaveLength(0);
+    });
+
+    it.each([
+      ['role="dialog"', 'export const A = () => <div role="dialog">x</div>;'],
+      ['role="navigation"', 'export const A = () => <nav role="navigation">x</nav>;'],
+      ['role="group"', 'export const A = () => <div role="group">x</div>;'],
+      [
+        'a role held in a variable',
+        'export const A = ({ r }: { r: string }) => <div role={r}>x</div>;',
+      ],
+      [
+        'a loading <output> (implicit status role)',
+        'export const A = () => <output aria-busy="true">x</output>;',
+      ],
+      ["a value 'alert' that is not a role", "export const a = { kind: 'alert' };"],
+      ['a staff role value', "export const a = { role: 'MANAGER' };"],
+    ])('does not flag %s', (_label, source) => {
+      expect(lint(source, COMPONENT).filter(isFeedbackRoleMessage)).toHaveLength(0);
+    });
+
+    it.each([SHARED_UI, SHARED_BRANDED])('permits the shared message component %s', (filePath) => {
+      expect(
+        lint('export const A = () => <div role="alert">x</div>;', filePath).filter(
+          isFeedbackRoleMessage,
+        ),
+      ).toHaveLength(0);
+    });
+
+    it('an allowed file still enforces the other bans', () => {
+      const messages = lint(
+        'const locale = resolveSupportedLocale(\'pt-BR\'); export const A = () => <div role="alert">x</div>;',
+        SHARED_UI,
+      );
+
+      expect(messages).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            ruleId: 'no-restricted-syntax',
+            message: expect.stringContaining('Do not hardcode a locale string'),
+          }),
+        ]),
+      );
+      expect(messages.filter(isFeedbackRoleMessage)).toHaveLength(0);
+    });
+
+    it('a field-message component is not an allowed file', () => {
+      expect(
+        lint(
+          'export const A = () => <div role="alert">x</div>;',
+          'shared/components/ui/field-feedback.tsx',
+        ).filter(isFeedbackRoleMessage),
+      ).not.toHaveLength(0);
+    });
+
+    it('does not lint a spec file', () => {
+      expect(
+        lint(
+          'it("x", () => { render(<div role="alert">x</div>); });',
+          'features/booking/components/public/Example.spec.tsx',
+        ).filter(isFeedbackRoleMessage),
+      ).toHaveLength(0);
+    });
+  });
 });

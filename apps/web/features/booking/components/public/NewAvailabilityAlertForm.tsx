@@ -8,6 +8,7 @@ import type { AvailabilityAlertFieldKey } from '@/features/booking/model/availab
 import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feedback-message';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { CriteriaChoice, SummaryRow, WeekdayPicker } from './AvailabilityAlertFields';
+import { AvailabilityAlertFormMessages } from './AvailabilityAlertFormMessages';
 import { DateTimeField, ExpirySelect, TimeField } from './AvailabilityAlertPickers';
 import {
   AvailabilityAlertCapReached,
@@ -230,15 +231,11 @@ export function NewAvailabilityAlertForm({
           </button>
         </div>
 
-        {state.submitError && (
-          <div data-testid="alert-submit-error">
-            <BrandedFeedbackMessage
-              focusOnMount
-              title={state.submitError}
-              hint={t('availabilityAlert.errors.submitFailedHint')}
-            />
-          </div>
-        )}
+        <AvailabilityAlertFormMessages
+          hasFieldErrors={Object.keys(errors).length > 0}
+          rejectedSubmits={state.rejectedSubmits}
+          submitError={state.submitError}
+        />
       </form>
     </AvailabilityAlertShell>
   );

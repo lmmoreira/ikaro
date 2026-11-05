@@ -4,9 +4,10 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
-import { findContactError, type ContactField } from '@/features/booking/model/contact-validation';
+import { findContactError } from '@/features/booking/model/contact-validation';
 import type { StaffBookingRecipient } from '@/features/booking/model/staff-booking-payload';
 import type { StaffGuestContact } from '@/features/booking/hooks/useStaffGuestContact';
+import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import { BookingOutcomeActionRail } from './BookingOutcomeActionRail';
 import { CustomerSearchPanel } from './CustomerSearchPanel';
 import { GuestContactForm } from './GuestContactForm';
@@ -68,7 +69,7 @@ export function CustomerChooserStep({
   const [mode, setMode] = useState<ChooserMode>('registered');
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [guest, setGuest] = useState<StaffGuestContact>(EMPTY_GUEST);
-  const [errorField, setErrorField] = useState<ContactField | null>(null);
+  const feedback = useFormFeedback();
   const guestDisabled = kind === 'recorrencia';
   const canContinue = mode === 'registered' ? customerId !== null : true;
 
@@ -78,8 +79,12 @@ export function CustomerChooserStep({
       return;
     }
     const field = findContactError(guest);
-    setErrorField(field);
-    if (!field) onContinue({ kind: 'guest', ...guest });
+    if (field) {
+      feedback.setFieldErrors({ [field]: t('guestRequired') });
+      return;
+    }
+    feedback.clear();
+    onContinue({ kind: 'guest', ...guest });
   }
 
   return (
@@ -108,11 +113,8 @@ export function CustomerChooserStep({
               <GuestContactForm
                 value={guest}
                 phonePrefix={phonePrefix}
-                errorField={errorField}
-                onChange={(next) => {
-                  setGuest(next);
-                  setErrorField(null);
-                }}
+                feedback={feedback}
+                onChange={feedback.edit(setGuest)}
               />
             )}
           </CardContent>

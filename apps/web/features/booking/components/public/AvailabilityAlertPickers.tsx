@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { CalendarIcon } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
@@ -153,13 +153,14 @@ export function DateTimeField({
 }: DateTimeFieldProps): React.JSX.Element {
   const t = useTranslations('booking');
   const labelId = `alert-${rowKey}-label`;
+  const errorId = useId();
   const label = t(`availabilityAlert.${labelKey}`);
 
   return (
-    <div>
-      <p id={labelId} className="mb-1 block text-sm font-medium">
+    <fieldset className="min-w-0" aria-describedby={error ? errorId : undefined}>
+      <legend id={labelId} className="mb-1 block text-sm font-medium">
         {label}
-      </p>
+      </legend>
       <div className="flex flex-wrap items-center gap-2">
         <DatePopover
           rowKey={rowKey}
@@ -176,8 +177,8 @@ export function DateTimeField({
           onChange={onTimeChange}
         />
       </div>
-      <FieldError message={error} />
-    </div>
+      <FieldError id={errorId} message={error} />
+    </fieldset>
   );
 }
 
@@ -200,11 +201,12 @@ export function TimeField({
   onChange,
 }: TimeFieldProps): React.JSX.Element {
   const t = useTranslations('booking');
+  const errorId = useId();
   const label = t(`availabilityAlert.${labelKey}`);
 
   return (
-    <div>
-      <p className="mb-1 block text-sm font-medium">{label}</p>
+    <fieldset className="min-w-0" aria-describedby={error ? errorId : undefined}>
+      <legend className="mb-1 block text-sm font-medium">{label}</legend>
       <TimeControl
         rowKey={rowKey}
         label={label}
@@ -212,8 +214,8 @@ export function TimeField({
         disabled={disabled}
         onChange={onChange}
       />
-      <FieldError message={error} />
-    </div>
+      <FieldError id={errorId} message={error} />
+    </fieldset>
   );
 }
 

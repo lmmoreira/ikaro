@@ -41,9 +41,16 @@ function classifyFailure(err: unknown, locale: SupportedLocale, fallback: string
 }
 
 // The fields the customer edits. Any edit clears the field errors — they described the old value.
+// `rejectedSubmits` counts the submits the validation refused, so the summary under the buttons
+// is announced again when the same errors come back.
 function useAlertFields() {
   const [form, setForm] = useState<AvailabilityAlertFormState>(initialAvailabilityAlertForm);
   const [errors, setErrors] = useState<AvailabilityAlertFormErrors>({});
+  const [rejectedSubmits, setRejectedSubmits] = useState(0);
+  const rejectSubmit = (found: AvailabilityAlertFormErrors): void => {
+    setErrors(found);
+    setRejectedSubmits((count) => count + 1);
+  };
 
   const update = (patch: Partial<AvailabilityAlertFormState>): void => {
     setForm((current) => ({ ...current, ...patch }));
@@ -56,7 +63,7 @@ function useAlertFields() {
         : [...form.weekdays, day],
     });
 
-  return { form, errors, setErrors, update, toggleWeekday };
+  return { form, errors, rejectedSubmits, rejectSubmit, update, toggleWeekday };
 }
 
 // The create call and where it leaves the page: the confirmation on 201, otherwise the view or
@@ -102,7 +109,7 @@ export function useAvailabilityAlertForm({ serviceId, resource, durationMinutes 
     const now = new Date();
     const found = validateAvailabilityAlertForm(fields.form, timezone, now);
     if (Object.keys(found).length > 0) {
-      fields.setErrors(found);
+      fields.rejectSubmit(found);
       return;
     }
     const params = {

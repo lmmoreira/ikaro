@@ -288,6 +288,40 @@ describe('NewAvailabilityAlertForm', () => {
       await fillRange();
 
       expect(screen.queryByText('Informe o início do período.')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('alert-validation-error')).not.toBeInTheDocument();
+    });
+
+    it('announces a refused submit with a summary under the buttons, and again on the next refusal', async () => {
+      renderForm();
+      expect(screen.queryByTestId('alert-validation-error')).not.toBeInTheDocument();
+
+      await userEvent.click(screen.getByTestId('alert-submit'));
+
+      const summary = await screen.findByTestId('alert-validation-error');
+      const alert = within(summary).getByRole('alert');
+      expect(alert).toHaveTextContent('Corrija os campos destacados acima antes de criar o aviso.');
+      expect(alert).toHaveFocus();
+      expect(
+        screen.getByTestId('alert-submit').compareDocumentPosition(summary) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+
+      // Focus returns to the button on the next click; the same errors must be announced again.
+      await userEvent.click(screen.getByTestId('alert-submit'));
+
+      expect(within(screen.getByTestId('alert-validation-error')).getByRole('alert')).toHaveFocus();
+    });
+
+    it('links the invalid group to its field message, which carries no role of its own', async () => {
+      renderForm();
+
+      await userEvent.click(screen.getByTestId('alert-submit'));
+
+      const field = await screen.findByTestId('alert-field-error');
+      expect(field).not.toHaveAttribute('role');
+      expect(screen.getByRole('group', { name: 'De' })).toHaveAccessibleDescription(
+        'Informe o início do período.',
+      );
     });
   });
 
