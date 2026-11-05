@@ -23,7 +23,7 @@ export function EmptyState({
   action,
   className,
   ...props
-}: EmptyStateProps): React.JSX.Element {
+}: Readonly<EmptyStateProps>): React.JSX.Element {
   return (
     <section
       className={cn(
