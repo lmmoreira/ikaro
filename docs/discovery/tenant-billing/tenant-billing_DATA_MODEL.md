@@ -144,7 +144,7 @@ After the manager saves the address: `{"street":"Rua das Flores","number":"120",
 
 Cross-tenant job indexes (standalone, partial):
 - `idx_subscriptions_issue (next_due_date) WHERE status IN ('TRIALING','ACTIVE') AND NOT exempt` — charge issuing (CAND-08).
-- `idx_subscriptions_reminders (next_due_date) WHERE status IN ('TRIALING','ACTIVE','PAST_DUE') AND NOT exempt` (reminders job). Self-heal needs no extra index: it anti-joins `platform.tenants` against `subscriptions` on `created_at`.
+- `idx_subscriptions_reminders (next_due_date) WHERE status IN ('TRIALING','ACTIVE','PAST_DUE') AND NOT exempt` (reminders job). Self-heal needs no extra index on `subscriptions`: it anti-joins `platform.tenants` against `subscriptions` on `created_at`. **Correction (canonical `docs/DATABASE_SCHEMA.md` wins):** `platform.tenants` gains a standalone `(created_at)` index (`AddTenantsCreatedAtIndex`, M26-S08) for that lister, and the tenant-info port lists tenants through it in application code rather than joining across schemas.
 - `idx_subscriptions_sweep (status, past_due_since)` and `(trial_ends_at) WHERE status = 'TRIALING'` (trial-end rule: unpaid or no charge → `SUSPENDED`, no `PAST_DUE`), `(cancel_at) WHERE cancel_at IS NOT NULL` — status sweep (CAND-10).
 - `idx_subscriptions_purge (suspended_at) WHERE status = 'SUSPENDED'` — clean-up (CAND-27).
 
@@ -417,13 +417,13 @@ All carry the standard envelope (`eventId`, `tenantId`, `occurredAt`, `correlati
 | `ChargePaid` | `chargeId`, `amountMinor`, `currency`, `method`, `paidAt` | Notification (receipt) |
 | `SubscriptionPastDue` | `subscriptionId`, `pastDueSince`, `suspendsAt` | Notification |
 | `SubscriptionSuspended` | `subscriptionId`, `reason`, `suspendedAt`, `purgeAt` | Notification; hotsite revalidation |
-| `SubscriptionReactivated` | `subscriptionId`, `reactivatedAt` | Notification; hotsite revalidation |
+| `SubscriptionReactivated` | `subscriptionId`, `reactivatedAt`, `suspendedAt`, `recipientEmail?` | Notification; hotsite revalidation; Loyalty expiry resume *(the canonical `docs/DOMAIN_EVENTS.md` wins)* |
 | `SubscriptionCancelled` | `subscriptionId`, `cancelAt`, `immediate` | Notification (email to the billing email) |
 | `PlanChanged` | `subscriptionId`, `effectiveFrom`, `cycle`, `nextCycle?`, `nextCycleFrom?` *(slice H)*, `newTotalMinor` (total in the chosen cycle; `newMonthlyTotalMinor` while only monthly exists), `added[]`, `removed[]` | Notification (email to the billing email) |
 | `BillingReminderDue` | `kind` (`PLAN_CONFIRMATION` \| `TRIAL_ENDING` \| `CHARGE_DUE_SOON` \| `CHARGE_OVERDUE`), `daysOffset`, `chargeId?`, `paymentUrl?` | Notification (dunning email, CAND-34); `PLAN_CONFIRMATION` asks an unconfirmed trial tenant to confirm its first paid plan (decision 115) |
 | `TenantPurgeWarning` | `subscriptionId`, `daysBefore` (30 or 7), `purgeAt` | Notification (email to the manager; Billing template, exempt from the gate) |
 | `SubscriptionPriceChangeAnnounced` | `changes[]` (`featureKey`, `tier`, `cycle`, `oldAmountMinor`, `newAmountMinor`) **limited to the features this tenant actually has**, `currency`, `effectiveFrom`, `firstAffectedDueDate`, `newMonthlyTotalMinor` (or annual total), `batchId?` — **one event per affected tenant per adjustment** (a tenant with five changed features gets one email listing all five, decision 127) (the envelope requires `tenantId`, so a platform-wide price change fans out per tenant) | Notification (email to managers) |
-| `TenantPurgeRequested` | `tenantId`, `reason` (`SUSPENSION_AGE` \| `SELF_SERVICE_DISCARD` \| `OPERATOR_REQUEST`) | every bounded context (each deletes its own data), storage cleanup |
+| `TenantPurgeRequested` | `tenantId`, `purgeJobId`, `reason` (`SUSPENSION_AGE` \| `SELF_SERVICE_DISCARD` \| `OPERATOR_REQUEST`) | every bounded context (each deletes its own data), storage cleanup |
 | `TenantPurgeContextCompleted` | `purgeJobId`, `participant`, `completedAt` | Billing purge coordinator |
 
 Ikaro sends every billing email itself (decision 59); no handler is conditional on provider emails.

@@ -82,7 +82,7 @@ Cross-cutting concerns ONLY. Domain objects and repositories are NEVER here, and
 
 ```text
 apps/backend/src/shared/
-├── ports/            # IEventBus, IOutboxRepository, ITransactionManager, ITriggerBus … (cross-cutting ports only; each context's repository ports live in its own application/ports/) — no barrel index.ts (ESLint enforced)
+├── ports/            # IEventBus, IOutboxRepository, ITransactionManager, ITriggerBus … (cross-cutting ports only; each context's repository ports live in its own application/ports/) — no barrel index.ts (ESLint enforced); planned with Billing: `clock.port.ts` and `tenant-access.port.ts`
 ├── application/      # use-cases/log-domain-event.use-case.ts only — the shared audit-log consumer (M23-S36)
 ├── domain/           # AggregateRoot, DomainEvent, ValueObject base classes — no barrel index.ts
 ├── value-objects/    # Email, PhoneNumber, Address, Money, HexColor, Timezone, TimeOfDay, CalendarDate, Slug, CountryCode, SeoTitle, SeoDescription
@@ -113,14 +113,14 @@ The BFF mirrors backend ownership by feature slice. Domain-owned code uses the c
 apps/bff/src/
 ├── features/
 │   ├── auth/                 # technical slice: OAuth, JWT issuance, tenant selection
-│   ├── billing/              # domain slice (planned): manager billing routes, provider webhooks, public prices
+│   ├── billing/              # domain slice (planned): `GET /v1/billing/access`, manager billing routes, provider webhooks, public prices
 │   ├── booking/              # domain slice: bookings, schedule, services, attachments
 │   ├── customer/             # domain slice
 │   ├── loyalty/              # domain slice
 │   ├── platform/             # domain slice: hotsite, tenant settings, manifest
 │   ├── staff/                # domain slice
 │   └── uploads/              # NOT a current slice — would exist only if the signed-url flow became genuinely shared
-├── shared/                   # cross-cutting transport and infra helpers only
+├── shared/                   # cross-cutting transport and infra helpers only (planned with Billing: `shared/cache/ttl-cache.ts`, the in-process TTL cache behind the tenant-access guard)
 ├── config/
 ├── health/
 ├── test/
@@ -215,8 +215,8 @@ apps/web/
 
 ## Guard placement
 
-- **`src/shared/guards/`** - guards used across multiple contexts: the role guards that enforce the `X-Actor-Role` header contract (`CustomerRoleGuard`, `ManagerRoleGuard`, `StaffOrManagerRoleGuard`, `AnyAuthenticatedRoleGuard`) and the service-to-service guards (`InternalApiGuard`, `PubSubPushGuard`). Every guard has its own `.spec.ts`.
-- **`src/contexts/<context>/infrastructure/guards/`** - guards with domain-specific logic tied to one context (e.g. `PlatformAdminGuard` which injects `ConfigService`). These stay local.
+- **`src/shared/guards/`** - guards used across multiple contexts: the role guards that enforce the `X-Actor-Role` header contract (`CustomerRoleGuard`, `ManagerRoleGuard`, `StaffOrManagerRoleGuard`, `AnyAuthenticatedRoleGuard`) the service-to-service guards (`InternalApiGuard`, `PubSubPushGuard`) and, once the Billing enforcement stories land (planned, M25-S15a), `PlatformAdminGuard` (`platform-admin.guard.ts`, moved here from the Platform context because Billing's operator routes also use it). Every guard has its own `.spec.ts`.
+- **`src/contexts/<context>/infrastructure/guards/`** - guards with domain-specific logic tied to one context (none exists today once `PlatformAdminGuard` moves to `src/shared/guards/`; a guard that injects a repository of one context, for example, would stay local). These stay local.
 - Never import a guard from another context's `infrastructure/guards/` path - that is a context-isolation violation.
 
 ---

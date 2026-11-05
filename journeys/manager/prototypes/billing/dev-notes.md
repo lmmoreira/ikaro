@@ -14,7 +14,7 @@ All paths are new files under `apps/web` unless the Action says modify; each com
 |---|---|---|
 | `app/dashboard/billing/page.tsx`, `loading.tsx`, `error.tsx` | GAP | Create, thin routes (M26-S27) |
 | `app/dashboard/billing/cancel/page.tsx` | GAP | Create, thin (M26-S31) |
-| `app/dashboard/suspended/page.tsx` | GAP | Create, suspended notice: manager variant (M25-S29) and staff variant (M25-S31) |
+| `app/dashboard/suspended/page.tsx` | GAP | Create, suspended notice: manager variant (M25-S29) and staff variant (M25-S31a) |
 | `features/billing/api/billing.server.ts`, `billing.ts` | GAP | Create (M26-S27); modify in S28, S29, S30, S31 |
 | `features/billing/components/BillingPage.tsx`, `BillingTabs.tsx`, `BillingSummaryTab.tsx`, `BillingChargesTab.tsx`, `BillingStatusBadge.tsx`, `AutoBillingComingSoon.tsx`, `ExemptNotice.tsx` | GAP | Create (M26-S27); `BillingSummaryTab.tsx` modified in S28 |
 | `features/billing/components/PayNowButton.tsx`, `PaymentPendingBanner.tsx`, `PaymentLinkExpiredNotice.tsx`, `PaymentFailedNotice.tsx` | GAP | Create (M26-S28) |
@@ -23,7 +23,7 @@ All paths are new files under `apps/web` unless the Action says modify; each com
 | `features/billing/components/CancelSubscriptionPage.tsx`, `CancelOutcome.tsx`, `ReactivateAction.tsx` | GAP | Create (M26-S31) |
 | `features/billing/components/SubscriptionBanner.tsx`, `SubscriptionBannerProvider.tsx` | GAP | Create (M26-S32); mount point chosen at story discovery |
 | `features/billing/components/FeatureGate.tsx`, `LockedFeaturePage.tsx` | GAP | Create (M25-S29) |
-| `features/billing/components/StaffSuspendedNotice.tsx` | GAP | Create (M25-S31) |
+| `features/billing/components/StaffSuspendedNotice.tsx` | GAP | Create (M25-S31a) |
 | `features/billing/hooks/useBillingSummary.ts`, `useBillingCharges.ts` | GAP | Create (M26-S27) |
 | `features/billing/hooks/usePayCharge.ts`, `usePaymentConfirmationPolling.ts` | GAP | Create (M26-S28) |
 | `features/billing/hooks/useBillingIdentity.ts`, `useUpdateBillingIdentity.ts` | GAP | Create (M26-S29) |
@@ -35,7 +35,7 @@ All paths are new files under `apps/web` unless the Action says modify; each com
 | `features/billing/model/banner-state.ts` | GAP | Create, pure status to banner variant (M26-S32) |
 | `shared/lib/billing/feature-registry.ts`, `access.server.ts` | GAP | Create (M25-S29); registry modified in M26-S27, S32 |
 | `shells/dashboard/components/Sidebar.tsx`, `BottomNav.tsx`, `MoreSheet.tsx` | EXISTS | Modify: manager-only "Assinatura" entry (M26-S27); locked-item rendering (M25-S29) |
-| `app/dashboard/layout.tsx` | EXISTS | Modify: load the access answer once, redirect a suspended manager (M25-S29; `proxy.ts` is untouched, the JWT carries no tenant status); the manager's target becomes the billing page (M26-S32) |
+| `apps/web/shells/dashboard/model/dashboard-shell-context.ts` (`loadDashboardShellContext`) | EXISTS | Modify: fetch the access answer first (before the shell's other reads) and call the shared suspended-redirect helper (M25-S29; `app/dashboard/layout.tsx` stays a passthrough and `proxy.ts` is untouched, the JWT carries no tenant status); M25 interim target is `/dashboard/suspended`, M26-S32 repoints a suspended manager to the billing page |
 | `e2e/billing-money-loop.spec.ts`, `e2e/billing-suspended-experience.spec.ts`, `e2e/helpers/billing/` | GAP | Create (M26-S35) |
 
 Screens `03`/`03b` map to `FeatureGate` / `LockedFeaturePage`; the public signup files (`features/billing/components/public/*`) belong to `guest/prototypes/ikaro-trial`.
@@ -91,7 +91,7 @@ Charge status labels: PENDING "Pendente", PAID "Pago", OVERDUE "Vencida", FAILED
 `ResumoTab` + `BillingStatusBanner` (GAP, also rendered on every other dashboard page while PAST_DUE — see 04b). Amber alert "Pagamento em atraso — faltam {n} dias para a suspensão" (n = days until `suspendsAt` = due + 14; there is never a PAST_DUE after a trial — an unpaid trial invoice suspends 24 hours after the trial end, up to 3 business days when the payment is pending after the manager returned from the payment page). Dunning e-mails go 1, 3, 7 and 12 days after the due date (the last one gives the suspension date); the screen says so, no button inside the alert. Single primary: "Pagar agora" in the "Cobrança em atraso" card. Full access in this state. Cobranças tab starts with the OVERDUE row.
 
 ## Screen 4 — SUSPENDED / NON_PAYMENT (Resumo tab) — 01d-billing-suspended.html
-`ResumoTab` + `SuspendedGate` (GAP: dashboard layout guard redirects every route except `/billing`; STAFF see "Esta conta está suspensa. Fale com o gerente."). Sidebar and bottom-nav items rendered disabled (`aria-disabled`, no href); **Resumo, Plano (read-only), Cobranças and Dados of the five tabs stay usable and Automática is disabled** (this is the only reachable section). Card "Pague 1 mês para reativar" with single primary "Pagar agora" ("Pagar agora" pays the **one-month recovery charge** issued when the account was suspended; the stale charge was cancelled, never re-dated; no new period charges while suspended; never "pague N meses"). Cobranças and Dados work normally; Cobrança automática shows the same muted "Em breve" panel as every other state (it is not available yet). No cancel link; "Falar com a gente" always visible.
+`ResumoTab` + suspended redirect (GAP: the shared helper called from `loadDashboardShellContext` redirects every route except `/billing`, which M26 makes the target; in M25 the interim target is `/dashboard/suspended`; STAFF see "Esta conta está suspensa. Fale com o gerente."). Sidebar and bottom-nav items rendered disabled (`aria-disabled`, no href); **Resumo, Plano (read-only), Cobranças and Dados of the five tabs stay usable and Automática is disabled** (this is the only reachable section). Card "Pague 1 mês para reativar" with single primary "Pagar agora" ("Pagar agora" pays the **one-month recovery charge** issued when the account was suspended; the stale charge was cancelled, never re-dated; no new period charges while suspended; never "pague N meses"). Cobranças and Dados work normally; Cobrança automática shows the same muted "Em breve" panel as every other state (it is not available yet). No cancel link; "Falar com a gente" always visible.
 
 ## Screen 5 — SUSPENDED / CANCELED (Resumo tab) — 01e-billing-suspended-canceled.html
 Same gate and tab behaviour. No charge is open while canceled: the card shows the amount only as "Um mês: R$ 245,00 (cobrado ao reativar)" and the single primary is "Reativar assinatura" -> `POST /v1/billing/reactivate` -> `{ cancelAt: null, openCharge }` (the one-month recovery charge is created now) then `POST .../payment-link` for the URL -> hosted page. Shows the clean-up policy: 180 days after suspension if the tenant ever paid (90 if never), purge date from `summary.purgeAt`, e-mails 30 and 7 days before.
@@ -337,9 +337,9 @@ New screens: `11-billing-active-annual`, `12-addon-midyear-confirm`, `13-cancel-
 
 > Moved as-is from the tenant-billing discovery when the enforcement states were promoted (planned Billing milestone); to be reshaped to the `journeys/README.md` template at story discovery. Common to both: `GET /v1/billing/access -> { status, operational, features: [{ key, tier }] }` (role-reduced for any role, `docs/API_CONTRACTS.md` § Billing — Access Resolution and Suspended-State Effects) is the single input; a feature absent from `features` is locked, and `status` SUSPENDED locks the tenant out identically whatever the reason. Sibling link targets: `01-billing-active.html` (Ver cobrança / Ver minha assinatura) and `08-plan-edit.html` (Contratar este recurso). "Falar com a gente" points to a fictional URL (`https://ikaro.example/ikaro/booking`) and appears on the manager locked screens only.
 
-## Locked feature — Configurações, Chatbot não contratado (`03-locked-feature.html`; `SettingsForm` Chatbot section + `FeatureLockedCard`)
+## Locked feature — Configurações, Chatbot não contratado (`03-locked-feature.html`; `SettingsForm` Chatbot section + `FeatureGate` locked state)
 
-File: `03-locked-feature.html` — Status: `SettingsForm` EXISTS (Chatbot section is a GAP in journeys 01d); `FeatureLockedCard`, `DashboardSidebar`/bottom-nav lock state = GAP.
+File: `03-locked-feature.html` — Status: `SettingsForm` EXISTS (Chatbot section is a GAP in journeys 01d); `FeatureGate` (locked state), `DashboardSidebar`/bottom-nav lock state = GAP.
 Props: `feature: 'CHATBOT'`, `tier?: 'BASIC'|'PLUS'` (copy mentions tiers), `lockedFeatures: FeatureKey[]` on sidebar/bottom nav.
 BFF: `GET /v1/billing/access`. No settings write while locked; stored `chatbot.*` settings are kept untouched.
 Behaviour: locked sidebar / bottom-nav entries keep their real href and show a padlock (never hidden); the Fidelidade entry here points to `03b-locked-feature-direct-url.html`. Chatbot form fields are not rendered while locked.
@@ -347,10 +347,10 @@ States: loaded-locked (this file); loading = existing skeleton of the page; load
 Single primary: **"Contratar este recurso"** -> `08-plan-edit.html` (Plano tab; self-service, UC-136). "Ver minha assinatura" is a secondary button; "Falar com a gente" is only a small text link ("Dúvidas sobre preço?"). Copy: "Recurso não contratado", badge "Não contratado", "Suas configurações foram mantidas.", "Você escolhe o nível ao contratar, na aba Plano da assinatura."
 Mobile: padlock on the tab icon; card stacks icon above text; "Mais" sheet unchanged.
 
-## Locked feature — recurso bloqueado por URL direta (`03b-locked-feature-direct-url.html`; `FeatureLockedPage`)
+## Locked feature — recurso bloqueado por URL direta (`03b-locked-feature-direct-url.html`; `LockedFeaturePage`)
 
 File: `03b-locked-feature-direct-url.html` — Status: GAP.
-Props: `feature: FeatureKey`. Rendered by the route guard of each feature route (HTTP 200 with the upsell, not 404 or redirect); API calls for the feature are rejected by the backend (403 `BILLING_FEATURE_NOT_ENTITLED`).
+Props: `feature: FeatureKey`. Rendered by the route guard of each feature route (HTTP 200 with the upsell, not 404 or redirect); API calls for the feature are rejected by the backend (`BILLING_FEATURE_NOT_ENTITLED`, proposed 403, HTTP status decided at S16).
 BFF: `GET /v1/billing/access`.
 States: loaded-locked (this file); loading / load-error as for any dashboard route.
 Single primary: **"Contratar este recurso"** -> `08-plan-edit.html`; "Ver minha assinatura" secondary; "Falar com a gente" small text link only. Copy: "Recurso não contratado", "Seus clientes e pontos já registrados foram mantidos…", "← Voltar à Agenda".

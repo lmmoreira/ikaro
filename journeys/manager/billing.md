@@ -63,7 +63,7 @@ flowchart TD
 |---|---|---|---|
 | `/dashboard/billing` (tabs, `?tab=`) | `BillingPage`, `BillingTabs`, `ResumoTab`, `PlanoTab`, `CobrancasTab`, `DadosCobrancaTab` (`BillingIdentityForm`), `CobrancaAutomaticaTab` | — | ❓ GAP |
 | Cancel confirmation (a separate page; route decided at story discovery) | `CancelSubscriptionConfirm` | — | ❓ GAP |
-| A feature the tenant has not bought (its settings section, or its route opened by URL) | `FeatureLockedCard`, `FeatureLockedPage` (HTTP 200 with the upsell; the API answers `403 BILLING_FEATURE_NOT_ENTITLED`) | — | ❓ GAP |
+| A feature the tenant has not bought (its settings section, or its route opened by URL) | `FeatureGate` locked state (settings section) and `LockedFeaturePage` (route opened by URL) (HTTP 200 with the upsell; the API answers `BILLING_FEATURE_NOT_ENTITLED`, proposed 403, HTTP status decided at S16) | — | ❓ GAP |
 | Every `/dashboard/**` page | `SubscriptionBanner` (manager-only; trial, past due, address missing) | — | ❓ GAP |
 | `Sidebar` / `BottomNav` / `MoreSheet` | New manager-only "Assinatura" item | — | ❓ GAP |
 
@@ -76,7 +76,7 @@ flowchart TD
 | `POST /v1/billing/charges/{chargeId}/payment-link`, `…/payment-return` | Pagar agora / return from the hosted page | MANAGER |
 | `GET /v1/billing/plan`, `POST /plan/preview`, `PUT /plan`, `POST /plan/confirm` | Plano tab | MANAGER |
 | `POST /v1/billing/cancel`, `POST /v1/billing/reactivate` | Cancel page / Reativar assinatura | MANAGER |
-| `GET /v1/billing/access` | Every `/dashboard/**` request (feature entitlement and suspension routing, loaded once in the dashboard layout; UC-125, UC-121) | MANAGER, STAFF |
+| `GET /v1/billing/access` | Every `/dashboard/**` request (feature entitlement and suspension routing, fetched first in `loadDashboardShellContext`, not `app/dashboard/layout.tsx`; UC-125, UC-121). M25 interim: a suspended manager lands on `/dashboard/suspended` (M25-S29); M26 repoints it to the billing page | any authenticated role |
 | `POST /v1/billing/discard` *(deferred, UC-141, slice G, M27)* | Descartar este teste (`10`); until M27 the button is not rendered and the web shows the interim "contact Ikaro" message (`canDiscard` false) | MANAGER |
 | `POST` / `DELETE /v1/billing/auto-billing` *(deferred)* | Cobrança automática tab | MANAGER |
 

@@ -1493,6 +1493,7 @@ Content-Type: application/json
 | `401` | Missing or invalid Cloud Run IAM identity token in `Authorization`, invalid `X-Internal-Key`, or invalid `X-Platform-Admin-Key` |
 | `400` | Validation failure (invalid slug format, invalid email, invalid or unsupported `country_code`, invalid timezone) |
 | `409` | Slug already in use |
+| `422` | *(Planned with Billing.)* `SIGNUP_TAX_ID_REQUIRED` (non-exempt BR tenant without a `taxId`), `SIGNUP_TAX_ID_INVALID` (check digits fail), `BILLING_US_NOT_AVAILABLE` (non-exempt US tenant while `FEATURE_FLAG_SIGNUP_US` is off) |
 
 ---
 
@@ -1671,7 +1672,7 @@ All sit under the four-layer protection described in "Internal Platform API (Ope
 | `GET /internal/signup/slug-availability?slug=` | `available \| taken \| reserved \| invalid` for the public slug check (Platform `internal-slug.controller.ts`) | UC-128 |
 | `POST /internal/signup/resend` | Resend of the first-manager invitation email from the account-created page; shape decided at story discovery | UC-127 A10 |
 
-`GET /internal/tenants/{tenantId}/billing/tenant-info` is **not** an endpoint: it names the read-only tenant-info **port** that the self-heal job, the release backfill and (for `created_at`, the 15-minute provisioning window) the access resolver use: country (`settings.localization.countryCode`), timezone (`settings.businessHours.timezone`), `slug`, `created_at`, `is_active`, served by a Platform read use case. Self-heal lists tenants through it and diffs against `subscriptions` in application code — no cross-schema join.
+`GET /internal/tenants/{tenantId}/billing/tenant-info` is **not** an endpoint: it names the read-only tenant-info **port** that the self-heal job, the release backfill and (for `created_at`, the 15-minute provisioning window) the access resolver use: country (`settings.localization.countryCode`), timezone (`settings.businessHours.timezone`), `slug`, `created_at`, `is_active`, served by a Platform read use case. **In M25 the port returns `{ tenantId, slug, countryCode, timezone, createdAt }` only**; `isActive` and the `listTenantsCreatedBefore` lister arrive with M26-S05 / M26-S08 (self-heal). Self-heal lists tenants through it and diffs against `subscriptions` in application code — no cross-schema join.
 
 #### `POST /internal/billing/feature-prices/adjust` — percentage adjustment (UC-112)
 
@@ -1840,7 +1841,7 @@ Billing codes are `BILLING_*`, signup codes `SIGNUP_*`; every code and where it 
 | `operational` | `status != SUSPENDED` |
 | `features` | `[{ key, tier }]` — the entitled features |
 
-The answer is reduced to what the caller's role may see; the exact reduction per role is decided at story discovery. It is read by the web layouts (routing by role while suspended, UC-121; `proxy.ts` cannot, because the JWT carries no tenant status), the dashboard (locked items, UC-125) and the customer account (the "Empresa inativa" badge). It is cached in the BFF and **fails open** on a lookup error; the billing page and the access calls it makes bypass the BFF cache (UC-117). The BFF guard does not call this route — it reads the backend's internal access endpoint through the shared port.
+The answer is reduced to what the caller's role may see; the exact reduction per role is decided at story discovery. It is read by the web layouts (routing by role while suspended, UC-121; `proxy.ts` cannot, because the JWT carries no tenant status), the dashboard (locked items, UC-125) and the customer account (the "Empresa inativa" badge). The route itself adds no cache: it returns the backend's answer (the backend port keeps its 60 s / 10 s cache, and the BFF's 30 s / 10 s TTL cache belongs to the `TenantAccessGuard` only, never to this route). It **fails open** on a lookup error; the billing page and the access calls it makes bypass the BFF cache (UC-117). The BFF guard does not call this route — it reads the backend's internal access endpoint through the shared port.
 
 **What `SUSPENDED` changes on existing routes** (UC-121, UC-122)
 

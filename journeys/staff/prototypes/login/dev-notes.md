@@ -82,13 +82,13 @@ UC-022 / UC-025 — one path (handleStaffLogin):
 
 > Moved as-is from the tenant-billing discovery; Draft, to be reshaped at story discovery. Both screens read `GET /v1/billing/access -> { status, operational, features: [{ key, tier }] }` (role-reduced for any role, `docs/API_CONTRACTS.md` § Billing — Access Resolution and Suspended-State Effects) is the single input; a feature absent from `features` is locked, and `status` SUSPENDED locks the tenant out identically whatever the reason.
 
-## Suspended-account notice — staff (`02-suspended-notice.html`; `TenantSuspendedNotice`)
+## Suspended-account notice — staff (`02-suspended-notice.html`; `StaffSuspendedNotice`)
 
 File: `02-suspended-notice.html` — Status: GAP. Visual base: staff login card (`app/dashboard/login/page.tsx`).
-Props: `role: 'STAFF'`. Rendered by `app/dashboard/layout.tsx` for role STAFF when status = SUSPENDED (managers get the billing page instead). No nav, no data fetching; API answers 403 `BILLING_TENANT_SUSPENDED`.
+Props: `role: 'STAFF'`. Component `StaffSuspendedNotice` (M25-S31a), rendered by `app/dashboard/suspended/page.tsx`, which branches on role (STAFF -> this; MANAGER -> `ManagerSuspendedNotice`, M25-S29; M26 later repoints managers to the billing page). The redirect to `/dashboard/suspended` is done by the shared helper called from `loadDashboardShellContext`, not `app/dashboard/layout.tsx`. No nav; API answers `BILLING_TENANT_SUSPENDED` (proposed 403 — HTTP status decided at S16).
 BFF: `GET /v1/billing/access`.
 Copy: "Conta suspensa", "Esta conta está suspensa. Fale com o gerente.", button "Sair". Reason-neutral.
-States: single static state; loading = brand mark only; load-error = same card with "Não foi possível verificar sua conta. Tente novamente." and "Tentar novamente".
+States: single static state; loading = brand mark only; no load-error state — a failed access lookup fails open (the dashboard renders as today).
 Mobile: card is already full-width up to 26rem.
 
 ## Tenant selection with a suspended tenant (`03-select-tenant-suspended.html`; `SelectStaffTenantClient`)
@@ -100,7 +100,9 @@ Mobile: card is already full-width up to 26rem.
 **BFF call:** `GET /auth/staff-tenants` (existing) must include a per-tenant `operational` flag (false when status = SUSPENDED). `POST /auth/switch-staff-tenant { staffId }` stays unchanged and must not reject a suspended tenant.
 **Behaviour:** the suspended tenant is always listed and selectable; when `operational === false`, render an extra amber badge "Suspensa" before the role badge. Selecting it switches the session and `/dashboard` renders the suspended notice (`02-suspended-notice.html`). Only the badge: no reason, no payment info for staff.
 **States:** populated (this file); load error reuses the existing `selectTenantError` / `selectTenantRetry`. No new loading/validation states.
-**i18n:** new key `auth.tenantSuspendedBadge` = "Suspensa" (pt-BR), "Suspended" (en).
+**i18n:** new key `auth.selectTenantSuspendedBadge` = "Suspensa" (pt-BR), "Suspended" (en).
 **Mobile:** card is `max-w-md`, badges stay on the right and wrap-free (`flex-shrink: 0`).
 
-**Customers:** there is no customer tenant selector in the codebase (descoped, UC-021 Case B: customers sign in per tenant slug). If a customer tenant switcher (UC-023) is ever built, it must keep listing a suspended tenant with the "Empresa inativa" badge — same rule as staff.
+**Customers:** the login-time customer tenant selector (UC-021 Case B) is descoped (customers sign in per tenant slug), but a customer tenant switcher exists: `app/switch-tenant/page.tsx` + `SwitchTenantClient` + BFF `GET /customers/tenants`. M25-S26 adds a per-tenant `operational` to that list and M25-S31a marks a suspended tenant "Empresa inativa" — same keep-listed-and-selectable rule as staff (see `journeys/customer/prototypes/minha-conta/dev-notes.md`).
+
+**Prototype note (`03-select-tenant-suspended.html`):** the rows are `href="#" aria-disabled="true"` on purpose — static prototype rows do not navigate; the real `SelectStaffTenantClient` rows are selectable buttons.

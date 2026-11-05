@@ -45,7 +45,7 @@
   <li><a href="01b-billing-trial.html">Resumo — Em teste (9 dias; primeira cobrança só depois de “Confirmar plano”)</a> <span class="tag tag-actor">UC-117, UC-130</span> <span class="tag tag-red">GAP: BillingPage (trial)</span></li>
   <li><a href="09-plan-confirm-required.html">Plano — teste (8 dias): “Confirme seu plano”, confirmação automática 3 dias antes do fim</a> <span class="tag tag-actor">UC-136, UC-130</span> <span class="tag tag-red">GAP</span></li>
   <li><a href="01c-billing-past-due.html">Resumo — PAST_DUE (14 dias de carência)</a> <span class="tag tag-actor">UC-117, UC-119</span> <span class="tag tag-red">GAP: BillingStatusBanner</span></li>
-  <li><a href="01d-billing-suspended.html">Resumo — SUSPENDED por falta de pagamento (única página acessível)</a> <span class="tag tag-actor">UC-117, UC-119</span> <span class="tag tag-red">GAP: SuspendedGate</span></li>
+  <li><a href="01d-billing-suspended.html">Resumo — SUSPENDED por falta de pagamento (única página acessível)</a> <span class="tag tag-actor">UC-117, UC-119</span> <span class="tag tag-red">GAP: redirect de suspensão</span></li>
   <li><a href="01e-billing-suspended-canceled.html">Resumo — SUSPENDED por cancelamento (Reativar assinatura)</a> <span class="tag tag-actor">UC-134</span> <span class="tag tag-red">GAP</span></li>
   <li><a href="01m-billing-suspended-payment-reversed.html">Resumo — SUSPENDED por pagamento estornado/contestado (cobrança de reativação, data de exclusão)</a> <span class="tag tag-actor">UC-117, UC-119</span> <span class="tag tag-red">GAP</span></li>
   <li><a href="01n-billing-suspended-operator.html">Resumo — SUSPENDED pela Ikaro (motivo neutro, sem botão de pagamento, só “Falar com a gente”)</a> <span class="tag tag-actor">UC-117</span> <span class="tag tag-red">GAP</span></li>
@@ -75,8 +75,8 @@
 </ul>
 <h2>Recursos bloqueados (UC-125)</h2>
 <ul>
-  <li><a href="03-locked-feature.html">Configurações com o Chatbot não contratado (cadeados no menu; “Contratar este recurso” leva ao Plano)</a> <span class="tag tag-actor">UC-125</span> <span class="tag tag-red">GAP: FeatureLockedCard</span></li>
-  <li><a href="03b-locked-feature-direct-url.html">Rota de recurso bloqueado aberta por URL</a> <span class="tag tag-actor">UC-125</span> <span class="tag tag-red">GAP: FeatureLockedPage</span></li>
+  <li><a href="03-locked-feature.html">Configurações com o Chatbot não contratado (cadeados no menu; “Contratar este recurso” leva ao Plano)</a> <span class="tag tag-actor">UC-125</span> <span class="tag tag-red">GAP: FeatureGate (locked state)</span></li>
+  <li><a href="03b-locked-feature-direct-url.html">Rota de recurso bloqueado aberta por URL</a> <span class="tag tag-actor">UC-125</span> <span class="tag tag-red">GAP: LockedFeaturePage</span></li>
 </ul>
 <h2>Dashboard (banners)</h2>
 <ul>

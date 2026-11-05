@@ -54,7 +54,7 @@
     UC-125 (enforcement of tenant entitlements, see docs/USE_CASES.md): menu items of unpurchased features show a padlock; the Chatbot section of Configurações shows the upsell card.
     Entitlement (set by Ikaro) is separate from the manager's own on/off preference: stored chatbot.* settings are preserved ("Suas configurações foram mantidas").
     Here the tenant has HOTSITE + BOOKING only: Fidelidade (LOYALTY) is locked in the menu; Chatbot (CHATBOT) is locked in Configurações.
-    COMPONENT (changed): DashboardSidebar / BottomNav (lock + href to upsell) -- EXISTS, needs GAP prop `lockedFeatures`; SettingsForm Chatbot section (EXISTS per journeys 01d, shown as a GAP there) swaps its body for a new GAP component <FeatureLockedCard feature="CHATBOT" tier />.
+    COMPONENT (changed): DashboardSidebar / BottomNav (lock + href to upsell) -- EXISTS, needs GAP prop `lockedFeatures`; SettingsForm Chatbot section (EXISTS per journeys 01d, shown as a GAP there) swaps its body for a new GAP component <FeatureGate (locked state) feature="CHATBOT" tier />.
     BFF CALL: GET /v1/billing/access -> { status, operational, features: [{ key, tier }] }  (CHATBOT absent from `features` => locked)
     CTA (self-service plan, UC-136): the single primary is "Contratar este recurso" -> 08-plan-edit.html (Plano tab); "Falar com a gente" is only a small text link for pricing questions.
     Related variants: 03b-locked-feature-direct-url.html (reaching a locked route by URL).

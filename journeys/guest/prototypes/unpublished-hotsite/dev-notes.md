@@ -28,7 +28,7 @@ From `plan/M25-TENANT-BILLING-FOUNDATION.md` M25-S30. Each component change also
 | `shells/hotsite/components/Unavailable.tsx` | EXISTS (bare "Em breve", no props, no bar) | Modify: add the unpublished variant, the top bar and the tenant name/logo |
 | `shells/hotsite/components/HotsiteAuthBar.tsx` (and its `HotsiteAuthBarSignedOut`/`HotsiteAuthBarDropdown` parts) | EXISTS | Reuse as is; modify only if needed to reuse it; do not duplicate the bar |
 | `app/[slug]/page.tsx`, `app/[slug]/booking/page.tsx`, `app/[slug]/booking/availability-alert/page.tsx`, `app/[slug]/lead-form/page.tsx`, `app/[slug]/servicos/[serviceSlug]/page.tsx` | EXISTS | Modify: pass the variant and tenant context (pages stay thin) |
-| `packages/i18n/locales/pt-BR/web.json`, `packages/i18n/locales/en/web.json` | EXISTS | Modify: keys for the new copy variant, both locales |
+| `packages/i18n/locales/pt-BR/web.json`, `packages/i18n/locales/en/web.json` | EXISTS | Modify: keys for the new copy variant, both locales: `hotsite.unpublished.title`, `hotsite.unpublished.body`, `hotsite.unpublished.staffLogin`, `hotsite.unpublished.customerLogin` (the page's tab titles keep "Em breve — Ikaro", i.e. `hotsite.unavailable.label` stays; the legacy `moduleDisabled` variant keeps `hotsite.unavailable.*`) |
 
 ## Props
 

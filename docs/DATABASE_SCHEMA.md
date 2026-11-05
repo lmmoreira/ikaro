@@ -1170,6 +1170,20 @@ ON CONFLICT DO NOTHING;
 
 Partial-failure safe: if the cron crashes after processing 5 of 10 entries, the next run only reprocesses the remaining 5.
 
+### `loyalty.tenant_expiry_pauses` *(planned, M25-S27 — Billing enforcement)*
+One row per span during which a tenant was `SUSPENDED`; the expiry job treats a tenant with an open span as paused and adds the overlap of its closed spans to every entry's expiry (`loyalty_entries.expires_at` is never rewritten — the ledger stays append-only). Written by two Loyalty handlers (`pause-loyalty-expiry-on-suspension` inserts it open, `resume-loyalty-expiry-after-suspension` upserts it closed), both keyed by the span's start, so delivery order does not matter and a redelivery is a no-op.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| tenant_id | UUID | NOT NULL |
+| paused_at | TIMESTAMP WITH TIME ZONE | NOT NULL — the `suspendedAt` of the `SubscriptionSuspended` event (`SubscriptionReactivated` carries it too) |
+| resumed_at | TIMESTAMP WITH TIME ZONE | NULL while the pause is open (the `reactivatedAt` of the event) |
+
+- `PRIMARY KEY (tenant_id, paused_at)` — also the dedupe key for the upserts.
+- `CHECK (resumed_at IS NULL OR resumed_at >= paused_at)`.
+- Partial index on `(tenant_id) WHERE resumed_at IS NULL` for the open-pause lookup (`tenant_id` leads, invariant 1).
+- Created by a Loyalty migration that uses `QueryRunner` (`…-CreateLoyaltyTenantExpiryPauses`).
+
 ---
 
 ## Schema: `notification`
@@ -1425,7 +1439,7 @@ Created **before** the tenant exists, by every non-exempt provisioning path (sel
 | created_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
 | **INDEX** (standalone) | (google_sub) | the signup eligibility check runs before any tenant context exists |
 
-The trial rule is checked under `pg_advisory_xact_lock(hashtextextended('signup:'||google_sub, 0))` (`docs/LOCK_CATALOG.md`). The row is deleted by the purge's `BILLING` step and, immediately, by the self-service discard of a never-paid tenant (which frees the trial eligibility). **Retention:** a `COMPLETED` row keeps only the minimum needed for the trial-eligibility rule (`google_sub`, `terms_version` / `terms_accepted_at`, `tenant_id`; the tax id is already cleared) until the tenant is purged, then it is deleted; there is no separate TTL while the tenant lives because the eligibility rule needs it. Only a `RESERVED` row has a TTL (released after one hour). Retention summary: `docs/DATA_RETENTION_AND_PRIVACY.md` § Billing.
+The trial rule is checked under `pg_advisory_xact_lock(hashtextextended('signup:'||google_sub, 0))` (`docs/LOCK_CATALOG.md`). The row is deleted by the purge's `BILLING` step and, immediately, by the self-service discard of a never-paid tenant (which frees the trial eligibility). **Retention:** a `COMPLETED` row keeps only the minimum needed for the trial-eligibility rule (`google_sub`, `terms_version` / `terms_accepted_at`, `tenant_id`; the tax id is already cleared) until the tenant is purged, then it is deleted; there is no separate TTL while the tenant lives because the eligibility rule needs it. Only a `RESERVED` row has a TTL (released after one hour). Retention summary: `docs/DATA_RETENTION_AND_PRIVACY.md` § Planned: Billing data retention (Billing release).
 
 ### `billing.tenant_purge_jobs` / `billing.tenant_purge_steps` — erasure coordinator *(slice G)*
 `tenant_purge_jobs`: `id`, `tenant_id`, `reason` (`SUSPENSION_AGE` \| `SELF_SERVICE_DISCARD` \| `OPERATOR_REQUEST`), `status` (`REQUESTED` \| `IN_PROGRESS` \| `FAILED` \| `COMPLETED`), `requested_at`, `completed_at`, `last_error`, audit timestamps; `UNIQUE(tenant_id) WHERE status <> 'COMPLETED'` permits one in-flight purge. `tenant_purge_steps`: one idempotent completion per required participant (`BOOKING`, `CUSTOMER`, `STAFF`, `LOYALTY`, `NOTIFICATION`, `PLATFORM`, `BILLING`, `STORAGE`, `PROVIDER`) with `completed_at` and diagnostic metadata. DDL-level minimum (M25-S03 creates both tables; the coordinator that writes them is a later slice):
@@ -1484,12 +1498,12 @@ Types are the minimum M25-S03 needs (the discovery data model lists column names
 - `tenants.settings.chatbot.*` overrides become **derived from the chatbot tier** in code (`docs/TENANTS_SETTINGS_SCHEMA.md`); no column change.
 
 ### Billing migration ordering
-1. Create schema `billing`, `CREATE EXTENSION IF NOT EXISTS btree_gist`, and all first-schema tables (including `signup_registrations`, `provider_health`) — expand only, no existing table touched.
-2. Seed `feature_prices` and one `feature_price_versions` row each (`effective_from` = release date) from the catalog approved in the commercial-catalog story; the US list is non-production only until it is approved.
-3. Backfill every tenant without a subscription as `ACTIVE`, all features, `exempt = true` (idempotent; there is no production yet, so this covers local/staging tenants). Tenants created later start `TRIALING` through `TenantProvisioned`; Ikaro's own tenant (`PLATFORM_OWNER_TENANT_SLUG`) is exempt.
-4. Widen `notification_logs.status`; add the Billing notification templates.
+1. (M25-S03) Create schema `billing`, `CREATE EXTENSION IF NOT EXISTS btree_gist`, and all first-schema tables (including `signup_registrations`, `provider_health`) — expand only, no existing table touched.
+2. (M25-S04) Seed `feature_prices` and one `feature_price_versions` row each (`effective_from` = release date) from the catalog approved in the commercial-catalog story; the US list is non-production only until it is approved.
+3. (M25-S05) Backfill every tenant without a subscription as `ACTIVE`, all features, `exempt = true` (idempotent; there is no production yet, so this covers local/staging tenants). Tenants created later start `TRIALING` through `TenantProvisioned`; Ikaro's own tenant (`PLATFORM_OWNER_TENANT_SLUG`) is exempt.
+4. Widen `notification_logs.status` (M25-S23; the one existing-table change); the Billing platform notification templates are M26. M25 also adds the Notification tenant-unavailable template migration (M25-S28, `AddTenantUnavailableTemplate`: global default rows plus per-tenant rows) and the Loyalty `loyalty.tenant_expiry_pauses` migration (M25-S27).
 5. Deploy code with transient-lookup fail-open only; the publisher and the Billing handler ship in the same release (the bus does not version-route; the handler tolerates a legacy payload without `countryCode`).
-6. Terraform: the Cloud Scheduler jobs (issue, hourly sweep, reminders, reconcile, self-heal, provider-events purge, tenant purge) plus their Pub/Sub topics and subscriptions (`infra/terraform/pubsub-catalog.json` is generated), Secret Manager entries (provider keys and webhook tokens, sandbox and live separately) and the new env vars (`PLATFORM_OWNER_TENANT_SLUG`, `FEATURE_FLAG_SIGNUP_US`, `FEATURE_FLAG_BILLING_ENFORCEMENT`, `EMAIL_RECIPIENT_ALLOWLIST`) through `env.validation.ts` and the infra env contract.
+6. Terraform. **M25 adds no cron job and no secret** — only the two event topics (`SubscriptionSuspended`, `SubscriptionReactivated` and the rest of Billing's events) and the Loyalty, Platform and Notification subscriptions to them, all generated from `infra/terraform/pubsub-catalog.json`, plus the four plain env vars. **M26 adds** the Cloud Scheduler jobs (issue, hourly sweep, reminders, reconcile, self-heal, provider-events purge, tenant purge) plus their Pub/Sub topics and subscriptions (`infra/terraform/pubsub-catalog.json` is generated), Secret Manager entries (provider keys and webhook tokens, sandbox and live separately) and the new env vars (`PLATFORM_OWNER_TENANT_SLUG`, `FEATURE_FLAG_SIGNUP_US`, `FEATURE_FLAG_BILLING_ENFORCEMENT`, `EMAIL_RECIPIENT_ALLOWLIST`) through `env.validation.ts` and the infra env contract.
 
 All Billing tables are new, so no `CHECK` is added to a table that already holds rows (the `NOT VALID` + `VALIDATE` split does not apply); the `notification_logs` CHECK replacement is the one change to an existing table and follows that rule.
 

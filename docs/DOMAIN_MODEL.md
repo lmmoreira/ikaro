@@ -1346,7 +1346,7 @@ Payloads and consumers: `docs/DOMAIN_EVENTS.md` § Billing Context Events. Every
 |-------|---------|-----------|
 | `ChargeIssued` | A charge exists at the provider with a payment link (issue job, recovery, re-issue) | Notification Context (invoice email) |
 | `ChargePaid` | The provider's first paid signal for a charge | Notification Context (receipt) |
-| `SubscriptionPastDue` / `SubscriptionSuspended` / `SubscriptionReactivated` | Status ladder transitions (UC-115, UC-134); a deactivated tenant (UC-142) raises `SubscriptionSuspended` (reason `CANCELED`) beside `SubscriptionCancelled`. Payloads: `Suspended` carries `reason`, `suspendedAt`, `purgeAt`; `Reactivated` carries `reactivatedAt` (`docs/DOMAIN_EVENTS.md`) | Notification Context; hotsite revalidation and access-cache invalidation (suspend / reactivate) |
+| `SubscriptionPastDue` / `SubscriptionSuspended` / `SubscriptionReactivated` | Status ladder transitions (UC-115, UC-134); a deactivated tenant (UC-142) raises `SubscriptionSuspended` (reason `CANCELED`) beside `SubscriptionCancelled`. Payloads: `Suspended` carries `reason`, `suspendedAt`, `purgeAt`; `Reactivated` carries `reactivatedAt` and `suspendedAt` (`docs/DOMAIN_EVENTS.md`) | Notification Context (including, for `Suspended` only, the reason-neutral customer notice, reasons `OPERATOR` / `NON_PAYMENT` / `PAYMENT_REVERSED`, planned M25-S28); hotsite revalidation (planned M25-S25); Loyalty expiry pause / resume (planned M25-S27). The access cache is not a consumer: the state-changing use case invalidates it after commit |
 | `SubscriptionCancelled` / `PlanChanged` | The manager cancels or changes the plan (UC-133, UC-136) | Notification Context (billing email) |
 | `BillingReminderDue` *(a Command in `domain/commands/`, like `BookingReminderDue`; not an audited domain event)* | Daily dunning cadence (UC-139) | Notification Context |
 | `SubscriptionPriceChangeAnnounced` | The operator schedules a list-price change (UC-112), one per affected tenant | Notification Context |
@@ -1428,8 +1428,8 @@ Enum: `GUEST | CUSTOMER`
 ### **TaxId** *(Billing context; planned under `src/shared/value-objects/` because Platform's signup reuses it)*
 BR business or personal tax identity: **CNPJ** (14 digits) or **CPF** (11 digits), stored digits-only, check digits validated by `create()`; `reconstitute()` skips validation. The types a country accepts come from the `taxId` entry added to `CountrySpec` beside `AddressSpec` (BR: `CNPJ` | `CPF`; US: none — an optional free-text `OTHER`). A validation failure throws a typed domain error (`BILLING_IDENTITY_TAX_ID_INVALID` at the billing page, `SIGNUP_TAX_ID_INVALID` / `SIGNUP_TAX_ID_REQUIRED` at signup) with an `instanceof` branch in every calling `mapXxxError` (`vo-bare-error`). Required for a non-exempt BR tenant from signup because the provider needs `cpfCnpj` to create a customer.
 
-### **FeatureKey / ChatbotTier** *(Billing context; closed enums in `@ikaro/types`)*
-`FeatureKey` = `HOTSITE | BOOKING | LOYALTY | CHATBOT | LEAD_FORM` (mirrored per the `closed-enum-registry` detector; recurring reservations and availability alerts are part of `BOOKING`, not separate keys). `ChatbotTier` = `BASIC | PLUS`; every other feature has the single tier `STANDARD`. Every Billing amount is an **integer in minor units plus an ISO currency** (`amount_minor` bigint, never a float). The shared `Money` VO above is Decimal-based, so whether a minor-units money VO reuses it or sits beside it is settled by the implementing story; the stored shape is fixed here.
+### **FeatureKey / ChatbotTier** *(Billing context; closed enums)*
+The canonical constant arrays `FEATURE_KEYS` and `CHATBOT_TIERS` (`as const`) live in `packages/validation/src/billing.ts` (planned; the backend and BFF cannot import the `@ikaro/types` root barrel); `@ikaro/types` carries the mirror unions that the web imports, kept identical by `closedEnumRegistry` entries in `architecture-policy.json`. `FeatureKey` = `HOTSITE | BOOKING | LOYALTY | CHATBOT | LEAD_FORM` (mirrored per the `closed-enum-registry` detector; recurring reservations and availability alerts are part of `BOOKING`, not separate keys). `ChatbotTier` = `BASIC | PLUS`; every other feature has the single tier `STANDARD`. Every Billing amount is an **integer in minor units plus an ISO currency** (`amount_minor` bigint, never a float). The shared `Money` VO above is Decimal-based, so whether a minor-units money VO reuses it or sits beside it is settled by the implementing story; the stored shape is fixed here.
 
 ### **Expiration window (`loyalty.expiryDays`)**
 Configurable **per tenant** via `tenants.settings.loyalty.expiryDays` (integer, days). Typical values: 180 (6 months) or 365 (1 year). Defaults to 180 if unset.
@@ -1763,6 +1763,8 @@ Subscription {
   cancelAt:          DateTime | null   -- end of the last paid period when the manager cancelled
   planConfirmedAt:   DateTime | null   -- the manager confirmed the first paid selection
   suspendedAt:       DateTime | null   -- starts the clean-up clock
+  purgeAt:           DateTime | null   -- computed, not stored independently: suspendedAt + 90 days (hasEverPaid = false) or + 180 days (true); carried by SubscriptionSuspended
+  purgeWarning30SentAt / purgeWarning7SentAt: DateTime | null   -- dedupe of the clean-up warning emails (columns purge_warning_30_sent_at / purge_warning_7_sent_at); cleared on reactivation
   hasEverPaid:       Boolean           -- set on the first confirmed payment
   exempt:            Boolean           -- free access, never charged
   items:             SubscriptionItem[]

@@ -121,7 +121,7 @@
     Now a TAB of the single "Assinatura" page (Resumo tab pre-selected): one page, 5 tabs (Resumo | Plano | Cobranças | Dados de cobrança | Cobrança automática), switched with showTab() like servicos/03-service-edit.html.
     COMPONENT: BillingPage (GAP) with BillingTabs (reuses the existing tab pattern .editor-tabs/.editor-tab/.editor-panel — EXISTS in ServiceEditPage and the hotsite editor; the billing content is GAP)
                -> ResumoTab (GAP), PlanoTab (GAP: FeatureToggleCard, ChatbotTierPicker, PlanChangePreview), CobrancasTab (GAP), DadosCobrancaTab (GAP), CobrancaAutomaticaTab (GAP)
-    FOCUS:     ResumoTab + ReactivateCard (GAP) + SuspendedGate (GAP)
+    FOCUS:     ResumoTab + ReactivateCard (GAP) + suspended redirect in loadDashboardShellContext (GAP)
     BFF CALL:  GET /v1/billing/summary ; POST /v1/billing/reactivate (devolve { cancelAt:null, openCharge: cobrança de reativação }; depois POST …/payment-link) ; abas lazy: GET /v1/billing/charges, GET /v1/billing/identity
     Estado: SUSPENDED, reason CANCELED (cancelamento feito pelo gerente). Mesmo bloqueio do NON_PAYMENT. Tenant que já pagou -> limpeza em 180 dias (90 se nunca pagou); avisos 30 e 7 dias antes.
     ACTION PANE: like ServiceEditPage — desktop (>=1024px) sticky .detail-aside card (22rem) with the current tab's single primary button (label/href swap in showTab via updateAside), secondary links, hint and the red "Cancelar assinatura →" link; below 1024px the aside is hidden and the bottom .form-actions row is the single primary.
