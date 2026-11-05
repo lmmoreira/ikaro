@@ -1138,8 +1138,11 @@ describe('HotsiteEditor', () => {
       renderVisualEditor();
       await user.click(visualCommand('sharing'));
 
-      expect(await screen.findByTestId('visual-sharing-google-title')).toHaveTextContent(
-        'Tenant A — Agendamento Online',
+      // The card exists while its automatic text is still loading, so wait for the text itself.
+      await waitFor(() =>
+        expect(screen.getByTestId('visual-sharing-google-title')).toHaveTextContent(
+          'Tenant A — Agendamento Online',
+        ),
       );
 
       await user.type(screen.getByTestId('hotsite-seo-title'), 'Meu título');
