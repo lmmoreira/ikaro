@@ -66,7 +66,7 @@ The full rule: **hotsite tree = `--ba-*` tokens; dashboard & account shells = Ta
 We use **shadcn/ui** as the component foundation. Components are copied into the repository (no runtime dependency), built on Radix UI primitives (accessible by default) and styled with Tailwind CSS.
 
 - **Why shadcn/ui:** Components are owned by the project — no vendor lock-in, full customisation control, Radix UI accessibility primitives, Tailwind theming via its own fixed CSS variables (`--primary`, `--secondary`, etc.) — completely separate from the hotsite `--ba-*` branding token system in `HOTSITE_DYNAMIC_ARCHITECTURE.md`.
-- **Atomic Components:** Buttons, Inputs, Dialogs, Toasts, Dropdowns, Cards — themed via CSS variables (`--primary`, `--secondary`, etc.).
+- **Atomic Components:** Buttons, Inputs, Dialogs, Dropdowns, Cards — themed via CSS variables (`--primary`, `--secondary`, etc.). There is no toast: a result is reported inline (`docs/ENGINEERING_RULES_FRONTEND.md` § A form's error or success message lives in the action pane).
 - **Business Modules:** `BookingForm` and `ServiceCard` are shared between the Hotsite (public) and Dashboard (staff editing).
 - **Quality Rule:** Every UI component must be accessible (WCAG 2.1 AA) and responsive.
 
