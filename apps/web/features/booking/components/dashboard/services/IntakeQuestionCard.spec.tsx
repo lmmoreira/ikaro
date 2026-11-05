@@ -91,4 +91,50 @@ describe('IntakeQuestionCard', () => {
     await user.click(screen.getByTestId('intake-question-required'));
     expect(onChangeRequired).toHaveBeenCalledWith(true);
   });
+
+  it('marks and links the label input to the validation messages that apply to the row', () => {
+    renderWithIntl(
+      <IntakeQuestionCard
+        question={QUESTION}
+        index={0}
+        isFirst
+        isLast
+        resolvedFieldKey=""
+        labelMessageIds={['intake-blank-label-error', 'intake-duplicate-fieldkey-error']}
+        onMove={vi.fn()}
+        onRemove={vi.fn()}
+        onChangeLabel={vi.fn()}
+        onChangeType={vi.fn()}
+        onChangeRequired={vi.fn()}
+      />,
+    );
+
+    const label = screen.getByTestId('intake-question-label');
+    expect(label).toHaveAttribute('aria-invalid', 'true');
+    expect(label).toHaveAttribute(
+      'aria-describedby',
+      'intake-blank-label-error intake-duplicate-fieldkey-error',
+    );
+  });
+
+  it('leaves the label input unmarked when the row has no validation message', () => {
+    renderWithIntl(
+      <IntakeQuestionCard
+        question={QUESTION}
+        index={0}
+        isFirst
+        isLast
+        resolvedFieldKey="accessNeeds"
+        onMove={vi.fn()}
+        onRemove={vi.fn()}
+        onChangeLabel={vi.fn()}
+        onChangeType={vi.fn()}
+        onChangeRequired={vi.fn()}
+      />,
+    );
+
+    const label = screen.getByTestId('intake-question-label');
+    expect(label).not.toHaveAttribute('aria-invalid');
+    expect(label).not.toHaveAttribute('aria-describedby');
+  });
 });

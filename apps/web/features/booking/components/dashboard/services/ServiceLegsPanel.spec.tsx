@@ -76,7 +76,29 @@ describe('ServiceLegsPanel', () => {
       <ServiceLegsPanel legs={[LEGS[0]!]} availableResourcesByType={() => []} onChange={vi.fn()} />,
     );
 
-    expect(screen.getByTestId('legs-min-required-error')).toBeInTheDocument();
+    const message = screen.getByTestId('legs-min-required-error');
+    expect(message).toBeInTheDocument();
+    // Field message pattern (TD57): no role; the add-leg button, which fixes it, points at it.
+    expect(message).not.toHaveAttribute('role');
+    expect(screen.getByTestId('legs-add-button')).toHaveAttribute('aria-describedby', message.id);
+  });
+
+  it('shows no too-few-legs hint and no description link with two legs', () => {
+    renderWithIntl(
+      <ServiceLegsPanel legs={LEGS} availableResourcesByType={() => []} onChange={vi.fn()} />,
+    );
+
+    expect(screen.queryByTestId('legs-min-required-error')).not.toBeInTheDocument();
+    expect(screen.getByTestId('legs-add-button')).not.toHaveAttribute('aria-describedby');
+  });
+
+  it('shows no too-few-legs hint when there are no legs yet', () => {
+    renderWithIntl(
+      <ServiceLegsPanel legs={[]} availableResourcesByType={() => []} onChange={vi.fn()} />,
+    );
+
+    expect(screen.queryByTestId('legs-min-required-error')).not.toBeInTheDocument();
+    expect(screen.getByTestId('legs-add-button')).not.toHaveAttribute('aria-describedby');
   });
 
   it('adds a new leg via the add-stage button', async () => {

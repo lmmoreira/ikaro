@@ -107,7 +107,14 @@ describe('ServiceBufferAfterMinutesField', () => {
       />,
     );
 
-    expect(screen.getByTestId('resource-buffer-invalid')).toBeInTheDocument();
+    const message = screen.getByTestId('resource-buffer-invalid');
+    // Field message pattern (TD57): FieldFeedback, linked by id, never a role.
+    expect(message).toHaveAttribute('id', 'resource-buffer-invalid');
+    expect(message).not.toHaveAttribute('role');
     expect(screen.getByTestId('resource-buffer-input')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByTestId('resource-buffer-input')).toHaveAttribute(
+      'aria-describedby',
+      'resource-buffer-invalid',
+    );
   });
 });

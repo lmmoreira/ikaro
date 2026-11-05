@@ -9,6 +9,7 @@ import type {
 } from '@ikaro/types';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
+import { FieldFeedback } from '@/shared/components/ui/field-feedback';
 import { legsSpanMinutes } from './legs-span';
 import { ServiceResourceTypeFields } from './ServiceResourceTypeFields';
 
@@ -45,6 +46,8 @@ export function ServiceLegsPanel({
 }: ServiceLegsPanelProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
   const totalSpanMinutes = legsSpanMinutes(legs);
+  // The "Add leg" button is the control that fixes this, so it is the one the message describes.
+  const minLegsMissing = legs.length > 0 && legs.length < 2;
 
   function updateLeg(legIndex: number, patch: Partial<ServiceLegItem>): void {
     onChange(legs.map((leg) => (leg.legIndex === legIndex ? { ...leg, ...patch } : leg)));
@@ -195,17 +198,23 @@ export function ServiceLegsPanel({
         </Card>
       ))}
 
-      <Button type="button" variant="outline" data-testid="legs-add-button" onClick={addLeg}>
+      <Button
+        type="button"
+        variant="outline"
+        data-testid="legs-add-button"
+        aria-describedby={minLegsMissing ? 'legs-min-required-error' : undefined}
+        onClick={addLeg}
+      >
         {t('legsAddButton')}
       </Button>
 
       <p data-testid="legs-total-span" className="text-sm font-semibold text-gray-900">
         {t('legsTotalSpanLabel')}: {totalSpanMinutes} min
       </p>
-      {legs.length > 0 && legs.length < 2 && (
-        <p data-testid="legs-min-required-error" className="text-sm text-red-600">
+      {minLegsMissing && (
+        <FieldFeedback id="legs-min-required-error" testId="legs-min-required-error">
           {t('legsMinRequiredError')}
-        </p>
+        </FieldFeedback>
       )}
     </div>
   );

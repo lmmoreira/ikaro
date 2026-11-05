@@ -113,6 +113,10 @@ describe('PolicyWhoHowCard', () => {
       const input = screen.getByTestId('policy-recurring-horizon');
       expect(input).toHaveAttribute('aria-invalid', 'true');
       expect(input).toHaveAttribute('aria-errormessage', 'policy-recurring-horizon-error');
+      // Field message pattern (TD57): FieldFeedback with the linked id, never a role.
+      const message = screen.getByTestId('policy-recurring-horizon-error');
+      expect(message).toHaveAttribute('id', 'policy-recurring-horizon-error');
+      expect(message).not.toHaveAttribute('role');
       expect(input).toHaveAccessibleDescription(
         expect.stringContaining('Informe um número inteiro de 1 a 180 dias.'),
       );

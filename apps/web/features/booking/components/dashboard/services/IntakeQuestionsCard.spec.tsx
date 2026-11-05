@@ -210,4 +210,88 @@ describe('IntakeQuestionsCard', () => {
     expect(container.querySelectorAll('h2 + p')).toHaveLength(1);
     expect(container.querySelector('h2 + p')).toHaveClass('text-xs');
   });
+
+  describe('validation messages (TD57-S17)', () => {
+    const BLANK: IntakeQuestionDraft = {
+      key: 'q-blank',
+      fieldKey: '',
+      label: '  ',
+      type: 'FREE_TEXT',
+      required: false,
+    };
+    const SYMBOLS: IntakeQuestionDraft = {
+      key: 'q-sym',
+      fieldKey: '',
+      label: '!!!',
+      type: 'FREE_TEXT',
+      required: false,
+    };
+
+    function renderCard(
+      questions: IntakeQuestionDraft[],
+      flags: { dup?: boolean; blank?: boolean; empty?: boolean },
+    ): void {
+      renderWithIntl(
+        <IntakeQuestionsCard
+          questions={questions}
+          resolveFieldKey={(q) => q.fieldKey}
+          hasDuplicateFieldKeys={flags.dup ?? false}
+          hasBlankLabel={flags.blank ?? false}
+          hasEmptyFieldKey={flags.empty ?? false}
+          canAddQuestion
+          onAdd={vi.fn()}
+          onMove={vi.fn()}
+          onRemove={vi.fn()}
+          onChangeLabel={vi.fn()}
+          onChangeType={vi.fn()}
+          onChangeRequired={vi.fn()}
+        />,
+      );
+    }
+
+    it('links a blank row to the blank-label and duplicate messages, and leaves a valid row alone', () => {
+      renderCard([BLANK, { ...BLANK, key: 'q-blank-2' }, ...QUESTIONS], {
+        dup: true,
+        blank: true,
+      });
+
+      const labels = screen.getAllByTestId('intake-question-label');
+      expect(labels[0]).toHaveAttribute('aria-invalid', 'true');
+      expect(labels[0]).toHaveAttribute(
+        'aria-describedby',
+        'intake-blank-label-error intake-duplicate-fieldkey-error',
+      );
+      expect(labels[2]).not.toHaveAttribute('aria-invalid');
+      expect(labels[2]).not.toHaveAttribute('aria-describedby');
+    });
+
+    it('links a non-blank label that derives no key to the empty-key message', () => {
+      renderCard([SYMBOLS, ...QUESTIONS], { empty: true });
+
+      expect(screen.getAllByTestId('intake-question-label')[0]).toHaveAttribute(
+        'aria-describedby',
+        'intake-empty-key-error',
+      );
+      expect(screen.getByTestId('intake-empty-key-error')).toHaveAttribute(
+        'id',
+        'intake-empty-key-error',
+      );
+    });
+
+    it('renders every message as a field message with no role', () => {
+      renderCard([BLANK, SYMBOLS, { ...BLANK, key: 'q-3' }], {
+        dup: true,
+        blank: true,
+        empty: true,
+      });
+
+      for (const testId of [
+        'intake-duplicate-fieldkey-error',
+        'intake-blank-label-error',
+        'intake-empty-key-error',
+      ]) {
+        expect(screen.getByTestId(testId)).not.toHaveAttribute('role');
+      }
+    });
+  });
 });

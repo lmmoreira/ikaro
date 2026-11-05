@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { Card, CardContent } from '@/shared/components/ui/card';
-import { FIELD_INVALID_CLASS } from '@/shared/components/ui/field-feedback';
+import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
 import { cn } from '@/shared/utils/cn';
 
 interface ServiceBufferAfterMinutesFieldProps {
@@ -61,13 +61,9 @@ export function ServiceBufferAfterMinutesField({
         />
         <p className="mt-1 text-xs text-gray-500">{hint}</p>
         {invalid && (
-          <p
-            id="resource-buffer-invalid"
-            data-testid="resource-buffer-invalid"
-            className="mt-1 text-xs text-red-600"
-          >
+          <FieldFeedback id="resource-buffer-invalid" testId="resource-buffer-invalid">
             {t('recursosBufferInvalid')}
-          </p>
+          </FieldFeedback>
         )}
       </CardContent>
     </Card>
