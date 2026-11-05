@@ -149,14 +149,21 @@ Backend HTTP surface: none (web only). Prototype references: none (no new screen
 
 **Description:** `ui/badge.tsx` has only the four shadcn variants, so 35 of 36 usages override with `className`; `ui/button.tsx` lacks two variants the app repeats. Extend the existing `cva` definitions: `Badge` gains a `tone` axis (neutral, info, success, warning; destructive already exists) and a small `size` that absorbs `text-[0.6875rem]`; `Button` gains `surface` (`border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50`, expressed on tokens where they match) and `destructive-outline` (`border-red-200 text-red-700 hover:bg-red-50`). Then migrate the verified call sites. The booking status → colour map stays exactly where it is (`features/booking/model/booking-status.ts`); do **not** fold it into `Badge`. `LeadFormTerminalCard` (branded public) is excluded from the pill migration.
 
+**Locked in discovery (2026-11-05; supersedes the "tone axis" wording above where they differ):**
+- **Badge shape:** the tones are new values on the existing `variant` axis (`neutral`, `info`, `success`, `warning`), not a second axis, so an invalid combination such as `destructive` plus `info` cannot exist. Each tone keeps the borderless look the call sites use (`border-0`). Values: neutral `bg-gray-100 text-gray-600`, info `bg-blue-100 text-blue-800`, success `bg-green-100 text-green-800`, warning `bg-orange-100 text-orange-800`. A new `size` axis (`default`, `sm`) carries `text-[0.6875rem]` for `sm`. Migrate every static call site that matches a tone exactly (about 8: the 4 gray sites, `BookingDetailMain` and `RecurringScheduleCard` blue, `SchedulingExceptionRow` green, `BookingCard:101` orange). The teal chip in `RecurringScheduleCard` and every dynamic class map (`BOOKING_STATUS_CLASSES`, `ALERT_STATUS_CLASSES`, `typeClass`) keep `className`, so most of the 36 usages still pass one.
+- **Button shape:** `surface` is `border-0 bg-white text-gray-900 shadow-sm hover:bg-gray-50` and callers keep `className="w-full"`; the 8 sites use `variant="surface"` and the three local constants (`SECONDARY_BUTTON_CLASS`, `SECONDARY_BUTTON` x2) are deleted. `BookingDecisionPanel` picks by index: `variant={index === 0 ? 'default' : 'surface'}`. `destructive-outline` is `border border-red-200 bg-background text-red-700 shadow-sm hover:bg-red-50 hover:text-red-700`: the text stays red on hover (today it turns dark because outline's `hover:text-foreground` survives the override; this hover-only change is accepted).
+- **The "hand-built pill" list was corrected:** `CustomerSearchPanel` and `NewBookingResourcePickerStep` render avatar-initials circles, and `ScheduleTimelineBoard`, `LoyaltyHistoryHelpers` and `LoyaltySearchResults` render icon circles and skeletons. None is a pill and none is touched. The real pills are `LoyaltyEntriesPanel:43` (the "expired" label) and `MemberRow.tsx:194` (the role label); both move to `Badge variant="neutral" size="sm"`-equivalent with a one-shade drift accepted (gray-500 to gray-600, slate to gray). `EligiblePoolPicker`'s removable chip is not a `Badge` and stays.
+- **Docs:** the `ui/badge` and `ui/button` table rows are updated in this story's PR.
+
 New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface: none.
 
 **Files to create/modify:**
-- `apps/web/shared/components/ui/badge.tsx`, `badge.spec.tsx` (new spec if absent), `button.tsx`, `button.spec.tsx`
+- `apps/web/shared/components/ui/badge.tsx`, `button.tsx`, and **new** `badge.spec.tsx` and `button.spec.tsx` (neither spec exists today; each also pins the existing variants unchanged)
 - Surface-button sites (modify): `features/booking/components/dashboard/bookings/{BookingOutcomeLayout,NewBookingOutcome,RescheduleActionRail,BookingActionPanel,BookingDecisionPanel,CustomerChooserStep,MarkCompleteActionRail}.tsx`, `.../bookings/new-booking/NewBookingStepLayout.tsx`
 - Destructive-outline site: `.../bookings/RecurringApprovalActions.tsx`
 - Gray-badge sites: `features/booking/components/booking-detail/{BookingParticipantsCard,BookingResourcesCard,BookingIntakeCard}.tsx`
-- Hand-built pill sites (modify, verify each is unbranded before migrating): `features/booking/components/dashboard/bookings/CustomerSearchPanel.tsx`, `.../new-booking/NewBookingResourcePickerStep.tsx`, `.../dashboard/schedule/ScheduleTimelineBoard.tsx`, `features/customer/components/my-account/LoyaltyEntriesPanel.tsx`, `features/loyalty/components/dashboard/{LoyaltyHistoryHelpers,LoyaltySearchResults}.tsx`
+- Real pill sites (modify): `features/customer/components/my-account/LoyaltyEntriesPanel.tsx`, `features/staff/components/team/MemberRow.tsx`
+- Static Badge sites that match a tone exactly (modify): `features/booking/components/dashboard/bookings/{BookingDetailMain,RecurringScheduleCard,BookingCard}.tsx`, `.../dashboard/scheduling-exceptions/SchedulingExceptionRow.tsx` (plus the three `booking-detail/*Card` files above)
 - `docs/ENGINEERING_RULES_FRONTEND.md` (badge/button table rows — doc gate)
 
 **Acceptance criteria — product:**
@@ -170,6 +177,7 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 - E2E:
   - [ ] none — covered by unit; the booking action screens are browser-verified after asking per `CLAUDE.md` §0
 - [ ] The verbatim override strings named in this TD no longer appear in `features/` (grep proof)
+- [ ] Negative guarantees, each pinned: `features/booking/model/booking-status.ts` and `features/platform/components/public/LeadFormTerminalCard.tsx` are not in the diff (the existing `booking-status.spec.ts` still passes unchanged); no branded public file appears in the diff; `EligiblePoolPicker.tsx` is unchanged
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
