@@ -8,6 +8,7 @@
 - **Created**: 2026-10-29
 - **Discovered**: Manager report on the service edit screen: saving the Políticas tab with `durationPolicy = CUSTOMER_SELECTED` and empty min/max/increment returned a 422 whose message rendered at the very bottom of a long form; follow-up read-only audit of `apps/web` showed the problem is systemic.
 - **Decision status**: Pattern decided in the 2026-10-29 session (see "Chosen approach"). Ready for discovery in the dependency order below; Story 0 produces the migration list that scopes Stories 7+ (Story 6 is the branded hotsite counterpart, decided in discovery); every story still begins with `/story-discovery`.
+- **Progress (2026-11-05)**: Stories 0–16 ✅ Done, including the lint guard (Story 5, #718). Story 17 (added after a post-merge review: four role-less red validation messages, the detector decision, closing the TD) is pending; the TD is complete when it merges.
 - **Related**: `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives; `docs/ANTI_PATTERNS.md` (the "hand-built control" row); `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`; TD23 (error-code → i18n pipeline, `resolveErrorMessage`)
 
 ## Problem
@@ -1140,6 +1141,68 @@ Replace every hand-rolled error box on the public hotsite and delete `ErrorAlert
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
+---
+
+### Story 17 — Migrate the leftover role-less client-validation messages, decide whether a detector can catch the class, and close the TD 🟡
+
+**Agent:** frontend-ts
+**Complexity:** M
+**Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md` § A form's error or success message lives in the action pane; `docs/AGENT_PATTERNS.md` Pattern #25; `docs/ENGINEERING_RULES_SHARED.md` § `no-restricted-syntax` selectors must be checked against every already-documented bypass shape; `docs/ANTI_PATTERNS.md` (the `role="alert"` row); `docs/TESTING_STRATEGY.md` § apps/web Testing Infrastructure; `journeys/manager/prototypes/feedback-pane/dev-notes.md`; this TD's Appendix A.1
+**Dependencies:** Story 0 to Story 16 (all ✅ Done)
+**Pattern:** plain composition over the Story 1 pieces (`FieldFeedback`, `FIELD_INVALID_CLASS`, `aria-invalid` + `aria-describedby`) — no named pattern applies
+
+**Discovered:** 2026-11-05, post-merge review of TD57 after Story 5 (#718), comparing Appendix A with the live `apps/web` tree.
+**Root cause:** Appendix A.1 scheduled `IntakeQuestionsCard` and `ServiceLegsPanel` for "Story 2 + 3" as field/section messages, and Story 2 says field messages become `FieldFeedback`. The four messages never carried `role="alert"`, so the sweep that migrated "every `role="alert"` box" did not touch them, and Story 5's `FEEDBACK_ROLE_SELECTOR` (keyed on the role, by design) cannot see them. Live: `IntakeQuestionsCard.tsx:78,84,90` and `ServiceLegsPanel.tsx:206` are plain `<p className="text-sm text-red-600">` with no `FieldFeedback` and no `aria-describedby`.
+
+**Description:**
+Three parts.
+
+1. **Migrate the four messages.** They are live validation hints, not submit results: `ServiceIntakeSchemaPanel` (`hasDuplicateFieldKeys`, `hasBlankLabel`, `hasEmptyFieldKey`) and `ServiceResourceRequirementsPanel` (`mode === 'legs' && legs.length < 2`) already disable Save while they hold, so there is no server `field` and nothing for `useFormFeedback.setFieldErrors` to focus. Each message becomes a `FieldFeedback` (no role, as the pattern requires) and the thing it describes is linked to it. The intake messages describe the question label and key inputs inside `IntakeQuestionCard`, so that component gains optional `invalid` and `describedBy` props; the inputs of the offending rows get `aria-invalid`, `FIELD_INVALID_CLASS` and `aria-describedby`. The legs message describes the whole legs group (no single input), so it follows the documented group rule: a `<fieldset>` with a `<legend>` and `aria-describedby` (SonarCloud S6819 rejects `role="group"`). Every `data-testid` is kept, on the same element.
+2. **Confirm the other leftovers, change nothing unless a premise is wrong.** `AfterServicePhotoUpload`, `CustomerPhotoUpload` and `PhotoUpload` per-file status lines are upload progress (Stories 11 and 16 decided this; the branded `PhotoUpload` line is therefore also untouched). The red remove links in `SingleImageUploadField` and `GalleryImageManager` are destructive actions; their upload errors were migrated in Story 10. `EligiblePoolPicker`'s red `<output>` stale-pool text stays a section notice (Story 2). Each is recorded in Appendix A.12 (not-a-feedback-surface table) with one line of rationale; if reading a file shows a real message box, it is migrated in this story.
+3. **Detector decision (measure, then decide).** Prototype one `no-restricted-syntax` selector that flags a `p`, `span`, `div` or `output` JSX element whose `className` literal (direct, in a `JSXExpressionContainer`, in a template literal, or nested in a conditional/logical expression) contains `text-red-`, then run it over `apps/web` and list every hit. Check the selector against the three documented bypass classes (computed-literal access, a bare non-member call, a value nested in a `JSXExpressionContainer` or conditional). Accept it only if the hits are the four messages above plus a small set of legitimate uses that can be excluded **structurally** (for example by element content or a sibling attribute), never by a file or path allowlist: legitimate uses today are the required-field `*` marker (`ContactField`), destructive links and buttons, status badges (`booking-status.ts`, `ResourceRow`, `MemberRow`), error icons and the `FieldFeedback` / `BrandedFieldFeedback` internals. If any exemption would need a per-file list, do not ship the rule: write the measured result into `docs/ENGINEERING_RULES_FRONTEND.md` and keep the review-time check. Either outcome updates the "Not covered, by design" wording in `docs/ANTI_PATTERNS.md` and `docs/ENGINEERING_RULES_FRONTEND.md` to match what shipped.
+
+**Closing the TD (same PR, last commit):**
+- `journeys/manager/prototypes/feedback-pane/dev-notes.md` line 6 still says "In progress … pending: S05 (lint guard)". S05 is merged: rewrite it as complete, list S17, and keep the per-area prototype pointers.
+- Add a closing status note to this file's `## Status` block ("complete: Stories 0–17; lint guard shipped in S05 (#718)") and add Story 17 to the Dependency graph.
+- Prototype alignment: `journeys/manager/prototypes/feedback-pane/` `01b-servico-erro-campo.html` shows the field-level state; add the intake-validation and legs states to it, or note why the existing screens already cover them.
+
+**Backend use case steps:** none
+**Backend HTTP surface:** none
+**BFF endpoint spec:** none
+**Prototype references:** `journeys/manager/prototypes/feedback-pane/` (`01b-servico-erro-campo.html`, `dev-notes.md`)
+**New migration / i18n keys / env vars / feature flags:** none (the messages already exist in `pt-BR` and `en`: `formularioDuplicateFieldKeyError`, `formularioBlankLabelError`, `formularioEmptyFieldKeyError`, `legsMinRequiredError`)
+
+**Files to create/modify:**
+- `apps/web/features/booking/components/dashboard/services/IntakeQuestionsCard.tsx` + `IntakeQuestionsCard.spec.tsx`
+- `apps/web/features/booking/components/dashboard/services/IntakeQuestionCard.tsx` + `IntakeQuestionCard.spec.tsx`
+- `apps/web/features/booking/components/dashboard/services/ServiceLegsPanel.tsx` + `ServiceLegsPanel.spec.tsx`
+- `apps/web/features/booking/components/dashboard/services/ServiceIntakeSchemaPanel.tsx` / `ServiceResourceRequirementsPanel.tsx` + specs — only if the flags need passing differently
+- `apps/web/e2e/services-resource-config.spec.ts` — only if a selector breaks (the test IDs are kept)
+- `apps/web/eslint.config.js` — only if the detector clears the bar in part 3
+- `docs/ANTI_PATTERNS.md` (row ~174), `docs/ENGINEERING_RULES_FRONTEND.md` (line ~192 and the part 3 measurement)
+- `td/TD57-INLINE-FEEDBACK-AND-ACTION-PANE-PATTERN.md` (this story, Status note, Dependency graph, Appendix A.1 / A.12 rows)
+- `journeys/manager/prototypes/feedback-pane/dev-notes.md` (+ the prototype HTML per the alignment line)
+
+**Acceptance criteria — product:**
+- [ ] Each of the four messages is a `FieldFeedback` linked to the control it describes by `aria-describedby`; the offending inputs or the legs group are marked `aria-invalid` and show the invalid outline. No hand-rolled red `<p>` message remains in `IntakeQuestionsCard` or `ServiceLegsPanel`.
+- [ ] The field messages carry no `role` (Story 1 rule); Save stays disabled while any of them holds, as today.
+- [ ] Appendix A.12 lists the part 2 files with a rationale, and no other red message box remains in `apps/web` (checked with a grep recorded in the PR).
+- [ ] The TD reads as complete in its Status block, the dev-notes status line, and the Dependency graph.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] `IntakeQuestionsCard.spec.tsx`: each of the three flags renders a `FieldFeedback` with its original `data-testid`, and the matching question inputs are `aria-invalid` with `aria-describedby` pointing at it
+  - [ ] `IntakeQuestionCard.spec.tsx`: `invalid` / `describedBy` props mark and link the input; absent props leave the row unchanged
+  - [ ] `ServiceLegsPanel.spec.tsx`: one leg shows the message with `aria-describedby` on the group; two legs hide it; zero legs show nothing (own test each)
+  - [ ] negative guarantees: none of the four messages has a `role`; neither file contains a raw `text-red-` message `<p>` (own test or pinned grep in the sweep)
+  - [ ] part 3, if shipped: an `eslint` spec fixture for each of the three bypass classes plus a fixture per structural exemption
+- Integration: none — frontend story
+- Tenant isolation: none — no data access
+- E2E:
+  - [ ] `services-resource-config.spec.ts` still passes unchanged (test IDs and wrappers kept); edited only if a selector breaks
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
+
 
 ## Dependency graph
 
@@ -1156,6 +1219,7 @@ graph TD
   S3 --> S5
   S4 --> S5
   S6 --> S5
+  S5 --> S17[Story 17: Leftover validation messages + detector decision + close TD]
 ```
 
 Stories 0 and 1 are independent and can run in parallel; Stories 2 and 3 share files and must be sequential. Story 6 follows Story 1; Stories 10, 11 and 16 (they touch branded files) also follow Story 6. Stories 7 to 16 touch disjoint source files, but some edit the same E2E files, so these pairs must not run concurrently in `/run-batch` (merge them one after the other): 10 and 12; 10 and 16; 11 and 12; 11 and 14; 11 and 16; 12 and 14; 12 and 16; 14 and 16. The other stories can run concurrently once Stories 0 and 1 (and 6 where needed) are merged.
