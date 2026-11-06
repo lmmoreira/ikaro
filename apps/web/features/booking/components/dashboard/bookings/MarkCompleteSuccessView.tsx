@@ -7,7 +7,7 @@ import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { BookingCompletionSummary } from './BookingCompletionSummary';
 import { BookingOutcomeLayout } from './BookingOutcomeLayout';
-import { SectionLabel } from '@/shared/components/ui/section-label';
+import { LabeledSection } from '@/shared/components/ui/labeled-section';
 
 interface MarkCompleteSuccessViewProps {
   readonly booking: StaffBookingDetailResponse;
@@ -65,8 +65,7 @@ export function MarkCompleteSuccessView({
       asideBody={t('completedAsideBody')}
       primaryAction={{ label: t('backToAgenda'), href: backHref }}
     >
-      <section>
-        <SectionLabel className="mb-2">{t('scheduleSection')}</SectionLabel>
+      <LabeledSection title={t('scheduleSection')}>
         <Card>
           <CardContent className="p-4">
             <p className="text-sm font-semibold text-gray-900">{formatDateLong(scheduledAt)}</p>
@@ -76,11 +75,10 @@ export function MarkCompleteSuccessView({
             </p>
           </CardContent>
         </Card>
-      </section>
+      </LabeledSection>
 
       {completedBookingForDisplay.afterServicePhotoUrls.length > 0 && (
-        <section>
-          <SectionLabel className="mb-2">{t('afterPhotosLabel')}</SectionLabel>
+        <LabeledSection title={t('afterPhotosLabel')}>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {completedBookingForDisplay.afterServicePhotoUrls.map((url, index) => (
               /* eslint-disable-next-line @next/next/no-img-element -- signed storage URLs are rendered as native thumbnails */
@@ -93,12 +91,11 @@ export function MarkCompleteSuccessView({
               />
             ))}
           </div>
-        </section>
+        </LabeledSection>
       )}
 
       {beforePhotos.length > 0 && (
-        <section>
-          <SectionLabel className="mb-2">{t('beforePhotosLabel')}</SectionLabel>
+        <LabeledSection title={t('beforePhotosLabel')}>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {beforePhotos.map((url, index) => (
               /* eslint-disable-next-line @next/next/no-img-element -- signed storage URLs are rendered as native thumbnails */
@@ -111,7 +108,7 @@ export function MarkCompleteSuccessView({
               />
             ))}
           </div>
-        </section>
+        </LabeledSection>
       )}
     </BookingOutcomeLayout>
   );

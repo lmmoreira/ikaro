@@ -1,5 +1,5 @@
 import { Card, CardContent } from '@/shared/components/ui/card';
-import { SectionLabel } from '@/shared/components/ui/section-label';
+import { LabeledSection } from '@/shared/components/ui/labeled-section';
 
 interface BookingDetailSectionProps {
   readonly title: string;
@@ -18,13 +18,12 @@ export function BookingDetailSection({
   children,
 }: BookingDetailSectionProps): React.JSX.Element {
   return (
-    <section data-testid={testId}>
-      <SectionLabel className="mb-2">{title}</SectionLabel>
+    <LabeledSection title={title} testId={testId}>
       <Card>
         <CardContent className="divide-y divide-gray-100 px-4 py-0">{children}</CardContent>
       </Card>
       {note && <p className="mt-1.5 text-xs leading-5 text-gray-500">{note}</p>}
-    </section>
+    </LabeledSection>
   );
 }
 

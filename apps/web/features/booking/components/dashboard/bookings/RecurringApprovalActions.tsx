@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
-import { SectionLabel } from '@/shared/components/ui/section-label';
+import { LabeledSection } from '@/shared/components/ui/labeled-section';
 
 // The action panel sits in a fixed bar at the bottom of the screen on mobile and in the right column
 // on desktop — the same shape as the booking detail's panels.
@@ -40,8 +40,7 @@ export function RecurringApprovalActions({
 
   return (
     <div className={ACTION_BAR_CLASSES}>
-      <div className="space-y-2">
-        <SectionLabel>{t('actionsSection')}</SectionLabel>
+      <LabeledSection title={t('actionsSection')}>
         <Card>
           <CardContent className="space-y-3 p-4">
             {canDecide ? (
@@ -77,7 +76,7 @@ export function RecurringApprovalActions({
             </Button>
           </CardContent>
         </Card>
-      </div>
+      </LabeledSection>
     </div>
   );
 }

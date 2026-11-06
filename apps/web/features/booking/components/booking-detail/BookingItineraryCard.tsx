@@ -4,7 +4,7 @@ import type { BookingItineraryLeg } from '@ikaro/types';
 import { useTranslations } from 'next-intl';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
-import { SectionLabel } from '@/shared/components/ui/section-label';
+import { LabeledSection } from '@/shared/components/ui/labeled-section';
 
 interface BookingItineraryCardProps {
   readonly itinerary: readonly BookingItineraryLeg[];
@@ -21,8 +21,7 @@ export function BookingItineraryCard({
   if (itinerary.length === 0) return null;
 
   return (
-    <section data-testid="booking-itinerary-card">
-      <SectionLabel className="mb-2">{t('itineraryTitle')}</SectionLabel>
+    <LabeledSection title={t('itineraryTitle')} testId="booking-itinerary-card">
       <Card>
         <CardContent className="px-4 py-0">
           <ol className="divide-y divide-gray-100">
@@ -56,6 +55,6 @@ export function BookingItineraryCard({
         </CardContent>
       </Card>
       <p className="mt-1.5 text-xs leading-5 text-gray-500">{t('itineraryNote')}</p>
-    </section>
+    </LabeledSection>
   );
 }
