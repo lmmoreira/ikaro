@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
-import { Tabs, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
 import { findContactError } from '@/features/booking/model/contact-validation';
 import type { StaffBookingRecipient } from '@/features/booking/model/staff-booking-payload';
 import type { StaffGuestContact } from '@/features/booking/hooks/useStaffGuestContact';
@@ -34,14 +34,7 @@ function ModeTab({
 }): React.JSX.Element {
   const t = useTranslations('dashboard.newBooking.chooser');
   return (
-    <TabsTrigger
-      value={mode}
-      disabled={disabled}
-      // The registered / guest body below is one conditional card, not a panel per tab.
-      aria-controls={undefined}
-      data-testid="chooser-tab"
-      data-mode={mode}
-    >
+    <TabsTrigger value={mode} disabled={disabled} data-testid="chooser-tab" data-mode={mode}>
       {t(`tabs.${mode}`)}
     </TabsTrigger>
   );
@@ -87,32 +80,37 @@ export function CustomerChooserStep({
           <p className="mt-1 text-sm text-gray-600">{t('description')}</p>
         </div>
 
-        <Tabs value={mode} onValueChange={(value) => setMode(value as ChooserMode)}>
+        <Tabs
+          value={mode}
+          onValueChange={(value) => setMode(value as ChooserMode)}
+          className="space-y-4"
+        >
           <TabsList variant="segmented">
             <ModeTab mode="registered" />
             <ModeTab mode="guest" disabled={guestDisabled} />
           </TabsList>
-        </Tabs>
-        {guestDisabled && (
-          <p className="text-sm text-gray-600" data-testid="guest-disabled-reason">
-            {t('recurrenceNeedsAccount')}
-          </p>
-        )}
+          {guestDisabled && (
+            <p className="text-sm text-gray-600" data-testid="guest-disabled-reason">
+              {t('recurrenceNeedsAccount')}
+            </p>
+          )}
 
-        <Card>
-          <CardContent className="p-4">
-            {mode === 'registered' ? (
-              <CustomerSearchPanel selectedId={customerId} onSelect={setCustomerId} />
-            ) : (
-              <GuestContactForm
-                value={guest}
-                phonePrefix={phonePrefix}
-                feedback={feedback}
-                onChange={feedback.edit(setGuest)}
-              />
-            )}
-          </CardContent>
-        </Card>
+          <Card>
+            <CardContent className="p-4">
+              <TabsContent value="registered">
+                <CustomerSearchPanel selectedId={customerId} onSelect={setCustomerId} />
+              </TabsContent>
+              <TabsContent value="guest">
+                <GuestContactForm
+                  value={guest}
+                  phonePrefix={phonePrefix}
+                  feedback={feedback}
+                  onChange={feedback.edit(setGuest)}
+                />
+              </TabsContent>
+            </CardContent>
+          </Card>
+        </Tabs>
       </div>
 
       <BookingOutcomeActionRail>

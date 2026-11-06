@@ -56,6 +56,22 @@ function descriptionTab(mode: 'write' | 'preview'): HTMLElement {
 
 describe('ServicePublicPageContent', () => {
   describe('description', () => {
+    it('gives the write and preview modes a real tab panel, labelled by the active tab', async () => {
+      const user = userEvent.setup();
+      renderWithIntl(<Harness />);
+
+      const writePanel = screen.getByRole('tabpanel');
+      expect(descriptionTab('write')).toHaveAttribute('aria-controls', writePanel.id);
+      expect(writePanel).toHaveAttribute('aria-labelledby', descriptionTab('write').id);
+      expect(writePanel).toContainElement(screen.getByTestId('public-page-description'));
+
+      await user.click(descriptionTab('preview'));
+
+      const previewPanel = screen.getByRole('tabpanel');
+      expect(descriptionTab('preview')).toHaveAttribute('aria-controls', previewPanel.id);
+      expect(previewPanel).toContainElement(screen.getByTestId('public-page-description-rendered'));
+    });
+
     it('edits the Markdown source and counts characters against the 4000 limit', async () => {
       const user = userEvent.setup();
       const onDescription = vi.fn();

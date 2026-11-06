@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl';
 import { SERVICE_PUBLIC_PROFILE_LIMITS } from '@ikaro/types';
 import { RestrictedMarkdown } from '@/shells/hotsite/components/RestrictedMarkdown';
 import { SectionCard } from '@/shared/components/ui/section-card';
-import { Tabs, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { newInclusionDraft, type InclusionDraft } from './service-public-page-draft';
 
@@ -53,8 +53,6 @@ export function ServicePublicPageContent({
               <TabsTrigger
                 key={value}
                 value={value}
-                // The write/preview body below is one conditional block, not a panel per tab.
-                aria-controls={undefined}
                 data-testid="public-page-description-tab"
                 data-mode={value}
                 className="flex-none"
@@ -65,30 +63,31 @@ export function ServicePublicPageContent({
               </TabsTrigger>
             ))}
           </TabsList>
-        </Tabs>
 
-        {mode === 'write' ? (
-          <Textarea
-            id="service-page-description"
-            data-testid="public-page-description"
-            aria-label={t('publicPageDescriptionLabel')}
-            rows={7}
-            maxLength={LIMITS.longDescription}
-            value={longDescription}
-            onChange={(event) => onLongDescriptionChange(event.target.value)}
-          />
-        ) : (
-          <div
-            data-testid="public-page-description-rendered"
-            className="min-h-[8rem] rounded-md border border-gray-200 bg-white px-4 py-3"
-          >
-            {longDescription.trim() === '' ? (
-              <p className="text-sm text-gray-400">{t('publicPageDescriptionPreviewEmpty')}</p>
-            ) : (
-              <RestrictedMarkdown>{longDescription}</RestrictedMarkdown>
-            )}
-          </div>
-        )}
+          <TabsContent value="write">
+            <Textarea
+              id="service-page-description"
+              data-testid="public-page-description"
+              aria-label={t('publicPageDescriptionLabel')}
+              rows={7}
+              maxLength={LIMITS.longDescription}
+              value={longDescription}
+              onChange={(event) => onLongDescriptionChange(event.target.value)}
+            />
+          </TabsContent>
+          <TabsContent value="preview">
+            <div
+              data-testid="public-page-description-rendered"
+              className="min-h-[8rem] rounded-md border border-gray-200 bg-white px-4 py-3"
+            >
+              {longDescription.trim() === '' ? (
+                <p className="text-sm text-gray-400">{t('publicPageDescriptionPreviewEmpty')}</p>
+              ) : (
+                <RestrictedMarkdown>{longDescription}</RestrictedMarkdown>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
         <p className="mt-1.5 text-sm text-gray-500">{t('publicPageDescriptionHint')}</p>
         <p className="mt-1 text-right text-xs text-gray-500">
           {t('publicPageCounter', { count: longDescription.length, max: LIMITS.longDescription })}

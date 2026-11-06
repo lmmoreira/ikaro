@@ -106,6 +106,24 @@ describe('CustomerChooserStep — Cliente cadastrado', () => {
   });
 });
 
+describe('CustomerChooserStep — tabs', () => {
+  it('gives each mode a real tab panel, labelled by its tab', async () => {
+    setup();
+    const [registeredTab, guestTab] = screen.getAllByTestId('chooser-tab');
+
+    expect(registeredTab).toHaveAttribute('aria-selected', 'true');
+    const registeredPanel = screen.getByRole('tabpanel');
+    expect(registeredTab).toHaveAttribute('aria-controls', registeredPanel.id);
+    expect(registeredPanel).toHaveAttribute('aria-labelledby', registeredTab!.id);
+
+    await userEvent.click(guestTab!);
+
+    const guestPanel = screen.getByRole('tabpanel');
+    expect(guestTab).toHaveAttribute('aria-controls', guestPanel.id);
+    expect(guestPanel).toHaveAttribute('aria-labelledby', guestTab!.id);
+  });
+});
+
 describe('CustomerChooserStep — Novo contato', () => {
   async function openGuest() {
     const result = setup();
