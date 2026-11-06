@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/shared/components/ui/card';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { BookingOutcomeLayout } from './BookingOutcomeLayout';
 import { SectionLabel } from '@/shared/components/ui/section-label';
+import { LabeledSection } from '@/shared/components/ui/labeled-section';
 
 interface RescheduleSuccessViewProps {
   readonly booking: StaffBookingDetailResponse;
@@ -45,8 +46,7 @@ export function RescheduleSuccessView({
       primaryAction={{ label: t('viewUpdatedBooking'), href: backHref }}
       secondaryAction={{ label: t('backToAgenda'), href: agendaHref }}
     >
-      <section>
-        <SectionLabel className="mb-2">{t('rescheduledSummaryLabel')}</SectionLabel>
+      <LabeledSection title={t('rescheduledSummaryLabel')}>
         <Card>
           <CardContent className="space-y-3 p-4">
             <div>
@@ -63,7 +63,7 @@ export function RescheduleSuccessView({
             </div>
           </CardContent>
         </Card>
-      </section>
+      </LabeledSection>
     </BookingOutcomeLayout>
   );
 }

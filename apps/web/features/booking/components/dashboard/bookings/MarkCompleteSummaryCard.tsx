@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/shared/components/ui/card';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { SectionLabel } from '@/shared/components/ui/section-label';
+import { LabeledSection } from '@/shared/components/ui/labeled-section';
 
 interface MarkCompleteSummaryCardProps {
   readonly scheduledAt: Date;
@@ -37,8 +38,7 @@ export function MarkCompleteSummaryCard({
   const { formatMoney, formatDateLong, formatTime } = useFormatting();
 
   return (
-    <section>
-      <SectionLabel className="mb-2">{t('summaryLabel')}</SectionLabel>
+    <LabeledSection title={t('summaryLabel')}>
       <Card className="border-blue-200 bg-blue-50/70">
         <CardContent className="space-y-3 p-4">
           <div>
@@ -69,6 +69,6 @@ export function MarkCompleteSummaryCard({
           </div>
         </CardContent>
       </Card>
-    </section>
+    </LabeledSection>
   );
 }

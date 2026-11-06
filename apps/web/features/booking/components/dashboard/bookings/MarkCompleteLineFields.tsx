@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl';
 import type { StaffBookingDetailResponse } from '@ikaro/types';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
-import { SectionLabel } from '@/shared/components/ui/section-label';
+import { LabeledSection } from '@/shared/components/ui/labeled-section';
 
 interface MarkCompleteLineFieldsProps {
   readonly lines: StaffBookingDetailResponse['lines'];
@@ -23,8 +23,7 @@ export function MarkCompleteLineFields({
   const { formatMoney } = useFormatting();
 
   return (
-    <section>
-      <SectionLabel className="mb-2">{t('completeLinesSection')}</SectionLabel>
+    <LabeledSection title={t('completeLinesSection')}>
       <Card>
         <CardContent className="space-y-0 p-0">
           {lines.map((line) => (
@@ -62,6 +61,6 @@ export function MarkCompleteLineFields({
           ))}
         </CardContent>
       </Card>
-    </section>
+    </LabeledSection>
   );
 }

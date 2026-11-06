@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
-import { SectionLabel } from '@/shared/components/ui/section-label';
+import { LabeledSection } from '@/shared/components/ui/labeled-section';
 
 interface MarkCompleteLoyaltyPanelProps {
   readonly loyaltyBalance: number;
@@ -31,10 +31,7 @@ export function MarkCompleteLoyaltyPanel({
   const { formatMoney } = useFormatting();
 
   return (
-    <section>
-      <SectionLabel data-testid="complete-loyalty-section-title" className="mb-2">
-        {t('loyaltySection')}
-      </SectionLabel>
+    <LabeledSection title={t('loyaltySection')} labelTestId="complete-loyalty-section-title">
       <Card className="border-blue-200 bg-blue-50/70">
         <CardContent className="space-y-4 p-4">
           <div className="space-y-1">
@@ -87,6 +84,6 @@ export function MarkCompleteLoyaltyPanel({
           )}
         </CardContent>
       </Card>
-    </section>
+    </LabeledSection>
   );
 }

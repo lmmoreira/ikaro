@@ -10,6 +10,7 @@ import { PhotoTile } from '../../PhotoTile';
 import { BookingClientCard } from './BookingClientCard';
 import { StaffBookingExtras } from './StaffBookingExtras';
 import { SectionLabel } from '@/shared/components/ui/section-label';
+import { LabeledSection } from '@/shared/components/ui/labeled-section';
 
 interface BookingDetailMainProps {
   readonly booking: StaffBookingDetailResponse;
@@ -52,8 +53,7 @@ export function BookingDetailMain({ booking }: BookingDetailMainProps): React.JS
         </section>
       )}
 
-      <section>
-        <SectionLabel className="mb-2">{t('scheduleSection')}</SectionLabel>
+      <LabeledSection title={t('scheduleSection')}>
         <Card>
           <CardContent className="flex items-center gap-3 p-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-700">
@@ -82,10 +82,9 @@ export function BookingDetailMain({ booking }: BookingDetailMainProps): React.JS
             </div>
           </CardContent>
         </Card>
-      </section>
+      </LabeledSection>
 
-      <section>
-        <SectionLabel className="mb-2">{t('servicesSection')}</SectionLabel>
+      <LabeledSection title={t('servicesSection')}>
         <Card>
           <CardHeader className="pb-3">
             <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-3 text-[0.6875rem] font-bold uppercase tracking-[0.07em] text-gray-400">
@@ -127,13 +126,12 @@ export function BookingDetailMain({ booking }: BookingDetailMainProps): React.JS
             </div>
           </CardContent>
         </Card>
-      </section>
+      </LabeledSection>
 
       <StaffBookingExtras booking={booking} />
 
       {(booking.beforeServicePhotoUrls.length > 0 || booking.afterServicePhotoUrls.length > 0) && (
-        <section>
-          <SectionLabel className="mb-2">{t('photosSection')}</SectionLabel>
+        <LabeledSection title={t('photosSection')}>
           <div className="space-y-4">
             {booking.beforeServicePhotoUrls.length > 0 && (
               <div>
@@ -171,7 +169,7 @@ export function BookingDetailMain({ booking }: BookingDetailMainProps): React.JS
               </div>
             )}
           </div>
-        </section>
+        </LabeledSection>
       )}
     </div>
   );

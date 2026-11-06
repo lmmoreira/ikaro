@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { Card, CardContent } from '@/shared/components/ui/card';
-import { SectionLabel } from '@/shared/components/ui/section-label';
+import { LabeledSection } from '@/shared/components/ui/labeled-section';
 
 interface RecurringDecisionExplainerProps {
   readonly customerName: string;
@@ -22,8 +22,7 @@ export function RecurringDecisionExplainer({
   const t = useTranslations('dashboard.recurringApproval');
 
   return (
-    <div className="space-y-2" data-testid="recurring-what-happens">
-      <SectionLabel>{t('whatHappens')}</SectionLabel>
+    <LabeledSection title={t('whatHappens')} testId="recurring-what-happens">
       <Card>
         <CardContent className="space-y-3 p-4 text-sm leading-6 text-gray-600">
           <p>{t('noneCreatedYet')}</p>
@@ -41,6 +40,6 @@ export function RecurringDecisionExplainer({
           <p className="text-xs text-gray-500">{t('emailNotice', { name: customerName })}</p>
         </CardContent>
       </Card>
-    </div>
+    </LabeledSection>
   );
 }
