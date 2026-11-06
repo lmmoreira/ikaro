@@ -6,7 +6,7 @@
 - **Context**: `.github/workflows/pr-tests.yml` (job `e2e`), `apps/web/playwright.config.ts`, `apps/web/e2e/**`, `docs/TESTING_STRATEGY.md`, `docs/CI_TRAPS.md`. No product code, backend, BFF or migration change.
 - **Created**: 2026-11-06
 - **Discovered**: TD58 PRs #721, #722 and #723 (2026-11-05/06). The `Playwright E2E` job was cancelled at the 30-minute cap on a first attempt with every spec that ran passing, and a re-run passed. Earlier the same failure drove the 20 → 30 raise (M23-S13, PR #613).
-- **Decision status**: Ready for discovery in the dependency order below; every story still begins with `/story-discovery`. The sequence was confirmed with the user on 2026-11-06 and reordered the same day after the CI-log measurements in "Measured baseline" (install fix, trim, job-level wins, and sharding only as a last resort). Story 0 has been discovered (2026-11-06); for the other stories no discovery has run yet, so their "Pattern" is a starting decision `/story-discovery` Step 4q may refine.
+- **Decision status**: Ready for discovery in the dependency order below; every story still begins with `/story-discovery`. The sequence was confirmed with the user on 2026-11-06 and reordered the same day after the CI-log measurements in "Measured baseline" (install fix, trim, job-level wins, and sharding only as a last resort). After Story 1 the user chose to shard into 2 legs right away (2026-11-06), so Story 3 no longer waits for Story 2. Stories 0, 1 and 3 have been discovered; Story 2 has not, so its "Pattern" is a starting decision `/story-discovery` Step 4q may refine.
 - **Related**: `docs/CI_TRAPS.md` rows on the Playwright cap (lines ~124-125); `docs/TESTING_STRATEGY.md` § Running Playwright locally and the CI-sequential note (~lines 446, 801-803); TD08 AUD-015 (the original Playwright CI job); TD58 (the PRs that exposed this).
 
 ---
@@ -52,19 +52,19 @@ Source: the `Playwright E2E` job logs of PR #723's runs and the 40 most recent `
 
 **The one real cap timeout was not the tests.** Of the 40 sampled runs, a single one (42092698239, 2026-11-05) hit the 30-minute cap. Most other "cancelled" runs lasted 3-17 minutes and were superseded by a newer push (`cancel-in-progress: true`), not timed out. In that run `playwright install chromium --with-deps` took **9.5 min instead of about 20 s**: apt fetched font packages from `azure.archive.ubuntu.com` at 43 kB/s ("Fetched 21.9 MB in 8min 23s"). The tests then ran their usual 18 min and the job reached 30 min. Raising the cap to 45 hides this; it does not fix it.
 
-**Consequence for the plan.** Trimming alone can cut perhaps 10-20% (no outlier exists) and will not make the time predictable. The first lever is making the install step fast and bounded. After that, merging redundant scenarios into full flows, and only then, if still needed, running the suite in parallel by sharding across jobs (each with its own stack and database, keeping `workers: 1` inside each shard), at the cost of repeating downloads per shard.
+**Consequence for the plan.** Trimming alone can cut perhaps 10-20% (no outlier exists) and will not make the time predictable. The first lever is making the install step fast and bounded. After that, merging redundant scenarios into full flows, and then running the suite in parallel by sharding across 2 jobs (each with its own stack and database, keeping `workers: 1` inside each shard), at the cost of repeating the setup per shard. The user chose to do this right after Story 1 (2026-11-06), with a trial and a rollback rule.
 
 ## Chosen approach (decided 2026-11-06, reordered the same day after the measurements above)
-Fix the install step first (it caused the only observed timeout), then trim and merge redundant scenarios, then take cheap job-level wins only if the data asks. Sharding is the last resort: it multiplies the per-job downloads and runner queueing that GitHub-side slowness already makes unpredictable, so it is attempted only if the job is still over target. Per-file tenant isolation with several workers on one runner is rejected for now (invasive, touches many specs and the seed).
+Fix the install step first (it caused the only observed timeout), then trim and merge redundant scenarios, then take cheap job-level wins only if the data asks. Sharding was first meant as the last resort (it multiplies the per-job downloads and runner queueing that GitHub-side slowness already makes unpredictable), but after Story 1 the user chose to shard into 2 legs and measure it, with a trial and a rollback rule (Story 3). Per-file tenant isolation with several workers on one runner is rejected for now (invasive, touches many specs and the seed).
 
 ```mermaid
 graph TD
   S0[Story 0 - Fix browser install] --> S1[Story 1 - Trim and merge scenarios]
   S1 --> S2[Story 2 - Job-level wins, only if data asks]
-  S2 --> S3[Story 3 - Shard, last resort]
+  S1 --> S3[Story 3 - Shard into 2 legs, with a trial]
 ```
 
-Target: the `Playwright E2E` job under about 20 minutes in the worst observed case with no cap timeout, the cap lowered from 45 to about 35 after Story 0, and sharding taken only if that is not reached. Expected from Stories 1-3 alone: about 22 min down to about 16-19 min with much better predictability.
+Target: the `Playwright E2E` job under about 20 minutes in the worst observed case with no cap timeout, the cap lowered from 45 to about 35 after Story 0, and the job split into 2 shards (Story 3) to bring it near 11 minutes. Expected from Stories 1-3 alone: about 22 min down to about 16-19 min with much better predictability.
 
 ---
 
@@ -152,7 +152,7 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 **Dependencies:** Story 0
 **Pattern:** plain composition — no named pattern applies
 
-**Description:** Setup measured about 2 minutes, so these wins are small and kept only if the job logs show they move the number. Take only what the data shows is large, and build them so Story 3's shards can reuse them: Docker image caching for the emulators, a Next.js build cache or a production build instead of `next dev` (only if first-compile of routes is a large share of test time; keep dev-login enabled through its flag), and reusing the login through `globalSetup` + `storageState` (keep the helper API; a spec logging in as a different role must still get that role). Fix the stale references: `playwright.config.ts:35` (`pr-e2e.yml`), the "~330 tests" comments. Each change is measured against the numbers before it, and a change that does not move the number is not kept. If the job is already inside the target, close this story as not needed.
+**Description:** Setup measured about 2 minutes, so these wins are small and kept only if the job logs show they move the number. Take only what the data shows is large, (with Story 3's two legs each repeating the setup, anything saved here is saved twice): Docker image caching for the emulators, a Next.js build cache or a production build instead of `next dev` (only if first-compile of routes is a large share of test time; keep dev-login enabled through its flag), and reusing the login through `globalSetup` + `storageState` (keep the helper API; a spec logging in as a different role must still get that role). Fix the stale references: `playwright.config.ts:35` (`pr-e2e.yml`), the "~330 tests" comments. Each change is measured against the numbers before it, and a change that does not move the number is not kept. If the job is already inside the target, close this story as not needed.
 
 New migration / i18n keys / env vars / feature flags: none expected.
 
@@ -168,38 +168,44 @@ New migration / i18n keys / env vars / feature flags: none expected.
 
 ---
 
-### Story 3 — Decide on sharding with data, and shard only if it pays (optional)
+### Story 3 — Shard the Playwright job into 2 parallel legs
 
 **Agent:** devops
 **Complexity:** M
-**Docs to load:** `docs/TESTING_STRATEGY.md` § Layer 5 and the CI-sequential note (~lines 801-803); `docs/CI_TRAPS.md` (the Playwright rows); `docs/GITHUB_WORKFLOWS_GUIDELINES.md`; `docs/ENGINEERING_RULES_TESTING.md` (shared-tenant fixtures, a fixed-time-slot booking fixture)
-**Dependencies:** Stories 0-2, and only if the job is still over the target after them
-**Pattern:** plain composition — no named pattern applies (Playwright's own `--shard=N/M` plus a job matrix)
+**Docs to load:** `docs/TESTING_STRATEGY.md` § Layer 5 and § Test Parallelism; `docs/CI_TRAPS.md` (the Playwright rows); `docs/GITHUB_WORKFLOWS_GUIDELINES.md`; `docs/ENGINEERING_RULES_TESTING.md` (shared-tenant fixtures, a fixed-time-slot booking fixture)
+**Dependencies:** Stories 0 and 1
+**Pattern:** plain composition — Playwright's own `--shard` plus a GitHub job matrix; the shard total comes from `strategy.job-total`, so it is written once and cannot disagree with the matrix.
 
-**Description:** This story starts with a decision, not with code. After Stories 0-2 have merged, collect the `Playwright E2E` job duration and the setup-phase duration for at least 10 real PR runs and write the numbers into this TD. Shard only if the worst or p90 run is still over the target, or the run time is still unpredictable. If the numbers are inside the target, close this story as not needed. Sharding is only worth it when each shard's setup is cheap, so the caches from Story 2 are a prerequisite and are shared by all shards: the pnpm store (already cached), the Playwright browser directory, the Docker images of the emulators (a cached `docker save` tarball or a mirror in GHCR, whichever is measurably faster than pulling from the public registry), and the Next.js build cache. Each shard restores the same caches by the same key, so nothing is built or downloaded from the internet once per shard when a warm cache exists. If a warm shard's setup is not under about 1.5 minutes, do not shard.
+**Description:** Decided at `/story-discovery` with the user (2026-11-06): shard now, with 2 legs, and measure it with a trial and a rollback rule. The earlier "only if the data asks" gate and the Story 2 caches prerequisite are dropped: setup is about 2 minutes, the repo is public (runner minutes are free) and the account is on the Free plan (20 concurrent jobs; one PR peaks at 17, so a second E2E leg makes 18).
 
-If the decision is to shard: Run the `e2e` job as a matrix of shards, starting with **2** (about 220 tests and 10 minutes of tests per shard) to limit the exposure to GitHub runner queueing and download variance; `/story-discovery` confirms the count from the job logs and the runner-concurrency limit. Each shard is a full job with its own Postgres, Pub/Sub and GCS emulators, backend, BFF, web app and seed, and keeps `workers: 1`, so the shared-tenant race protection stays intact inside each shard (`hotsite-editor.spec.ts` and `settings.spec.ts` both mutate `autospa-premium` and must be checked to land in a shard where the serial order holds). No spec changes. `test-suite-passed` must require every shard: a shard that fails, is cancelled or is skipped fails the gate. Merge or upload per-shard reports with distinct artifact names. Lower `timeout-minutes` from 45 to real headroom over the new worst shard, and update the `docs/CI_TRAPS.md` rows and the `docs/TESTING_STRATEGY.md` CI-sequential note.
+Measured before the change: the job takes 16-18 minutes (test phase 14-17) and Playwright splits the 321 tests by file into 161 and 160. From the last CI run's per-test times the slower leg is about 7.7 of 14.4 minutes of per-test time, so expect about 11 minutes (11-12 once each dev server compiles its own routes). Three shards were rejected: lopsided (140, 76 and 105 tests) and only about 2 minutes better.
 
-Trade-offs to state in the PR: wall clock roughly halves at 2 shards, billed runner minutes rise (the setup of about 2 minutes is repeated per shard), every shard repeats the pnpm, Docker and browser downloads (more exposure to GitHub-side slowness), and the gate time becomes the slowest shard. Rejected for now: per-file tenant isolation with several workers on one runner (invasive, touches many specs and the seed).
+- `.github/workflows/pr-tests.yml`: `strategy: { fail-fast: true, matrix: { shard: [1, 2] } }`; leg name `Playwright E2E (${{ matrix.shard }}/${{ strategy.job-total }})`; run `pnpm --filter @ikaro/web e2e:ci --shard=${{ matrix.shard }}/${{ strategy.job-total }}` (no `--` before the flag: it makes Playwright ignore the flag and run every test); failure artifacts named per leg (`playwright-report-N`, `playwright-traces-N`, `server-logs-N`, because upload-artifact names must be unique); `timeout-minutes` lowered from 35 to 20. `fail-fast: true` is the user's choice: once one leg has failed the PR needs fixing locally, so finishing the other leg is wasted time. The cost is that a round shows only the first failing leg's failures.
+- `apps/web/playwright.config.ts`: `fullyParallel: !process.env.CI`. With it on, Playwright splits tests one by one, which would break the serial `hotsite-editor` group; off in CI it splits by file and keeps a file's tests together. Local runs keep today's behaviour.
+- Each leg is a full job with its own Postgres, Pub/Sub, GCS, MailHog, backend, BFF and web app, the same migrations and the same seed, and keeps `workers: 1`. No spec change and no per-shard data: any file can run in any shard, so a spec must not depend on another file's data or run order (the shared-tenant rules already say so).
+- `test-suite-passed` is unchanged: its allow-list on `needs.e2e.result` is `success` only when every leg succeeded, and `SonarCloud Analysis` (a required check) sits behind it. Nothing partitions by hand: Playwright's split is exact (checked with `--list`: 161 + 160 = 321, none in both, none in neither) and an empty leg fails.
+- **Trial and rollback:** five sharded runs on the PR (re-runs count). Keep sharding only if the median job is at most 12 minutes, the worst at most 14, no leg waits more than 2 minutes for a runner and no retry is used. Otherwise revert the workflow change (the single-job version stays in git history).
+- Rejected: per-file tenant isolation with several workers on one runner (invasive, touches many specs and the seed); 3 shards; a separate partition-guard job (the matrix-derived total and the gate cover it).
 
 New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface: none.
 
 **Files to create/modify:**
-- `.github/workflows/pr-tests.yml` (modify: matrix, shard flag, artifact names, gate wiring, lowered cap)
-- `docs/TESTING_STRATEGY.md`, `docs/CI_TRAPS.md` (modify — doc gate)
+- `.github/workflows/pr-tests.yml` (modify: matrix, shard flag, leg and artifact names, lowered cap and its comment)
+- `apps/web/playwright.config.ts` (modify: `fullyParallel` off in CI)
+- `docs/TESTING_STRATEGY.md` (modify: the "CI is effectively sequential" note, the `--` pitfall, "any file can land in any shard"), `docs/CI_TRAPS.md` (modify: the cap row) — doc gate
 
 **Acceptance criteria — product:**
-- [ ] The decision data (10+ runs) is recorded in this TD before any change
-- [ ] A warm shard's setup phase is under about 1.5 minutes
-- [ ] The `Playwright E2E` gate's worst observed run is inside the target and the cap is lowered from 45.
+- [ ] Over the trial the `Playwright E2E` job's median is at most 12 minutes and its worst at most 14 (it is 16-18 today), and `timeout-minutes` is 20.
+- [ ] No leg waits more than 2 minutes for a runner and no retry is used in the trial runs.
 
 **Acceptance criteria — technical:**
 - E2E:
-  - [ ] every test runs exactly once across the shards (sum of shard counts equals the unsharded count), on three consecutive real runs with no new flake
-- [ ] Negative guarantee pinned: a shard that fails, is cancelled or is skipped makes `test-suite-passed` fail (shown on a deliberate throwaway failure in the PR, then removed)
-- [ ] `actionlint` clean
+  - [ ] on the first sharded run the two legs run 161 and 160 tests and the sum equals the full 321 (read from each leg's `passed` line)
+  - [ ] five sharded runs are green with the numbers above; otherwise the workflow change is reverted
+- [ ] Negative guarantee pinned: a deliberately failing leg makes `test-suite-passed` fail, and with `fail-fast: true` the cancelled sibling leg fails it too (shown on a throwaway commit in the PR, then removed)
+- [ ] `actionlint` and `zizmor` clean; the docs above and the cap comment updated
 
-**Live-verification check:** three consecutive green real PR runs under the new cap, plus the throwaway-failure run.
+**Live-verification check:** five green sharded PR runs under the new cap, plus the throwaway failing-leg run.
 
 ---
 
