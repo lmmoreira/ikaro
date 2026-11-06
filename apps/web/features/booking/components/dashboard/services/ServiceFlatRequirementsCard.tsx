@@ -1,5 +1,6 @@
 'use client';
 
+import { Label } from '@/shared/components/ui/label';
 import { useTranslations } from 'next-intl';
 import type { ResourceRequirementItem, ResourceResponse, ResourceType } from '@ikaro/types';
 import { Card, CardContent } from '@/shared/components/ui/card';
@@ -29,9 +30,7 @@ export function ServiceFlatRequirementsCard({
   return (
     <Card>
       <CardContent className="space-y-3 p-5">
-        <label className="block text-sm font-semibold text-gray-900">
-          {t('recursosChecklistLabel')}
-        </label>
+        <Label className="mb-0">{t('recursosChecklistLabel')}</Label>
 
         {requirements.length === 0 && (
           <div

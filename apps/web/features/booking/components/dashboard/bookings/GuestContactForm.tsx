@@ -1,5 +1,7 @@
 'use client';
 
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
 import { useTranslations } from 'next-intl';
 import type { ContactField } from '@/features/booking/model/contact-validation';
 import type { StaffGuestContact } from '@/features/booking/hooks/useStaffGuestContact';
@@ -12,7 +14,6 @@ import {
 } from '@/shared/utils/phone-format';
 import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
 import type { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
-import { INPUT_CLASS, LABEL_CLASS } from './new-booking/new-booking-styles';
 
 type GuestFormFeedback = Pick<
   ReturnType<typeof useFormFeedback>,
@@ -40,7 +41,7 @@ export function GuestContactForm({
     ? value.contactPhone.slice(phonePrefix.length)
     : value.contactPhone;
   const { fieldErrors, fieldProps, fieldErrorId } = feedback;
-  const inputClass = (field: ContactField, base: string = INPUT_CLASS): string =>
+  const inputClass = (field: ContactField, base?: string): string =>
     cn(base, fieldErrors[field] && FIELD_INVALID_CLASS);
   const message = (field: ContactField): React.JSX.Element | null =>
     fieldErrors[field] ? (
@@ -52,10 +53,8 @@ export function GuestContactForm({
   return (
     <div className="space-y-4" data-testid="guest-contact-form">
       <div>
-        <label htmlFor="guest-name" className={LABEL_CLASS}>
-          {t('guestName')}
-        </label>
-        <input
+        <Label htmlFor="guest-name">{t('guestName')}</Label>
+        <Input
           id="guest-name"
           data-testid="guest-name"
           className={inputClass('name')}
@@ -67,19 +66,17 @@ export function GuestContactForm({
         {message('name')}
       </div>
       <div>
-        <label htmlFor="guest-phone" className={LABEL_CLASS}>
-          {t('guestPhone')}
-        </label>
+        <Label htmlFor="guest-phone">{t('guestPhone')}</Label>
         <div className="flex">
           <span className="flex items-center rounded-l-md border border-r-0 border-border bg-gray-50 px-3 text-sm font-medium text-gray-700">
             {phonePrefix}
           </span>
-          <input
+          <Input
             id="guest-phone"
             type="tel"
             inputMode="numeric"
             data-testid="guest-phone"
-            className={inputClass('phone', `${INPUT_CLASS} rounded-l-none`)}
+            className={inputClass('phone', 'rounded-l-none')}
             placeholder={phonePlaceholder(phonePrefix)}
             value={formatPhoneForDisplay(localPhone, phonePrefix)}
             {...fieldProps('phone')}
@@ -92,10 +89,8 @@ export function GuestContactForm({
         {message('phone')}
       </div>
       <div>
-        <label htmlFor="guest-email" className={LABEL_CLASS}>
-          {t('guestEmail')}
-        </label>
-        <input
+        <Label htmlFor="guest-email">{t('guestEmail')}</Label>
+        <Input
           id="guest-email"
           type="email"
           data-testid="guest-email"

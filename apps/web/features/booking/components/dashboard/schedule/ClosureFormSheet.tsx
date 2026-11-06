@@ -1,5 +1,6 @@
 'use client';
 
+import { NativeSelect } from '@/shared/components/ui/native-select';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { ClosureReason, CreateClosureRequest, ScheduleClosure } from '@ikaro/types';
@@ -86,17 +87,16 @@ export function ClosureFormSheet({
       )}
       <label className="block space-y-2">
         <span className="block text-sm font-medium text-gray-700">{t('reasonLabel')}</span>
-        <select
+        <NativeSelect
           value={reason}
           onChange={(event) => setReason(event.target.value as ClosureReason)}
-          className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
         >
           {reasonOptions.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </label>
     </ScheduleDateTimeRangeSheet>
   );

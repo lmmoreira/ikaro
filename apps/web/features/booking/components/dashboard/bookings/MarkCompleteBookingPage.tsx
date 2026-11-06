@@ -1,5 +1,6 @@
 'use client';
 
+import { Textarea } from '@/shared/components/ui/textarea';
 import { useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { BOOKING_STATUS, type StaffBookingDetailResponse } from '@ikaro/types';
@@ -161,12 +162,11 @@ export function MarkCompleteBookingPage({
                   <span className="mb-2 block text-sm font-medium text-gray-700">
                     {t('notesLabel')}
                   </span>
-                  <textarea
+                  <Textarea
                     value={submission.adminNotes}
                     onChange={(event) => submission.setAdminNotes(event.target.value)}
                     rows={5}
                     maxLength={500}
-                    className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none ring-0 placeholder:text-gray-400 focus:border-blue-500"
                     placeholder={t('notesPlaceholder')}
                   />
                 </label>

@@ -1,5 +1,7 @@
 'use client';
 
+import { Label } from '@/shared/components/ui/label';
+import { NativeSelect } from '@/shared/components/ui/native-select';
 import { useTranslations } from 'next-intl';
 import type { HotsiteServiceResponse } from '@ikaro/types';
 import type { StepError } from '@/features/booking/hooks/useBookingFlow';
@@ -10,7 +12,6 @@ import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { NewBookingStepLayout } from './NewBookingStepLayout';
-import { INPUT_CLASS, LABEL_CLASS } from './new-booking-styles';
 import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 
 interface NewBookingDurationStepProps {
@@ -74,13 +75,10 @@ export function NewBookingDurationStep({
       ) : (
         <Card>
           <CardContent className="p-4">
-            <label htmlFor="booking-duration" className={LABEL_CLASS}>
-              {t('duration.label')}
-            </label>
-            <select
+            <Label htmlFor="booking-duration">{t('duration.label')}</Label>
+            <NativeSelect
               id="booking-duration"
               data-testid="duration-select"
-              className={INPUT_CLASS}
               value={duration?.minutes ?? ''}
               onChange={(event) => onChooseDuration(Number(event.target.value))}
             >
@@ -94,7 +92,7 @@ export function NewBookingDurationStep({
                   {formatDuration(minutes)}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
             {min !== null && max !== null && step !== null && (
               <p className="mt-2 text-sm text-gray-600">
                 {t('duration.rangeHint', {

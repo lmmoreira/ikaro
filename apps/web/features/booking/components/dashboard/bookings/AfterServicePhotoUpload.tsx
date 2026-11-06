@@ -1,5 +1,6 @@
 'use client';
 
+import { FileDropzone } from '@/shared/components/ui/file-dropzone';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { createAttachmentSignedUrl } from '@/features/booking/api/public';
@@ -92,21 +93,14 @@ export function AfterServicePhotoUpload({
     <div className="space-y-3">
       <p className="text-sm font-semibold text-gray-900">{label}</p>
 
-      <label
-        htmlFor={INPUT_ID}
-        className="block cursor-pointer rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 px-6 py-8 text-center transition hover:border-blue-300 hover:bg-blue-50/50"
-      >
-        <p className="text-sm font-medium text-gray-900">{t('clickToAdd')}</p>
-        <p className="mt-1 text-xs text-gray-500">{t('formatHint')}</p>
-        <input
-          id={INPUT_ID}
-          type="file"
-          multiple
-          aria-label={label}
-          onChange={handleFilesSelected}
-          className="sr-only"
-        />
-      </label>
+      <FileDropzone
+        id={INPUT_ID}
+        multiple
+        aria-label={label}
+        onChange={handleFilesSelected}
+        title={t('clickToAdd')}
+        hint={t('formatHint')}
+      />
 
       {items.length > 0 && (
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">

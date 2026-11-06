@@ -1,3 +1,4 @@
+import { Checkbox } from '@/shared/components/ui/checkbox';
 import { cn } from '@/shared/utils/cn';
 
 interface FilterCheckboxOptionProps {
@@ -24,8 +25,7 @@ export function FilterCheckboxOption({
         disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-gray-50',
       )}
     >
-      <input
-        type="checkbox"
+      <Checkbox
         checked={checked}
         disabled={disabled}
         onChange={onChange}

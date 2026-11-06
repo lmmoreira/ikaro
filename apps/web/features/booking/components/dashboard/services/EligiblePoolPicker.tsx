@@ -1,5 +1,7 @@
 'use client';
 
+import { Label } from '@/shared/components/ui/label';
+import { NativeSelect } from '@/shared/components/ui/native-select';
 import { useTranslations } from 'next-intl';
 import type { ResourceResponse } from '@ikaro/types';
 
@@ -25,12 +27,9 @@ export function EligiblePoolPicker({
 
   return (
     <div>
-      <label
-        htmlFor={addEligibleId}
-        className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500"
-      >
+      <Label htmlFor={addEligibleId} className="mb-1 text-xs uppercase tracking-wide text-gray-500">
         {t('resourceEligibleLabel', { count: eligible.length })}
-      </label>
+      </Label>
       <div className="flex flex-wrap gap-1.5" data-testid="resource-type-eligible-chips">
         {eligible.map((resource) => (
           <span
@@ -49,7 +48,7 @@ export function EligiblePoolPicker({
           </span>
         ))}
       </div>
-      <select
+      <NativeSelect
         id={addEligibleId}
         data-testid="resource-type-add-eligible"
         value=""
@@ -60,7 +59,7 @@ export function EligiblePoolPicker({
         }}
         disabled={addableResources.length === 0}
         aria-describedby={stalePool ? `${addEligibleId}-stale` : undefined}
-        className="mt-1.5 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+        wrapperClassName="mt-1.5"
       >
         <option value="">{t('resourceAddEligiblePlaceholder')}</option>
         {addableResources.map((resource) => (
@@ -68,7 +67,7 @@ export function EligiblePoolPicker({
             {resource.name}
           </option>
         ))}
-      </select>
+      </NativeSelect>
       {stalePool && (
         <output
           id={`${addEligibleId}-stale`}

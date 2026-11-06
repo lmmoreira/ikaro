@@ -1,5 +1,6 @@
 'use client';
 
+import { Checkbox } from '@/shared/components/ui/checkbox';
 import { useTranslations } from 'next-intl';
 import type { HotsiteServiceResponse } from '@ikaro/types';
 import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
@@ -33,8 +34,7 @@ export function NewBookingServiceCard({
         data-service-id={service.id}
         data-requires-pickup={service.requiresPickupAddress ? 'true' : 'false'}
       >
-        <input
-          type="checkbox"
+        <Checkbox
           checked={isSelected}
           onChange={onToggle}
           aria-invalid={isUnavailable ? true : undefined}

@@ -254,6 +254,16 @@ describe('ResourceCreateForm', () => {
     );
   });
 
+  it('names the turnover and capacity inputs through their labels', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<ResourceCreateForm />);
+
+    await user.click(getTypeOption('ROOM'));
+
+    expect(screen.getByTestId('resource-max-capacity-input')).toHaveAccessibleName(/\S/);
+    expect(screen.getAllByRole('spinbutton', { name: /\S/ })).toHaveLength(2);
+  });
+
   it('discards a stale maxCapacity value when switching from ROOM back to STAFF', async () => {
     const user = userEvent.setup();
     mutateAsync.mockResolvedValue({ id: 'r-1' });

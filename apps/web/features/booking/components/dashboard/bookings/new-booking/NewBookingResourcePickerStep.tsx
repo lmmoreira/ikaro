@@ -1,5 +1,6 @@
 'use client';
 
+import { Radio } from '@/shared/components/ui/radio';
 import { useTranslations } from 'next-intl';
 import type {
   HotsiteServiceResourceOptionsRequirement,
@@ -66,8 +67,7 @@ function PickerSection({
                   : 'border-gray-200 bg-white hover:bg-gray-50'
               }`}
             >
-              <input
-                type="radio"
+              <Radio
                 name={groupName}
                 className="sr-only"
                 checked={checked}

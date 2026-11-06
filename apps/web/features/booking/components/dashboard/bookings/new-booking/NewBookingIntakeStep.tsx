@@ -1,5 +1,10 @@
 'use client';
 
+import { Checkbox } from '@/shared/components/ui/checkbox';
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
+import { Radio } from '@/shared/components/ui/radio';
+import { Textarea } from '@/shared/components/ui/textarea';
 import { useTranslations } from 'next-intl';
 import type { ServiceIntakeQuestionItem, ServiceIntakeSchemaVersion } from '@ikaro/types';
 import { Button } from '@/shared/components/ui/button';
@@ -9,7 +14,7 @@ import {
   type IntakeAnswersValue,
 } from '@/features/booking/model/intake-answers';
 import { NewBookingStepLayout } from './NewBookingStepLayout';
-import { INPUT_CLASS, LABEL_CLASS } from './new-booking-styles';
+import { LEGEND_CLASS } from './new-booking-styles';
 import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 
 interface NewBookingIntakeStepProps {
@@ -42,11 +47,10 @@ function QuestionField({
         data-testid="intake-field-bool"
         data-field-key={question.fieldKey}
       >
-        <legend className={LABEL_CLASS}>{question.label}</legend>
+        <legend className={LEGEND_CLASS}>{question.label}</legend>
         {([true, false] as const).map((answer) => (
           <label key={String(answer)} className="mr-5 inline-flex items-center gap-1.5 text-sm">
-            <input
-              type="radio"
+            <Radio
               name={`intake-${question.fieldKey}`}
               data-testid="intake-bool-option"
               data-answer={String(answer)}
@@ -62,8 +66,7 @@ function QuestionField({
   if (question.type === 'BOOLEAN') {
     return (
       <label className="flex items-start gap-2.5 text-sm text-gray-900">
-        <input
-          type="checkbox"
+        <Checkbox
           data-testid="intake-bool-checkbox"
           data-field-key={question.fieldKey}
           checked={value === true}
@@ -75,15 +78,14 @@ function QuestionField({
   }
   return (
     <div>
-      <label htmlFor={id} className={LABEL_CLASS}>
+      <Label htmlFor={id}>
         {question.label} {!question.required && <span>{t('optional')}</span>}
-      </label>
-      <textarea
+      </Label>
+      <Textarea
         id={id}
         rows={2}
         data-testid="intake-input"
         data-field-key={question.fieldKey}
-        className={INPUT_CLASS}
         value={typeof value === 'string' ? value : ''}
         onChange={(event) => onChange(event.target.value)}
       />
@@ -104,12 +106,11 @@ function AttendeesList({
 
   return (
     <fieldset className="space-y-2" data-testid="intake-attendees">
-      <legend className={LABEL_CLASS}>{t('attendeesLegend')}</legend>
+      <legend className={LEGEND_CLASS}>{t('attendeesLegend')}</legend>
       {attendees.map((row, index) => (
         <div key={row.id} className="flex items-center gap-2">
-          <input
+          <Input
             data-testid="intake-attendee-name"
-            className={INPUT_CLASS}
             maxLength={255}
             aria-label={t('attendeeNameLabel', { index: index + 1 })}
             placeholder={t('attendeeNamePlaceholder')}
@@ -117,8 +118,7 @@ function AttendeesList({
             onChange={(event) => update(index, { name: event.target.value })}
           />
           <label className="inline-flex items-center gap-1.5 whitespace-nowrap text-sm">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={row.isMinor}
               onChange={(event) => update(index, { isMinor: event.target.checked })}
             />
@@ -186,15 +186,13 @@ export function NewBookingIntakeStep({
 
       {schema.participantCountRequired && (
         <div>
-          <label htmlFor="intake-participants" className={LABEL_CLASS}>
-            {t('participantsLabel')}
-          </label>
-          <input
+          <Label htmlFor="intake-participants">{t('participantsLabel')}</Label>
+          <Input
             id="intake-participants"
             type="number"
             min={1}
             data-testid="intake-participants"
-            className={`${INPUT_CLASS} w-32`}
+            className={`w-32`}
             value={value.participantCount}
             onChange={(event) => onChange({ ...value, participantCount: event.target.value })}
           />
@@ -209,8 +207,7 @@ export function NewBookingIntakeStep({
       )}
 
       <label className="flex items-start gap-2.5 text-sm text-gray-900">
-        <input
-          type="checkbox"
+        <Checkbox
           data-testid="intake-consent"
           checked={value.consentAccepted}
           onChange={(event) => onChange({ ...value, consentAccepted: event.target.checked })}

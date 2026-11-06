@@ -1,5 +1,6 @@
 'use client';
 
+import { Input } from '@/shared/components/ui/input';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
@@ -55,14 +56,14 @@ export function MarkCompleteLoyaltyPanel({
               <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.07em] text-gray-400">
                 {t('loyaltyPointsLabel')}
               </span>
-              <input
+              <Input
                 type="number"
                 min="0"
                 max={maxRedeemablePoints}
                 step={loyaltyPointsPerCurrencyUnit}
                 value={pointsUsed}
                 onChange={(event) => onPointsChange(event.target.value)}
-                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm font-semibold outline-none ring-0 focus:border-blue-500"
+                className="font-semibold"
               />
             </label>
             <Button

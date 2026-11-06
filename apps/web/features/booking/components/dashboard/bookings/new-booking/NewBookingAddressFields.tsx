@@ -1,11 +1,12 @@
 'use client';
 
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
 import { useTranslations } from 'next-intl';
 import type { Address, HotsiteAddressSpec } from '@ikaro/types';
 import { useAddressLookup } from '@/features/booking/hooks/useAddressLookup';
 import type { AddressLookup } from '@/shared/lib/address/address-lookup.port';
 import { viaCepAddressLookup } from '@/shared/lib/address/viacep-address-lookup.adapter';
-import { INPUT_CLASS, LABEL_CLASS } from './new-booking-styles';
 
 interface NewBookingAddressFieldsProps {
   readonly value: Address;
@@ -38,12 +39,9 @@ function Field({
 }: FieldProps): React.JSX.Element {
   return (
     <div className={className}>
-      <label htmlFor={id} className={LABEL_CLASS}>
-        {label}
-      </label>
-      <input
+      <Label htmlFor={id}>{label}</Label>
+      <Input
         id={id}
-        className={INPUT_CLASS}
         value={value}
         placeholder={placeholder}
         required={required}

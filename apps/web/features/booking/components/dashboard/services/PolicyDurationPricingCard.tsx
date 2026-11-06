@@ -1,5 +1,7 @@
 'use client';
 
+import { Label } from '@/shared/components/ui/label';
+import { NativeSelect } from '@/shared/components/ui/native-select';
 import { useTranslations } from 'next-intl';
 import type { ServiceBookingPolicyItem } from '@ikaro/types';
 import { Card, CardContent } from '@/shared/components/ui/card';
@@ -82,13 +84,10 @@ export function PolicyDurationPricingCard({
         )}
 
         <div className="border-t border-slate-100 pt-4">
-          <label
-            htmlFor="policy-pricing-policy"
-            className="mb-1 block text-sm font-semibold text-gray-900"
-          >
+          <Label htmlFor="policy-pricing-policy" className="mb-1">
             {t('politicasPricingPolicyLabel')}
-          </label>
-          <select
+          </Label>
+          <NativeSelect
             id="policy-pricing-policy"
             data-testid="policy-pricing-policy"
             value={policy.pricingPolicy}
@@ -98,11 +97,10 @@ export function PolicyDurationPricingCard({
                 pricingPolicy: event.target.value as ServiceBookingPolicyItem['pricingPolicy'],
               })
             }
-            className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <option value="FIXED">{t('politicasPricingPolicyFixed')}</option>
             <option value="PER_TIME_INCREMENT">{t('politicasPricingPolicyIncrement')}</option>
-          </select>
+          </NativeSelect>
           <p className="mt-1 text-xs text-gray-500">{t('politicasPricingHint')}</p>
         </div>
 
