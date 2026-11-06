@@ -227,7 +227,7 @@ New migration / i18n keys / env vars / feature flags: none (copy stays in the ca
 
 ---
 
-### Story 3 — Form-control migration (dashboard, editor and account only)
+### Story 3 — Form-control migration (dashboard, editor and account only) ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** L
