@@ -329,7 +329,7 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 
 ---
 
-### Story 6 — `LabeledSection` promotion
+### Story 6 — `LabeledSection` promotion ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** S
