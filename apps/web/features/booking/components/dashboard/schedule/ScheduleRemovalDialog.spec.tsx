@@ -59,8 +59,6 @@ describe('ScheduleRemovalDialog', () => {
         }}
         onClose={vi.fn()}
         onSubmit={onSubmit}
-        titleId="removal-title"
-        descriptionId="removal-description"
         title="Remover abertura"
         description="Este horário deixará de ser exibido."
         submitLabel="Remover abertura"
@@ -98,8 +96,6 @@ describe('ScheduleRemovalDialog', () => {
         }}
         onClose={vi.fn()}
         onSubmit={onSubmit}
-        titleId="removal-title"
-        descriptionId="removal-description"
         title="Remover abertura"
         description="Este horário deixará de ser exibido."
         submitLabel="Remover abertura"

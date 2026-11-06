@@ -9,7 +9,6 @@ describe('useConfirmRemoval', () => {
     const onClose = vi.fn();
     const { result } = renderHook(() =>
       useConfirmRemoval({
-        open: true,
         onClose,
         onSubmit,
         getErrorMessage: () => 'error',
@@ -29,7 +28,6 @@ describe('useConfirmRemoval', () => {
     const onSubmit = vi.fn().mockRejectedValue(new Error('nope'));
     const { result } = renderHook(() =>
       useConfirmRemoval({
-        open: true,
         onClose: vi.fn(),
         onSubmit,
         getErrorMessage: () => 'mapped error',
@@ -52,7 +50,6 @@ describe('useConfirmRemoval', () => {
     const onClose = vi.fn();
     const { result } = renderHook(() =>
       useConfirmRemoval({
-        open: true,
         onClose,
         onSubmit,
         getErrorMessage: () => 'error',

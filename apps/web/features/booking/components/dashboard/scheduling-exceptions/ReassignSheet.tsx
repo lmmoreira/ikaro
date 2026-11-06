@@ -6,7 +6,6 @@ import { useMemo, useState, type SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import type { SchedulingExceptionItem, SchedulingExceptionReassignTarget } from '@ikaro/types';
 import { BookingActionSheetShell } from '@/features/booking/components/dashboard/bookings/BookingActionSheetShell';
-import { useModalDialog } from '@/features/booking/hooks/use-modal-dialog';
 import { buildReassignChoices } from '@/features/booking/model/scheduling-exception-view';
 
 const AUTO = 'AUTO';
@@ -33,7 +32,6 @@ export function ReassignSheet({
   onSubmit,
 }: ReassignSheetProps): React.JSX.Element | null {
   const t = useTranslations('dashboard.schedulingExceptionsPage');
-  const dialogRef = useModalDialog(open);
   const [choice, setChoice] = useState<string>(AUTO);
   const [reason, setReason] = useState('');
   const choices = useMemo(() => buildReassignChoices(items), [items]);
@@ -56,9 +54,6 @@ export function ReassignSheet({
 
   return (
     <BookingActionSheetShell
-      dialogRef={dialogRef}
-      titleId="reassign-sheet-title"
-      descriptionId="reassign-sheet-description"
       title={t('reassignTitle', { count: items.length })}
       description={t('reassignDescription')}
       onClose={onClose}

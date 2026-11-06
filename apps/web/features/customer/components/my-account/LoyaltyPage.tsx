@@ -8,6 +8,7 @@ import type {
   CustomerLoyaltyEntriesResponse,
   CustomerLoyaltyRedemptionsResponse,
 } from '@ikaro/types';
+import { Tabs, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { LoyaltyEntriesPanel } from './LoyaltyEntriesPanel';
 import { LoyaltyRedemptionsPanel } from './LoyaltyRedemptionsPanel';
@@ -88,38 +89,22 @@ export function LoyaltyPage({
         </div>
       ) : (
         <>
-          <div className="mt-5 flex border-b border-gray-100" role="tablist">
-            <button
-              type="button"
-              id="loyalty-tab-entries"
-              role="tab"
-              aria-selected={activeTab === 'entries'}
-              aria-controls="loyalty-panel-entries"
-              onClick={() => setActiveTab('entries')}
-              className={`flex-1 border-b-2 pb-3 text-sm font-semibold transition-colors ${
-                activeTab === 'entries'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-900/40'
-              }`}
-            >
-              {t('tabEntries')}
-            </button>
-            <button
-              type="button"
-              id="loyalty-tab-redemptions"
-              role="tab"
-              aria-selected={activeTab === 'redemptions'}
-              aria-controls="loyalty-panel-redemptions"
-              onClick={() => setActiveTab('redemptions')}
-              className={`flex-1 border-b-2 pb-3 text-sm font-semibold transition-colors ${
-                activeTab === 'redemptions'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-900/40'
-              }`}
-            >
-              {t('tabRedemptions')}
-            </button>
-          </div>
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as LoyaltyTab)}>
+            <TabsList className="mt-5 border-gray-100">
+              {(['entries', 'redemptions'] as const).map((tab) => (
+                <TabsTrigger
+                  key={tab}
+                  value={tab}
+                  // The panels are separate components that own their `role="tabpanel"` and ids.
+                  id={`loyalty-tab-${tab}`}
+                  aria-controls={`loyalty-panel-${tab}`}
+                  className="flex-1 px-0 pb-3 pt-0 text-gray-900/40 hover:text-gray-900/40"
+                >
+                  {t(tab === 'entries' ? 'tabEntries' : 'tabRedemptions')}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
 
           {activeTab === 'entries' ? (
             <LoyaltyEntriesPanel entries={entries} tenantSlug={tenantSlug} />

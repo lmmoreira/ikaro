@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { ServiceIntakeSchemaVersion } from '@ikaro/types';
@@ -165,7 +165,7 @@ describe('ServiceIntakeSchemaPanel', () => {
     expect(screen.getByText('Concordo v1')).toBeInTheDocument();
   });
 
-  it('closes the version modal on the native dialog cancel event (Escape, real browser)', async () => {
+  it('closes the version modal on Escape', async () => {
     const user = userEvent.setup();
     const v2 = { ...V1, id: 'schema-2', version: 2, consentText: 'Concordo v2' };
     const { container } = renderWithIntl(
@@ -178,13 +178,10 @@ describe('ServiceIntakeSchemaPanel', () => {
     );
 
     await user.click(getByVersion(container, 1));
-    // jsdom doesn't implement <dialog>'s native Escape-to-cancel behavior (only showModal()/
-    // close() are polyfilled in vitest.setup.ts) — dispatch the 'cancel' event directly.
-    fireEvent(
-      screen.getByTestId('intake-version-modal'),
-      new Event('cancel', { cancelable: true }),
+    await user.keyboard('{Escape}');
+    await waitFor(() =>
+      expect(screen.queryByTestId('intake-version-modal')).not.toBeInTheDocument(),
     );
-    expect(screen.queryByTestId('intake-version-modal')).not.toBeInTheDocument();
   });
 
   it('publishes and moves the previous active version into history', async () => {

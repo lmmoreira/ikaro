@@ -1161,7 +1161,7 @@ import '@testing-library/jest-dom/vitest';
 // /vitest entrypoint registers Vitest's expect() types; bare import leaves matchers untyped in strict mode.
 ```
 
-**Native `<dialog>` components**
+**Native `<dialog>` components** (only the branded hotsite lightbox is left; dashboard and account modals are Radix `ui/dialog`, which needs no mock: query `getByRole('dialog', { name })` and drive Escape with `userEvent.keyboard('{Escape}')`)
 - Mock `HTMLDialogElement.prototype.showModal` and `.close` in the spec before rendering. jsdom does not fully implement native dialog behavior, and tests that rely on the browser's modal API will otherwise fail or focus the wrong element.
 - If a dialog's accessible name is not exposed the same way as in the browser, use `getByRole('dialog', { hidden: true })` or assert on the inner content instead of treating that mismatch as a production bug.
 

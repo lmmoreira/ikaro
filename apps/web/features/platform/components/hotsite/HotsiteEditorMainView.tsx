@@ -10,6 +10,7 @@ import type {
 import { ActionPane } from '@/shared/components/ui/action-pane';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
 import { MOBILE_ACTION_BAR_CLEARANCE_CLASS } from '@/shells/dashboard/utils/mobile-action-bar';
 import { BrandingTab } from '@/features/platform/components/hotsite/BrandingTab';
 import { LayoutTab } from '@/features/platform/components/hotsite/LayoutTab';
@@ -72,76 +73,43 @@ export function HotsiteEditorMainView({
   const feedback = useHotsiteActionFeedback(actionBanner, tenantSlug);
 
   return (
-    <div className="space-y-4 pb-28 lg:space-y-6 lg:pb-0">
-      <div className="flex gap-1 border-b border-gray-200" role="tablist">
+    <Tabs
+      value={activeTab}
+      onValueChange={(value) => onActiveTabChange(value as EditorTab)}
+      className="space-y-4 pb-28 lg:space-y-6 lg:pb-0"
+    >
+      <TabsList>
         {TABS.map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            role="tab"
-            id={`hotsite-tab-${tab}`}
-            aria-controls={`hotsite-tabpanel-${tab}`}
-            data-testid="hotsite-tab"
-            data-tab={tab}
-            aria-selected={activeTab === tab}
-            onClick={() => onActiveTabChange(tab)}
-            className={`rounded-t-md px-4 py-2.5 text-sm font-semibold transition-colors ${
-              activeTab === tab
-                ? '-mb-px border-b-2 border-blue-600 text-blue-600'
-                : 'text-gray-500 hover:text-gray-900'
-            }`}
-          >
+          <TabsTrigger key={tab} value={tab} data-testid="hotsite-tab" data-tab={tab}>
             {t(`tabs.${tab}`)}
-          </button>
+          </TabsTrigger>
         ))}
-      </div>
+      </TabsList>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         <div className="space-y-4 lg:space-y-6">
-          {activeTab === 'templates' && (
-            <div
-              role="tabpanel"
-              id="hotsite-tabpanel-templates"
-              aria-labelledby="hotsite-tab-templates"
-            >
-              <HotsiteTemplateGalleryTab controller={templates} />
-            </div>
-          )}
-          {activeTab === 'branding' && (
-            <div
-              role="tabpanel"
-              id="hotsite-tabpanel-branding"
-              aria-labelledby="hotsite-tab-branding"
-            >
-              <BrandingTab value={draft.branding} onChange={onBrandingChange} />
-            </div>
-          )}
-          {activeTab === 'layout' && (
-            <div role="tabpanel" id="hotsite-tabpanel-layout" aria-labelledby="hotsite-tab-layout">
-              <LayoutTab
-                layout={draft.layout}
-                onChange={onLayoutChange}
-                onConfigure={onConfigureModule}
-              />
-            </div>
-          )}
-          {activeTab === 'seo' && (
-            <div role="tabpanel" id="hotsite-tabpanel-seo" aria-labelledby="hotsite-tab-seo">
-              <SeoTab value={draft.seo} onChange={onSeoChange} />
-            </div>
-          )}
-          {activeTab === 'manifest' && (
-            <div
-              role="tabpanel"
-              id="hotsite-tabpanel-manifest"
-              aria-labelledby="hotsite-tab-manifest"
-            >
-              <ManifestTab
-                value={{ branding: draft.branding, layout: draft.layout, seo: draft.seo }}
-                onApply={onManifestApply}
-              />
-            </div>
-          )}
+          <TabsContent value="templates">
+            <HotsiteTemplateGalleryTab controller={templates} />
+          </TabsContent>
+          <TabsContent value="branding">
+            <BrandingTab value={draft.branding} onChange={onBrandingChange} />
+          </TabsContent>
+          <TabsContent value="layout">
+            <LayoutTab
+              layout={draft.layout}
+              onChange={onLayoutChange}
+              onConfigure={onConfigureModule}
+            />
+          </TabsContent>
+          <TabsContent value="seo">
+            <SeoTab value={draft.seo} onChange={onSeoChange} />
+          </TabsContent>
+          <TabsContent value="manifest">
+            <ManifestTab
+              value={{ branding: draft.branding, layout: draft.layout, seo: draft.seo }}
+              onApply={onManifestApply}
+            />
+          </TabsContent>
 
           <Card className="border-red-200">
             <CardContent className="space-y-3 p-5 lg:p-6">
@@ -230,6 +198,6 @@ export function HotsiteEditorMainView({
           }
         />
       </div>
-    </div>
+    </Tabs>
   );
 }

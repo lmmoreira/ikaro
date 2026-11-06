@@ -41,8 +41,6 @@ export function OpeningFormSheet({
       slotGranularityMinutes={slotGranularityMinutes}
       onClose={onClose}
       onSubmit={onSubmit}
-      titleId="opening-sheet-title"
-      descriptionId="opening-sheet-description"
       title={t('openingFormTitle')}
       description={t('openingFormDescription')}
       cancelLabel={commonT('cancel')}

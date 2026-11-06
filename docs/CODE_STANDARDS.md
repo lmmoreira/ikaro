@@ -168,7 +168,7 @@ Every component function — exported or internal helper, `function Name(...)` d
 
 ## Next.js (`apps/web`): dialog and submit-handler conventions
 
-- Native booking action sheets should use `<dialog>` with `showModal()` / `close()` and an inner wrapper for the visible card. Do not leave a native dialog as a plain `open` element if the intended layout is a centered modal sheet.
+- A modal sheet or dialog in the dashboard or account shells is built on `ui/dialog` (Radix), never a native `<dialog>` with a hand-written focus trap; booking action sheets go through `BookingActionSheetShell`. The branded hotsite lightbox is the one native `<dialog>` left (`shells/hotsite/components/GalleryGrid.tsx`). → `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives
 - Web submit handlers should type the event as `SubmitEvent<HTMLFormElement>` rather than deprecated `FormEvent<HTMLFormElement>`. SonarCloud flags the older type and the newer type matches native form submission semantics.
 
 ## Next.js (`apps/web`): localization-driven fields (address, phone, currency, dates)

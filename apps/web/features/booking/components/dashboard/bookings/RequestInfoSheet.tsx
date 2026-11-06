@@ -4,7 +4,6 @@ import { Textarea } from '@/shared/components/ui/textarea';
 import { useState, type SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { BookingActionSheetShell } from './BookingActionSheetShell';
-import { useModalDialog } from '@/features/booking/hooks/use-modal-dialog';
 
 interface RequestInfoSheetProps {
   readonly open: boolean;
@@ -22,7 +21,6 @@ export function RequestInfoSheet({
   const t = useTranslations('dashboard.bookingDetail');
   const [message, setMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const dialogRef = useModalDialog(open);
 
   if (!open) return null;
 
@@ -45,9 +43,6 @@ export function RequestInfoSheet({
 
   return (
     <BookingActionSheetShell
-      dialogRef={dialogRef}
-      titleId="request-info-sheet-title"
-      descriptionId="request-info-sheet-description"
       title={t('requestSheetTitle')}
       description={t('requestSheetDescription', { status: t('statusPending') })}
       onClose={onClose}

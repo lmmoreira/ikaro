@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 import { SERVICE_PUBLIC_PROFILE_LIMITS } from '@ikaro/types';
 import { RestrictedMarkdown } from '@/shells/hotsite/components/RestrictedMarkdown';
 import { SectionCard } from '@/shared/components/ui/section-card';
+import { Tabs, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { newInclusionDraft, type InclusionDraft } from './service-public-page-draft';
 
@@ -42,32 +43,29 @@ export function ServicePublicPageContent({
   return (
     <SectionCard title={t('publicPageDescriptionLabel')}>
       <div>
-        <div
-          className="mb-2 flex gap-1"
-          role="tablist"
-          aria-label={t('publicPageDescriptionLabel')}
-        >
-          {(['write', 'preview'] as const).map((value) => (
-            <button
-              key={value}
-              type="button"
-              role="tab"
-              aria-selected={mode === value}
-              data-testid="public-page-description-tab"
-              data-mode={value}
-              onClick={() => setMode(value)}
-              className={`rounded-full border px-3 py-1 text-sm font-semibold ${
-                mode === value
-                  ? 'border-blue-600 bg-blue-600 text-white'
-                  : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              {value === 'write'
-                ? t('publicPageDescriptionWrite')
-                : t('publicPageDescriptionPreview')}
-            </button>
-          ))}
-        </div>
+        <Tabs value={mode} onValueChange={(value) => setMode(value as DescriptionMode)}>
+          <TabsList
+            variant="segmented"
+            className="mb-2 inline-flex"
+            aria-label={t('publicPageDescriptionLabel')}
+          >
+            {(['write', 'preview'] as const).map((value) => (
+              <TabsTrigger
+                key={value}
+                value={value}
+                // The write/preview body below is one conditional block, not a panel per tab.
+                aria-controls={undefined}
+                data-testid="public-page-description-tab"
+                data-mode={value}
+                className="flex-none"
+              >
+                {value === 'write'
+                  ? t('publicPageDescriptionWrite')
+                  : t('publicPageDescriptionPreview')}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
 
         {mode === 'write' ? (
           <Textarea

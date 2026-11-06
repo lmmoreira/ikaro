@@ -1,7 +1,7 @@
 'use client';
 
 import { Textarea } from '@/shared/components/ui/textarea';
-import { useEffect, useMemo, useState, type ReactNode, type SubmitEvent } from 'react';
+import { useMemo, useState, type ReactNode, type SubmitEvent } from 'react';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { Button } from '@/shared/components/ui/button';
@@ -10,7 +10,6 @@ import { BookingActionSheetShell } from '@/features/booking/components/dashboard
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { toISODateInTimezone } from '@/shared/lib/formatting/date-utils';
-import { useModalDialog } from '@/features/booking/hooks/use-modal-dialog';
 import { buildTimeOptions } from './time-options';
 import { TimeSelectField } from './TimeSelectField';
 
@@ -28,8 +27,6 @@ interface ScheduleDateTimeRangeSheetProps<TBody, TResponse> {
   readonly slotGranularityMinutes: 15 | 30 | 60;
   readonly onClose: () => void;
   readonly onSubmit: (body: TBody) => Promise<TResponse>;
-  readonly titleId: string;
-  readonly descriptionId: string;
   readonly title: ReactNode;
   readonly description?: ReactNode;
   readonly cancelLabel: string;
@@ -53,8 +50,6 @@ export function ScheduleDateTimeRangeSheet<TBody, TResponse>({
   slotGranularityMinutes,
   onClose,
   onSubmit,
-  titleId,
-  descriptionId,
   title,
   description,
   cancelLabel,
@@ -72,7 +67,7 @@ export function ScheduleDateTimeRangeSheet<TBody, TResponse>({
 }: ScheduleDateTimeRangeSheetProps<TBody, TResponse>): React.JSX.Element | null {
   const locale = useResolvedLocale();
   const { formatDateLong } = useFormatting();
-  const dialogRef = useModalDialog(open);
+  // The popovers portal into the dialog's own content: a modal dialog leaves the rest inert.
   const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
   const [date, setDate] = useState(initialDate);
   const [calendarMonth, setCalendarMonth] = useState(() => new Date(`${initialDate}T00:00:00`));
@@ -87,10 +82,6 @@ export function ScheduleDateTimeRangeSheet<TBody, TResponse>({
     [slotGranularityMinutes],
   );
   const selectedDate = useMemo(() => new Date(`${date}T00:00:00`), [date]);
-
-  useEffect(() => {
-    setPortalContainer(dialogRef.current);
-  }, [dialogRef, open]);
 
   if (!open) return null;
 
@@ -120,9 +111,7 @@ export function ScheduleDateTimeRangeSheet<TBody, TResponse>({
 
   return (
     <BookingActionSheetShell
-      dialogRef={dialogRef}
-      titleId={titleId}
-      descriptionId={descriptionId}
+      contentRef={setPortalContainer}
       title={title}
       description={description}
       onClose={onClose}

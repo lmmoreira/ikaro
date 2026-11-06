@@ -76,7 +76,10 @@ describe('HotsiteEditorMainView', () => {
     it('renders the template gallery in its panel', () => {
       renderWithIntl(<HotsiteEditorMainView {...baseProps()} activeTab="templates" />);
 
-      expect(screen.getByRole('tabpanel')).toHaveAttribute('id', 'hotsite-tabpanel-templates');
+      expect(screen.getByRole('tabpanel')).toHaveAttribute(
+        'aria-labelledby',
+        screen.getByRole('tab', { name: 'Templates' }).id,
+      );
       expect(screen.getByTestId('template-gallery')).toBeInTheDocument();
       expect(screen.getAllByTestId('template-card')).toHaveLength(6);
       expect(screen.queryByTestId('mock-branding-tab')).not.toBeInTheDocument();

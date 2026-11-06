@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
+import { Tabs, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
 import { findContactError } from '@/features/booking/model/contact-validation';
 import type { StaffBookingRecipient } from '@/features/booking/model/staff-booking-payload';
 import type { StaffGuestContact } from '@/features/booking/hooks/useStaffGuestContact';
@@ -26,32 +27,23 @@ const EMPTY_GUEST: StaffGuestContact = { contactName: '', contactPhone: '', cont
 
 function ModeTab({
   mode,
-  current,
   disabled,
-  onSelect,
 }: {
   readonly mode: ChooserMode;
-  readonly current: ChooserMode;
   readonly disabled?: boolean;
-  readonly onSelect: (mode: ChooserMode) => void;
 }): React.JSX.Element {
   const t = useTranslations('dashboard.newBooking.chooser');
-  const active = mode === current;
   return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
+    <TabsTrigger
+      value={mode}
       disabled={disabled}
+      // The registered / guest body below is one conditional card, not a panel per tab.
+      aria-controls={undefined}
       data-testid="chooser-tab"
       data-mode={mode}
-      onClick={() => onSelect(mode)}
-      className={`flex-1 rounded-md px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-        active ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
-      }`}
     >
       {t(`tabs.${mode}`)}
-    </button>
+    </TabsTrigger>
   );
 }
 
@@ -95,10 +87,12 @@ export function CustomerChooserStep({
           <p className="mt-1 text-sm text-gray-600">{t('description')}</p>
         </div>
 
-        <div role="tablist" className="flex gap-1 rounded-lg bg-gray-100 p-1">
-          <ModeTab mode="registered" current={mode} onSelect={setMode} />
-          <ModeTab mode="guest" current={mode} disabled={guestDisabled} onSelect={setMode} />
-        </div>
+        <Tabs value={mode} onValueChange={(value) => setMode(value as ChooserMode)}>
+          <TabsList variant="segmented">
+            <ModeTab mode="registered" />
+            <ModeTab mode="guest" disabled={guestDisabled} />
+          </TabsList>
+        </Tabs>
         {guestDisabled && (
           <p className="text-sm text-gray-600" data-testid="guest-disabled-reason">
             {t('recurrenceNeedsAccount')}

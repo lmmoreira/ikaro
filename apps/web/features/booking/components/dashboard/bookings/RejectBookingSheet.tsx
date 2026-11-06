@@ -4,7 +4,6 @@ import { Textarea } from '@/shared/components/ui/textarea';
 import { useState, type SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { BookingActionSheetShell } from './BookingActionSheetShell';
-import { useModalDialog } from '@/features/booking/hooks/use-modal-dialog';
 
 interface RejectBookingSheetProps {
   readonly open: boolean;
@@ -22,7 +21,6 @@ export function RejectBookingSheet({
   const t = useTranslations('dashboard.bookingDetail');
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const dialogRef = useModalDialog(open);
 
   if (!open) return null;
 
@@ -45,9 +43,6 @@ export function RejectBookingSheet({
 
   return (
     <BookingActionSheetShell
-      dialogRef={dialogRef}
-      titleId="reject-sheet-title"
-      descriptionId="reject-sheet-description"
       title={t('rejectSheetTitle')}
       description={t('rejectSheetDescription')}
       onClose={onClose}

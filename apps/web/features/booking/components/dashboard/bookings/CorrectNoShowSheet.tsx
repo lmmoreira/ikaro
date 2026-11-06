@@ -4,7 +4,6 @@ import { Textarea } from '@/shared/components/ui/textarea';
 import { useState, type SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { BookingActionSheetShell } from './BookingActionSheetShell';
-import { useModalDialog } from '@/features/booking/hooks/use-modal-dialog';
 import {
   isCorrectionReasonValid,
   NO_SHOW_REASON_MAX,
@@ -36,7 +35,6 @@ export function CorrectNoShowSheet({
 }: CorrectNoShowSheetProps): React.JSX.Element | null {
   const t = useTranslations('dashboard.bookingDetail');
   const [reason, setReason] = useState('');
-  const dialogRef = useModalDialog(open);
 
   if (!open) return null;
 
@@ -51,9 +49,6 @@ export function CorrectNoShowSheet({
 
   return (
     <BookingActionSheetShell
-      dialogRef={dialogRef}
-      titleId="correct-no-show-sheet-title"
-      descriptionId="correct-no-show-sheet-description"
       title={t('correctSheetTitle')}
       description={
         points === null

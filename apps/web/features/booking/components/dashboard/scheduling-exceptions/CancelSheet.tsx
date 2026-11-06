@@ -4,7 +4,6 @@ import { Textarea } from '@/shared/components/ui/textarea';
 import { useState, type SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { BookingActionSheetShell } from '@/features/booking/components/dashboard/bookings/BookingActionSheetShell';
-import { useModalDialog } from '@/features/booking/hooks/use-modal-dialog';
 
 interface CancelSheetProps {
   readonly open: boolean;
@@ -24,7 +23,6 @@ export function CancelSheet({
   onSubmit,
 }: CancelSheetProps): React.JSX.Element | null {
   const t = useTranslations('dashboard.schedulingExceptionsPage');
-  const dialogRef = useModalDialog(open);
   const [reason, setReason] = useState('');
 
   if (!open) return null;
@@ -36,9 +34,6 @@ export function CancelSheet({
 
   return (
     <BookingActionSheetShell
-      dialogRef={dialogRef}
-      titleId="scheduling-cancel-sheet-title"
-      descriptionId="scheduling-cancel-sheet-description"
       title={t('cancelTitle', { count })}
       description={t('cancelDescription')}
       onClose={onClose}

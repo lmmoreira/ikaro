@@ -1,74 +1,152 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
-import { fireEvent } from '@testing-library/react';
-import { useRef, useState, type RefObject } from 'react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
+import { axe } from '@/axe-helper';
 import { BookingActionSheetShell } from './BookingActionSheetShell';
 
-function Harness(): React.JSX.Element {
-  const [error, setError] = useState<string | null>('Problem');
-  const dialogRef = useRef<HTMLDialogElement | null>(null);
+type ShellProps = Partial<React.ComponentProps<typeof BookingActionSheetShell>>;
 
-  return (
+function renderShell(props: ShellProps = {}) {
+  const onClose = props.onClose ?? vi.fn();
+  render(
     <BookingActionSheetShell
-      dialogRef={dialogRef}
-      titleId="title"
-      descriptionId="description"
       title="Title"
       description="Description"
-      onClose={() => setError(null)}
+      onClose={onClose}
       onSubmit={(event) => event.preventDefault()}
       cancelLabel="Cancel"
       submitLabel="Submit"
-      submitDisabled={false}
-      error={error}
+      error={null}
+      {...props}
     >
       <input aria-label="field" />
-    </BookingActionSheetShell>
+    </BookingActionSheetShell>,
   );
+  return { onClose };
 }
 
 describe('BookingActionSheetShell', () => {
-  it('renders the dialog content and actions', () => {
-    render(<Harness />);
+  it('renders a modal dialog labelled by its title and described by its description', () => {
+    renderShell();
 
-    expect(screen.getByRole('dialog', { hidden: true })).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: 'Cancel', hidden: true })).toHaveLength(2);
-    expect(screen.getByRole('button', { name: 'Submit', hidden: true })).toBeInTheDocument();
-    expect(screen.getByText('Problem')).toBeInTheDocument();
+    const dialog = screen.getByRole('dialog', { name: 'Title' });
+    expect(dialog).toHaveAccessibleDescription('Description');
+    expect(screen.getAllByRole('button', { name: 'Cancel' })).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'Submit' })).toBeInTheDocument();
+  });
+
+  it('has no description relation when none is given', () => {
+    renderShell({ description: undefined });
+
+    expect(screen.getByRole('dialog', { name: 'Title' })).not.toHaveAttribute('aria-describedby');
   });
 
   it('invokes the close handler from the header button', async () => {
-    const onClose = vi.fn();
-    const dialogRef = {
-      current: document.createElement('dialog'),
-    } as RefObject<HTMLDialogElement | null>;
+    const user = userEvent.setup();
+    const { onClose } = renderShell();
 
-    render(
-      <BookingActionSheetShell
-        dialogRef={dialogRef}
-        titleId="title"
-        descriptionId="description"
-        title="Title"
-        description="Description"
-        onClose={onClose}
-        onSubmit={(event) => event.preventDefault()}
-        cancelLabel="Cancel"
-        submitLabel="Submit"
-        submitDisabled={false}
-        error={null}
-      >
-        <input aria-label="field" />
-      </BookingActionSheetShell>,
-    );
-
-    fireEvent.click(screen.getAllByRole('button', { name: 'Cancel', hidden: true })[0]);
+    await user.click(screen.getAllByRole('button', { name: 'Cancel' })[0]);
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('invokes the close handler from the footer cancel button', async () => {
+    const user = userEvent.setup();
+    const { onClose } = renderShell();
+
+    await user.click(screen.getAllByRole('button', { name: 'Cancel' })[1]);
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes on Escape', async () => {
+    const user = userEvent.setup();
+    const { onClose } = renderShell();
+
+    await user.keyboard('{Escape}');
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes when the backdrop is clicked, but not when the sheet itself is', async () => {
+    const user = userEvent.setup();
+    const { onClose } = renderShell();
+
+    await user.click(screen.getByRole('dialog', { name: 'Title' }));
+    expect(onClose).not.toHaveBeenCalled();
+
+    await user.click(document.querySelector('.bg-black\\/40') as HTMLElement);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('submits the form without closing', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn((event: React.SubmitEvent<HTMLFormElement>) => event.preventDefault());
+    const { onClose } = renderShell({ onSubmit });
+
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('disables the submit button when asked', () => {
+    renderShell({ submitDisabled: true });
+
+    expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled();
+  });
+
+  it('hands the dialog content element to contentRef', () => {
+    const contentRef = vi.fn();
+    renderShell({ contentRef });
+
+    expect(contentRef).toHaveBeenCalledWith(screen.getByRole('dialog', { name: 'Title' }));
+  });
+
+  it('moves focus into the sheet and returns it to the opener when the sheet unmounts', async () => {
+    const user = userEvent.setup();
+    function Opener() {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <button type="button" onClick={() => setOpen(true)}>
+            Open
+          </button>
+          {open ? (
+            <BookingActionSheetShell
+              title="Title"
+              description="Description"
+              onClose={() => setOpen(false)}
+              onSubmit={(event) => event.preventDefault()}
+              cancelLabel="Cancel"
+              submitLabel="Submit"
+              error={null}
+            >
+              <input aria-label="field" />
+            </BookingActionSheetShell>
+          ) : null}
+        </>
+      );
+    }
+    render(<Opener />);
+    const opener = screen.getByRole('button', { name: 'Open' });
+
+    await user.click(opener);
+    await waitFor(() =>
+      expect(screen.getByRole('dialog')).toContainElement(document.activeElement as HTMLElement),
+    );
+
+    await user.keyboard('{Escape}');
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    // Radix restores focus on the next tick after the sheet unmounts.
+    await waitFor(() => expect(opener).toHaveFocus());
+  });
+
   it('renders the failure as the shared FeedbackMessage (role alert), not a hand-rolled red box', () => {
-    render(<Harness />);
+    renderShell({ error: 'Problem' });
 
     const feedback = screen.getByTestId('action-sheet-error');
     expect(feedback).toHaveAttribute('role', 'alert');
@@ -77,25 +155,14 @@ describe('BookingActionSheetShell', () => {
   });
 
   it('renders nothing when there is no error', () => {
-    const dialogRef = {
-      current: document.createElement('dialog'),
-    } as RefObject<HTMLDialogElement | null>;
-    render(
-      <BookingActionSheetShell
-        dialogRef={dialogRef}
-        titleId="title"
-        descriptionId="description"
-        title="Title"
-        onClose={vi.fn()}
-        onSubmit={(event) => event.preventDefault()}
-        cancelLabel="Cancel"
-        submitLabel="Submit"
-        error={null}
-      >
-        <input aria-label="field" />
-      </BookingActionSheetShell>,
-    );
+    renderShell({ description: undefined });
 
     expect(screen.queryByTestId('action-sheet-error')).not.toBeInTheDocument();
+  });
+
+  it('has no accessibility violations', async () => {
+    renderShell();
+
+    expect(await axe(screen.getByRole('dialog'))).toHaveNoViolations();
   });
 });
