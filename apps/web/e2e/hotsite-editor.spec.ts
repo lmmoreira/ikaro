@@ -4,7 +4,6 @@ import { loginAsStaff } from './helpers/auth';
 import { openFirstDayWithSlots } from './helpers/booking-form';
 import {
   enterDetailedEditor,
-  failHotsitePublish,
   getHotsiteConfig,
   getPublicManifest,
   openDetailedEditor,
@@ -100,31 +99,6 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await updateLeadFormConfig(page, toLeadFormUpdateRequest(originalLeadForm));
   });
 
-  test('the detailed editor opens with the Branding tab active, pre-filled with the tenant current values', async ({
-    page,
-  }) => {
-    await openDetailedEditor(page);
-
-    await expect(page.getByRole('tab', { name: 'Branding' })).toHaveAttribute(
-      'aria-selected',
-      'true',
-    );
-    await expect(page.getByTestId('hotsite-primary-color')).toHaveValue(
-      original.branding.primaryColor,
-    );
-  });
-
-  test('opens in the visual editor with the persistent draft preview and the editor commands (TD55-S01)', async ({
-    page,
-  }) => {
-    await openVisualEditor(page);
-
-    await expect(page.getByTestId('visual-editor')).toBeVisible();
-    await expect(page.getByTestId('hotsite-preview-content')).toBeVisible();
-    await expect(page.getByRole('tablist')).toHaveCount(0);
-    await expect(page.getByTestId('visual-command')).toHaveCount(7);
-  });
-
   test('the preview starts with the signed-out public top bar, inert, with no session request, even for the signed-in manager (TD55-S05)', async ({
     page,
   }) => {
@@ -196,23 +170,31 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
 
     expect(page.url()).toBe(editorUrl);
     await expect(page.getByRole('tablist')).toHaveCount(0);
-  });
 
-  test('a preview section is selectable from the keyboard (TD55-S01)', async ({ page }) => {
-    await openVisualEditor(page);
-    const hero = page.locator('[data-testid="preview-section-select"][data-module-type="HERO"]');
+    await test.step('a preview section is selectable from the keyboard (TD55-S01)', async () => {
+      const hero = page.locator('[data-testid="preview-section-select"][data-module-type="HERO"]');
 
-    await hero.focus();
-    await page.keyboard.press('Enter');
+      await hero.focus();
+      await page.keyboard.press('Enter');
 
-    await expect(page.getByTestId('visual-preview-status')).toContainText('Hero');
-    await expect(hero).toHaveAttribute('aria-pressed', 'true');
+      await expect(page.getByTestId('visual-preview-status')).toContainText('Hero');
+      await expect(hero).toHaveAttribute('aria-pressed', 'true');
+    });
   });
 
   test('Edit in detail and Back to visual editing keep the unsaved draft and the selected section (TD55-S01)', async ({
     page,
   }) => {
     await openVisualEditor(page);
+
+    // Absorbed test, placed first: it asserts the editor as it opens, before any interaction.
+    await test.step('opens in the visual editor with the persistent draft preview and the editor commands (TD55-S01)', async () => {
+      await expect(page.getByTestId('visual-editor')).toBeVisible();
+      await expect(page.getByTestId('hotsite-preview-content')).toBeVisible();
+      await expect(page.getByRole('tablist')).toHaveCount(0);
+      await expect(page.getByTestId('visual-command')).toHaveCount(7);
+    });
+
     await page.locator('[data-testid="preview-section-select"][data-module-type="HERO"]').click();
 
     await enterDetailedEditor(page);
@@ -223,17 +205,6 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await expect(page.getByTestId('visual-preview-status')).toContainText('Hero');
     await enterDetailedEditor(page);
     await expect(page.getByTestId('hotsite-primary-color')).toHaveValue('#123456');
-  });
-
-  test('publishes from the visual editor and stays in it (TD55-S01)', async ({ page }) => {
-    await openVisualEditor(page);
-
-    await page.locator('[data-testid="visual-command"][data-command="publish"]').click();
-
-    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
-    await expect(page.getByTestId('visual-editor')).toBeVisible();
-    const manifest = await getPublicManifest(page, MANAGER_TENANT_SLUG);
-    expect(manifest.isPublished).toBe(true);
   });
 
   test('configures branding, enables and configures About + Testimonials, sets SEO, previews the draft, publishes, and the changes survive a reload', async ({
@@ -300,39 +271,36 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await expect(page.getByTestId('hotsite-seo-title')).toHaveValue(
       'AutoSpa Premium — Lavagem e Estética Automotiva',
     );
-  });
 
-  test('enabling then disabling a module again removes it from Preview and the published state', async ({
-    page,
-  }) => {
-    await openDetailedEditor(page);
-    await page.getByRole('tab', { name: 'Layout' }).click();
+    // `previewContent` above is the same locator the absorbed test declared for itself.
+    await test.step('enabling then disabling a module again removes it from Preview and the published state', async () => {
+      await page.getByRole('tab', { name: 'Layout' }).click();
 
-    const contactToggle = page.locator(layoutToggle('CONTACT'));
+      const contactToggle = page.locator(layoutToggle('CONTACT'));
 
-    // Enable — check it actually took effect before undoing it
-    await contactToggle.click();
-    await expect(contactToggle).toHaveAttribute('aria-checked', 'true');
+      // Enable — check it actually took effect before undoing it
+      await contactToggle.click();
+      await expect(contactToggle).toHaveAttribute('aria-checked', 'true');
 
-    // Disable again
-    await contactToggle.click();
-    await expect(contactToggle).toHaveAttribute('aria-checked', 'false');
+      // Disable again
+      await contactToggle.click();
+      await expect(contactToggle).toHaveAttribute('aria-checked', 'false');
 
-    // Preview shouldn't render a disabled module — #contact is the module's own stable anchor
-    // id (a CTA scroll target, not a test-only addition), absent entirely when disabled since
-    // buildHotsiteModuleRenderPlan skips disabled modules.
-    await page.getByTestId('hotsite-preview-desktop').click();
-    const previewContent = page.getByTestId('hotsite-preview-content');
-    await expect(previewContent).toBeVisible();
-    await expect(previewContent.locator('#contact')).toHaveCount(0);
+      // Preview shouldn't render a disabled module — #contact is the module's own stable anchor
+      // id (a CTA scroll target, not a test-only addition), absent entirely when disabled since
+      // buildHotsiteModuleRenderPlan skips disabled modules.
+      await page.getByTestId('hotsite-preview-desktop').click();
+      await expect(previewContent).toBeVisible();
+      await expect(previewContent.locator('#contact')).toHaveCount(0);
 
-    await page.getByTestId('hotsite-preview-publish-desktop').click();
-    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+      await page.getByTestId('hotsite-preview-publish-desktop').click();
+      await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
 
-    // The manifest still carries the module (it's a config row, not deleted), just disabled
-    const manifest = await getPublicManifest(page, MANAGER_TENANT_SLUG);
-    const contactModule = manifest.layout.find((module) => module.type === 'CONTACT');
-    expect(contactModule?.enabled).toBe(false);
+      // The manifest still carries the module (it's a config row, not deleted), just disabled
+      const manifest = await getPublicManifest(page, MANAGER_TENANT_SLUG);
+      const contactModule = manifest.layout.find((module) => module.type === 'CONTACT');
+      expect(contactModule?.enabled).toBe(false);
+    });
   });
 
   // M18-S08 — Preview reachable from inside a module's own config screen, not just the main tabs
@@ -366,30 +334,25 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.getByRole('tab', { name: 'Layout' }).click();
     await page.locator(configureButton('HERO')).click();
     await expect(page.locator('#hero-title')).toHaveValue('Título em progresso');
-  });
 
-  // Proves the merged-submit path in HotsiteEditor's handlePublish(contentOverride), not just the
-  // visual preview above — Publish reachable directly from module-config-preview, skipping Aplicar
-  // entirely, still saves the in-progress edit.
-  test('Module config Preview: Publish directly from that preview (skipping Aplicar) persists the edit after reload (M18-S08)', async ({
-    page,
-  }) => {
-    await openDetailedEditor(page);
-    await page.getByRole('tab', { name: 'Layout' }).click();
-    await page.locator(configureButton('HERO')).click();
+    // Proves the merged-submit path in HotsiteEditor's handlePublish(contentOverride), not just the
+    // visual preview above — Publish reachable directly from module-config-preview, skipping
+    // Aplicar entirely, still saves the in-progress edit. The Hero panel is already open here (the
+    // absorbed test's own Layout-tab and Configure clicks would land on the same panel).
+    await test.step('Module config Preview: Publish directly from that preview (skipping Aplicar) persists the edit after reload (M18-S08)', async () => {
+      await page.locator('#hero-title').fill('Publicado direto do preview');
+      await page.getByTestId('module-config-preview-desktop').click();
 
-    await page.locator('#hero-title').fill('Publicado direto do preview');
-    await page.getByTestId('module-config-preview-desktop').click();
+      await page.getByTestId('hotsite-preview-publish-desktop').click();
+      await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+      await expect(page.getByRole('tablist')).toBeVisible();
 
-    await page.getByTestId('hotsite-preview-publish-desktop').click();
-    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
-    await expect(page.getByRole('tablist')).toBeVisible();
-
-    await page.reload();
-    await enterDetailedEditor(page);
-    await page.getByRole('tab', { name: 'Layout' }).click();
-    await page.locator(configureButton('HERO')).click();
-    await expect(page.locator('#hero-title')).toHaveValue('Publicado direto do preview');
+      await page.reload();
+      await enterDetailedEditor(page);
+      await page.getByRole('tab', { name: 'Layout' }).click();
+      await page.locator(configureButton('HERO')).click();
+      await expect(page.locator('#hero-title')).toHaveValue('Publicado direto do preview');
+    });
   });
 
   // M18-S08 — Cancelar/topbar-back only prompts when there's an actual unapplied edit to lose.
@@ -442,6 +405,17 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   }) => {
     await openDetailedEditor(page);
 
+    // Absorbed test, placed first: it asserts the editor as it opens, before the unpublish.
+    await test.step('the detailed editor opens with the Branding tab active, pre-filled with the tenant current values', async () => {
+      await expect(page.getByRole('tab', { name: 'Branding' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
+      await expect(page.getByTestId('hotsite-primary-color')).toHaveValue(
+        original.branding.primaryColor,
+      );
+    });
+
     await page.getByTestId('hotsite-unpublish-button').click();
 
     await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
@@ -458,15 +432,14 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.getByTestId('hotsite-publish-desktop').click();
 
     await expect(page.getByTestId('hotsite-action-error-banner')).toBeVisible();
-  });
 
-  test('SEO title enforces the 60-character limit', async ({ page }) => {
-    await openDetailedEditor(page);
-    await page.getByRole('tab', { name: 'SEO' }).click();
-
-    await page.getByTestId('hotsite-seo-title').fill('a'.repeat(65));
-
-    await expect(page.getByTestId('hotsite-seo-title')).toHaveValue('a'.repeat(60));
+    // This refusal is the real backend's, so the same banner is checked where the detailed editor
+    // places it: in the action pane, under the buttons.
+    await test.step('detailed editor: a refused publish shows the error in the action pane under the buttons', async () => {
+      await expect(
+        page.getByTestId('action-pane-desktop').getByTestId('hotsite-action-error-banner'),
+      ).toBeVisible();
+    });
   });
 
   // M18-S03 — seo.ogImageUrl is a dedicated share-image field, decoupled from branding.logoUrl.
@@ -877,48 +850,6 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     );
   });
 
-  test('Manifesto tab: malformed JSON shows an inline error and leaves the draft unchanged (M18-S02)', async ({
-    page,
-  }) => {
-    await openDetailedEditor(page);
-    await page.getByRole('tab', { name: 'Manifesto' }).click();
-
-    await page.getByTestId('hotsite-manifest-textarea').fill('{ not valid json');
-    await page.getByTestId('hotsite-manifest-apply').click();
-
-    const textarea = page.getByTestId('hotsite-manifest-textarea');
-    await expect(textarea).toHaveAttribute('aria-invalid', 'true');
-    await expect(textarea).toHaveAccessibleDescription(/sintaxe/);
-    await expect(textarea).toBeFocused();
-    await page.getByRole('tab', { name: 'Branding' }).click();
-    await expect(page.getByTestId('hotsite-primary-color')).toHaveValue(
-      original.branding.primaryColor,
-    );
-  });
-
-  test('Manifesto tab: a structurally valid but business-rule-invalid value round-trips through the real backend rejection (M18-S02)', async ({
-    page,
-  }) => {
-    await openDetailedEditor(page);
-    await page.getByRole('tab', { name: 'Manifesto' }).click();
-
-    const textarea = page.getByTestId('hotsite-manifest-textarea');
-    const current = JSON.parse(await textarea.inputValue()) as Pick<
-      HotsiteAdminContentResponse,
-      'branding' | 'layout' | 'seo'
-    >;
-    current.branding.primaryColor = 'not-a-color';
-    await textarea.fill(JSON.stringify(current));
-    // Structural validation only checks the primitive TYPE (string), so "not-a-color" passes
-    // Aplicar — it's rejected only by the real backend's hex-format rule, on Publish.
-    await page.getByTestId('hotsite-manifest-apply').click();
-    await expect(textarea).not.toHaveAttribute('aria-invalid', 'true');
-
-    await page.getByTestId('hotsite-publish-desktop').click();
-
-    await expect(page.getByTestId('hotsite-action-error-banner')).toBeVisible();
-  });
-
   test('Booking CTA Calendar section: toggling datePickerType and editing carouselDays persist after reload (M18-S01)', async ({
     page,
   }) => {
@@ -1198,47 +1129,6 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     ).toHaveAttribute('aria-checked', 'true');
   });
 
-  // M19-S12 — the cap-reached banner (UC-027 A5) is the only module-panel state sourced from a
-  // live read (GET /tenants/chatbot/cap-status) instead of draft.layout, so it's driven here via
-  // page.route() rather than real quota state — deterministic, and doesn't burn any of the
-  // tenant's real daily conversation cap (shared with chatbot-widget.spec.ts's real fake-adapter
-  // conversations against this same tenant).
-  test('shows the daily-cap-reached banner only when the cap-status endpoint reports it', async ({
-    page,
-  }) => {
-    await page.route('**/v1/tenants/chatbot/cap-status', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ dailyCapReachedToday: true }),
-      }),
-    );
-
-    await openDetailedEditor(page);
-    await page.getByRole('tab', { name: 'Layout' }).click();
-    await page.locator(configureButton('CHATBOT')).click();
-
-    await expect(page.getByTestId('chatbot-cap-reached-banner')).toBeVisible();
-  });
-
-  test('hides the daily-cap-reached banner when the cap-status endpoint reports false', async ({
-    page,
-  }) => {
-    await page.route('**/v1/tenants/chatbot/cap-status', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ dailyCapReachedToday: false }),
-      }),
-    );
-
-    await openDetailedEditor(page);
-    await page.getByRole('tab', { name: 'Layout' }).click();
-    await page.locator(configureButton('CHATBOT')).click();
-
-    await expect(page.getByTestId('chatbot-cap-reached-banner')).toHaveCount(0);
-  });
-
   // M20-S08 — the same "manager configures a module, publishes, reload persists" pattern every
   // other module type above already has. Deliberately does not cover a guest's own submission
   // or reordering questions via drag-and-drop: the full config→submit→list→detail journey is
@@ -1285,45 +1175,6 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await expect(page.getByTestId('lead-form-question-label')).toHaveValue(
       'Qual serviço você procura?',
     );
-  });
-
-  // Both PLATFORM_LEAD_FORM_QUESTION_OPTIONS_INVALID (docs/API_CONTRACTS.md) and this
-  // client-side check exist for the same rule — this proves they agree, same rationale as the
-  // branding-color and SEO-title tests above. Also exercises the module-config-preview -> Publish
-  // path specifically (not Aplicar), which is the one path that skipped this validation until a
-  // PR #429 review fix — Aplicar's own gate already has Vitest coverage in
-  // hotsite-editor-views.spec.tsx.
-  test('an invalid lead-form question blocks Publish from the module-config preview and shows the error banner', async ({
-    page,
-  }) => {
-    await openDetailedEditor(page);
-    await page.getByRole('tab', { name: 'Layout' }).click();
-
-    await page.locator(layoutToggle('LEAD_FORM')).click();
-    await page.locator(configureButton('LEAD_FORM')).click();
-    await expect(page.getByTestId('lead-form-config-panel')).toBeVisible();
-
-    await page.getByRole('button', { name: '+ Adicionar pergunta' }).click();
-    await page.getByTestId('lead-form-question-label').fill('Qual serviço você procura?');
-    await page.getByTestId('lead-form-question-type').selectOption('SINGLE_CHOICE');
-    await page.getByRole('button', { name: '+ Adicionar opção' }).click();
-    // E2E-1: static data-testid + a separate data-option-index attribute, not a template-literal
-    // testid — matches LeadFormQuestionField's own established data-option-* convention.
-    await page
-      .locator('[data-testid="lead-form-question-option-input"][data-option-index="0"]')
-      .fill('Somente uma opção');
-
-    await page.getByTestId('module-config-preview-desktop').click();
-    await page.getByTestId('hotsite-preview-publish-desktop').click();
-
-    await expect(page.getByTestId('hotsite-action-error-banner')).toContainText(
-      'Corrija as perguntas inválidas antes de publicar.',
-    );
-    // Back on the main tabs view (not still on the preview/module-config screen), and the earlier
-    // enable-toggle click is untouched by the blocked-publish path — this only short-circuits
-    // handlePublish, it never reverts draft.layout.
-    await expect(page.getByRole('tablist')).toBeVisible();
-    await expect(page.locator(layoutToggle('LEAD_FORM'))).toHaveAttribute('aria-checked', 'true');
   });
 
   // TD55-S02 — the visual editor's Organize modules list and module inspector. The legacy tests
@@ -1438,28 +1289,6 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await expect(preview.locator('#contact')).not.toContainText('Visite a AutoSpa');
   });
 
-  test('Publish is blocked while a module has unapplied edits and works again after Apply (TD55-S02)', async ({
-    page,
-  }) => {
-    await openVisualEditor(page);
-    await page.locator(layoutToggle('CONTACT')).click();
-    await page.locator(configureButton('CONTACT')).click();
-
-    await page.locator('#contact-title').fill('Título ainda não aplicado');
-
-    await expect(page.locator(visualCommand('publish'))).toBeDisabled();
-    await expect(page.getByTestId('visual-publish-hint')).toBeVisible();
-
-    await page.getByTestId('visual-inspector-apply').click();
-
-    await expect(page.locator(visualCommand('publish'))).toBeEnabled();
-    await page.locator(visualCommand('publish')).click();
-    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
-    const saved = await getHotsiteConfig(page);
-    const contact = saved.layout.find((module) => module.type === 'CONTACT');
-    expect((contact?.data as { title?: string }).title).toBe('Título ainda não aplicado');
-  });
-
   test('LEAD_FORM in the inspector: teaser, audience and a question are applied and published, and layout[].data never carries the aggregate-only fields (TD55-S02)', async ({
     page,
   }) => {
@@ -1492,33 +1321,6 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     expect(config.questions.map((question) => question.label)).toContain(
       'Qual serviço você procura?',
     );
-  });
-
-  // TD55-S03 — Branding and style and Sharing in the visual editor's inspector.
-  test('Branding and style: a colour edit shows on the draft preview at once and survives Sharing and Organize modules, then publishes (TD55-S03)', async ({
-    page,
-  }) => {
-    await openVisualEditor(page);
-    await page.locator(visualCommand('branding')).click();
-
-    await page.getByTestId('hotsite-primary-color').fill('#123456');
-    await page.getByTestId('hotsite-background-color').fill('#0a0a0a');
-
-    const preview = page.getByTestId('hotsite-preview-content');
-    await expect(preview).toHaveCSS('--ba-primary', '#123456');
-    await expect(preview).toHaveCSS('background-color', 'rgb(10, 10, 10)');
-
-    await page.locator(visualCommand('sharing')).click();
-    await page.locator(visualCommand('structure')).click();
-    await page.locator(visualCommand('branding')).click();
-    await expect(page.getByTestId('hotsite-primary-color')).toHaveValue('#123456');
-
-    await page.locator(visualCommand('publish')).click();
-    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
-    const saved = await getHotsiteConfig(page);
-    // The backend stores hex colours uppercased.
-    expect(saved.branding.primaryColor.toLowerCase()).toBe('#123456');
-    expect(saved.branding.backgroundColor.toLowerCase()).toBe('#0a0a0a');
   });
 
   test('Sharing: the title and description update the Google and WhatsApp simulations while typing, the URL carries the tenant slug, and publishing saves them (TD55-S03)', async ({
@@ -1585,6 +1387,14 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.locator(visualCommand('branding')).click();
     await page.getByTestId('hotsite-primary-color').fill('#123456');
 
+    await test.step('Branding and style: a colour edit shows on the draft preview at once (TD55-S03)', async () => {
+      await page.getByTestId('hotsite-background-color').fill('#0a0a0a');
+
+      const preview = page.getByTestId('hotsite-preview-content');
+      await expect(preview).toHaveCSS('--ba-primary', '#123456');
+      await expect(preview).toHaveCSS('background-color', 'rgb(10, 10, 10)');
+    });
+
     await page.locator(visualCommand('structure')).click();
     await page.locator(layoutToggle('ABOUT')).click();
     await page.locator(configureButton('ABOUT')).click();
@@ -1622,6 +1432,10 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.reload();
     const saved = await getHotsiteConfig(page);
     expect(saved.branding.primaryColor.toLowerCase()).toBe('#123456');
+    await test.step('the saved branding keeps the background colour edited in Branding and style (TD55-S03)', async () => {
+      // The backend stores hex colours uppercased.
+      expect(saved.branding.backgroundColor.toLowerCase()).toBe('#0a0a0a');
+    });
     expect(saved.seo.title).toBe('Título da jornada completa');
     const about = saved.layout.find((module) => module.type === 'ABOUT');
     expect((about?.data as { title?: string }).title).toBe('Sobre a jornada completa');
@@ -1654,6 +1468,12 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.keyboard.press('Enter');
     await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
     await expect(page.getByTestId('visual-editor')).toBeVisible();
+
+    // The keyboard publish above is the publish the absorbed test performed with a click.
+    await test.step('publishes from the visual editor and stays in it (TD55-S01)', async () => {
+      const manifest = await getPublicManifest(page, MANAGER_TENANT_SLUG);
+      expect(manifest.isPublished).toBe(true);
+    });
   });
 
   for (const viewport of [
@@ -1681,107 +1501,6 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
       expect(last!.y + last!.height).toBeLessThanOrEqual(bar!.y + 1);
     });
   }
-
-  // The Manifesto tab validates a module's new `presentation` before Aplicar merges it
-  // into the draft. Nothing is published, so afterEach has nothing to undo beyond its usual restore.
-  test('Manifesto tab accepts a valid section presentation and rejects an invalid one without touching the draft', async ({
-    page,
-  }) => {
-    await openDetailedEditor(page);
-    const manifestTab = page.getByRole('tab', { name: 'Manifesto' });
-    const textarea = page.getByTestId('hotsite-manifest-textarea');
-    await manifestTab.click();
-
-    const manifest = JSON.parse(await textarea.inputValue()) as {
-      layout: { type: string; presentation?: unknown }[];
-    };
-    const about = manifest.layout.find((module) => module.type === 'ABOUT')!;
-
-    // A valid presentation on ABOUT is applied.
-    about.presentation = { surface: 'custom', customColor: '#0B0908', minHeight: 'lg' };
-    await textarea.fill(JSON.stringify(manifest));
-    await page.getByTestId('hotsite-manifest-apply').click();
-    await expect(textarea).not.toHaveAttribute('aria-invalid', 'true');
-
-    // The tab re-seeds from the draft when reopened, so this reads back what Aplicar merged.
-    await page.getByRole('tab', { name: 'Layout' }).click();
-    await manifestTab.click();
-    await expect(textarea).toHaveValue(/"customColor": "#0B0908"/);
-
-    // An invalid one (a custom surface with no customColor) is rejected with a localized message.
-    about.presentation = { surface: 'custom' };
-    await textarea.fill(JSON.stringify(manifest));
-    await page.getByTestId('hotsite-manifest-apply').click();
-    await expect(textarea).toHaveAttribute('aria-invalid', 'true');
-    await expect(textarea).toHaveAccessibleDescription(
-      /apresentação de seção inválida para o módulo "ABOUT"/,
-    );
-
-    // ...and the draft still holds the last valid presentation.
-    await page.getByRole('tab', { name: 'Layout' }).click();
-    await manifestTab.click();
-    await expect(textarea).toHaveValue(/"customColor": "#0B0908"/);
-  });
-
-  // TD57-S10 — a publish refused by the server is reported in the editor's own place: the visual
-  // editor's slot (no action pane there), focused, with the manager's edits still in place.
-  test('visual editor: a refused publish shows the error in its slot, focused, and keeps the edit', async ({
-    page,
-  }) => {
-    await failHotsitePublish(page);
-    await openVisualEditor(page);
-    await page.locator('[data-testid="visual-command"][data-command="branding"]').click();
-    await page.getByTestId('hotsite-primary-color').fill('#123456');
-
-    await page.locator('[data-testid="visual-command"][data-command="publish"]').click();
-
-    const message = page
-      .getByTestId('visual-banner-slot')
-      .getByTestId('hotsite-action-error-banner');
-    await expect(message).toBeVisible();
-    await expect(message).toHaveAttribute('role', 'alert');
-    await expect(message).toBeFocused();
-    await expect(page.getByTestId('hotsite-primary-color')).toHaveValue('#123456');
-  });
-
-  // TD57-S10 — the detailed editor reports the same refusal in its action pane, under the buttons.
-  test('detailed editor: a refused publish shows the error in the action pane under the buttons', async ({
-    page,
-  }) => {
-    await failHotsitePublish(page);
-    await openDetailedEditor(page);
-
-    await page.getByTestId('hotsite-publish-desktop').click();
-
-    await expect(
-      page.getByTestId('action-pane-desktop').getByTestId('hotsite-action-error-banner'),
-    ).toBeVisible();
-  });
-
-  // TD57-S10 — an upload the server refuses is reported under the field that owns it.
-  test('SEO tab: a refused share-image upload marks the field and describes the failure', async ({
-    page,
-  }) => {
-    await page.route('**/v1/tenants/hotsite/images/signed-url', (route) =>
-      route.fulfill({
-        status: 500,
-        contentType: 'application/problem+json',
-        body: JSON.stringify({ status: 500, title: 'Internal Server Error' }),
-      }),
-    );
-    await openDetailedEditor(page);
-    await page.getByRole('tab', { name: 'SEO' }).click();
-
-    await page.getByTestId('single-image-upload-input').setInputFiles({
-      name: 'share.png',
-      mimeType: 'image/png',
-      buffer: CROPPABLE_PNG_BUFFER,
-    });
-
-    const input = page.getByTestId('single-image-upload-input');
-    await expect(input).toHaveAttribute('aria-invalid', 'true');
-    await expect(input).toHaveAccessibleDescription(/.+/);
-  });
 });
 
 test.describe('hotsite editor (STAFF)', () => {

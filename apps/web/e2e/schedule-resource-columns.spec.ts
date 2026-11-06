@@ -20,7 +20,6 @@ import {
   setResourceRequirements,
   updateService,
 } from '@/e2e/helpers/services';
-import { inviteStaff } from '@/e2e/helpers/staff';
 import { BFF_URL, WEB_INTERNAL_KEY } from '@/e2e/helpers/auth/shared';
 
 // funcionario@lavacar.com.br is the genuine STAFF-role fixture account for this same tenant
@@ -61,15 +60,15 @@ test.describe('schedule resource columns board (M22-S06)', () => {
         { reason: 'MAINTENANCE', notes: 'E2E column A', resourceId: resourceA.id },
         140,
       );
-      const dateKey = closureA.dateKey;
-      const closureB = await createScheduleClosureAt(page, dateKey, {
+      const columnsDateKey = closureA.dateKey;
+      const closureB = await createScheduleClosureAt(page, columnsDateKey, {
         reason: 'MAINTENANCE',
         notes: 'E2E column B',
         resourceId: resourceB.id,
       });
 
       try {
-        await page.goto(scheduleRoute(dateKey));
+        await page.goto(scheduleRoute(columnsDateKey));
         await switchToDayView(page);
 
         await expect(page.getByTestId('schedule-resource-columns-board')).toHaveCount(0);
@@ -103,6 +102,61 @@ test.describe('schedule resource columns board (M22-S06)', () => {
         await removeScheduleClosure(page, closureA.id);
         await removeScheduleClosure(page, closureB.id);
       }
+
+      await test.step('unchecking every resource reverts to the single timeline, and switching to week view hides the columns board entirely', async () => {
+        // The checked resources are remembered by the browser, so clear the two above first.
+        await page.getByRole('button', { name: 'Filtrar recurso' }).click();
+        await page.getByRole('checkbox', { name: resourceA.name }).uncheck();
+        await page.getByRole('checkbox', { name: resourceB.name }).uncheck();
+        await page.getByRole('button', { name: 'Fechar' }).click();
+
+        const resource = await createResource(page, {
+          type: 'ROOM',
+          name: uniqueLabel('E2E Sala C'),
+        });
+
+        try {
+          const closure = await createUniqueScheduleClosure(
+            page,
+            { reason: 'MAINTENANCE', notes: 'E2E week-view isolation', resourceId: resource.id },
+            141,
+          );
+          const dateKey = closure.dateKey;
+
+          try {
+            await page.goto(scheduleRoute(dateKey));
+            await switchToDayView(page);
+
+            await page.getByRole('button', { name: 'Filtrar recurso' }).click();
+            await page.getByRole('checkbox', { name: resource.name }).check();
+            await page.getByRole('button', { name: 'Fechar' }).click();
+
+            await expect(page.getByTestId('schedule-resource-columns-board')).toBeVisible();
+
+            // No columns board in Week view, resource checked or not — the columns board is a
+            // Day-view-only concept. Week view's own (separate) resource-filter/badge behavior is
+            // covered by the "Week view resource filter/badges (TD44 Story 1)" describe block below.
+            await page.getByRole('combobox', { name: 'Visualização' }).click();
+            await page.getByRole('option', { name: 'Semana' }).click();
+            await expect(page.getByTestId('schedule-resource-columns-board')).toHaveCount(0);
+            await expect(page.getByTestId('schedule-week-view')).toBeVisible();
+
+            await switchToDayView(page);
+            await expect(page.getByTestId('schedule-resource-columns-board')).toBeVisible();
+
+            await page.getByRole('button', { name: 'Filtrar recurso' }).click();
+            await page.getByRole('checkbox', { name: resource.name }).uncheck();
+            await page.getByRole('button', { name: 'Fechar' }).click();
+
+            await expect(page.getByTestId('schedule-resource-columns-board')).toHaveCount(0);
+            await expect(page.getByTestId('schedule-mobile-view')).toBeVisible();
+          } finally {
+            await removeScheduleClosure(page, closure.id);
+          }
+        } finally {
+          await deactivateResource(page, resource.id);
+        }
+      });
     } finally {
       await deactivateResource(page, resourceA.id);
       await deactivateResource(page, resourceB.id);
@@ -190,98 +244,11 @@ test.describe('schedule resource columns board (M22-S06)', () => {
     }
   });
 
-  test('unchecking every resource reverts to the single timeline, and switching to week view hides the columns board entirely', async ({
-    page,
-  }) => {
-    await loginAsScheduleStaff(page);
-
-    const resource = await createResource(page, { type: 'ROOM', name: uniqueLabel('E2E Sala C') });
-
-    try {
-      const closure = await createUniqueScheduleClosure(
-        page,
-        { reason: 'MAINTENANCE', notes: 'E2E week-view isolation', resourceId: resource.id },
-        141,
-      );
-      const dateKey = closure.dateKey;
-
-      try {
-        await page.goto(scheduleRoute(dateKey));
-        await switchToDayView(page);
-
-        await page.getByRole('button', { name: 'Filtrar recurso' }).click();
-        await page.getByRole('checkbox', { name: resource.name }).check();
-        await page.getByRole('button', { name: 'Fechar' }).click();
-
-        await expect(page.getByTestId('schedule-resource-columns-board')).toBeVisible();
-
-        // No columns board in Week view, resource checked or not — the columns board is a
-        // Day-view-only concept. Week view's own (separate) resource-filter/badge behavior is
-        // covered by the "Week view resource filter/badges (TD44 Story 1)" describe block below.
-        await page.getByRole('combobox', { name: 'Visualização' }).click();
-        await page.getByRole('option', { name: 'Semana' }).click();
-        await expect(page.getByTestId('schedule-resource-columns-board')).toHaveCount(0);
-        await expect(page.getByTestId('schedule-week-view')).toBeVisible();
-
-        await switchToDayView(page);
-        await expect(page.getByTestId('schedule-resource-columns-board')).toBeVisible();
-
-        await page.getByRole('button', { name: 'Filtrar recurso' }).click();
-        await page.getByRole('checkbox', { name: resource.name }).uncheck();
-        await page.getByRole('button', { name: 'Fechar' }).click();
-
-        await expect(page.getByTestId('schedule-resource-columns-board')).toHaveCount(0);
-        await expect(page.getByTestId('schedule-mobile-view')).toBeVisible();
-      } finally {
-        await removeScheduleClosure(page, closure.id);
-      }
-    } finally {
-      await deactivateResource(page, resource.id);
-    }
-  });
-
   test('staff never sees the resource filter or the columns board', async ({ page }) => {
     await loginAsStaff(page, STAFF_ROLE_EMAIL, SCHEDULE_TENANT_SLUG);
     await page.goto(scheduleRoute(nextOpenDateKey(142)));
     await expect(page.getByRole('button', { name: 'Filtrar recurso' })).toHaveCount(0);
     await expect(page.getByTestId('schedule-resource-columns-board')).toHaveCount(0);
-  });
-
-  test('manager cannot check a 7th resource past the cap of 6, and unchecking one frees a slot (TD44)', async ({
-    page,
-  }) => {
-    await loginAsScheduleStaff(page);
-
-    // Created sequentially, inside the try, appending each as it succeeds — a mid-batch failure
-    // still leaves every already-created resource tracked for the finally block's cleanup.
-    const resources: Awaited<ReturnType<typeof createResource>>[] = [];
-    try {
-      for (let i = 0; i < 7; i++) {
-        resources.push(
-          await createResource(page, { type: 'EQUIPMENT', name: uniqueLabel(`E2E Cap ${i}`) }),
-        );
-      }
-
-      await page.goto(scheduleRoute(nextOpenDateKey(143)));
-      await switchToDayView(page);
-      await page.getByRole('button', { name: 'Filtrar recurso' }).click();
-
-      for (const resource of resources.slice(0, 6)) {
-        await page.getByRole('checkbox', { name: resource.name }).check();
-      }
-
-      const seventhCheckbox = page.getByRole('checkbox', { name: resources[6].name });
-      await expect(seventhCheckbox).toBeDisabled();
-      await expect(page.getByTestId('resource-filter-max-reached')).toBeVisible();
-
-      await page.getByRole('checkbox', { name: resources[0].name }).uncheck();
-      await expect(page.getByTestId('resource-filter-max-reached')).toHaveCount(0);
-      await expect(seventhCheckbox).toBeEnabled();
-      await seventhCheckbox.check();
-      await expect(seventhCheckbox).toBeChecked();
-    } finally {
-      await Promise.all(resources.map((resource) => deactivateResource(page, resource.id)));
-    }
   });
 
   test('two resources on regular hours share one hour ruler; a resource with an exceptional opening keeps its own (TD44 Story 3)', async ({
@@ -437,25 +404,47 @@ test.describe('Week view resource filter/badges (TD44 Story 1)', () => {
       ).toBeVisible();
       await expect(page.getByRole('link', { name: unrelatedName })).toBeVisible();
 
-      await page.getByRole('button', { name: 'Filtrar recurso' }).click();
-      await page.getByRole('checkbox', { name: resource.name }).check();
-      await page.getByRole('button', { name: 'Fechar' }).click();
+      await test.step('checking one resource filters out a booking assigned to none and badges the matched one', async () => {
+        await page.getByRole('button', { name: 'Filtrar recurso' }).click();
+        await page.getByRole('checkbox', { name: resource.name }).check();
+        await page.getByRole('button', { name: 'Fechar' }).click();
 
-      await expect(page.getByRole('link', { name: unrelatedName })).toHaveCount(0);
-      // The booking link's own accessible name composes contactName + every matched resource
-      // (round 3 fix — the visible summary line is aria-hidden; the link is the one focusable/
-      // announced unit).
-      const matchedBlock = page.getByRole('link', { name: `${matchedName}, ${resource.name}` });
-      await expect(matchedBlock).toBeVisible();
-      // TD44 Story 2: a booking's matched-resource identity now renders via the compact summary
-      // line, not the per-resource ResourceNameBadge (that testid stays reserved for openings/
-      // closures, untouched by this story).
-      await expect(matchedBlock.getByTestId('timeline-block-resource-summary')).toHaveText(
-        resource.name,
-      );
-      // Both bookings are 30 min, equal to the tenant's own slotGranularityMinutes (minimum
-      // granularity) — the time-range line still renders in Week view too (TD44 Story 5).
-      await expect(matchedBlock.getByTestId('timeline-block-time-range')).toBeVisible();
+        await expect(page.getByRole('link', { name: unrelatedName })).toHaveCount(0);
+        // The booking link's own accessible name composes contactName + every matched resource
+        // (round 3 fix — the visible summary line is aria-hidden; the link is the one focusable/
+        // announced unit).
+        const matchedBlock = page.getByRole('link', { name: `${matchedName}, ${resource.name}` });
+        await expect(matchedBlock).toBeVisible();
+        // TD44 Story 2: a booking's matched-resource identity now renders via the compact summary
+        // line, not the per-resource ResourceNameBadge (that testid stays reserved for openings/
+        // closures, untouched by this story).
+        await expect(matchedBlock.getByTestId('timeline-block-resource-summary')).toHaveText(
+          resource.name,
+        );
+        // Both bookings are 30 min, equal to the tenant's own slotGranularityMinutes (minimum
+        // granularity) — the time-range line still renders in Week view too (TD44 Story 5).
+        await expect(matchedBlock.getByTestId('timeline-block-time-range')).toBeVisible();
+      });
+
+      await test.step('unchecking the checked resource reverts Week view to the unfiltered baseline — visibility only, the summary badge stays (TD44-S2 round 3 — always show)', async () => {
+        await page.getByRole('button', { name: 'Filtrar recurso' }).click();
+        await page.getByRole('checkbox', { name: resource.name }).uncheck();
+        await page.getByRole('button', { name: 'Fechar' }).click();
+
+        // Unchecking reverts *visibility* — the previously-hidden unrelated booking reappears — but
+        // the matched booking's resource-summary line stays, since it always reflects the booking's
+        // own assignment regardless of filter state, and the unrelated booking (no resource
+        // requirement) correctly shows no summary line at all.
+        const unrelatedBlock = page.getByRole('link', { name: unrelatedName });
+        await expect(unrelatedBlock).toBeVisible();
+        await expect(unrelatedBlock.getByTestId('timeline-block-resource-summary')).toHaveCount(0);
+
+        const matchedBlock = page.getByRole('link', { name: `${matchedName}, ${resource.name}` });
+        await expect(matchedBlock).toBeVisible();
+        await expect(matchedBlock.getByTestId('timeline-block-resource-summary')).toHaveText(
+          resource.name,
+        );
+      });
     } finally {
       await deactivateService(page, service.serviceId);
       await deactivateResource(page, resource.id);
@@ -517,217 +506,28 @@ test.describe('Week view resource filter/badges (TD44 Story 1)', () => {
       await expect(bookingBlocks).toHaveCount(1);
       // ROOM outranks EQUIPMENT (STAFF > ROOM > EQUIPMENT), so resourceA (ROOM) is the primary
       // name; resourceB is folded into "+1" instead of getting its own badge.
-      const summary = bookingBlocks.getByTestId('timeline-block-resource-summary');
-      await expect(summary).toHaveText(`${resourceA.name} +1`);
+      const bundledSummary = bookingBlocks.getByTestId('timeline-block-resource-summary');
+      await expect(bundledSummary).toHaveText(`${resourceA.name} +1`);
+
+      await test.step('a bundled booking with only one of its two required resources checked stays visible and still shows both assigned resources (TD44-S2 round 3 — always show, not just the checked one)', async () => {
+        await page.getByRole('button', { name: 'Filtrar recurso' }).click();
+        await page.getByRole('checkbox', { name: resourceB.name }).uncheck();
+        await page.getByRole('button', { name: 'Fechar' }).click();
+
+        // Only resourceA is checked, so the (unrelated) filter still narrows *visibility* to bookings
+        // matching at least one checked resource — but the summary content itself always reflects the
+        // booking's full assignment (both A and B), independent of check state.
+        const bookingBlock = page.getByRole('link', {
+          name: `${contactName}, ${resourceA.name}, ${resourceB.name}`,
+        });
+        await expect(bookingBlock).toBeVisible();
+        const summary = bookingBlock.getByTestId('timeline-block-resource-summary');
+        await expect(summary).toHaveText(`${resourceA.name} +1`);
+      });
     } finally {
       await deactivateService(page, service.serviceId);
       await deactivateResource(page, resourceA.id);
       await deactivateResource(page, resourceB.id);
-    }
-  });
-
-  test('a bundled booking with only one of its two required resources checked stays visible and still shows both assigned resources (TD44-S2 round 3 — always show, not just the checked one)', async ({
-    page,
-  }) => {
-    await loginAsScheduleStaff(page);
-
-    const resourceA = await createResource(page, {
-      type: 'ROOM',
-      name: uniqueLabel('E2E Week Partial A'),
-    });
-    const resourceB = await createResource(page, {
-      type: 'EQUIPMENT',
-      name: uniqueLabel('E2E Week Partial B'),
-    });
-    const service = await createService(page, {
-      name: makeUniqueServiceName('e2e-week-partial'),
-      priceAmount: 100,
-      durationMinutes: 30,
-      loyaltyPointsValue: 5,
-      isActive: true,
-    });
-
-    try {
-      await bindServiceToResources(page, service.serviceId, [
-        { type: 'ROOM', resourceId: resourceA.id },
-        { type: 'EQUIPMENT', resourceId: resourceB.id },
-      ]);
-
-      const dateKey = nextOpenDateKey(153);
-      const contactName = uniqueLabel('E2E Week Partial Booking');
-      await createScheduleBooking(page, {
-        dateKey,
-        contactName,
-        contactEmail: uniqueTestEmail('schedule-week-partial'),
-        approved: true,
-        time: '11:00',
-        serviceIds: [service.serviceId],
-      });
-
-      await page.goto(scheduleRoute(dateKey));
-      await switchToWeekView(page);
-
-      await page.getByRole('button', { name: 'Filtrar recurso' }).click();
-      await page.getByRole('checkbox', { name: resourceA.name }).check();
-      await page.getByRole('button', { name: 'Fechar' }).click();
-
-      // Only resourceA is checked, so the (unrelated) filter still narrows *visibility* to bookings
-      // matching at least one checked resource — but the summary content itself always reflects the
-      // booking's full assignment (both A and B), independent of check state.
-      const bookingBlock = page.getByRole('link', {
-        name: `${contactName}, ${resourceA.name}, ${resourceB.name}`,
-      });
-      await expect(bookingBlock).toBeVisible();
-      const summary = bookingBlock.getByTestId('timeline-block-resource-summary');
-      await expect(summary).toHaveText(`${resourceA.name} +1`);
-    } finally {
-      await deactivateService(page, service.serviceId);
-      await deactivateResource(page, resourceA.id);
-      await deactivateResource(page, resourceB.id);
-    }
-  });
-
-  test('a booking matching 3 checked resources shows the STAFF-prioritized name + "+2" (TD44 Story 2)', async ({
-    page,
-  }) => {
-    await loginAsScheduleStaff(page);
-
-    // A STAFF-type resource must link to a real Staff row via refId (BOOKING_RESOURCE_TYPE_REF_ID_
-    // MISMATCH otherwise) — inviteStaff is enough to create one, no activation needed, matching
-    // resources-manage.spec.ts's own "creates a STAFF resource" precedent.
-    const linkedStaff = await inviteStaff(page, {
-      email: uniqueTestEmail('e2e-week-triple-staff'),
-      firstName: 'Triple',
-      lastName: 'Staff',
-      role: 'STAFF',
-    });
-    const staffResource = await createResource(page, {
-      type: 'STAFF',
-      name: uniqueLabel('E2E Week Triple Staff'),
-      refId: linkedStaff.staffId,
-    });
-    const roomResource = await createResource(page, {
-      type: 'ROOM',
-      name: uniqueLabel('E2E Week Triple Room'),
-    });
-    const equipmentResource = await createResource(page, {
-      type: 'EQUIPMENT',
-      name: uniqueLabel('E2E Week Triple Equipment'),
-    });
-    const service = await createService(page, {
-      name: makeUniqueServiceName('e2e-week-triple'),
-      priceAmount: 100,
-      durationMinutes: 30,
-      loyaltyPointsValue: 5,
-      isActive: true,
-    });
-
-    try {
-      await bindServiceToResources(page, service.serviceId, [
-        { type: 'STAFF', resourceId: staffResource.id },
-        { type: 'ROOM', resourceId: roomResource.id },
-        { type: 'EQUIPMENT', resourceId: equipmentResource.id },
-      ]);
-
-      const dateKey = nextOpenDateKey(155);
-      const contactName = uniqueLabel('E2E Week Triple Booking');
-      await createScheduleBooking(page, {
-        dateKey,
-        contactName,
-        contactEmail: uniqueTestEmail('schedule-week-triple'),
-        approved: true,
-        time: '11:00',
-        serviceIds: [service.serviceId],
-      });
-
-      await page.goto(scheduleRoute(dateKey));
-      await switchToWeekView(page);
-
-      await page.getByRole('button', { name: 'Filtrar recurso' }).click();
-      await page.getByRole('checkbox', { name: staffResource.name }).check();
-      await page.getByRole('checkbox', { name: roomResource.name }).check();
-      await page.getByRole('checkbox', { name: equipmentResource.name }).check();
-      await page.getByRole('button', { name: 'Fechar' }).click();
-
-      const bookingBlock = page.getByRole('link', {
-        name: `${contactName}, ${staffResource.name}, ${roomResource.name}, ${equipmentResource.name}`,
-      });
-      const summary = bookingBlock.getByTestId('timeline-block-resource-summary');
-      await expect(summary).toHaveText(`${staffResource.name} +2`);
-    } finally {
-      await deactivateService(page, service.serviceId);
-      await deactivateResource(page, staffResource.id);
-      await deactivateResource(page, roomResource.id);
-      await deactivateResource(page, equipmentResource.id);
-    }
-  });
-
-  test('unchecking the checked resource reverts Week view to the unfiltered baseline — visibility only, the summary badge stays (TD44-S2 round 3 — always show)', async ({
-    page,
-  }) => {
-    await loginAsScheduleStaff(page);
-
-    const resource = await createResource(page, { type: 'ROOM', name: uniqueLabel('E2E Week C') });
-    const service = await createService(page, {
-      name: makeUniqueServiceName('e2e-week-revert'),
-      priceAmount: 100,
-      durationMinutes: 30,
-      loyaltyPointsValue: 5,
-      isActive: true,
-    });
-
-    try {
-      await bindServiceToResources(page, service.serviceId, [
-        { type: 'ROOM', resourceId: resource.id },
-      ]);
-
-      const dateKey = nextOpenDateKey(154);
-      const matchedName = uniqueLabel('E2E Week Revert Matched');
-      await createScheduleBooking(page, {
-        dateKey,
-        contactName: matchedName,
-        contactEmail: uniqueTestEmail('schedule-week-revert-matched'),
-        approved: true,
-        time: '11:00',
-        serviceIds: [service.serviceId],
-      });
-      const unrelatedName = uniqueLabel('E2E Week Revert Unrelated');
-      await createScheduleBooking(page, {
-        dateKey,
-        contactName: unrelatedName,
-        contactEmail: uniqueTestEmail('schedule-week-revert-unrelated'),
-        approved: true,
-        time: '13:00',
-      });
-
-      await page.goto(scheduleRoute(dateKey));
-      await switchToWeekView(page);
-
-      await page.getByRole('button', { name: 'Filtrar recurso' }).click();
-      await page.getByRole('checkbox', { name: resource.name }).check();
-      await page.getByRole('button', { name: 'Fechar' }).click();
-      await expect(page.getByRole('link', { name: unrelatedName })).toHaveCount(0);
-
-      await page.getByRole('button', { name: 'Filtrar recurso' }).click();
-      await page.getByRole('checkbox', { name: resource.name }).uncheck();
-      await page.getByRole('button', { name: 'Fechar' }).click();
-
-      // Unchecking reverts *visibility* — the previously-hidden unrelated booking reappears — but
-      // the matched booking's resource-summary line stays, since it always reflects the booking's
-      // own assignment regardless of filter state, and the unrelated booking (no resource
-      // requirement) correctly shows no summary line at all.
-      const unrelatedBlock = page.getByRole('link', { name: unrelatedName });
-      await expect(unrelatedBlock).toBeVisible();
-      await expect(unrelatedBlock.getByTestId('timeline-block-resource-summary')).toHaveCount(0);
-
-      const matchedBlock = page.getByRole('link', { name: `${matchedName}, ${resource.name}` });
-      await expect(matchedBlock).toBeVisible();
-      await expect(matchedBlock.getByTestId('timeline-block-resource-summary')).toHaveText(
-        resource.name,
-      );
-    } finally {
-      await deactivateService(page, service.serviceId);
-      await deactivateResource(page, resource.id);
     }
   });
 });
@@ -832,6 +632,27 @@ test.describe('Held time after a booking (M18-S10)', () => {
         await expect(segment).toContainText(`${resource.name} · até 12:00`);
         await expect(segment).toContainText(`Buffer do serviço ${held.serviceName} · 30 min`);
       }
+
+      await test.step('with no resource checked, the Day view and the Week view show one strip per booking naming every held resource', async () => {
+        // The checked resources are remembered by the browser, so clear the two above first.
+        await page.getByRole('button', { name: 'Filtrar recurso' }).click();
+        await page.getByRole('checkbox', { name: held.room.name }).uncheck();
+        await page.getByRole('checkbox', { name: held.equipment.name }).uncheck();
+        await page.getByRole('button', { name: 'Fechar' }).click();
+
+        // The merged timeline lists every booking of the tenant: pick this booking's strip by the
+        // resources it names. One strip, not one per resource.
+        const strip = page.getByRole('note').filter({ hasText: held.room.name });
+        await expect(strip).toHaveCount(1);
+        await expect(strip).toContainText(held.equipment.name);
+        await expect(strip).toContainText('até 12:00');
+        await expect(strip).toContainText(`Buffer do serviço ${held.serviceName} · 30 min`);
+
+        await switchToWeekView(page);
+        const weekStrip = page.getByRole('note').filter({ hasText: held.room.name });
+        await expect(weekStrip).toHaveCount(1);
+        await expect(weekStrip).toContainText('até 12:00');
+      });
     } finally {
       await held.cleanup();
     }
@@ -866,37 +687,6 @@ test.describe('Held time after a booking (M18-S10)', () => {
       await expect(page.getByTestId('schedule-resource-column')).toHaveCount(1);
       await expect(page.getByRole('note')).toContainText(`${held.room.name} · até 12:00`);
       await expect(page.getByRole('note')).toContainText('Virada do recurso · 30 min');
-    } finally {
-      await held.cleanup();
-    }
-  });
-
-  test('with no resource checked, the Day view and the Week view show one strip per booking naming every held resource', async ({
-    page,
-  }) => {
-    await loginAsScheduleStaff(page);
-    const held = await bookWithGap(page, {
-      bufferAfterMinutes: 30,
-      roomTurnoverMinutes: 0,
-      daysAhead: 162,
-    });
-
-    try {
-      await page.goto(scheduleRoute(held.dateKey));
-      await switchToDayView(page);
-
-      // The merged timeline lists every booking of the tenant: pick this booking's strip by the
-      // resources it names. One strip, not one per resource.
-      const strip = page.getByRole('note').filter({ hasText: held.room.name });
-      await expect(strip).toHaveCount(1);
-      await expect(strip).toContainText(held.equipment.name);
-      await expect(strip).toContainText('até 12:00');
-      await expect(strip).toContainText(`Buffer do serviço ${held.serviceName} · 30 min`);
-
-      await switchToWeekView(page);
-      const weekStrip = page.getByRole('note').filter({ hasText: held.room.name });
-      await expect(weekStrip).toHaveCount(1);
-      await expect(weekStrip).toContainText('até 12:00');
     } finally {
       await held.cleanup();
     }

@@ -6,27 +6,10 @@ const TENANT_SLUG = 'lavacar-beloauto';
 const STAFF_EMAIL = 'admin@lavacar.com.br';
 const SERVICE_COMPLETA_ID = '00000000-0000-7000-8003-000000000002';
 test.describe('staff booking lifecycle coverage', () => {
-  test('queue card body still opens booking detail', async ({ page }) => {
-    const setup = await createAuthenticatedBooking(page, {
-      tenantSlug: TENANT_SLUG,
-      emailPrefix: 'queue-detail',
-      daysAhead: 7,
-    });
-
-    await loginAsStaff(page, STAFF_EMAIL, TENANT_SLUG);
-    await page.goto('/dashboard/bookings');
-
-    await page.locator(`a[href="/dashboard/bookings/${setup.bookingId}"]`).click();
-
-    await expect(page).toHaveURL(`/dashboard/bookings/${setup.bookingId}`);
-    await expect(page.getByRole('button', { name: 'Aprovar' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Pedir info' })).toBeVisible();
-  });
-
   test('queue quick approve keeps the staff on the queue and removes the pending action', async ({
     page,
   }) => {
-    const setup = await createAuthenticatedBooking(page, {
+    const approveSetup = await createAuthenticatedBooking(page, {
       tenantSlug: TENANT_SLUG,
       emailPrefix: 'queue-approve',
       daysAhead: 8,
@@ -36,7 +19,7 @@ test.describe('staff booking lifecycle coverage', () => {
     await page.goto('/dashboard/bookings');
 
     const card = page
-      .locator(`a[href="/dashboard/bookings/${setup.bookingId}"]`)
+      .locator(`a[href="/dashboard/bookings/${approveSetup.bookingId}"]`)
       .locator('xpath=..');
     await expect(card.getByRole('button', { name: 'Aprovar' })).toBeVisible();
 
@@ -44,6 +27,23 @@ test.describe('staff booking lifecycle coverage', () => {
 
     await expect(page).toHaveURL('/dashboard/bookings');
     await expect(card.getByRole('button', { name: 'Aprovar' })).toHaveCount(0);
+
+    await test.step('queue card body still opens booking detail', async () => {
+      const setup = await createAuthenticatedBooking(page, {
+        tenantSlug: TENANT_SLUG,
+        emailPrefix: 'queue-detail',
+        daysAhead: 7,
+      });
+
+      await loginAsStaff(page, STAFF_EMAIL, TENANT_SLUG);
+      await page.goto('/dashboard/bookings');
+
+      await page.locator(`a[href="/dashboard/bookings/${setup.bookingId}"]`).click();
+
+      await expect(page).toHaveURL(`/dashboard/bookings/${setup.bookingId}`);
+      await expect(page.getByRole('button', { name: 'Aprovar' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Pedir info' })).toBeVisible();
+    });
   });
 
   test('reject happy path shows the inline rejection summary and the right-side action panel', async ({
@@ -96,27 +96,6 @@ test.describe('staff booking lifecycle coverage', () => {
     await expect(page.getByRole('button', { name: 'Aprovar' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Rejeitar' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Pedir info' })).toHaveCount(0);
-  });
-
-  test('complete success shows the centered summary and the right-side action panel', async ({
-    page,
-  }) => {
-    const setup = await createFreshApprovedBooking(page, 9, STAFF_EMAIL);
-
-    await page.goto(`/dashboard/bookings/${setup.bookingId}/complete`);
-
-    await expect(page.getByRole('button', { name: 'Confirmar conclusão' })).toBeVisible();
-    await expect(page.getByTestId('complete-line-name').first()).toContainText('Lavagem Simples');
-    await expect(page.getByTestId('complete-summary-quoted')).toBeVisible();
-    await expect(page.getByTestId('complete-summary-charged')).toBeVisible();
-
-    await page.getByRole('button', { name: 'Confirmar conclusão' }).click();
-
-    await expect(page.getByTestId('outcome-banner-title')).toBeVisible();
-    await expect(
-      page.locator('main aside').getByRole('link', { name: 'Voltar à agenda' }),
-    ).toBeVisible();
-    await expect(page.getByTestId('complete-email-summary')).toBeVisible();
   });
 
   test('complete loyalty flow earns points on one booking and redeems them on the next', async ({
@@ -182,6 +161,8 @@ test.describe('staff booking lifecycle coverage', () => {
     await page.goto(`/dashboard/bookings/${redeemSetup.bookingId}`);
 
     await expect(page.getByTestId('booking-completed-title')).toBeVisible();
+    await expect(page.getByTestId('complete-summary-quoted')).toBeVisible();
+    await expect(page.getByTestId('complete-summary-charged')).toBeVisible();
     await expect(page.getByTestId('complete-summary-charged')).toHaveText(
       'Total cobrado: R$ 149,00',
     );
@@ -189,6 +170,25 @@ test.describe('staff booking lifecycle coverage', () => {
       'Desconto fidelidade: -R$ 1,00',
     );
     await expect(page.getByRole('link', { name: 'Voltar à agenda' })).toBeVisible();
+
+    await test.step('complete success shows the centered summary and the right-side action panel', async () => {
+      const setup = await createFreshApprovedBooking(page, 9, STAFF_EMAIL);
+
+      await page.goto(`/dashboard/bookings/${setup.bookingId}/complete`);
+
+      await expect(page.getByRole('button', { name: 'Confirmar conclusão' })).toBeVisible();
+      await expect(page.getByTestId('complete-line-name').first()).toContainText('Lavagem Simples');
+      await expect(page.getByTestId('complete-summary-quoted')).toBeVisible();
+      await expect(page.getByTestId('complete-summary-charged')).toBeVisible();
+
+      await page.getByRole('button', { name: 'Confirmar conclusão' }).click();
+
+      await expect(page.getByTestId('outcome-banner-title')).toBeVisible();
+      await expect(
+        page.locator('main aside').getByRole('link', { name: 'Voltar à agenda' }),
+      ).toBeVisible();
+      await expect(page.getByTestId('complete-email-summary')).toBeVisible();
+    });
   });
 
   test('reschedule success shows a full De/Para summary and the action panel on the right', async ({

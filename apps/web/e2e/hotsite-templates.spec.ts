@@ -196,47 +196,46 @@ test.describe.serial('hotsite template compositions (MANAGER)', () => {
         }
         await expectNoHorizontalOverflow(page);
       });
-    });
-  }
 
-  for (const name of ['casa47', 'clinica-lume'] as const) {
-    test(`${name}: navigation links on desktop, a keyboard-operable menu on mobile, one header`, async ({
-      page,
-    }) => {
-      const fixture = await applyTemplateFixture(page, name);
-      const items = (fixture.layout[0].data.items ?? []) as { label: string; target: string }[];
-      expect(items.length).toBeGreaterThan(0);
+      // The two compositions that carry a NAVIGATION module also prove its desktop links, its
+      // keyboard-operable mobile menu and the single header, on the fixture applied above.
+      if (name === 'casa47' || name === 'clinica-lume') {
+        await test.step(`${name}: navigation links on desktop, a keyboard-operable menu on mobile, one header`, async () => {
+          const items = (fixture.layout[0].data.items ?? []) as { label: string; target: string }[];
+          expect(items.length).toBeGreaterThan(0);
 
-      await openPublicHotsite(page, DESKTOP);
-      await expect(page.locator('header')).toHaveCount(1);
-      const desktopNav = page.getByTestId('hotsite-navigation');
-      await expect(desktopNav).toBeVisible();
-      for (const item of items) {
-        await expect(desktopNav.getByRole('link', { name: item.label })).toHaveAttribute(
-          'href',
-          `/${SLUG}#${item.target}`,
-        );
+          await openPublicHotsite(page, DESKTOP);
+          await expect(page.locator('header')).toHaveCount(1);
+          const desktopNav = page.getByTestId('hotsite-navigation');
+          await expect(desktopNav).toBeVisible();
+          for (const item of items) {
+            await expect(desktopNav.getByRole('link', { name: item.label })).toHaveAttribute(
+              'href',
+              `/${SLUG}#${item.target}`,
+            );
+          }
+          await expect(page.getByTestId('hotsite-navigation-menu')).toBeHidden();
+
+          await page.setViewportSize(MOBILE);
+          await expect(desktopNav).toBeHidden();
+          const menu = page.getByTestId('hotsite-navigation-menu');
+          await expect(menu).toBeVisible();
+
+          const summary = menu.locator('summary');
+          await summary.focus();
+          await page.keyboard.press('Enter');
+          await expect(menu.getByRole('link', { name: items[0].label })).toBeVisible();
+
+          await page.keyboard.press('Escape');
+          await expect(menu.getByRole('link', { name: items[0].label })).toBeHidden();
+
+          await summary.focus();
+          await page.keyboard.press('Enter');
+          await menu.getByRole('link', { name: items[1].label }).click();
+          await expect(page).toHaveURL(new RegExp(`#${items[1].target}$`));
+          await expect(menu.getByRole('link', { name: items[1].label })).toBeHidden();
+        });
       }
-      await expect(page.getByTestId('hotsite-navigation-menu')).toBeHidden();
-
-      await page.setViewportSize(MOBILE);
-      await expect(desktopNav).toBeHidden();
-      const menu = page.getByTestId('hotsite-navigation-menu');
-      await expect(menu).toBeVisible();
-
-      const summary = menu.locator('summary');
-      await summary.focus();
-      await page.keyboard.press('Enter');
-      await expect(menu.getByRole('link', { name: items[0].label })).toBeVisible();
-
-      await page.keyboard.press('Escape');
-      await expect(menu.getByRole('link', { name: items[0].label })).toBeHidden();
-
-      await summary.focus();
-      await page.keyboard.press('Enter');
-      await menu.getByRole('link', { name: items[1].label }).click();
-      await expect(page).toHaveURL(new RegExp(`#${items[1].target}$`));
-      await expect(menu.getByRole('link', { name: items[1].label })).toBeHidden();
     });
   }
 

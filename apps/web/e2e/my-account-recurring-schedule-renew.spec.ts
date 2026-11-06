@@ -52,34 +52,21 @@ test.describe('customer my-account: renewing a recurring reservation (M23-S22, U
       await expect(customer.page.getByTestId('new-schedule-ends-on')).toContainText(
         'Escolher data',
       );
-    } finally {
-      await customer.close();
-    }
-  });
 
-  test('the customer picks an end date, confirms, and the renewal is a new schedule beside the old one', async ({
-    page,
-    browser,
-  }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
-    const service = await seedRecurrenceEligibleService(page);
-    const customer = await newLoggedInCustomerPage(browser);
+      // Confirming creates the renewal, so it runs after the pre-filled form above has been read.
+      await test.step('the customer picks an end date, confirms, and the renewal is a new schedule beside the old one', async () => {
+        await customer.page.goto(`${NEW_SCHEDULE_PATH}?renewFrom=${schedule.id}`);
+        await customer.page.getByTestId('new-schedule-ends-on').click();
+        await pickCalendarDay(customer.page, tenantDate(RENEWAL_STARTS_IN + 13));
 
-    try {
-      const schedule = await createRecurringScheduleViaApi(customer.page, service.serviceId);
-      await markScheduleEnded(schedule.id);
+        await desktopPane(customer.page).getByTestId('new-schedule-review').click();
+        await desktopPane(customer.page).getByTestId('new-schedule-confirm').click();
 
-      await customer.page.goto(`${NEW_SCHEDULE_PATH}?renewFrom=${schedule.id}`);
-      await customer.page.getByTestId('new-schedule-ends-on').click();
-      await pickCalendarDay(customer.page, tenantDate(RENEWAL_STARTS_IN + 13));
-
-      await desktopPane(customer.page).getByTestId('new-schedule-review').click();
-      await desktopPane(customer.page).getByTestId('new-schedule-confirm').click();
-
-      await expect(customer.page.getByTestId('new-schedule-created')).toBeVisible();
-      const schedules = await listMySchedules(customer.page);
-      expect(schedules).toHaveLength(2);
-      expect(schedules.find((item) => item.id === schedule.id)?.status).toBe('ENDED');
+        await expect(customer.page.getByTestId('new-schedule-created')).toBeVisible();
+        const schedules = await listMySchedules(customer.page);
+        expect(schedules).toHaveLength(2);
+        expect(schedules.find((item) => item.id === schedule.id)?.status).toBe('ENDED');
+      });
     } finally {
       await customer.close();
     }

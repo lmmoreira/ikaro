@@ -226,6 +226,7 @@ describe('resolveBookingSubmitErrorRoute', () => {
       BookingErrorCode.OUTSIDE_BUSINESS_HOURS,
       'O horário solicitado está fora do horário de funcionamento.',
     ],
+    [BookingErrorCode.SERVICE_NOT_ACTIVE, 'Este serviço não está ativo no momento.'],
   ])('resolves the catalogue message of %s', (code, message) => {
     expect(resolveBookingSubmitErrorRoute(problem(code), 'pt-BR').message).toBe(message);
   });
@@ -250,6 +251,19 @@ describe('resolveBookingSubmitErrorRoute', () => {
       message: 'Algo deu errado. Tente novamente.',
       code: undefined,
     });
+  });
+
+  it('falls back to Confirmation with the generic message for a server error without a body', () => {
+    const route = resolveBookingSubmitErrorRoute(
+      new ApiError(500, 'Internal server error'),
+      'pt-BR',
+    );
+
+    expect(route).toMatchObject({
+      target: 'confirmation',
+      message: 'Algo deu errado. Tente novamente.',
+    });
+    expect(route.code).toBeUndefined();
   });
 });
 

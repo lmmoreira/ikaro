@@ -13,7 +13,6 @@ import {
   requestUrl,
 } from './helpers/recurring-approval';
 import {
-  approveScheduleViaApi,
   listMySchedules,
   seedRecurrenceEligibleService,
   seedRecurringBundle,
@@ -35,6 +34,13 @@ test.describe('staff agenda: recurring-schedule requests (M23-S13, UC-071)', () 
     const { id } = request.schedule;
 
     try {
+      // Runs first: the route is only pending until the decision below.
+      await test.step('opens the approval route directly while pending', async () => {
+        await page.goto(requestUrl(id));
+        await expect(page.getByTestId('recurring-hold-banner')).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Aprovar recorrência' })).toBeEnabled();
+      });
+
       await openRequestFromAgenda(page, id);
       await expect(page.getByTestId('recurring-hold-banner')).toContainText('Decidir até');
       await expect(page.getByTestId('recurring-status-badge')).toContainText('Pendente');
@@ -53,6 +59,15 @@ test.describe('staff agenda: recurring-schedule requests (M23-S13, UC-071)', () 
 
       const mine = (await listMySchedules(request.customerPage)).find((s) => s.id === id);
       expect(mine?.status).toBe('ACTIVE');
+
+      await test.step('opens the approval route directly once decided (read-only)', async () => {
+        await page.goto(requestUrl(id));
+        // The same route now shows a decided request: its status, no deadline and no way to decide.
+        await expect(page.getByTestId('recurring-status-badge')).toContainText('Ativa');
+        await expect(page.getByTestId('recurring-hold-banner')).toHaveCount(0);
+        await expect(page.getByRole('button', { name: /Aprovar|Recusar/ })).toHaveCount(0);
+        await expect(page.getByTestId('recurring-settled-note')).toBeVisible();
+      });
     } finally {
       await endApprovedSchedule(request, id).catch(() => undefined);
       await request.close();
@@ -70,6 +85,9 @@ test.describe('staff agenda: recurring-schedule requests (M23-S13, UC-071)', () 
       resourceSelections: [{ resourceType: 'STAFF', resourceId: staff.id }],
     });
     const { id } = request.schedule;
+    // The reviewer for the STAFF-role step below: a plain STAFF user in a context of their own.
+    const staffContext = await browser.newContext();
+    const staffPage = await staffContext.newPage();
 
     try {
       await openRequestFromAgenda(page, id);
@@ -78,41 +96,26 @@ test.describe('staff agenda: recurring-schedule requests (M23-S13, UC-071)', () 
       await expect(rows).toContainText(staff.name);
       await expect(rows).toContainText('Resolvido a cada ocorrência');
 
+      // Runs before the decision: a decided request offers no buttons to enable. The manager's
+      // page above is untouched.
+      await test.step('a STAFF member (not a manager) sees the picked resource names and can decide', async () => {
+        const picked = bundle.staffs[0]!;
+        await loginAsStaff(staffPage, STAFF_EMAIL, TENANT_SLUG);
+        await staffPage.goto(requestUrl(id));
+
+        await expect(staffPage.getByTestId('recurring-request-rows')).toContainText(picked.name);
+        await expect(staffPage.getByRole('button', { name: 'Aprovar recorrência' })).toBeEnabled();
+        await expect(staffPage.getByRole('button', { name: 'Recusar', exact: true })).toBeEnabled();
+      });
+
       await decide(page, 'approve');
 
       await expect(page.getByTestId(/^recurring-outcome-approved/)).toBeVisible();
       const mine = (await listMySchedules(request.customerPage)).find((s) => s.id === id);
       expect(mine?.status).toBe('ACTIVE');
     } finally {
+      await staffContext.close();
       await endApprovedSchedule(request, id).catch(() => undefined);
-      await request.close();
-    }
-  });
-
-  test('rejects a request with no reason and the request leaves the queue', async ({
-    page,
-    browser,
-  }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
-    const service = await seedRecurrenceEligibleService(page, { approvalMode: 'MANUAL_APPROVAL' });
-    const request = await createPendingRequest(browser, service.serviceId);
-    const { id } = request.schedule;
-
-    try {
-      await openRequestFromAgenda(page, id);
-
-      await page.getByRole('button', { name: 'Recusar', exact: true }).click();
-      // No reason to type: the endpoint takes no body.
-      await expect(page.getByRole('dialog').getByRole('textbox')).toHaveCount(0);
-      await page.getByRole('dialog').getByRole('button', { name: 'Confirmar recusa' }).click();
-
-      await expect(page.getByTestId('recurring-outcome-rejected')).toBeVisible();
-      await expect(page.getByTestId('recurring-status-badge')).toContainText('Cancelada');
-
-      await page.goto(AGENDA_URL);
-      await expect(page.getByTestId('week-nav')).toBeVisible();
-      await expect(recurringCard(page, id)).toHaveCount(0);
-    } finally {
       await request.close();
     }
   });
@@ -144,65 +147,25 @@ test.describe('staff agenda: recurring-schedule requests (M23-S13, UC-071)', () 
       await page.getByRole('button', { name: 'Limpar filtro' }).click();
       await expect(page.getByTestId('agenda-all-hidden')).toHaveCount(0);
       await expect(recurringCard(page, id)).toBeVisible();
+
+      // Rejecting ends the request, so it runs after the filter has been exercised on its card.
+      await test.step('rejects a request with no reason and the request leaves the queue', async () => {
+        await openRequestFromAgenda(page, id);
+
+        await page.getByRole('button', { name: 'Recusar', exact: true }).click();
+        // No reason to type: the endpoint takes no body.
+        await expect(page.getByRole('dialog').getByRole('textbox')).toHaveCount(0);
+        await page.getByRole('dialog').getByRole('button', { name: 'Confirmar recusa' }).click();
+
+        await expect(page.getByTestId('recurring-outcome-rejected')).toBeVisible();
+        await expect(page.getByTestId('recurring-status-badge')).toContainText('Cancelada');
+
+        await page.goto(AGENDA_URL);
+        await expect(page.getByTestId('week-nav')).toBeVisible();
+        await expect(recurringCard(page, id)).toHaveCount(0);
+      });
     } finally {
       await rejectRequestViaApi(page, id).catch(() => undefined);
-      await request.close();
-    }
-  });
-
-  test('a STAFF member (not a manager) sees the picked resource names and can decide', async ({
-    page,
-    browser,
-  }) => {
-    // Seeding needs a manager; the reviewer is a plain STAFF user, who cannot read /resources.
-    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
-    const bundle = await seedRecurringBundle(page, { approvalMode: 'MANUAL_APPROVAL' });
-    const picked = bundle.staffs[0]!;
-    const request = await createPendingRequest(browser, bundle.service.serviceId, {
-      resourceSelections: [{ resourceType: 'STAFF', resourceId: picked.id }],
-    });
-    const { id } = request.schedule;
-    const staffContext = await browser.newContext();
-    const staffPage = await staffContext.newPage();
-
-    try {
-      await loginAsStaff(staffPage, STAFF_EMAIL, TENANT_SLUG);
-      await staffPage.goto(requestUrl(id));
-
-      await expect(staffPage.getByTestId('recurring-request-rows')).toContainText(picked.name);
-      await expect(staffPage.getByRole('button', { name: 'Aprovar recorrência' })).toBeEnabled();
-      await expect(staffPage.getByRole('button', { name: 'Recusar', exact: true })).toBeEnabled();
-    } finally {
-      await staffContext.close();
-      await rejectRequestViaApi(page, id).catch(() => undefined);
-      await request.close();
-    }
-  });
-
-  test('opens the approval route directly, pending and then decided (read-only)', async ({
-    page,
-    browser,
-  }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
-    const service = await seedRecurrenceEligibleService(page, { approvalMode: 'MANUAL_APPROVAL' });
-    const request = await createPendingRequest(browser, service.serviceId);
-    const { id } = request.schedule;
-
-    try {
-      await page.goto(requestUrl(id));
-      await expect(page.getByTestId('recurring-hold-banner')).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Aprovar recorrência' })).toBeEnabled();
-
-      await approveScheduleViaApi(page, id);
-
-      // The same route now shows a decided request: its status, no deadline and no way to decide.
-      await page.goto(requestUrl(id));
-      await expect(page.getByTestId('recurring-status-badge')).toContainText('Ativa');
-      await expect(page.getByTestId('recurring-hold-banner')).toHaveCount(0);
-      await expect(page.getByRole('button', { name: /Aprovar|Recusar/ })).toHaveCount(0);
-      await expect(page.getByTestId('recurring-settled-note')).toBeVisible();
-    } finally {
-      await endApprovedSchedule(request, id).catch(() => undefined);
       await request.close();
     }
   });

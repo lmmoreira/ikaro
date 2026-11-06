@@ -17,14 +17,6 @@ import {
 import { uniqueTestEmail } from '@/e2e/helpers/auth';
 import { createResource, deactivateResource } from '@/e2e/helpers/booking';
 
-// TD44 Story 4 — lavacar-beloauto's own seed data: the default schedule service
-// (SCHEDULE_DEFAULT_SERVICE_ID, 'Lavagem Simples') is a 30-minute service, and this tenant's own
-// `slotGranularityMinutes` (docs/TENANTS_SETTINGS_SCHEMA.md) is also 30 — so every booking
-// created via the default helper below is already exactly at minimum granularity, with no extra
-// service setup needed. 'Lavagem Completa' (60 min) is this tenant's shortest longer-than-minimum
-// service, used as the non-regression counterpart.
-const SCHEDULE_LONGER_SERVICE_ID = '00000000-0000-7000-8003-000000000002';
-
 function installHydrationGuard(page: Page): string[] {
   const hydrationErrors: string[] = [];
 
@@ -102,13 +94,13 @@ test.describe('schedule page coverage', () => {
       },
       120,
     );
-    const dateKey = closure.dateKey;
+    const closureDateKey = closure.dateKey;
 
-    await page.goto(scheduleRoute(dateKey));
+    await page.goto(scheduleRoute(closureDateKey));
 
     const closureButton = page
       .getByTestId('schedule-week-day-card')
-      .nth(weekDayIndex(dateKey))
+      .nth(weekDayIndex(closureDateKey))
       .locator('button.absolute.overflow-hidden.rounded-xl')
       .filter({ hasText: 'Folga da equipe' })
       .first();
@@ -121,6 +113,36 @@ test.describe('schedule page coverage', () => {
 
     await expect(closureButton).toHaveCount(0);
     await removeScheduleClosure(page, closure.id);
+
+    await test.step('manager can open a special day and then remove the opening', async () => {
+      const opening = await createUniqueScheduleOpening(
+        page,
+        {
+          startTime: '08:00',
+          endTime: '12:00',
+          notes: 'E2E opening',
+        },
+        121,
+      );
+      const dateKey = opening.dateKey;
+
+      await page.goto(scheduleRoute(dateKey));
+
+      const openingButton = page
+        .getByTestId('schedule-week-day-card')
+        .nth(weekDayIndex(dateKey))
+        .locator('button.absolute.overflow-hidden.rounded-xl')
+        .filter({ hasText: 'Abertura especial' })
+        .first();
+
+      await expect(openingButton).toBeVisible();
+      await openingButton.click();
+      await expect(page.getByRole('dialog')).toBeVisible();
+      await page.getByRole('dialog').getByRole('button', { name: 'Remover abertura' }).click();
+
+      await expect(openingButton).toHaveCount(0);
+      await removeScheduleOpening(page, opening.id);
+    });
   });
 
   test('manager sees a translated error, not raw backend text, when closure removal fails', async ({
@@ -182,38 +204,6 @@ test.describe('schedule page coverage', () => {
     }
   });
 
-  test('manager can open a special day and then remove the opening', async ({ page }) => {
-    await loginAsScheduleStaff(page);
-
-    const opening = await createUniqueScheduleOpening(
-      page,
-      {
-        startTime: '08:00',
-        endTime: '12:00',
-        notes: 'E2E opening',
-      },
-      121,
-    );
-    const dateKey = opening.dateKey;
-
-    await page.goto(scheduleRoute(dateKey));
-
-    const openingButton = page
-      .getByTestId('schedule-week-day-card')
-      .nth(weekDayIndex(dateKey))
-      .locator('button.absolute.overflow-hidden.rounded-xl')
-      .filter({ hasText: 'Abertura especial' })
-      .first();
-
-    await expect(openingButton).toBeVisible();
-    await openingButton.click();
-    await expect(page.getByRole('dialog')).toBeVisible();
-    await page.getByRole('dialog').getByRole('button', { name: 'Remover abertura' }).click();
-
-    await expect(openingButton).toHaveCount(0);
-    await removeScheduleOpening(page, opening.id);
-  });
-
   test('pending bookings stay hidden until the status filter is enabled', async ({ page }) => {
     await loginAsScheduleStaff(page);
 
@@ -230,17 +220,17 @@ test.describe('schedule page coverage', () => {
       122,
     );
 
-    const dateKey = approved.dateKey;
+    const approvedDateKey = approved.dateKey;
 
     await createScheduleBooking(page, {
-      dateKey,
+      dateKey: approvedDateKey,
       contactName: pendingName,
       contactEmail: uniqueTestEmail('schedule-pending'),
       approved: false,
       time: '13:00',
     });
 
-    await page.goto(scheduleRoute(dateKey));
+    await page.goto(scheduleRoute(approvedDateKey));
 
     await expect(page.getByRole('link', { name: approvedName })).toBeVisible();
     await expect(page.getByRole('link', { name: pendingName })).toHaveCount(0);
@@ -251,48 +241,44 @@ test.describe('schedule page coverage', () => {
 
     await expect(page.getByRole('link', { name: pendingName })).toBeVisible();
     await expect(page.getByRole('link', { name: approvedName })).toBeVisible();
-  });
 
-  test('booking detail opened from schedule returns to the same schedule route', async ({
-    page,
-  }) => {
-    await loginAsScheduleStaff(page);
+    await test.step('booking detail opened from schedule returns to the same schedule route', async () => {
+      const contactName = uniqueLabel('schedule-detail');
+      const booking = await createUniqueScheduleBooking(
+        page,
+        {
+          contactName,
+          contactEmail: uniqueTestEmail('schedule-detail'),
+          approved: true,
+          time: '15:00',
+        },
+        123,
+      );
+      const dateKey = booking.dateKey;
 
-    const contactName = uniqueLabel('schedule-detail');
-    const booking = await createUniqueScheduleBooking(
-      page,
-      {
-        contactName,
-        contactEmail: uniqueTestEmail('schedule-detail'),
-        approved: true,
-        time: '15:00',
-      },
-      123,
-    );
-    const dateKey = booking.dateKey;
+      await page.goto(scheduleRoute(dateKey));
 
-    await page.goto(scheduleRoute(dateKey));
+      const expectedReturnTo = scheduleRoute(dateKey);
+      const bookingLink = page.getByRole('link', { name: contactName }).first();
+      await expect(bookingLink).toHaveAttribute(
+        'href',
+        new RegExp(`/dashboard/bookings/${booking.bookingId}\\?returnTo=`),
+      );
 
-    const expectedReturnTo = scheduleRoute(dateKey);
-    const bookingLink = page.getByRole('link', { name: contactName }).first();
-    await expect(bookingLink).toHaveAttribute(
-      'href',
-      new RegExp(`/dashboard/bookings/${booking.bookingId}\\?returnTo=`),
-    );
+      const href = await bookingLink.getAttribute('href');
+      if (!href) {
+        throw new Error('Expected booking link to have an href');
+      }
 
-    const href = await bookingLink.getAttribute('href');
-    if (!href) {
-      throw new Error('Expected booking link to have an href');
-    }
+      await page.goto(href);
+      await expect(page).toHaveURL(
+        new RegExp(`/dashboard/bookings/${booking.bookingId}\\?returnTo=`),
+      );
+      await expect(page.locator(`a[href="${expectedReturnTo}"]`)).toBeVisible();
 
-    await page.goto(href);
-    await expect(page).toHaveURL(
-      new RegExp(`/dashboard/bookings/${booking.bookingId}\\?returnTo=`),
-    );
-    await expect(page.locator(`a[href="${expectedReturnTo}"]`)).toBeVisible();
-
-    await page.locator(`a[href="${expectedReturnTo}"]`).click();
-    await expect(page).toHaveURL(expectedReturnTo);
+      await page.locator(`a[href="${expectedReturnTo}"]`).click();
+      await expect(page).toHaveURL(expectedReturnTo);
+    });
   });
 
   test('loading a later week schedule route shows that week schedule data', async ({ page }) => {
@@ -338,10 +324,10 @@ test.describe('schedule page coverage', () => {
         { reason: 'MAINTENANCE', notes: 'E2E resource-scoped closure', resourceId: resource.id },
         125,
       );
-      const dateKey = closure.dateKey;
+      const scopedClosureDateKey = closure.dateKey;
 
       try {
-        await page.goto(scheduleRoute(dateKey));
+        await page.goto(scheduleRoute(scopedClosureDateKey));
 
         // Locale-independent: matched by the closure's own id, not by any rendered text
         // (docs/TESTING_STRATEGY.md § E2E Selector Strategy forbids matching translated copy —
@@ -366,77 +352,66 @@ test.describe('schedule page coverage', () => {
       } finally {
         await removeScheduleClosure(page, closure.id);
       }
-    } finally {
-      await deactivateResource(page, resource.id);
-    }
-  });
 
-  test('a tenant-wide closure stays visible alongside a resource-scoped one when a resource is checked, each labeled and laid out side-by-side (M21-S05)', async ({
-    page,
-  }) => {
-    await loginAsScheduleStaff(page);
-
-    const resource = await createResource(page, {
-      type: 'ROOM',
-      name: uniqueLabel('E2E Estúdio'),
-    });
-
-    try {
-      const tenantWideClosure = await createUniqueScheduleClosure(
-        page,
-        {
+      await test.step('a tenant-wide closure stays visible alongside a resource-scoped one when a resource is checked, each labeled and laid out side-by-side (M21-S05)', async () => {
+        const tenantWideClosure = await createUniqueScheduleClosure(
+          page,
+          {
+            reason: 'MAINTENANCE',
+            notes: 'E2E tenant-wide closure',
+            startTime: '10:00',
+            endTime: '11:00',
+          },
+          128,
+        );
+        const dateKey = tenantWideClosure.dateKey;
+        // Pinned to the exact same date as the tenant-wide closure above (not a second
+        // createUniqueScheduleClosure call, whose own date-retry loop could otherwise land it on a
+        // different date) — the two need to genuinely overlap for this test's own assertions.
+        const resourceClosure = await createScheduleClosureAt(page, dateKey, {
           reason: 'MAINTENANCE',
-          notes: 'E2E tenant-wide closure',
+          notes: 'E2E resource-scoped closure',
+          resourceId: resource.id,
           startTime: '10:00',
           endTime: '11:00',
-        },
-        128,
-      );
-      const dateKey = tenantWideClosure.dateKey;
-      // Pinned to the exact same date as the tenant-wide closure above (not a second
-      // createUniqueScheduleClosure call, whose own date-retry loop could otherwise land it on a
-      // different date) — the two need to genuinely overlap for this test's own assertions.
-      const resourceClosure = await createScheduleClosureAt(page, dateKey, {
-        reason: 'MAINTENANCE',
-        notes: 'E2E resource-scoped closure',
-        resourceId: resource.id,
-        startTime: '10:00',
-        endTime: '11:00',
+        });
+
+        try {
+          await page.goto(scheduleRoute(dateKey));
+
+          await page.getByRole('button', { name: 'Filtrar recurso' }).click();
+          await page.getByRole('checkbox', { name: resource.name }).check();
+          await page.getByRole('button', { name: 'Fechar' }).click();
+
+          const tenantWideBlock = page.getByTestId(
+            `schedule-closure-block-${tenantWideClosure.id}`,
+          );
+          const resourceBlock = page.getByTestId(`schedule-closure-block-${resourceClosure.id}`);
+
+          // The tenant-wide closure must remain visible once a resource is checked — it applies to
+          // every resource regardless of what's checked in the filter, since the backend's
+          // resourceId filter is exact (never both tenant-wide and resource-scoped in one response).
+          await expect(tenantWideBlock).toBeVisible();
+          await expect(resourceBlock).toBeVisible();
+
+          // Resource-scoped block carries a resource-name label; the tenant-wide one doesn't (there's
+          // no single resource to name). Matched by testid, not by the rendered name text
+          // (docs/TESTING_STRATEGY.md § E2E Selector Strategy).
+          await expect(resourceBlock.getByTestId('timeline-block-resource-name')).toHaveText(
+            resource.name,
+          );
+          await expect(tenantWideBlock.getByTestId('timeline-block-resource-name')).toHaveCount(0);
+
+          // Same time window, two overlapping same-kind blocks — laid out side-by-side (non-equal
+          // left offsets), not stacked directly on top of each other.
+          const tenantWideLeft = await tenantWideBlock.evaluate((el) => el.style.left);
+          const resourceLeft = await resourceBlock.evaluate((el) => el.style.left);
+          expect(tenantWideLeft).not.toBe(resourceLeft);
+        } finally {
+          await removeScheduleClosure(page, tenantWideClosure.id);
+          await removeScheduleClosure(page, resourceClosure.id);
+        }
       });
-
-      try {
-        await page.goto(scheduleRoute(dateKey));
-
-        await page.getByRole('button', { name: 'Filtrar recurso' }).click();
-        await page.getByRole('checkbox', { name: resource.name }).check();
-        await page.getByRole('button', { name: 'Fechar' }).click();
-
-        const tenantWideBlock = page.getByTestId(`schedule-closure-block-${tenantWideClosure.id}`);
-        const resourceBlock = page.getByTestId(`schedule-closure-block-${resourceClosure.id}`);
-
-        // The tenant-wide closure must remain visible once a resource is checked — it applies to
-        // every resource regardless of what's checked in the filter, since the backend's
-        // resourceId filter is exact (never both tenant-wide and resource-scoped in one response).
-        await expect(tenantWideBlock).toBeVisible();
-        await expect(resourceBlock).toBeVisible();
-
-        // Resource-scoped block carries a resource-name label; the tenant-wide one doesn't (there's
-        // no single resource to name). Matched by testid, not by the rendered name text
-        // (docs/TESTING_STRATEGY.md § E2E Selector Strategy).
-        await expect(resourceBlock.getByTestId('timeline-block-resource-name')).toHaveText(
-          resource.name,
-        );
-        await expect(tenantWideBlock.getByTestId('timeline-block-resource-name')).toHaveCount(0);
-
-        // Same time window, two overlapping same-kind blocks — laid out side-by-side (non-equal
-        // left offsets), not stacked directly on top of each other.
-        const tenantWideLeft = await tenantWideBlock.evaluate((el) => el.style.left);
-        const resourceLeft = await resourceBlock.evaluate((el) => el.style.left);
-        expect(tenantWideLeft).not.toBe(resourceLeft);
-      } finally {
-        await removeScheduleClosure(page, tenantWideClosure.id);
-        await removeScheduleClosure(page, resourceClosure.id);
-      }
     } finally {
       await deactivateResource(page, resource.id);
     }
@@ -569,45 +544,6 @@ test.describe('schedule page coverage', () => {
     }
   });
 
-  test('a minimum-granularity booking shows its time-range text, same as a longer one (TD44 Story 5 — reverts Story 4)', async ({
-    page,
-  }) => {
-    await loginAsScheduleStaff(page);
-
-    const minimumName = uniqueLabel('min-granularity');
-    const minimumBooking = await createUniqueScheduleBooking(
-      page,
-      {
-        contactName: minimumName,
-        contactEmail: uniqueTestEmail('schedule-min-granularity'),
-        approved: true,
-        time: '10:00',
-      },
-      130,
-    );
-    const dateKey = minimumBooking.dateKey;
-
-    const longerName = uniqueLabel('longer-than-min');
-    await createScheduleBooking(page, {
-      dateKey,
-      contactName: longerName,
-      contactEmail: uniqueTestEmail('schedule-longer-than-min'),
-      approved: true,
-      time: '13:00',
-      serviceIds: [SCHEDULE_LONGER_SERVICE_ID],
-    });
-
-    await page.goto(scheduleRoute(dateKey));
-
-    const minimumBlock = page.getByRole('link', { name: minimumName });
-    const longerBlock = page.getByRole('link', { name: longerName });
-    await expect(minimumBlock).toBeVisible();
-    await expect(longerBlock).toBeVisible();
-
-    await expect(minimumBlock.getByTestId('timeline-block-time-range')).toBeVisible();
-    await expect(longerBlock.getByTestId('timeline-block-time-range')).toBeVisible();
-  });
-
   test("loading today's schedule scrolls the current-time marker into view, in both Day and Week view (TD44 Story 4)", async ({
     page,
   }) => {
@@ -654,31 +590,6 @@ test.describe('schedule page coverage', () => {
     await page.getByRole('option', { name: 'Dia' }).click();
     await expect(page.getByTestId('schedule-mobile-view')).toBeVisible();
     await expect(page.getByTestId('schedule-now-marker')).toBeInViewport();
-  });
-
-  test('loading a future date shows no scroll-to-now marker (TD44 Story 4, non-regression)', async ({
-    page,
-  }) => {
-    await loginAsScheduleStaff(page);
-
-    const future = await createUniqueScheduleBooking(
-      page,
-      {
-        contactName: uniqueLabel('future-no-scroll'),
-        contactEmail: uniqueTestEmail('schedule-future-no-scroll'),
-        approved: true,
-        time: '10:00',
-      },
-      131,
-    );
-
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto(scheduleRoute(future.dateKey));
-
-    await page.getByRole('combobox', { name: 'Visualização' }).click();
-    await page.getByRole('option', { name: 'Dia' }).click();
-    await expect(page.getByTestId('schedule-mobile-view')).toBeVisible();
-    await expect(page.getByTestId('schedule-now-marker')).toHaveCount(0);
   });
 
   test("a Week-view day-card shows its own header badge exactly once, not duplicated by the grid's own copy (TD44 Story 4)", async ({

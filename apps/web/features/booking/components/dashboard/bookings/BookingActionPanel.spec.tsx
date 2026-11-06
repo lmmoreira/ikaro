@@ -125,6 +125,9 @@ describe('BookingActionPanel', () => {
       expect(button).toHaveAccessibleDescription(
         'Disponível após o término do atendimento (17:30).',
       );
+      expect(screen.getByTestId('no-show-hint')).toHaveTextContent(
+        'Disponível após o término do atendimento (17:30).',
+      );
       await userEvent.click(button);
       expect(onOpenNoShow).not.toHaveBeenCalled();
     });

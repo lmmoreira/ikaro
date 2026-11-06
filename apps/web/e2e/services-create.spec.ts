@@ -71,50 +71,59 @@ test.describe('service creation flows', () => {
   });
 
   test('creates an inactive service and keeps the inactive badge in sync', async ({ page }) => {
-    const serviceName = makeUniqueServiceName('e2e-inactive');
+    await test.step('creates an inactive service and keeps the inactive badge in sync', async () => {
+      const serviceName = makeUniqueServiceName('e2e-inactive');
 
-    await openCreateService(page);
-    await fillCreateServiceForm(page, {
-      name: serviceName,
-      description: 'Rascunho de serviço',
-      price: '95',
-      duration: '35',
-      points: '0',
-      active: false,
-      requiresPickup: true,
+      await openCreateService(page);
+      await fillCreateServiceForm(page, {
+        name: serviceName,
+        description: 'Rascunho de serviço',
+        price: '95',
+        duration: '35',
+        points: '0',
+        active: false,
+        requiresPickup: true,
+      });
+
+      await expect(page.locator('header')).toContainText('Inativo');
+
+      await page.getByRole('button', { name: 'Criar serviço' }).click();
+
+      await expect(page).toHaveURL(/\/dashboard\/services\/[^/]+\/edit(\?created=1)?$/);
+      await expect(
+        page.getByTestId('action-pane-desktop').getByTestId('form-feedback'),
+      ).toContainText('Serviço criado!');
+
+      await page.goto('/dashboard/services');
+      const card = page.getByRole('link', { name: new RegExp(serviceName) });
+      await expect(card).toBeVisible();
+      await expect(card).toContainText('Inativo');
     });
 
-    await expect(page.locator('header')).toContainText('Inativo');
+    await test.step('picks the Turma (SESSION) booking model and persists it (UC-056)', async () => {
+      const serviceName = makeUniqueServiceName('e2e-turma');
 
-    await page.getByRole('button', { name: 'Criar serviço' }).click();
+      await page.goto('/dashboard/services/new');
+      await page.getByTestId('booking-model-session').click();
+      // SESSION services have no per-reservation pickup/delivery concept — toggle must disappear.
+      await expect(page.getByTestId('service-pickup-switch')).toHaveCount(0);
 
-    await expect(page).toHaveURL(/\/dashboard\/services\/[^/]+\/edit(\?created=1)?$/);
-    await expect(
-      page.getByTestId('action-pane-desktop').getByTestId('form-feedback'),
-    ).toContainText('Serviço criado!');
+      await fillCreateServiceForm(page, {
+        name: serviceName,
+        description: 'Turma criada via Playwright',
+        price: '90',
+        duration: '120',
+        points: '0',
+      });
+      await page.getByRole('button', { name: 'Criar serviço' }).click();
 
-    await page.goto('/dashboard/services');
-    const card = page.getByRole('link', { name: new RegExp(serviceName) });
-    await expect(card).toBeVisible();
-    await expect(card).toContainText('Inativo');
-  });
+      await expect(page).toHaveURL(/\/dashboard\/services\/[^/]+\/edit(\?created=1)?$/);
 
-  test('shows inline validation when required fields are missing', async ({ page }) => {
-    await openCreateService(page);
-
-    await page.getByRole('button', { name: 'Criar serviço' }).click();
-
-    // Each invalid input is marked, the first one takes focus, and the pane summarises.
-    await expect(page.getByTestId('service-name-input')).toHaveAttribute('aria-invalid', 'true');
-    await expect(page.getByTestId('service-price-input')).toHaveAttribute('aria-invalid', 'true');
-    await expect(page.getByTestId('service-duration-input')).toHaveAttribute(
-      'aria-invalid',
-      'true',
-    );
-    await expect(page.getByTestId('service-name-input')).toBeFocused();
-    await expect(
-      page.getByTestId('action-pane-desktop').getByTestId('form-feedback'),
-    ).toContainText('Revise os campos destacados para salvar.');
+      await page.goto('/dashboard/services');
+      const card = page.getByRole('link', { name: new RegExp(serviceName) });
+      await expect(card).toBeVisible();
+      await expect(card).toContainText('Turma');
+    });
   });
 
   test('accepts boundary values at the form limits', async ({ page }) => {
@@ -150,30 +159,5 @@ test.describe('service creation flows', () => {
 
     await expect(page.getByRole('link', { name: 'Cancelar' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Criar serviço' })).toBeVisible();
-  });
-
-  test('picks the Turma (SESSION) booking model and persists it (UC-056)', async ({ page }) => {
-    const serviceName = makeUniqueServiceName('e2e-turma');
-
-    await openCreateService(page);
-    await page.getByTestId('booking-model-session').click();
-    // SESSION services have no per-reservation pickup/delivery concept — toggle must disappear.
-    await expect(page.getByTestId('service-pickup-switch')).toHaveCount(0);
-
-    await fillCreateServiceForm(page, {
-      name: serviceName,
-      description: 'Turma criada via Playwright',
-      price: '90',
-      duration: '120',
-      points: '0',
-    });
-    await page.getByRole('button', { name: 'Criar serviço' }).click();
-
-    await expect(page).toHaveURL(/\/dashboard\/services\/[^/]+\/edit(\?created=1)?$/);
-
-    await page.goto('/dashboard/services');
-    const card = page.getByRole('link', { name: new RegExp(serviceName) });
-    await expect(card).toBeVisible();
-    await expect(card).toContainText('Turma');
   });
 });

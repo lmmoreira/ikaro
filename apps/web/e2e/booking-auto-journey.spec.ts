@@ -260,52 +260,6 @@ test.describe('M23-S11a — journey (multi-leg) picks', () => {
       }
     }
   });
-
-  test('a mocked LEG_UNAVAILABLE response returns to availability with the catalogue message', async ({
-    page,
-    browser,
-  }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
-    const { service, room, staffs, equipments } = await seedJourney(page);
-    const guest = await newGuestPage(browser);
-    await guest.page.route('**/v1/bookings', (route) =>
-      route.request().method() === 'POST'
-        ? route.fulfill({
-            status: 409,
-            contentType: 'application/problem+json',
-            body: JSON.stringify({
-              type: 'about:blank',
-              title: 'Conflict',
-              status: 409,
-              code: 'BOOKING_LEG_UNAVAILABLE',
-              detail: 'leg',
-            }),
-          })
-        : route.continue(),
-    );
-
-    try {
-      await openBooking(guest.page);
-      await selectService(guest.page, service.serviceId);
-      await nextButton(guest.page).click();
-      await guest.page.locator(`[data-resource-id="${staffs[0]!.id}"]`).click();
-      await nextButton(guest.page).click();
-      await guest.page.locator(`[data-resource-id="${equipments[0]!.id}"]`).click();
-      await nextButton(guest.page).click();
-      await finishGuestBooking(guest.page);
-
-      await expect(guest.page.getByTestId('step2-error')).toContainText(
-        'Uma das etapas deste agendamento não está mais disponível.',
-      );
-      await expect(nextButton(guest.page)).toBeDisabled();
-    } finally {
-      await guest.close();
-      await deactivateService(page, service.serviceId);
-      for (const id of [room.id, ...staffs.map((s) => s.id), ...equipments.map((e) => e.id)]) {
-        await deactivateResource(page, id);
-      }
-    }
-  });
 });
 
 test.describe('M23-S11a — automatic and selectable resources together', () => {

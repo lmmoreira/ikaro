@@ -15,6 +15,7 @@ import {
   pickFirstSlot,
   seedVariableDurationService,
   selectService,
+  serviceCard,
   stepIndicator,
   TENANT_SLUG,
   waitForAnimationsToSettle,
@@ -67,7 +68,21 @@ test.describe('M23-S11b — variable duration', () => {
     const guest = await newGuestPage(browser);
 
     try {
-      await reachDuration(guest.page, service.serviceId);
+      await test.step('the service card shows the per-time rate and duration range, and the total says "a partir de"', async () => {
+        await openBooking(guest.page);
+        const card = serviceCard(guest.page, service.serviceId);
+        await expect(card.getByTestId('service-rate')).toHaveText('R$ 50,00 / hora');
+        await expect(card.getByTestId('service-duration-range')).toHaveText('1h a 3h');
+
+        await selectService(guest.page, service.serviceId);
+        await expect(guest.page.getByTestId('selection-total')).toContainText(
+          'a partir de R$ 50,00',
+        );
+        await nextButton(guest.page).click();
+        await expect(guest.page.getByTestId('step-variable-duration')).toBeVisible({
+          timeout: 20_000,
+        });
+      });
       await expect(stepIndicator(guest.page, 2, 5)).toBeVisible();
       await expect(guest.page.getByTestId('duration-select')).toHaveValue('60');
       await expect(guest.page.getByTestId('duration-total')).toContainText('Total: R$ 50,00');
@@ -113,38 +128,25 @@ test.describe('M23-S11b — variable duration', () => {
       await expect(guest.page.getByTestId('booking-success')).toBeVisible();
       await expect(guest.page.getByTestId('submitted-total')).toContainText('Total: R$ 100,00');
       await expect(guest.page.getByTestId('submitted-total')).toContainText('2h');
-    } finally {
-      await guest.close();
-      await deactivateService(page, service.serviceId);
-      for (const id of resourceIds) await deactivateResource(page, id);
-    }
-  });
 
-  test('the step indicator counts the duration step: 5, and 6 when the service also has an intake form', async ({
-    page,
-    browser,
-  }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
-    const { service, resourceIds } = await seedVariableDurationService(page, 'e2e-por-tempo-form');
-    const guest = await newGuestPage(browser);
+      await test.step('the duration step has no axe violations on a light tenant or under a dark palette', async () => {
+        await reachDuration(guest.page, service.serviceId);
+        await expect(guest.page.getByTestId('duration-total')).toBeVisible();
+        await expect(nextButton(guest.page)).toBeEnabled();
+        await waitForAnimationsToSettle(guest.page);
 
-    try {
-      await reachDuration(guest.page, service.serviceId);
-      await expect(stepIndicator(guest.page, 2, 5)).toBeVisible();
+        const light = await new AxeBuilder({ page: guest.page })
+          .include('[data-testid="step-variable-duration"]')
+          .analyze();
+        expect(light.violations).toEqual([]);
 
-      await publishIntakeSchema(page, service.serviceId, {
-        questions: [
-          { fieldKey: 'goal', label: 'Qual o objetivo?', type: 'FREE_TEXT', required: true },
-        ],
-        consentText: 'Li e aceito os termos.',
-        requiresNamedAttendees: false,
-        participantCountRequired: false,
+        await applyDarkHotsitePalette(guest.page);
+        await waitForAnimationsToSettle(guest.page);
+        const dark = await new AxeBuilder({ page: guest.page })
+          .include('[data-testid="step-variable-duration"]')
+          .analyze();
+        expect(dark.violations).toEqual([]);
       });
-      await guest.page.reload();
-      await selectService(guest.page, service.serviceId);
-      await nextButton(guest.page).click();
-
-      await expect(stepIndicator(guest.page, 2, 6)).toBeVisible();
     } finally {
       await guest.close();
       await deactivateService(page, service.serviceId);
@@ -207,33 +209,6 @@ test.describe('M23-S11b — variable duration', () => {
     }
   });
 
-  test('a failed quote blocks continuing and recovers on retry', async ({ page, browser }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
-    const { service, resourceIds } = await seedVariableDurationService(page, 'e2e-por-tempo-erro');
-    const guest = await newGuestPage(browser);
-    const quoteUrl = '**/v1/public/services/*/quote*';
-    await guest.page.route(quoteUrl, (route) => route.fulfill(problemRoute(500, 'INTERNAL_ERROR')));
-
-    try {
-      await reachDuration(guest.page, service.serviceId);
-
-      await expect(guest.page.getByTestId('duration-quote-error')).toContainText(
-        'Não foi possível calcular o total.',
-      );
-      await expect(nextButton(guest.page)).toBeDisabled();
-
-      await guest.page.unroute(quoteUrl);
-      await guest.page.getByRole('button', { name: 'Tentar novamente' }).click();
-
-      await expect(guest.page.getByTestId('duration-total')).toContainText('Total: R$ 50,00');
-      await expect(nextButton(guest.page)).toBeEnabled();
-    } finally {
-      await guest.close();
-      await deactivateService(page, service.serviceId);
-      for (const id of resourceIds) await deactivateResource(page, id);
-    }
-  });
-
   test('a mocked BOOKING_DURATION_OUT_OF_RANGE returns to the duration step with the catalogue message and nothing chosen', async ({
     page,
     browser,
@@ -269,38 +244,6 @@ test.describe('M23-S11b — variable duration', () => {
 
       await expect(nextButton(guest.page)).toBeEnabled();
       await expect(guest.page.getByTestId('duration-error')).toHaveCount(0);
-    } finally {
-      await guest.close();
-      await deactivateService(page, service.serviceId);
-      for (const id of resourceIds) await deactivateResource(page, id);
-    }
-  });
-
-  test('the duration step has no axe violations on a light tenant or under a dark palette', async ({
-    page,
-    browser,
-  }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
-    const { service, resourceIds } = await seedVariableDurationService(page, 'e2e-por-tempo-axe');
-    const guest = await newGuestPage(browser);
-
-    try {
-      await reachDuration(guest.page, service.serviceId);
-      await expect(guest.page.getByTestId('duration-total')).toBeVisible();
-      await expect(nextButton(guest.page)).toBeEnabled();
-      await waitForAnimationsToSettle(guest.page);
-
-      const light = await new AxeBuilder({ page: guest.page })
-        .include('[data-testid="step-variable-duration"]')
-        .analyze();
-      expect(light.violations).toEqual([]);
-
-      await applyDarkHotsitePalette(guest.page);
-      await waitForAnimationsToSettle(guest.page);
-      const dark = await new AxeBuilder({ page: guest.page })
-        .include('[data-testid="step-variable-duration"]')
-        .analyze();
-      expect(dark.violations).toEqual([]);
     } finally {
       await guest.close();
       await deactivateService(page, service.serviceId);

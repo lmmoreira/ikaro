@@ -14,7 +14,6 @@ import {
 // the calendar step; a link it cannot honour shows the plain booking flow.
 
 const BOOKING_PAGE = `/${TENANT_SLUG}/booking`;
-const UNKNOWN_SERVICE_ID = '00000000-0000-4000-8000-0000000000ff';
 
 async function seedServiceWithADayOfSlots(page: Page) {
   await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
@@ -43,56 +42,25 @@ test.describe('M23-S44 — availability-alert email link', () => {
         guest.page.locator(`[data-testid="day-option"][data-date="${date}"]`),
       ).toHaveAttribute('aria-pressed', 'true', { timeout: 20_000 });
       await expect(guest.page.getByTestId('time-slot').first()).toBeVisible();
-    } finally {
-      await guest.close();
-    }
-  });
 
-  test('a link the page cannot honour shows the plain booking flow, with no error', async ({
-    browser,
-  }) => {
-    const guest = await newContextPage(browser);
+      // The availability answer is stubbed from here on, so it runs after the real slots were read.
+      await test.step('a day that has filled up since the email shows the no-slots message and a usable calendar', async () => {
+        await guest.page.route(/\/v1\/schedule\/availability\?/, (route) =>
+          route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ date, available: false, slots: [] }),
+          }),
+        );
+        await guest.page.goto(`${BOOKING_PAGE}?serviceId=${service.serviceId}&date=${date}`);
+        await nextButton(guest.page).click();
 
-    try {
-      for (const query of [
-        `serviceId=${UNKNOWN_SERVICE_ID}&date=2099-01-01`,
-        'serviceId=not-a-uuid&date=not-a-date',
-        'date=2030-01-01',
-      ]) {
-        await guest.page.goto(`${BOOKING_PAGE}?${query}`);
-
-        await expect(guest.page.getByTestId('step-service-selection')).toBeVisible();
-        await expect(guest.page.getByRole('checkbox', { checked: true })).toHaveCount(0);
-        await expect(guest.page.getByTestId('step1-form-error')).toHaveCount(0);
-      }
-    } finally {
-      await guest.close();
-    }
-  });
-
-  test('a day that has filled up since the email shows the no-slots message and a usable calendar', async ({
-    page,
-    browser,
-  }) => {
-    const { service, date } = await seedServiceWithADayOfSlots(page);
-    const guest = await newContextPage(browser);
-
-    try {
-      await guest.page.route(/\/v1\/schedule\/availability\?/, (route) =>
-        route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ date, available: false, slots: [] }),
-        }),
-      );
-      await guest.page.goto(`${BOOKING_PAGE}?serviceId=${service.serviceId}&date=${date}`);
-      await nextButton(guest.page).click();
-
-      await expect(guest.page.getByTestId('slot-picker-empty')).toBeVisible({
-        timeout: 20_000,
+        await expect(guest.page.getByTestId('slot-picker-empty')).toBeVisible({
+          timeout: 20_000,
+        });
+        await expect(guest.page.getByTestId('time-slot')).toHaveCount(0);
+        await expect(guest.page.locator('[data-testid="day-option"]').first()).toBeVisible();
       });
-      await expect(guest.page.getByTestId('time-slot')).toHaveCount(0);
-      await expect(guest.page.locator('[data-testid="day-option"]').first()).toBeVisible();
     } finally {
       await guest.close();
     }

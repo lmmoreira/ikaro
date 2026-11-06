@@ -555,7 +555,9 @@ describe('BookingForm — intake (M23)', () => {
     await user.click(await screen.findByRole('button', { name: 'Confirmar agendamento' }));
 
     const summary = await screen.findByTestId('intake-error-summary');
-    expect(summary).toHaveTextContent('É necessário responder às perguntas obrigatórias');
+    expect(summary).toHaveTextContent(
+      'É necessário responder às perguntas obrigatórias e aceitar os termos.',
+    );
     expect(intakeFieldError('goal')).not.toBeInTheDocument();
     expect(screen.getByLabelText(/Qual o objetivo/)).toHaveValue('Treino');
   });

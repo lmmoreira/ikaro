@@ -54,32 +54,30 @@ test.describe('manager resource management flow', () => {
 
     const reactivatedRow = getResourceRow(page, 'Recurso Editado');
     await expect(reactivatedRow).toContainText('Ativo');
-  });
 
-  test('creates a ROOM and an EQUIPMENT resource and sees both in the list', async ({ page }) => {
-    await loginAsStaff(page, 'admin@lavacar.com.br', 'lavacar-beloauto');
+    await test.step('creates a ROOM and an EQUIPMENT resource and sees both in the list', async () => {
+      await page.goto('/dashboard/resources/new');
+      await page.locator('[data-testid="resource-identity-type-option"][data-type="ROOM"]').click();
+      await page.getByTestId('resource-identity-name-input').fill('Sala Teste E2E');
+      await page.getByTestId('resource-create-save-desktop').click();
 
-    await page.goto('/dashboard/resources/new');
-    await page.locator('[data-testid="resource-identity-type-option"][data-type="ROOM"]').click();
-    await page.getByTestId('resource-identity-name-input').fill('Sala Teste E2E');
-    await page.getByTestId('resource-create-save-desktop').click();
+      await expect(page).toHaveURL('/dashboard/resources');
+      const roomRow = getResourceRow(page, 'Sala Teste E2E');
+      await expect(roomRow).toBeVisible();
+      await expect(roomRow).toContainText('Ativo');
 
-    await expect(page).toHaveURL('/dashboard/resources');
-    const roomRow = getResourceRow(page, 'Sala Teste E2E');
-    await expect(roomRow).toBeVisible();
-    await expect(roomRow).toContainText('Ativo');
+      await page.goto('/dashboard/resources/new');
+      await page
+        .locator('[data-testid="resource-identity-type-option"][data-type="EQUIPMENT"]')
+        .click();
+      await page.getByTestId('resource-identity-name-input').fill('Equipamento Teste E2E');
+      await page.getByTestId('resource-create-save-desktop').click();
 
-    await page.goto('/dashboard/resources/new');
-    await page
-      .locator('[data-testid="resource-identity-type-option"][data-type="EQUIPMENT"]')
-      .click();
-    await page.getByTestId('resource-identity-name-input').fill('Equipamento Teste E2E');
-    await page.getByTestId('resource-create-save-desktop').click();
-
-    await expect(page).toHaveURL('/dashboard/resources');
-    const equipmentRow = getResourceRow(page, 'Equipamento Teste E2E');
-    await expect(equipmentRow).toBeVisible();
-    await expect(equipmentRow).toContainText('Ativo');
+      await expect(page).toHaveURL('/dashboard/resources');
+      const equipmentRow = getResourceRow(page, 'Equipamento Teste E2E');
+      await expect(equipmentRow).toBeVisible();
+      await expect(equipmentRow).toContainText('Ativo');
+    });
   });
 
   test('the LOCATION resource never offers Desativar and its working-hours editor is locked to inherit', async ({

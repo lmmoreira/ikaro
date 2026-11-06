@@ -188,6 +188,21 @@ test.describe.serial('leads search — M20-S13', () => {
     const row = page.getByTestId('lead-submission-row').first();
     await expect(row).toBeVisible({ timeout: 15_000 });
     await expect(row).toContainText(FERNANDA_NAME);
+
+    await test.step('opening a submission and clicking back restores the active search, not the bare unfiltered list', async () => {
+      await page.goto('/dashboard/leads');
+
+      await page.getByTestId('leads-search-input').fill('Fernanda');
+      await page.getByTestId('leads-search-apply').click();
+      await expect(page).toHaveURL(/search=Fernanda/);
+
+      await page.getByTestId('lead-submission-row').first().click();
+      await expect(page).toHaveURL(/\/dashboard\/leads\/[^/?]+\?returnTo=/);
+
+      await page.getByTestId('topbar-back-button').click();
+      await expect(page).toHaveURL(/search=Fernanda/);
+      await expect(page.getByTestId('leads-search-input')).toHaveValue('Fernanda');
+    });
   });
 
   // No 3-character minimum (M20-S13 implementation, 2026-08-27) — a short but real term (an
@@ -209,43 +224,6 @@ test.describe.serial('leads search — M20-S13', () => {
     await expect(
       page.getByTestId('lead-submission-row').filter({ hasText: RICARDO_NAME }),
     ).toBeVisible({ timeout: 15_000 });
-  });
-
-  test('a search with no matches shows the distinct no-results state, and "Limpar busca" returns to the unfiltered list', async ({
-    page,
-  }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, MANAGER_TENANT_SLUG);
-    await page.goto('/dashboard/leads');
-
-    await page.getByTestId('leads-search-input').fill('nome-que-nao-existe-nunca');
-    await page.getByTestId('leads-search-apply').click();
-
-    const noResults = page.getByTestId('leads-no-results');
-    await expect(noResults).toBeVisible({ timeout: 15_000 });
-    await expect(noResults).toContainText('nome-que-nao-existe-nunca');
-
-    await noResults.getByRole('link').click();
-    await expect(page.getByTestId('lead-submission-row').first()).toBeVisible({
-      timeout: 15_000,
-    });
-  });
-
-  test("switching to advanced mode and back clears the other mode's active query", async ({
-    page,
-  }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, MANAGER_TENANT_SLUG);
-    await page.goto('/dashboard/leads');
-
-    await page.getByTestId('leads-search-input').fill('Fernanda');
-    await page.getByTestId('leads-search-apply').click();
-    await expect(page).toHaveURL(/search=Fernanda/);
-
-    await page.getByTestId('leads-mode-toggle').click();
-    await expect(page).toHaveURL(/\/dashboard\/leads\?mode=advanced$/);
-    await expect(page.getByTestId('leads-advanced-filters')).toBeVisible();
-
-    await page.getByTestId('leads-mode-toggle').click();
-    await expect(page.getByTestId('leads-search-input')).toHaveValue('');
   });
 
   test('2 ANDed advanced filters return only the submission matching both', async ({ page }) => {
@@ -279,6 +257,11 @@ test.describe.serial('leads search — M20-S13', () => {
     const rows = page.getByTestId('lead-submission-row');
     await expect(rows).toHaveCount(1, { timeout: 15_000 });
     await expect(rows.first()).toContainText(FERNANDA_NAME);
+
+    await test.step('switching back to basic mode clears the advanced query', async () => {
+      await page.getByTestId('leads-mode-toggle').click();
+      await expect(page.getByTestId('leads-search-input')).toHaveValue('');
+    });
   });
 
   test('a future date range excluding today narrows the list to zero results', async ({ page }) => {
@@ -291,24 +274,22 @@ test.describe.serial('leads search — M20-S13', () => {
     await page.getByTestId('leads-search-apply').click();
 
     await expect(page.getByTestId('leads-no-results')).toBeVisible({ timeout: 15_000 });
-  });
 
-  test('opening a submission and clicking back restores the active search, not the bare unfiltered list', async ({
-    page,
-  }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, MANAGER_TENANT_SLUG);
-    await page.goto('/dashboard/leads');
+    await test.step('a search with no matches shows the distinct no-results state, and "Limpar busca" returns to the unfiltered list', async () => {
+      await page.goto('/dashboard/leads');
 
-    await page.getByTestId('leads-search-input').fill('Fernanda');
-    await page.getByTestId('leads-search-apply').click();
-    await expect(page).toHaveURL(/search=Fernanda/);
+      await page.getByTestId('leads-search-input').fill('nome-que-nao-existe-nunca');
+      await page.getByTestId('leads-search-apply').click();
 
-    await page.getByTestId('lead-submission-row').first().click();
-    await expect(page).toHaveURL(/\/dashboard\/leads\/[^/?]+\?returnTo=/);
+      const noResults = page.getByTestId('leads-no-results');
+      await expect(noResults).toBeVisible({ timeout: 15_000 });
+      await expect(noResults).toContainText('nome-que-nao-existe-nunca');
 
-    await page.getByTestId('topbar-back-button').click();
-    await expect(page).toHaveURL(/search=Fernanda/);
-    await expect(page.getByTestId('leads-search-input')).toHaveValue('Fernanda');
+      await noResults.getByRole('link').click();
+      await expect(page.getByTestId('lead-submission-row').first()).toBeVisible({
+        timeout: 15_000,
+      });
+    });
   });
 
   // The real UI never sends both params (they're alternative modes), but a hand-edited URL

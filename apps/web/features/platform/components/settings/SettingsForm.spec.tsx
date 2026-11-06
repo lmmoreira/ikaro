@@ -312,6 +312,23 @@ describe('SettingsForm', () => {
     expect(screen.queryByTestId('settings-saved-banner')).not.toBeInTheDocument();
   });
 
+  it('shows a failed save in the desktop action pane and keeps the typed form values', async () => {
+    mockUpdateTenantSettings.mockRejectedValueOnce(new Error('500'));
+    const user = userEvent.setup();
+    renderWithIntl(<SettingsForm initial={buildTenant()} />);
+
+    const field = screen.getByLabelText('Buffer entre agendamentos');
+    await user.clear(field);
+    await user.type(field, '9');
+    await user.click(screen.getByTestId('settings-submit-desktop'));
+
+    const feedback = await within(screen.getByTestId('action-pane-desktop')).findByTestId(
+      'form-feedback',
+    );
+    expect(feedback).toHaveAttribute('role', 'alert');
+    expect(field).toHaveValue(9);
+  });
+
   it('falls back to the pane message when the server field is not one of the form inputs', async () => {
     mockUpdateTenantSettings.mockRejectedValueOnce(
       new ApiError(422, 'Invalid', { code: 'PLATFORM_TENANT_INACTIVE', field: 'settings.unknown' }),
@@ -382,6 +399,8 @@ describe('SettingsForm', () => {
 
     expect(screen.getByText('Informe a rua.')).toBeInTheDocument();
     expect(screen.getByText('Informe o CEP.')).toBeInTheDocument();
+    expect(screen.getByTestId('settings-address-zip')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.queryByTestId('form-feedback')).not.toBeInTheDocument();
     expect(mockUpdateTenantSettings).not.toHaveBeenCalled();
   });
 
@@ -457,6 +476,45 @@ describe('SettingsForm', () => {
     await user.type(zip, '99999999');
 
     expect(await screen.findByTestId('settings-address-zip-not-found')).toBeInTheDocument();
+  });
+
+  it('still saves a manually typed address after the CEP lookup found nothing', async () => {
+    const tenant = buildTenant();
+    const noAddressTenant: TenantSettingsResponse = {
+      ...tenant,
+      settings: {
+        ...tenant.settings,
+        businessInfo: { ...tenant.settings.businessInfo!, address: null },
+      },
+    };
+    const lookup = new InMemoryAddressLookup({});
+    const user = userEvent.setup();
+    renderWithIntl(<SettingsForm initial={noAddressTenant} addressLookup={lookup} />);
+
+    await user.type(screen.getByTestId('settings-address-zip'), '99999999');
+    expect(await screen.findByTestId('settings-address-zip-not-found')).toBeInTheDocument();
+
+    await user.type(screen.getByTestId('settings-address-street'), 'Rua Teste');
+    await user.type(screen.getByTestId('settings-address-number'), '100');
+    await user.type(screen.getByTestId('settings-address-neighborhood'), 'Centro');
+    await user.type(screen.getByTestId('settings-address-city'), 'Belo Horizonte');
+    await user.type(screen.getByTestId('settings-address-state'), 'MG');
+    await user.click(screen.getByTestId('settings-submit-desktop'));
+
+    expect(await screen.findByTestId('form-feedback')).toHaveTextContent('Configurações salvas!');
+    expect(mockUpdateTenantSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        settings: expect.objectContaining({
+          businessInfo: expect.objectContaining({
+            address: expect.objectContaining({
+              street: 'Rua Teste',
+              city: 'Belo Horizonte',
+              state: 'MG',
+            }),
+          }),
+        }),
+      }),
+    );
   });
 
   it('toggles autoApproveEnabled and sends it in the PATCH body', async () => {

@@ -450,6 +450,11 @@ describe('BookingForm', () => {
       }),
     );
     expect(createBooking).not.toHaveBeenCalled();
+    const body = vi.mocked(createAuthenticatedBooking).mock.calls[0]![0];
+    expect(body).not.toHaveProperty('contactName');
+    expect(body).not.toHaveProperty('contactEmail');
+    expect(body).not.toHaveProperty('contactPhone');
+    expect(await screen.findByTestId('booking-success')).toBeInTheDocument();
   });
 
   it('submits the booking and shows the success message', async () => {

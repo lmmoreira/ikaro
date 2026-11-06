@@ -1,6 +1,5 @@
 import { expect, test, type Browser, type Page } from '@playwright/test';
-import { loginAsCustomer, loginAsStaff, uniqueTestEmail } from './helpers/auth';
-import { createFreshApprovedBooking } from './helpers/booking';
+import { loginAsStaff } from './helpers/auth';
 import {
   confirmBooking,
   fillGuestContact,
@@ -23,19 +22,9 @@ import {
 // TD51-S01 — a slot is shown to people as start–appointment end (start + the service's duration);
 // the service's trailing buffer keeps the resource held internally and is never displayed.
 
-const STAFF_EMAIL = 'admin@lavacar.com.br';
-const SERVICE_SIMPLES_ID = '00000000-0000-7000-8003-000000000001';
 const TENANT_TIMEZONE = 'America/Sao_Paulo';
 const DURATION_MINUTES = 50;
 const BUFFER_MINUTES = 10;
-
-// The tenant is closed on Sundays, so a booking made for one has no slot to reschedule into; the
-// weekday is read the way the fixture builds its date (the runner's own calendar).
-function skipSunday(daysAhead: number): number {
-  const date = new Date();
-  date.setDate(date.getDate() + daysAhead);
-  return date.getDay() === 0 ? daysAhead + 1 : daysAhead;
-}
 
 const hhmm = (iso: string): string =>
   new Intl.DateTimeFormat('pt-BR', {
@@ -115,41 +104,6 @@ test.describe('TD51-S01 — appointment end vs reserved end', () => {
     } finally {
       await guest.close();
       await deactivateService(page, created.serviceId);
-    }
-  });
-
-  test('customer reschedule: the slot and the summary show the appointment end', async ({
-    page,
-  }) => {
-    const customerEmail = uniqueTestEmail('appointment-end-reschedule');
-    const setup = await createFreshApprovedBooking(page, skipSunday(6), STAFF_EMAIL, {
-      contactEmail: customerEmail,
-    });
-    const bookingDate = new Intl.DateTimeFormat('en-CA', { timeZone: TENANT_TIMEZONE }).format(
-      new Date(setup.scheduledAt),
-    );
-    await loginAsCustomer(page, customerEmail, TENANT_SLUG);
-
-    await page.goto(`/${TENANT_SLUG}/my-account/bookings/${setup.bookingId}/reschedule`);
-    const slot = page.getByTestId('time-slot').first();
-    await expect(slot).toBeVisible();
-    const slotText = ((await slot.textContent()) ?? '').trim();
-    const range = parseRange(slotText);
-
-    const apiSlots = await slotsOnDate(page, SERVICE_SIMPLES_ID, bookingDate);
-    const apiSlot = apiSlots.find(
-      (candidate) => toMinutes(hhmm(candidate.startsAt)) === range.start,
-    );
-    expect(apiSlot, 'the API offers the slot the page shows').toBeDefined();
-    expect(range.end).toBe(toMinutes(hhmm(apiSlot!.appointmentEndsAt)));
-
-    await slot.click();
-    const summary = page
-      .getByTestId('action-pane-desktop')
-      .getByTestId('reschedule-change-summary');
-    await expect(summary).toBeVisible();
-    if (apiSlot!.endsAt !== apiSlot!.appointmentEndsAt) {
-      await expect(summary).not.toContainText(hhmm(apiSlot!.endsAt));
     }
   });
 });

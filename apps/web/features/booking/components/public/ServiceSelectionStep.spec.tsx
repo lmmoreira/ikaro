@@ -228,6 +228,20 @@ describe('ServiceSelectionStep', () => {
       expect(screen.queryByText('R$ 150,00')).not.toBeInTheDocument();
     });
 
+    it('shows "a partir de" in the total when it is the only service selected', () => {
+      renderWithIntl(
+        <ServiceSelectionStep
+          services={[perTime]}
+          selectedServiceIds={['per-time']}
+          onToggleService={vi.fn()}
+          onNext={vi.fn()}
+          {...defaultPickupProps}
+        />,
+      );
+
+      expect(screen.getByTestId('selection-total')).toHaveTextContent('a partir de R$ 50,00');
+    });
+
     it('uses a per-increment label when the increment is not an hour', () => {
       const halfHour = {
         ...perTime,

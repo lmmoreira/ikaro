@@ -40,32 +40,20 @@ test.describe('customer my-account: availability alerts (M23-S43, UC-076)', () =
       await expect(
         customer.page.locator('[data-testid="cancel-alert-link"]:visible'),
       ).toBeVisible();
-    } finally {
-      await customer.close();
-    }
-  });
 
-  test('cancels an alert through the confirmation page and sees it leave the list', async ({
-    page,
-    browser,
-  }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
-    const service = await seedAlertEligibleService(page);
-    const customer = await newLoggedInCustomerPage(browser);
+      // Cancelling removes the only alert, so it runs after the list and the detail have been read.
+      await test.step('cancels an alert through the confirmation page and sees it leave the list', async () => {
+        await customer.page.goto(`${LIST_URL}/${alert.id}`);
+        await customer.page.locator('[data-testid="cancel-alert-link"]:visible').click();
+        await expect(customer.page).toHaveURL(`${LIST_URL}/${alert.id}/cancel`);
+        await expect(customer.page.getByTestId('alert-cancel-confirm')).toContainText(service.name);
 
-    try {
-      const alert = await createAlertViaApi(customer.page, service.serviceId, 0);
+        await customer.page.locator('[data-testid="cancel-alert-confirm"]:visible').click();
 
-      await customer.page.goto(`${LIST_URL}/${alert.id}`);
-      await customer.page.locator('[data-testid="cancel-alert-link"]:visible').click();
-      await expect(customer.page).toHaveURL(`${LIST_URL}/${alert.id}/cancel`);
-      await expect(customer.page.getByTestId('alert-cancel-confirm')).toContainText(service.name);
-
-      await customer.page.locator('[data-testid="cancel-alert-confirm"]:visible').click();
-
-      await expect(customer.page).toHaveURL(LIST_URL);
-      await expect(customer.page.getByTestId('alerts-empty')).toBeVisible();
-      await expect(customer.page.getByTestId('alert-row')).toHaveCount(0);
+        await expect(customer.page).toHaveURL(LIST_URL);
+        await expect(customer.page.getByTestId('alerts-empty')).toBeVisible();
+        await expect(customer.page.getByTestId('alert-row')).toHaveCount(0);
+      });
     } finally {
       await customer.close();
     }

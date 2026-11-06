@@ -180,6 +180,7 @@ describe('BookingForm — availability-alert deep link', () => {
     renderForm([plainService, staffService]);
 
     for (const box of screen.getAllByRole('checkbox')) expect(box).not.toBeChecked();
+    expect(screen.queryByTestId('step1-form-error')).not.toBeInTheDocument();
   });
 
   it('shows the link’s day already selected on the availability step', async () => {

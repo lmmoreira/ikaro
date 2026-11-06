@@ -1,10 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { loginAsCustomer, loginAsStaff } from './helpers/auth';
-import {
-  createEndedApprovedBooking,
-  createFreshApprovedBooking,
-  createNoShowBooking,
-} from './helpers/booking';
+import { createEndedApprovedBooking, createNoShowBooking } from './helpers/booking';
 import { BFF_URL, WEB_INTERNAL_KEY } from './helpers/auth/shared';
 import { postponeBooking } from './helpers/db/e2e-db';
 
@@ -52,6 +48,27 @@ test.describe('staff no-show (UC-074)', () => {
       page.locator('main aside').getByRole('link', { name: 'Voltar à agenda' }),
     ).toBeVisible();
     await expect(page.getByRole('button', { name: CORRECT_ACTION })).toHaveCount(0);
+
+    await test.step('a network failure shows the retry banner, changes nothing, and retrying succeeds', async () => {
+      const retrySetup = await createEndedApprovedBooking(page, 30, STAFF_EMAIL);
+      await openBooking(page, retrySetup.bookingId);
+      await page.route('**/v1/bookings/*/no-show', (route) => route.abort('failed'));
+
+      await page.getByRole('button', { name: MARK_ACTION }).click();
+      await page.getByRole('dialog').getByRole('button', { name: CONFIRM_NO_SHOW }).click();
+
+      await expect(page.getByTestId('booking-no-show-error')).toBeVisible();
+      await expect(page.getByTestId('booking-status-history')).toHaveCount(0);
+
+      await page.unroute('**/v1/bookings/*/no-show');
+      await page.getByRole('button', { name: 'Tentar novamente' }).click();
+      await page.getByRole('dialog').getByRole('button', { name: CONFIRM_NO_SHOW }).click();
+
+      await expect(page.getByTestId('booking-no-show-marked')).toBeVisible();
+      await expect(page.getByTestId('booking-status-history')).toContainText(
+        'Aprovado → Não compareceu',
+      );
+    });
   });
 
   test('staff marks a no-show without a reason', async ({ page }) => {
@@ -65,19 +82,6 @@ test.describe('staff no-show (UC-074)', () => {
     const history = page.getByTestId('booking-status-history');
     await expect(history).toContainText('Aprovado → Não compareceu');
     await expect(history).not.toContainText('Motivo:');
-  });
-
-  test('the action is disabled with the end-time hint while the appointment has not ended', async ({
-    page,
-  }) => {
-    const setup = await createFreshApprovedBooking(page, 23, STAFF_EMAIL);
-    await openBooking(page, setup.bookingId);
-
-    const action = page.getByRole('button', { name: MARK_ACTION });
-    await expect(action).toBeDisabled();
-    await expect(page.getByTestId('no-show-hint')).toContainText(
-      /Disponível após o término do atendimento \(\d{1,2}:\d{2}/,
-    );
   });
 
   test('a stale screen whose appointment has not really ended gets the 422 banner and changes nothing', async ({
@@ -113,29 +117,6 @@ test.describe('staff no-show (UC-074)', () => {
     await expect(page.getByTestId('booking-no-show-terminal')).toHaveCount(0);
     await expect(page.getByTestId('booking-status-history')).toContainText('Não compareceu');
     await expect(page.getByRole('button', { name: MARK_ACTION })).toHaveCount(0);
-  });
-
-  test('a network failure shows the retry banner, changes nothing, and retrying succeeds', async ({
-    page,
-  }) => {
-    const setup = await createEndedApprovedBooking(page, 30, STAFF_EMAIL);
-    await openBooking(page, setup.bookingId);
-    await page.route('**/v1/bookings/*/no-show', (route) => route.abort('failed'));
-
-    await page.getByRole('button', { name: MARK_ACTION }).click();
-    await page.getByRole('dialog').getByRole('button', { name: CONFIRM_NO_SHOW }).click();
-
-    await expect(page.getByTestId('booking-no-show-error')).toBeVisible();
-    await expect(page.getByTestId('booking-status-history')).toHaveCount(0);
-
-    await page.unroute('**/v1/bookings/*/no-show');
-    await page.getByRole('button', { name: 'Tentar novamente' }).click();
-    await page.getByRole('dialog').getByRole('button', { name: CONFIRM_NO_SHOW }).click();
-
-    await expect(page.getByTestId('booking-no-show-marked')).toBeVisible();
-    await expect(page.getByTestId('booking-status-history')).toContainText(
-      'Aprovado → Não compareceu',
-    );
   });
 
   test('after a manager marks a no-show, reopening the booking offers the correction', async ({
@@ -242,21 +223,6 @@ test.describe('staff no-show (UC-074)', () => {
     await expect(page.getByRole('button', { name: CORRECT_ACTION })).toHaveCount(0);
   });
 
-  test('a staff member opens a no-show booking and never sees the correction button', async ({
-    page,
-  }) => {
-    const setup = await createNoShowBooking(page, 27, MANAGER_EMAIL);
-    await loginAsStaff(page, STAFF_EMAIL, TENANT_SLUG);
-
-    await openBooking(page, setup.bookingId);
-
-    await expect(page.getByTestId('booking-no-show-title')).toBeVisible();
-    await expect(page.getByTestId('booking-status-history')).toContainText('Gerente');
-    await expect(page.getByTestId('no-show-read-only-note')).toBeVisible();
-    await expect(page.getByRole('button', { name: CORRECT_ACTION })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: MARK_ACTION })).toHaveCount(0);
-  });
-
   test('the customer sees the no-show in their history and a read-only detail without the internal reason', async ({
     page,
   }) => {
@@ -286,6 +252,18 @@ test.describe('staff no-show (UC-074)', () => {
     await expect(page.getByRole('button', { name: /cancelar/i })).toHaveCount(0);
     await expect(page.getByRole('button', { name: /reagendar/i })).toHaveCount(0);
     await expect(page.locator('body')).not.toContainText('Motivo interno só para a equipe.');
+
+    await test.step('a staff member opens a no-show booking and never sees the correction button', async () => {
+      await loginAsStaff(page, STAFF_EMAIL, TENANT_SLUG);
+
+      await openBooking(page, setup.bookingId);
+
+      await expect(page.getByTestId('booking-no-show-title')).toBeVisible();
+      await expect(page.getByTestId('booking-status-history')).toContainText('Gerente');
+      await expect(page.getByTestId('no-show-read-only-note')).toBeVisible();
+      await expect(page.getByRole('button', { name: CORRECT_ACTION })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: MARK_ACTION })).toHaveCount(0);
+    });
   });
 
   test("another tenant's manager cannot open the booking (tenant isolation)", async ({ page }) => {

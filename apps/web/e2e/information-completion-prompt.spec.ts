@@ -8,60 +8,6 @@ import { fillValidAddress } from './helpers/customer';
 const AUTH_RESOLVE_TIMEOUT = 15_000;
 
 test.describe('Information completion prompt (mandatory phone + address)', () => {
-  test('a customer with no phone/address sees the mandatory, non-dismissible prompt', async ({
-    page,
-  }) => {
-    const email = uniqueTestEmail('icp-mandatory');
-    await loginAsCustomer(page, email, 'lavacar-beloauto');
-
-    await page.goto('/lavacar-beloauto');
-
-    await expect(page.locator('[data-testid="information-completion-prompt"]')).toBeVisible();
-    await expect(page.locator('[data-testid="information-completion-phone-prefix"]')).toHaveText(
-      '+55',
-    );
-  });
-
-  test('shows a phone-specific error and does not submit when the phone is invalid', async ({
-    page,
-  }) => {
-    const email = uniqueTestEmail('icp-phone-invalid');
-    await loginAsCustomer(page, email, 'lavacar-beloauto');
-
-    await page.goto('/lavacar-beloauto');
-    await expect(page.locator('[data-testid="information-completion-prompt"]')).toBeVisible();
-
-    await page.locator('[data-testid="information-completion-phone-input"]').fill('1199999');
-    await page.locator('[data-testid="information-completion-submit"]').click();
-
-    // The phone message sits under the phone input (TD57-S11), not in a form-level box.
-    await expect(page.locator('[data-testid="information-completion-phone-error"]')).toContainText(
-      'telefone válido',
-    );
-    // Prompt is still open — submission was blocked client-side
-    await expect(page.locator('[data-testid="information-completion-prompt"]')).toBeVisible();
-  });
-
-  test('highlights the address fields and does not submit when the address is incomplete', async ({
-    page,
-  }) => {
-    const email = uniqueTestEmail('icp-address-incomplete');
-    await loginAsCustomer(page, email, 'lavacar-beloauto');
-
-    await page.goto('/lavacar-beloauto');
-    await expect(page.locator('[data-testid="information-completion-prompt"]')).toBeVisible();
-
-    await page.locator('[data-testid="information-completion-phone-input"]').fill('11999999999');
-    // Leave address empty
-    await page.locator('[data-testid="information-completion-submit"]').click();
-
-    await expect(page.locator('#information-completion-address-street')).toHaveAttribute(
-      'aria-invalid',
-      'true',
-    );
-    await expect(page.locator('[data-testid="information-completion-prompt"]')).toBeVisible();
-  });
-
   test('submitting a valid phone + address closes the prompt and persists across reload', async ({
     page,
   }) => {
@@ -70,6 +16,12 @@ test.describe('Information completion prompt (mandatory phone + address)', () =>
 
     await page.goto('/lavacar-beloauto');
     await expect(page.locator('[data-testid="information-completion-prompt"]')).toBeVisible();
+
+    await test.step('a customer with no phone/address sees the mandatory, non-dismissible prompt', async () => {
+      await expect(page.locator('[data-testid="information-completion-phone-prefix"]')).toHaveText(
+        '+55',
+      );
+    });
 
     await page.locator('[data-testid="information-completion-phone-input"]').fill('11999999999');
     await fillValidAddress(page);

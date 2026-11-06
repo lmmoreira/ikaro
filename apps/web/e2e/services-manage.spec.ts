@@ -40,34 +40,6 @@ test.describe('service management flows', () => {
     await loginAsStaff(page, 'admin@lavacar.com.br', 'lavacar-beloauto');
   });
 
-  test('edits an active service and returns to the list with the updated values', async ({
-    page,
-  }) => {
-    const service = await seedEditableService(page);
-    const updatedName = `${service.name}-updated`;
-
-    await openEditPage(page, service.serviceId);
-    await page.getByTestId('service-name-input').fill(updatedName);
-    await page.getByTestId('service-description-input').fill('Serviço atualizado via Playwright');
-    await page.getByTestId('service-price-input').fill('210');
-    await page.getByTestId('service-duration-input').fill('75');
-    await page.getByTestId('service-points-input').fill('12');
-    await page.getByTestId('service-pickup-switch').click();
-
-    await page.getByRole('button', { name: 'Salvar alterações' }).click();
-
-    // M22-S04: each tab now saves in place — no redirect to the list.
-    await expect(page).toHaveURL(`/dashboard/services/${service.serviceId}/edit`);
-    await expect(page.getByTestId('service-name-input')).toHaveValue(updatedName);
-
-    await page.goto('/dashboard/services');
-    await expect(page.getByRole('link', { name: new RegExp(updatedName) })).toBeVisible();
-    await expect(page.getByRole('link', { name: new RegExp(updatedName) })).toContainText('Ativo');
-    await expect(page.getByRole('link', { name: new RegExp(updatedName) })).toContainText(
-      '🚗 Coleta',
-    );
-  });
-
   test('deactivates an active service and reactivates it from the edit screen', async ({
     page,
   }) => {
@@ -96,6 +68,33 @@ test.describe('service management flows', () => {
     await expect(page).toHaveURL(`/dashboard/services/${service.serviceId}/edit`);
     await page.goto('/dashboard/services');
     await expect(page.getByRole('link', { name: new RegExp(service.name) })).toContainText('Ativo');
+
+    await test.step('edits the service and returns to the list with the updated values', async () => {
+      const updatedName = `${service.name}-updated`;
+
+      await openEditPage(page, service.serviceId);
+      await page.getByTestId('service-name-input').fill(updatedName);
+      await page.getByTestId('service-description-input').fill('Serviço atualizado via Playwright');
+      await page.getByTestId('service-price-input').fill('210');
+      await page.getByTestId('service-duration-input').fill('75');
+      await page.getByTestId('service-points-input').fill('12');
+      await page.getByTestId('service-pickup-switch').click();
+
+      await page.getByRole('button', { name: 'Salvar alterações' }).click();
+
+      // M22-S04: each tab now saves in place — no redirect to the list.
+      await expect(page).toHaveURL(`/dashboard/services/${service.serviceId}/edit`);
+      await expect(page.getByTestId('service-name-input')).toHaveValue(updatedName);
+
+      await page.goto('/dashboard/services');
+      await expect(page.getByRole('link', { name: new RegExp(updatedName) })).toBeVisible();
+      await expect(page.getByRole('link', { name: new RegExp(updatedName) })).toContainText(
+        'Ativo',
+      );
+      await expect(page.getByRole('link', { name: new RegExp(updatedName) })).toContainText(
+        '🚗 Coleta',
+      );
+    });
   });
 
   test('shows the not-found page for an invalid service id', async ({ page }) => {

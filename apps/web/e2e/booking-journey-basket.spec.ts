@@ -244,6 +244,19 @@ test.describe('M23-S11b — journey', () => {
       await expect(guest.page.getByTestId('confirmation-total')).toHaveText(
         'Total: R$ 260,00 — 1h 25min',
       );
+
+      await test.step('the journey review has no axe violations on a light tenant or under a dark palette', async () => {
+        await expect(guest.page.getByTestId('leg-itinerary')).toBeVisible();
+        await waitForAnimationsToSettle(guest.page);
+
+        const light = await new AxeBuilder({ page: guest.page }).include('main').analyze();
+        expect(light.violations).toEqual([]);
+        await applyDarkHotsitePalette(guest.page);
+        await waitForAnimationsToSettle(guest.page);
+        const dark = await new AxeBuilder({ page: guest.page }).include('main').analyze();
+        expect(dark.violations).toEqual([]);
+      });
+
       await confirmBooking(guest.page);
 
       await expect(guest.page.getByTestId('booking-success')).toBeVisible();
@@ -255,6 +268,13 @@ test.describe('M23-S11b — journey', () => {
       await expect(timeline.nth(1)).toContainText(journey.poolRoom.name);
       await expect(timeline.nth(2)).toContainText(journey.equipments[0]!.name);
       await expect(guest.page.getByTestId('submitted-total')).toContainText('Total: R$ 260,00');
+
+      await test.step('the details box of the booked journey has no axe violations', async () => {
+        await expect(guest.page.getByTestId('booking-submitted-details')).toBeVisible();
+        await waitForAnimationsToSettle(guest.page);
+        const success = await new AxeBuilder({ page: guest.page }).include('main').analyze();
+        expect(success.violations).toEqual([]);
+      });
     } finally {
       await guest.close();
       await cleanup(page, [journey.service.serviceId], journey.resourceIds);
@@ -312,41 +332,6 @@ test.describe('M23-S11b — journey', () => {
     } finally {
       await guest.close();
       await cleanup(page, [journey.service.serviceId, taker.serviceId], journey.resourceIds);
-    }
-  });
-
-  test('the journey review and the details box have no axe violations on a light tenant or under a dark palette', async ({
-    page,
-    browser,
-  }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
-    const journey = await seedJourney(page, 'e2e-jornada-axe');
-    const guest = await newGuestPage(browser);
-
-    try {
-      await openBooking(guest.page);
-      await selectService(guest.page, journey.service.serviceId);
-      await nextButton(guest.page).click();
-      await pickJourneyChoices(guest.page, journey);
-      await toConfirmation(guest.page);
-      await expect(guest.page.getByTestId('leg-itinerary')).toBeVisible();
-      await waitForAnimationsToSettle(guest.page);
-
-      const light = await new AxeBuilder({ page: guest.page }).include('main').analyze();
-      expect(light.violations).toEqual([]);
-      await applyDarkHotsitePalette(guest.page);
-      await waitForAnimationsToSettle(guest.page);
-      const dark = await new AxeBuilder({ page: guest.page }).include('main').analyze();
-      expect(dark.violations).toEqual([]);
-
-      await confirmBooking(guest.page);
-      await expect(guest.page.getByTestId('booking-submitted-details')).toBeVisible();
-      await waitForAnimationsToSettle(guest.page);
-      const success = await new AxeBuilder({ page: guest.page }).include('main').analyze();
-      expect(success.violations).toEqual([]);
-    } finally {
-      await guest.close();
-      await cleanup(page, [journey.service.serviceId], journey.resourceIds);
     }
   });
 });

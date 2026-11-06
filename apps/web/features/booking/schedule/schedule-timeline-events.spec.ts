@@ -134,6 +134,20 @@ describe('buildBookingTimelineEvent', () => {
     const event = buildBookingTimelineEvent(booking, TIMEZONE, [], '08:00', '18:00');
     expect(event.resourceNames).toEqual(['Camila Duarte', 'Sala 1']);
   });
+
+  it('orders a booking holding a STAFF, a ROOM and an EQUIPMENT resource by type, not by name', () => {
+    // The names sort alphabetically as EQUIPMENT, ROOM, STAFF: the type rank is the only thing that
+    // can put them in STAFF, ROOM, EQUIPMENT order.
+    const booking = makeBooking({
+      assignedResources: [
+        { resourceId: 'res-aspirador', resourceType: 'EQUIPMENT', resourceName: 'Aspirador' },
+        { resourceId: 'res-sala', resourceType: 'ROOM', resourceName: 'Sala 1' },
+        { resourceId: 'res-zelia', resourceType: 'STAFF', resourceName: 'Zélia Souza' },
+      ],
+    });
+    const event = buildBookingTimelineEvent(booking, TIMEZONE, [], '08:00', '18:00');
+    expect(event.resourceNames).toEqual(['Zélia Souza', 'Sala 1', 'Aspirador']);
+  });
 });
 
 describe('buildClosureTimelineEvent', () => {

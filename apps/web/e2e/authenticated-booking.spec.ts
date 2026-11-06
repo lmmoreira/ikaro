@@ -1,5 +1,4 @@
 import { expect, test, type Page } from '@playwright/test';
-import { openFirstDayWithSlots } from './helpers/booking-form';
 import { gotoBookingPage } from './helpers/booking-form/goto';
 
 const BFF_URL = process.env.PLAYWRIGHT_BFF_URL ?? 'http://localhost:3002/v1';
@@ -75,41 +74,9 @@ async function completeCustomerProfile(page: Page, tenantSlug: string): Promise<
   if (!res.ok()) throw new Error(`profile patch failed: ${res.status()} ${await res.text()}`);
 }
 
-async function navigateToAuthenticatedStep3(
-  page: Page,
-  tenantSlug = 'ikaro',
-  requiresPickupAddress = false,
-): Promise<void> {
-  await loginAsCustomer(page, uniqueTestEmail(`booking-auth-${tenantSlug}`), tenantSlug);
-  await completeCustomerProfile(page, tenantSlug);
-
-  await gotoBookingPage(page, `/${tenantSlug}/booking`);
-  await page.locator('[data-testid="step-service-selection"]').waitFor();
-
-  await page
-    .locator(
-      `[data-testid="service-card"][data-requires-pickup="${requiresPickupAddress ? 'true' : 'false'}"]`,
-    )
-    .first()
-    .click();
-  await page.locator('[data-testid="step-next"]').click();
-
-  await openFirstDayWithSlots(page);
-  await page.locator('[data-testid="time-slot"]').first().click();
-  await page.locator('[data-testid="step-next"]').click();
-}
-
 async function setupAuthenticatedCustomer(page: Page, tenantSlug: string): Promise<void> {
   await loginAsCustomer(page, uniqueTestEmail(`booking-auth-${tenantSlug}`), tenantSlug);
   await completeCustomerProfile(page, tenantSlug);
-}
-
-interface AuthenticatedBookingRequestBody {
-  readonly scheduledAt: string;
-  readonly serviceIds: readonly unknown[];
-  readonly contactName?: string;
-  readonly contactEmail?: string;
-  readonly contactPhone?: string;
 }
 
 test.describe('UC-002 — Authenticated customer booking golden path', () => {
@@ -131,58 +98,5 @@ test.describe('UC-002 — Authenticated customer booking golden path', () => {
 
     await page.locator('[data-testid="step-next"]').click();
     await expect(page.locator('[data-testid="day-option"]').first()).toBeVisible();
-  });
-
-  test('authenticated customer submits the booking through the authenticated endpoint', async ({
-    page,
-  }) => {
-    let guestBookingCalled = false;
-    let authenticatedRequestBody: unknown = null;
-
-    await page.route(/\/v1\/bookings$/, (route) => {
-      if (route.request().method() !== 'POST') return route.continue();
-      guestBookingCalled = true;
-      return route.abort();
-    });
-
-    await page.route(/\/v1\/bookings\/authenticated$/, async (route) => {
-      if (route.request().method() !== 'POST') return route.continue();
-      authenticatedRequestBody = route.request().postDataJSON();
-      return route.fulfill({
-        status: 201,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          bookingId: 'booking-auth-1',
-          status: 'PENDING',
-          scheduledAt: new Date().toISOString(),
-          totalPrice: { amount: 0, currency: 'USD' },
-          totalDurationMins: 0,
-          pickupAddress: null,
-          beforeServicePhotoUrls: [],
-          lines: [],
-        }),
-      });
-    });
-
-    await navigateToAuthenticatedStep3(page, 'ikaro');
-
-    await expect(page.locator('[data-testid="input-name"]')).toHaveCount(0);
-    await expect(page.locator('[data-testid="input-email"]')).toHaveCount(0);
-    await expect(page.locator('[data-testid="input-phone"]')).toHaveCount(0);
-    await expect(page.locator('[data-testid="toggle-contact-address"]')).toHaveCount(0);
-
-    await page.locator('[data-testid="step-next"]').click();
-    await expect(page.locator('[data-testid="step-confirm"]')).toBeVisible();
-
-    await page.locator('[data-testid="step-confirm"]').click();
-
-    await expect(page.locator('[data-testid="booking-success"]')).toBeVisible();
-    expect(guestBookingCalled).toBe(false);
-    const requestBody = authenticatedRequestBody as AuthenticatedBookingRequestBody;
-    expect(typeof requestBody.scheduledAt).toBe('string');
-    expect(Array.isArray(requestBody.serviceIds)).toBe(true);
-    expect(requestBody).not.toHaveProperty('contactName');
-    expect(requestBody).not.toHaveProperty('contactEmail');
-    expect(requestBody).not.toHaveProperty('contactPhone');
   });
 });

@@ -36,31 +36,7 @@ const STATUS_PILL = 'Filtrar status';
 const RESOURCE_PILL = 'Filtrar recurso';
 
 test.describe('movable floating filter (M23-S50)', () => {
-  test('Agenda: dragging "Filtrar agenda" to the top-left corner opens its popover below it, inside the viewport, and survives a reload', async ({
-    page,
-  }) => {
-    await loginAsScheduleStaff(page);
-    await page.goto(AGENDA_PAGE);
-    await expectCorner(page, 'bottom-right');
-
-    await dragPillToCorner(page, AGENDA_PILL, 'top-left');
-
-    await expectCorner(page, 'top-left');
-    // A drag release is not a click: the popover stays closed.
-    await expect(popover(page)).toHaveCount(0);
-
-    await pill(page, AGENDA_PILL).click();
-    await expect(popover(page)).toBeVisible();
-    const pillBox = await pill(page, AGENDA_PILL).boundingBox();
-    const popoverBox = await popover(page).boundingBox();
-    expect(popoverBox!.y).toBeGreaterThanOrEqual(pillBox!.y + pillBox!.height);
-    await expectLocatorInsideViewport(page, popover(page));
-
-    await page.reload();
-    await expectCorner(page, 'top-left');
-  });
-
-  test('Agenda: a plain click still opens and closes the popover, and nothing moves for a user who never drags', async ({
+  test('Agenda: a plain click still opens and closes the popover, and nothing moves for a user who never drags; dragging "Filtrar agenda" to the top-left corner then opens its popover below it, inside the viewport, and survives a reload', async ({
     page,
   }) => {
     await loginAsScheduleStaff(page);
@@ -72,6 +48,27 @@ test.describe('movable floating filter (M23-S50)', () => {
     await pill(page, AGENDA_PILL).click();
     await expect(popover(page)).toHaveCount(0);
     await expectCorner(page, 'bottom-right');
+
+    await test.step('dragging "Filtrar agenda" to the top-left corner opens its popover below it, inside the viewport, and survives a reload', async () => {
+      await page.goto(AGENDA_PAGE);
+      await expectCorner(page, 'bottom-right');
+
+      await dragPillToCorner(page, AGENDA_PILL, 'top-left');
+
+      await expectCorner(page, 'top-left');
+      // A drag release is not a click: the popover stays closed.
+      await expect(popover(page)).toHaveCount(0);
+
+      await pill(page, AGENDA_PILL).click();
+      await expect(popover(page)).toBeVisible();
+      const pillBox = await pill(page, AGENDA_PILL).boundingBox();
+      const popoverBox = await popover(page).boundingBox();
+      expect(popoverBox!.y).toBeGreaterThanOrEqual(pillBox!.y + pillBox!.height);
+      await expectLocatorInsideViewport(page, popover(page));
+
+      await page.reload();
+      await expectCorner(page, 'top-left');
+    });
   });
 
   test('Agenda: choosing a corner from the "Posição" row, without dragging, moves the pill and the choice survives a reload', async ({
@@ -125,19 +122,21 @@ test.describe('movable floating filter (M23-S50)', () => {
       if (corner.startsWith('top')) expect(status.y).toBeLessThan(resource.y);
       else expect(status.y).toBeGreaterThan(resource.y);
     }
-  });
 
-  test('Horários: dragging either filter moves both', async ({ page }) => {
-    await loginAsScheduleStaff(page);
-    await page.goto(SCHEDULE_PAGE);
+    await test.step('dragging either filter moves both', async () => {
+      // The loop above ends on the default corner (bottom-right), where a fresh visit starts; a
+      // reload also closes the popover it left open.
+      await page.goto(SCHEDULE_PAGE);
+      await dragPillToCorner(page, RESOURCE_PILL, 'top-right');
 
-    await dragPillToCorner(page, RESOURCE_PILL, 'top-right');
-
-    await expectCorner(page, 'top-right');
-    await expect(dock(page).getByRole('button', { name: STATUS_PILL, exact: true })).toBeVisible();
-    await expect(
-      dock(page).getByRole('button', { name: RESOURCE_PILL, exact: true }),
-    ).toBeVisible();
+      await expectCorner(page, 'top-right');
+      await expect(
+        dock(page).getByRole('button', { name: STATUS_PILL, exact: true }),
+      ).toBeVisible();
+      await expect(
+        dock(page).getByRole('button', { name: RESOURCE_PILL, exact: true }),
+      ).toBeVisible();
+    });
   });
 
   test('desktop: the left corners start after the sidebar and the top corners sit below the topbar', async ({
