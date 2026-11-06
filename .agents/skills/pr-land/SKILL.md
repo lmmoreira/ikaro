@@ -139,7 +139,7 @@ For every finding in the pooled list:
 
 ## Step 4 — One batch, one commit, one push
 
-If Step 3 produced any real fixes: apply all of them together, then **one commit** covering every fix from this round, **one push**. This triggers CI again automatically. Round += 1. Re-dispatch Codex only (never CodeRabbit) for the new commit, then return to Step 1.
+If Step 3 produced any real fixes: apply all of them together, then **one commit** covering every fix from this round, **one push**. This triggers CI again automatically. Round += 1. Confirm the remote head moved, then **dispatch Codex (never CodeRabbit) for the new commit in that same turn, in parallel with CI**: never wait for CI, a live check or an evidence comment first (post that evidence when it exists and answer any matching finding next round). Never stop a running Codex review unasked; if the user asks to merge while one runs, say so and ask first. Then return to Step 1.
 
 **Before committing, grep the round's own staged diff for self-referential process language and strip it from source comments and `describe()`/`it()` titles:** `git diff --cached | grep -inE 'PR #[0-9]+|Codex (PR|round)|round-[0-9]+'`. `docs/CODE_STANDARDS.md` already forbids task/ticket references in source comments; apply it while writing each round's fix, not after a bot catches it (M21-S03, PR #460: such references were written at least 15 times over 9 rounds).
 
