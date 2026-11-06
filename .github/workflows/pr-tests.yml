@@ -215,13 +215,12 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.app == 'true'
     runs-on: ubuntu-latest
-    # 30, not 20: the suite is ~330 tests (about 15 minutes of Playwright on a CI runner) after about
-    # 5 minutes of install, build and seed, so 20 left no headroom and PR #613 (M23-S13) was cancelled
-    # at the cap twice with every spec that ran passing. A hung stack still ends here, just later
-    # (docs/CI_TRAPS.md). Raised again from 30 to 45 on 2026-11-06: runs of 19-23 minutes were
-    # being cancelled at 30 on three TD58 PRs (#721, #722, #723) with no spec failing. This is a
-    # stopgap until the suite's duration is evaluated and trimmed or sharded (TD59).
-    timeout-minutes: 45
+    # 35: the suite is 445 tests and takes 20-21 minutes of Playwright on a CI runner after about
+    # 2 minutes of setup; the slowest healthy run seen in 40 was 26.7 minutes. The cap went 20 -> 30
+    # -> 45 as the suite grew, but the one run that actually hit 30 (2026-11-05) lost 9.5 minutes in
+    # the browser install, not in the tests (TD59). That step is now bounded on its own, so the cap
+    # is back to real headroom over a healthy run (docs/CI_TRAPS.md).
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -393,8 +392,15 @@ jobs:
           }
           echo "All services ready ✓"
 
+      # No `--with-deps` (TD59-S00): it ran `apt-get` against the runner's mirror for nine font packages
+      # the runner image does not carry (every library Chromium needs is already installed), and one
+      # run spent 8 min 23 s there at 43 kB/s. The browser itself downloads from Playwright's CDN in
+      # about 15 s. If a future runner image lacks a system library, Chromium fails to launch with an
+      # explicit missing-dependencies error. The step timeout keeps a stalled download from consuming
+      # the job cap; a healthy run takes 13-41 s.
       - name: Install Playwright browsers
-        run: pnpm --filter @ikaro/web exec playwright install chromium --with-deps
+        timeout-minutes: 3
+        run: pnpm --filter @ikaro/web exec playwright install chromium
 
       - name: Run Playwright E2E
         run: pnpm --filter @ikaro/web e2e:ci

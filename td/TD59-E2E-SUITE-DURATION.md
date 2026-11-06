@@ -76,19 +76,19 @@ Target: the `Playwright E2E` job under about 20 minutes in the worst observed ca
 **Dependencies:** none (do this first)
 **Pattern:** plain composition — no named pattern applies
 
-**Description:** `pnpm --filter @ikaro/web exec playwright install chromium --with-deps` runs `apt-get` against the runner's mirror and downloads the browser on every run. In run 42092698239 the apt font download alone took 8 min 23 s at 43 kB/s and caused the only observed cap timeout. Pick, from `/story-discovery`, the option that removes the network dependency rather than retrying around it: cache the Playwright browser directory and install only the system packages the specs need, or run the job in the `mcr.microsoft.com/playwright` image (check it for the runner's Ubuntu release and the Trivy/Checkov gates). Whatever is chosen, put a short `timeout-minutes` on the step so a stalled download fails in minutes instead of consuming the job cap, and verify with a real run. Also lower `timeout-minutes` from 45 to about 35 once the install is bounded, so a hung stack fails sooner; revisit the value after Story 1 using the job logs.
+**Description:** `pnpm --filter @ikaro/web exec playwright install chromium --with-deps` runs `apt-get` against the runner's mirror and downloads the browser on every run. In run 42092698239 the apt font download alone took 8 min 23 s at 43 kB/s and caused the only observed cap timeout. Decided in `/story-discovery` (2026-11-06): drop `--with-deps` and run `playwright install chromium` alone, with `timeout-minutes: 3` on the step. In a normal run `--with-deps` installs exactly nine font packages (every library Chromium needs is already on the runner), and the browser download itself takes about 15 s, so the apt call is the only slow part and removing it removes the dependency instead of retrying around it. Rejected: a browser cache (the download is not the slow part) and the `mcr.microsoft.com/playwright` container (it breaks `docker compose` networking to `localhost` and is far more machinery than this needs). Pre-decided fallback: if the first PR run fails on missing system libraries, install just those packages in a bounded step (timeout plus one retry); two layout specs (`booking-journey-basket`, `hotsite-templates`) check for horizontal overflow, not font metrics, and are the ones to watch. Also lower `timeout-minutes` from 45 to about 35 once the install is bounded, so a hung stack fails sooner; revisit the value after Story 1 using the job logs.
 
 New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface: none.
 
 **Files to create/modify:**
-- `.github/workflows/pr-tests.yml` (modify: install step, cache or container, step timeout)
+- `.github/workflows/pr-tests.yml` (modify: install step without `--with-deps`, step timeout, job cap 35, stale test-count comment)
 - `docs/CI_TRAPS.md` (modify: record the apt-mirror stall — doc gate)
 
 **Acceptance criteria — product:**
-- [ ] The install step takes under about 1 minute on a warm run and cannot run past its own short timeout.
+- [ ] The install step takes well under a minute (about 15 s) and cannot run past its own 3-minute timeout. The timeout is a platform guarantee and no test pins it.
 
 **Acceptance criteria — technical:**
-- [ ] `actionlint` clean; the chosen option passes the image/IaC scanners if a container is used
+- [ ] `actionlint` clean; the job cap is 35 and the comment above it states 445 tests
 - [ ] The step's duration is shown for two consecutive real runs
 
 **Live-verification check:** two consecutive green real PR runs with the install step's duration in the log.
