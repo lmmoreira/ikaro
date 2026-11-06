@@ -68,7 +68,7 @@ Target: the `Playwright E2E` job under about 20 minutes in the worst observed ca
 
 ---
 
-### Story 0 — Make the browser install fast and bounded
+### Story 0 — Make the browser install fast and bounded ✅ Done
 
 **Agent:** devops
 **Complexity:** S
