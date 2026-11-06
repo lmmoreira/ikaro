@@ -49,6 +49,13 @@ test.describe('team invite flow', () => {
       await expect(row).toContainText('Gerente');
       await expect(row).toContainText('Convite pendente');
     });
+
+    await test.step('the back link returns to the team list without submitting', async () => {
+      await page.goto('/dashboard/team/invite');
+      await page.getByTestId('topbar-back-button').click();
+
+      await expect(page).toHaveURL('/dashboard/team');
+    });
   });
 
   test('resends an invite with one click — no navigation, no retyping', async ({ page }) => {

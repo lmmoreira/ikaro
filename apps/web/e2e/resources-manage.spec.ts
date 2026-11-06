@@ -56,13 +56,17 @@ test.describe('manager resource management flow', () => {
     await expect(reactivatedRow).toContainText('Ativo');
 
     await test.step('creates a ROOM and an EQUIPMENT resource and sees both in the list', async () => {
+      const suffix = Date.now();
+      const roomName = `Sala Teste E2E ${suffix}`;
+      const equipmentName = `Equipamento Teste E2E ${suffix}`;
+
       await page.goto('/dashboard/resources/new');
       await page.locator('[data-testid="resource-identity-type-option"][data-type="ROOM"]').click();
-      await page.getByTestId('resource-identity-name-input').fill('Sala Teste E2E');
+      await page.getByTestId('resource-identity-name-input').fill(roomName);
       await page.getByTestId('resource-create-save-desktop').click();
 
       await expect(page).toHaveURL('/dashboard/resources');
-      const roomRow = getResourceRow(page, 'Sala Teste E2E');
+      const roomRow = getResourceRow(page, roomName);
       await expect(roomRow).toBeVisible();
       await expect(roomRow).toContainText('Ativo');
 
@@ -70,11 +74,11 @@ test.describe('manager resource management flow', () => {
       await page
         .locator('[data-testid="resource-identity-type-option"][data-type="EQUIPMENT"]')
         .click();
-      await page.getByTestId('resource-identity-name-input').fill('Equipamento Teste E2E');
+      await page.getByTestId('resource-identity-name-input').fill(equipmentName);
       await page.getByTestId('resource-create-save-desktop').click();
 
       await expect(page).toHaveURL('/dashboard/resources');
-      const equipmentRow = getResourceRow(page, 'Equipamento Teste E2E');
+      const equipmentRow = getResourceRow(page, equipmentName);
       await expect(equipmentRow).toBeVisible();
       await expect(equipmentRow).toContainText('Ativo');
     });

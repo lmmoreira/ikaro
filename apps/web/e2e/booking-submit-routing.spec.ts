@@ -16,6 +16,10 @@ import {
   serviceCard,
   TENANT_SLUG,
 } from './helpers/booking-form';
+import {
+  createScheduleClosureAt,
+  removeScheduleClosure,
+} from './helpers/schedule/schedule-helpers';
 import { deactivateService } from './helpers/services';
 
 // M23-S11a — where a submit error returns the customer to, the per-time service card and the
@@ -73,6 +77,35 @@ test.describe('M23-S11a — submit routing and details', () => {
       await expect(serviceCard(guest.page, service.serviceId).getByRole('checkbox')).toBeChecked();
     } finally {
       await guest.close();
+      await deactivateService(page, service.serviceId);
+      await deactivateResource(page, room.id);
+    }
+  });
+
+  test('a closure added while the page is open returns to availability with the closed message and the selections kept', async ({
+    page,
+    browser,
+  }) => {
+    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
+    const { service, room } = await seedSingleRoomService(page, 'e2e-closed');
+    const guest = await newGuestPage(browser);
+    let closureId: string | undefined;
+
+    try {
+      const date = await reachConfirmation(guest.page, service.serviceId);
+      closureId = (
+        await createScheduleClosureAt(page, date, { reason: 'MAINTENANCE', resourceId: room.id })
+      ).id;
+      await confirmBooking(guest.page);
+
+      await expect(guest.page.getByTestId('step2-error')).toContainText(
+        'O negócio está fechado no horário solicitado.',
+      );
+      await guest.page.getByRole('button', { name: 'Voltar' }).click();
+      await expect(serviceCard(guest.page, service.serviceId).getByRole('checkbox')).toBeChecked();
+    } finally {
+      await guest.close();
+      if (closureId) await removeScheduleClosure(page, closureId);
       await deactivateService(page, service.serviceId);
       await deactivateResource(page, room.id);
     }

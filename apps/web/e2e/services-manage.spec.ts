@@ -87,13 +87,12 @@ test.describe('service management flows', () => {
       await expect(page.getByTestId('service-name-input')).toHaveValue(updatedName);
 
       await page.goto('/dashboard/services');
-      await expect(page.getByRole('link', { name: new RegExp(updatedName) })).toBeVisible();
-      await expect(page.getByRole('link', { name: new RegExp(updatedName) })).toContainText(
-        'Ativo',
+      const updatedServiceCard = page.locator(
+        `a[href="/dashboard/services/${service.serviceId}/edit"]`,
       );
-      await expect(page.getByRole('link', { name: new RegExp(updatedName) })).toContainText(
-        '🚗 Coleta',
-      );
+      await expect(updatedServiceCard).toBeVisible();
+      await expect(updatedServiceCard).toContainText('Ativo');
+      await expect(updatedServiceCard).toContainText('🚗 Coleta');
     });
   });
 

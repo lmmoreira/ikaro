@@ -94,6 +94,35 @@ test.describe('tenant settings management (MANAGER)', () => {
     await expect(page.getByTestId('settings-recurring-renewal-reminder-days')).toHaveValue('0');
   });
 
+  test('shows a failed save in the action pane and keeps the form values (TD57-S09)', async ({
+    page,
+  }) => {
+    await goToSettings(page);
+
+    // The save goes browser → same-origin BFF gateway; stub only that PATCH so the tenant is
+    // never mutated and the failure path is exercised end to end in the real page.
+    await page.route('**/tenants/settings', async (route) => {
+      if (route.request().method() !== 'PATCH') {
+        await route.continue();
+        return;
+      }
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/problem+json',
+        body: JSON.stringify({ status: 500, title: 'Internal Server Error' }),
+      });
+    });
+
+    const field = page.getByTestId('settings-recurring-renewal-reminder-days');
+    await field.fill('9');
+    await page.getByTestId('settings-submit-desktop').click();
+
+    const feedback = page.getByTestId('action-pane-desktop').getByTestId('form-feedback');
+    await expect(feedback).toBeVisible();
+    await expect(feedback).toHaveAttribute('role', 'alert');
+    await expect(field).toHaveValue('9');
+  });
+
   test('auto-fills street/city/state from a valid CEP', async ({ page }) => {
     await goToSettings(page);
 

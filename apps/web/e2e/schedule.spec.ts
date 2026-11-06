@@ -124,24 +124,27 @@ test.describe('schedule page coverage', () => {
         },
         121,
       );
-      const dateKey = opening.dateKey;
+      try {
+        const dateKey = opening.dateKey;
 
-      await page.goto(scheduleRoute(dateKey));
+        await page.goto(scheduleRoute(dateKey));
 
-      const openingButton = page
-        .getByTestId('schedule-week-day-card')
-        .nth(weekDayIndex(dateKey))
-        .locator('button.absolute.overflow-hidden.rounded-xl')
-        .filter({ hasText: 'Abertura especial' })
-        .first();
+        const openingButton = page
+          .getByTestId('schedule-week-day-card')
+          .nth(weekDayIndex(dateKey))
+          .locator('button.absolute.overflow-hidden.rounded-xl')
+          .filter({ hasText: 'Abertura especial' })
+          .first();
 
-      await expect(openingButton).toBeVisible();
-      await openingButton.click();
-      await expect(page.getByRole('dialog')).toBeVisible();
-      await page.getByRole('dialog').getByRole('button', { name: 'Remover abertura' }).click();
+        await expect(openingButton).toBeVisible();
+        await openingButton.click();
+        await expect(page.getByRole('dialog')).toBeVisible();
+        await page.getByRole('dialog').getByRole('button', { name: 'Remover abertura' }).click();
 
-      await expect(openingButton).toHaveCount(0);
-      await removeScheduleOpening(page, opening.id);
+        await expect(openingButton).toHaveCount(0);
+      } finally {
+        await removeScheduleOpening(page, opening.id);
+      }
     });
   });
 

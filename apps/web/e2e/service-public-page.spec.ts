@@ -175,13 +175,21 @@ test.describe('service public page — manager publishes, visitor reads', () => 
 
         await test.step('a deactivated service has no page, even though its switch stays on', async () => {
           const inactiveService = await newService(page, 'inativo');
-          const inactivePublished = await setServicePublicPage(page, inactiveService.serviceId, {
-            published: true,
-          });
-          await deactivateService(page, inactiveService.serviceId);
+          let deactivated = false;
+          try {
+            const inactivePublished = await setServicePublicPage(page, inactiveService.serviceId, {
+              published: true,
+            });
+            await deactivateService(page, inactiveService.serviceId);
+            deactivated = true;
 
-          await guest.goto(`/${TENANT_SLUG}/servicos/${inactivePublished.publicSlug}`);
-          await expect(guest.getByTestId('service-detail-unavailable')).toBeVisible();
+            await guest.goto(`/${TENANT_SLUG}/servicos/${inactivePublished.publicSlug}`);
+            await expect(guest.getByTestId('service-detail-unavailable')).toBeVisible();
+          } finally {
+            if (!deactivated) {
+              await deactivateService(page, inactiveService.serviceId);
+            }
+          }
         });
       } finally {
         await visitor.close();

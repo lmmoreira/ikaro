@@ -93,4 +93,22 @@ describe('BookingFormWithDeepLink', () => {
 
     expect(lastSeed()).toBeNull();
   });
+
+  it('ignores an unknown service even when the link also carries a valid date', () => {
+    searchParams.current = new URLSearchParams(
+      `serviceId=${OTHER_TENANT_SERVICE_ID}&date=2099-01-01`,
+    );
+
+    render(<BookingFormWithDeepLink {...props} />);
+
+    expect(lastSeed()).toBeNull();
+  });
+
+  it('ignores a link that carries only a date', () => {
+    searchParams.current = new URLSearchParams('date=2030-01-01');
+
+    render(<BookingFormWithDeepLink {...props} />);
+
+    expect(lastSeed()).toBeNull();
+  });
 });

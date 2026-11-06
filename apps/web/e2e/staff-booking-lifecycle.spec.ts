@@ -98,6 +98,27 @@ test.describe('staff booking lifecycle coverage', () => {
     await expect(page.getByRole('button', { name: 'Pedir info' })).toHaveCount(0);
   });
 
+  test('complete success shows the centered summary and the right-side action panel', async ({
+    page,
+  }) => {
+    const setup = await createFreshApprovedBooking(page, 9, STAFF_EMAIL);
+
+    await page.goto(`/dashboard/bookings/${setup.bookingId}/complete`);
+
+    await expect(page.getByRole('button', { name: 'Confirmar conclusão' })).toBeVisible();
+    await expect(page.getByTestId('complete-line-name').first()).toContainText('Lavagem Simples');
+    await expect(page.getByTestId('complete-summary-quoted')).toBeVisible();
+    await expect(page.getByTestId('complete-summary-charged')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Confirmar conclusão' }).click();
+
+    await expect(page.getByTestId('outcome-banner-title')).toBeVisible();
+    await expect(
+      page.locator('main aside').getByRole('link', { name: 'Voltar à agenda' }),
+    ).toBeVisible();
+    await expect(page.getByTestId('complete-email-summary')).toBeVisible();
+  });
+
   test('complete loyalty flow earns points on one booking and redeems them on the next', async ({
     page,
   }) => {
@@ -170,25 +191,6 @@ test.describe('staff booking lifecycle coverage', () => {
       'Desconto fidelidade: -R$ 1,00',
     );
     await expect(page.getByRole('link', { name: 'Voltar à agenda' })).toBeVisible();
-
-    await test.step('complete success shows the centered summary and the right-side action panel', async () => {
-      const setup = await createFreshApprovedBooking(page, 9, STAFF_EMAIL);
-
-      await page.goto(`/dashboard/bookings/${setup.bookingId}/complete`);
-
-      await expect(page.getByRole('button', { name: 'Confirmar conclusão' })).toBeVisible();
-      await expect(page.getByTestId('complete-line-name').first()).toContainText('Lavagem Simples');
-      await expect(page.getByTestId('complete-summary-quoted')).toBeVisible();
-      await expect(page.getByTestId('complete-summary-charged')).toBeVisible();
-
-      await page.getByRole('button', { name: 'Confirmar conclusão' }).click();
-
-      await expect(page.getByTestId('outcome-banner-title')).toBeVisible();
-      await expect(
-        page.locator('main aside').getByRole('link', { name: 'Voltar à agenda' }),
-      ).toBeVisible();
-      await expect(page.getByTestId('complete-email-summary')).toBeVisible();
-    });
   });
 
   test('reschedule success shows a full De/Para summary and the action panel on the right', async ({
