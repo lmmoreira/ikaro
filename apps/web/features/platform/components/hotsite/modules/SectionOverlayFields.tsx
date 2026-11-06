@@ -1,5 +1,6 @@
 'use client';
 
+import { Label } from '@/shared/components/ui/label';
 import { useTranslations } from 'next-intl';
 import type { HotsiteOverlayDirection, HotsiteSectionOverlay } from '@ikaro/types';
 import { PillSelect } from '@/shared/components/ui/pill-select';
@@ -87,12 +88,7 @@ function GradientFields({
   return (
     <div className="space-y-4">
       <div>
-        <label
-          htmlFor="presentation-overlay-direction"
-          className="mb-1.5 block text-sm font-semibold text-gray-900"
-        >
-          {t('overlayDirectionLabel')}
-        </label>
+        <Label htmlFor="presentation-overlay-direction">{t('overlayDirectionLabel')}</Label>
         <Select
           value={overlay.direction}
           onValueChange={(direction) =>

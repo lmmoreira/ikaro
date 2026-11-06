@@ -6,8 +6,9 @@ import {
 } from '@/shared/utils/phone-format';
 import type { SettingsAddressValues } from '@/features/platform/settings-form';
 import { FieldFeedback } from '@/shared/components/ui/field-feedback';
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
 import {
-  INPUT_CLASS,
   settingsFieldWiring,
   type SettingsFieldFeedback,
   type SettingsFieldName,
@@ -44,9 +45,7 @@ export function PhoneField({
 
   return (
     <div>
-      <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-gray-900">
-        {label}
-      </label>
+      <Label htmlFor={id}>{label}</Label>
       <div className="flex">
         <span
           data-testid={prefixTestId}
@@ -54,7 +53,7 @@ export function PhoneField({
         >
           {phonePrefix}
         </span>
-        <input
+        <Input
           id={id}
           data-testid={id}
           type="tel"
@@ -63,7 +62,7 @@ export function PhoneField({
           value={formatPhoneForDisplay(value, phonePrefix)}
           onChange={(event) => onChange(sanitizePhoneInput(event.target.value, phonePrefix))}
           {...field.inputProps}
-          className={field.inputClassName(`${INPUT_CLASS} rounded-l-none`)}
+          className={field.inputClassName('rounded-l-none')}
         />
       </div>
       {hint && !field.error && <p className="mt-1.5 text-sm text-gray-500">{hint}</p>}
@@ -99,13 +98,8 @@ export function PostalCodeField({
 
   return (
     <div>
-      <label
-        htmlFor="settings-address-zip"
-        className="mb-1.5 block text-sm font-semibold text-gray-900"
-      >
-        {label}
-      </label>
-      <input
+      <Label htmlFor="settings-address-zip">{label}</Label>
+      <Input
         id="settings-address-zip"
         data-testid="settings-address-zip"
         type="text"
@@ -114,7 +108,7 @@ export function PostalCodeField({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         {...field.inputProps}
-        className={field.inputClassName(`${INPUT_CLASS} max-w-56`)}
+        className={field.inputClassName('max-w-56')}
       />
       {isLookingUp && (
         <p data-testid="settings-address-zip-loading" className="mt-1.5 text-sm text-gray-500">

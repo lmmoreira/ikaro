@@ -1,5 +1,7 @@
 'use client';
 
+import { Label } from '@/shared/components/ui/label';
+import { NativeSelect } from '@/shared/components/ui/native-select';
 import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -188,15 +190,17 @@ export function BookingPhotoPicker({
 
       {candidates !== null && candidates.length > 0 && (
         <div className="mb-3">
-          <label htmlFor="booking-photo-picker-select" className="mb-1 block text-xs text-gray-600">
+          <Label
+            htmlFor="booking-photo-picker-select"
+            className="mb-1 text-xs font-normal text-gray-600"
+          >
             {t('selectBookingLabel')}
-          </label>
-          <select
+          </Label>
+          <NativeSelect
             id="booking-photo-picker-select"
             data-testid="booking-photo-picker-select"
             value={selectedBookingId ?? ''}
             onChange={(event) => setSelectedBookingId(event.target.value || null)}
-            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
           >
             <option value="">—</option>
             {candidates.map((c) => (
@@ -204,7 +208,7 @@ export function BookingPhotoPicker({
                 {c.contactName} — {formatDate(new Date(c.scheduledAt))}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </div>
       )}
 

@@ -1,4 +1,8 @@
 import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
+import { NativeSelect } from '@/shared/components/ui/native-select';
+import { Textarea } from '@/shared/components/ui/textarea';
 import type { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import type { SettingsFormErrors } from '@/features/platform/settings-form';
 import { cn } from '@/shared/utils/cn';
@@ -7,8 +11,6 @@ import { cn } from '@/shared/utils/cn';
 // error, in various shapes) are a self-contained, fully generic concern, unrelated to the
 // section-by-section form layout that consumes them. Split into this file for basic fields and
 // SettingsFormAdvancedFields.tsx for the more specialized ones (phone, postal code, day row).
-export const INPUT_CLASS =
-  'w-full rounded-md border border-border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
 
 // The slice of the form's single `useFormFeedback` the fields need: the error message by field
 // name, the ref + aria props that let the hook mark and focus the input, and its message id.
@@ -24,7 +26,7 @@ interface FieldWiring {
   readonly errorId: string;
   readonly hintId: string;
   readonly inputProps: ReturnType<SettingsFieldFeedback['fieldProps']>;
-  readonly inputClassName: (base: string) => string;
+  readonly inputClassName: (base?: string) => string;
 }
 
 // The visible hint is announced with the input only while it is shown (no error); an error takes
@@ -74,11 +76,9 @@ export function SuffixNumberField({
 
   return (
     <div>
-      <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-gray-900">
-        {label}
-      </label>
+      <Label htmlFor={id}>{label}</Label>
       <div className="relative max-w-56">
-        <input
+        <Input
           id={id}
           data-testid={id}
           type="number"
@@ -86,7 +86,7 @@ export function SuffixNumberField({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           {...field.inputProps}
-          className={field.inputClassName(`${INPUT_CLASS} pr-16`)}
+          className={field.inputClassName('pr-16')}
         />
         <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
           {suffix}
@@ -131,10 +131,8 @@ export function TextField({
 
   return (
     <div>
-      <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-gray-900">
-        {label}
-      </label>
-      <input
+      <Label htmlFor={id}>{label}</Label>
+      <Input
         id={id}
         data-testid={id}
         type={type}
@@ -143,7 +141,7 @@ export function TextField({
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
         {...field.inputProps}
-        className={field.inputClassName(INPUT_CLASS)}
+        className={field.inputClassName()}
       />
       {hint && !field.error && (
         <p id={field.hintId} className="mt-1.5 text-sm text-gray-500">
@@ -180,10 +178,8 @@ export function TextareaField({
 
   return (
     <div>
-      <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-gray-900">
-        {label}
-      </label>
-      <textarea
+      <Label htmlFor={id}>{label}</Label>
+      <Textarea
         id={id}
         data-testid={id}
         value={value}
@@ -191,7 +187,7 @@ export function TextareaField({
         onChange={(event) => onChange(event.target.value)}
         {...field.inputProps}
         rows={5}
-        className={field.inputClassName(`${INPUT_CLASS} min-h-32 resize-y`)}
+        className={field.inputClassName('min-h-32 resize-y')}
       />
       {hint && !field.error && (
         <p id={field.hintId} className="mt-1.5 text-sm text-gray-500">
@@ -228,23 +224,22 @@ export function SelectField({
 
   return (
     <div>
-      <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-gray-900">
-        {label}
-      </label>
-      <select
+      <Label htmlFor={id}>{label}</Label>
+      <NativeSelect
         id={id}
         data-testid={id}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         {...field.inputProps}
-        className={field.inputClassName(`${INPUT_CLASS} max-w-56`)}
+        className={field.inputClassName()}
+        wrapperClassName="max-w-56"
       >
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
           </option>
         ))}
-      </select>
+      </NativeSelect>
       {hint && !field.error && (
         <p id={field.hintId} className="mt-1.5 text-sm text-gray-500">
           {hint}

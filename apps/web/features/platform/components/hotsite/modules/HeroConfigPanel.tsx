@@ -1,5 +1,6 @@
 'use client';
 
+import { Label } from '@/shared/components/ui/label';
 import { useTranslations } from 'next-intl';
 import type { HeroModuleData } from '@ikaro/types';
 import { PillSelect } from '@/shared/components/ui/pill-select';
@@ -115,9 +116,7 @@ export function HeroConfigPanel({ data, onChange }: ModuleConfigPanelProps): Rea
       />
 
       <div>
-        <label className="mb-1.5 block text-sm font-semibold text-gray-900">
-          {t('ctaTargetLabel')}
-        </label>
+        <Label>{t('ctaTargetLabel')}</Label>
         <Select
           value={hero.ctaTarget}
           onValueChange={(value) => update({ ctaTarget: value as CtaTarget })}
@@ -144,9 +143,7 @@ export function HeroConfigPanel({ data, onChange }: ModuleConfigPanelProps): Rea
       />
 
       <div>
-        <label className="mb-1.5 block text-sm font-semibold text-gray-900">
-          {t('secondaryCtaTargetLabel')}
-        </label>
+        <Label>{t('secondaryCtaTargetLabel')}</Label>
         <Select
           value={hero.secondaryCtaTarget ?? ''}
           onValueChange={(value) =>

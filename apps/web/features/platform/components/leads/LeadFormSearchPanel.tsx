@@ -1,5 +1,6 @@
 'use client';
 
+import { Input } from '@/shared/components/ui/input';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -173,14 +174,14 @@ export function LeadFormSearchPanel({
         <div className="space-y-1.5">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input
+            <Input
               type="search"
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
               placeholder={t('searchPlaceholder')}
               aria-label={t('searchPlaceholder')}
               data-testid="leads-search-input"
-              className="h-10 w-full rounded-md border border-gray-200 bg-white pl-9 pr-3 text-sm outline-none focus:border-blue-500"
+              className="h-10 pl-9"
             />
           </div>
           <p className="text-xs text-gray-400">{t('basicModeHint')}</p>

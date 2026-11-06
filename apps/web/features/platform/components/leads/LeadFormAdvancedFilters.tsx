@@ -1,5 +1,6 @@
 'use client';
 
+import { Input } from '@/shared/components/ui/input';
 import { Plus, X } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import {
@@ -79,13 +80,13 @@ export function LeadFormAdvancedFilters({
                 ))}
               </SelectContent>
             </Select>
-            <input
+            <Input
               type="text"
               value={row.value}
               onChange={(event) => updateRow(row.id, { value: event.target.value })}
               placeholder={valuePlaceholder}
               data-testid="leads-filter-row-value"
-              className="h-9 w-full rounded-md border border-gray-200 bg-white px-3 text-sm outline-none focus:border-blue-500"
+              className="h-9"
             />
             <Button
               type="button"

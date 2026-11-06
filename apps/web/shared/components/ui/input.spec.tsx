@@ -65,6 +65,16 @@ describe('Input', () => {
     expect(input).toHaveAccessibleDescription('Required');
   });
 
+  it('styles aria-invalid with the red border and background', () => {
+    render(<Input value="" onChange={vi.fn()} aria-invalid aria-label="Name" />);
+
+    const input = screen.getByRole('textbox', { name: 'Name' });
+    expect(input).toHaveClass(
+      'aria-[invalid=true]:border-red-500',
+      'aria-[invalid=true]:bg-red-50',
+    );
+  });
+
   it('has no accessibility violations', async () => {
     const { container } = render(<Input value="" onChange={vi.fn()} aria-label="Name" />);
 

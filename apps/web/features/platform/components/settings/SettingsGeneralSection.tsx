@@ -1,8 +1,10 @@
 'use client';
 
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
 import { useTranslations } from 'next-intl';
 import { SectionCard } from '@/shared/components/ui/section-card';
-import { INPUT_CLASS, TextField, type SettingsFieldFeedback } from './SettingsFormFields';
+import { TextField, type SettingsFieldFeedback } from './SettingsFormFields';
 
 interface SettingsGeneralSectionProps {
   readonly slug: string;
@@ -33,16 +35,14 @@ export function SettingsGeneralSection({
         onChange={onNameChange}
       />
       <div>
-        <label htmlFor="settings-slug" className="mb-1.5 block text-sm font-semibold text-gray-900">
-          {t('slugLabel')}
-        </label>
-        <input
+        <Label htmlFor="settings-slug">{t('slugLabel')}</Label>
+        <Input
           id="settings-slug"
           data-testid="settings-slug-input"
           type="text"
           value={slug}
           disabled
-          className={`${INPUT_CLASS} bg-gray-100 text-gray-500`}
+          className="bg-gray-100 text-gray-500"
         />
         <p className="mt-1.5 text-sm text-gray-500">{t('slugHint')}</p>
       </div>

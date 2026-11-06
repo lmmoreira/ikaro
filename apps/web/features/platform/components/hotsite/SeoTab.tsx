@@ -1,12 +1,12 @@
 'use client';
 
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
+import { Textarea } from '@/shared/components/ui/textarea';
 import { useTranslations } from 'next-intl';
 import type { HotsiteSeoResponse } from '@ikaro/types';
 import { SectionCard } from '@/shared/components/ui/section-card';
 import { OgImageUpload } from './OgImageUpload';
-
-const INPUT_CLASS =
-  'w-full rounded-md border border-border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
 
 // Real-world Google truncation points, not arbitrary round numbers — matches the domain-level
 // SeoTitle/SeoDescription value objects (apps/backend/src/shared/value-objects/).
@@ -31,13 +31,8 @@ export function SeoTab({ value, onChange }: SeoTabProps): React.JSX.Element {
   return (
     <SectionCard title={t('sectionTitle')} size="compact">
       <div>
-        <label
-          htmlFor="hotsite-seo-title"
-          className="mb-1.5 block text-sm font-semibold text-gray-900"
-        >
-          {t('titleLabel', { max: SEO_TITLE_MAX_LENGTH })}
-        </label>
-        <input
+        <Label htmlFor="hotsite-seo-title">{t('titleLabel', { max: SEO_TITLE_MAX_LENGTH })}</Label>
+        <Input
           id="hotsite-seo-title"
           data-testid="hotsite-seo-title"
           type="text"
@@ -45,24 +40,20 @@ export function SeoTab({ value, onChange }: SeoTabProps): React.JSX.Element {
           value={value.title ?? ''}
           placeholder={t('titleHint')}
           onChange={(event) => setField('title', event.target.value || null)}
-          className={INPUT_CLASS}
         />
       </div>
       <div>
-        <label
-          htmlFor="hotsite-seo-description"
-          className="mb-1.5 block text-sm font-semibold text-gray-900"
-        >
+        <Label htmlFor="hotsite-seo-description">
           {t('descriptionLabel', { max: SEO_DESCRIPTION_MAX_LENGTH })}
-        </label>
-        <textarea
+        </Label>
+        <Textarea
           id="hotsite-seo-description"
           data-testid="hotsite-seo-description"
           maxLength={SEO_DESCRIPTION_MAX_LENGTH}
           value={value.description ?? ''}
           placeholder={t('descriptionHint')}
           onChange={(event) => setField('description', event.target.value || null)}
-          className={`${INPUT_CLASS} min-h-[6rem] resize-y`}
+          className="min-h-[6rem] resize-y"
         />
       </div>
       <OgImageUpload
