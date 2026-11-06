@@ -1,5 +1,6 @@
 'use client';
 
+import { Input } from '@/shared/components/ui/input';
 import { useEffect, useState } from 'react';
 import { Search } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -72,13 +73,13 @@ export function LoyaltySearchPage(): React.JSX.Element {
     <section className="w-full space-y-0">
       <Card className="relative mb-6 p-3 shadow-none">
         <Search className="pointer-events-none absolute left-6 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-        <input
+        <Input
           type="search"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder={t('searchPlaceholder')}
           aria-label={t('searchPlaceholder')}
-          className="h-11 w-full rounded-lg border border-gray-200 bg-white pl-10 pr-4 text-sm text-gray-900 shadow-none outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          className="h-11 pl-10 pr-4"
         />
       </Card>
 

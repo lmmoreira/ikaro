@@ -1,5 +1,7 @@
 'use client';
 
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
 import { useEffect, useState, type SubmitEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -15,9 +17,6 @@ import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import { extractProblemCode, resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { cn } from '@/shared/utils/cn';
-
-const INPUT_CLASS =
-  'w-full rounded-md border border-border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
 
 export function InviteForm(): React.JSX.Element {
   const t = useTranslations('dashboard.teamPage');
@@ -76,13 +75,8 @@ export function InviteForm(): React.JSX.Element {
           <CardContent className="space-y-5 p-5 lg:p-6">
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label
-                  htmlFor="invite-first-name"
-                  className="mb-1.5 block text-sm font-semibold text-gray-900"
-                >
-                  {t('firstNameLabel')}
-                </label>
-                <input
+                <Label htmlFor="invite-first-name">{t('firstNameLabel')}</Label>
+                <Input
                   id="invite-first-name"
                   data-testid="invite-first-name-input"
                   type="text"
@@ -90,20 +84,15 @@ export function InviteForm(): React.JSX.Element {
                   onChange={(event) => edit(setFirstName)(event.target.value)}
                   placeholder={t('firstNamePlaceholder')}
                   {...fieldProps('firstName')}
-                  className={cn(INPUT_CLASS, fieldErrors.firstName && FIELD_INVALID_CLASS)}
+                  className={cn(fieldErrors.firstName && FIELD_INVALID_CLASS)}
                 />
                 <FieldFeedback id={fieldErrorId('firstName')}>
                   {fieldErrors.firstName}
                 </FieldFeedback>
               </div>
               <div>
-                <label
-                  htmlFor="invite-last-name"
-                  className="mb-1.5 block text-sm font-semibold text-gray-900"
-                >
-                  {t('lastNameLabel')}
-                </label>
-                <input
+                <Label htmlFor="invite-last-name">{t('lastNameLabel')}</Label>
+                <Input
                   id="invite-last-name"
                   data-testid="invite-last-name-input"
                   type="text"
@@ -111,20 +100,15 @@ export function InviteForm(): React.JSX.Element {
                   onChange={(event) => edit(setLastName)(event.target.value)}
                   placeholder={t('lastNamePlaceholder')}
                   {...fieldProps('lastName')}
-                  className={cn(INPUT_CLASS, fieldErrors.lastName && FIELD_INVALID_CLASS)}
+                  className={cn(fieldErrors.lastName && FIELD_INVALID_CLASS)}
                 />
                 <FieldFeedback id={fieldErrorId('lastName')}>{fieldErrors.lastName}</FieldFeedback>
               </div>
             </div>
 
             <div>
-              <label
-                htmlFor="invite-email"
-                className="mb-1.5 block text-sm font-semibold text-gray-900"
-              >
-                {t('emailLabel')}
-              </label>
-              <input
+              <Label htmlFor="invite-email">{t('emailLabel')}</Label>
+              <Input
                 id="invite-email"
                 data-testid="invite-email-input"
                 type="email"
@@ -132,7 +116,7 @@ export function InviteForm(): React.JSX.Element {
                 onChange={(event) => edit(setEmail)(event.target.value)}
                 placeholder={t('emailPlaceholder')}
                 {...fieldProps('email')}
-                className={cn(INPUT_CLASS, fieldErrors.email && FIELD_INVALID_CLASS)}
+                className={cn(fieldErrors.email && FIELD_INVALID_CLASS)}
               />
               {fieldErrors.email ? (
                 <FieldFeedback id={fieldErrorId('email')}>{fieldErrors.email}</FieldFeedback>

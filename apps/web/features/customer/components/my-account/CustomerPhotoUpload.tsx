@@ -1,5 +1,7 @@
 'use client';
 
+import { FileDropzone } from '@/shared/components/ui/file-dropzone';
+import { Label } from '@/shared/components/ui/label';
 import { useId, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { createCustomerAttachmentSignedUrl } from '@/features/booking/api/customer';
@@ -82,26 +84,17 @@ export function CustomerPhotoUpload({
 
   return (
     <div>
-      <label htmlFor={inputId} className="mb-1.5 block text-sm font-semibold text-gray-900">
-        {t('photoUploadTitle')}
-      </label>
+      <Label htmlFor={inputId}>{t('photoUploadTitle')}</Label>
 
-      <label
-        htmlFor={inputId}
-        className="block cursor-pointer rounded-lg border-2 border-dashed border-gray-200 p-6 text-center hover:border-gray-300"
-      >
-        <p className="text-sm text-gray-500">{t('photoClickToAdd')}</p>
-        <p className="mt-1 text-xs text-gray-400">{t('photoFormatHint')}</p>
-        <input
-          id={inputId}
-          type="file"
-          multiple
-          onChange={(event) => {
-            void handleFilesSelected(event);
-          }}
-          className="sr-only"
-        />
-      </label>
+      <FileDropzone
+        id={inputId}
+        multiple
+        onChange={(event) => {
+          void handleFilesSelected(event);
+        }}
+        title={t('photoClickToAdd')}
+        hint={t('photoFormatHint')}
+      />
 
       {items.length > 0 && (
         <ul className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">

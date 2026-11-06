@@ -1,5 +1,7 @@
 'use client';
 
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
 import { useEffect, useState, type SubmitEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -17,9 +19,6 @@ import { cn } from '@/shared/utils/cn';
 interface StaffDetailPageProps {
   readonly staff: StaffResponse;
 }
-
-const INPUT_CLASS =
-  'w-full rounded-md border border-border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
 
 export function StaffDetailPage({ staff }: StaffDetailPageProps): React.JSX.Element {
   const t = useTranslations('dashboard.teamPage');
@@ -94,39 +93,29 @@ export function StaffDetailPage({ staff }: StaffDetailPageProps): React.JSX.Elem
         <Card>
           <CardContent className="space-y-5 p-5 lg:p-6">
             <div>
-              <label
-                htmlFor="staff-detail-name"
-                className="mb-1.5 block text-sm font-semibold text-gray-900"
-              >
-                {t('fullNameLabel')}
-              </label>
-              <input
+              <Label htmlFor="staff-detail-name">{t('fullNameLabel')}</Label>
+              <Input
                 id="staff-detail-name"
                 data-testid="staff-detail-name-input"
                 type="text"
                 value={name}
                 onChange={(event) => edit(setName)(event.target.value)}
                 {...fieldProps('name')}
-                className={cn(INPUT_CLASS, fieldErrors.name && FIELD_INVALID_CLASS)}
+                className={cn(fieldErrors.name && FIELD_INVALID_CLASS)}
               />
               <FieldFeedback id={fieldErrorId('name')}>{fieldErrors.name}</FieldFeedback>
             </div>
 
             <div>
-              <label
-                htmlFor="staff-detail-email"
-                className="mb-1.5 block text-sm font-semibold text-gray-900"
-              >
-                {t('emailLabel')}
-              </label>
-              <input
+              <Label htmlFor="staff-detail-email">{t('emailLabel')}</Label>
+              <Input
                 id="staff-detail-email"
                 data-testid="staff-detail-email-input"
                 type="email"
                 value={staff.email}
                 disabled
                 readOnly
-                className={`${INPUT_CLASS} bg-gray-100 text-gray-500`}
+                className="bg-gray-100 text-gray-500"
               />
               <p className="mt-1.5 text-sm text-gray-500">{t('emailReadonlyHint')}</p>
             </div>
