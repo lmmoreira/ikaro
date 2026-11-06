@@ -8,7 +8,9 @@ loadDotenv({ path: playwrightEnvPath, quiet: true });
 
 export default defineConfig({
   testDir: './e2e',
-  fullyParallel: true,
+  // CI shards the suite across jobs (--shard=N/M). With fullyParallel on, Playwright would split
+  // individual tests; off, it splits by file, so a file's tests (and its serial groups) stay together.
+  fullyParallel: !process.env.CI,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
