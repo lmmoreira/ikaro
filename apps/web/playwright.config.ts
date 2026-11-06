@@ -17,7 +17,9 @@ export default defineConfig({
   reporter: 'html',
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000',
-    trace: 'on-first-retry',
+    // Keeps the trace of a first attempt that failed, even when its retry then passes: `on-first-retry`
+    // would record only the passing retry, which is useless for diagnosing an intermittent failure.
+    trace: 'retain-on-first-failure',
     // TD38: deliberately NOT setting X-Web-Internal-Key here via extraHTTPHeaders. That option
     // applies to the whole browser context -- not just Playwright's own page.request.* API
     // calls, but every real fetch/XHR the page itself makes too. It broke the guest photo
