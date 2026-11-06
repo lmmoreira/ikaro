@@ -74,7 +74,7 @@ graph TD
   S0 --> S7[S7 token cleanup]
   S1[S1 badge + button variants] --> S7
   S3 --> S7
-  S2[S2 SectionLabel + EmptyState] --> S6[S6 LabeledCardSection]
+  S2[S2 SectionLabel + EmptyState] --> S6[S6 LabeledSection]
   S3 --> S10[S10 lint guard, exploratory]
   S4[S4 dialog + tabs] --> S10
   S1 --> S11[S11 regroup bookings folder]
@@ -329,7 +329,7 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 
 ---
 
-### Story 6 — `LabeledCardSection` promotion
+### Story 6 — `LabeledSection` promotion
 
 **Agent:** frontend-ts
 **Complexity:** S
@@ -339,19 +339,31 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 
 **Description:** `booking/booking-detail/BookingDetailSection.tsx` (eyebrow → card with divided rows → optional note) is the frame that several staff-side blocks hand-roll as `<section><p eyebrow/><Card><CardContent>`. Promote it to a generic `LabeledCardSection` built on `SectionLabel` (Story 2) and `Card`, and migrate the hand-rolled blocks. Customer `DetailSection` (heading inside the card) is a deliberate, different alignment per `docs/ENGINEERING_RULES_FRONTEND.md`'s alignment rule and stays untouched. Placement (`ui/` vs the booking slice) is decided in discovery: it is domain-free, so `ui/` unless it needs booking types.
 
+**Locked in discovery (2026-11-06; supersedes the "generic `LabeledCardSection`" wording above where they differ):**
+- **Premise correction:** the "hand-rolled copies" are not copies of `BookingDetailSection`'s frame. It already has 8 importers in the booking slice. Across the 14 places that put a `SectionLabel` above a `Card`, only the label-above-content pairing is common; the `CardContent` classes take 11 different values, two sites use a blue-tinted card, two others have a `CardHeader` or no card at all, and the wrapper is a `<section>` with an `mb-2` label in most and a `<div className="space-y-2">` in the rest.
+- **Design: composition, not configuration.** A component that renders the `Card` and `CardContent` itself would need `cardClassName` and `contentClassName` escape hatches for every variant (class-prop drilling; the "keeps needing caveats" signal of `CLAUDE.md` §7). The invariant is only the section, the label and the 0.5rem gap, and `Card`/`CardContent` are already primitives, so the caller composes them. So the primitive is `ui/labeled-section.tsx` (`LabeledSection`), not a `LabeledCardSection`: `title`, `children`, and optional `testId` (on the `<section>`), `labelTestId` (on the label), `className` (merged onto the `<section>`); it renders `<section><SectionLabel className="mb-2">{title}</SectionLabel>{children}</section>` and nothing else. No `note`, no card props.
+- **Migration set: every site where the frame fits unchanged.** The fit rule: a `<section>` or `<div>` wrapper whose only children are the `SectionLabel` and one block of content, with a 0.5rem gap (an `mb-2` label or a `space-y-2` wrapper). Known fits: `BookingItineraryCard`; `BookingDetailMain` (the schedule, services and photos sections); `BookingStatusHistory`; `MarkCompleteSummaryCard`; `MarkCompleteLoyaltyPanel` (`labelTestId`); `MarkCompleteLineFields`; `MarkCompleteBookingPage` (the before-photos block); `MarkCompleteSuccessView` (schedule and the two photo blocks); `RescheduleSuccessView`; `RecurringDecisionExplainer`, `RecurringScheduleRequestSummary` (two sections) and `RecurringApprovalActions` (a `<div className="space-y-2">` becomes a `<section>`; the gap is identical because each wrapper holds only the label and the card); and `ServiceCreatePage` (`<section className="space-y-2">`). Implementation re-greps and confirms each site's wrapper holds only those two children before converting it.
+- **Stays hand-written (does not fit):** `BookingDetailMain`'s info-exchange block (a flex row with a badge beside the label); `ServicePickupSwitch` (`space-y-3`, a 0.75rem gap, not 0.5rem); every eyebrow that is not a `SectionLabel` frame (the deferred Story 2 near-variants); and the customer `DetailSection` (heading inside the card, the deliberate alternative alignment).
+- **`BookingDetailSection`** keeps its API and its 8 importers: it is rebuilt on `LabeledSection` and keeps the booking-detail-specific parts (the card with divided rows `divide-y divide-gray-100 px-4 py-0` and the optional `note` line). Its existing spec passes unchanged.
+- **Docs:** one new row for `ui/labeled-section` in the primitives table of `docs/ENGINEERING_RULES_FRONTEND.md`, in this story's PR.
+
 New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface: none.
 
 **Files to create/modify:**
-- `apps/web/shared/components/ui/labeled-card-section.tsx` + spec (new) — or promote in place; discovery decides
-- `features/booking/components/booking-detail/BookingDetailSection.tsx` (modify/re-export); `features/booking/components/dashboard/bookings/{BookingDetailMain,BookingStatusHistory,MarkCompleteSummaryCard,RecurringScheduleRequestSummary}.tsx` (modify)
+- `apps/web/shared/components/ui/labeled-section.tsx` + `labeled-section.spec.tsx` (new)
+- `features/booking/components/booking-detail/BookingDetailSection.tsx` (modify: build on `LabeledSection`)
+- Migrated sites (modify): `features/booking/components/booking-detail/BookingItineraryCard.tsx`; `.../dashboard/bookings/{BookingDetailMain,BookingStatusHistory,MarkCompleteSummaryCard,MarkCompleteLoyaltyPanel,MarkCompleteLineFields,MarkCompleteBookingPage,MarkCompleteSuccessView,RescheduleSuccessView,RecurringDecisionExplainer,RecurringScheduleRequestSummary,RecurringApprovalActions}.tsx`; `.../dashboard/services/ServiceCreatePage.tsx`
+- `docs/ENGINEERING_RULES_FRONTEND.md` (table row — doc gate)
 
 **Acceptance criteria — product:**
-- [ ] The staff booking detail and mark-complete screens render exactly as before.
+- [ ] The staff booking detail, mark-complete and its success view, reschedule success, the recurring approval and new-recurring pages, the booking itinerary card and `/dashboard/services/new` render exactly as before (browser-verified).
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] Spec for the section: eyebrow + card + optional note, with and without note
-  - [ ] Existing specs of all migrated files pass unchanged
+  - [ ] `labeled-section.spec.tsx`: renders a `<section>` with the label then the children; `testId` lands on the section and `labelTestId` on the label; `className` merges onto the section; axe passes
+  - [ ] Existing specs of all migrated files pass unchanged, `BookingDetailSection.spec.tsx` included
+- [ ] Grep proof: none of the migrated files still hand-writes a `<section>`/`space-y-2` wrapper around a `<SectionLabel className="mb-2">` (or an unclassed `SectionLabel`) followed by its content
+- [ ] Negative guarantee: the sites listed under "stays hand-written" (`ServicePickupSwitch`, the info-exchange block, the customer `DetailSection`) are unchanged in the diff
 - E2E:
   - [ ] none — covered by unit
 - [ ] Coverage ≥80% on changed code
