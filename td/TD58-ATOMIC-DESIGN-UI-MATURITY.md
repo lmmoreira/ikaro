@@ -183,7 +183,7 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 
 ---
 
-### Story 2 — `SectionLabel` atom and `EmptyState` molecule
+### Story 2 — `SectionLabel` atom and `EmptyState` molecule ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** M
