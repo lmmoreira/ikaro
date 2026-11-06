@@ -26,11 +26,10 @@ FROM node@sha256:0e1754758c2df4cfa3e68d59e2e1b7374bb7fd9ea6328eaaacf15cc934af820
 
 WORKDIR /app
 
-# The pinned node:22-alpine digest predates a fixed Alpine package (libssl3/libcrypto3
-# 3.5.8-r0, CVE-2026-14456) that Alpine's 3.24 repo already publishes — no newer base
-# image digest exists upstream yet, so patch OS packages explicitly rather than wait.
-RUN apk upgrade --no-cache libssl3 libcrypto3 \
-    && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx \
+# Removes npm — unused in the production runner, eliminates npm's bundled CVEs. OS packages come
+# from the digest-pinned base image; a vulnerable one is fixed by bumping that digest, not by an
+# `apk upgrade` here.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx \
     && addgroup --system --gid 1001 nodejs \
     && adduser --system --uid 1001 --ingroup nodejs nodeapp
 
