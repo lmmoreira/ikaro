@@ -19,6 +19,7 @@ import {
   ActionPane,
   NewRecurringScheduleLayout,
 } from '@/features/booking/components/recurring/NewRecurringScheduleLayout';
+import { Button } from '@/shared/components/ui/button';
 import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import { useRecurrenceText } from './use-recurrence-text';
 
@@ -40,8 +41,6 @@ interface NewRecurringScheduleResultProps {
 
 const PRIMARY_BUTTON =
   'rounded-lg bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60';
-const SECONDARY_BUTTON =
-  'rounded-lg border border-gray-200 px-4 py-2.5 text-center text-sm font-semibold text-gray-700 hover:bg-gray-50';
 
 function Heading({
   eyebrow,
@@ -85,9 +84,9 @@ export function NewRecurringScheduleResult({
             <Link href={detailHref} data-testid="new-schedule-view" className={PRIMARY_BUTTON}>
               {tn('viewSchedule')}
             </Link>
-            <Link href={listHref} className={SECONDARY_BUTTON}>
-              {tn('backToList')}
-            </Link>
+            <Button asChild variant="outline" className="h-10 font-semibold text-gray-700">
+              <Link href={listHref}>{tn('backToList')}</Link>
+            </Button>
           </ActionPane>
         }
       >
@@ -125,9 +124,9 @@ export function NewRecurringScheduleResult({
             >
               {tn('changePattern')}
             </button>
-            <Link href={listHref} className={SECONDARY_BUTTON}>
-              {tn('cancelButton')}
-            </Link>
+            <Button asChild variant="outline" className="h-10 font-semibold text-gray-700">
+              <Link href={listHref}>{tn('cancelButton')}</Link>
+            </Button>
           </ActionPane>
         }
       >
@@ -165,9 +164,9 @@ export function NewRecurringScheduleResult({
             >
               {tn('changePattern')}
             </button>
-            <Link href={listHref} className={SECONDARY_BUTTON}>
-              {tn('viewMine')}
-            </Link>
+            <Button asChild variant="outline" className="h-10 font-semibold text-gray-700">
+              <Link href={listHref}>{tn('viewMine')}</Link>
+            </Button>
           </ActionPane>
         }
       >
@@ -200,9 +199,9 @@ export function NewRecurringScheduleResult({
           >
             {retrying ? tn('submitting') : tn('retryButton')}
           </button>
-          <Link href={listHref} className={SECONDARY_BUTTON}>
-            {tn('cancelButton')}
-          </Link>
+          <Button asChild variant="outline" className="h-10 font-semibold text-gray-700">
+            <Link href={listHref}>{tn('cancelButton')}</Link>
+          </Button>
         </ActionPane>
       }
     >

@@ -1,5 +1,7 @@
 'use client';
 
+import { Label } from '@/shared/components/ui/label';
+import { Textarea } from '@/shared/components/ui/textarea';
 import { useId, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { submitBookingInfoAsCustomer } from '@/features/booking/api/customer';
@@ -146,20 +148,17 @@ export function InfoSubmitForm({
       >
         <Card className="flex flex-col gap-3 rounded-xl border-gray-100 p-4 shadow-none">
           <div>
-            <label htmlFor={responseId} className="text-sm font-semibold text-gray-900">
+            <Label htmlFor={responseId} className="mb-0">
               {t('label')}
-            </label>
-            <textarea
+            </Label>
+            <Textarea
               id={responseId}
               data-testid="info-response-textarea"
               value={controller.message}
               onChange={(event) => controller.changeMessage(event.target.value)}
               disabled={controller.isSubmitting}
               rows={4}
-              className={cn(
-                'mt-1.5 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none',
-                responseError && FIELD_INVALID_CLASS,
-              )}
+              className={cn('mt-1.5', responseError && FIELD_INVALID_CLASS)}
               {...form.fieldProps('response')}
             />
             {responseError && (
