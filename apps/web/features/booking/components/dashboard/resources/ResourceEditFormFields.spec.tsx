@@ -300,6 +300,8 @@ describe('ResourceEditFormFields', () => {
     renderWithIntl(<ResourceEditFormFields resourceId="r-1" resource={ROOM_RESOURCE} />);
 
     expect(screen.getByTestId('resource-max-capacity-input')).toHaveValue(12);
+    expect(screen.getByTestId('resource-max-capacity-input')).toHaveAccessibleName(/\S/);
+    expect(screen.getAllByRole('spinbutton', { name: /\S/ })).toHaveLength(2);
 
     const found = screen
       .getAllByTestId('resource-identity-type-option')

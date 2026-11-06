@@ -86,8 +86,9 @@ export function ResourceIdentityFields({
       {type === 'STAFF' ? (
         <>
           <div>
-            <Label>{t('staffLabel')}</Label>
+            <Label htmlFor="resource-identity-staff">{t('staffLabel')}</Label>
             <NativeSelect
+              id="resource-identity-staff"
               data-testid="resource-identity-staff-select"
               value={refId}
               onChange={(event) => {
@@ -119,8 +120,9 @@ export function ResourceIdentityFields({
           </div>
 
           <div>
-            <Label>{t('staffNameLabel')}</Label>
+            <Label htmlFor="resource-identity-name">{t('staffNameLabel')}</Label>
             <Input
+              id="resource-identity-name"
               data-testid="resource-identity-name-input"
               type="text"
               value={name}
@@ -134,8 +136,11 @@ export function ResourceIdentityFields({
         </>
       ) : (
         <div>
-          <Label>{type === 'ROOM' ? t('roomNameLabel') : t('equipmentNameLabel')}</Label>
+          <Label htmlFor="resource-identity-name">
+            {type === 'ROOM' ? t('roomNameLabel') : t('equipmentNameLabel')}
+          </Label>
           <Input
+            id="resource-identity-name"
             data-testid="resource-identity-name-input"
             type="text"
             value={name}

@@ -107,8 +107,9 @@ export function ResourceCreateForm(): React.JSX.Element {
             />
 
             <div>
-              <Label>{t('turnoverLabel')}</Label>
+              <Label htmlFor="resource-turnover-minutes">{t('turnoverLabel')}</Label>
               <Input
+                id="resource-turnover-minutes"
                 type="number"
                 min={0}
                 value={turnoverMinutes}
@@ -119,8 +120,9 @@ export function ResourceCreateForm(): React.JSX.Element {
 
             {type !== 'STAFF' && (
               <div>
-                <Label>{t('maxCapacityLabel')}</Label>
+                <Label htmlFor="resource-max-capacity">{t('maxCapacityLabel')}</Label>
                 <Input
+                  id="resource-max-capacity"
                   data-testid="resource-max-capacity-input"
                   type="number"
                   min={1}
