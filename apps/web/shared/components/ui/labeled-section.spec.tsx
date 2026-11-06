@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
+import { axe } from 'jest-axe';
 import { describe, expect, it } from 'vitest';
-import { axe } from '@/axe-helper';
 import { LabeledSection } from './labeled-section';
 
 describe('LabeledSection', () => {
