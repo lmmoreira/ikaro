@@ -2,11 +2,11 @@
 
 ## Status
 - **Type**: Technical Debt / CI performance and test-suite hygiene
-- **Priority**: Medium (no wrong behavior and no failing spec, but the `Playwright E2E` job outgrew its cap three times and was cancelled on every TD58 PR, each costing a manual re-run and 20+ minutes of wall clock; the cap is already at a stopgap 45 minutes)
+- **Priority**: Medium (no wrong behavior and no failing spec, but the `Playwright E2E` job outgrew its cap three times and was cancelled on every TD58 PR, each costing a manual re-run and 20+ minutes of wall clock; the cap was at a stopgap 45 minutes when this TD was written; Story 0 set it to 35)
 - **Context**: `.github/workflows/pr-tests.yml` (job `e2e`), `apps/web/playwright.config.ts`, `apps/web/e2e/**`, `docs/TESTING_STRATEGY.md`, `docs/CI_TRAPS.md`. No product code, backend, BFF or migration change.
 - **Created**: 2026-11-06
 - **Discovered**: TD58 PRs #721, #722 and #723 (2026-11-05/06). The `Playwright E2E` job was cancelled at the 30-minute cap on a first attempt with every spec that ran passing, and a re-run passed. Earlier the same failure drove the 20 → 30 raise (M23-S13, PR #613).
-- **Decision status**: Ready for discovery in the dependency order below; every story still begins with `/story-discovery`. The sequence was confirmed with the user on 2026-11-06 and reordered the same day after the CI-log measurements in "Measured baseline" (install fix, trim, job-level wins, and sharding only as a last resort). No story-level discovery has run yet, so each story's "Pattern" is a starting decision `/story-discovery` Step 4q may refine.
+- **Decision status**: Ready for discovery in the dependency order below; every story still begins with `/story-discovery`. The sequence was confirmed with the user on 2026-11-06 and reordered the same day after the CI-log measurements in "Measured baseline" (install fix, trim, job-level wins, and sharding only as a last resort). Story 0 has been discovered (2026-11-06); for the other stories no discovery has run yet, so their "Pattern" is a starting decision `/story-discovery` Step 4q may refine.
 - **Related**: `docs/CI_TRAPS.md` rows on the Playwright cap (lines ~124-125); `docs/TESTING_STRATEGY.md` § Running Playwright locally and the CI-sequential note (~lines 446, 801-803); TD08 AUD-015 (the original Playwright CI job); TD58 (the PRs that exposed this).
 
 ---
@@ -17,9 +17,9 @@ The `Playwright E2E` job takes 19-23 minutes on a clean run and the whole PR wor
 
 Verified facts (repo read, 2026-11-06):
 
-- **The suite is much larger than documented.** There are 63 spec files and about 546 `test()` calls (15,491 lines of spec). The comment in `pr-tests.yml` and the `docs/CI_TRAPS.md` row still say "~330 tests", and `docs/TESTING_STRATEGY.md:447` still says "maximum 5-8 E2E scenarios for MVP". Largest: `hotsite-editor.spec.ts` (57 tests, 1,795 lines), then `schedule.spec.ts` and `services-resource-config.spec.ts` (19 each), `schedule-resource-columns.spec.ts` and `booking-journey-basket.spec.ts` (17 each).
+- **The suite is much larger than documented** (state when this TD was written, before Story 0). There are 63 spec files and about 546 `test()` calls (15,491 lines of spec). The comment in `pr-tests.yml` and the `docs/CI_TRAPS.md` row still say "~330 tests", and `docs/TESTING_STRATEGY.md:447` still says "maximum 5-8 E2E scenarios for MVP". Largest: `hotsite-editor.spec.ts` (57 tests, 1,795 lines), then `schedule.spec.ts` and `services-resource-config.spec.ts` (19 each), `schedule-resource-columns.spec.ts` and `booking-journey-basket.spec.ts` (17 each).
 - **CI runs one test at a time.** `playwright.config.ts` sets `workers: process.env.CI ? 1 : undefined`, `retries: 2` in CI, `fullyParallel: true`, and no sharding anywhere. `docs/TESTING_STRATEGY.md:803` says `workers: 1` is what prevents cross-file races on the shared seeded tenants (for example `hotsite-editor.spec.ts` and `settings.spec.ts` both mutate `autospa-premium`). More workers or shards are therefore unsafe until tenants are isolated.
-- **The stack runs in dev mode.** The job starts `next dev` for the web app (no production build), the backend and BFF in dev, then waits with `wait-on`. Only pnpm is cached: there is no Playwright browser cache and no Next.js build cache, so `playwright install chromium --with-deps` and the first-compile of every route happen on every run.
+- **The stack runs in dev mode.** The job starts `next dev` for the web app (no production build), the backend and BFF in dev, then waits with `wait-on`. Only pnpm is cached: there is no Playwright browser cache and no Next.js build cache, so the browser install (then `playwright install chromium --with-deps`, which Story 0 changed to the browser alone) and the first-compile of every route happen on every run.
 - **Login is per test.** There is no `globalSetup` and no `storageState`. 56 spec files call the dev-login helper (`loginAsStaff`, `customer-login`), a BFF round trip each time.
 - **Retries can hide slowness.** With 2 retries, a flaky or slow test can run three times without any signal in the job result.
 - **No timing data is kept.** The job prints a list reporter and uploads artifacts only on failure with 1-day retention. The split was recovered from raw logs (see "Measured baseline"); the CI logs keep per-test durations for 90 days, which is enough, so no separate instrumentation story is planned. Method: parse the list reporter's `(<duration>)` suffix on each `✓` line.
@@ -76,19 +76,19 @@ Target: the `Playwright E2E` job under about 20 minutes in the worst observed ca
 **Dependencies:** none (do this first)
 **Pattern:** plain composition — no named pattern applies
 
-**Description:** `pnpm --filter @ikaro/web exec playwright install chromium --with-deps` runs `apt-get` against the runner's mirror and downloads the browser on every run. In run 42092698239 the apt font download alone took 8 min 23 s at 43 kB/s and caused the only observed cap timeout. Pick, from `/story-discovery`, the option that removes the network dependency rather than retrying around it: cache the Playwright browser directory and install only the system packages the specs need, or run the job in the `mcr.microsoft.com/playwright` image (check it for the runner's Ubuntu release and the Trivy/Checkov gates). Whatever is chosen, put a short `timeout-minutes` on the step so a stalled download fails in minutes instead of consuming the job cap, and verify with a real run. Also lower `timeout-minutes` from 45 to about 35 once the install is bounded, so a hung stack fails sooner; revisit the value after Story 1 using the job logs.
+**Description:** `pnpm --filter @ikaro/web exec playwright install chromium --with-deps` runs `apt-get` against the runner's mirror and downloads the browser on every run. In run 42092698239 the apt font download alone took 8 min 23 s at 43 kB/s and caused the only observed cap timeout. Decided in `/story-discovery` (2026-11-06): drop `--with-deps` and run `playwright install chromium` alone, with `timeout-minutes: 3` on the step. In a normal run `--with-deps` installs exactly nine font packages (every library Chromium needs is already on the runner), and the browser download itself takes about 15 s, so the apt call is the only slow part and removing it removes the dependency instead of retrying around it. Rejected: a browser cache (the download is not the slow part) and the `mcr.microsoft.com/playwright` container (it breaks `docker compose` networking to `localhost` and is far more machinery than this needs). Pre-decided fallback: if the first PR run fails on missing system libraries, install just those packages in a bounded step (timeout plus one retry); two layout specs (`booking-journey-basket`, `hotsite-templates`) check for horizontal overflow, not font metrics, and are the ones to watch. Also lower `timeout-minutes` from 45 to about 35 once the install is bounded, so a hung stack fails sooner; revisit the value after Story 1 using the job logs.
 
 New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface: none.
 
 **Files to create/modify:**
-- `.github/workflows/pr-tests.yml` (modify: install step, cache or container, step timeout)
+- `.github/workflows/pr-tests.yml` (modify: install step without `--with-deps`, step timeout, job cap 35, stale test-count comment)
 - `docs/CI_TRAPS.md` (modify: record the apt-mirror stall — doc gate)
 
 **Acceptance criteria — product:**
-- [ ] The install step takes under about 1 minute on a warm run and cannot run past its own short timeout.
+- [ ] The install step takes well under a minute (about 15 s) and cannot run past its own 3-minute timeout. The timeout is a platform guarantee and no test pins it.
 
 **Acceptance criteria — technical:**
-- [ ] `actionlint` clean; the chosen option passes the image/IaC scanners if a container is used
+- [ ] `actionlint` clean; the job cap is 35 and the comment above it states 445 tests
 - [ ] The step's duration is shown for two consecutive real runs
 
 **Live-verification check:** two consecutive green real PR runs with the install step's duration in the log.
