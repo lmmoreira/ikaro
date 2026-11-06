@@ -34,6 +34,34 @@ test.describe('customer my-account: creating a recurring reservation (M23-S17, U
     const customer = await newLoggedInCustomerPage(browser);
 
     try {
+      // Runs first: the empty list and its call to action exist only while the customer has no
+      // schedule, which the creation below ends.
+      await test.step('both entry points open the form, and "today" comes from the tenant calendar', async () => {
+        // The topbar menu is on every my-account screen; two triggers exist in the page (topbar,
+        // and the mobile one the viewport hides), so the visible one is addressed.
+        await customer.page.goto(LIST_URL);
+        await expect(customer.page.getByTestId('recurring-schedules-empty')).toBeVisible();
+        await customer.page.locator('[data-testid="new-menu-trigger"]:visible').click();
+        await customer.page.getByTestId('new-menu-recurring').click();
+        await expect(customer.page).toHaveURL(NEW_SCHEDULE_PATH);
+
+        // The empty state's own call to action.
+        await customer.page.goto(LIST_URL);
+        await customer.page.getByTestId('recurring-schedules-empty-cta').click();
+        await expect(customer.page).toHaveURL(NEW_SCHEDULE_PATH);
+
+        // "Today" is the tenant's: yesterday is not selectable, today is. The calendar draws only the
+        // weeks of the displayed month, so yesterday has a cell unless it falls outside them (the
+        // 1st of a month that starts a week). A cell that is drawn must be disabled; one that is not
+        // drawn cannot be picked either. Today's cell being enabled proves the calendar has rendered.
+        await customer.page.getByTestId('new-schedule-starts-on').click();
+        await expect(customer.page.locator(`[data-day="${tenantDate(0)}"] button`)).toBeEnabled();
+        const yesterday = customer.page.locator(`[data-day="${tenantDate(-1)}"] button`);
+        if ((await yesterday.count()) > 0) {
+          await expect(yesterday).toBeDisabled();
+        }
+      });
+
       await customer.page.goto(NEW_SCHEDULE_PATH);
       await createThroughForm(
         customer.page,
@@ -57,35 +85,6 @@ test.describe('customer my-account: creating a recurring reservation (M23-S17, U
       const active = customer.page.getByTestId('section-active');
       await expect(active.getByTestId('recurring-schedule-row')).toHaveCount(1);
       await expect(active).toContainText(service.name);
-    } finally {
-      await customer.close();
-    }
-  });
-
-  test('a service that needs approval lands on "em análise" and the schedule is listed as pending', async ({
-    page,
-    browser,
-  }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
-    const service = await seedRecurrenceEligibleService(page, { approvalMode: 'MANUAL_APPROVAL' });
-    const customer = await newLoggedInCustomerPage(browser);
-
-    try {
-      await customer.page.goto(NEW_SCHEDULE_PATH);
-      await createThroughForm(
-        customer.page,
-        { service, weekdays: WEEKDAYS, startsOn: termDate(5), endsOn: termDate(18) },
-        'recurring-schedule-pending',
-      );
-
-      const pending = customer.page.getByTestId('recurring-schedule-pending');
-      await expect(pending).toContainText('Estamos analisando seu pedido de recorrência');
-      await expect(pending).toContainText('protegido');
-
-      await customer.page.goto(LIST_URL);
-      await expect(
-        customer.page.getByTestId('section-pending').getByTestId('recurring-schedule-row'),
-      ).toHaveCount(1);
     } finally {
       await customer.close();
     }
@@ -167,43 +166,6 @@ test.describe('customer my-account: creating a recurring reservation (M23-S17, U
       expect(await listMySchedules(customer.page)).toHaveLength(0);
     } finally {
       await removeScheduleClosure(page, closure.id);
-      await customer.close();
-    }
-  });
-
-  test('both entry points open the form, and "today" comes from the tenant calendar', async ({
-    page,
-    browser,
-  }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
-    await seedRecurrenceEligibleService(page);
-    const customer = await newLoggedInCustomerPage(browser);
-
-    try {
-      // The topbar menu is on every my-account screen; two triggers exist in the page (topbar,
-      // and the mobile one the viewport hides), so the visible one is addressed.
-      await customer.page.goto(LIST_URL);
-      await expect(customer.page.getByTestId('recurring-schedules-empty')).toBeVisible();
-      await customer.page.locator('[data-testid="new-menu-trigger"]:visible').click();
-      await customer.page.getByTestId('new-menu-recurring').click();
-      await expect(customer.page).toHaveURL(NEW_SCHEDULE_PATH);
-
-      // The empty state's own call to action.
-      await customer.page.goto(LIST_URL);
-      await customer.page.getByTestId('recurring-schedules-empty-cta').click();
-      await expect(customer.page).toHaveURL(NEW_SCHEDULE_PATH);
-
-      // "Today" is the tenant's: yesterday is not selectable, today is. The calendar draws only the
-      // weeks of the displayed month, so yesterday has a cell unless it falls outside them (the
-      // 1st of a month that starts a week). A cell that is drawn must be disabled; one that is not
-      // drawn cannot be picked either. Today's cell being enabled proves the calendar has rendered.
-      await customer.page.getByTestId('new-schedule-starts-on').click();
-      await expect(customer.page.locator(`[data-day="${tenantDate(0)}"] button`)).toBeEnabled();
-      const yesterday = customer.page.locator(`[data-day="${tenantDate(-1)}"] button`);
-      if ((await yesterday.count()) > 0) {
-        await expect(yesterday).toBeDisabled();
-      }
-    } finally {
       await customer.close();
     }
   });

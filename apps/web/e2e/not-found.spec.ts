@@ -20,11 +20,11 @@ test.describe('Global not-found page', () => {
     const backLink = page.locator('[data-testid="not-found-back-link"]');
     await expect(backLink).toHaveText('Voltar para o Ikaro');
     await expect(backLink).toHaveAttribute('href', /^https?:\/\//);
-  });
 
-  test('also triggers from a nested route under a nonexistent slug', async ({ page }) => {
-    await page.goto('/this-tenant-does-not-exist-e2e-test/booking');
+    await test.step('also triggers from a nested route under a nonexistent slug', async () => {
+      await page.goto('/this-tenant-does-not-exist-e2e-test/booking');
 
-    await expect(page.locator('[data-testid="not-found-heading"]')).toBeVisible();
+      await expect(page.locator('[data-testid="not-found-heading"]')).toBeVisible();
+    });
   });
 });

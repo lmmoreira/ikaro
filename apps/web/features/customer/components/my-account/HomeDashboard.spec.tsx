@@ -217,6 +217,7 @@ describe('HomeDashboard', () => {
   it('shows the empty state when there is nothing to preview', () => {
     renderHome([makeItem({ status: 'CANCELLED', scheduledAt: '2026-05-15T11:00:00.000Z' })]);
     expect(screen.getByText('Nenhum agendamento ainda')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Fazer agendamento' })).toBeInTheDocument();
   });
 
   it('renders the mobile "+ Novo" menu, hidden from lg up, with both destinations', () => {

@@ -20,12 +20,12 @@ test.describe('TD57-S16 — Hotsite login failure', () => {
     expect(buttonBox).not.toBeNull();
     expect(alertBox).not.toBeNull();
     expect(alertBox!.y).toBeGreaterThan(buttonBox!.y);
-  });
 
-  test('a plain visit shows no alert', async ({ page }) => {
-    await page.goto('/ikaro/login');
+    await test.step('a plain visit shows no alert', async () => {
+      await page.goto('/ikaro/login');
 
-    await expect(page.locator('[data-testid="google-login"]')).toBeVisible();
-    await expect(page.locator('main').getByRole('alert')).toHaveCount(0);
+      await expect(page.locator('[data-testid="google-login"]')).toBeVisible();
+      await expect(page.locator('main').getByRole('alert')).toHaveCount(0);
+    });
   });
 });

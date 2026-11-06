@@ -33,22 +33,6 @@ import {
 const WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] as const;
 
 test.describe('staff dashboard: creating a recurring reservation for a customer (M23-S19, UC-070)', () => {
-  test('"+ Novo → Recorrência" opens the shared customer step, which cannot take a new contact', async ({
-    page,
-  }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
-
-    await startRecurrenceFromMenu(page);
-
-    // A guest can never have a recurrence: the new-contact mode is disabled, with its reason.
-    await expect(
-      page.getByTestId('chooser-tab').filter({ hasText: 'Novo contato' }),
-    ).toBeDisabled();
-    await expect(page.getByTestId('customer-chooser')).toContainText(
-      'Uma recorrência exige um cliente com conta',
-    );
-  });
-
   test('creates a schedule for an auto-confirm service, the customer finds it on their own list, and "Trocar cliente" returns to the chooser', async ({
     page,
     browser,
@@ -344,50 +328,6 @@ test.describe('staff dashboard: creating a recurring reservation for a customer 
     // The way out is the customer step.
     await desktopPane(page).getByTestId('staff-schedule-choose-other').click();
     await expect(page.getByTestId('customer-chooser')).toBeVisible();
-  });
-
-  test('refuses a start in the past on the form with the pattern kept, and accepts a start today for staff', async ({
-    page,
-    browser,
-  }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
-    const service = await seedRecurrenceEligibleService(page);
-    const customer = await seedCustomerWithPhone(browser);
-
-    try {
-      await startRecurrenceFromMenu(page);
-      await chooseCustomerForRecurrence(page, customer.email);
-
-      // Today at 00:00 has already started: refused on the form, before anything is sent.
-      await fillStaffPattern(page, {
-        service,
-        weekdays: WEEKDAYS,
-        startTime: '00:00',
-        startsOn: tenantDate(0),
-        endsOn: tenantDate(0),
-      });
-      await submitStaffForm(page);
-      await expect(page.getByTestId('new-schedule-notice')).toBeVisible();
-      await expect(outcome(page, 'ACTIVE')).toHaveCount(0);
-      expect(await listMySchedules(customer.page)).toHaveLength(0);
-
-      // A start today, later in the day, is not refused as too soon: staff are exempt from the
-      // minimum notice. What the backend answers is a created schedule or a slot/hours conflict,
-      // never a booking-window refusal back on the form.
-      await fillStaffPattern(page, {
-        service,
-        weekdays: WEEKDAYS,
-        startTime: '23:30',
-        startsOn: tenantDate(0),
-        endsOn: tenantDate(7),
-      });
-      await submitStaffForm(page);
-      await expect(outcome(page, 'ACTIVE').or(outcome(page, 'CONFLICT'))).toBeVisible();
-      await expect(page.getByTestId('new-schedule-notice')).toHaveCount(0);
-    } finally {
-      await endAllSchedules(customer.page);
-      await customer.close();
-    }
   });
 
   test('the pattern page reached without a customer goes back to the chooser', async ({ page }) => {

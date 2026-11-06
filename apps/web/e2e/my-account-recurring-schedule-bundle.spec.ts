@@ -70,38 +70,28 @@ test.describe('customer my-account: recurring reservation of a bundle (TD49-S02,
       const active = customer.page.getByTestId('section-active');
       await expect(active.getByTestId('recurring-schedule-row')).toHaveCount(1);
       await expect(active).toContainText(bundle.service.name);
+
+      // The review is only read, never confirmed, so it creates nothing beside the schedule above.
+      await test.step('the review lists the picked staff member and says the room is chosen automatically', async () => {
+        await customer.page.goto(NEW_SCHEDULE_PATH);
+        await fillRecurringForm(customer.page, {
+          service: bundle.service,
+          weekdays: WEEKDAYS,
+          startTime: '11:00',
+          startsOn: termDate(5),
+          endsOn: termDate(19),
+          picks: [bundle.staffs[1]!.id],
+        });
+        await desktopPane(customer.page).getByTestId('new-schedule-review').click();
+
+        // Rows follow the service's requirement order, which the server does not promise: read
+        // the review as a whole.
+        const review = customer.page.getByTestId('new-schedule-review');
+        await expect(review).toContainText(bundle.staffs[1]!.name);
+        await expect(review).toContainText('Escolhida automaticamente');
+      });
     } finally {
       await endAllSchedules(customer.page);
-      await customer.close();
-    }
-  });
-
-  test('the review lists the picked staff member and says the room is chosen automatically', async ({
-    page,
-    browser,
-  }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
-    const bundle = await seedRecurringBundle(page);
-    const customer = await newLoggedInCustomerPage(browser);
-
-    try {
-      await customer.page.goto(NEW_SCHEDULE_PATH);
-      await fillRecurringForm(customer.page, {
-        service: bundle.service,
-        weekdays: WEEKDAYS,
-        startTime: '11:00',
-        startsOn: termDate(5),
-        endsOn: termDate(19),
-        picks: [bundle.staffs[1]!.id],
-      });
-      await desktopPane(customer.page).getByTestId('new-schedule-review').click();
-
-      // Rows follow the service's requirement order, which the server does not promise: read
-      // the review as a whole.
-      const review = customer.page.getByTestId('new-schedule-review');
-      await expect(review).toContainText(bundle.staffs[1]!.name);
-      await expect(review).toContainText('Escolhida automaticamente');
-    } finally {
       await customer.close();
     }
   });
@@ -172,6 +162,9 @@ test.describe('customer my-account: recurring reservation of a bundle (TD49-S02,
       );
       await expect(customer.page.getByTestId('recurring-schedule-pending')).toContainText(
         'Estamos analisando seu pedido de recorrência',
+      );
+      await expect(customer.page.getByTestId('recurring-schedule-pending')).toContainText(
+        'protegido',
       );
 
       await customer.page.goto(LIST_URL);

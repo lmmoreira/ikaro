@@ -102,6 +102,14 @@ test.describe('M23-S11a — intake step', () => {
         '4 campos precisam de atenção',
       );
 
+      await test.step('the intake step has no axe violations', async () => {
+        const results = await new AxeBuilder({ page: guest.page })
+          .include('[data-testid="step-intake"]')
+          .analyze();
+
+        expect(results.violations).toEqual([]);
+      });
+
       await guest.page
         .locator('[data-testid="intake-input"][data-field-key="goal"]')
         .fill('Treino');
@@ -169,52 +177,6 @@ test.describe('M23-S11a — intake step', () => {
     }
   });
 
-  test('a mocked server-side rejection shows the summary banner only and keeps the answers', async ({
-    page,
-    browser,
-  }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
-    const service = await seedIntakeService(page);
-    const guest = await newGuestPage(browser);
-    await guest.page.route('**/v1/bookings', (route) =>
-      route.request().method() === 'POST'
-        ? route.fulfill({
-            status: 422,
-            contentType: 'application/problem+json',
-            body: JSON.stringify({
-              type: 'about:blank',
-              title: 'Unprocessable',
-              status: 422,
-              code: 'BOOKING_INTAKE_ANSWER_MISSING',
-              detail: 'goal',
-            }),
-          })
-        : route.continue(),
-    );
-
-    try {
-      await reachIntake(guest.page, service.serviceId);
-      await guest.page
-        .locator('[data-testid="intake-input"][data-field-key="goal"]')
-        .fill('Treino');
-      await guest.page.getByRole('radio', { name: 'Não' }).check();
-      await guest.page.getByTestId('intake-consent').check();
-      await nextButton(guest.page).click();
-      await confirmBooking(guest.page);
-
-      await expect(guest.page.getByTestId('intake-error-summary')).toContainText(
-        'É necessário responder às perguntas obrigatórias e aceitar os termos.',
-      );
-      await expect(guest.page.getByTestId('intake-field-error')).toHaveCount(0);
-      await expect(
-        guest.page.locator('[data-testid="intake-input"][data-field-key="goal"]'),
-      ).toHaveValue('Treino');
-    } finally {
-      await guest.close();
-      await deactivateService(page, service.serviceId);
-    }
-  });
-
   test('a basket with two intake-bearing services shows the backend rejection inline on Step 1', async ({
     page,
     browser,
@@ -249,25 +211,6 @@ test.describe('M23-S11a — intake step', () => {
       await guest.close();
       await deactivateService(page, first.serviceId);
       await deactivateService(page, second.serviceId);
-    }
-  });
-
-  test('the intake step has no axe violations', async ({ page, browser }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
-    const service = await seedIntakeService(page, { participants: true, attendees: true });
-    const guest = await newGuestPage(browser);
-
-    try {
-      await reachIntake(guest.page, service.serviceId);
-      await nextButton(guest.page).click();
-      const results = await new AxeBuilder({ page: guest.page })
-        .include('[data-testid="step-intake"]')
-        .analyze();
-
-      expect(results.violations).toEqual([]);
-    } finally {
-      await guest.close();
-      await deactivateService(page, service.serviceId);
     }
   });
 

@@ -487,6 +487,37 @@ describe('renderTimelineEvent', () => {
     renderWithIntl(<Host event={event} props={baseProps()} />);
     const link = screen.getByRole('link', { name: 'João Silva, Camila Duarte' });
     expect(link.style.minHeight).toBe('108px');
+    expect(screen.getByTestId('timeline-block-time-range')).toBeInTheDocument();
+  });
+
+  it('names every assigned resource in the link and folds all but the first into "+N" in the summary line (TD44 Story 2)', () => {
+    const event: TimelineEvent = {
+      kind: 'booking',
+      id: 'booking-1',
+      startMinutes: 540,
+      endMinutes: 600,
+      title: 'João Silva',
+      subtitle: 'Lavagem completa',
+      warning: false,
+      resourceNames: ['Camila Duarte', 'Sala 1', 'Secador'],
+      laneIndex: 0,
+      laneCount: 1,
+      booking: {
+        bookingId: 'booking-1',
+        contactName: 'João Silva',
+        serviceNames: ['Lavagem completa'],
+        status: BOOKING_STATUS.APPROVED,
+        scheduledAt: '2026-08-18T12:00:00.000Z',
+        totalDurationMins: 60,
+      } as never,
+    };
+
+    renderWithIntl(<Host event={event} props={baseProps()} />);
+    const link = screen.getByRole('link', { name: 'João Silva, Camila Duarte, Sala 1, Secador' });
+    expect(link).toContainElement(screen.getByTestId('timeline-block-resource-summary'));
+    expect(screen.getByTestId('timeline-block-resource-summary')).toHaveTextContent(
+      'Camila Duarte +2',
+    );
   });
 
   it('applies the full desktop 2-extra-line floor to a minimum-granularity booking with a resource (TD44 Story 5 — both lines always render)', () => {

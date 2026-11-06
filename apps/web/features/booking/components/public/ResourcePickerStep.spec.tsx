@@ -114,6 +114,12 @@ describe('ResourcePickerStep', () => {
     expect(screen.getByText(/Jornada Spa — R\$ 150,00 — 1h/)).toBeInTheDocument();
   });
 
+  it('headed by the room for a room-only flat unit', () => {
+    renderStep(flatUnit, [requirement('ROOM', null)]);
+
+    expect(screen.getByRole('heading', { name: 'Escolha a sala' })).toBeInTheDocument();
+  });
+
   it('headed "Faça suas escolhas" for a multi-section flat unit', () => {
     renderStep(flatUnit, [requirement('STAFF', null), requirement('ROOM', null)]);
 

@@ -6,27 +6,6 @@ const TENANT_SLUG = 'lavacar-beloauto';
 const STAFF_EMAIL = 'admin@lavacar.com.br';
 
 test.describe('customer my-account: home + bookings list', () => {
-  test('home shows the greeting, stat cards and an upcoming-booking preview linking to the full list', async ({
-    page,
-  }) => {
-    const customerEmail = uniqueTestEmail('my-account-home');
-    const setup = await createFreshApprovedBooking(page, 15, STAFF_EMAIL, {
-      contactEmail: customerEmail,
-    });
-    await loginAsCustomer(page, customerEmail, TENANT_SLUG);
-
-    await page.goto(`/${TENANT_SLUG}/my-account`);
-
-    await expect(page.getByTestId('home-bookings-value')).toBeVisible();
-    await expect(page.getByTestId('home-points-value')).toBeVisible();
-    await expect(
-      page.locator(`a[href="/${TENANT_SLUG}/my-account/bookings/${setup.bookingId}"]`),
-    ).toBeVisible();
-
-    await page.getByRole('link', { name: /Ver todos os agendamentos/ }).click();
-    await expect(page).toHaveURL(`/${TENANT_SLUG}/my-account/bookings`);
-  });
-
   test('bookings list splits Próximos/Pendentes/Histórico correctly for a customer with one of each', async ({
     page,
   }) => {
@@ -55,19 +34,22 @@ test.describe('customer my-account: home + bookings list', () => {
       pendingSection.locator(`a[href="/${TENANT_SLUG}/my-account/bookings/${pending.bookingId}"]`),
     ).toBeVisible();
     await expect(page.getByTestId('section-history')).toHaveCount(0);
-  });
 
-  test('a customer with no bookings sees the empty state on both home and the bookings list', async ({
-    page,
-  }) => {
-    const customerEmail = uniqueTestEmail('my-account-empty');
-    await loginAsCustomer(page, customerEmail, TENANT_SLUG);
+    await test.step('home shows the greeting, stat cards and an upcoming-booking preview linking to the full list', async () => {
+      // The approved booking above is this customer's one upcoming booking.
+      const setup = approved;
 
-    await page.goto(`/${TENANT_SLUG}/my-account`);
-    await expect(page.getByRole('link', { name: 'Fazer agendamento' })).toBeVisible();
+      await page.goto(`/${TENANT_SLUG}/my-account`);
 
-    await page.goto(`/${TENANT_SLUG}/my-account/bookings`);
-    await expect(page.getByRole('link', { name: 'Fazer agendamento' })).toBeVisible();
+      await expect(page.getByTestId('home-bookings-value')).toBeVisible();
+      await expect(page.getByTestId('home-points-value')).toBeVisible();
+      await expect(
+        page.locator(`a[href="/${TENANT_SLUG}/my-account/bookings/${setup.bookingId}"]`),
+      ).toBeVisible();
+
+      await page.getByRole('link', { name: /Ver todos os agendamentos/ }).click();
+      await expect(page).toHaveURL(`/${TENANT_SLUG}/my-account/bookings`);
+    });
   });
 
   test('an APPROVED booking scheduled inside the cancellation window hides the cancel link', async ({

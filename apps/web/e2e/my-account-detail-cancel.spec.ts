@@ -3,7 +3,6 @@ import { loginAsCustomer, uniqueTestEmail } from './helpers/auth';
 import {
   createAuthenticatedBooking,
   createFreshApprovedBooking,
-  createFreshCompletedBooking,
   createInfoRequestedBooking,
 } from './helpers/booking';
 import { createCompletedLoyaltyFlow } from './helpers/loyalty';
@@ -38,29 +37,28 @@ test.describe('customer my-account: booking detail, cancel and info-submit', () 
 
     await page.goto(`/${TENANT_SLUG}/my-account/bookings/${setup.bookingId}`);
     await expect(page.getByTestId('topbar-booking-status-badge')).toContainText('Cancelado');
-  });
 
-  test('PENDING: "Cancelar solicitação" confirmation cancels the request', async ({ page }) => {
-    const customerEmail = uniqueTestEmail('detail-cancel-pending');
-    const setup = await createAuthenticatedBooking(page, {
-      tenantSlug: TENANT_SLUG,
-      emailPrefix: 'detail-cancel-pending',
-      daysAhead: 19,
-      contactEmail: customerEmail,
+    await test.step('PENDING: "Cancelar solicitação" confirmation cancels the request', async () => {
+      const pendingSetup = await createAuthenticatedBooking(page, {
+        tenantSlug: TENANT_SLUG,
+        emailPrefix: 'detail-cancel-pending',
+        daysAhead: 19,
+        contactEmail: customerEmail,
+      });
+      await loginAsCustomer(page, customerEmail, TENANT_SLUG);
+
+      await page.goto(`/${TENANT_SLUG}/my-account/bookings/${pendingSetup.bookingId}`);
+      await page
+        .getByTestId('action-pane-desktop')
+        .getByRole('link', { name: 'Cancelar solicitação' })
+        .click();
+      await page
+        .getByTestId('action-pane-desktop')
+        .getByRole('button', { name: 'Confirmar cancelamento' })
+        .click();
+
+      await expect(page).toHaveURL(`/${TENANT_SLUG}/my-account`);
     });
-    await loginAsCustomer(page, customerEmail, TENANT_SLUG);
-
-    await page.goto(`/${TENANT_SLUG}/my-account/bookings/${setup.bookingId}`);
-    await page
-      .getByTestId('action-pane-desktop')
-      .getByRole('link', { name: 'Cancelar solicitação' })
-      .click();
-    await page
-      .getByTestId('action-pane-desktop')
-      .getByRole('button', { name: 'Confirmar cancelamento' })
-      .click();
-
-    await expect(page).toHaveURL(`/${TENANT_SLUG}/my-account`);
   });
 
   test('cancelling an APPROVED booking outside the window redirects to the error page', async ({
@@ -85,31 +83,6 @@ test.describe('customer my-account: booking detail, cancel and info-submit', () 
       `/${TENANT_SLUG}/my-account/bookings/${setup.bookingId}/cancel/error`,
     );
     await expect(page.getByRole('link', { name: 'Voltar ao agendamento' })).toBeVisible();
-  });
-
-  test('cancelling an already-COMPLETED booking shows an inline error, not the deadline-error page', async ({
-    page,
-  }) => {
-    // Direct navigation — the detail page never renders a cancel link for a COMPLETED booking
-    // (see the "no cancel action" test below), this exercises the API-level defensive guard
-    // behind that UI-level hiding, and proves a BOOKING_INVALID_TRANSITION 422 is no longer
-    // mis-routed to the cancellation-window-expired explanation screen (TD23-S16).
-    const customerEmail = uniqueTestEmail('detail-cancel-completed');
-    const setup = await createFreshCompletedBooking(page, 9, STAFF_EMAIL, {
-      contactEmail: customerEmail,
-    });
-    await loginAsCustomer(page, customerEmail, TENANT_SLUG);
-
-    await page.goto(`/${TENANT_SLUG}/my-account/bookings/${setup.bookingId}/cancel`);
-    await page
-      .getByTestId('action-pane-desktop')
-      .getByRole('button', { name: 'Confirmar cancelamento' })
-      .click();
-
-    await expect(page.getByTestId('cancel-confirm-error')).toHaveText(
-      'Não é possível alterar o status do agendamento para o status solicitado.',
-    );
-    await expect(page).toHaveURL(`/${TENANT_SLUG}/my-account/bookings/${setup.bookingId}/cancel`);
   });
 
   test('INFO_REQUESTED: submitting a response shows a confirmation and flips the badge to PENDING', async ({
@@ -156,6 +129,25 @@ test.describe('customer my-account: booking detail, cancel and info-submit', () 
     await expect(
       page.getByTestId('action-pane-desktop').getByRole('link', { name: 'Ver meus pontos →' }),
     ).toBeVisible();
+
+    await test.step('cancelling an already-COMPLETED booking shows an inline error, not the deadline-error page', async () => {
+      // Direct navigation — the detail page never renders a cancel link for a COMPLETED booking
+      // (see the "no cancel action" check above), this exercises the API-level defensive guard
+      // behind that UI-level hiding, and proves a BOOKING_INVALID_TRANSITION 422 is no longer
+      // mis-routed to the cancellation-window-expired explanation screen (TD23-S16).
+      const setup = { bookingId: flow.earnedBookingId };
+
+      await page.goto(`/${TENANT_SLUG}/my-account/bookings/${setup.bookingId}/cancel`);
+      await page
+        .getByTestId('action-pane-desktop')
+        .getByRole('button', { name: 'Confirmar cancelamento' })
+        .click();
+
+      await expect(page.getByTestId('cancel-confirm-error')).toHaveText(
+        'Não é possível alterar o status do agendamento para o status solicitado.',
+      );
+      await expect(page).toHaveURL(`/${TENANT_SLUG}/my-account/bookings/${setup.bookingId}/cancel`);
+    });
   });
 
   test("a customer cannot view another customer's booking (404, not 403)", async ({ page }) => {

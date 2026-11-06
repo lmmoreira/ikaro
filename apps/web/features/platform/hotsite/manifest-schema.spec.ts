@@ -80,6 +80,14 @@ describe('parseManifestJson', () => {
     expect(result.success).toBe(false);
   });
 
+  it('accepts a non-hex branding colour: business-rule validation is left to the backend on Publish', () => {
+    const result = parseManifestJson(
+      manifestJson({ branding: { ...VALID_BRANDING, primaryColor: 'not-a-color' } }),
+    );
+
+    expect(result.success).toBe(true);
+  });
+
   it('rejects seo.title with the wrong primitive type', () => {
     const result = parseManifestJson(
       manifestJson({ seo: { title: 42, description: null, ogImageUrl: '' } }),

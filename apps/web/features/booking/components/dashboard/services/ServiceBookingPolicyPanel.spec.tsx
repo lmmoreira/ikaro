@@ -106,6 +106,27 @@ describe('ServiceBookingPolicyPanel', () => {
     expect(screen.queryByTestId('policy-pricing-detail')).not.toBeInTheDocument();
   });
 
+  it('renders the recurrence toggle from the saved policy: unchecked by default, checked when eligible', () => {
+    const { unmount } = renderWithIntl(
+      <PolicyPanelWithAction
+        serviceId="svc-1"
+        initialPolicy={BASE_POLICY}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByTestId('policy-recurrence-eligible')).not.toBeChecked();
+    unmount();
+
+    renderWithIntl(
+      <PolicyPanelWithAction
+        serviceId="svc-1"
+        initialPolicy={{ ...BASE_POLICY, recurrenceEligible: true }}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByTestId('policy-recurrence-eligible')).toBeChecked();
+  });
+
   it('shows duration detail fields when duration policy is CUSTOMER_SELECTED', async () => {
     const user = userEvent.setup();
     renderWithIntl(

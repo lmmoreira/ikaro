@@ -26,39 +26,39 @@ test.describe('team member deactivate/activate flow', () => {
     });
 
     await page.goto('/dashboard/team');
-    const row = getMemberRow(page, member.email);
-    await expect(row).toContainText('Ativo');
-    await row.getByRole('link', { name: 'Desativar' }).click();
+    const memberRow = getMemberRow(page, member.email);
+    await expect(memberRow).toContainText('Ativo');
+    await memberRow.getByRole('link', { name: 'Desativar' }).click();
 
     await expect(page).toHaveURL(`/dashboard/team/${member.staffId}/deactivate`);
     await page.getByRole('button', { name: 'Confirmar desativação' }).first().click();
 
     await expect(page).toHaveURL('/dashboard/team');
     await expect(getMemberRow(page, member.email)).toContainText('Inativo');
-  });
 
-  test('activates a deactivated member directly from the list, no navigation', async ({ page }) => {
-    const member = await seedStaffMember(page, {
-      tenantSlug: TEAM_TENANT,
-      emailPrefix: 'e2e-activate',
-      firstName: 'Inativo',
-      lastName: 'Alvo',
-      linkGoogleAccount: true,
+    await test.step('activates a deactivated member directly from the list, no navigation', async () => {
+      const inactiveMember = await seedStaffMember(page, {
+        tenantSlug: TEAM_TENANT,
+        emailPrefix: 'e2e-activate',
+        firstName: 'Inativo',
+        lastName: 'Alvo',
+        linkGoogleAccount: true,
+      });
+      await deactivateStaff(page, inactiveMember.staffId);
+
+      await page.goto('/dashboard/team');
+      const row = getMemberRow(page, inactiveMember.email);
+      await expect(row).toContainText('Inativo');
+
+      await row.getByTestId('activate-member-button').click();
+
+      // Confirms the router.refresh() fix: the badge and action both update in place,
+      // no stale "Inativo"/"Ativar" left behind after a successful activation.
+      await expect(page).toHaveURL('/dashboard/team');
+      await expect(row).toContainText('Ativo');
+      await expect(row.getByRole('link', { name: 'Desativar' })).toBeVisible();
+      await expect(row.getByTestId('resend-invite-button')).toHaveCount(0);
     });
-    await deactivateStaff(page, member.staffId);
-
-    await page.goto('/dashboard/team');
-    const row = getMemberRow(page, member.email);
-    await expect(row).toContainText('Inativo');
-
-    await row.getByTestId('activate-member-button').click();
-
-    // Confirms the router.refresh() fix: the badge and action both update in place,
-    // no stale "Inativo"/"Ativar" left behind after a successful activation.
-    await expect(page).toHaveURL('/dashboard/team');
-    await expect(row).toContainText('Ativo');
-    await expect(row.getByRole('link', { name: 'Desativar' })).toBeVisible();
-    await expect(row.getByTestId('resend-invite-button')).toHaveCount(0);
   });
 
   test('blocks self-deactivation with an inline 403 error', async ({ page }) => {

@@ -51,37 +51,22 @@ test.describe('customer my-account: Início tiles and "Renovar" card (M23-S41, U
       await customer.page.goto(ACCOUNT);
       await customer.page.getByTestId('home-alerts-value').click();
       await expect(customer.page).toHaveURL(`${ACCOUNT}/alerts`);
-    } finally {
-      await customer.close();
-    }
-  });
 
-  test('the card’s "Renovar" opens the renewal form pre-filled from that schedule, and the list row offers it too', async ({
-    page,
-    browser,
-  }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
-    const service = await seedRecurrenceEligibleService(page);
-    const customer = await newLoggedInCustomerPage(browser);
+      await test.step('the card’s "Renovar" opens the renewal form pre-filled from that schedule, and the list row offers it too', async () => {
+        const service = recurringService;
 
-    try {
-      const schedule = await createRecurringScheduleViaApi(
-        customer.page,
-        service.serviceId,
-        ENDING_SOON,
-      );
+        await customer.page.goto(RECURRING_LIST);
+        const active = customer.page.getByTestId('section-active');
+        await expect(active.getByTestId('renew-schedule-action')).toHaveCount(1);
 
-      await customer.page.goto(RECURRING_LIST);
-      const active = customer.page.getByTestId('section-active');
-      await expect(active.getByTestId('renew-schedule-action')).toHaveCount(1);
+        await customer.page.goto(ACCOUNT);
+        await customer.page.getByTestId('home-renewal-action').click();
 
-      await customer.page.goto(ACCOUNT);
-      await customer.page.getByTestId('home-renewal-action').click();
-
-      await expect(customer.page).toHaveURL(`${NEW_SCHEDULE_PATH}?renewFrom=${schedule.id}`);
-      await expect(customer.page.getByTestId('new-schedule-renewal-banner')).toContainText(
-        `Renovando sua reserva de ${service.name}`,
-      );
+        await expect(customer.page).toHaveURL(`${NEW_SCHEDULE_PATH}?renewFrom=${schedule.id}`);
+        await expect(customer.page.getByTestId('new-schedule-renewal-banner')).toContainText(
+          `Renovando sua reserva de ${service.name}`,
+        );
+      });
     } finally {
       await customer.close();
     }
@@ -106,29 +91,6 @@ test.describe('customer my-account: Início tiles and "Renovar" card (M23-S41, U
       await customer.page.goto(RECURRING_LIST);
       await expect(customer.page.getByTestId('recurring-schedule-row')).toHaveCount(1);
       await expect(customer.page.getByTestId('renew-schedule-action')).toHaveCount(0);
-    } finally {
-      await customer.close();
-    }
-  });
-
-  test('a customer with no schedules and no alerts sees no extra tile and no card, and Pontos and Agendamentos link on', async ({
-    browser,
-  }) => {
-    const customer = await newLoggedInCustomerPage(browser);
-
-    try {
-      await customer.page.goto(ACCOUNT);
-      await expect(customer.page.getByTestId('home-points-value')).toBeVisible();
-      await expect(customer.page.getByTestId('home-recurring-value')).toHaveCount(0);
-      await expect(customer.page.getByTestId('home-alerts-value')).toHaveCount(0);
-      await expect(customer.page.getByTestId('home-renewal-card')).toHaveCount(0);
-
-      await customer.page.getByTestId('home-bookings-value').click();
-      await expect(customer.page).toHaveURL(`${ACCOUNT}/bookings`);
-
-      await customer.page.goto(ACCOUNT);
-      await customer.page.getByTestId('home-points-value').click();
-      await expect(customer.page).toHaveURL(`${ACCOUNT}/loyalty`);
     } finally {
       await customer.close();
     }

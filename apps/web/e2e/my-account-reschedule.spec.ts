@@ -10,6 +10,7 @@ import {
 import {
   MANAGER_EMAIL,
   seedChoiceService,
+  parseRange,
   seedSingleRoomService,
   slotsOnDate,
   TENANT_SLUG,
@@ -41,6 +42,19 @@ function skipSunday(daysAhead: number): number {
   date.setDate(date.getDate() + daysAhead);
   return date.getDay() === 0 ? daysAhead + 1 : daysAhead;
 }
+
+const hhmm = (iso: string): string =>
+  new Intl.DateTimeFormat('pt-BR', {
+    timeZone: TENANT_TIMEZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(iso));
+
+const toMinutes = (label: string): number => {
+  const [hours, minutes] = label.split(':').map(Number) as [number, number];
+  return hours * 60 + minutes;
+};
 
 async function firstSlotFromDay(
   page: Page,
@@ -78,6 +92,29 @@ test.describe('customer my-account: reschedule a booking (M23-S30, UC-069)', () 
     const slotText = (await slot.textContent())!.trim();
     await slot.click();
     await expect(desktopPane(page).getByTestId('reschedule-change-summary')).toBeVisible();
+
+    await test.step('customer reschedule: the slot and the summary show the appointment end', async () => {
+      const bookingDate = new Intl.DateTimeFormat('en-CA', { timeZone: TENANT_TIMEZONE }).format(
+        new Date(setup.scheduledAt),
+      );
+      const range = parseRange(slotText);
+
+      const apiSlots = await slotsOnDate(page, SERVICE_SIMPLES_ID, bookingDate);
+      const apiSlot = apiSlots.find(
+        (candidate) => toMinutes(hhmm(candidate.startsAt)) === range.start,
+      );
+      expect(apiSlot, 'the API offers the slot the page shows').toBeDefined();
+      expect(range.end).toBe(toMinutes(hhmm(apiSlot!.appointmentEndsAt)));
+
+      const summary = page
+        .getByTestId('action-pane-desktop')
+        .getByTestId('reschedule-change-summary');
+      await expect(summary).toBeVisible();
+      if (apiSlot!.endsAt !== apiSlot!.appointmentEndsAt) {
+        await expect(summary).not.toContainText(hhmm(apiSlot!.endsAt));
+      }
+    });
+
     await desktopPane(page).getByRole('button', { name: 'Confirmar novo horário' }).click();
 
     await expect(page.getByTestId('reschedule-success')).toBeVisible();

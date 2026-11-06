@@ -59,34 +59,24 @@ test.describe.serial('chatbot widget (GUEST) — M19-S11', () => {
     }
   });
 
-  test('a guest opens the chat bubble, sends a message, and receives a real reply end to end (widget → BFF → backend → fake adapter)', async ({
-    page,
-  }) => {
-    await page.goto(`/${MANAGER_TENANT_SLUG}`);
-
-    const bubble = page.getByTestId('chatbot-bubble-button');
-    await expect(bubble).toBeVisible();
-    await bubble.click();
-
-    await expect(page.getByTestId('chatbot-panel')).toBeVisible();
-
-    const message = 'Vocês abrem aos sábados?';
-    await page.getByTestId('chatbot-message-input').fill(message);
-    await page.getByTestId('chatbot-send-button').click();
-
-    await expect(userBubble(page).filter({ hasText: message })).toBeVisible();
-    await expect(assistantBubble(page).filter({ hasText: fakeReplyText(message) })).toBeVisible();
-  });
-
   test('sessionId and the visible transcript persist across a reload', async ({ page }) => {
     await page.goto(`/${MANAGER_TENANT_SLUG}`);
-    await page.getByTestId('chatbot-bubble-button').click();
 
     const message = 'Oi';
-    await page.getByTestId('chatbot-message-input').fill(message);
-    await page.getByTestId('chatbot-send-button').click();
 
-    await expect(assistantBubble(page).filter({ hasText: fakeReplyText(message) })).toBeVisible();
+    await test.step('a guest opens the chat bubble, sends a message, and receives a real reply end to end (widget → BFF → backend → fake adapter)', async () => {
+      const bubble = page.getByTestId('chatbot-bubble-button');
+      await expect(bubble).toBeVisible();
+      await bubble.click();
+
+      await expect(page.getByTestId('chatbot-panel')).toBeVisible();
+
+      await page.getByTestId('chatbot-message-input').fill(message);
+      await page.getByTestId('chatbot-send-button').click();
+
+      await expect(userBubble(page).filter({ hasText: message })).toBeVisible();
+      await expect(assistantBubble(page).filter({ hasText: fakeReplyText(message) })).toBeVisible();
+    });
 
     await page.reload();
     await page.getByTestId('chatbot-bubble-button').click();

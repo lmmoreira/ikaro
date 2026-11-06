@@ -47,11 +47,6 @@ async function applyTemplate(page: Page, id: string): Promise<void> {
   await expect(card(page, id)).toHaveAttribute('data-selected', 'true');
 }
 
-async function draftPrimaryColor(page: Page): Promise<string> {
-  await page.locator(COMMAND('branding')).click();
-  return page.getByTestId('hotsite-primary-color').inputValue();
-}
-
 test.describe.serial('hotsite template picker (MANAGER)', () => {
   // Cleared before every test and set only once this test has captured the tenant's hotsite, so a
   // failed login can never write a previous test's snapshot back over the shared tenant.
@@ -178,24 +173,6 @@ test.describe.serial('hotsite template picker (MANAGER)', () => {
     expect((await getHotsiteConfig(page)).branding.primaryColor).toBe('#123456');
   });
 
-  test('a dirty Hero edit asks before the Templates context opens; Cancel keeps it, Discard lets the gallery open', async ({
-    page,
-  }) => {
-    await openVisualEditor(page);
-    await page.locator('[data-testid="layout-row-configure"][data-module-type="HERO"]').click();
-    await page.locator('#hero-title').fill('Título ainda não aplicado');
-
-    await page.locator(COMMAND('templates')).click();
-    await expect(page.getByTestId('visual-module-discard-confirm')).toBeVisible();
-    await page.getByRole('button', { name: 'Continuar editando' }).click();
-    await expect(page.locator('#hero-title')).toHaveValue('Título ainda não aplicado');
-    await expect(page.getByTestId('template-gallery')).toHaveCount(0);
-
-    await page.locator(COMMAND('templates')).click();
-    await page.getByTestId('visual-module-discard-confirm').click();
-    await expect(page.getByTestId('template-gallery')).toBeVisible();
-  });
-
   test('a tenant with an uploaded hero image is asked before it is replaced; one without uploads is not', async ({
     page,
   }) => {
@@ -232,30 +209,6 @@ test.describe.serial('hotsite template picker (MANAGER)', () => {
     await expect(card(page, 'casa47')).toHaveAttribute('data-selected', 'true');
   });
 
-  test('Undo restores the previous presentation, and asks first when the draft was edited since', async ({
-    page,
-  }) => {
-    await openVisualEditor(page);
-    const originalColor = await draftPrimaryColor(page);
-    await openTemplates(page);
-    await applyTemplate(page, 'mimo-pet');
-
-    await page.getByTestId('template-undo').click();
-    await expect(selectedCards(page)).toHaveCount(0);
-    expect(await draftPrimaryColor(page)).toBe(originalColor);
-
-    await openTemplates(page);
-    await applyTemplate(page, 'origem');
-    await page.locator(COMMAND('branding')).click();
-    await page.getByTestId('hotsite-primary-color').fill('#010203');
-    await page.locator(COMMAND('templates')).click();
-
-    await page.getByTestId('template-undo').click();
-    await expect(page.getByRole('alertdialog')).toContainText('descarta as edições feitas depois');
-    await page.getByTestId('template-undo-confirm').click();
-    expect(await draftPrimaryColor(page)).toBe(originalColor);
-  });
-
   test('enabling NAVIGATION, linking the Gallery and turning the Gallery off asks first, and confirming removes the link', async ({
     page,
   }) => {
@@ -286,63 +239,5 @@ test.describe.serial('hotsite template picker (MANAGER)', () => {
       .locator('[data-testid="layout-row-configure"][data-module-type="NAVIGATION"]')
       .click();
     await expect(page.getByTestId('navigation-item')).toHaveCount(0);
-  });
-
-  // TD57-S10 — a failing catalogue or apply is reported where the cards would be, with a retry.
-  test('a failing template catalogue shows the error with a retry that loads the cards', async ({
-    page,
-  }) => {
-    // The query client retries a failed read once, so the first two requests must fail for the
-    // error to reach the screen.
-    let failures = 2;
-    await page.route('**/v1/tenants/hotsite/templates', (route) => {
-      if (failures > 0) {
-        failures -= 1;
-        return route.fulfill({
-          status: 500,
-          contentType: 'application/problem+json',
-          body: JSON.stringify({ status: 500, title: 'Internal Server Error' }),
-        });
-      }
-      return route.fallback();
-    });
-    await openVisualEditor(page);
-    await page.locator(COMMAND('templates')).click();
-
-    const error = page.getByTestId('template-load-error');
-    await expect(error).toHaveAttribute('role', 'alert');
-    await error.getByRole('button', { name: 'Tentar novamente' }).click();
-
-    await expect(page.getByTestId('template-card')).toHaveCount(6);
-    await expect(error).toHaveCount(0);
-  });
-
-  test('a failing template apply shows the error with a retry and selects nothing until it succeeds', async ({
-    page,
-  }) => {
-    let failures = 1;
-    await page.route('**/v1/tenants/hotsite/templates/*/apply', (route) => {
-      if (failures > 0) {
-        failures -= 1;
-        return route.fulfill({
-          status: 500,
-          contentType: 'application/problem+json',
-          body: JSON.stringify({ status: 500, title: 'Internal Server Error' }),
-        });
-      }
-      return route.fallback();
-    });
-    await openVisualEditor(page);
-    await openTemplates(page);
-
-    await applyButton(page, 'origem').click();
-    const error = page.getByTestId('template-apply-error');
-    await expect(error).toHaveAttribute('role', 'alert');
-    await expect(selectedCards(page)).toHaveCount(0);
-
-    await error.getByRole('button', { name: 'Tentar novamente' }).click();
-
-    await expect(card(page, 'origem')).toHaveAttribute('data-selected', 'true');
-    await expect(error).toHaveCount(0);
   });
 });

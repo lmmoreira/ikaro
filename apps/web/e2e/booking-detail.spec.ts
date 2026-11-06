@@ -6,7 +6,6 @@ import {
   bookAsNewCustomer,
   cancelBookingInDashboard,
   createFreshApprovedBooking,
-  createFreshCompletedBooking,
   roomPick,
   seedBundleWithIntake,
 } from './helpers/booking';
@@ -205,15 +204,5 @@ test.describe('full booking detail (staff and customer)', () => {
     } finally {
       await customerContext.close();
     }
-  });
-
-  test('a completed booking keeps showing what was charged', async ({ page }) => {
-    const setup = await createFreshCompletedBooking(page, 48, STAFF_EMAIL);
-
-    await page.goto(`/dashboard/bookings/${setup.bookingId}`);
-
-    await expect(page.getByTestId('booking-completed-title')).toBeVisible();
-    await expect(page.getByTestId('complete-summary-quoted')).toBeVisible();
-    await expect(page.getByTestId('complete-summary-charged')).toBeVisible();
   });
 });

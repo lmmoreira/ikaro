@@ -129,6 +129,7 @@ describe('VariableDurationStep', () => {
     await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
 
     await waitFor(() => expect(screen.getByTestId('step-next')).toBeEnabled());
+    expect(screen.getByTestId('duration-total')).toHaveTextContent('Total: R$ 50,00');
   });
 
   it('does not preselect a duration while the step shows an out-of-range error', () => {

@@ -93,6 +93,34 @@ test.describe('service public page — manager publishes, visitor reads', () => 
         await expect(guest).toHaveURL(
           new RegExp(`/${TENANT_SLUG}/booking\\?serviceId=${service.serviceId}$`),
         );
+
+        await test.step('the public page has no accessibility violations', async () => {
+          const a11yService = await newService(page, 'a11y');
+          try {
+            const a11yPublished = await setServicePublicPage(page, a11yService.serviceId, {
+              published: true,
+              profile: {
+                longDescription: 'Texto **forte**.\n\n- um\n- dois',
+                inclusions: ['Chá', 'Toalhas'],
+                preparationNotes: 'Chegue cedo.',
+              },
+            });
+
+            await guest.goto(`/${TENANT_SLUG}/servicos/${a11yPublished.publicSlug}`);
+            await expect(
+              guest.getByRole('heading', { level: 1, name: a11yService.name }),
+            ).toBeVisible();
+            // The page itself: main, plus the footer when the hotsite has one. The shared top bar is
+            // rendered by every hotsite route and is not this page's content, same scoping as the
+            // booking specs.
+            const axe = new AxeBuilder({ page: guest }).include('main');
+            if ((await guest.locator('footer').count()) > 0) axe.include('footer');
+            const results = await axe.analyze();
+            expect(results.violations).toEqual([]);
+          } finally {
+            await deactivateService(page, a11yService.serviceId);
+          }
+        });
       } finally {
         await visitor.close();
       }
@@ -144,32 +172,30 @@ test.describe('service public page — manager publishes, visitor reads', () => 
         // Another tenant never serves this tenant's page, whatever the slug.
         await guest.goto(`/${OTHER_TENANT_SLUG}/servicos/${published.publicSlug}`);
         await expect(guest.getByTestId('service-detail-unavailable')).toBeVisible();
+
+        await test.step('a deactivated service has no page, even though its switch stays on', async () => {
+          const inactiveService = await newService(page, 'inativo');
+          let deactivated = false;
+          try {
+            const inactivePublished = await setServicePublicPage(page, inactiveService.serviceId, {
+              published: true,
+            });
+            await deactivateService(page, inactiveService.serviceId);
+            deactivated = true;
+
+            await guest.goto(`/${TENANT_SLUG}/servicos/${inactivePublished.publicSlug}`);
+            await expect(guest.getByTestId('service-detail-unavailable')).toBeVisible();
+          } finally {
+            if (!deactivated) {
+              await deactivateService(page, inactiveService.serviceId);
+            }
+          }
+        });
       } finally {
         await visitor.close();
       }
     } finally {
       await deactivateService(page, service.serviceId);
-    }
-  });
-
-  test('a deactivated service has no page, even though its switch stays on', async ({
-    page,
-    browser,
-  }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
-    const service = await newService(page, 'inativo');
-    const published = await setServicePublicPage(page, service.serviceId, { published: true });
-    await deactivateService(page, service.serviceId);
-
-    const visitor = await browser.newContext({
-      baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000',
-    });
-    const guest = await visitor.newPage();
-    try {
-      await guest.goto(`/${TENANT_SLUG}/servicos/${published.publicSlug}`);
-      await expect(guest.getByTestId('service-detail-unavailable')).toBeVisible();
-    } finally {
-      await visitor.close();
     }
   });
 
@@ -229,41 +255,6 @@ test.describe('service public page — manager publishes, visitor reads', () => 
         await page.getByTestId('service-desktop-tab-action').click();
         await expect(page.getByTestId('form-feedback')).toBeVisible();
         await expectImagesLoaded();
-      } finally {
-        await visitor.close();
-      }
-    } finally {
-      await deactivateService(page, service.serviceId);
-    }
-  });
-
-  test('the public page has no accessibility violations', async ({ page, browser }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
-    const service = await newService(page, 'a11y');
-    const published = await setServicePublicPage(page, service.serviceId, {
-      published: true,
-      profile: {
-        longDescription: 'Texto **forte**.\n\n- um\n- dois',
-        inclusions: ['Chá', 'Toalhas'],
-        preparationNotes: 'Chegue cedo.',
-      },
-    });
-
-    try {
-      const visitor = await browser.newContext({
-        baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000',
-      });
-      const guest = await visitor.newPage();
-      try {
-        await guest.goto(`/${TENANT_SLUG}/servicos/${published.publicSlug}`);
-        await expect(guest.getByRole('heading', { level: 1, name: service.name })).toBeVisible();
-        // The page itself: main, plus the footer when the hotsite has one. The shared top bar is
-        // rendered by every hotsite route and is not this page's content, same scoping as the
-        // booking specs.
-        const axe = new AxeBuilder({ page: guest }).include('main');
-        if ((await guest.locator('footer').count()) > 0) axe.include('footer');
-        const results = await axe.analyze();
-        expect(results.violations).toEqual([]);
       } finally {
         await visitor.close();
       }

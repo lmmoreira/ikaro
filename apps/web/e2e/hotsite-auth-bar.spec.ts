@@ -28,16 +28,17 @@ test.describe('M13-S42 — Hotsite auth bar', () => {
     const googleButton = page.locator('[data-testid="google-login"]');
     await expect(googleButton).toBeVisible();
     await expect(googleButton).toHaveAttribute('href', /\/auth\/google\?tenantSlug=ikaro/);
-  });
 
-  test('anonymous visitor sees the staff area link pointing to the tenant-scoped login page', async ({
-    page,
-  }) => {
-    await page.goto('/lavacar-beloauto');
+    await test.step('anonymous visitor sees the staff area link pointing to the tenant-scoped login page', async () => {
+      await page.goto('/lavacar-beloauto');
 
-    const staffLink = page.locator('[data-testid="hotsite-staff-link"]');
-    await expect(staffLink).toBeVisible({ timeout: AUTH_RESOLVE_TIMEOUT });
-    await expect(staffLink).toHaveAttribute('href', '/dashboard/login?tenantSlug=lavacar-beloauto');
+      const staffLink = page.locator('[data-testid="hotsite-staff-link"]');
+      await expect(staffLink).toBeVisible({ timeout: AUTH_RESOLVE_TIMEOUT });
+      await expect(staffLink).toHaveAttribute(
+        'href',
+        '/dashboard/login?tenantSlug=lavacar-beloauto',
+      );
+    });
   });
 
   test('the auth bar also renders on the booking page', async ({ page }) => {
@@ -106,20 +107,18 @@ test.describe('Hotsite auth bar — authenticated states', () => {
     });
   });
 
-  test('authenticated staff sees their name and a link to the dashboard', async ({ page }) => {
-    await loginAsStaff(page, 'funcionario@lavacar.com.br', 'lavacar-beloauto');
-
-    await page.goto('/lavacar-beloauto');
-
-    const staffLink = page.locator('[data-testid="hotsite-staff-authenticated-link"]');
-    await expect(staffLink).toBeVisible({ timeout: AUTH_RESOLVE_TIMEOUT });
-    await expect(staffLink).toHaveAttribute('href', '/dashboard');
-  });
-
   test('authenticated staff sees a Sair button that clears the session', async ({ page }) => {
     await loginAsStaff(page, 'funcionario@lavacar.com.br', 'lavacar-beloauto');
 
     await page.goto('/lavacar-beloauto');
+
+    // Absorbed test, placed before the sign-out click: the staff session is still live here.
+    await test.step('authenticated staff sees their name and a link to the dashboard', async () => {
+      const staffLink = page.locator('[data-testid="hotsite-staff-authenticated-link"]');
+      await expect(staffLink).toBeVisible({ timeout: AUTH_RESOLVE_TIMEOUT });
+      await expect(staffLink).toHaveAttribute('href', '/dashboard');
+    });
+
     await expect(page.locator('[data-testid="hotsite-staff-authenticated-link"]')).toBeVisible({
       timeout: AUTH_RESOLVE_TIMEOUT,
     });

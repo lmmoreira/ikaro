@@ -15,36 +15,47 @@ test.describe('team invite flow', () => {
   });
 
   test('invites a new STAFF member and shows it as pending on the list', async ({ page }) => {
-    const email = uniqueTestEmail('e2e-invite-staff');
+    await test.step('invites a new STAFF member and shows it as pending on the list', async () => {
+      const email = uniqueTestEmail('e2e-invite-staff');
 
-    await page.goto('/dashboard/team/invite');
-    await page.getByTestId('invite-first-name-input').fill('Maria');
-    await page.getByTestId('invite-last-name-input').fill('Teste');
-    await page.getByTestId('invite-email-input').fill(email);
-    await page.getByRole('button', { name: 'Enviar convite' }).click();
+      await page.goto('/dashboard/team/invite');
+      await page.getByTestId('invite-first-name-input').fill('Maria');
+      await page.getByTestId('invite-last-name-input').fill('Teste');
+      await page.getByTestId('invite-email-input').fill(email);
+      await page.getByRole('button', { name: 'Enviar convite' }).click();
 
-    await expect(page).toHaveURL(`/dashboard/team?invited=${encodeURIComponent(email)}`);
-    await expect(page.getByTestId('team-invite-success-banner')).toBeVisible();
+      await expect(page).toHaveURL(`/dashboard/team?invited=${encodeURIComponent(email)}`);
+      await expect(page.getByTestId('team-invite-success-banner')).toBeVisible();
 
-    const row = getMemberRow(page, email);
-    await expect(row).toContainText('Convite pendente');
-    await expect(row).toContainText('Equipe');
-  });
+      const row = getMemberRow(page, email);
+      await expect(row).toContainText('Convite pendente');
+      await expect(row).toContainText('Equipe');
+    });
 
-  test('invites a new MANAGER member and shows the Gerente role badge', async ({ page }) => {
-    const email = uniqueTestEmail('e2e-invite-manager');
+    await test.step('invites a new MANAGER member and shows the Gerente role badge', async () => {
+      const email = uniqueTestEmail('e2e-invite-manager');
 
-    await page.goto('/dashboard/team/invite');
-    await page.getByTestId('invite-first-name-input').fill('Carlos');
-    await page.getByTestId('invite-last-name-input').fill('Gerente');
-    await page.getByTestId('invite-email-input').fill(email);
-    await getRoleOption(page, 'MANAGER').click();
-    await page.getByRole('button', { name: 'Enviar convite' }).click();
+      await page.goto('/dashboard/team/invite');
+      await page.getByTestId('invite-first-name-input').fill('Carlos');
+      await page.getByTestId('invite-last-name-input').fill('Gerente');
+      await page.getByTestId('invite-email-input').fill(email);
+      await expect(page.locator('header')).toContainText('Equipe');
+      await getRoleOption(page, 'MANAGER').click();
+      await expect(page.locator('header')).toContainText('Gerente');
+      await page.getByRole('button', { name: 'Enviar convite' }).click();
 
-    await expect(page).toHaveURL(`/dashboard/team?invited=${encodeURIComponent(email)}`);
-    const row = getMemberRow(page, email);
-    await expect(row).toContainText('Gerente');
-    await expect(row).toContainText('Convite pendente');
+      await expect(page).toHaveURL(`/dashboard/team?invited=${encodeURIComponent(email)}`);
+      const row = getMemberRow(page, email);
+      await expect(row).toContainText('Gerente');
+      await expect(row).toContainText('Convite pendente');
+    });
+
+    await test.step('the back link returns to the team list without submitting', async () => {
+      await page.goto('/dashboard/team/invite');
+      await page.getByTestId('topbar-back-button').click();
+
+      await expect(page).toHaveURL('/dashboard/team');
+    });
   });
 
   test('resends an invite with one click — no navigation, no retyping', async ({ page }) => {
@@ -73,37 +84,5 @@ test.describe('team invite flow', () => {
     await expect(page.getByTestId('invite-email-input')).toHaveAccessibleDescription(
       'Já existe um membro da equipe com este e-mail neste estabelecimento.',
     );
-  });
-
-  test('shows inline validation for empty name fields and an invalid email', async ({ page }) => {
-    await page.goto('/dashboard/team/invite');
-    await page.getByTestId('invite-email-input').fill('not-an-email');
-    await page.getByRole('button', { name: 'Enviar convite' }).click();
-
-    await expect(page.getByTestId('invite-first-name-input')).toHaveAttribute(
-      'aria-invalid',
-      'true',
-    );
-    await expect(page.getByTestId('invite-last-name-input')).toHaveAttribute(
-      'aria-invalid',
-      'true',
-    );
-    await expect(page.getByTestId('invite-email-input')).toHaveAttribute('aria-invalid', 'true');
-    await expect(page.getByTestId('invite-first-name-input')).toBeFocused();
-  });
-
-  test('back arrow returns to the team list without submitting', async ({ page }) => {
-    await page.goto('/dashboard/team/invite');
-    await page.locator('header').getByRole('link', { name: 'Equipe' }).click();
-
-    await expect(page).toHaveURL('/dashboard/team');
-  });
-
-  test('selecting Gerente updates the topbar role badge live', async ({ page }) => {
-    await page.goto('/dashboard/team/invite');
-
-    await expect(page.locator('header')).toContainText('Equipe');
-    await getRoleOption(page, 'MANAGER').click();
-    await expect(page.locator('header')).toContainText('Gerente');
   });
 });

@@ -26,6 +26,8 @@ test.describe('team member detail/edit flow', () => {
 
     await page.goto(`/dashboard/team/${member.staffId}`);
     await expect(page.getByTestId('staff-detail-name-input')).toHaveValue(member.name);
+    await expect(page.getByTestId('staff-detail-email-input')).toBeDisabled();
+    await expect(page.getByTestId('staff-detail-email-input')).toHaveValue(member.email);
 
     await page.getByTestId('staff-detail-name-input').fill(updatedName);
     await getRoleOption(page, 'MANAGER').click();
@@ -35,21 +37,6 @@ test.describe('team member detail/edit flow', () => {
     const row = getMemberRow(page, member.email);
     await expect(row).toContainText(updatedName);
     await expect(row).toContainText('Gerente');
-  });
-
-  test('shows inline validation when the name is cleared', async ({ page }) => {
-    const member = await seedStaffMember(page, { tenantSlug: TEAM_TENANT });
-
-    await page.goto(`/dashboard/team/${member.staffId}`);
-    await page.getByTestId('staff-detail-name-input').fill('');
-    await page.getByTestId('staff-detail-save-desktop').click();
-
-    await expect(page.getByTestId('staff-detail-name-input')).toHaveAttribute(
-      'aria-invalid',
-      'true',
-    );
-    await expect(page.getByTestId('staff-detail-name-input')).toBeFocused();
-    await expect(page).toHaveURL(`/dashboard/team/${member.staffId}`);
   });
 
   test('blocks demoting the only active manager with an inline 409 error', async ({ page }) => {
@@ -69,15 +56,6 @@ test.describe('team member detail/edit flow', () => {
       'Não é possível remover o último gerente ativo.',
     );
     await expect(page.url()).toContain('/dashboard/team/');
-  });
-
-  test('renders the email field as read-only', async ({ page }) => {
-    const member = await seedStaffMember(page, { tenantSlug: TEAM_TENANT });
-
-    await page.goto(`/dashboard/team/${member.staffId}`);
-
-    await expect(page.getByTestId('staff-detail-email-input')).toBeDisabled();
-    await expect(page.getByTestId('staff-detail-email-input')).toHaveValue(member.email);
   });
 
   test('cancel returns to the team list without saving', async ({ page }) => {

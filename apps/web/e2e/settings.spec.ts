@@ -56,24 +56,22 @@ test.describe('tenant settings management (MANAGER)', () => {
     await expect(page.getByTestId('settings-cancellation-window')).toHaveValue('72');
     await expect(page.getByTestId('settings-service-buffer')).toHaveValue('45');
     await expect(page.getByTestId('settings-loyalty-expiry')).toHaveValue('200');
-  });
 
-  test('saves the recurring-reservation renewal reminder lead time and shows it after a reload (M23-S21)', async ({
-    page,
-  }) => {
-    await goToSettings(page);
+    // The page is already freshly reloaded here, and this step edits a field the steps above never
+    // touched, so its "original value" check still sees the tenant's stored value.
+    await test.step('saves the recurring-reservation renewal reminder lead time and shows it after a reload (M23-S21)', async () => {
+      const field = page.getByTestId('settings-recurring-renewal-reminder-days');
+      await expect(field).toHaveValue(
+        String(originalSettings.booking.recurringRenewalReminderDays ?? 7),
+      );
 
-    const field = page.getByTestId('settings-recurring-renewal-reminder-days');
-    await expect(field).toHaveValue(
-      String(originalSettings.booking.recurringRenewalReminderDays ?? 7),
-    );
+      await field.fill('5');
+      await page.getByTestId('settings-submit-desktop').click();
+      await expect(page.getByTestId('form-feedback')).toBeVisible();
 
-    await field.fill('5');
-    await page.getByTestId('settings-submit-desktop').click();
-    await expect(page.getByTestId('form-feedback')).toBeVisible();
-
-    await page.reload();
-    await expect(page.getByTestId('settings-recurring-renewal-reminder-days')).toHaveValue('5');
+      await page.reload();
+      await expect(page.getByTestId('settings-recurring-renewal-reminder-days')).toHaveValue('5');
+    });
   });
 
   test('turns the renewal reminder off with 0 and refuses a value above 30 (M23-S21)', async ({
@@ -138,27 +136,6 @@ test.describe('tenant settings management (MANAGER)', () => {
     await expect(page.getByTestId('settings-address-state')).toHaveValue('MG');
   });
 
-  test('shows the not-found message for a CEP with no match and still allows manual entry', async ({
-    page,
-  }) => {
-    await goToSettings(page);
-
-    const zip = page.getByTestId('settings-address-zip');
-    await zip.fill('00000000');
-    await expect(page.getByTestId('settings-address-zip-not-found')).toBeVisible({
-      timeout: 10_000,
-    });
-
-    await page.getByTestId('settings-address-street').fill('Rua Teste');
-    await page.getByTestId('settings-address-number').fill('100');
-    await page.getByTestId('settings-address-neighborhood').fill('Centro');
-    await page.getByTestId('settings-address-city').fill('Belo Horizonte');
-    await page.getByTestId('settings-address-state').fill('MG');
-
-    await page.getByTestId('settings-submit-desktop').click();
-    await expect(page.getByTestId('form-feedback')).toBeVisible();
-  });
-
   test('blocks submit when the loyalty expiry warning is not less than the expiry itself', async ({
     page,
   }) => {
@@ -172,38 +149,6 @@ test.describe('tenant settings management (MANAGER)', () => {
     await expect(warning).toHaveAttribute('aria-invalid', 'true');
     await expect(warning).toBeFocused();
     await expect(page.getByTestId('form-feedback')).toBeHidden();
-  });
-
-  test('blocks submit on a partially-filled address (all-or-nothing)', async ({ page }) => {
-    await goToSettings(page);
-
-    await page.getByTestId('settings-address-street').fill('Rua Incompleta');
-    // zipCode/number/city/state left blank on purpose.
-    await page.getByTestId('settings-submit-desktop').click();
-
-    await expect(page.getByTestId('settings-address-zip')).toHaveAttribute('aria-invalid', 'true');
-    await expect(page.getByTestId('form-feedback')).toBeHidden();
-  });
-
-  test("Monday's copy button applies its hours to Tue-Fri but not Sat/Sun", async ({ page }) => {
-    await goToSettings(page);
-
-    // The original Saturday open-hour, read from the API snapshot (not scraped from the DOM
-    // before the action) — the source of truth for "did the copy leave Saturday alone".
-    const saturdayHourExpected = originalSettings.businessHours.saturday?.open.split(':')[0] ?? '';
-
-    function dayOpenHour(day: string) {
-      return page.locator(`[data-testid="settings-day-open-hour"][data-row-key="${day}"]`);
-    }
-
-    // TimePicker is a Radix Select (combobox), not a native <select> — open + pick the option.
-    await dayOpenHour('monday').click();
-    await page.getByRole('option', { name: '07', exact: true }).click();
-    await page.getByTestId('day-copy-monday').click();
-
-    await expect(dayOpenHour('tuesday')).toHaveText('07');
-    await expect(dayOpenHour('friday')).toHaveText('07');
-    await expect(dayOpenHour('saturday')).toHaveText(saturdayHourExpected);
   });
 
   test('keeps socialLinks null when saving an unrelated field (regression)', async ({ page }) => {

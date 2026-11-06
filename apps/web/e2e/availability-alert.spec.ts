@@ -13,11 +13,8 @@ import {
 import { completeCustomerProfile } from './helpers/customer';
 import {
   MANAGER_EMAIL,
-  nextButton,
-  openBooking,
   seedChoiceService,
   seedFixedService,
-  selectService,
   TENANT_SLUG,
 } from './helpers/booking-form';
 import { seedBundle, seedVariableDurationService } from './helpers/booking-form/seeds';
@@ -64,37 +61,32 @@ test.describe('M23-S31 — availability alert entry', () => {
       );
       expect(saved).toHaveLength(1);
       expect(saved[0]).toMatchObject({ criteriaType: 'ONE_TIME_RANGE', status: 'ACTIVE' });
-    } finally {
-      await customer.close();
-    }
-  });
 
-  test('a customer creates a weekly-preference alert', async ({ page, browser }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
-    const service = await seedAlertEligibleService(page);
-    const customer = await newLoggedInCustomerPage(browser);
+      // A service of its own (shadowing the one above) keeps "exactly one alert saved" true for
+      // this customer.
+      await test.step('a customer creates a weekly-preference alert', async () => {
+        const service = await seedAlertEligibleService(page);
+        await customer.page.goto(`${ALERT_PAGE}?serviceId=${service.serviceId}`);
+        await expect(customer.page.getByTestId('availability-alert-form')).toBeVisible();
 
-    try {
-      await customer.page.goto(`${ALERT_PAGE}?serviceId=${service.serviceId}`);
-      await expect(customer.page.getByTestId('availability-alert-form')).toBeVisible();
+        await customer.page.getByTestId('criteria-weekly').check();
+        await customer.page.locator('[data-testid="alert-weekday"][data-day="tuesday"]').click();
+        await customer.page.locator('[data-testid="alert-weekday"][data-day="thursday"]').click();
+        await customer.page.getByTestId('alert-submit').click();
 
-      await customer.page.getByTestId('criteria-weekly').check();
-      await customer.page.locator('[data-testid="alert-weekday"][data-day="tuesday"]').click();
-      await customer.page.locator('[data-testid="alert-weekday"][data-day="thursday"]').click();
-      await customer.page.getByTestId('alert-submit').click();
-
-      await expect(customer.page.getByTestId('availability-alert-saved')).toBeVisible({
-        timeout: 20_000,
-      });
-      const saved = (await listMyAlerts(customer.page)).filter(
-        (alert) => alert.serviceId === service.serviceId,
-      );
-      expect(saved).toHaveLength(1);
-      expect(saved[0]).toMatchObject({
-        criteriaType: 'WEEKLY_PREFERENCE',
-        weekdays: ['tuesday', 'thursday'],
-        localStartTime: '09:00',
-        localEndTime: '12:00',
+        await expect(customer.page.getByTestId('availability-alert-saved')).toBeVisible({
+          timeout: 20_000,
+        });
+        const saved = (await listMyAlerts(customer.page)).filter(
+          (alert) => alert.serviceId === service.serviceId,
+        );
+        expect(saved).toHaveLength(1);
+        expect(saved[0]).toMatchObject({
+          criteriaType: 'WEEKLY_PREFERENCE',
+          weekdays: ['tuesday', 'thursday'],
+          localStartTime: '09:00',
+          localEndTime: '12:00',
+        });
       });
     } finally {
       await customer.close();
@@ -282,27 +274,6 @@ test.describe('M23-S31 — availability alert entry', () => {
       );
       expect(saved).toHaveLength(1);
       expect(saved[0]?.preferredResourceId).toBeNull();
-    } finally {
-      await customer.close();
-    }
-  });
-
-  test('a basket with two services offers no alert button', async ({ page, browser }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
-    const first = await seedAlertEligibleService(page);
-    const second = await seedAlertEligibleService(page);
-    const customer = await newLoggedInCustomerPage(browser);
-
-    try {
-      await openBooking(customer.page);
-      await selectService(customer.page, first.serviceId);
-      await selectService(customer.page, second.serviceId);
-      await nextButton(customer.page).click();
-
-      await expect(customer.page.locator('[data-testid="day-option"]').first()).toBeVisible({
-        timeout: 20_000,
-      });
-      await expect(customer.page.getByTestId('availability-alert-entry')).toHaveCount(0);
     } finally {
       await customer.close();
     }

@@ -508,6 +508,21 @@ describe('ServiceEditPage', () => {
     expect(routerPush).not.toHaveBeenCalled();
   });
 
+  it('opens the discard dialog for an unsaved Recursos edit even after switching to another tab', async () => {
+    const user = userEvent.setup();
+    const { container } = renderWithIntl(
+      <ServiceEditPage service={service} intakeSchema={intakeSchema} />,
+    );
+
+    await user.click(getTabButton(container, 'recursos'));
+    await user.type(screen.getByTestId('resource-buffer-input'), '45');
+    await user.click(getTabButton(container, 'politicas'));
+    await user.click(screen.getByTestId('service-cancel-desktop-link'));
+
+    expect(screen.getByText('Descartar alterações?')).toBeInTheDocument();
+    expect(routerPush).not.toHaveBeenCalled();
+  });
+
   it('"Descartar alterações" navigates back to the services list', async () => {
     const user = userEvent.setup();
     renderWithIntl(<ServiceEditPage service={service} intakeSchema={intakeSchema} />);

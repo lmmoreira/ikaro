@@ -83,6 +83,20 @@ describe('InviteForm', () => {
     expect(mockInviteStaff).not.toHaveBeenCalled();
   });
 
+  it('marks every invalid field and focuses the first when names are empty and the e-mail is malformed', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<InviteForm />);
+
+    await user.type(screen.getByLabelText('E-mail *'), 'not-an-email');
+    await user.click(getPrimarySubmitButton());
+
+    expect(screen.getByLabelText('Nome *')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('Sobrenome *')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('E-mail *')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('Nome *')).toHaveFocus();
+    expect(mockInviteStaff).not.toHaveBeenCalled();
+  });
+
   it('removes a field error as soon as the field is edited', async () => {
     const user = userEvent.setup();
     renderWithIntl(<InviteForm />);

@@ -70,24 +70,23 @@ describe('BookingFormWithDeepLink', () => {
     });
   });
 
-  it('ignores a service that belongs to no appointment this page offers (another tenant’s)', () => {
-    searchParams.current = new URLSearchParams(`serviceId=${OTHER_TENANT_SERVICE_ID}`);
-
-    render(<BookingFormWithDeepLink {...props} />);
-
-    expect(lastSeed()).toBeNull();
-  });
-
-  it('ignores a link to a service the booking flow does not offer (a session)', () => {
-    searchParams.current = new URLSearchParams('serviceId=10000000-0000-4000-8000-000000000002');
-
-    render(<BookingFormWithDeepLink {...props} />);
-
-    expect(lastSeed()).toBeNull();
-  });
-
-  it('ignores a malformed link without failing', () => {
-    searchParams.current = new URLSearchParams('serviceId=nope&date=also-nope');
+  it.each([
+    {
+      name: 'a service that belongs to no appointment this page offers (another tenant’s)',
+      query: `serviceId=${OTHER_TENANT_SERVICE_ID}`,
+    },
+    {
+      name: 'a link to a service the booking flow does not offer (a session)',
+      query: 'serviceId=10000000-0000-4000-8000-000000000002',
+    },
+    { name: 'a malformed link without failing', query: 'serviceId=nope&date=also-nope' },
+    {
+      name: 'an unknown service even when the link also carries a valid date',
+      query: `serviceId=${OTHER_TENANT_SERVICE_ID}&date=2099-01-01`,
+    },
+    { name: 'a link that carries only a date', query: 'date=2030-01-01' },
+  ])('ignores $name', ({ query }) => {
+    searchParams.current = new URLSearchParams(query);
 
     render(<BookingFormWithDeepLink {...props} />);
 

@@ -362,6 +362,9 @@ describe('HotsiteEditor', () => {
       const user = userEvent.setup();
       renderVisualEditor();
       await user.click(visualCommand('branding'));
+      const primaryColor = screen.getByTestId('hotsite-primary-color');
+      await user.clear(primaryColor);
+      await user.type(primaryColor, '#123456');
 
       await user.click(visualCommand('publish'));
 
@@ -370,6 +373,7 @@ describe('HotsiteEditor', () => {
         'aria-invalid',
         'true',
       );
+      expect(screen.getByTestId('hotsite-primary-color')).toHaveValue('#123456');
     });
 
     it('drops the previous result as a new publish starts, then focuses the new one', async () => {
@@ -538,12 +542,19 @@ describe('HotsiteEditor', () => {
       const user = userEvent.setup();
       renderVisualEditor();
       await openContactAndEdit(user);
+      const editedAddressState = screen
+        .getByTestId('contact-show-address')
+        .getAttribute('aria-checked');
 
       await user.click(screen.getByTestId('visual-inspector-cancel'));
       expect(screen.getByTestId('visual-module-discard-confirm')).toBeInTheDocument();
       await user.click(screen.getByRole('button', { name: 'Continuar editando' }));
 
       expect(screen.getByTestId('contact-show-address')).toBeInTheDocument();
+      expect(screen.getByTestId('contact-show-address')).toHaveAttribute(
+        'aria-checked',
+        editedAddressState,
+      );
       expect(visualCommand('publish')).toBeDisabled();
     });
 
@@ -1048,12 +1059,19 @@ describe('HotsiteEditor', () => {
         const user = userEvent.setup();
         renderVisualEditor();
         await dirtyContact(user);
+        const editedAddressState = screen
+          .getByTestId('contact-show-address')
+          .getAttribute('aria-checked');
 
         await user.click(visualCommand('templates'));
 
         expect(screen.getByTestId('visual-module-discard-confirm')).toBeInTheDocument();
         await user.click(screen.getByRole('button', { name: 'Continuar editando' }));
         expect(screen.getByTestId('contact-show-address')).toBeInTheDocument();
+        expect(screen.getByTestId('contact-show-address')).toHaveAttribute(
+          'aria-checked',
+          editedAddressState,
+        );
         expect(screen.queryByTestId('template-gallery')).not.toBeInTheDocument();
       });
 
@@ -1481,6 +1499,28 @@ describe('HotsiteEditor', () => {
       expect(screen.getByTestId('hotsite-primary-color')).toHaveValue('#2563eb');
     });
 
+    it('Aplicar keeps a valid section presentation in the draft; re-entering Manifesto reads it back', async () => {
+      const user = userEvent.setup();
+      renderDetailedEditor();
+
+      await user.click(screen.getByRole('tab', { name: 'Manifesto' }));
+      const textarea = screen.getByTestId('hotsite-manifest-textarea') as HTMLTextAreaElement;
+      const manifest = JSON.parse(textarea.value) as {
+        layout: { type: string; presentation?: unknown }[];
+      };
+      const about = manifest.layout.find((module) => module.type === 'ABOUT')!;
+      about.presentation = { surface: 'custom', customColor: '#0B0908', minHeight: 'lg' };
+      fireEvent.change(textarea, { target: { value: JSON.stringify(manifest) } });
+      await user.click(screen.getByTestId('hotsite-manifest-apply'));
+      expect(textarea).not.toHaveAttribute('aria-invalid', 'true');
+
+      await user.click(screen.getByRole('tab', { name: 'Layout' }));
+      await user.click(screen.getByRole('tab', { name: 'Manifesto' }));
+
+      const reseeded = screen.getByTestId('hotsite-manifest-textarea') as HTMLTextAreaElement;
+      expect(reseeded.value).toMatch(/"customColor": "#0B0908"/);
+    });
+
     it('leaving the tab without Aplicar discards the pending edit; re-entering reseeds from the draft', async () => {
       const user = userEvent.setup();
       renderDetailedEditor();
@@ -1731,6 +1771,9 @@ describe('HotsiteEditor', () => {
       renderDetailedEditor();
 
       await user.click(screen.getByRole('tab', { name: 'Layout' }));
+      const leadFormToggleBefore = screen
+        .getByTestId('layout-row-toggle-LEAD_FORM')
+        .getAttribute('aria-checked');
       await user.click(
         screen
           .getAllByTestId('layout-row-configure')
@@ -1754,6 +1797,10 @@ describe('HotsiteEditor', () => {
       expect(mockUpdateHotsiteConfig).not.toHaveBeenCalled();
       expect(mockPublishHotsite).not.toHaveBeenCalled();
       expect(screen.getByRole('tablist')).toBeInTheDocument();
+      expect(screen.getByTestId('layout-row-toggle-LEAD_FORM')).toHaveAttribute(
+        'aria-checked',
+        leadFormToggleBefore,
+      );
     });
   });
 

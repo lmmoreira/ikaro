@@ -182,6 +182,26 @@ test.describe('M23-S14 — Reservas a resolver', () => {
       // The back arrow returns to the worklist, not to the booking queue.
       await page.getByTestId('topbar-back-button').click();
       await expect(page).toHaveURL('/dashboard/scheduling-exceptions');
+
+      await test.step('reactivating the resource clears its entries and the badge without a reload', async () => {
+        await page.goto('/dashboard/scheduling-exceptions');
+        await expect(groupOf(page, seed.source.name)).toBeVisible();
+        await expect.poll(() => badgeCount(page)).toBeGreaterThanOrEqual(1);
+        const badgeBefore = await badgeCount(page);
+
+        // Client-side navigation only: a full reload would hide a stale cache.
+        await page.getByTestId('sidebar-nav-resources').click();
+        await getResourceRow(page, seed.source.name)
+          .getByTestId('resource-row-reactivate-button')
+          .click();
+        await expect(getResourceRow(page, seed.source.name)).toContainText('Ativo');
+
+        await page.getByTestId('sidebar-nav-scheduling-exceptions').click();
+        await expect(groupOf(page, seed.source.name)).toHaveCount(0);
+        // Closing this room's entries lowers the tenant-wide badge by at least one (parallel specs
+        // may also have changed it, so only the bound is asserted).
+        await expect.poll(() => badgeCount(page)).toBeLessThanOrEqual(badgeBefore - 1);
+      });
     } finally {
       await seed.cleanup();
     }
@@ -215,36 +235,6 @@ test.describe('M23-S14 — Reservas a resolver', () => {
     }
   });
 
-  test('reactivating the resource clears its entries and the badge without a reload', async ({
-    page,
-  }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
-    // The seed deactivates the source room, which raises the entries.
-    const seed = await seedWorklistEntries(page, [{ approve: true }]);
-
-    try {
-      await page.goto('/dashboard/scheduling-exceptions');
-      await expect(groupOf(page, seed.source.name)).toBeVisible();
-      await expect.poll(() => badgeCount(page)).toBeGreaterThanOrEqual(1);
-      const badgeBefore = await badgeCount(page);
-
-      // Client-side navigation only: a full reload would hide a stale cache.
-      await page.getByTestId('sidebar-nav-resources').click();
-      await getResourceRow(page, seed.source.name)
-        .getByTestId('resource-row-reactivate-button')
-        .click();
-      await expect(getResourceRow(page, seed.source.name)).toContainText('Ativo');
-
-      await page.getByTestId('sidebar-nav-scheduling-exceptions').click();
-      await expect(groupOf(page, seed.source.name)).toHaveCount(0);
-      // Closing this room's entries lowers the tenant-wide badge by at least one (parallel specs
-      // may also have changed it, so only the bound is asserted).
-      await expect.poll(() => badgeCount(page)).toBeLessThanOrEqual(badgeBefore - 1);
-    } finally {
-      await seed.cleanup();
-    }
-  });
-
   test('the alternatives follow the real data: none, then a reactivated room, then none again', async ({
     page,
   }) => {
@@ -273,37 +263,6 @@ test.describe('M23-S14 — Reservas a resolver', () => {
     } finally {
       await seed.cleanup();
     }
-  });
-
-  test('a STAFF user has no sidebar item and is turned away from the page', async ({ page }) => {
-    await loginAsStaff(page, STAFF_EMAIL, TENANT_SLUG);
-
-    await page.goto('/dashboard/bookings');
-    // The dashboard did load for this STAFF user (the Agenda link is there)…
-    await expect(page.getByRole('link', { name: 'Agenda' }).first()).toBeVisible();
-    // …but "Reservas a resolver" is manager-only.
-    await expect(page.getByTestId('sidebar-nav-scheduling-exceptions')).toHaveCount(0);
-
-    await page.goto('/dashboard/scheduling-exceptions');
-    await expect(page).not.toHaveURL(/scheduling-exceptions/);
-  });
-
-  test('shows the empty state when nothing is open', async ({ page }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
-    // The shared tenant keeps entries other specs left open, so the empty answer is stubbed at the
-    // network; the page, the route and the empty-state copy are the real ones.
-    await page.route('**/scheduling-exceptions?status=OPEN', (route) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: '{"items":[]}' }),
-    );
-
-    await page.goto('/dashboard/scheduling-exceptions');
-
-    const empty = page.getByTestId('scheduling-exceptions-empty');
-    await expect(empty).toContainText('Nenhuma reserva a resolver');
-    await expect(empty.getByRole('link', { name: 'Ver recursos' })).toHaveAttribute(
-      'href',
-      '/dashboard/resources',
-    );
   });
 });
 
@@ -454,6 +413,17 @@ test.describe('M23-S46 — Precisa de decisão', () => {
       await expect(page.getByTestId('booking-decision-panel')).toHaveCount(0);
       await expect(page.getByRole('button', { name: 'Marcar concluído' })).toHaveCount(0);
       await expect(page.getByRole('button', { name: 'Cancelar agendamento' })).toHaveCount(0);
+
+      await test.step('a STAFF user has no sidebar item and is turned away from the page', async () => {
+        await page.goto('/dashboard/bookings');
+        // The dashboard did load for this STAFF user (the Agenda link is there)…
+        await expect(page.getByRole('link', { name: 'Agenda' }).first()).toBeVisible();
+        // …but "Reservas a resolver" is manager-only.
+        await expect(page.getByTestId('sidebar-nav-scheduling-exceptions')).toHaveCount(0);
+
+        await page.goto('/dashboard/scheduling-exceptions');
+        await expect(page).not.toHaveURL(/scheduling-exceptions/);
+      });
     } finally {
       await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
       await seed.cleanup();

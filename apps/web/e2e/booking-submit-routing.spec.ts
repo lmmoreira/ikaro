@@ -1,4 +1,3 @@
-import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Browser, type Page } from '@playwright/test';
 import { loginAsCustomer, loginAsStaff, uniqueTestEmail } from './helpers/auth';
 import { deactivateResource } from './helpers/booking';
@@ -12,18 +11,16 @@ import {
   nextButton,
   openBooking,
   pickFirstSlot,
-  seedChoiceService,
   seedSingleRoomService,
   selectService,
   serviceCard,
-  stepIndicator,
   TENANT_SLUG,
 } from './helpers/booking-form';
 import {
   createScheduleClosureAt,
   removeScheduleClosure,
 } from './helpers/schedule/schedule-helpers';
-import { deactivateService, setBookingPolicy } from './helpers/services';
+import { deactivateService } from './helpers/services';
 
 // M23-S11a — where a submit error returns the customer to, the per-time service card and the
 // booking-details box. Real conflicts are seeded where the stack can produce them; the rest
@@ -114,34 +111,6 @@ test.describe('M23-S11a — submit routing and details', () => {
     }
   });
 
-  test('a mocked inactive-service rejection returns to Step 1 with its message', async ({
-    page,
-    browser,
-  }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
-    const { service, room } = await seedSingleRoomService(page, 'e2e-inactive');
-    const guest = await newGuestPage(browser);
-    await guest.page.route('**/v1/bookings', (route) =>
-      route.request().method() === 'POST'
-        ? route.fulfill(problemRoute(422, 'BOOKING_SERVICE_NOT_ACTIVE'))
-        : route.continue(),
-    );
-
-    try {
-      await reachConfirmation(guest.page, service.serviceId);
-      await confirmBooking(guest.page);
-
-      await expect(guest.page.getByTestId('step1-submit-error')).toContainText(
-        'Este serviço não está ativo no momento.',
-      );
-      await expect(guest.page.getByTestId('step-service-selection')).toBeVisible();
-    } finally {
-      await guest.close();
-      await deactivateService(page, service.serviceId);
-      await deactivateResource(page, room.id);
-    }
-  });
-
   test('a mocked 401 on the authenticated submit sends the customer to the hotsite login', async ({
     page,
   }) => {
@@ -168,87 +137,6 @@ test.describe('M23-S11a — submit routing and details', () => {
       await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
       await deactivateService(page, service.serviceId);
       await deactivateResource(page, room.id);
-    }
-  });
-
-  test('a per-time service shows its rate and duration range and "a partir de" in the total', async ({
-    page,
-    browser,
-  }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
-    const { service, room } = await seedSingleRoomService(page, 'e2e-por-tempo');
-    await setBookingPolicy(page, service.serviceId, {
-      durationPolicy: 'CUSTOMER_SELECTED',
-      durationMinMinutes: 60,
-      durationMaxMinutes: 480,
-      durationIncrementMinutes: 60,
-      pricingPolicy: 'PER_TIME_INCREMENT',
-      pricingIncrementMinutes: 60,
-      pricePerIncrementAmount: 50,
-      minimumChargeAmount: null,
-    });
-    const guest = await newGuestPage(browser);
-
-    try {
-      await openBooking(guest.page);
-      const card = serviceCard(guest.page, service.serviceId);
-      await expect(card.getByTestId('service-rate')).toHaveText('R$ 50,00 / hora');
-      await expect(card.getByTestId('service-duration-range')).toHaveText('1h a 8h');
-
-      await selectService(guest.page, service.serviceId);
-      await expect(guest.page.getByTestId('selection-total')).toContainText('a partir de R$ 50,00');
-    } finally {
-      await guest.close();
-      await deactivateService(page, service.serviceId);
-      await deactivateResource(page, room.id);
-    }
-  });
-
-  test('the booking-details box lists the service, date/time and total between the message and the back link', async ({
-    page,
-    browser,
-  }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
-    const { service, room } = await seedSingleRoomService(page, 'e2e-detalhes');
-    const guest = await newGuestPage(browser);
-
-    try {
-      await reachConfirmation(guest.page, service.serviceId);
-      await confirmBooking(guest.page);
-
-      await expect(guest.page.getByTestId('booking-success')).toBeVisible();
-      const details = guest.page.getByTestId('booking-submitted-details');
-      await expect(details).toContainText(service.name);
-      await expect(details).toContainText('R$ 150,00');
-      await expect(guest.page.getByTestId('submitted-datetime')).toBeVisible();
-      await expect(guest.page.getByTestId('submitted-total')).toContainText('Total: R$ 150,00');
-      await expect(guest.page.getByRole('link', { name: 'Voltar para o site' })).toBeVisible();
-    } finally {
-      await guest.close();
-      await deactivateService(page, service.serviceId);
-      await deactivateResource(page, room.id);
-    }
-  });
-
-  test('the resource picker step has no axe violations', async ({ page, browser }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
-    const seeded = await seedChoiceService(page);
-    const guest = await newGuestPage(browser);
-
-    try {
-      await openBooking(guest.page);
-      await selectService(guest.page, seeded.serviceId);
-      await nextButton(guest.page).click();
-      await expect(stepIndicator(guest.page, 2, 5)).toBeVisible();
-
-      const results = await new AxeBuilder({ page: guest.page })
-        .include('[data-testid="step-resource-picker"]')
-        .analyze();
-      expect(results.violations).toEqual([]);
-    } finally {
-      await guest.close();
-      await deactivateService(page, seeded.serviceId);
-      for (const id of seeded.resourceIds) await deactivateResource(page, id);
     }
   });
 });

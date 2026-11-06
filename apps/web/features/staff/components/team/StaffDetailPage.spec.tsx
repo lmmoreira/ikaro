@@ -89,6 +89,7 @@ describe('StaffDetailPage', () => {
     expect(screen.getByTestId('staff-detail-name-input')).toHaveFocus();
     expect(screen.queryByTestId('form-feedback')).not.toBeInTheDocument();
     expect(mockUpdateStaff).not.toHaveBeenCalled();
+    expect(routerPush).not.toHaveBeenCalled();
   });
 
   it('submits the update and redirects to the team list', async () => {

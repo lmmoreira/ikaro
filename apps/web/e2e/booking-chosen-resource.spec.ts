@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Browser, type Page } from '@playwright/test';
 import type { ResourceSelectionItem } from '@ikaro/types';
 import { loginAsStaff } from './helpers/auth';
@@ -7,7 +8,6 @@ import {
   confirmBooking,
   fillGuestContact,
   findFirstSlot,
-  firstSlotOnDate,
   MANAGER_EMAIL,
   nextButton,
   openBooking,
@@ -68,6 +68,13 @@ test.describe('M23-S11a — chosen resource', () => {
       await expect(guest.page.getByRole('radio', { checked: true })).toHaveCount(0);
       await expect(nextButton(guest.page)).toBeDisabled();
 
+      await test.step('the resource picker step has no axe violations', async () => {
+        const results = await new AxeBuilder({ page: guest.page })
+          .include('[data-testid="step-resource-picker"]')
+          .analyze();
+        expect(results.violations).toEqual([]);
+      });
+
       await guest.page.locator(`[data-resource-id="${staffA}"]`).click();
       await nextButton(guest.page).click();
       await guest.page.locator(`[data-testid="day-option"][data-date="${slot.date}"]`).click();
@@ -114,36 +121,24 @@ test.describe('M23-S11a — chosen resource', () => {
       await expect(guest.page.getByTestId('picker-option')).toHaveCount(1);
       await expect(guest.page.locator(`[data-resource-id="${active}"]`)).toBeVisible();
       await expect(guest.page.locator(`[data-resource-id="${inactive}"]`)).toHaveCount(0);
+
+      await test.step('a service with no active resource to offer stays on Step 1 as unavailable', async () => {
+        await deactivateResource(page, active);
+        await openBooking(guest.page);
+        await selectService(guest.page, seeded.serviceId);
+        await nextButton(guest.page).click();
+
+        await expect(guest.page.getByTestId('service-unavailable')).toContainText(
+          'Este serviço não está disponível para reserva no momento.',
+        );
+        await expect(stepIndicator(guest.page, 1, 4)).toBeVisible();
+        await expect(nextButton(guest.page)).toBeDisabled();
+        await expect(guest.page.getByTestId('resource-picker')).toHaveCount(0);
+      });
     } finally {
       await guest.close();
       await deactivateService(page, seeded.serviceId);
       await deactivateResource(page, active);
-    }
-  });
-
-  test('a service with no active resource to offer stays on Step 1 as unavailable', async ({
-    page,
-    browser,
-  }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
-    const seeded = await seedChoiceService(page, 1);
-    await deactivateResource(page, seeded.resourceIds[0]!);
-    const guest = await newGuestPage(browser);
-
-    try {
-      await openBooking(guest.page);
-      await selectService(guest.page, seeded.serviceId);
-      await nextButton(guest.page).click();
-
-      await expect(guest.page.getByTestId('service-unavailable')).toContainText(
-        'Este serviço não está disponível para reserva no momento.',
-      );
-      await expect(stepIndicator(guest.page, 1, 4)).toBeVisible();
-      await expect(nextButton(guest.page)).toBeDisabled();
-      await expect(guest.page.getByTestId('resource-picker')).toHaveCount(0);
-    } finally {
-      await guest.close();
-      await deactivateService(page, seeded.serviceId);
     }
   });
 
@@ -238,87 +233,6 @@ test.describe('M23-S11a — chosen resource', () => {
       await guest.close();
       await deactivateService(page, service.serviceId);
       for (const id of [staffA.id, staffB.id, room.id]) await deactivateResource(page, id);
-    }
-  });
-
-  test('a room-only choice is headed by the room', async ({ page, browser }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
-    const seeded = await seedChoiceService(page, 2, 'ROOM');
-    const guest = await newGuestPage(browser);
-
-    try {
-      await openBooking(guest.page);
-      await selectService(guest.page, seeded.serviceId);
-      await nextButton(guest.page).click();
-
-      await expect(guest.page.getByRole('heading', { name: 'Escolha a sala' })).toBeVisible();
-    } finally {
-      await guest.close();
-      await deactivateService(page, seeded.serviceId);
-      for (const id of seeded.resourceIds) await deactivateResource(page, id);
-    }
-  });
-
-  test('a room taken after the slot list loaded returns to availability with the catalogue message and the slot cleared', async ({
-    page,
-    browser,
-  }) => {
-    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
-    const staff = await seedResource(page, 'STAFF');
-    const room = await seedResource(page, 'ROOM');
-    const service = await createService(page, {
-      name: makeUniqueServiceName('e2e-bundle-race'),
-      priceAmount: 150,
-      durationMinutes: 60,
-      loyaltyPointsValue: 10,
-    });
-    await setResourceRequirements(page, service.serviceId, [
-      { type: 'STAFF', selectionMode: 'CUSTOMER_CHOICE', resourcePoolIds: [staff.id] },
-      { type: 'ROOM', selectionMode: 'CUSTOMER_CHOICE', resourcePoolIds: [room.id] },
-    ]);
-    const guest = await newGuestPage(browser);
-
-    try {
-      await openBooking(guest.page);
-      await selectService(guest.page, service.serviceId);
-      await nextButton(guest.page).click();
-      await guest.page.locator(`[data-resource-id="${staff.id}"]`).click();
-      await guest.page.locator(`[data-resource-id="${room.id}"]`).click();
-      await nextButton(guest.page).click();
-      const date = await pickFirstSlot(guest.page);
-      const chosen = await firstSlotOnDate(page, service.serviceId, date, [
-        staffPick(service.serviceId, staff.id),
-        { serviceId: service.serviceId, legIndex: null, resourceType: 'ROOM', resourceId: room.id },
-      ]);
-      await nextButton(guest.page).click();
-      await fillGuestContact(guest.page);
-      await nextButton(guest.page).click();
-
-      // Another customer takes the room (alone) for the slot the guest is about to submit.
-      expect(
-        await bookAsGuest(page, {
-          serviceIds: [service.serviceId],
-          scheduledAt: chosen.startsAt,
-          resourceSelections: [
-            staffPick(service.serviceId, staff.id),
-            {
-              serviceId: service.serviceId,
-              legIndex: null,
-              resourceType: 'ROOM',
-              resourceId: room.id,
-            },
-          ],
-        }),
-      ).toBe(201);
-      await confirmBooking(guest.page);
-
-      await expect(guest.page.getByTestId('step2-error')).toBeVisible();
-      await expect(nextButton(guest.page)).toBeDisabled();
-    } finally {
-      await guest.close();
-      await deactivateService(page, service.serviceId);
-      await deactivateResource(page, staff.id);
-      await deactivateResource(page, room.id);
     }
   });
 });
