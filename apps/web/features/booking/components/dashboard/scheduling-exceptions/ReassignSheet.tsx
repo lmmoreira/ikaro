@@ -1,5 +1,7 @@
 'use client';
 
+import { Radio } from '@/shared/components/ui/radio';
+import { Textarea } from '@/shared/components/ui/textarea';
 import { useMemo, useState, type SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import type { SchedulingExceptionItem, SchedulingExceptionReassignTarget } from '@ikaro/types';
@@ -68,8 +70,7 @@ export function ReassignSheet({
     >
       <div role="radiogroup" aria-label={t('reassign')}>
         <label className={optionClass(choice === AUTO)}>
-          <input
-            type="radio"
+          <Radio
             name="reassign-target"
             value={AUTO}
             checked={choice === AUTO}
@@ -81,8 +82,7 @@ export function ReassignSheet({
         </label>
         {choices.map((c) => (
           <label key={c.resourceId} className={optionClass(choice === c.resourceId)}>
-            <input
-              type="radio"
+            <Radio
               name="reassign-target"
               value={c.resourceId}
               checked={choice === c.resourceId}
@@ -101,12 +101,11 @@ export function ReassignSheet({
         <span className="mb-2 block text-sm font-medium text-gray-700">
           {t('reasonLabel')} <span className="font-normal text-gray-400">({t('optional')})</span>
         </span>
-        <textarea
+        <Textarea
           value={reason}
           onChange={(event) => setReason(event.target.value)}
           maxLength={500}
           rows={2}
-          className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none ring-0 placeholder:text-gray-400 focus:border-blue-500"
         />
         <span className="mt-1 block text-xs text-gray-400">{t('reasonHelp')}</span>
       </label>

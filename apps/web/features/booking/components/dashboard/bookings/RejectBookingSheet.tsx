@@ -1,5 +1,6 @@
 'use client';
 
+import { Textarea } from '@/shared/components/ui/textarea';
 import { useState, type SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { BookingActionSheetShell } from './BookingActionSheetShell';
@@ -58,12 +59,11 @@ export function RejectBookingSheet({
     >
       <label className="block">
         <span className="mb-2 block text-sm font-medium text-gray-700">{t('reasonLabel')}</span>
-        <textarea
+        <Textarea
           value={reason}
           onChange={(event) => setReason(event.target.value)}
           maxLength={200}
           rows={5}
-          className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none ring-0 placeholder:text-gray-400 focus:border-blue-500"
           placeholder={t('rejectPlaceholder')}
         />
       </label>

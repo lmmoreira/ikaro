@@ -1,5 +1,7 @@
 'use client';
 
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
 import { useTranslations } from 'next-intl';
 import type {
   ResourceRequirementItem,
@@ -118,13 +120,12 @@ export function ServiceLegsPanel({
               >
                 {t('legNameLabel')}
               </label>
-              <input
+              <Input
                 id={`leg-${leg.legIndex}-name`}
                 data-testid="leg-name"
                 data-leg-index={leg.legIndex}
                 value={leg.name}
                 onChange={(event) => updateLeg(leg.legIndex, { name: event.target.value })}
-                className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
               />
             </div>
 
@@ -136,7 +137,7 @@ export function ServiceLegsPanel({
                 >
                   {t('legDurationLabel')}
                 </label>
-                <input
+                <Input
                   id={`leg-${leg.legIndex}-duration`}
                   type="number"
                   min={1}
@@ -148,7 +149,6 @@ export function ServiceLegsPanel({
                       durationMinutes: Math.max(1, Number(event.target.value) || 1),
                     })
                   }
-                  className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
                 />
               </div>
               <div>
@@ -158,7 +158,7 @@ export function ServiceLegsPanel({
                 >
                   {t('legTransitionGapLabel')}
                 </label>
-                <input
+                <Input
                   id={`leg-${leg.legIndex}-transition-gap`}
                   type="number"
                   min={0}
@@ -170,15 +170,12 @@ export function ServiceLegsPanel({
                       transitionGapAfterMinutes: Math.max(0, Number(event.target.value) || 0),
                     })
                   }
-                  className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <label className="block text-sm font-semibold text-gray-900">
-                {t('legsResourceRequirementLabel')}
-              </label>
+              <Label className="mb-0">{t('legsResourceRequirementLabel')}</Label>
               {LEG_TYPES.map((type) => (
                 <ServiceResourceTypeFields
                   key={type}

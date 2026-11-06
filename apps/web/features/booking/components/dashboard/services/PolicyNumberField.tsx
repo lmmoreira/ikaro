@@ -1,5 +1,7 @@
 'use client';
 
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
 import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
 import { cn } from '@/shared/utils/cn';
 import {
@@ -36,10 +38,10 @@ export function PolicyNumberField({
 
   return (
     <div>
-      <label htmlFor={id} className="mb-1 block text-xs font-semibold text-gray-500">
+      <Label htmlFor={id} className="mb-1 text-xs text-gray-500">
         {label}
-      </label>
-      <input
+      </Label>
+      <Input
         id={id}
         type="number"
         min={min}
@@ -48,10 +50,7 @@ export function PolicyNumberField({
         value={toNumberInput(value)}
         onChange={(event) => onChange(parseNullableNumber(event.target.value))}
         {...fields.fieldProps(name)}
-        className={cn(
-          'w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500',
-          message && FIELD_INVALID_CLASS,
-        )}
+        className={cn(message && FIELD_INVALID_CLASS)}
       />
       <FieldFeedback id={fields.fieldErrorId(name)}>{message}</FieldFeedback>
     </div>

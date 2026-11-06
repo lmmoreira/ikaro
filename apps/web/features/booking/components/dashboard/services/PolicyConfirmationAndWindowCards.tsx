@@ -1,5 +1,8 @@
 'use client';
 
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
+import { Radio } from '@/shared/components/ui/radio';
 import { useTranslations } from 'next-intl';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { PolicyNumberField } from './PolicyNumberField';
@@ -20,8 +23,7 @@ export function PolicyConfirmationCard({ policy, onPatch }: PolicyCardProps): Re
           {t('politicasConfirmationCardTitle')}
         </h2>
         <label className="flex items-center gap-2 text-sm">
-          <input
-            type="radio"
+          <Radio
             name="policy-approval-mode"
             data-testid="policy-approval-manual"
             checked={policy.defaultApprovalMode === 'MANUAL_APPROVAL'}
@@ -31,13 +33,10 @@ export function PolicyConfirmationCard({ policy, onPatch }: PolicyCardProps): Re
         </label>
         {policy.defaultApprovalMode === 'MANUAL_APPROVAL' && (
           <div className="ml-6 max-w-[10rem]">
-            <label
-              htmlFor="policy-hold-minutes"
-              className="mb-1 block text-xs font-semibold text-gray-500"
-            >
+            <Label htmlFor="policy-hold-minutes" className="mb-1 text-xs text-gray-500">
               {t('politicasHoldMinutesLabel')}
-            </label>
-            <input
+            </Label>
+            <Input
               id="policy-hold-minutes"
               type="number"
               min={1}
@@ -46,13 +45,11 @@ export function PolicyConfirmationCard({ policy, onPatch }: PolicyCardProps): Re
               onChange={(event) =>
                 onPatch({ manualHoldMinutes: parseNullableNumber(event.target.value) })
               }
-              className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
             />
           </div>
         )}
         <label className="flex items-center gap-2 text-sm">
-          <input
-            type="radio"
+          <Radio
             name="policy-approval-mode"
             data-testid="policy-approval-auto"
             checked={policy.defaultApprovalMode === 'AUTO_CONFIRM'}
@@ -63,13 +60,10 @@ export function PolicyConfirmationCard({ policy, onPatch }: PolicyCardProps): Re
 
         <div className="grid grid-cols-2 gap-3 border-t border-slate-100 pt-3">
           <div>
-            <label
-              htmlFor="policy-cancellation-window"
-              className="mb-1 block text-xs font-semibold text-gray-500"
-            >
+            <Label htmlFor="policy-cancellation-window" className="mb-1 text-xs text-gray-500">
               {t('politicasCancellationWindowLabel')}
-            </label>
-            <input
+            </Label>
+            <Input
               id="policy-cancellation-window"
               type="number"
               min={0}
@@ -80,17 +74,13 @@ export function PolicyConfirmationCard({ policy, onPatch }: PolicyCardProps): Re
                   cancellationWindowHoursOverride: parseNullableNumber(event.target.value),
                 })
               }
-              className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
             />
           </div>
           <div>
-            <label
-              htmlFor="policy-reschedule-window"
-              className="mb-1 block text-xs font-semibold text-gray-500"
-            >
+            <Label htmlFor="policy-reschedule-window" className="mb-1 text-xs text-gray-500">
               {t('politicasRescheduleWindowLabel')}
-            </label>
-            <input
+            </Label>
+            <Input
               id="policy-reschedule-window"
               type="number"
               min={0}
@@ -99,7 +89,6 @@ export function PolicyConfirmationCard({ policy, onPatch }: PolicyCardProps): Re
               onChange={(event) =>
                 onPatch({ rescheduleWindowHoursOverride: parseNullableNumber(event.target.value) })
               }
-              className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
             />
           </div>
         </div>

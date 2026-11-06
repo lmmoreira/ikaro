@@ -1,5 +1,9 @@
 'use client';
 
+import { Checkbox } from '@/shared/components/ui/checkbox';
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
+import { Radio } from '@/shared/components/ui/radio';
 import { useTranslations } from 'next-intl';
 import type { ResourceRequirementItem, ResourceResponse, ResourceType } from '@ikaro/types';
 import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
@@ -126,9 +130,8 @@ export function ServiceResourceTypeFields({
       data-resource-type={type}
     >
       <div className="flex items-start gap-3">
-        <input
+        <Checkbox
           id={checkboxId}
-          type="checkbox"
           data-testid="resource-type-checkbox"
           data-scope={scope}
           data-resource-type={type}
@@ -144,13 +147,13 @@ export function ServiceResourceTypeFields({
       {checked && (
         <div className="mt-3 space-y-3 border-t border-slate-100 pt-3">
           <div>
-            <label
+            <Label
               htmlFor={quantityId}
-              className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500"
+              className="mb-1 text-xs uppercase tracking-wide text-gray-500"
             >
               {t('resourceQuantityLabel')}
-            </label>
-            <input
+            </Label>
+            <Input
               id={quantityId}
               type="number"
               min={1}
@@ -169,10 +172,7 @@ export function ServiceResourceTypeFields({
               }}
               aria-invalid={quantityExceedsCandidates}
               aria-describedby={quantityExceedsCandidates ? `${quantityId}-error` : undefined}
-              className={cn(
-                'w-24 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm outline-none focus:border-blue-500',
-                quantityExceedsCandidates && FIELD_INVALID_CLASS,
-              )}
+              className={cn('w-24 py-1.5', quantityExceedsCandidates && FIELD_INVALID_CLASS)}
             />
             {quantityExceedsCandidates && (
               <FieldFeedback id={`${quantityId}-error`} testId="resource-type-quantity-error">
@@ -194,13 +194,12 @@ export function ServiceResourceTypeFields({
           />
 
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+            <Label className="mb-1 text-xs uppercase tracking-wide text-gray-500">
               {t('resourceSelectionModeLabel')}
-            </label>
+            </Label>
             <div className="space-y-1.5 text-sm">
               <label className="flex items-center gap-2">
-                <input
-                  type="radio"
+                <Radio
                   name={radioGroupName}
                   data-testid="resource-selection-mode-none"
                   checked={selectionModeChoice === 'NONE'}
@@ -209,8 +208,7 @@ export function ServiceResourceTypeFields({
                 {t('resourceSelectionModeNone')}
               </label>
               <label className="flex items-center gap-2">
-                <input
-                  type="radio"
+                <Radio
                   name={radioGroupName}
                   data-testid="resource-selection-mode-customer-choice"
                   checked={selectionModeChoice === 'CUSTOMER_CHOICE'}
@@ -219,8 +217,7 @@ export function ServiceResourceTypeFields({
                 {t('resourceSelectionModeCustomerChoice')}
               </label>
               <label className="flex items-center gap-2">
-                <input
-                  type="radio"
+                <Radio
                   name={radioGroupName}
                   data-testid="resource-selection-mode-auto"
                   checked={selectionModeChoice === 'AUTO'}

@@ -1,5 +1,8 @@
 'use client';
 
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
+import { Radio } from '@/shared/components/ui/radio';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { CustomerSearchItem } from '@ikaro/types';
@@ -9,7 +12,6 @@ import {
   useCustomerSearch,
 } from '@/features/booking/hooks/useCustomerSearch';
 import { resourceInitials } from '@/features/booking/model/resource-picker-copy';
-import { INPUT_CLASS, LABEL_CLASS } from './new-booking/new-booking-styles';
 import { SectionLabel } from '@/shared/components/ui/section-label';
 
 interface CustomerSearchPanelProps {
@@ -36,13 +38,7 @@ function CustomerRow({
           selected ? 'border-blue-500 bg-blue-50/60' : 'border-gray-200 bg-white hover:bg-gray-50'
         }`}
       >
-        <input
-          type="radio"
-          name="chosen-customer"
-          className="sr-only"
-          checked={selected}
-          onChange={onSelect}
-        />
+        <Radio name="chosen-customer" className="sr-only" checked={selected} onChange={onSelect} />
         <span
           aria-hidden="true"
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700"
@@ -75,14 +71,11 @@ export function CustomerSearchPanel({
   return (
     <div className="space-y-4">
       <div>
-        <label htmlFor="customer-search" className={LABEL_CLASS}>
-          {t('searchLabel')}
-        </label>
-        <input
+        <Label htmlFor="customer-search">{t('searchLabel')}</Label>
+        <Input
           id="customer-search"
           type="search"
           data-testid="customer-search"
-          className={INPUT_CLASS}
           value={term}
           onChange={(event) => setTerm(event.target.value)}
           placeholder={t('searchPlaceholder')}

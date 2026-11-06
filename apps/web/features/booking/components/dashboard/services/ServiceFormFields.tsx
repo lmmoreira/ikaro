@@ -1,5 +1,8 @@
 'use client';
 
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
+import { Textarea } from '@/shared/components/ui/textarea';
 import type { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
@@ -7,9 +10,6 @@ import type { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import { cn } from '@/shared/utils/cn';
 import { ServicePickupSwitch } from './ServicePickupSwitch';
 import { ServicePriceDurationFields } from './ServicePriceDurationFields';
-
-const INPUT_CLASS =
-  'w-full rounded-md border border-border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
 
 interface ServiceFormFieldsProps {
   readonly name: string;
@@ -63,13 +63,8 @@ export function ServiceFormFields({
     <>
       <section className="space-y-4">
         <div>
-          <label
-            htmlFor="service-name"
-            className="mb-1.5 block text-sm font-semibold text-gray-900"
-          >
-            {t('createNameLabel')}
-          </label>
-          <input
+          <Label htmlFor="service-name">{t('createNameLabel')}</Label>
+          <Input
             id="service-name"
             data-testid="service-name-input"
             type="text"
@@ -78,19 +73,14 @@ export function ServiceFormFields({
             maxLength={100}
             placeholder={t('createNamePlaceholder')}
             {...fieldProps('name')}
-            className={cn(INPUT_CLASS, fieldErrors.name && FIELD_INVALID_CLASS)}
+            className={cn(fieldErrors.name && FIELD_INVALID_CLASS)}
           />
           <FieldFeedback id={fieldErrorId('name')}>{fieldErrors.name}</FieldFeedback>
         </div>
 
         <div>
-          <label
-            htmlFor="service-description"
-            className="mb-1.5 block text-sm font-semibold text-gray-900"
-          >
-            {t('createDescriptionLabel')}
-          </label>
-          <textarea
+          <Label htmlFor="service-description">{t('createDescriptionLabel')}</Label>
+          <Textarea
             id="service-description"
             data-testid="service-description-input"
             value={description}
@@ -98,7 +88,7 @@ export function ServiceFormFields({
             maxLength={500}
             placeholder={t('createDescriptionPlaceholder')}
             {...fieldProps('description')}
-            className={cn(INPUT_CLASS, 'min-h-24', fieldErrors.description && FIELD_INVALID_CLASS)}
+            className={cn('min-h-24', fieldErrors.description && FIELD_INVALID_CLASS)}
           />
           <FieldFeedback id={fieldErrorId('description')}>{fieldErrors.description}</FieldFeedback>
         </div>
@@ -113,13 +103,8 @@ export function ServiceFormFields({
         />
 
         <div>
-          <label
-            htmlFor="service-points"
-            className="mb-1.5 block text-sm font-semibold text-gray-900"
-          >
-            {t('createPointsLabel')}
-          </label>
-          <input
+          <Label htmlFor="service-points">{t('createPointsLabel')}</Label>
+          <Input
             id="service-points"
             data-testid="service-points-input"
             type="number"
@@ -135,7 +120,7 @@ export function ServiceFormFields({
                 ? fieldErrorId('loyaltyPointsValue')
                 : 'service-points-hint'
             }
-            className={cn(INPUT_CLASS, fieldErrors.loyaltyPointsValue && FIELD_INVALID_CLASS)}
+            className={cn(fieldErrors.loyaltyPointsValue && FIELD_INVALID_CLASS)}
           />
           <FieldFeedback id={fieldErrorId('loyaltyPointsValue')}>
             {fieldErrors.loyaltyPointsValue}

@@ -53,6 +53,29 @@ describe('ResourceIdentityFields', () => {
     scrollIntoView.mockClear();
   });
 
+  it.each(['STAFF', 'ROOM'] as const)(
+    'gives every %s control an accessible name through its label',
+    (type) => {
+      renderWithIntl(
+        <Fields
+          showTypePicker={false}
+          type={type}
+          onTypeChange={vi.fn()}
+          refId=""
+          onRefIdChange={vi.fn()}
+          name=""
+          onNameChange={vi.fn()}
+          staffOptions={STAFF_OPTIONS}
+        />,
+      );
+
+      expect(screen.getByTestId('resource-identity-name-input')).toHaveAccessibleName(/\S/);
+      if (type === 'STAFF') {
+        expect(screen.getByTestId('resource-identity-staff-select')).toHaveAccessibleName(/\S/);
+      }
+    },
+  );
+
   it('shows the staff picker for type=STAFF and swaps to a name field for ROOM/EQUIPMENT', async () => {
     const user = userEvent.setup();
     const onTypeChange = vi.fn();

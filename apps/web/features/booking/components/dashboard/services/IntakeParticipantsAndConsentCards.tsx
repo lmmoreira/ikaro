@@ -1,5 +1,8 @@
 'use client';
 
+import { Checkbox } from '@/shared/components/ui/checkbox';
+import { Label } from '@/shared/components/ui/label';
+import { Textarea } from '@/shared/components/ui/textarea';
 import { useTranslations } from 'next-intl';
 import { Card, CardContent } from '@/shared/components/ui/card';
 
@@ -33,9 +36,8 @@ export function IntakeParticipantsCard({
               {t('formularioParticipantCountSub')}
             </span>
           </label>
-          <input
+          <Checkbox
             id="intake-participant-count-required"
-            type="checkbox"
             data-testid="intake-participant-count-required"
             checked={participantCountRequired}
             onChange={(event) => onChangeParticipantCountRequired(event.target.checked)}
@@ -48,9 +50,8 @@ export function IntakeParticipantsCard({
             </span>
             <span className="block text-xs text-gray-500">{t('formularioNamedAttendeesSub')}</span>
           </label>
-          <input
+          <Checkbox
             id="intake-requires-named-attendees"
-            type="checkbox"
             data-testid="intake-requires-named-attendees"
             checked={requiresNamedAttendees}
             onChange={(event) => onChangeRequiresNamedAttendees(event.target.checked)}
@@ -76,19 +77,16 @@ export function IntakeConsentCard({
     <Card>
       <CardContent className="space-y-2 p-5">
         <h2 className="text-sm font-semibold text-gray-900">{t('formularioConsentCardTitle')}</h2>
-        <label
-          htmlFor="intake-consent-text"
-          className="mb-1 block text-sm font-semibold text-gray-900"
-        >
+        <Label htmlFor="intake-consent-text" className="mb-1">
           {t('formularioConsentLabel')}
-        </label>
-        <textarea
+        </Label>
+        <Textarea
           id="intake-consent-text"
           data-testid="intake-consent-text"
           value={consentText}
           onChange={(event) => onChange(event.target.value)}
           maxLength={5000}
-          className="min-h-28 w-full rounded-md border border-gray-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+          className="min-h-28"
         />
         <p className="text-xs text-gray-500">{t('formularioConsentHint')}</p>
       </CardContent>
