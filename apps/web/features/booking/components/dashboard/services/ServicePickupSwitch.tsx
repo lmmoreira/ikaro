@@ -1,6 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { SectionLabel } from '@/shared/components/ui/section-label';
 
 interface ServicePickupSwitchProps {
   readonly checked: boolean;
@@ -17,9 +18,7 @@ export function ServicePickupSwitch({
 
   return (
     <section className="space-y-3">
-      <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-        {t('servicesOptionsTitle')}
-      </p>
+      <SectionLabel>{t('servicesOptionsTitle')}</SectionLabel>
       <button
         type="button"
         role="switch"

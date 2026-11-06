@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/shared/components/ui/card';
 import { useBasketLinePrice, useBasketTotalText } from '@/features/booking/hooks/useBasketText';
 import { composeBasket, type ChosenDuration } from '@/features/booking/model/basket-lines';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
+import { SectionLabel } from '@/shared/components/ui/section-label';
 
 interface NewBookingSummaryCardProps {
   /** Who the booking is for, as the chooser showed them. */
@@ -52,19 +53,13 @@ export function NewBookingSummaryCard({
   return (
     <Card className="border-blue-200 bg-blue-50/70" data-testid="new-booking-summary">
       <CardContent className="space-y-3 p-4 text-sm text-blue-900">
-        <p className="text-xs font-bold uppercase tracking-[0.07em] text-blue-700">
-          {t('heading')}
-        </p>
+        <SectionLabel tone="info">{t('heading')}</SectionLabel>
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.07em] text-blue-700">
-            {t('client')}
-          </p>
+          <SectionLabel tone="info">{t('client')}</SectionLabel>
           <p className="mt-1 font-medium">{recipientName}</p>
         </div>
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.07em] text-blue-700">
-            {t('services')}
-          </p>
+          <SectionLabel tone="info">{t('services')}</SectionLabel>
           {basket.lines.length === 0 ? (
             <p className="mt-1">{t('noServices')}</p>
           ) : (
@@ -94,18 +89,14 @@ export function NewBookingSummaryCard({
           )}
         </div>
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.07em] text-blue-700">
-            {t('dateTime')}
-          </p>
+          <SectionLabel tone="info">{t('dateTime')}</SectionLabel>
           <p className="mt-1 font-medium">
             {start ? `${formatDateLong(start)} · ${formatTime(start)}` : t('dateTimePending')}
           </p>
         </div>
         {basket.lines.length > 0 && (
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.07em] text-blue-700">
-              {t('total')}
-            </p>
+            <SectionLabel tone="info">{t('total')}</SectionLabel>
             <p className="mt-1 font-semibold" data-testid="summary-total">
               {totalText}
             </p>

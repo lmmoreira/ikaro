@@ -6,6 +6,7 @@ import type { AvailableSlot } from '@ikaro/types';
 import { ActionPane } from '@/shared/components/ui/action-pane';
 import { Button } from '@/shared/components/ui/button';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
+import { SectionLabel } from '@/shared/components/ui/section-label';
 
 function formatRangeLine(
   start: Date,
@@ -55,21 +56,15 @@ export function RescheduleActionRail({
           </Button>
 
           <div className="space-y-3 rounded-lg border border-blue-200 bg-blue-50/70 p-3 text-sm text-blue-700/90">
-            <p className="text-xs font-bold uppercase tracking-[0.07em] text-blue-700">
-              {t('summaryLabel')}
-            </p>
+            <SectionLabel tone="info">{t('summaryLabel')}</SectionLabel>
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.07em] text-blue-700">
-                {t('rescheduledFromLabel')}
-              </p>
+              <SectionLabel tone="info">{t('rescheduledFromLabel')}</SectionLabel>
               <p className="mt-1 font-medium">
                 {formatRangeLine(currentStart, currentEnd, formatDateLong, formatTime)}
               </p>
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.07em] text-blue-700">
-                {t('rescheduledToLabel')}
-              </p>
+              <SectionLabel tone="info">{t('rescheduledToLabel')}</SectionLabel>
               <p className="mt-1 font-medium">
                 {selectedSlot
                   ? formatRangeLine(

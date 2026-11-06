@@ -9,6 +9,7 @@ import {
   maxOccurrenceCount,
   type RecurringResourceRow,
 } from '@/features/booking/model/recurring-approval';
+import { SectionLabel } from '@/shared/components/ui/section-label';
 
 interface RecurringScheduleRequestSummaryProps {
   readonly schedule: RecurringBookingScheduleListItem;
@@ -62,9 +63,7 @@ export function RecurringScheduleRequestSummary({
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-          {t('customerSection')}
-        </p>
+        <SectionLabel>{t('customerSection')}</SectionLabel>
         <Card>
           <CardContent className="flex items-center gap-3 p-4" data-testid="recurring-customer">
             <div
@@ -92,9 +91,7 @@ export function RecurringScheduleRequestSummary({
       </div>
 
       <div className="space-y-2">
-        <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-          {t('requestSection')}
-        </p>
+        <SectionLabel>{t('requestSection')}</SectionLabel>
         <Card>
           <CardContent className="px-4 py-1" data-testid="recurring-request-rows">
             <SummaryRow label={t('rowService')} value={schedule.serviceName} />

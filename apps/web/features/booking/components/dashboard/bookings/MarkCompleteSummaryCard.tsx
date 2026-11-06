@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
+import { SectionLabel } from '@/shared/components/ui/section-label';
 
 interface MarkCompleteSummaryCardProps {
   readonly scheduledAt: Date;
@@ -37,15 +38,11 @@ export function MarkCompleteSummaryCard({
 
   return (
     <section>
-      <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-        {t('summaryLabel')}
-      </p>
+      <SectionLabel className="mb-2">{t('summaryLabel')}</SectionLabel>
       <Card className="border-blue-200 bg-blue-50/70">
         <CardContent className="space-y-3 p-4">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.07em] text-blue-700">
-              {t('scheduleSection')}
-            </p>
+            <SectionLabel tone="info">{t('scheduleSection')}</SectionLabel>
             <p className="mt-1 text-sm font-semibold text-gray-900">
               {formatDateLong(scheduledAt)}
             </p>

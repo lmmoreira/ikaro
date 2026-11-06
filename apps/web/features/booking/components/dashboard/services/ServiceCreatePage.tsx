@@ -12,6 +12,7 @@ import { Card, CardContent } from '@/shared/components/ui/card';
 import { FormActionPane } from '@/shared/components/ui/form-action-pane';
 import { ServiceFormFields } from './ServiceFormFields';
 import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
+import { SectionLabel } from '@/shared/components/ui/section-label';
 
 export function ServiceCreatePage(): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
@@ -84,9 +85,7 @@ export function ServiceCreatePage(): React.JSX.Element {
         <Card>
           <CardContent className="space-y-5 p-5 lg:p-6">
             <section className="space-y-2">
-              <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-                {t('createBookingModelLabel')}
-              </p>
+              <SectionLabel>{t('createBookingModelLabel')}</SectionLabel>
               <div className="grid gap-3 sm:grid-cols-2">
                 <button
                   type="button"

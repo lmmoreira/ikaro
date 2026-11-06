@@ -5,6 +5,7 @@ import { Repeat } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { RecurringBookingScheduleListItem, RecurringScheduleStatus } from '@ikaro/types';
 import { Badge } from '@/shared/components/ui/badge';
+import { EmptyState } from '@/shared/components/ui/empty-state';
 import { cn } from '@/shared/utils/cn';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import {
@@ -136,21 +137,22 @@ export function RecurringScheduleList({
       </div>
 
       {isEmpty ? (
-        <section
+        <EmptyState
           data-testid="recurring-schedules-empty"
-          className="mt-6 flex flex-col items-center rounded-2xl border border-gray-100 bg-white px-6 py-12 text-center shadow-sm"
-        >
-          <Repeat className="h-10 w-10 text-gray-300" aria-hidden="true" />
-          <p className="mt-4 text-base font-semibold text-gray-900">{t('emptyTitle')}</p>
-          <p className="mt-1 max-w-sm text-sm text-gray-500">{t('emptyBody')}</p>
-          <Link
-            href={recurringScheduleNewPath(tenantSlug)}
-            data-testid="recurring-schedules-empty-cta"
-            className="mt-5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-          >
-            {t('createCta')}
-          </Link>
-        </section>
+          className="mt-6"
+          icon={<Repeat className="h-10 w-10 text-gray-300" aria-hidden="true" />}
+          title={t('emptyTitle')}
+          body={t('emptyBody')}
+          action={
+            <Link
+              href={recurringScheduleNewPath(tenantSlug)}
+              data-testid="recurring-schedules-empty-cta"
+              className="mt-5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+            >
+              {t('createCta')}
+            </Link>
+          }
+        />
       ) : (
         <div className="mt-4">
           {active.length > 0 && (

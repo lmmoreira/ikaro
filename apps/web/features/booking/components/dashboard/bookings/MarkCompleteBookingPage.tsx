@@ -17,6 +17,7 @@ import { MarkCompleteLoyaltyPanel } from './MarkCompleteLoyaltyPanel';
 import { MarkCompleteSuccessView } from './MarkCompleteSuccessView';
 import { MarkCompleteSummaryCard } from './MarkCompleteSummaryCard';
 import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
+import { SectionLabel } from '@/shared/components/ui/section-label';
 
 interface MarkCompleteBookingPageProps {
   readonly booking: StaffBookingDetailResponse;
@@ -123,9 +124,7 @@ export function MarkCompleteBookingPage({
 
           {booking.beforeServicePhotoUrls.length > 0 && (
             <section>
-              <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-                {t('beforePhotosLabel')}
-              </p>
+              <SectionLabel className="mb-2">{t('beforePhotosLabel')}</SectionLabel>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {booking.beforeServicePhotoUrls.map((url, index) => (
                   /* eslint-disable-next-line @next/next/no-img-element -- signed storage URLs are rendered as native thumbnails */

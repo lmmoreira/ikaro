@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import type { StaffBookingDetailResponse } from '@ikaro/types';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
+import { SectionLabel } from '@/shared/components/ui/section-label';
 
 interface MarkCompleteLineFieldsProps {
   readonly lines: StaffBookingDetailResponse['lines'];
@@ -23,9 +24,7 @@ export function MarkCompleteLineFields({
 
   return (
     <section>
-      <p className="mb-2 text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-        {t('completeLinesSection')}
-      </p>
+      <SectionLabel className="mb-2">{t('completeLinesSection')}</SectionLabel>
       <Card>
         <CardContent className="space-y-0 p-0">
           {lines.map((line) => (
