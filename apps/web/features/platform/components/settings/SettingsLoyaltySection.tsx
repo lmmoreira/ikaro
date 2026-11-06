@@ -1,12 +1,13 @@
 'use client';
 
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
 import { useTranslations } from 'next-intl';
 import { SectionCard } from '@/shared/components/ui/section-card';
 import { SwitchField } from '@/shared/components/ui/switch-field';
 import { FieldFeedback } from '@/shared/components/ui/field-feedback';
 import type { SettingsFormValues } from '@/features/platform/settings-form';
 import {
-  INPUT_CLASS,
   SuffixNumberField,
   settingsFieldWiring,
   type SettingsFieldFeedback,
@@ -56,13 +57,8 @@ export function SettingsLoyaltySection({
           onChange={(value) => onFieldChange('loyaltyExpiryDays', value)}
         />
         <div>
-          <label
-            htmlFor="settings-points-per-unit"
-            className="mb-1.5 block text-sm font-semibold text-gray-900"
-          >
-            {t('pointsLabel')}
-          </label>
-          <input
+          <Label htmlFor="settings-points-per-unit">{t('pointsLabel')}</Label>
+          <Input
             id="settings-points-per-unit"
             data-testid="settings-points-per-unit-input"
             type="number"
@@ -72,7 +68,7 @@ export function SettingsLoyaltySection({
             value={values.pointsPerCurrencyUnit}
             onChange={(event) => onFieldChange('pointsPerCurrencyUnit', event.target.value)}
             {...points.inputProps}
-            className={points.inputClassName(`${INPUT_CLASS} max-w-56`)}
+            className={points.inputClassName('max-w-56')}
           />
           {!points.error && (
             <p id={points.hintId} className="mt-1.5 text-sm text-gray-500">
@@ -101,13 +97,10 @@ export function SettingsLoyaltySection({
           onChange={(value) => onFieldChange('loyaltyExpiryWarningDays', value)}
         />
         <div>
-          <label
-            htmlFor="settings-loyalty-notification-min-points"
-            className="mb-1.5 block text-sm font-semibold text-gray-900"
-          >
+          <Label htmlFor="settings-loyalty-notification-min-points">
             {t('notificationMinPointsLabel')}
-          </label>
-          <input
+          </Label>
+          <Input
             id="settings-loyalty-notification-min-points"
             data-testid="settings-loyalty-notification-min-points-input"
             type="number"
@@ -117,7 +110,7 @@ export function SettingsLoyaltySection({
             value={values.loyaltyNotificationMinPoints}
             onChange={(event) => onFieldChange('loyaltyNotificationMinPoints', event.target.value)}
             {...minPoints.inputProps}
-            className={minPoints.inputClassName(`${INPUT_CLASS} max-w-56`)}
+            className={minPoints.inputClassName('max-w-56')}
           />
           {!minPoints.error && (
             <p id={minPoints.hintId} className="mt-1.5 text-sm text-gray-500">

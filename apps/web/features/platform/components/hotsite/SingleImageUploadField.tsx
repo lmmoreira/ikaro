@@ -1,5 +1,7 @@
 'use client';
 
+import { FileDropzone } from '@/shared/components/ui/file-dropzone';
+import { Label } from '@/shared/components/ui/label';
 import { useEffect, useState } from 'react';
 import type { HotsiteImagePurpose } from '@ikaro/types';
 import {
@@ -9,8 +11,7 @@ import {
 } from '@/features/platform/api/tenant-settings';
 import { uploadFileToSignedUrl } from '@/shared/lib/upload/upload-to-signed-url';
 import { compressImage, LOW_RESOLUTION_ERROR_MESSAGE } from '@/shared/utils/compress-image';
-import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
-import { cn } from '@/shared/utils/cn';
+import { FieldFeedback } from '@/shared/components/ui/field-feedback';
 import { isTmpImagePath } from '@/features/platform/hotsite/resolve-hotsite-image-url';
 import { extractProblemCode, resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
@@ -192,45 +193,33 @@ export function SingleImageUploadField({
 
   return (
     <div>
-      <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-gray-900">
-        {label}
-      </label>
+      <Label htmlFor={id}>{label}</Label>
 
-      <label
-        htmlFor={id}
-        className={cn(
-          'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-gray-200 bg-gray-50 px-6 py-8 text-center transition hover:border-blue-300 hover:bg-blue-50/50',
-          hasError && FIELD_INVALID_CLASS,
-        )}
-      >
-        {displaySrc && status !== 'uploading' && (
-          /* eslint-disable-next-line @next/next/no-img-element -- preview may be a local object URL or signed storage URL */
-          <img
-            src={displaySrc}
-            alt=""
-            data-testid="single-image-upload-preview"
-            data-field-id={id}
-            className={PREVIEW_CLASS[previewSize]}
-          />
-        )}
-        <p className="text-sm text-gray-600">
-          {status === 'uploading' ? uploadingLabel : clickToAddLabel}
-        </p>
-        {status !== 'uploading' && <p className="text-xs text-gray-400">{formatHintLabel}</p>}
-        <input
-          id={id}
-          data-testid="single-image-upload-input"
-          data-field-id={id}
-          aria-invalid={hasError ? true : undefined}
-          aria-describedby={hasError ? errorId : undefined}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          onChange={(event) => {
-            void handleFileSelected(event);
-          }}
-          className="sr-only"
-        />
-      </label>
+      <FileDropzone
+        id={id}
+        data-testid="single-image-upload-input"
+        data-field-id={id}
+        invalid={hasError}
+        aria-describedby={hasError ? errorId : undefined}
+        accept="image/jpeg,image/png,image/webp"
+        onChange={(event) => {
+          void handleFileSelected(event);
+        }}
+        title={status === 'uploading' ? uploadingLabel : clickToAddLabel}
+        hint={status !== 'uploading' ? formatHintLabel : undefined}
+        preview={
+          displaySrc && status !== 'uploading' ? (
+            /* eslint-disable-next-line @next/next/no-img-element -- preview may be a local object URL or signed storage URL */
+            <img
+              src={displaySrc}
+              alt=""
+              data-testid="single-image-upload-preview"
+              data-field-id={id}
+              className={PREVIEW_CLASS[previewSize]}
+            />
+          ) : undefined
+        }
+      />
 
       {hasError && <FieldFeedback id={errorId}>{errorMessage}</FieldFeedback>}
 

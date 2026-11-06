@@ -1,5 +1,7 @@
 'use client';
 
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
 import { useTranslations } from 'next-intl';
 import type { BookingCtaModuleData } from '@ikaro/types';
 import { PillSelect } from '@/shared/components/ui/pill-select';
@@ -166,13 +168,8 @@ export function BookingCtaConfigPanel({
 
         {(bookingCta.datePickerType ?? 'carousel') === 'carousel' && (
           <div>
-            <label
-              htmlFor="booking-cta-carousel-days"
-              className="mb-1.5 block text-sm font-semibold text-gray-900"
-            >
-              {t('carouselDaysLabel')}
-            </label>
-            <input
+            <Label htmlFor="booking-cta-carousel-days">{t('carouselDaysLabel')}</Label>
+            <Input
               id="booking-cta-carousel-days"
               type="number"
               min={1}
@@ -187,7 +184,7 @@ export function BookingCtaConfigPanel({
                 const clamped = Number.isFinite(parsed) ? Math.min(90, Math.max(1, parsed)) : 1;
                 update({ carouselDays: clamped });
               }}
-              className="w-32 rounded-md border border-gray-300 px-3 py-2 text-sm"
+              className="w-32"
             />
           </div>
         )}

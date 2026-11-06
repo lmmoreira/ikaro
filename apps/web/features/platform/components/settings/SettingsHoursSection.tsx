@@ -1,11 +1,13 @@
 'use client';
 
+import { Label } from '@/shared/components/ui/label';
+import { NativeSelect } from '@/shared/components/ui/native-select';
 import { useTranslations } from 'next-intl';
 import { SectionCard } from '@/shared/components/ui/section-card';
 import { WeekDayRow } from '@/shared/components/ui/week-day-row';
 import { WEEK_DAYS, type DayHoursValue, type WeekDay } from '@/features/platform/settings-form';
 import { FieldFeedback } from '@/shared/components/ui/field-feedback';
-import { INPUT_CLASS, settingsFieldWiring, type SettingsFieldFeedback } from './SettingsFormFields';
+import { settingsFieldWiring, type SettingsFieldFeedback } from './SettingsFormFields';
 
 interface SettingsHoursSectionProps {
   readonly timezone: string;
@@ -37,26 +39,22 @@ export function SettingsHoursSection({
   return (
     <SectionCard size="compact" title={t('sections.hours')}>
       <div>
-        <label
-          htmlFor="settings-timezone"
-          className="mb-1.5 block text-sm font-semibold text-gray-900"
-        >
-          {t('timezoneLabel')}
-        </label>
-        <select
+        <Label htmlFor="settings-timezone">{t('timezoneLabel')}</Label>
+        <NativeSelect
           id="settings-timezone"
           data-testid="settings-timezone-select"
           value={timezone}
           onChange={(event) => onTimezoneChange(event.target.value)}
           {...timezoneField.inputProps}
-          className={timezoneField.inputClassName(`${INPUT_CLASS} max-w-md`)}
+          className={timezoneField.inputClassName()}
+          wrapperClassName="max-w-md"
         >
           {timezones.map((tz) => (
             <option key={tz} value={tz}>
               {tz === 'America/Sao_Paulo' ? t('timezoneBrasilia') : tz}
             </option>
           ))}
-        </select>
+        </NativeSelect>
         <FieldFeedback id={timezoneField.errorId}>{timezoneField.error}</FieldFeedback>
       </div>
       <div>

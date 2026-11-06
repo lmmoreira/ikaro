@@ -1,5 +1,7 @@
 'use client';
 
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
 import { useTranslations } from 'next-intl';
 import type { HotsiteBrandingResponse } from '@ikaro/types';
 import { SectionCard } from '@/shared/components/ui/section-card';
@@ -18,9 +20,6 @@ const FONT_OPTIONS: readonly FontPickerOption[] = Object.entries(FONT_MAP).map(
 // variables otherwise. Without this, FontPicker's per-option preview silently falls back to the
 // same inherited font for every option.
 const FONT_PREVIEW_CLASS = FONT_VARIABLES.join(' ');
-
-const INPUT_CLASS =
-  'w-full rounded-md border border-border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
 
 const HEADING_WEIGHTS = [400, 500, 600, 700, 800, 900] as const;
 
@@ -60,37 +59,25 @@ export function BrandingTab({ value, onChange }: BrandingTabProps): React.JSX.El
       <SectionCard title={t('sections.logo')} size="compact">
         <LogoUpload value={value.logoUrl} onChange={(logoUrl) => setField('logoUrl', logoUrl)} />
         <div>
-          <label
-            htmlFor="hotsite-brand-name"
-            className="mb-1.5 block text-sm font-semibold text-gray-900"
-          >
-            {t('brandNameLabel')}
-          </label>
-          <input
+          <Label htmlFor="hotsite-brand-name">{t('brandNameLabel')}</Label>
+          <Input
             id="hotsite-brand-name"
             data-testid="hotsite-brand-name"
             type="text"
             maxLength={100}
             value={value.brandName ?? ''}
             onChange={(event) => setField('brandName', event.target.value || undefined)}
-            className={INPUT_CLASS}
           />
         </div>
         <div>
-          <label
-            htmlFor="hotsite-brand-tagline"
-            className="mb-1.5 block text-sm font-semibold text-gray-900"
-          >
-            {t('brandTaglineLabel')}
-          </label>
-          <input
+          <Label htmlFor="hotsite-brand-tagline">{t('brandTaglineLabel')}</Label>
+          <Input
             id="hotsite-brand-tagline"
             data-testid="hotsite-brand-tagline"
             type="text"
             maxLength={200}
             value={value.brandTagline ?? ''}
             onChange={(event) => setField('brandTagline', event.target.value || undefined)}
-            className={INPUT_CLASS}
           />
         </div>
       </SectionCard>

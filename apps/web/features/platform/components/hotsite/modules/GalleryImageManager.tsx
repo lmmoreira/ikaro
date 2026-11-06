@@ -1,5 +1,7 @@
 'use client';
 
+import { FileInput } from '@/shared/components/ui/file-input';
+import { Input } from '@/shared/components/ui/input';
 import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -149,12 +151,12 @@ export function GalleryImageManager({
                 data-index={index}
                 className="mb-2 aspect-square w-full rounded object-cover"
               />
-              <input
+              <Input
                 type="text"
                 value={image.caption ?? ''}
                 placeholder={t('captionPlaceholder')}
                 onChange={(event) => handleCaptionChange(index, event.target.value)}
-                className="mb-2 w-full rounded border border-gray-300 px-2 py-1 text-xs"
+                className="mb-2 px-2 py-1 text-xs"
               />
               <button
                 type="button"
@@ -179,15 +181,13 @@ export function GalleryImageManager({
         >
           {status === 'uploading' ? t('uploadingLabel') : t('addUploadLabel')}
         </label>
-        <input
+        <FileInput
           id={INPUT_ID}
           data-testid="gallery-upload-input"
-          type="file"
           accept="image/jpeg,image/png,image/webp"
           onChange={(event) => {
             void handleUpload(event);
           }}
-          className="sr-only"
         />
         <button
           type="button"

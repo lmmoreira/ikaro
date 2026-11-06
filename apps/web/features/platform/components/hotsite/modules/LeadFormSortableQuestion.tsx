@@ -1,5 +1,6 @@
 'use client';
 
+import { NativeSelect } from '@/shared/components/ui/native-select';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSortable } from '@dnd-kit/sortable';
@@ -125,19 +126,18 @@ export function LeadFormSortableQuestion({
         </div>
         <div>
           <Label htmlFor={`lead-question-type-${question.id}`}>{t('question.type')}</Label>
-          <select
+          <NativeSelect
             id={`lead-question-type-${question.id}`}
             data-testid="lead-form-question-type"
             value={question.type}
             onChange={(event) => changeType(event.target.value as LeadFormQuestionType)}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
           >
             {QUESTION_TYPES.map((type) => (
               <option key={type} value={type}>
                 {t(`question.types.${type}`)}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </div>
         <label className="flex items-center gap-2 text-sm">
           <Checkbox
