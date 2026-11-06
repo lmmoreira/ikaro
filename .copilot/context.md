@@ -20,7 +20,7 @@
 
 **Workspace ownership gate:** Never run root-owned or containerized installs against the mounted workspace, and never use privileged cleanup on repo files unless the user explicitly approves it. If `node_modules` ownership is broken, stop and ask before repairing it.
 
-**Local verification gate:** Never start a dev server, the compose stack or Playwright without asking first (the user usually checks the app). After a yes, E2E runs only in the story's worktree: `pnpm infra:e2e`, then `pnpm infra:e2e:down` before removing it → `docs/TESTING_STRATEGY.md` § Running Playwright locally
+**Local verification gate:** Never start a dev server or the compose stack to look at the app without asking first. Local Playwright E2E needs no ask: story worktree only, `pnpm infra:e2e` (ask first if a stack is already up), then `pnpm infra:e2e:down` → `docs/TESTING_STRATEGY.md` § Running Playwright locally
 
 ---
 
