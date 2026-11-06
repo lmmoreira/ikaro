@@ -1803,7 +1803,7 @@ Items hold only the *selected plan*. There are **no trial rows** (trial access c
 | `PAST_DUE` → `ACTIVE` | the overdue charge is `PAID` | payment |
 | `PAST_DUE` → `SUSPENDED` (`NON_PAYMENT`) | `graceUntil` passed if set (an override, never earlier than `pastDueSince` + 14 days), else `pastDueSince` + 14 days | sweep (not during a suspension freeze) |
 | `ACTIVE` / `PAST_DUE` / `TRIALING` → `SUSPENDED` (`CANCELED`) | `cancelAt` reached / immediate cancel | sweep / manager |
-| any paid status → `SUSPENDED` (`PAYMENT_REVERSED`) | full refund or lost dispute leaving the period unpaid (applied by the **webhook**, never the sweep; a full refund of the first invoice while `TRIALING` suspends nobody — nothing settled to reverse: the charge becomes `REFUNDED` and the issue flow re-issues the first charge, UC-113) | webhook |
+| any paid status → `SUSPENDED` (`PAYMENT_REVERSED`) | full refund or lost dispute leaving the period unpaid (applied by the **webhook**, never the sweep; a full refund of the first invoice while `TRIALING` suspends nobody — nothing settled to reverse: the charge stays `REFUNDED`, is treated as unpaid at trial end and the recovery path (a recovery charge) applies; the first charge is **not** re-issued, because `UQ_billing_charges_period` ignores only `CANCELED` charges) | webhook |
 | any → `SUSPENDED` (`OPERATOR`) | operator suspend | operator |
 | `SUSPENDED` → `ACTIVE` | recovery charge `PAID` (not for `OPERATOR`); `exempt` set; `unsuspend` (`OPERATOR` only) | payment / operator |
 | `SUSPENDED` → (erased) | purge or self-service discard | purge coordinator (slice G) |

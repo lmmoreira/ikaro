@@ -125,6 +125,7 @@
     BFF CALL:  GET /v1/billing/summary ; GET /v1/billing/charges?limit=5&offset=0 (tab Cobranças, lazy) ; GET /v1/billing/identity (tab Dados, lazy) ; POST /v1/billing/charges/:id/payment-link (Pagar agora)
     Estado: PAST_DUE, carência de 14 dias com acesso COMPLETO. Vencimento 20/10/2026, hoje 26/10 -> restam 8 dias (suspensão em 03/11/2026). O banner global PastDue aparece em todas as páginas do dashboard (ver 04b).
     ACTION PANE: like ServiceEditPage — desktop (>=1024px) sticky .detail-aside card (22rem) with the current tab's single primary button (label/href swap in showTab via updateAside), secondary links, hint and the red "Cancelar assinatura →" link; below 1024px the aside is hidden and the bottom .form-actions row is the single primary.
+    M26-S28 NOTE: 01o is NOT a distinct state in the product. After the polling window (5 s for ~60 s) the page shows 'ainda processando' + 'Tentar pagar novamente' + a manual refresh.
     Single primary action on this tab: "Tentar pagar novamente" (POST .../payment-link; estado: o retorno da página hospedada informou falha, a cobrança segue aberta) (um só botão: o alerta não repete o botão).
   -->
 

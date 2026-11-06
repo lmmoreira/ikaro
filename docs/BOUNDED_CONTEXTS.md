@@ -366,7 +366,7 @@ ServicePointsEarned → (Notification may batch per booking) Email: Customer "Yo
 PointsExpiringSoon → Email (weekly digest): Customer "Heads up — [X] points on [Service] will expire on [date]. Book again to keep earning."
 
 Billing events (planned, § 7) → Email: the recipient is resolved by Billing (its `billing_email`) and carried as `recipientEmail` (nullable) in the email-triggering events; Notification uses it, and falls back to the tenant's MANAGER emails (through its existing staff adapter) when it is null. No new cross-context read edge. Platform-level templates, exempt from the suspension gate:
-  ChargeIssued (payment link) · ChargePaid (receipt) · SubscriptionPastDue · SubscriptionSuspended · SubscriptionReactivated · SubscriptionCancelled · PlanChanged · BillingReminderDue (plan confirmation, trial ending, charge due soon, charge overdue) · TenantPurgeWarning (30/7 days) · SubscriptionPriceChangeAnnounced (one consolidated email per tenant)
+  ChargeIssued (payment link) · ChargePaid (receipt) · SubscriptionPastDue · SubscriptionSuspended · SubscriptionReactivated · SubscriptionCancelled · PlanChanged · BillingReminderDue (five kinds: plan confirmation, trial ending, charge due soon, charge overdue, recovery charge open) · TenantPurgeWarning (30/7 days) · SubscriptionPriceChangeAnnounced (one consolidated email per tenant)
 ```
 
 **Dependencies:**
