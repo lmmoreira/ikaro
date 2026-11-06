@@ -282,7 +282,7 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 
 ---
 
-### Story 4 — `ui/dialog` and `ui/tabs`
+### Story 4 — `ui/dialog` and `ui/tabs` ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** L
