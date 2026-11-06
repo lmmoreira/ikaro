@@ -4,6 +4,7 @@
 **Goal:** Staff have a functional command center to manage bookings, services, schedule, and loyalty. Managers additionally run team, settings, and hotsite administration. Customers have a portal to view bookings, loyalty, and switch tenants. Guests can respond to info requests via a standalone link. All pages connect to the local BFF and are protected by the JWT auth flow from M03.
 **Depends on:** M02 (Platform context), M03 (auth/JWT), M04 (staff aggregate), M05 (service aggregate), M08 (booking backend), M09 (cancellation/reschedule backend), M10 (loyalty backend), M12 (hotsite frontend foundation), M115 (production readiness baseline)
 **Blocks:** M17 (formerly M16; E2E tests cover dashboard flows)
+**Superseded in part (TD58-S04):** the stories below describe the booking action sheets and the schedule closure/opening dialogs as native `<dialog>` with `showModal()`. That was the shipped design at M13; the sheets are now built on `ui/dialog` (Radix) through `BookingActionSheetShell`, and `use-modal-dialog.ts` no longer exists. Read the `<dialog>` wording below as history.
 
 ## Supersession note
 

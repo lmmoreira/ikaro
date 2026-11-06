@@ -87,8 +87,13 @@ describe('Dialog', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  it('moves focus into the dialog and keeps Tab inside it', async () => {
+  it('moves focus into the dialog and keeps focus inside it', async () => {
     const user = userEvent.setup();
+    render(
+      <button type="button" data-testid="outside">
+        Fora
+      </button>,
+    );
     renderControlled();
 
     await waitFor(() =>
@@ -98,6 +103,11 @@ describe('Dialog', () => {
       await user.tab();
       expect(screen.getByRole('dialog')).toContainElement(document.activeElement as HTMLElement);
     }
+
+    // A focus move that is not a Tab keypress is pulled back in too, so the containment does not
+    // rest on the Tab loop alone.
+    screen.getByTestId('outside').focus();
+    expect(screen.getByRole('dialog')).toContainElement(document.activeElement as HTMLElement);
   });
 
   it('returns focus to the trigger when closed (uncontrolled)', async () => {

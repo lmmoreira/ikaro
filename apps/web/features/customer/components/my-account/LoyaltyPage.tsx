@@ -95,9 +95,10 @@ export function LoyaltyPage({
                 <TabsTrigger
                   key={tab}
                   value={tab}
-                  // The panels are separate components that own their `role="tabpanel"` and ids.
+                  // The panels are separate components that own their `role="tabpanel"` and ids,
+                  // and only the active one is mounted, so only its tab may point at it.
                   id={`loyalty-tab-${tab}`}
-                  aria-controls={`loyalty-panel-${tab}`}
+                  aria-controls={activeTab === tab ? `loyalty-panel-${tab}` : undefined}
                   className="flex-1 px-0 pb-3 pt-0 text-gray-900/40 hover:text-gray-900/40"
                 >
                   {t(tab === 'entries' ? 'tabEntries' : 'tabRedemptions')}
