@@ -168,7 +168,7 @@ curl -s -u "$SONAR_TOKEN:" "https://sonarcloud.io/api/duplications/show?key=<pro
 
 1. Read the live `project_status` for the PR and note the exact failing metric.
 2. Read the PR `component_tree` and identify the exact file(s) that contribute to the failure.
-3. If the metric is duplication-related, read `duplications/show` and fix the shared source, not the symptom.
+3. If the metric is duplication-related, read `duplications/show` and fix the shared source, not the symptom. A scripted migration that swaps N different call sites for one identical JSX block repeated in a single file trips this gate even though the issue list is empty (TD58-S03: four identical link blocks were 6 of 47 new lines, 12.8%); extract one local component in the same change.
 4. If the metric is coverage-related, add the smallest test that exercises the touched line or branch.
 5. If the metric does not move after a change, stop and re-query Sonar before editing again.
 6. Re-check the live Sonar result after the push. Do not declare the issue fixed from local test output alone.
