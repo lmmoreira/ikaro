@@ -1,14 +1,16 @@
 'use client';
 
-import type { ReactNode, RefObject, SubmitEvent } from 'react';
+import type { ReactNode, Ref, SubmitEvent } from 'react';
 import { Button } from '@/shared/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '@/shared/components/ui/dialog';
 import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
-import { cn } from '@/shared/utils/cn';
 
 interface BookingActionSheetShellProps {
-  readonly dialogRef: RefObject<HTMLDialogElement | null>;
-  readonly titleId: string;
-  readonly descriptionId: string;
   readonly title: ReactNode;
   readonly description?: ReactNode;
   readonly onClose: () => void;
@@ -18,13 +20,17 @@ interface BookingActionSheetShellProps {
   readonly submitVariant?: 'default' | 'destructive';
   readonly submitDisabled?: boolean;
   readonly error: string | null;
+  // The dialog's content element: a popover opened from inside the sheet portals into it, because
+  // a modal dialog leaves everything outside itself inert.
+  readonly contentRef?: Ref<HTMLDivElement>;
   readonly children: ReactNode;
 }
 
+// A booking molecule on the shared `ui/dialog`: a bottom sheet on mobile, a centred card from `sm`.
+// The caller mounts it only while the sheet is open, so it is always open here; Escape, a backdrop
+// click and the cancel button all end in `onClose`. Radix traps focus, restores it to the opener
+// and links the title and description to the dialog.
 export function BookingActionSheetShell({
-  dialogRef,
-  titleId,
-  descriptionId,
   title,
   description,
   onClose,
@@ -34,38 +40,29 @@ export function BookingActionSheetShell({
   submitVariant = 'default',
   submitDisabled = false,
   error,
+  contentRef,
   children,
 }: BookingActionSheetShellProps): React.JSX.Element {
   return (
-    <dialog
-      ref={dialogRef}
-      aria-modal="true"
-      aria-labelledby={titleId}
-      aria-describedby={description ? descriptionId : undefined}
-      onCancel={(event) => {
-        event.preventDefault();
-        onClose();
+    <Dialog
+      open
+      onOpenChange={(next) => {
+        if (!next) onClose();
       }}
-      className="m-0 h-dvh w-dvw max-h-none max-w-none border-0 bg-transparent p-0"
     >
-      <div aria-hidden="true" className="fixed inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative z-10 flex h-full items-end justify-center p-0 sm:items-center sm:p-4">
-        <form
-          onSubmit={onSubmit}
-          className={cn(
-            'w-full border border-gray-200 bg-white p-4 shadow-2xl sm:max-w-lg sm:rounded-2xl',
-            'rounded-t-2xl',
-          )}
-        >
+      <DialogContent
+        ref={contentRef}
+        overlayClassName="bg-black/40"
+        // Without a description there is nothing to point at (Radix would warn about a missing one).
+        {...(description ? {} : { 'aria-describedby': undefined })}
+        className="inset-x-0 bottom-0 top-auto block w-full max-w-none translate-x-0 translate-y-0 gap-0 rounded-b-none rounded-t-2xl p-4 shadow-2xl sm:inset-auto sm:left-1/2 sm:top-1/2 sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl"
+      >
+        <form onSubmit={onSubmit}>
           <div className="mb-4 flex items-start justify-between gap-3">
             <div>
-              <p id={titleId} className="text-sm font-semibold text-gray-900">
-                {title}
-              </p>
+              <DialogTitle>{title}</DialogTitle>
               {description ? (
-                <p id={descriptionId} className="mt-1 text-sm text-gray-500">
-                  {description}
-                </p>
+                <DialogDescription className="mt-1">{description}</DialogDescription>
               ) : null}
             </div>
             <button type="button" onClick={onClose} className="text-sm font-semibold text-gray-500">
@@ -95,7 +92,7 @@ export function BookingActionSheetShell({
             </Button>
           </div>
         </form>
-      </div>
-    </dialog>
+      </DialogContent>
+    </Dialog>
   );
 }

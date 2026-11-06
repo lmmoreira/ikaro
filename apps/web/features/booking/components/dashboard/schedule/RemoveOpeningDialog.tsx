@@ -31,8 +31,6 @@ export function RemoveOpeningDialog({
       target={target}
       onClose={onClose}
       onSubmit={onSubmit}
-      titleId="remove-opening-title"
-      descriptionId="remove-opening-description"
       title={t('removeOpeningTitle')}
       description={t('removeOpeningDescription')}
       submitLabel={t('submitRemoveOpening')}

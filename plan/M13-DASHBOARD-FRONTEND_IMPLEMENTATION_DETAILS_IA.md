@@ -60,7 +60,7 @@
 | Customer shell | `CustomerShell`, `CustomerTopbar`, `CustomerTabNav`, `CustomerBottomNav` | `features/customer/components/` |
 | Customer shell | `customer-nav-items.ts` (`shouldShowCustomerBottomNav`, `isCustomerNavActive`) | `features/customer/` |
 | Booking dashboard | `BookingQueuePage`, `BookingCard`, `WeekNav`, `BookingDetailPage`, `BookingDetailMain`, `BookingActionPanel`, `RejectBookingSheet`, `RequestInfoSheet`, `AdminCancelBookingSheet`, `SlotConflictAlert`, `RescheduleBookingPage`, `MarkCompleteBookingPage`, `AfterServicePhotoUpload`, `BookingActionSheetShell`, `BookingCompletionSummary`, `BookingOutcomeActionRail` | `features/booking/components/dashboard/bookings/` |
-| Booking dashboard | `use-modal-dialog.ts` (native `<dialog>` focus-trap + `showModal()`, shared by every action sheet) | `features/booking/hooks/` |
+| Booking dashboard | ~~`use-modal-dialog.ts` (native `<dialog>` focus-trap)~~ — deleted by TD58-S04; every action sheet now goes through `BookingActionSheetShell` on `shared/components/ui/dialog.tsx` (Radix) | `features/booking/components/dashboard/bookings/` |
 | Booking dashboard | `useBookingMutations.ts` (`useInvalidateBookings()` → `['bookings', tenantId]`) | `features/booking/hooks/` |
 | Schedule | `SchedulePage`, `ClosureFormSheet`/`OpeningFormSheet` (thin wrappers over shared `ScheduleDateTimeRangeSheet`), `RemoveClosureDialog`/`RemoveOpeningDialog` (over shared `ScheduleRemovalDialog`) | `features/booking/components/dashboard/schedule/` |
 | Schedule | `schedule-preferences.ts` (localStorage view-mode/status-filter persistence, `useSyncExternalStore` + cross-tab `storage` event) | `features/booking/schedule/` |
@@ -135,7 +135,7 @@
 
 > **Trap for any new top-level `/dashboard/<section>` route:** do not add it to `BottomNav`'s hide-list unless it is a genuine drill-down with its own back arrow. Copying the hide-list pattern without checking this is exactly how the settings/hotsite bug shipped.
 
-**Action-sheet/dialog pattern:** native `<dialog>` via `useModalDialog(open)` → `showModal()` (top-layer centering) + focus-trap + focus restoration. `BookingActionSheetShell` is the shared two-layer wrapper: outer `<dialog>` is `m-0 h-dvh w-dvw bg-transparent`; an inner `<div>` positions/centers; a `<form>` card sits inside that. **If a dialog renders top-left/unstyled, check for a plain `open` attribute instead of `showModal()`** — `open` doesn't get the same UA centering.
+**Action-sheet/dialog pattern (superseded by TD58-S04):** originally a native `<dialog>` opened with `showModal()` through `useModalDialog(open)`, with a hand-written focus trap. It is now `BookingActionSheetShell` on `ui/dialog` (Radix): the caller mounts the sheet only while open, Radix traps and restores focus, Escape / backdrop click / Cancel all end in `onClose`, and a bottom sheet on mobile becomes a centred card from `sm`. Do not reintroduce a native `<dialog>` for a dashboard or account modal. → `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives
 
 **Route-scoped chrome state** (status badge, back-href/label/onBack) lives in `DashboardTopbarStatusProvider`, mounted per-section in each `layout.tsx`, keyed to force remount between records (e.g. `bookingRouteMatch?.bookingId ?? 'dashboard-shell'`). Never mirror this in shell-local state or an effect-based sync.
 
@@ -222,7 +222,7 @@ Both loyalty amounts and staff status follow the same principle — a value that
 ## Gotchas
 
 1. **`BottomNav`'s hide-list is for drill-downs only** — a new top-level `/dashboard/<section>` must NOT be added to it unless it has its own topbar back arrow, or mobile users get stranded with no way to reach any other section (the exact M13-S37 post-merge bug).
-2. **Dialog centering requires `showModal()`, not the plain `open` attribute** — if a new action sheet renders top-left/unstyled, that's the first thing to check.
+2. **Dashboard and account modals are Radix `ui/dialog`, not a native `<dialog>`** (superseded by TD58-S04; see the action-sheet pattern above). A new action sheet goes through `BookingActionSheetShell` and needs no `showModal()`. The old trap — a native `<dialog>` that renders top-left/unstyled because it was opened with the plain `open` attribute instead of `showModal()` — now applies only to a dialog that is still native (the branded hotsite lightbox, `GalleryGrid`).
 3. **Never compute `cancellableUntil`/`conversionRate`/`pointsEarned` in the BFF** — always read from the backend aggregate or `RequestContext.settings`. Every attempt to do this in the BFF either 403'd for CUSTOMER callers (hit a STAFF/MANAGER-only endpoint) or silently drifted from history.
 4. **`/tenants/settings` (`GET`) is STAFF/MANAGER-guarded** — no BFF code path reachable by a CUSTOMER-forwarded request may call it, even transitively via `Promise.all` enrichment.
 5. **Staff `status` must check `googleOAuthId` before `isActive`** — `Staff.invite()` provisions `isActive=true` from creation (a S13 security fix); checking `isActive` first misclassifies every fresh invite as `ACTIVE`.

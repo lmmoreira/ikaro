@@ -55,8 +55,6 @@ export function ClosureFormSheet({
       slotGranularityMinutes={slotGranularityMinutes}
       onClose={onClose}
       onSubmit={onSubmit}
-      titleId="closure-sheet-title"
-      descriptionId="closure-sheet-description"
       title={t('closureFormTitle')}
       cancelLabel={commonT('cancel')}
       submitLabel={t('submitBlock')}

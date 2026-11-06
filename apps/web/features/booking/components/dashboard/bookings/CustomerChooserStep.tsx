@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
 import { findContactError } from '@/features/booking/model/contact-validation';
 import type { StaffBookingRecipient } from '@/features/booking/model/staff-booking-payload';
 import type { StaffGuestContact } from '@/features/booking/hooks/useStaffGuestContact';
@@ -26,32 +27,16 @@ const EMPTY_GUEST: StaffGuestContact = { contactName: '', contactPhone: '', cont
 
 function ModeTab({
   mode,
-  current,
   disabled,
-  onSelect,
 }: {
   readonly mode: ChooserMode;
-  readonly current: ChooserMode;
   readonly disabled?: boolean;
-  readonly onSelect: (mode: ChooserMode) => void;
 }): React.JSX.Element {
   const t = useTranslations('dashboard.newBooking.chooser');
-  const active = mode === current;
   return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      disabled={disabled}
-      data-testid="chooser-tab"
-      data-mode={mode}
-      onClick={() => onSelect(mode)}
-      className={`flex-1 rounded-md px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-        active ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
-      }`}
-    >
+    <TabsTrigger value={mode} disabled={disabled} data-testid="chooser-tab" data-mode={mode}>
       {t(`tabs.${mode}`)}
-    </button>
+    </TabsTrigger>
   );
 }
 
@@ -95,30 +80,37 @@ export function CustomerChooserStep({
           <p className="mt-1 text-sm text-gray-600">{t('description')}</p>
         </div>
 
-        <div role="tablist" className="flex gap-1 rounded-lg bg-gray-100 p-1">
-          <ModeTab mode="registered" current={mode} onSelect={setMode} />
-          <ModeTab mode="guest" current={mode} disabled={guestDisabled} onSelect={setMode} />
-        </div>
-        {guestDisabled && (
-          <p className="text-sm text-gray-600" data-testid="guest-disabled-reason">
-            {t('recurrenceNeedsAccount')}
-          </p>
-        )}
+        <Tabs
+          value={mode}
+          onValueChange={(value) => setMode(value as ChooserMode)}
+          className="space-y-4"
+        >
+          <TabsList variant="segmented">
+            <ModeTab mode="registered" />
+            <ModeTab mode="guest" disabled={guestDisabled} />
+          </TabsList>
+          {guestDisabled && (
+            <p className="text-sm text-gray-600" data-testid="guest-disabled-reason">
+              {t('recurrenceNeedsAccount')}
+            </p>
+          )}
 
-        <Card>
-          <CardContent className="p-4">
-            {mode === 'registered' ? (
-              <CustomerSearchPanel selectedId={customerId} onSelect={setCustomerId} />
-            ) : (
-              <GuestContactForm
-                value={guest}
-                phonePrefix={phonePrefix}
-                feedback={feedback}
-                onChange={feedback.edit(setGuest)}
-              />
-            )}
-          </CardContent>
-        </Card>
+          <Card>
+            <CardContent className="p-4">
+              <TabsContent value="registered">
+                <CustomerSearchPanel selectedId={customerId} onSelect={setCustomerId} />
+              </TabsContent>
+              <TabsContent value="guest">
+                <GuestContactForm
+                  value={guest}
+                  phonePrefix={phonePrefix}
+                  feedback={feedback}
+                  onChange={feedback.edit(setGuest)}
+                />
+              </TabsContent>
+            </CardContent>
+          </Card>
+        </Tabs>
       </div>
 
       <BookingOutcomeActionRail>

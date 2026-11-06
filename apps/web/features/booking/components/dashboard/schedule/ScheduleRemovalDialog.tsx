@@ -22,8 +22,6 @@ interface ScheduleRemovalDialogProps {
   readonly target: ScheduleRemovalTarget | null;
   readonly onClose: () => void;
   readonly onSubmit: (id: string) => Promise<void>;
-  readonly titleId: string;
-  readonly descriptionId: string;
   readonly title: ReactNode;
   readonly description: ReactNode;
   readonly submitLabel: string;
@@ -39,8 +37,6 @@ export function ScheduleRemovalDialog({
   target,
   onClose,
   onSubmit,
-  titleId,
-  descriptionId,
   title,
   description,
   submitLabel,
@@ -53,8 +49,7 @@ export function ScheduleRemovalDialog({
   const commonT = useTranslations('common');
   const locale = useResolvedLocale();
   const { formatDateLong } = useFormatting();
-  const { dialogRef, isSubmitting, error, confirmRemoval } = useConfirmRemoval({
-    open,
+  const { isSubmitting, error, confirmRemoval } = useConfirmRemoval({
     onClose,
     onSubmit,
     getErrorMessage: (err) => resolveErrorMessageFromApiError(err, locale),
@@ -72,9 +67,6 @@ export function ScheduleRemovalDialog({
 
   return (
     <BookingActionSheetShell
-      dialogRef={dialogRef}
-      titleId={titleId}
-      descriptionId={descriptionId}
       title={title}
       description={description}
       onClose={onClose}

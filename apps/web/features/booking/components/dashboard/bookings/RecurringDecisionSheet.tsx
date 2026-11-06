@@ -2,7 +2,6 @@
 
 import type { SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
-import { useModalDialog } from '@/features/booking/hooks/use-modal-dialog';
 import { BookingActionSheetShell } from './BookingActionSheetShell';
 
 interface RecurringDecisionSheetProps {
@@ -27,7 +26,6 @@ export function RecurringDecisionSheet({
   onConfirm,
 }: RecurringDecisionSheetProps): React.JSX.Element | null {
   const t = useTranslations('dashboard.recurringApproval');
-  const dialogRef = useModalDialog(open);
 
   if (!open) return null;
 
@@ -41,9 +39,6 @@ export function RecurringDecisionSheet({
 
   return (
     <BookingActionSheetShell
-      dialogRef={dialogRef}
-      titleId={`recurring-${kind}-sheet-title`}
-      descriptionId={`recurring-${kind}-sheet-description`}
       title={isApprove ? t('approveSheetTitle') : t('rejectSheetTitle')}
       description={summary}
       onClose={onClose}

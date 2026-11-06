@@ -37,8 +37,6 @@ export function RemoveClosureDialog({
       target={target}
       onClose={onClose}
       onSubmit={onSubmit}
-      titleId="remove-closure-title"
-      descriptionId="remove-closure-description"
       title={t('removeClosureTitle')}
       description={t('removeClosureDescription')}
       submitLabel={t('submitRemoveClosure')}

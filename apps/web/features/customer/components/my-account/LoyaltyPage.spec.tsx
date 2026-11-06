@@ -322,6 +322,27 @@ describe('LoyaltyPage', () => {
     expect(entriesPanel).toHaveAttribute('aria-labelledby', entriesTab.id);
   });
 
+  it('points only the active tab at a panel, never at one that is not mounted', async () => {
+    const user = userEvent.setup();
+    render(
+      <LoyaltyPage
+        balance={makeBalance()}
+        entries={makeEntries()}
+        redemptions={makeRedemptions()}
+        tenantSlug="lavacar-bh"
+      />,
+    );
+    const entriesTab = screen.getByRole('tab', { name: 'Histórico de ganhos' });
+    const redemptionsTab = screen.getByRole('tab', { name: 'Resgates' });
+
+    expect(redemptionsTab).not.toHaveAttribute('aria-controls');
+
+    await user.click(redemptionsTab);
+
+    expect(entriesTab).not.toHaveAttribute('aria-controls');
+    expect(redemptionsTab).toHaveAttribute('aria-controls', screen.getByRole('tabpanel').id);
+  });
+
   it('shows the empty-redemptions message when there are none', async () => {
     const user = userEvent.setup();
     render(
