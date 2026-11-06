@@ -26,20 +26,22 @@ GET /v1/public/billing/prices?country=BR|US   (@Public)
 **Error copy:** "Não foi possível carregar os preços agora." / "Tentar novamente".
 **Notes:** CHATBOT shows BASIC and PLUS prices (PLUS is a real catalog price: R$ 79,00 / US$ 19.00; the default total is R$ 245,00 / US$ 59.00 and the page lists only the five features). Dependency hints ("Requer Agendamento") come from the closed dependency map. Annual billing and coupons are out of scope. Money: `R$ 49,00` (pt-BR) / `US$ 12.00`. Mobile: table stays a single column of rows, switch above it.
 
-## Screen 3 (`03` / `03b` / `03c`) — Turnstile + Google step (`SignupGoogleStep`)
+## Screen 3 (`03` / `03b` / `03c`) — Google step (`SignupGoogleStep`)
+
+> **Turnstile placement (canonical, UC-127):** Turnstile is verified **only** on the final tenant-creation `POST` (the widget belongs to the form step, screen 4); this Google step has no Turnstile. The drafts `03`/`03b` still draw a widget and a "Turnstile failed" state on this step; the failed state moves to screen 4 (`SIGNUP_TURNSTILE_FAILED`) when the prototype is next redrawn.
 
 **File:** `entrar` page under `apps/web/app/[slug]/…` for the owner slug (GAP). Google button follows the existing OAuth pattern (`/api/auth/google?redirect=...`) with a signup intent that creates no tenant.
-**Props:** none. Turnstile token held in client state, sent later in the tenant creation call.
-**BFF call:** `GET /v1/public/signup/session` after the OAuth callback -> `{ email, name, trialAvailable, existingTenantSlug? }` (`trialAvailable=false` when an earlier self-signup tenant of this Google `sub` never paid; `docs/USE_CASES.md` UC-127 A3).
-**States:** idle (Google button enabled only after Turnstile passes) -> 03b Turnstile failed (button disabled, retry link) / 03c trial not available (`trialAvailable = false`).
-**Error copy:** 03b "Não foi possível verificar que você é uma pessoa." ; 03c "Você já tem um teste em andamento ou não concluído" ("conclua o pagamento do seu teste atual") + "Entrar na conta existente" + "Descartar o teste não pago e começar de novo" (explains that it erases the unpaid trial and frees the name; leads to the same confirm page as `manager-10`). No "marcar uma conversa com nossa equipe".
-**Mobile:** single column, Turnstile widget 20rem max.
-**Open question:** the "session" endpoint name implies a short-lived signup cookie set by the OAuth callback; confirm it is httpOnly and bound to the Google account.
+**Props:** none. The Turnstile token is obtained on the form step (screen 4) and sent in the tenant creation call.
+**BFF call:** `GET /v1/public/signup/session` after the OAuth callback -> `{ email, name, trialAvailable, existingTenantSlug?, termsVersion }` (`trialAvailable=false` when an earlier self-signup tenant of this Google `sub` never paid; the tax-id rule is applied on the final `POST`; `docs/USE_CASES.md` UC-127 A3).
+**States:** idle (Google button enabled) -> 03c trial not available (`trialAvailable = false`); signup closed (`FEATURE_FLAG_SIGNUP_ENABLED` off, `503 SIGNUP_CLOSED`) shows the "cadastro indisponível" notice instead of the button. (`03b` Turnstile failed: see the note above.)
+**Error copy:** 03b "Não foi possível verificar que você é uma pessoa." ; 03c "Você já tem um teste em andamento ou não concluído" ("conclua o pagamento do seu teste atual") + "Entrar na conta existente" + "Descartar o teste não pago e começar de novo" (explains that it erases the unpaid trial and frees the name; leads to the same confirm page as `manager-10`; **until M27 the discard action is replaced by the honest "fale com a gente" message** and eligibility is released only by the M27 discard or an operator offboarding, never by cancelling).
+**Mobile:** single column.
+**Decided:** the signup session is a short-lived (30 min), signed, httpOnly cookie reusing `JWT_SECRET` with a distinct `typ`/`aud` and cookie name, set by the OAuth callback and bound to the verified Google account (API_CONTRACTS § Billing — Public Signup API).
 
 ## Screen 4 (`04` / `04b`–`04g`) — Signup form (`SignupForm`)
 
 **File:** `apps/web/features/platform/components/signup/SignupForm.tsx` (GAP). Use primitives from `apps/web/shared/components/ui/` (verify exact names); `SlugInput` with live availability is new.
-**Props:** `{ googleName: string; googleEmail: string }` (read-only, from the session). The 409 `SIGNUP_TRIAL_NOT_AVAILABLE` on submit (an earlier self-signup tenant of this Google account never paid) renders the `03c` "Você já tem um teste em andamento ou não concluído" card.
+**Props:** `{ googleName: string; googleEmail: string }` (read-only, from the session). This screen carries the **Turnstile widget** (single-use token sent in the final `POST`). The 409 `SIGNUP_TRIAL_NOT_AVAILABLE` on submit (an earlier self-signup tenant of this Google account never paid, or the CPF/CNPJ already belongs to an unpaid account) renders the `03c` "Você já tem um teste em andamento ou não concluído" card.
 **BFF calls:**
 ```
 GET  /v1/public/signup/slug-availability?slug=    -> { status: 'available'|'taken'|'reserved'|'invalid', reason? }  (debounced ~400ms)

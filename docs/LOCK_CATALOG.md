@@ -127,7 +127,7 @@ Each entry: what is locked, who takes it, the business case, why this primitive,
 
 ### Billing locks (planned — documented ahead of the code; not implemented yet)
 
-The Billing context (`docs/BOUNDED_CONTEXTS.md` § 7) adds two locks (B-A1, B-R1) and one unique constraint (B-Q1). They live in the `billing` schema and **never combine with L0–L6 in one transaction** (Billing never opens a Booking transaction), so they form their own small ladder: B-A1 (advisory) is taken before any row exists and in its own transaction; inside a subscription transaction the order is B-R1 → charge rows. None is implemented yet; until the code lands this section is the design, and the `lock-catalog-coverage` check will start enforcing the names once the port methods exist.
+The Billing context (`docs/BOUNDED_CONTEXTS.md` § 7) adds three locks (B-A1, B-R1, B-P1) and one unique constraint (B-Q1). They live in the `billing` schema and **never combine with L0–L6 in one transaction** (Billing never opens a Booking transaction), so they form their own small ladder: B-A1 (advisory) is taken before any row exists and in its own transaction; inside a subscription transaction the order is B-R1 → charge rows. None is implemented yet; until the code lands this section is the design, and the `lock-catalog-coverage` check will start enforcing the names once the port methods exist.
 
 #### B-A1 — signup registration, key `signup:{googleSub}`
 - **Taken by:** the Billing registration use case behind `POST /internal/billing/registrations` (the self-signup eligibility check, UC-127).
@@ -140,6 +140,12 @@ The Billing context (`docs/BOUNDED_CONTEXTS.md` § 7) adds two locks (B-A1, B-R1
 - **Protects:** a paid charge may move the subscription back to `ACTIVE` — two aggregates (`Charge` and `Subscription`) in one use case. A payment that arrives while the sweep is deciding to suspend must win ("the paid state wins"); two webhooks for one charge, or a webhook and a manager's cancel, must not interleave. `Subscription.version` (M6) is the second line of defence. Status is recomputable (the reconcile job re-derives it), so the invariant does not depend on this lock alone.
 - **Why a row lock:** the row exists and is read then written.
 - **Level:** B-R1, then the charge rows are written through `chargeRepo.save()` (their `UNIQUE` indexes are the backstops, below). No provider I/O inside the transaction (CI-enforced `transactional-io`).
+
+#### B-P1 — price-list rows, one batched `FOR UPDATE` *(M26-S38)*
+- **Taken by:** the operator price-change use cases (create, exact version, percentage adjust, dry run excluded): one batched query locks every affected `billing.feature_prices` row `ORDER BY id` before the dry-run hash is re-verified and the `feature_price_versions` rows are written; it never combines with B-R1 in one transaction (price writes touch no subscription).
+- **Protects:** two concurrent adjustments (or an adjustment and an exact change) of the same prices must not interleave: `BILLING_PRICE_BATCH_CHANGED` is decided against the locked state, and `UNIQUE(feature_price_id, effective_from) WHERE superseded_at IS NULL` is the backstop.
+- **Why a row lock:** the rows exist and are read, then written (the multi-row rule: one batched query, deterministic order).
+- **Level:** alone in its transaction. Named test: two concurrent adjustments serialise and the second returns `409 BILLING_PRICE_BATCH_CHANGED`.
 
 #### B-Q1 — purge job, `UNIQUE(tenant_id) WHERE status <> 'COMPLETED'` *(slice G)*
 - One in-flight erasure per tenant; a second `TenantPurgeRequested` for the same tenant hits the constraint and is a no-op (M4). Participant completions are idempotent per `(job, participant)`.

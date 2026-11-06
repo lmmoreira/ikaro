@@ -137,14 +137,18 @@ Every policy emails the `notification_email` channel. Thresholds are module vari
 
 **Billing alert policies and KPI numbers *(planned, Billing milestone)*.** Billing is operator-free by default, so its alerts are metric / log-based policies that fire **only after the automatic response failed**, each naming its runbook in `docs/RUNBOOKS.md` § Billing (planned):
 
-- webhook failure ratio (> 5 % non-`200` over 15 min, or the provider queue paused and not re-enabled);
-- reconcile failing (no success for 24 h — this also starts the suspension freeze);
-- reconcile drift (more than N charges differ in one run);
-- charge creation stuck (`provider_creation_status = PENDING` > 24 h after N attempts);
-- missing subscription (self-heal could not create it; the billing job names are in `docs/API_CONTRACTS.md` § Billing cron triggers (UC-113, UC-114, UC-115, UC-116, UC-132, UC-139, UC-140));
+- webhook failure (three or more consecutive failures, or any backend `5xx` on the webhook route, within 15 min — a BFF `401` is excluded — or the provider queue paused and not re-enabled);
+- reconcile failing (two consecutive daily-pass failures, or no success for 24 h — the latter also starts the suspension freeze);
+- reconcile drift (any difference in a daily pass is a warning, more than 5 is critical);
+- charge creation stuck (`provider_creation_status = PENDING` with 3 or more attempts, or for more than 1 hour);
+- dispute opened (the webhook logs a structured line when a chargeback is requested: access is unchanged, but the evidence deadline is short);
+- billing job did not run (issue, sweep, reminders, reconcile: all six scheduler jobs are created paused in production, so a forgotten enable must page);
+- missing subscription (a tenant older than 30 minutes still has none, i.e. self-heal could not create it; the billing job names are in `docs/API_CONTRACTS.md` § Billing cron triggers (UC-113, UC-114, UC-115, UC-116, UC-132, UC-139, UC-140));
 - purge step stuck;
 - missing platform billing template (UC-124 A1: a billing email could not be rendered; money-critical, so it alerts at runtime in addition to the startup/CI checks);
 - suspension freeze active.
+
+All of these are **log-based metrics and alert policies only** (the application defines no OTel instruments of its own, § 4). The KPI numbers come from one daily structured log line, `billing_kpi_daily`, emitted by the reconcile daily pass (counts of charges paid without manual action, involuntary churn, corrections), plus operator interventions counted from `billing.operator_audit`; "webhook lag" is `received_at` → `processed_at`, not a provider timestamp. Every alert is triggered once in the story that creates it (or stated as test-only).
 
 A missing price row (the Catalog runbook) and a live-adapter misconfiguration have **no alert policy**: startup validation and CI catch them, never runtime. There is no daily list for a human to work through. The dashboard shows, as weekly numbers: operator interventions per 100 active tenants per month (from `billing.operator_audit`; target ≤ 1 once past the first launch weeks), the share of charges paid with no manual action, involuntary churn (suspended for `NON_PAYMENT` and not recovered), webhook p95 lag, reconcile corrections per run, payment-to-reactivation time and open exceptions older than 24 h. The new policies must still be applied to staging and triggered once before being trusted (see "Verification" below).
 

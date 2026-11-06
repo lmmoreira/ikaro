@@ -2716,7 +2716,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 - **Trigger:** `TenantProvisioned` (from UC-024 operator provisioning or from self-signup, UC-127). It carries `countryCode`, `timezone` and a `billingHint` (`exempt`, optional feature subset, `registrationId`). The new fields are additive, so no new version is needed (`eventVersion` stays 1); the bus routes by `eventName` and never reads it.
 - **Main Flow:**
    1. The handler (`create-trial-subscription` consumer) calls exactly one use case with `tenantId`, `countryCode`, `timezone`, the hint and `correlationId`.
-   2. The use case creates the `Subscription`: `TRIALING`, `trialEndsAt` = the tenant-local midnight closing day 14, `timezone` snapshot, `nextDueDate` = the trial-end date, currency from the country's price rows, cycle `MONTHLY`, `merchantProfileKey` given by the environment (never per tenant).
+   2. The use case creates the `Subscription`: `TRIALING`, `trialEndsAt` = the tenant-local midnight closing day 14 (a trial lasts 13 to 14 full days depending on the creation hour), `timezone` snapshot, `nextDueDate` = the trial-end date, currency from the country's price rows, cycle `MONTHLY`, `merchantProfileKey` given by the environment (never per tenant).
    3. For every feature it creates a **default paid item** `[trialEndsAt, ∞)` (chatbot `BASIC`); there are no trial items — trial access is computed from the status — and items carry no price. `HOTSITE` is the root dependency; a booking-only selection is invalid. Ikaro's own tenant (slug = `PLATFORM_OWNER_TENANT_SLUG`, a new env var) and any tenant provisioned with the `exempt` hint get `status ACTIVE`, `exempt = true` and open-ended items.
    4. It creates the `BillingAccount` from the registration named by `registrationId` (BR tax id and accepted terms — none of it is in the event; the Google `sub` stays on the registration for the trial-eligibility rule and is not copied to the account), completes the registration (`tenant_id` set, tax id cleared) and creates the items, all in the same transaction, then invalidates the access cache after commit.
 - **Alternative Flows:**
@@ -2772,7 +2772,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 
 ### **UC-113: System Issues the Next Charge**
 
-- **Actor:** System (daily trigger `billing-issue-charges`: Cloud Scheduler → Pub/Sub → `ITriggerBus` handler; `POST /cron/billing-issue-charges` is the manual path, `InternalApiGuard`)
+- **Actor:** System (daily trigger `cron-billing-issue-charges`: Cloud Scheduler → Pub/Sub → `ITriggerBus` handler; `POST /cron/billing-issue-charges` is the manual path, `InternalApiGuard`)
 - **Preconditions:** The subscription is `TRIALING` or `ACTIVE`, not `exempt`, not cancelling past the period, and its `next_due_date` is within `CHARGE_ISSUE_LEAD_DAYS` (10 days; `ANNUAL_CHARGE_ISSUE_LEAD_DAYS` = 30 for an annual subscription, slice H).
 - **Trigger:** The daily trigger. It carries no tenant id; the job selects its own subscriptions through the standalone partial index on `next_due_date`.
 - **Main Flow:**
@@ -2815,7 +2815,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
    - **A3: Out-of-order event** (paid after cancelled) → applied only if legal for the charge's current status; otherwise logged and left to reconcile (UC-116).
    - **A4: Backend down** → non-2xx so the provider retries (reconcile covers any gap).
    - **A5: Refund / chargeback** → a partial refund does not affect access; a full confirmed refund or completed chargeback reversal that leaves the current period without settled payment immediately suspends with reason `PAYMENT_REVERSED`. A merely opened dispute does not.
-   - **A6: Retention** → the daily `billing-provider-events-purge` job (`POST /cron/billing-provider-events-purge`, system actor, selected through the standalone `received_at` index) deletes `provider_events` rows older than 30 days; the 30 days is the retention window of the idempotency inbox (`docs/DATABASE_SCHEMA.md` § `billing.provider_events`).
+   - **A6: Retention** → the daily `cron-billing-provider-events-purge` job (`POST /cron/billing-provider-events-purge`, system actor, selected through the standalone `received_at` index) deletes `provider_events` rows older than 30 days; the 30 days is the retention window of the idempotency inbox (`docs/DATABASE_SCHEMA.md` § `billing.provider_events`).
 - **Postconditions:** Local state mirrors the provider.
 - **Events Triggered:** `ChargePaid`, `SubscriptionPastDue`, `SubscriptionReactivated`, `SubscriptionSuspended` as applicable.
 
@@ -2823,13 +2823,13 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 
 ### **UC-115: System Sweeps Statuses**
 
-- **Actor:** System (hourly trigger `billing-status-sweep`; `POST /cron/billing-status-sweep` is the manual path)
+- **Actor:** System (hourly trigger `cron-billing-status-sweep`; `POST /cron/billing-status-sweep` is the manual path)
 - **Preconditions:** None.
 - **Trigger:** The hourly trigger (Cloud Scheduler → Pub/Sub → `ITriggerBus` handler).
 - **Main Flow:** All dates are evaluated in `subscriptions.timezone`; `exempt` subscriptions are never touched.
    1. **Overdue:** a `PENDING` charge past its tenant-local due date becomes `OVERDUE`; for an `ACTIVE` subscription it becomes `PAST_DUE` and records `past_due_since`.
    2. **Trial end:** a `TRIALING` subscription whose `trialEndsAt` plus the settlement margin has passed — `PAYMENT_SETTLEMENT_MARGIN_HOURS` (24 h), or `PAYMENT_PENDING_MARGIN_BUSINESS_DAYS` (3 business days) when `payment_return_seen_at` shows the manager already returned from the payment page while the charge is still open (the signature of a boleto that has not compensated) — is re-read from the provider; with its first charge unpaid, or with no charge at all, it becomes `SUSPENDED` (`NON_PAYMENT`) **directly**. There is no `PAST_DUE` after a trial. Access is unchanged during the margin.
-   3. **Past due:** `PAST_DUE` older than 14 days (or past `grace_until`) becomes `SUSPENDED` (`NON_PAYMENT`). **On every suspension for `NON_PAYMENT` or `PAYMENT_REVERSED`, the sweep cancels the stale open charge (locally and at the provider) and issues the recovery charge** (UC-134).
+   3. **Past due:** `PAST_DUE` becomes `SUSPENDED` (`NON_PAYMENT`) when `now` is past `grace_until` if one is set (an override, never earlier than `past_due_since` + 14 days: the operator route rejects an earlier value), otherwise past `past_due_since` + 14 days. **On every suspension for `NON_PAYMENT` the sweep cancels the stale open charge (locally and at the provider) and issues the recovery charge** (UC-134); a `PAYMENT_REVERSED` suspension is applied by the webhook (UC-114), which issues the recovery charge the same way. **Sweep-hold extension:** the sweep-created recovery charge is the one place nobody is at the keyboard, so when the billing address (or tax id) is missing it is inserted `PENDING` with provider creation held, `summary.addressRequired` is true, and the banner and the suspended page point to "Dados de cobrança"; issuing resumes automatically once the identity is saved. (A manager-triggered reactivate with a missing address creates nothing and returns `BILLING_ADDRESS_REQUIRED`, UC-134 A6.)
    4. **Cancel-at:** `cancelAt` reached → `SUSPENDED` (`CANCELED`).
    5. **Trial → paid:** a `TRIALING` subscription whose `trialEndsAt` has passed and whose first charge is `PAID` becomes `ACTIVE` (the period starts at trial end; `anchor_day` = the trial-end local day clamped to 28).
    6. A confirmed payment converts `PAST_DUE` / `SUSPENDED` to `ACTIVE` through UC-114, not through this job.
@@ -2845,10 +2845,10 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 
 ### **UC-116: System Reconciles Charges with the Provider**
 
-- **Actor:** System (trigger `billing-reconcile`; `POST /cron/billing-reconcile` is the manual path)
+- **Actor:** System (trigger `cron-billing-reconcile`; `POST /cron/billing-reconcile` is the manual path)
 - **Preconditions:** The provider is configured.
-- **Trigger:** A daily trigger for every open or recently changed charge; an **hourly** pass for charges of at-risk tenants (`TRIALING` near its end, `PAST_DUE`, `SUSPENDED` with an open recovery charge); an on-demand single-charge refresh when a manager returns from the hosted payment page (`POST /v1/billing/charges/{chargeId}/payment-return`, UC-119).
-- **Main Flow:** For each charge, fetch its provider status and apply any difference through the same use case as UC-114. Each successful run updates `billing.provider_health`. Drift is corrected by itself and counted. Webhook queues can stall and events expire at the provider after 14 days, so reconcile is what guarantees that a missed webhook never leaves a paying tenant locked out.
+- **Trigger:** One **hourly** trigger (`cron-billing-reconcile`; a single scheduler job). Every run reconciles the at-risk charges (`TRIALING` with `trial_ends_at` within 14 days, `PAST_DUE`, `SUSPENDED` with an open recovery charge, open charges due today or earlier); the run in the hour `FULL_RECONCILE_HOUR_UTC` also reconciles every open charge and every charge **PAID within the last 35 days** (a card `RECEIVED` arrives about 32 days after `CONFIRMED`). A run also retries provider cancels still flagged `provider_cancel_pending`. An on-demand single-charge refresh when a manager returns from the hosted payment page (`POST /v1/billing/charges/{chargeId}/payment-return`, UC-119).
+- **Main Flow:** For each charge, fetch its provider status and apply any difference through the same use case as UC-114. Each run is paged by a keyset cursor so a per-run limit never starves later charges; only a complete (non-truncated) pass with at least one successful provider call per merchant key updates `billing.provider_health`. Drift is corrected by itself and counted. Webhook queues can stall and events expire at the provider after 14 days, so reconcile is what guarantees that a missed webhook never leaves a paying tenant locked out.
 - **Alternative Flows:**
    - **A1: Provider unreachable** → the job fails, an alert is raised and the job retries on the next run; after 24 hours without a success the suspension freeze starts (UC-140).
    - **A2: A local charge has no provider id older than 24 h** → re-attempt creation through UC-113's retry query, or alert.
@@ -2863,7 +2863,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 - **Actor:** Staff (`MANAGER`) — every manager of the tenant
 - **Preconditions:** Logged in; the tenant has a subscription.
 - **Trigger:** The manager opens "Assinatura" (`/dashboard/billing`), or is redirected there because the tenant is suspended.
-- **Main Flow:** Billing is one page with five tabs and one primary action per tab: **Resumo**, **Plano** (UC-136), **Cobranças**, **Dados de cobrança** (UC-118) and **Cobrança automática** (UC-135, shown as "Em breve" until released). Destructive actions (cancel, UC-133; discard, UC-141) are separate confirmation pages. Resumo shows the status, the trial end or next due date, the active features with their tier and price, the total (for a US tenant net of tax, labelled "+ imposto calculado na cobrança"), the open charge with **Pagar agora** (UC-119), the automatic-billing status, any announced price change, the cancel link and "Falar com a gente". Cobranças is the paginated history: subtotal, tax lines per jurisdiction for a US tenant (none for BR, whose prices include tax) and total; statuses `PENDING` / `PAID` / `OVERDUE` / `FAILED` / `CANCELED` / `REFUNDED` / `CHARGEBACK`; each paid charge carries its receipt link. Data comes from `GET /v1/billing/summary` and `GET /v1/billing/charges` (`docs/API_CONTRACTS.md` § Billing — Manager API).
+- **Main Flow:** Billing is one page with five tabs and one primary action per tab: **Resumo**, **Plano** (UC-136), **Cobranças**, **Dados de cobrança** (UC-118) and **Cobrança automática** (UC-135, shown as "Em breve" until released). Destructive actions (cancel, UC-133; discard, UC-141) are separate confirmation pages. Resumo shows the status, the trial end or next due date, the active features with their tier and price, the total (for a US tenant net of tax, labelled "+ imposto calculado na cobrança"), the open charge with **Pagar agora** (UC-119), the automatic-billing status, any announced price change, the cancel link and "Falar com a gente" (a link to the platform-owner tenant's hotsite booking page). Cobranças is the paginated history: subtotal, tax lines per jurisdiction for a US tenant (none for BR, whose prices include tax) and total; statuses `PENDING` / `PAID` / `OVERDUE` / `FAILED` / `CANCELED` / `REFUNDED` / `CHARGEBACK`; each paid charge carries its receipt link. Data comes from `GET /v1/billing/summary` and `GET /v1/billing/charges` (`docs/API_CONTRACTS.md` § Billing — Manager API).
 - **Alternative Flows:**
    - **A1: Loading / load error** → skeleton, then an error with retry.
    - **A2: No charges yet** (trial) → empty-history message.
@@ -2992,6 +2992,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
    - **A1: Template missing** → fail with an alert; never a silent drop. A missing platform billing template is money-critical, so it has a runtime alert policy (the Billing alert policies paragraph of `docs/OBSERVABILITY_STRATEGY.md`), unlike a missing price row.
    - **A2: Delivery fails** → the existing notification-log retry / failed handling.
    - **A3: Event redelivered** → deduplicated on `eventId`.
+   - **A4: One email per cancel** → the manager receives the `SubscriptionCancelled` email only; the manager email for a `SubscriptionSuspended` with reason `CANCELED` (an immediate cancel, or UC-142) is suppressed. Wording that varies by case (invoice period vs recovery, suspension for non-payment vs operator, cancel immediate vs scheduled, each reminder kind) is a separate template key, chosen from the event data.
 - **Postconditions:** The manager is informed.
 - **Events Triggered:** None.
 
@@ -3035,18 +3036,19 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 - **Trigger:** The visitor clicks the CTA and lands on `/ikaro-trial`.
 - **Main Flow:**
    1. The page shows the feature descriptions and the price table (BR/US switch; prices come from UC-128).
-   2. The visitor passes Turnstile and signs in with Google (verified email and name). The BFF keeps only `{ email, name, googleSub }` in a short-lived signed session cookie (`GET /v1/public/signup/session`); no tenant JWT is issued.
-   3. The visitor fills the business name, slug, country (BR or US), the **CPF or CNPJ for BR**, and accepts the Terms and Privacy policy. The language derives from the country; there is no language field.
-   4. The system re-validates everything server side. The BFF asks Billing to reserve the registration (`POST /internal/billing/registrations`, advisory lock B-A1 on the Google `sub`, trial rule A3), which stores the Google `sub`, the BR tax id and the accepted terms version and timestamp in `signup_registrations`. The BFF then calls Platform's signup use case, which verifies Turnstile and calls the existing `ProvisionTenantUseCase` with the Google email as first manager and the `registrationId`. None of the personal data travels in the event.
+   2. The visitor signs in with Google (verified email and name; no Turnstile at this step). The BFF keeps only `{ email, name, googleSub }` in a short-lived signed session cookie (`GET /v1/public/signup/session`); no tenant JWT is issued.
+   3. The visitor fills the business name, slug, country (BR or US), the **CPF or CNPJ for BR**, and accepts the Terms and Privacy policy (the text shown is the version the session reports, `termsVersion` = the backend's `SIGNUP_TERMS_VERSION`). The form step carries the Turnstile widget. The language derives from the country; there is no language field. BR only until M28.
+   4. The system re-validates everything server side, in this order: (1) stateless checks (Turnstile — verified **only** here, on the final `POST`, single-use token —, slug policy, terms version, tax-id validity, non-binding slug availability); (2) the BFF asks Billing to reserve the registration (`POST /internal/billing/registrations`, advisory lock B-A1 on the Google `sub`, trial rule A3), which stores the Google `sub`, the BR tax id and the accepted terms version and timestamp in `signup_registrations`. (3) The BFF then calls Platform's signup use case, which calls the existing `ProvisionTenantUseCase` with the Google email as first manager and the `registrationId`. None of the personal data travels in the event. On **any** failure after the reservation the BFF calls the idempotent `POST /internal/billing/registrations/{id}/release`, so an immediate retry succeeds; the one-hour sweep is only the backstop.
    5. The endpoint returns the account-created page. `TenantProvisioned` asynchronously triggers Staff (first manager) and Billing (UC-110); once the first-manager work completes, the existing invitation / login email is sent to the verified Google email. The visitor is not issued a tenant JWT and is not sent to the dashboard by signup.
 - **Alternative Flows:**
    - **A1: Slug taken / reserved / invalid** → field error with client-generated suggestions (the API returns none; the form derives them and re-checks each through UC-128) (`SIGNUP_SLUG_TAKEN`, `SIGNUP_SLUG_RESERVED`, `SIGNUP_SLUG_INVALID`). A slug taken between the availability check (UC-128) and the submit lands here too.
    - **A2: Turnstile fails** → retry screen (`SIGNUP_TURNSTILE_FAILED`).
-   - **A3: Trial not available for this Google account** (an earlier self-signup tenant of the same `sub` never paid) → `SIGNUP_TRIAL_NOT_AVAILABLE`, "Você já tem um teste em andamento ou não concluído", with two self-service actions: "Entrar na conta existente" and "Descartar o teste não pago e começar de novo" (UC-141, which needs a signed-in manager of that tenant). Until the purge participants ship, the discard action is replaced by an honest message that tells the visitor to contact Ikaro, and an operator runs the offboarding runbook for that never-paid tenant (M17-S51). A first signup, or one where every earlier signup tenant has paid, always gets the trial.
-   - **A4: Rate limit exceeded** (per IP per day, and per Google account) → friendly "tente mais tarde" (`SIGNUP_RATE_LIMITED`, with `Retry-After`).
+   - **A3: Trial not available** (an earlier self-signup tenant of the same Google `sub` never paid, **or** the normalised CPF/CNPJ already belongs to a billing account whose subscription never paid and is not purged) → `SIGNUP_TRIAL_NOT_AVAILABLE`, "Você já tem um teste em andamento ou não concluído", with two self-service actions: "Entrar na conta existente" and "Descartar o teste não pago e começar de novo" (UC-141, which needs a signed-in manager of that tenant). Until the purge participants ship, the discard action is replaced by an honest message that tells the visitor to contact Ikaro, and an operator runs the offboarding runbook for that never-paid tenant (M17-S51). A first signup, or one where every earlier signup tenant has paid, always gets the trial. Eligibility is **not** released automatically by cancelling or suspending the unpaid tenant (that would enable cancel-and-resignup loops); it is released only by the M27 discard or an operator offboarding (M17-S51).
+   - **A4: Rate limit exceeded** (5 per IP per day, best-effort; 3 per Google account per day) → friendly "tente mais tarde" (`SIGNUP_RATE_LIMITED`, with `Retry-After`).
    - **A5: Terms not accepted** → blocked (`SIGNUP_TERMS_NOT_ACCEPTED`).
    - **A6: Tenant creation transaction fails** → nothing is created and a retry is offered. If a post-commit `TenantProvisioned` consumer is delayed or fails, its durable event retry completes the first-manager and Billing setup (UC-140 repairs a missing trial); the account-created page still directs the visitor to email and never implies that dashboard access is already ready.
    - **A7: Country without prices, or US while `FEATURE_FLAG_SIGNUP_US` is off** (no Stripe adapter yet) → the option is not offered.
+   - **A11: Signup closed** (`FEATURE_FLAG_SIGNUP_ENABLED` off — the production default until launch readiness) → the session-start, signup and resend routes answer `503 SIGNUP_CLOSED` and `/ikaro-trial` shows a "cadastro indisponível" notice; prices and slug availability stay readable. This flag is the signup kill switch (disabling the `TRIAL_SIGNUP_CTA` module is not).
    - **A8: Google account already manages other tenants** → allowed (multi-tenant staff and owners); trial rule A3 still applies. An owner who pays can create as many tenants as they want.
    - **A9: BR tax id missing or with invalid check digits** → `SIGNUP_TAX_ID_REQUIRED` / `SIGNUP_TAX_ID_INVALID`, field error; nothing is created.
    - **A10: Confirmation email not received** → the account-created page offers a rate-limited resend (`POST /v1/public/signup/resend`) and, once the first manager exists, a one-click Google sign-in to the existing staff login.
@@ -3065,7 +3067,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 - **Alternative Flows:**
    - **A1: Prices fail to load** → error state with retry; signup stays possible, because the trial is free.
    - **A2: Race between the check and the submit** → UC-127 A1 handles it.
-   - **A3: Enumeration abuse** → the slug check is throttled and Turnstile-protected.
+   - **A3: Enumeration abuse** → the slug check is throttled (30 per minute per IP, `Cache-Control: no-store`); Turnstile is verified only on the final signup `POST`.
 - **Postconditions:** None
 - **Events Triggered:** None
 
@@ -3088,7 +3090,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 ### **UC-130: Trial Banner and First Charge**
 
 - **Actor:** Staff (`MANAGER`)
-- **Preconditions:** `TRIALING` (or, for A3, `PAST_DUE`).
+- **Preconditions:** `TRIALING` (or, for A3, `PAST_DUE`). The trial ends at the tenant-local midnight that closes day 14 (UC-110); "14 days" means that rule.
 - **Trigger:** The manager opens any dashboard page.
 - **Main Flow:** The `SubscriptionBanner` (manager-only, mounted once above the page content, not dismissible) says "Faltam N dias do seu teste" and links to billing. Until the plan is confirmed it adds "Confirme seu plano para gerarmos a primeira cobrança" with the **Confirmar plano** call to action (UC-136); trial entitlements remain fully enabled. The first invoice is issued as soon as the manager confirms (from 10 days before the trial end on), or automatically from the default selection 3 days before the end with a plain-language email (UC-113 A10); it is due on the trial end.
 - **Alternative Flows:**
@@ -3121,7 +3123,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 
 ### **UC-132: System Erases Tenants Left Suspended Too Long** — *slice G (deferred)*
 
-- **Actor:** System (daily trigger `billing-tenant-purge`; `POST /cron/billing-tenant-purge` is the manual path)
+- **Actor:** System (daily trigger `cron-billing-tenant-purge`; `POST /cron/billing-tenant-purge` is the manual path)
 - **Preconditions:** The tenant is `SUSPENDED` for at least 90 days (`has_ever_paid = false`) or at least 180 days (`has_ever_paid = true`), for any suspension reason, and is not `exempt`.
 - **Trigger:** The daily trigger.
 - **Main Flow:**
@@ -3144,7 +3146,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 - **Actor:** Staff (`MANAGER`) — any manager; the billing email is notified
 - **Preconditions:** `ACTIVE`, `PAST_DUE` or `TRIALING`.
 - **Trigger:** The manager clicks "Cancelar assinatura" and confirms on the cancel page.
-- **Main Flow:** `POST /v1/billing/cancel`. For `ACTIVE`, the confirmation states that access continues until the paid-period end; the call sets `cancelAt` (the end of the last paid period), immediately cancels every unpaid charge for a period beginning on or after that date, and the page shows "Cancelada — acesso até dd/mm". For `PAST_DUE`, cancellation is immediate: any open charge is cancelled and the subscription becomes `SUSPENDED` (`CANCELED`). For `TRIALING`, if the first invoice is already `PAID` the cancel is scheduled at the trial end (`cancelAt = trialEndsAt`, access continues, nothing lost); otherwise it is immediate. Nothing is refunded; refund exceptions are an operator task in the provider console.
+- **Main Flow:** `POST /v1/billing/cancel`. For `ACTIVE`, the confirmation states that access continues until the paid-period end; the call sets `cancelAt` (the end of the last paid period), immediately cancels every unpaid charge for a period beginning on or after that date, and the page shows "Cancelada — acesso até dd/mm". For `PAST_DUE`, cancellation is immediate: any open charge is cancelled and the subscription becomes `SUSPENDED` (`CANCELED`). For `TRIALING`, if the first `PERIOD` charge is already `PAID` the cancel is scheduled at the end of that first paid period (access continues through the trial and the paid period, nothing refunded; the trial still turns `ACTIVE` at its end); otherwise it is immediate. General rule: `cancelAt` is the end of the **last paid** period (the latest `period_end` among `PAID` `PERIOD` charges, else the current period end / trial end), which also covers a next period already paid because invoices issue 10 days early. Nothing is refunded; refund exceptions are an operator task in the provider console.
 - **Alternative Flows:**
    - **A1: Already cancelling** → `409 BILLING_ALREADY_CANCELLING`; the page shows the scheduled state.
    - **A2: The provider cancel fails** → the local state is saved and reconciled later (UC-116); the manager sees success only after the local save.
@@ -3291,7 +3293,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 ### **UC-138: Developer or Operator Simulates Billing in Non-Production**
 
 - **Actor:** Developer / operator (never a tenant user)
-- **Endpoints:** `POST /internal/dev/clock/advance`, `GET /internal/dev/clock` (returns `{ offsetMs, instanceId }`, so a response from a second instance is visible), `POST /internal/dev/billing/provider/simulate`, `POST /internal/dev/billing/seed` (`InternalApiGuard` + `PlatformAdminGuard`, registered only when `APP_ENV` is `local` or `staging`). **Interim (M25-S12 until M25-S15a):** the clock routes carry `InternalApiGuard` only, because `PlatformAdminGuard` still lives in Platform until S15a moves it to `src/shared/guards/` and adds it to the controller. The advanceable clock's offset lives in the process, so while it is in use the staging backend is held to one instance (`docs/RUNBOOKS.md` § Billing)
+- **Endpoints:** `POST /internal/dev/clock/advance`, `POST /internal/dev/clock/reset`, `GET /internal/dev/clock` (returns `{ offsetMs, instanceId }`, so a response from a second instance is visible), `POST /internal/dev/billing/provider/simulate`, `POST /internal/dev/billing/seed` (`InternalApiGuard` + `PlatformAdminGuard`, registered only when `APP_ENV` is `local` or `staging`). **Interim (M25-S12 until M25-S15a):** the clock routes carry `InternalApiGuard` only, because `PlatformAdminGuard` still lives in Platform until S15a moves it to `src/shared/guards/` and adds it to the controller. The advanceable clock's offset lives in the process, so while it is in use the staging backend is held to one instance (`docs/RUNBOOKS.md` § Billing)
 - **Preconditions:** `APP_ENV` is `local` or `staging`; for provider events, the target subscription uses a `*_FAKE` merchant profile key (staging subscriptions on sandbox keys receive their events from the real sandbox).
 - **Trigger:** A call to one of the dev endpoints or their scripts.
 - **Main Flow:**
@@ -3309,12 +3311,12 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 
 ### **UC-139: System Sends Dunning Reminders**
 
-- **Actor:** System (daily trigger `billing-reminders`; `POST /cron/billing-reminders` is the manual path)
+- **Actor:** System (daily trigger `cron-billing-reminders`; `POST /cron/billing-reminders` is the manual path)
 - **Preconditions:** The subscription is not `exempt`; the tenant has a billing email or managers.
 - **Trigger:** The daily trigger.
-- **Main Flow:** For each subscription the job publishes `BillingReminderDue` once per milestone, deduplicated by `(subscription, kind, daysOffset, chargeId)`: `PLAN_CONFIRMATION` at 10, 7 and 4 days before trial end while `plan_confirmed_at` is NULL (the last one says the default plan will be invoiced in one day); `TRIAL_ENDING` at 7 and 3 days before trial end and on the last day (with the payment link when the first invoice exists); `CHARGE_DUE_SOON` 3 days before a charge's due date; `CHARGE_OVERDUE` at 1, 3, 7 and 12 days after the due date of a `PAST_DUE` subscription (the last one states the suspension date). Ikaro sends every reminder itself, because the provider's own customer notifications are switched off (Asaas customers are created with `notificationDisabled = true`; Stripe customer emails are off). Billing templates are exempt from the suspension gate. For an annual subscription the same kinds apply with the annual issue lead *(slice H)*.
+- **Main Flow:** For each subscription the job publishes `BillingReminderDue` once per milestone, deduplicated by `(subscription, kind, daysOffset, chargeId)`: `PLAN_CONFIRMATION` at 10, 7 and 4 days before trial end while `plan_confirmed_at` is NULL (the last one says the default plan will be invoiced in one day); `TRIAL_ENDING` at 7 and 3 days before trial end and on the last day (with the payment link when the first invoice exists); `CHARGE_DUE_SOON` 3 days before a charge's due date (not for the first trial charge, which `TRIAL_ENDING` covers, and not for `RECOVERY` charges); `CHARGE_OVERDUE` at 1, 3, 7 and 12 days after the due date of a `PAST_DUE` subscription (the last one states the suspension date); `RECOVERY_CHARGE_OPEN` for a `SUSPENDED` subscription (reasons `NON_PAYMENT` and `PAYMENT_REVERSED`) whose `RECOVERY` charge is still open: 3 days after it is issued, and 1 and 7 days after its due date once `OVERDUE`. Milestones match the exact day offset: a cron day that does not run loses that milestone (accepted). Ikaro sends every reminder itself, because the provider's own customer notifications are switched off (Asaas customers are created with `notificationDisabled = true`; Stripe customer emails are off). Billing templates are exempt from the suspension gate. For an annual subscription the same kinds apply with the annual issue lead *(slice H)*.
 - **Alternative Flows:**
-   - **A1: The charge was paid between scheduling and sending** → the handler re-checks and skips.
+   - **A1: The charge was paid (or the tenant became `exempt`) before publishing** → Billing re-checks "charge still open" and "not exempt" immediately before writing the outbox row and publishes nothing. Pub/Sub is at-least-once with no delivery guarantee and Notification has no read port into Billing, so a small stale window remains and the email copy is tolerant ("Se você já pagou, desconsidere este aviso").
    - **A2: No recipient** → logged; the dashboard banner remains.
 - **Postconditions:** The manager received repeated, dated warnings before any suspension; no human sends reminders.
 - **Events Triggered:** `BillingReminderDue`
@@ -3323,7 +3325,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 
 ### **UC-140: System Heals Itself (Provisioning Repair, Provider Health, Suspension Freeze)**
 
-- **Actor:** System (hourly trigger `billing-self-heal`; `POST /cron/billing-self-heal` is the manual path)
+- **Actor:** System (hourly trigger `cron-billing-self-heal`; `POST /cron/billing-self-heal` is the manual path)
 - **Preconditions:** None.
 - **Trigger:** The hourly trigger.
 - **Main Flow:**

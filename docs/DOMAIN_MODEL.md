@@ -1801,16 +1801,16 @@ Items hold only the *selected plan*. There are **no trial rows** (trial access c
 | `TRIALING` → `SUSPENDED` (`NON_PAYMENT`) | trial end + settlement margin, first charge unpaid or absent | sweep |
 | `ACTIVE` → `PAST_DUE` | a `PERIOD` charge goes `OVERDUE` | sweep |
 | `PAST_DUE` → `ACTIVE` | the overdue charge is `PAID` | payment |
-| `PAST_DUE` → `SUSPENDED` (`NON_PAYMENT`) | 14 days (or `graceUntil`) elapsed | sweep (not during a suspension freeze) |
+| `PAST_DUE` → `SUSPENDED` (`NON_PAYMENT`) | `graceUntil` passed if set (an override, never earlier than `pastDueSince` + 14 days), else `pastDueSince` + 14 days | sweep (not during a suspension freeze) |
 | `ACTIVE` / `PAST_DUE` / `TRIALING` → `SUSPENDED` (`CANCELED`) | `cancelAt` reached / immediate cancel | sweep / manager |
-| any paid status → `SUSPENDED` (`PAYMENT_REVERSED`) | full refund or lost dispute leaving the period unpaid | webhook |
+| any paid status → `SUSPENDED` (`PAYMENT_REVERSED`) | full refund or lost dispute leaving the period unpaid (applied by the **webhook**, never the sweep; a full refund of the first invoice while `TRIALING` suspends nobody — nothing settled to reverse: the charge becomes `REFUNDED` and the issue flow re-issues the first charge, UC-113) | webhook |
 | any → `SUSPENDED` (`OPERATOR`) | operator suspend | operator |
 | `SUSPENDED` → `ACTIVE` | recovery charge `PAID` (not for `OPERATOR`); `exempt` set; `unsuspend` (`OPERATOR` only) | payment / operator |
 | `SUSPENDED` → (erased) | purge or self-service discard | purge coordinator (slice G) |
 
 **Settlement margin (trial end):** the sweep waits `PAYMENT_SETTLEMENT_MARGIN_HOURS` (24), or `PAYMENT_PENDING_MARGIN_BUSINESS_DAYS` (3 business days, tenant-local calendar) when the manager already returned from the payment page and the charge is still open, before suspending; the rule and its flow are in `docs/USE_CASES.md` UC-115 step 2, and the constants are below.
 
-**Constants (defined once):** `CHARGE_ISSUE_LEAD_DAYS = 10`, `PRICE_CHANGE_MIN_NOTICE_DAYS = 30`, `RECOVERY_CHARGE_DUE_DAYS = 7`, grace = 14 days, `PROVISIONING_GRACE_MINUTES = 15`, `PAYMENT_SETTLEMENT_MARGIN_HOURS = 24`, `PAYMENT_PENDING_MARGIN_BUSINESS_DAYS = 3`, `PLAN_CONFIRM_FALLBACK_DAYS = 3`, `ANNUAL_CHARGE_ISSUE_LEAD_DAYS = 30` (slice H). An increase needs at least `PRICE_CHANGE_MIN_NOTICE_DAYS + CHARGE_ISSUE_LEAD_DAYS` (40) days of notice.
+**Constants (defined once):** `CHARGE_ISSUE_LEAD_DAYS = 10`, `PRICE_CHANGE_MIN_NOTICE_DAYS = 30`, `RECOVERY_CHARGE_DUE_DAYS = 7`, grace = 14 days, `TRIAL_DAYS = 14` (ends at the tenant-local midnight closing day 14), `ANCHOR_DAY_MAX = 28`, `PROVISIONING_GRACE_MINUTES = 15`, `PAYMENT_SETTLEMENT_MARGIN_HOURS = 24`, `PAYMENT_PENDING_MARGIN_BUSINESS_DAYS = 3`, `PLAN_CONFIRM_FALLBACK_DAYS = 3`, `ANNUAL_CHARGE_ISSUE_LEAD_DAYS = 30` (slice H). An increase needs at least `PRICE_CHANGE_MIN_NOTICE_DAYS + CHARGE_ISSUE_LEAD_DAYS` (40) days of notice. "Business days" are Monday to Friday of the tenant-local calendar with no holiday calendar (known limitation).
 
 **Invariants:**
 - Items of one feature never overlap in time (DB GIST exclusion); feature dependencies are enforced in the aggregate: adding a feature whose dependency is not active, or removing one another active feature depends on, is rejected; the proposed final selection is validated as one dependency graph; a plan always keeps at least one feature.
@@ -1818,8 +1818,8 @@ Items hold only the *selected plan*. There are **no trial rows** (trial access c
 - All plan changes (additions, removals, tier changes) become effective at the **next paid service-period start**; they never change current-period entitlements and need no proration. `PAST_DUE` and `SUSPENDED` plans are read-only. (The one proration, slice H: an annual subscriber adding a feature mid-year pays a co-terminus `ADDON` charge.)
 - `exempt` is reversible, except for the tenant whose slug is `PLATFORM_OWNER_TENANT_SLUG`; an exempt subscription is never charged, suspended (including by the operator: `suspend` is rejected with `BILLING_EXEMPT_PROTECTED`), purged or emailed about billing. Setting it end-dates the existing default paid items and inserts open-ended ones. Clearing it starts a fresh 14-day first-selection window (`TRIALING`) and replaces the open-ended items with default paid items.
 - `has_ever_paid` alone selects the clean-up delay: **90 days** suspended if the subscription never paid, **180 days** if it paid at least once, regardless of the suspension reason, with warnings at 30 and 7 days (`purge_warning_30/7_sent_at`, cleared on reactivation).
-- Cancel: an `ACTIVE` subscription cancels at the end of its last paid period (`cancelAt`); `PAST_DUE` cancels immediately (`SUSPENDED/CANCELED`); `TRIALING` cancels at trial end when its first invoice is already paid, else immediately. Nothing is refunded.
-- **Reactivation never edits or re-dates the old open charge:** when the sweep suspends for `NON_PAYMENT`/`PAYMENT_REVERSED` it cancels the stale open charge (locally and at the provider) and issues one **recovery charge** (one month, amount fixed at issue from the versions in force on the issue date, lines = the current items). If the provider refuses to cancel because that charge was just paid, the stale charge is the payment and the recovery charge is cancelled. When the recovery charge is paid the subscription becomes `ACTIVE`, `currentPeriodStart` = the payment moment, `anchorDay` = the payment's tenant-local day clamped to 28; the recovery charge keeps its own period NULL.
+- Cancel: an `ACTIVE` subscription cancels at the end of its last paid period (`cancelAt`); `PAST_DUE` cancels immediately (`SUSPENDED/CANCELED`); `TRIALING` cancels at the end of its first paid period when the first invoice is already paid (`cancelAt` = end of the last paid period = the latest `period_end` of a `PAID` `PERIOD` charge), else immediately. Nothing is refunded.
+- **Reactivation never edits or re-dates the old open charge:** when the sweep suspends for `NON_PAYMENT` (or the webhook for `PAYMENT_REVERSED`) it cancels the stale open charge (locally and at the provider) and issues one **recovery charge** (one month, amount fixed at issue from the versions in force on the issue date, lines = the current items). If the provider refuses to cancel because that charge was just paid, the stale charge is the payment and the recovery charge is cancelled. When the recovery charge is paid the subscription becomes `ACTIVE`, `currentPeriodStart` = the payment moment, `anchorDay` = the payment's tenant-local day clamped to 28; the recovery charge keeps its own period NULL.
 
 **Boundary note:** paying a `Charge` may move the `Subscription` back to `ACTIVE` — two aggregates in one use case, in one transaction, with a row lock on the subscription (`findByIdForUpdate`, `docs/LOCK_CATALOG.md`). Status is recomputable (the reconcile job re-derives it), so the invariant does not depend on the transaction alone.
 
@@ -1860,6 +1860,7 @@ Charge {
   paymentReturnSeenAt: DateTime | null
   refundedAmountMinor: bigint
   providerCreationStatus: 'PENDING' | 'READY' | 'FAILED'
+  providerCancelPending: Boolean   -- set before the post-commit provider cancel of a locally cancelled charge, cleared on confirmation; reconcile retries it
 }
 ```
 **Not a child of `Subscription`** (one per period forever = unbounded); paginated by `(tenant_id, due_date DESC)`.
@@ -1873,8 +1874,10 @@ Charge {
 | `PERIOD`/`RECOVERY` | (insert) → `PENDING` | issue job / recovery issue (`providerCreationStatus` `PENDING` → `READY`) |
 | | `PENDING` → `OVERDUE` | status sweep, tenant-local due date passed |
 | | `PENDING`/`OVERDUE` → `PAID` | the first of the provider's paid signals (webhook, reconcile, on-demand refresh) |
-| | `PENDING`/`OVERDUE` → `FAILED` | the provider reports a final non-recoverable failure |
+| | `PENDING`/`OVERDUE` → `FAILED` | the provider reports a final non-recoverable failure — **reserved for slice F (M29, automatic collection): no transition writes it before then** |
 | | `PENDING`/`OVERDUE` → `CANCELED` | plan re-issue, cancel, suspension (stale charge), `exempt` set |
+| | `CANCELED` → `PAID` | **only** a provider-confirmed paid fact (the provider could not cancel it because it had just been paid, UC-114 step 4); never a local event |
+| | `FAILED` → `PAID` | slice F only |
 | | `PAID` → `REFUNDED` / `CHARGEBACK` | full refund / lost dispute (a partial refund only raises `refundedAmountMinor`) |
 
 The provider call is always made **outside** the insert transaction: the charge is inserted `PENDING`, the provider is asked, and only then are the id, link and (US) tax written and `ChargeIssued` raised. The paid signal is method-dependent (Pix `RECEIVED` only; boleto `CONFIRMED` then `RECEIVED`; card `CONFIRMED`, `RECEIVED` ~32 days later): whichever arrives first yields the single paid transition and the later one is a no-op.

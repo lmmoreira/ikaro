@@ -81,7 +81,7 @@
     Grounds UC-133 (Manager Cancels the Subscription). See docs/USE_CASES.md and docs/discovery/tenant-billing/tenant-billing.md.
     COMPONENT: CancelSubscriptionConfirm (GAP) — página de confirmação SEPARADA (como servicos/03b-deactivate-confirm.html); alcançada pelo link de texto "Cancelar assinatura" da aba Resumo da página Assinatura; "Voltar" retorna à aba Resumo — padrão detail-layout de confirmação
     BFF CALL:  POST /v1/billing/cancel
-    Efeito IMEDIATO (período atual não pago: teste sem pagamento ou em atraso; a conta é suspensa na hora). Sem reembolso. Política de limpeza: 180 dias se já pagou, 90 dias se nunca pagou (independente do motivo da suspensão); avisos 30 e 7 dias antes.
+    Efeito IMEDIATO (período atual não pago: teste sem pagamento ou em atraso; a conta é suspensa na hora). Sem reembolso. Política de limpeza: 180 dias se já pagou, 90 dias se nunca pagou (independente do motivo da suspensão); sem promessa de aviso prévio antes do M27.
   -->
 
   <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
@@ -126,8 +126,7 @@
  <p style="font-size:0.9375rem;margin:0;color:var(--ba-text);">Não há valor a reembolsar. <strong>No teste</strong>, nada foi cobrado. <strong>Em atraso</strong>, o período atual está em aberto e não foi pago; períodos anteriores já pagos não são reembolsados.</p></section>
 <section class="section-card" style="background:#f8fafc;"><p class="section-card-title">E os seus dados?</p>
  <ul class="plain"><li>Guardamos tudo por <strong>180 dias</strong> após a suspensão se a conta já pagou alguma vez (conta em atraso), ou por <strong>90 dias</strong> se nunca pagou (teste).</li>
- <li>Depois disso o negócio e todos os dados são <strong>apagados definitivamente</strong>.</li>
- <li>Avisamos por e-mail <strong>30 e 7 dias</strong> antes da exclusão.</li>
+ <li>Depois dessa data, o negócio e os dados <strong>podem ser apagados</strong>.</li>
  <li>Você pode <strong>reativar</strong> quando quiser antes disso, pagando 1 mês.</li>
  <li>Se este for um teste que nunca foi pago, você também pode <a href="10-discard-trial-confirm.html" style="color:#2563eb;">descartar o teste</a>: apaga tudo agora e libera o nome do endereço.</li></ul></section>
 <div class="form-actions"><a href="01b-billing-trial.html" class="btn-secondary">Voltar</a><a href="01e-billing-suspended-canceled.html" class="btn-danger" style="text-decoration:none;text-align:center;">Cancelar assinatura</a></div>

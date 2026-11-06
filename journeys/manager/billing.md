@@ -6,6 +6,8 @@
 **Status:** Draft — not yet shipped (planned Billing milestone; nothing under `contexts/billing` exists yet). Every screen is a ❓ GAP until its story ships.
 
 > Promoted from `docs/discovery/tenant-billing/` via `/discovery-to-milestone`. The permanent *why* (research, decisions, operating model) stays in `docs/discovery/tenant-billing/tenant-billing.md`. The prototype is **illustrative**: prices, dates, tier names and the Ikaro URL are invented (fictional tenants Lavacar BeloAuto — BR — and Sunrise Auto Spa — US). Where a screen and the docs differ, the docs win. The other billing screens — locked features and the suspended experience of staff, customers and the public hotsite (UC-120–UC-125), the self-signup flow (UC-127–UC-131) and the discard / purge screens (UC-132, UC-141, UC-142) — are promoted with their own journeys: locked features (`03`, `03b`) and the discard page (`10`) are in this folder; the staff, customer, public-hotsite and signup screens are in `staff/prototypes/login`, `customer/prototypes/minha-conta`, `guest/prototypes/unpublished-hotsite` and `guest/prototypes/ikaro-trial`.
+>
+> **Retention copy (before M27):** no screen may promise erasure or warnings that do not exist yet. Use "Seus dados são mantidos por pelo menos 90 dias (180 se já houve pagamento); depois dessa data (a partir de {data mais cedo possível}) podem ser apagados"; `summary.purgeAt` is always the earliest possible date. "Falar com a gente" links to the platform-owner tenant's hotsite booking page.
 
 ## Flow
 
@@ -44,7 +46,7 @@ flowchart TD
     Billing -->|"Cancelar assinatura (UC-133)"| CancelConfirm["❓ GAP: separate confirmation page (06)"]:::gap
     CancelConfirm -->|"ACTIVE or paid trial"| Scheduled["Cancelada — acesso até dd/mm (06b)"]
     CancelConfirm -->|"PAST_DUE or unpaid trial: immediate (06d)"| Suspended["Conta suspensa por cancelamento — única página acessível (01e)"]
-    CancelConfirm -->|"paid trial: effective at trial end (06e)"| Scheduled
+    CancelConfirm -->|"paid trial: effective at the end of the first paid period (06e)"| Scheduled
     NonPayment["Conta suspensa por falta de pagamento (01d; payment reversed 01m, by Ikaro 01n)"] -->|"Pagar agora: one-month recovery charge (UC-119)"| Hosted
     Scheduled -->|"Reativar assinatura (UC-134)"| Billing
     Suspended -->|"Reativar assinatura: recovery charge (UC-134)"| Hosted

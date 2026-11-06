@@ -1,5 +1,7 @@
 # Discovery: Tenant Billing — Data Model
 
+> **Superseded by the canonical docs / M25-S07:** the live profile keys are `BRL_ASAAS_LIVE` / `USD_STRIPE_LIVE` (not `BRL_ASAAS_IKARO_BR` / `USD_STRIPE_IKARO_BR`, which appear below as illustrative values); the cron triggers are `cron-billing-*`; the reconcile is one hourly trigger with a daily full pass.
+
 **Promoted 2026-10-29;** canonical home: `docs/USE_CASES.md` (UC-110..145), `docs/DOMAIN_MODEL.md` § Context 7, `docs/DATABASE_SCHEMA.md` § Schema: `billing`, `docs/API_CONTRACTS.md`, `docs/BOUNDED_CONTEXTS.md` § 7 and the plans `plan/M25-TENANT-BILLING-FOUNDATION.md` / `plan/M26-TENANT-BILLING-COLLECTION-LAUNCH.md`. Where this file differs, the docs win.
 
 **Status:** Discovery — sketch at schema level (tables and columns, not DDL). Every table follows CLAUDE.md §2 unless an exemption is stated and justified. Physically a new schema `billing` (schema-per-context, `docs/DATABASE_SCHEMA.md`). PKs are `uuidv7`. Timestamps are `timestamptz` UTC.
@@ -124,6 +126,7 @@ After the manager saves the address: `{"street":"Rua das Flores","number":"120",
 | `currency` | char(3) NOT NULL | fixed at start |
 | `timezone` | text NOT NULL | IANA zone copied from `TenantProvisioned` at creation, **immutable**. Every "tenant-local" value in this schema (`next_due_date`, charge `due_date`/periods, local-midnight period boundaries, the overdue sweep) uses it; Billing never reads Platform settings |
 | `merchant_profile_key` | text NOT NULL | immutable operational key for the selling legal entity/provider-account configuration, e.g. `BRL_ASAAS_IKARO_BR` or `USD_STRIPE_IKARO_BR` in production (the Stripe account is the Brazilian CNPJ's, decision 60) and **`BRL_FAKE`, `USD_FAKE`, `BRL_ASAAS_SANDBOX`, `USD_STRIPE_TEST` outside it**. The environment configuration decides which key new subscriptions receive (main doc §5.3); there is no per-tenant override, and a fake/sandbox key is rejected when `APP_ENV=production`. No KYC/legal-entity fields are duplicated in Ikaro |
+
 | `cycle` | text NOT NULL DEFAULT `'MONTHLY'` | `MONTHLY` in the first schema; `ANNUAL` with slice H. Applies to the whole subscription and every item |
 | `anchor_day` | smallint NOT NULL CHECK (1..28) | avoids the 29–31 problem |
 | `anchor_month` | *slice H* smallint NULL CHECK (1..12) | for an `ANNUAL` subscription the renewal month (period start month); NULL while monthly. Day 29–31 is clamped to 28 as for monthly |

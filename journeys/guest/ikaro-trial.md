@@ -17,8 +17,8 @@ flowchart TD
     Hotsite(["Visitor on Ikaro's hotsite"]) --> Cta["❓ GAP: Hotsite with the trial CTA<br/>(TRIAL_SIGNUP_CTA module) — 01-ikaro-hotsite-cta"]
     Cta -->|"Testar grátis"| Details["❓ GAP: /ikaro-trial — features and price table<br/>BR / US switch — 02-ikaro-trial-details-br, 02b-…-us"]
     Details -.->|"prices loading / failed"| PriceStates["❓ GAP: 02c-…-prices-loading, 02d-…-prices-error<br/>signup stays possible"]
-    Details -->|"Começar teste grátis"| Google["❓ GAP: Turnstile + Google sign-in — 03-signup-google-step"]
-    Google -.->|"Turnstile fails"| TsFail["❓ GAP: 03b-signup-turnstile-failed"]
+    Details -->|"Começar teste grátis"| Google["❓ GAP: Google sign-in — 03-signup-google-step"]
+    Form -.->|"Turnstile fails on submit"| TsFail["❓ GAP: 03b-signup-turnstile-failed (moves to the form step)"]
     Google -.->|"earlier trial of this Google account never paid"| Used["❓ GAP: 03c-signup-trial-already-used<br/>(sign in to the existing account, or discard — UC-141)"]
     Google -->|"identity verified"| Form["❓ GAP: Business data form — 04-signup-form<br/>name, slug (live check), country, CPF/CNPJ (BR), terms"]
     Form -.->|"slug taken / invalid"| Slug["❓ GAP: 04b-signup-slug-taken, 04c-signup-validation-error"]
@@ -39,7 +39,7 @@ flowchart TD
 |---|---|---|---|
 | Ikaro's own hotsite, section with the trial CTA | `TrialSignupCtaModule` (planned 13th module type, platform-owner tenant only) | planned Billing milestone | ❓ Gap |
 | `/ikaro-trial` — details and price table | `IkaroTrialDetailsPage`, `PriceTable` | planned Billing milestone | ❓ Gap |
-| `/ikaro-trial/entrar` — Turnstile and Google | `SignupGoogleStep` | planned Billing milestone | ❓ Gap |
+| `/ikaro-trial/entrar` — Google (no Turnstile; it is verified only on the final submit) | `SignupGoogleStep` | planned Billing milestone | ❓ Gap |
 | `/ikaro-trial/…` — business data form | `SignupForm`, `SlugInput` | planned Billing milestone | ❓ Gap |
 | `/ikaro-trial/conta-criada` — account created | `SignupAccountCreatedPage` | planned Billing milestone | ❓ Gap |
 
@@ -57,6 +57,7 @@ flowchart TD
 
 - [ ] **Routing mechanism:** the public URL `/ikaro-trial` is a rewrite to the owner tenant's `app/[slug]/…` tree so the pages get `--ba-*` branding; the mechanism is decided at story discovery.
 - [ ] **CSP for Turnstile** on the `/ikaro-trial` pages (the same trap as the lead-form page — `docs/ENGINEERING_RULES_FRONTEND.md`); exact wording decided at story discovery.
+- [ ] **Signup closed:** while `FEATURE_FLAG_SIGNUP_ENABLED` is off (production until launch readiness) the signup routes answer `503 SIGNUP_CLOSED` and `/ikaro-trial` shows a "cadastro indisponível" notice (prices and slug check stay readable); a screen is drawn when the prototype is next redrawn.
 - [ ] **Signup session cookie name** and the status of `GET /v1/public/signup/session` / `resend` outside the documented cases: decided at story discovery.
 - [ ] **Discard link on `03c`** points at the discard-confirm screen (`manager/prototypes/billing/10-discard-trial-confirm.html`); until the purge participants ship the screen shows the honest interim message ("contact Ikaro") and an operator runs the offboarding runbook (M17-S51).
 - [ ] **US variant gate:** the United States option (`02b`, `04g`) exists only while `FEATURE_FLAG_SIGNUP_US` is on; with the flag off the country list offers Brasil only and a crafted US request is refused with `US_NOT_AVAILABLE` (`docs/ERROR_CATALOG.md`).
@@ -75,7 +76,7 @@ Folder: `guest/prototypes/ikaro-trial/` — hub: `index.html`. The prototype was
 | `02b-ikaro-trial-details-us.html` | Details and price table, United States | UC-127 / UC-128 | ❓ Draft |
 | `02c-ikaro-trial-prices-loading.html` | Prices loading (skeleton) | UC-128 A1 | ❓ Draft |
 | `02d-ikaro-trial-prices-error.html` | Prices failed to load (signup still possible) | UC-128 A1 | ❓ Draft |
-| `03-signup-google-step.html` | Turnstile + Google sign-in | UC-127 | ❓ Draft |
+| `03-signup-google-step.html` | Google sign-in (the draft still shows a Turnstile widget; canonical placement is the form step) | UC-127 | ❓ Draft |
 | `03b-signup-turnstile-failed.html` | Turnstile failed | UC-127 A2 | ❓ Draft |
 | `03c-signup-trial-already-used.html` | Trial already used by this Google account | UC-127 A3 | ❓ Draft |
 | `04-signup-form.html` | Business data form | UC-127 | ❓ Draft |
