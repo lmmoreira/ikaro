@@ -424,8 +424,11 @@ jobs:
           # compose database the migrations ran against, as the migrator role.
           PLAYWRIGHT_DB_URL: 'postgres://ikaro_migrator:ikaro_migrator@localhost:5432/ikaro'
 
+      # Report and traces are kept whenever the leg was not cancelled, not only on failure: a test
+      # that fails once and passes on retry leaves its trace here and nowhere else, and a green leg
+      # would otherwise throw it away. Server logs stay failure-only (they are large).
       - name: Upload Playwright report
-        if: failure()
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: playwright-report-${{ matrix.shard }}
@@ -433,7 +436,7 @@ jobs:
           retention-days: 1
 
       - name: Upload Playwright traces
-        if: failure()
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: playwright-traces-${{ matrix.shard }}

@@ -14,7 +14,8 @@ test.describe('select staff tenant', () => {
 
     await page.getByTestId('staff-tenant-option').click();
 
-    await expect(page).toHaveURL('/dashboard');
+    // `/dashboard` redirects straight to the bookings queue, so the landing page is what settles.
+    await expect(page).toHaveURL('/dashboard/bookings');
   });
 
   test('keeps the list and shows the failure when the switch is refused', async ({ page }) => {
