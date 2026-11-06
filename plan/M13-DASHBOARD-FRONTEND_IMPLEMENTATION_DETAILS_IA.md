@@ -222,7 +222,7 @@ Both loyalty amounts and staff status follow the same principle — a value that
 ## Gotchas
 
 1. **`BottomNav`'s hide-list is for drill-downs only** — a new top-level `/dashboard/<section>` must NOT be added to it unless it has its own topbar back arrow, or mobile users get stranded with no way to reach any other section (the exact M13-S37 post-merge bug).
-2. **Dialog centering requires `showModal()`, not the plain `open` attribute** — if a new action sheet renders top-left/unstyled, that's the first thing to check.
+2. **Dashboard and account modals are Radix `ui/dialog`, not a native `<dialog>`** (superseded by TD58-S04; see the action-sheet pattern above). A new action sheet goes through `BookingActionSheetShell` and needs no `showModal()`. The old trap — a native `<dialog>` that renders top-left/unstyled because it was opened with the plain `open` attribute instead of `showModal()` — now applies only to a dialog that is still native (the branded hotsite lightbox, `GalleryGrid`).
 3. **Never compute `cancellableUntil`/`conversionRate`/`pointsEarned` in the BFF** — always read from the backend aggregate or `RequestContext.settings`. Every attempt to do this in the BFF either 403'd for CUSTOMER callers (hit a STAFF/MANAGER-only endpoint) or silently drifted from history.
 4. **`/tenants/settings` (`GET`) is STAFF/MANAGER-guarded** — no BFF code path reachable by a CUSTOMER-forwarded request may call it, even transitively via `Promise.all` enrichment.
 5. **Staff `status` must check `googleOAuthId` before `isActive`** — `Staff.invite()` provisions `isActive=true` from creation (a S13 security fix); checking `isActive` first misclassifies every fresh invite as `ACTIVE`.
