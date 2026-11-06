@@ -1,5 +1,8 @@
 'use client';
 
+import { Checkbox } from '@/shared/components/ui/checkbox';
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
 import { useTranslations } from 'next-intl';
 import { MAX_RECURRING_HORIZON_DAYS, MIN_RECURRING_HORIZON_DAYS } from '@ikaro/types';
 import type { RecurrenceBlocker } from '@/features/booking/model/recurrence-shape';
@@ -35,8 +38,7 @@ export function PolicyWhoHowCard({
       <CardContent className="space-y-2 p-5">
         <h2 className="text-sm font-semibold text-gray-900">{t('politicasWhoHowCardTitle')}</h2>
         <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
+          <Checkbox
             data-testid="policy-recurrence-eligible"
             checked={policy.recurrenceEligible}
             onChange={(event) => onPatch({ recurrenceEligible: event.target.checked })}
@@ -57,13 +59,10 @@ export function PolicyWhoHowCard({
           </p>
         )}
         <div className="ml-6 pb-1">
-          <label
-            htmlFor="policy-recurring-horizon"
-            className="mb-1 block text-xs font-semibold text-gray-500"
-          >
+          <Label htmlFor="policy-recurring-horizon" className="mb-1 text-xs text-gray-500">
             {t('politicasHorizonLabel')}
-          </label>
-          <input
+          </Label>
+          <Input
             id="policy-recurring-horizon"
             type="number"
             min={MIN_RECURRING_HORIZON_DAYS}
@@ -82,7 +81,7 @@ export function PolicyWhoHowCard({
             onChange={(event) =>
               onPatch({ recurringHorizonDays: parseNullableNumber(event.target.value) })
             }
-            className="w-40 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
+            className="w-40 disabled:bg-gray-50 disabled:text-gray-400"
           />
           <p id="policy-recurring-horizon-hint" className="mt-1 text-xs text-gray-500">
             {t('politicasHorizonHint')}
@@ -100,8 +99,7 @@ export function PolicyWhoHowCard({
           )}
         </div>
         <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
+          <Checkbox
             data-testid="policy-availability-alert-eligible"
             checked={policy.availabilityAlertEligible}
             onChange={(event) => onPatch({ availabilityAlertEligible: event.target.checked })}

@@ -1,5 +1,7 @@
 'use client';
 
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
 import { useEffect, useState, type SubmitEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -12,9 +14,6 @@ import { useResourceFormSupport } from './use-resource-form-support';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { FormActionPane } from '@/shared/components/ui/form-action-pane';
-
-const INPUT_CLASS =
-  'w-full rounded-md border border-border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 aria-[invalid=true]:border-red-500 aria-[invalid=true]:bg-red-50';
 
 export function ResourceCreateForm(): React.JSX.Element {
   const t = useTranslations('dashboard.resourcesPage');
@@ -108,31 +107,25 @@ export function ResourceCreateForm(): React.JSX.Element {
             />
 
             <div>
-              <label className="mb-1.5 block text-sm font-semibold text-gray-900">
-                {t('turnoverLabel')}
-              </label>
-              <input
+              <Label>{t('turnoverLabel')}</Label>
+              <Input
                 type="number"
                 min={0}
                 value={turnoverMinutes}
                 onChange={(event) => edit(setTurnoverMinutes)(event.target.value)}
-                className={INPUT_CLASS}
               />
               <p className="mt-1.5 text-sm text-gray-500">{t('turnoverHint')}</p>
             </div>
 
             {type !== 'STAFF' && (
               <div>
-                <label className="mb-1.5 block text-sm font-semibold text-gray-900">
-                  {t('maxCapacityLabel')}
-                </label>
-                <input
+                <Label>{t('maxCapacityLabel')}</Label>
+                <Input
                   data-testid="resource-max-capacity-input"
                   type="number"
                   min={1}
                   value={maxCapacity}
                   onChange={(event) => edit(setMaxCapacity)(event.target.value)}
-                  className={INPUT_CLASS}
                 />
                 <p className="mt-1.5 text-sm text-gray-500">{t('maxCapacityHint')}</p>
               </div>

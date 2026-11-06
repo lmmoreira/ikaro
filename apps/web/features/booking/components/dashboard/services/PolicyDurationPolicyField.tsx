@@ -1,5 +1,7 @@
 'use client';
 
+import { Label } from '@/shared/components/ui/label';
+import { NativeSelect } from '@/shared/components/ui/native-select';
 import { useTranslations } from 'next-intl';
 import type { ServiceBookingPolicyItem } from '@ikaro/types';
 import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
@@ -28,13 +30,10 @@ export function PolicyDurationPolicyField({
 
   return (
     <div>
-      <label
-        htmlFor="policy-duration-policy"
-        className="mb-1 block text-sm font-semibold text-gray-900"
-      >
+      <Label htmlFor="policy-duration-policy" className="mb-1">
         {t('politicasDurationPolicyLabel')}
-      </label>
-      <select
+      </Label>
+      <NativeSelect
         id="policy-duration-policy"
         data-testid="policy-duration-policy"
         value={policy.durationPolicy}
@@ -53,16 +52,13 @@ export function PolicyDurationPolicyField({
           );
         }}
         {...fields.fieldProps('durationPolicy')}
-        className={cn(
-          'w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500',
-          message && FIELD_INVALID_CLASS,
-        )}
+        className={cn(message && FIELD_INVALID_CLASS)}
       >
         <option value="FIXED">{t('politicasDurationPolicyFixed')}</option>
         <option value="CUSTOMER_SELECTED" disabled={hasLegs}>
           {t('politicasDurationPolicyCustomer')}
         </option>
-      </select>
+      </NativeSelect>
       <FieldFeedback id={fields.fieldErrorId('durationPolicy')}>{message}</FieldFeedback>
       <p className="mt-1 text-xs text-gray-500">
         {hasLegs ? t('politicasDurationPolicyLegsHint') : t('politicasDurationPolicyHint')}

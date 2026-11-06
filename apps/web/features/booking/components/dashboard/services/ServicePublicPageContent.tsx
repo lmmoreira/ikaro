@@ -1,5 +1,7 @@
 'use client';
 
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { SERVICE_PUBLIC_PROFILE_LIMITS } from '@ikaro/types';
@@ -105,7 +107,7 @@ export function ServicePublicPageContent({
         <ul className="space-y-2">
           {inclusions.map((item, index) => (
             <li key={item.id} className="flex gap-2">
-              <input
+              <Input
                 type="text"
                 data-testid="public-page-inclusion"
                 aria-label={t('publicPageInclusionItemLabel', { index: index + 1 })}
@@ -145,12 +147,7 @@ export function ServicePublicPageContent({
       </div>
 
       <div>
-        <label
-          htmlFor="service-page-preparation"
-          className="mb-1.5 block text-sm font-semibold text-gray-900"
-        >
-          {t('publicPagePreparationLabel')}
-        </label>
+        <Label htmlFor="service-page-preparation">{t('publicPagePreparationLabel')}</Label>
         <Textarea
           id="service-page-preparation"
           data-testid="public-page-preparation"

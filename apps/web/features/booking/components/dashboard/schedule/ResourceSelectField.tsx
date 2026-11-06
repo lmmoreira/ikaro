@@ -1,5 +1,6 @@
 'use client';
 
+import { NativeSelect } from '@/shared/components/ui/native-select';
 import { useTranslations } from 'next-intl';
 import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
@@ -33,17 +34,14 @@ export function ResourceSelectField({
     <div className="space-y-1">
       <label className="block space-y-2">
         <span className="block text-sm font-medium text-gray-700">{t('resourcePickerLabel')}</span>
-        <select
+        <NativeSelect
           data-testid="resource-select-field"
           value={value ?? ALL_BUSINESS_VALUE}
           onChange={(event) => onValueChange(event.target.value || null)}
           disabled={isLoading || isError}
           aria-invalid={isError ? true : undefined}
           aria-describedby={isError ? 'resource-select-field-error' : undefined}
-          className={cn(
-            'w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60',
-            isError && FIELD_INVALID_CLASS,
-          )}
+          className={cn(isError && FIELD_INVALID_CLASS)}
         >
           <option value={ALL_BUSINESS_VALUE}>
             {isLoading ? commonT('loading') : t('resourcePickerAllBusiness')}
@@ -53,7 +51,7 @@ export function ResourceSelectField({
               {resource.name}
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </label>
       {isError && (
         <div data-testid="resource-select-field-error">

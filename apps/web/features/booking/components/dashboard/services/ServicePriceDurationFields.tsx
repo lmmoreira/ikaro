@@ -1,5 +1,7 @@
 'use client';
 
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
 import { useTranslations } from 'next-intl';
 import { AlertTriangle } from 'lucide-react';
 import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
@@ -42,14 +44,12 @@ export function ServicePriceDurationFields({
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <div>
-        <label htmlFor="service-price" className="mb-1.5 block text-sm font-semibold text-gray-900">
-          {t('createPriceLabel')}
-        </label>
+        <Label htmlFor="service-price">{t('createPriceLabel')}</Label>
         <div className="relative">
           <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-gray-500">
             {currencySymbol}
           </span>
-          <input
+          <Input
             id="service-price"
             data-testid="service-price-input"
             type="number"
@@ -80,14 +80,9 @@ export function ServicePriceDurationFields({
       </div>
 
       <div>
-        <label
-          htmlFor="service-duration"
-          className="mb-1.5 block text-sm font-semibold text-gray-900"
-        >
-          {t('createDurationLabel')}
-        </label>
+        <Label htmlFor="service-duration">{t('createDurationLabel')}</Label>
         <div className="relative">
-          <input
+          <Input
             id="service-duration"
             data-testid="service-duration-input"
             type="number"

@@ -1,5 +1,6 @@
 'use client';
 
+import { Input } from '@/shared/components/ui/input';
 import { useTranslations } from 'next-intl';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
@@ -40,7 +41,7 @@ export function ServiceBufferAfterMinutesField({
         <h2 className="text-sm font-semibold text-gray-900">
           <label htmlFor="resource-buffer-input">{t('recursosBufferLabel')}</label>
         </h2>
-        <input
+        <Input
           id="resource-buffer-input"
           type="number"
           min={0}
@@ -55,7 +56,7 @@ export function ServiceBufferAfterMinutesField({
           aria-describedby={invalid ? 'resource-buffer-invalid' : undefined}
           onChange={(event) => onChange(event.target.value)}
           className={cn(
-            'w-48 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-gray-400',
+            'w-48 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-gray-400',
             invalid && FIELD_INVALID_CLASS,
           )}
         />

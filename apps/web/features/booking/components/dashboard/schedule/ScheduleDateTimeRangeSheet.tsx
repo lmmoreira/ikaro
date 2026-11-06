@@ -1,5 +1,6 @@
 'use client';
 
+import { Textarea } from '@/shared/components/ui/textarea';
 import { useEffect, useMemo, useState, type ReactNode, type SubmitEvent } from 'react';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
@@ -189,12 +190,11 @@ export function ScheduleDateTimeRangeSheet<TBody, TResponse>({
 
         <label className="block space-y-2">
           <span className="block text-sm font-medium text-gray-700">{notesLabel}</span>
-          <textarea
+          <Textarea
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
             maxLength={200}
             rows={4}
-            className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
           />
         </label>
       </div>

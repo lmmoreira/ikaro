@@ -1,13 +1,13 @@
 'use client';
 
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
+import { NativeSelect } from '@/shared/components/ui/native-select';
 import { useTranslations } from 'next-intl';
 import type { ResourceStaffOptionItem, ResourceType } from '@ikaro/types';
 import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
 import type { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import { cn } from '@/shared/utils/cn';
-
-const INPUT_CLASS =
-  'w-full rounded-md border border-border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 aria-[invalid=true]:border-red-500 aria-[invalid=true]:bg-red-50';
 
 const EDITABLE_TYPES: readonly Exclude<ResourceType, 'LOCATION'>[] = ['STAFF', 'ROOM', 'EQUIPMENT'];
 
@@ -60,9 +60,7 @@ export function ResourceIdentityFields({
     <>
       {showTypePicker && (
         <div>
-          <label className="mb-1.5 block text-sm font-semibold text-gray-900">
-            {t('typeLabel')}
-          </label>
+          <Label>{t('typeLabel')}</Label>
           <div className="grid grid-cols-3 gap-3">
             {EDITABLE_TYPES.map((option) => (
               <button
@@ -88,10 +86,8 @@ export function ResourceIdentityFields({
       {type === 'STAFF' ? (
         <>
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-gray-900">
-              {t('staffLabel')}
-            </label>
-            <select
+            <Label>{t('staffLabel')}</Label>
+            <NativeSelect
               data-testid="resource-identity-staff-select"
               value={refId}
               onChange={(event) => {
@@ -104,7 +100,7 @@ export function ResourceIdentityFields({
                 if (picked) onNameChange(picked.name ?? '');
               }}
               {...fieldProps('refId')}
-              className={cn(INPUT_CLASS, fieldErrors.refId && FIELD_INVALID_CLASS)}
+              className={cn(fieldErrors.refId && FIELD_INVALID_CLASS)}
             >
               <option value="">{t('staffPlaceholder')}</option>
               {selectableStaffOptions.map((staff) => (
@@ -117,40 +113,36 @@ export function ResourceIdentityFields({
                   {staff.isWrapped ? ` — ${t('staffAlreadyResource')}` : ''}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
             <p className="mt-1.5 text-sm text-gray-500">{t('staffHint')}</p>
             <FieldFeedback id={fieldErrorId('refId')}>{fieldErrors.refId}</FieldFeedback>
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-gray-900">
-              {t('staffNameLabel')}
-            </label>
-            <input
+            <Label>{t('staffNameLabel')}</Label>
+            <Input
               data-testid="resource-identity-name-input"
               type="text"
               value={name}
               onChange={(event) => onNameChange(event.target.value)}
               placeholder={t('staffNamePlaceholder')}
               {...fieldProps('name')}
-              className={cn(INPUT_CLASS, fieldErrors.name && FIELD_INVALID_CLASS)}
+              className={cn(fieldErrors.name && FIELD_INVALID_CLASS)}
             />
             <FieldFeedback id={fieldErrorId('name')}>{fieldErrors.name}</FieldFeedback>
           </div>
         </>
       ) : (
         <div>
-          <label className="mb-1.5 block text-sm font-semibold text-gray-900">
-            {type === 'ROOM' ? t('roomNameLabel') : t('equipmentNameLabel')}
-          </label>
-          <input
+          <Label>{type === 'ROOM' ? t('roomNameLabel') : t('equipmentNameLabel')}</Label>
+          <Input
             data-testid="resource-identity-name-input"
             type="text"
             value={name}
             onChange={(event) => onNameChange(event.target.value)}
             placeholder={type === 'ROOM' ? t('roomNamePlaceholder') : t('equipmentNamePlaceholder')}
             {...fieldProps('name')}
-            className={cn(INPUT_CLASS, fieldErrors.name && FIELD_INVALID_CLASS)}
+            className={cn(fieldErrors.name && FIELD_INVALID_CLASS)}
           />
           <p className="mt-1.5 text-sm text-gray-500">
             {type === 'ROOM' ? t('roomNameHint') : t('equipmentNameHint')}

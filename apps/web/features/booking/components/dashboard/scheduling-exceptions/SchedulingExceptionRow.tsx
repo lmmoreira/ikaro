@@ -1,5 +1,6 @@
 'use client';
 
+import { Checkbox } from '@/shared/components/ui/checkbox';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import type { SchedulingExceptionBookingSummary, SchedulingExceptionItem } from '@ikaro/types';
@@ -184,8 +185,7 @@ export function SchedulingExceptionRow({
   const interactive = outcome?.kind !== 'resolved';
   const checkbox =
     onToggleSelected && interactive ? (
-      <input
-        type="checkbox"
+      <Checkbox
         checked={selected}
         onChange={() => onToggleSelected(item.id)}
         aria-label={t('selectEntryAria', { name: booking.contactName })}

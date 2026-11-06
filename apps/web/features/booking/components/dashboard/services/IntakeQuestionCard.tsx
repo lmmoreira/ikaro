@@ -1,5 +1,9 @@
 'use client';
 
+import { Checkbox } from '@/shared/components/ui/checkbox';
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
+import { NativeSelect } from '@/shared/components/ui/native-select';
 import { useTranslations } from 'next-intl';
 import type { ServiceIntakeQuestionType } from '@ikaro/types';
 import { FIELD_INVALID_CLASS } from '@/shared/components/ui/field-feedback';
@@ -97,10 +101,10 @@ export function IntakeQuestionCard({
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label htmlFor={labelId} className="mb-1 block text-xs font-semibold text-gray-500">
+          <Label htmlFor={labelId} className="mb-1 text-xs text-gray-500">
             {t('formularioQuestionLabelLabel')}
-          </label>
-          <input
+          </Label>
+          <Input
             id={labelId}
             data-testid="intake-question-label"
             data-question-index={index}
@@ -109,10 +113,7 @@ export function IntakeQuestionCard({
             maxLength={500}
             aria-invalid={labelInvalid || undefined}
             aria-describedby={labelInvalid ? labelMessageIds.join(' ') : undefined}
-            className={cn(
-              'w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500',
-              labelInvalid && FIELD_INVALID_CLASS,
-            )}
+            className={cn(labelInvalid && FIELD_INVALID_CLASS)}
           />
           <p
             data-testid="intake-question-fieldkey"
@@ -123,27 +124,25 @@ export function IntakeQuestionCard({
           </p>
         </div>
         <div>
-          <label htmlFor={typeId} className="mb-1 block text-xs font-semibold text-gray-500">
+          <Label htmlFor={typeId} className="mb-1 text-xs text-gray-500">
             {t('formularioQuestionTypeLabel')}
-          </label>
-          <select
+          </Label>
+          <NativeSelect
             id={typeId}
             data-testid="intake-question-type"
             data-question-index={index}
             value={question.type}
             onChange={(event) => onChangeType(event.target.value as ServiceIntakeQuestionType)}
-            className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
           >
             <option value="FREE_TEXT">{t('formularioQuestionTypeFreeText')}</option>
             <option value="BOOLEAN">{t('formularioQuestionTypeBoolean')}</option>
-          </select>
+          </NativeSelect>
         </div>
       </div>
 
       <div className="mt-3 flex items-center gap-2 text-sm">
-        <input
+        <Checkbox
           id={requiredId}
-          type="checkbox"
           data-testid="intake-question-required"
           data-question-index={index}
           checked={question.required}

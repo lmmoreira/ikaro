@@ -1,5 +1,6 @@
 'use client';
 
+import { Textarea } from '@/shared/components/ui/textarea';
 import { useTranslations } from 'next-intl';
 import { Card, CardContent } from '@/shared/components/ui/card';
 
@@ -22,12 +23,11 @@ export function RescheduleNotesCard({
           <p className="mb-3 text-sm font-semibold text-gray-900">{t('notesSection')}</p>
           <label className="block">
             <span className="mb-2 block text-sm font-medium text-gray-700">{t('notesLabel')}</span>
-            <textarea
+            <Textarea
               value={value}
               onChange={(event) => onChange(event.target.value)}
               rows={4}
               maxLength={500}
-              className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-none ring-0 placeholder:text-gray-400 focus:border-blue-500"
               placeholder={t('rescheduleNotesPlaceholder')}
             />
           </label>
