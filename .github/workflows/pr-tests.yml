@@ -215,8 +215,9 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.app == 'true'
     runs-on: ubuntu-latest
-    # 35: the suite is 445 tests and takes 20-21 minutes of Playwright on a CI runner after about
-    # 2 minutes of setup; the slowest healthy run seen in 40 was 26.7 minutes. The cap went 20 -> 30
+    # 35: the suite is 321 tests and takes 14-17 minutes of Playwright on a CI runner after about
+    # 2 minutes of setup (445 tests and 20-21 minutes before the TD59-S01 trim; the slowest healthy
+    # run seen in the 40 before it was 26.7 minutes). The cap went 20 -> 30
     # -> 45 as the suite grew, but the one run that actually hit 30 (2026-11-05) lost 9.5 minutes in
     # the browser install, not in the tests (TD59). That step is now bounded on its own, so the cap
     # is back to real headroom over a healthy run (docs/CI_TRAPS.md).
