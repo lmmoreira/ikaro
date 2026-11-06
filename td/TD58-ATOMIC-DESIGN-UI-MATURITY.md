@@ -290,27 +290,39 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 **Dependencies:** none
 **Pattern:** shadcn/Radix wrapper primitive (Dialog, Tabs), ported from the upstream reference source
 
-**Description:** Five tab bars and two modals are hand-built. Add `ui/tabs` (Radix Tabs, shadcn wrapper) and `ui/dialog` (Radix Dialog; `ui/alert-dialog` already exists and stays for confirmations). **Fetch the current shadcn/Radix reference source and port it wholesale** — never reconstruct from memory (Procedure item 3). Adopt `ui/tabs` in the five tablists, preserving their roles, ARIA wiring, keyboard behaviour and existing test queries. Adopt `ui/dialog` in `BookingActionSheetShell` (10 consumers) and `IntakeVersionModal` **only if** the shell's mobile bottom-sheet behaviour, backdrop semantics (including `IntakeVersionModal`'s documented Sonar S6819 rationale) and focus handling are preserved; otherwise keep the hand-rolled shell and record the reason — a partial adoption with a documented deviation is acceptable, a regression is not. `BookingActionSheetShell` stays in `booking` (it is a booking molecule built on the new `ui/dialog`).
+**Description:** Five tab bars and two modals are hand-built. Add `ui/tabs` (Radix Tabs, shadcn wrapper) and `ui/dialog` (Radix Dialog; `ui/alert-dialog` already exists and stays for confirmations). **Fetch the current shadcn/Radix reference source and port it wholesale** — never reconstruct from memory (Procedure item 3).
 
-New migration / i18n keys / env vars / feature flags: none (adds the Radix packages to `apps/web/package.json` only if not already present — config-file change, needs the explicit yes at implementation time). Backend HTTP surface: none.
+**Locked in discovery (2026-11-06):**
+- **Full dialog adoption.** `BookingActionSheetShell` is rebuilt on `ui/dialog` and its props change from `dialogRef` to `open` + `onClose` (state-driven Radix Dialog, portal, no ref). Its sheets stop calling `useModalDialog` and pass `open`: `NoShowSheet`, `CorrectNoShowSheet`, `RejectBookingSheet`, `RequestInfoSheet`, `RecurringDecisionSheet`, `AdminCancelBookingSheet`, `ReassignSheet`, `CancelSheet`, `ScheduleDateTimeRangeSheet`, `ScheduleRemovalDialog` (with `use-confirm-removal.ts`), plus `IntakeVersionModal`. Once nothing uses it, `features/booking/hooks/use-modal-dialog.ts` and its spec are deleted. The shell keeps the mobile bottom-sheet layout (`items-end` on mobile, centred from `sm`), the `bg-black/40` backdrop and click-to-close. `BookingActionSheetShell` stays in `booking`.
+- **`IntakeVersionModal`** keeps its `data-testid`s (`intake-version-modal`, `-backdrop`, `-close`) and the click-to-close backdrop; the Sonar S6819 concern is moot once the hand-built `<dialog>`/backdrop button is replaced by the Radix overlay, but the backdrop test id must survive.
+- **`ui/tabs`** exposes `Tabs`/`TabsList`/`TabsTrigger`/`TabsContent` with one `variant` on `TabsList`: `underline` (the three underline bars) and `segmented` (`CustomerChooserStep`; `ServicePublicPageContent`'s pill toggle moves to it, a small visual change to confirm in the browser). `ServiceEditTabBar` keeps its dirty dot and its `overflow-x-auto overflow-y-hidden` handling through `className`.
+- **Panels.** The two service-edit sites (`ServiceEditPage`, `ServiceEditConfigTabPanels`) keep all five panels mounted-but-hidden through `TabsContent` with `forceMount` + `hidden`, so a tab switch never drops unsaved drafts. Existing ids (`service-edit-tab-*`, `service-edit-tabpanel-*`, `hotsite-tab-*`, `loyalty-tab-*`) are preserved through id props. Sites with no panel wiring today (`ServicePublicPageContent`, `CustomerChooserStep`) override `aria-controls` so no trigger points at a missing element (axe `aria-valid-attr-value`).
+- **Behaviour change, accepted:** the hand-rolled bars had no arrow-key or roving-tabindex handling; Radix adds arrow keys, Home/End and roving focus.
+
+New migration / i18n keys / env vars / feature flags: none. Adds `@radix-ui/react-tabs` and `@radix-ui/react-dialog` to `apps/web/package.json` and the lockfile (config-file change; the explicit yes was given in discovery). Backend HTTP surface: none.
+
+**UI reuse inventory:** dialog and tabs have no existing primitive, so both are ported (never one-off in a feature). Real usages to copy for style: `ui/alert-dialog.tsx` (Radix wrapper shape, overlay `z-[70]`), `ui/popover.tsx`. Confirmations stay on `ui/alert-dialog`.
 
 **Files to create/modify:**
 - `apps/web/shared/components/ui/tabs.tsx` + `tabs.spec.tsx`; `dialog.tsx` + `dialog.spec.tsx` (new)
-- Tablist sites (modify): `features/booking/components/dashboard/services/{ServiceEditTabBar,ServicePublicPageContent}.tsx`, `features/platform/components/hotsite/HotsiteEditorMainView.tsx`, `features/booking/components/dashboard/bookings/CustomerChooserStep.tsx`, `features/customer/components/my-account/LoyaltyPage.tsx`
-- Dialog sites (modify, conditional): `features/booking/components/dashboard/bookings/BookingActionSheetShell.tsx`, `features/booking/components/dashboard/services/IntakeVersionModal.tsx`
-- `apps/web/package.json` (only if a Radix package is missing — explicit yes required)
-- `docs/ENGINEERING_RULES_FRONTEND.md` (table rows — doc gate)
+- Tablist sites (modify): `features/booking/components/dashboard/services/{ServiceEditTabBar,ServicePublicPageContent,ServiceEditPage,ServiceEditConfigTabPanels}.tsx`, `features/platform/components/hotsite/HotsiteEditorMainView.tsx`, `features/booking/components/dashboard/bookings/CustomerChooserStep.tsx`, `features/customer/components/my-account/LoyaltyPage.tsx` (+ `LoyaltyEntriesPanel`/`LoyaltyRedemptionsPanel` if panel ids move)
+- Dialog sites (modify): `features/booking/components/dashboard/bookings/{BookingActionSheetShell,NoShowSheet,CorrectNoShowSheet,RejectBookingSheet,RequestInfoSheet,RecurringDecisionSheet,AdminCancelBookingSheet}.tsx` and their specs; `.../scheduling-exceptions/{ReassignSheet,CancelSheet}.tsx`; `.../schedule/{ScheduleDateTimeRangeSheet,ScheduleRemovalDialog,use-confirm-removal}.ts(x)`; `.../services/IntakeVersionModal.tsx`
+- Delete: `features/booking/hooks/use-modal-dialog.ts` + `.spec.tsx` (after a final grep shows no user left; `shells/hotsite/components/GalleryGrid.tsx` uses a native `<dialog>` of its own and is out of scope, branded hotsite)
+- `apps/web/package.json` + `pnpm-lock.yaml`
+- `docs/ENGINEERING_RULES_FRONTEND.md` (table rows for `ui/dialog`, `ui/tabs`; the dialog row notes `ui/alert-dialog` for confirmations)
 
 **Acceptance criteria — product:**
-- [ ] All five tab bars switch with mouse, touch and arrow keys exactly as before; every action sheet opens, traps focus, closes on Escape and returns focus.
+- [ ] All five tab bars switch with mouse, touch and keyboard (arrow keys, Home/End), keep their look (the pill toggle becomes the segmented look), and the service-edit tabs keep unsaved drafts across switches.
+- [ ] Every action sheet and `IntakeVersionModal` opens, traps focus, closes on Escape, backdrop click and Cancel, returns focus to the opener, and keeps the mobile bottom-sheet layout.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] `tabs.spec.tsx` and `dialog.spec.tsx`: roles, controlled/uncontrolled, keyboard, focus return, Escape; axe check passes
-  - [ ] Existing specs of the 5 tablist files and the 10 sheet consumers pass unchanged
-- E2E:
-  - [ ] Existing Playwright coverage of the booking action sheets and service-edit tabs passes (run in the story's worktree via `pnpm infra:e2e` after asking per `CLAUDE.md` §0)
-- [ ] A deviation (a shell kept hand-rolled) is recorded in the PR with the reason, never silent
+  - [ ] `tabs.spec.tsx` and `dialog.spec.tsx`: roles, controlled/uncontrolled, keyboard (arrows, Home/End), focus return, Escape, `forceMount` keeps content mounted; axe check passes
+  - [ ] `BookingActionSheetShell.spec.tsx` rewritten for `open`/`onClose`; the 10 sheet specs and the 5 tablist specs pass with only the mechanical changes the new props require (queries by role and name unchanged)
+  - [ ] Negative guarantee: a service-edit tab switch does not unmount a dirty panel (pinned by a test)
+- E2E (run in the story's worktree via `pnpm infra:e2e` after the user's yes, given in discovery; stop with `pnpm infra:e2e:down`):
+  - [ ] Existing Playwright coverage of the booking action sheets, service-edit tabs, hotsite editor tabs, loyalty tabs and the customer chooser passes; `getByRole('tab', { name })` queries unchanged
+- [ ] `use-modal-dialog.ts` deleted with no remaining importer
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
