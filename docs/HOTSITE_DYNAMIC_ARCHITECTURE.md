@@ -47,11 +47,11 @@ The `layout` array is **ordered and fully controlled by the admin**. The admin c
 
 > **Scope boundary — read this before writing any component that uses colour.**
 >
-> `--ba-*` CSS custom properties are **hotsite-only**. They are injected by `applyBranding()` inside `app/[slug]/layout.tsx` and are valid exclusively within the `/[slug]/` route subtree — public hotsite pages and all hotsite module components (`shells/hotsite/components/**`).
+> `--ba-*` CSS custom properties are **hotsite-only**. They are injected by `applyBranding()` on a wrapper element and are valid only inside it: `app/[slug]/layout.tsx` for the `/[slug]/` route subtree (public hotsite pages and all hotsite module components, `shells/hotsite/components/**`), and the tenant-switch page's own wrapper for the tenant-branded customer flows named in `docs/ENGINEERING_RULES_FRONTEND.md` § The `--ba-*` exception.
 >
-> They are **never** available in:
-> - The staff dashboard (`app/dashboard/**`, `shells/dashboard/components/**`)
-> - The customer logged-in area (`app/[slug]/my-account/**`, `features/customer/components/**`)
+> They are **never** used in:
+> - The staff dashboard (`app/dashboard/**`, `shells/dashboard/components/**`), where no wrapper defines them
+> - The customer logged-in area (`app/[slug]/my-account/**`, `features/customer/components/**`), apart from the three tenant-branded files in that exception section; `my-account` sits inside the hotsite wrapper and so inherits the variables, but its shell stays on the fixed palette
 >
 > Both of those shells belong to the **SaaS product** whose colours are fixed and not per-tenant — they use Tailwind utility classes and shadcn/ui design tokens (`--primary`, `--secondary`, etc.), not the hotsite branding palette. When in doubt: if a component is visible to a logged-in staff member or inside a protected shell, it does not use `--ba-*`.
 
@@ -755,7 +755,7 @@ This differs from the **unknown-slug** case (`app/not-found.tsx`, root-level, M1
 
 ### The `/ikaro-trial` pages (planned with Billing)
 
-> **PLANNED, NOT YET BUILT** (UC-127, UC-128, UC-131). The public trial pages are served at `/ikaro-trial` and are **branded as the Ikaro tenant**: they take the platform-owner tenant's hotsite branding through the same `applyBranding()` path as any tenant page, so they look like Ikaro's own hotsite. Because `--ba-*` tokens exist only under the hotsite tree, the pages are implemented inside it (under `app/[slug]/…`, for the owner slug only; any other slug gets `notFound()`), and the public URL `/ikaro-trial` is a Next.js rewrite to `/{PLATFORM_OWNER_TENANT_SLUG}/ikaro-trial/*`; the rewrite mechanism is decided at story discovery. They are **independent of `isPublished`**: if the owner tenant's hotsite is unpublished they still render, because they only need the branding from the manifest (the owner tenant is `exempt` and cannot be suspended). The Turnstile widget needs the same CSP allowance as the lead-form page, scoped to every page a visitor could soft-navigate from, because the CTA reaches `/ikaro-trial` through a `next/link` and CSP is only re-read on a fresh top-level navigation (`docs/ENGINEERING_RULES_FRONTEND.md` § CSP allowances for a new external UI resource); the exact wording is decided at story discovery. The module that links to these pages is § TRIAL_SIGNUP_CTA.
+> **PLANNED, NOT YET BUILT** (UC-127, UC-128, UC-131). The public trial pages are served at `/ikaro-trial` and are **branded as the Ikaro tenant**: they take the platform-owner tenant's hotsite branding through the same `applyBranding()` path as any tenant page, so they look like Ikaro's own hotsite. Because the `--ba-*` tokens come from the hotsite layout's wrapper, the pages are implemented inside it (under `app/[slug]/…`, for the owner slug only; any other slug gets `notFound()`), and the public URL `/ikaro-trial` is a Next.js rewrite to `/{PLATFORM_OWNER_TENANT_SLUG}/ikaro-trial/*`; the rewrite mechanism is decided at story discovery. They are **independent of `isPublished`**: if the owner tenant's hotsite is unpublished they still render, because they only need the branding from the manifest (the owner tenant is `exempt` and cannot be suspended). The Turnstile widget needs the same CSP allowance as the lead-form page, scoped to every page a visitor could soft-navigate from, because the CTA reaches `/ikaro-trial` through a `next/link` and CSP is only re-read on a fresh top-level navigation (`docs/ENGINEERING_RULES_FRONTEND.md` § CSP allowances for a new external UI resource); the exact wording is decided at story discovery. The module that links to these pages is § TRIAL_SIGNUP_CTA.
 
 ---
 
