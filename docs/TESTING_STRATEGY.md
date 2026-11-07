@@ -470,6 +470,12 @@ npx @stoplight/spectral-cli lint docs/api/openapi.yaml --fail-severity warn
 
 Only one stack can run at a time: the compose file pins its container names, subnet and host ports (5432, 8085, 4443, 1025). A worktree session's Bash guard refuses `source`, `xargs` and `$(...)`, so run anything that needs a prepared environment through a tiny wrapper script kept outside the repo (`. <env file>; exec "$@"`).
 
+**A before/after screenshot comparison for a styling change (design tokens, `globals.css`, a shared `ui/` primitive) is set up on purpose; the first attempt usually measures the setup, not the change.** Capture "before" with the old source of only the changed files (`git checkout origin/main -- <files>`, restored afterwards with `git checkout HEAD -- <files>`), then compare "after" with Playwright's `toHaveScreenshot`: `--update-snapshots` writes the baselines, and the compare run uses `expect.soft` (so every screen is compared in one run), `fullPage`, `animations: 'disabled'` and **`threshold: 0`** (the default per-pixel tolerance of 0.2 hides real colour shifts, and `maxDiffPixels: 0` alone does not lower it). Keep the spec untracked and delete it, its snapshots and `test-results/` afterwards. Four traps:
+- **Restart the web dev server cleanly after every source swap** (stop it by PID, delete `apps/web/.next`, start `pnpm dev` from the worktree root). A server whose CSS did not rebuild across the swap rendered the baseline with a white sidebar and a "1 Issue" overlay, which looks like a regression and is not. Look at one baseline image before trusting the set.
+- **Run both sides read-only against one fixed dataset.** A spec that seeds data (a service, a customer) changes the pages between the two captures; seed once, outside both runs.
+- **Expect differences that are not findings:** per-run unique text (a new customer's email), the Next dev "Compiling…" badge, and pages that scroll to the current time (the schedule grid, offset by a few pixels between captures).
+- **State what the comparison covers.** A screen that is bit-identical at `threshold: 0` is a proof; a screen that differs is judged against the list of shifts the story recorded, not against zero. (TD58-S07, 2026-11-07: 19 screens; every tenant hotsite, the booking wizard and the hotsite login were bit-identical.)
+
 **MVP E2E scenarios:**
 1. Guest submits a booking request → admin receives notification → booking in PENDING (UC-001 + UC-018)
 2. Admin approves booking → customer receives confirmation email (UC-003)
