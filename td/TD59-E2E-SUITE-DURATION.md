@@ -144,7 +144,7 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 
 ---
 
-### Story 2 — Job-level wins (only if the data still asks)
+### Story 2 — Job-level wins (only if the data still asks) ✅ Done
 
 **Agent:** devops + web-ts
 **Complexity:** M
@@ -165,6 +165,8 @@ New migration / i18n keys / env vars / feature flags: none expected.
 - [ ] The full suite passes unchanged in count on two consecutive runs
 - [ ] A negative guarantee is pinned if login reuse is taken: a spec that logs in as a different role than the stored state still gets that role
 - [ ] `actionlint`, `tsc --noEmit` and lint clean
+
+**Result (2026-11-07): closed as not needed, by the story's own rule ("if the job is already inside the target, close this story as not needed").** The target was the job under about 20 minutes in the worst observed case. After Stories 0, 1 and 3 the final five-run trial (PR #730) shows the slower leg at 10.4 to 12.1 minutes (median 11.4), with 1.4 to 2.2 minutes of setup per leg against the 16-18 minute single job, and `timeout-minutes` is 20. A job-level win would have to beat about 2 minutes of setup (saved once per leg), and the login-reuse option touches 56 spec files and puts the role-isolation guarantee at risk, for a gain under a minute per leg. No change from this story was kept. The two stale references it listed were fixed on `main` without a story: the `pr-e2e.yml` comment in `playwright.config.ts` (the job is `e2e` in `pr-tests.yml`) and the "about 330 tests" figure in the `docs/CI_TRAPS.md` cap row, now marked as the historical numbers of M23-S13. Reopen only if the legs drift back above about 15 minutes.
 
 ---
 
