@@ -176,6 +176,7 @@ export function GalleryImageManager({
 
       <div className="flex flex-wrap gap-2">
         <label
+          // eslint-disable-next-line no-restricted-syntax -- drawn as a button that opens the file input below, not a caption: ui/label would be the wrong primitive
           htmlFor={INPUT_ID}
           className="cursor-pointer rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
         >

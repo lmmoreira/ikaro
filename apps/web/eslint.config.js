@@ -143,6 +143,70 @@ const FEEDBACK_FIELD_MESSAGE_SELECTOR = {
   message:
     "A hand-written red field message (a text-red-* class on an element whose data-testid names an error) bypasses FieldFeedback. Use FieldFeedback (dashboard and account) or BrandedFieldFeedback (public hotsite) with an id, and link the input to it with aria-invalid + aria-describedby (docs/ENGINEERING_RULES_FRONTEND.md § A form's error or success message lives in the action pane; TD57).",
 };
+// TD58-S10: a raw form control in dashboard or account code regrows the debt the shared
+// primitives retired (focus ring, size, invalid state, the one label look). Five selectors, one
+// per shape; each message names the primitive to use. A wrapping `<label>` with no `htmlFor`
+// (`<label><Radio /> text</label>`) is deliberately allowed: no primitive replaces it, and
+// jsx-a11y's label-has-associated-control already requires such a label to hold a control.
+// `type="hidden"` is the only exempt input: ui/file-input and ui/file-dropzone cover files.
+// The three bypass shapes (docs/ENGINEERING_RULES_SHARED.md § `no-restricted-syntax` selectors):
+// a computed member (`React['createElement']`), a bare destructured call (`createElement(...)`)
+// and a literal nested in a conditional or logical expression. A tag name held in a variable
+// (`const Tag = 'input'`) is the one shape a syntax selector cannot follow.
+const RAW_CONTROL_TAG = '/^(input|textarea|select)$/';
+const CREATE_ELEMENT_CALL =
+  "CallExpression:matches([callee.name='createElement'], [callee.property.name='createElement'], [callee.property.value='createElement'])";
+const HIDDEN_TYPE_VALUE =
+  ":matches([value.value='hidden'], [value.expression.value='hidden'], [value.expression.quasis.0.value.cooked='hidden'])";
+const RAW_INPUT_SELECTOR = {
+  selector: `JSXOpeningElement[name.name='input']:not(:has(JSXAttribute[name.name='type']${HIDDEN_TYPE_VALUE}))`,
+  message:
+    'A raw <input> bypasses the shared form primitives. Use ui/input (text and number), ui/checkbox, ui/radio or ui/file-input / ui/file-dropzone; only type="hidden" is allowed (docs/ENGINEERING_RULES_FRONTEND.md § Reuse the repo\'s UI primitives; TD58).',
+};
+const RAW_TEXTAREA_SELECTOR = {
+  selector: "JSXOpeningElement[name.name='textarea']",
+  message:
+    "A raw <textarea> bypasses the shared form primitives. Use ui/textarea (docs/ENGINEERING_RULES_FRONTEND.md § Reuse the repo's UI primitives; TD58).",
+};
+const RAW_SELECT_SELECTOR = {
+  selector: "JSXOpeningElement[name.name='select']",
+  message:
+    "A raw <select> bypasses the shared form primitives. Use ui/native-select, or ui/select for a styled list (docs/ENGINEERING_RULES_FRONTEND.md § Reuse the repo's UI primitives; TD58).",
+};
+const RAW_LABEL_FOR_SELECTOR = {
+  selector: "JSXOpeningElement[name.name='label'] > JSXAttribute[name.name='htmlFor']",
+  message:
+    "A raw <label htmlFor> bypasses ui/label, the one caption look for a separate label. Use <Label htmlFor>; a label that wraps its control needs no htmlFor and stays allowed (docs/ENGINEERING_RULES_FRONTEND.md § Reuse the repo's UI primitives; TD58).",
+};
+const RAW_CREATE_ELEMENT_SELECTOR = {
+  selector: `:matches(${CREATE_ELEMENT_CALL}[arguments.0.value=${RAW_CONTROL_TAG}], ${CREATE_ELEMENT_CALL}[arguments.0.type=/^(ConditionalExpression|LogicalExpression)$/]:has(:matches(ConditionalExpression, LogicalExpression) Literal[value=${RAW_CONTROL_TAG}]))`,
+  message:
+    "createElement('input' | 'textarea' | 'select') is the same raw control written without JSX. Use the shared form primitive instead (docs/ENGINEERING_RULES_FRONTEND.md § Reuse the repo's UI primitives; TD58).",
+};
+const RAW_FORM_CONTROL_SELECTORS = [
+  RAW_INPUT_SELECTOR,
+  RAW_TEXTAREA_SELECTOR,
+  RAW_SELECT_SELECTOR,
+  RAW_LABEL_FOR_SELECTOR,
+  RAW_CREATE_ELEMENT_SELECTOR,
+];
+// Where raw controls are legitimate: the primitives themselves, and the branded trees that draw
+// their own controls from the tenant's --ba-* tokens (docs/ENGINEERING_RULES_FRONTEND.md § The
+// `--ba-*` exception). Anything else, including a folder added later, is covered by default.
+const rawFormControlExemptPaths = [
+  'shared/components/ui/**',
+  'features/booking/components/public/**',
+  'features/platform/components/public/**',
+  'shared/components/hotsite/**',
+  'shells/hotsite/**',
+  'features/customer/components/InformationCompletionPhoneField.tsx',
+];
+// Whether a file path (relative to apps/web) falls under rawFormControlExemptPaths. The list holds
+// `dir/**` prefixes and exact files; used to give a file that two tiers both name the right list.
+const isRawFormControlExempt = (path) =>
+  rawFormControlExemptPaths.some((entry) =>
+    entry.endsWith('/**') ? path.startsWith(entry.slice(0, -2)) : path === entry,
+  );
 // The only files that may write the role: the two shared message components.
 const feedbackRoleAllowedPaths = [
   'shared/components/ui/feedback-message.tsx',
@@ -220,6 +284,7 @@ const NON_FETCH_SELECTORS = [
   E2E3_SELECTOR,
   FEEDBACK_ROLE_SELECTOR,
   FEEDBACK_FIELD_MESSAGE_SELECTOR,
+  ...RAW_FORM_CONTROL_SELECTORS,
 ];
 
 module.exports = [
@@ -289,10 +354,22 @@ module.exports = [
   // would also silently lose the locale/CSSProperties/Zod bans, which nobody reviewed an
   // exception for (CodeRabbit review, PR #375). Self-sufficient tier, same pattern as above.
   {
-    files: reviewedRawFetchPaths,
+    files: reviewedRawFetchPaths.filter((path) => !isRawFormControlExempt(path)),
     ignores: ['**/*.spec.ts', '**/*.spec.tsx'],
     rules: {
       'no-restricted-syntax': ['error', ...NON_FETCH_SELECTORS],
+    },
+  },
+  // A reviewed raw-fetch file that is also a raw-control-exempt path (a branded hotsite file) needs
+  // both tiers' omissions at once: the same list minus the raw-control selectors (TD58-S10).
+  {
+    files: reviewedRawFetchPaths.filter(isRawFormControlExempt),
+    ignores: ['**/*.spec.ts', '**/*.spec.tsx'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...NON_FETCH_SELECTORS.filter((entry) => !RAW_FORM_CONTROL_SELECTORS.includes(entry)),
+      ],
     },
   },
   // The files allowed to name the image-host variable keep every other ban: a later block REPLACES
@@ -320,7 +397,30 @@ module.exports = [
       'no-restricted-syntax': [
         'error',
         RAW_FETCH_SELECTOR,
-        ...NON_FETCH_SELECTORS.filter((entry) => entry !== FEEDBACK_ROLE_SELECTOR),
+        ...NON_FETCH_SELECTORS.filter(
+          (entry) =>
+            entry !== FEEDBACK_ROLE_SELECTOR && !RAW_FORM_CONTROL_SELECTORS.includes(entry),
+        ),
+      ],
+    },
+  },
+  // TD58-S10: the primitives and the branded trees draw raw controls by design. Same replace-not-
+  // merge rule as the blocks above, so this one restates the list minus the raw-control selectors.
+  // The two feedback components and the reviewed raw-fetch files keep their own blocks above, each
+  // of which already omits the raw-control selectors where this block would.
+  {
+    files: rawFormControlExemptPaths,
+    ignores: [
+      '**/*.spec.ts',
+      '**/*.spec.tsx',
+      ...feedbackRoleAllowedPaths,
+      ...reviewedRawFetchPaths,
+    ],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        RAW_FETCH_SELECTOR,
+        ...NON_FETCH_SELECTORS.filter((entry) => !RAW_FORM_CONTROL_SELECTORS.includes(entry)),
       ],
     },
   },
