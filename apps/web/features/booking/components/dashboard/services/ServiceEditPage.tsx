@@ -7,11 +7,11 @@ import { useActivateService, useUpdateService } from '@/features/booking/service
 import { toFieldErrors, validateServiceForm } from '@/features/booking/services/service-form';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
-import type { ServiceEditTabKey } from '@/features/booking/types/service';
+import type { ServiceEditTabKey, ServiceTabAction } from '@/features/booking/types/service';
 import { INITIAL_SERVICE_EDIT_DIRTY_STATE } from '@/features/booking/types/service';
 import { DiscardChangesDialog } from '@/shared/components/DiscardChangesDialog';
 import { useCreatedNotice } from './use-created-notice';
-import { useTabFeedback, type ServiceTabAction } from './service-tab-action';
+import { useTabFeedback } from './service-tab-action';
 import { useServiceEditLeaveGuard } from './useServiceEditLeaveGuard';
 import { ServiceEditActionPanels } from './ServiceEditPanels';
 import { ServiceEditTabBar } from './ServiceEditTabBar';

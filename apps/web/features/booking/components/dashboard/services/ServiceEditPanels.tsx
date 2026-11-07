@@ -3,7 +3,7 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/shared/components/ui/button';
 import { ActionPane } from '@/shared/components/ui/action-pane';
 import type { FeedbackModel } from '@/shared/components/ui/feedback-message';
-import type { ServiceTabAction } from './service-tab-action';
+import type { ServiceTabAction } from '@/features/booking/types/service';
 
 interface ServiceEditStatusSectionProps {
   readonly isActive: boolean;

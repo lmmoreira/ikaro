@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { useState } from 'react';
 import type { ResourceResponse } from '@ikaro/types';
-import type { ServiceTabAction } from './service-tab-action';
+import type { ServiceTabAction } from '@/features/booking/types/service';
 import { renderWithIntl, TabActionFeedback } from '@/test-utils';
 import { ServiceResourceRequirementsPanel } from './ServiceResourceRequirementsPanel';
 
