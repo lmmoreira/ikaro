@@ -1,4 +1,4 @@
-# TD59-S01 — Trim candidates (appendix to `td/TD59-E2E-SUITE-DURATION.md`)
+# TD59-S01 — Trim candidates (appendix to `archive/td/TD59-E2E-SUITE-DURATION.md`)
 
 > **Status of this file: unverified agent output.** Five read-only reviews (2026-11-06) read the whole E2E suite and proposed what to remove, merge or move down. Nothing here was run. Every entry must be re-read, and every "covering spec" line re-opened, before it is acted on (the coverage-safety protocol in TD59 Story 1). Seconds are estimates from CI run 42220584040 and assume 1-1.5 s of setup saved per merged test. Baseline: commit `c42e5700cb`, 445 tests, 63 specs, 19.0 min of test time.
 

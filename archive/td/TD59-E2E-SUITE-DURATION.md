@@ -99,11 +99,11 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 
 **Agent:** web-ts
 **Complexity:** L
-**Docs to load:** `docs/TESTING_STRATEGY.md` § Layer 5 and § Mandatory Patterns; `docs/ENGINEERING_RULES_TESTING.md` (the E2E sections); `docs/ANTI_PATTERNS.md`; `td/TD59-S01-TRIM-CANDIDATES.md`
+**Docs to load:** `docs/TESTING_STRATEGY.md` § Layer 5 and § Mandatory Patterns; `docs/ENGINEERING_RULES_TESTING.md` (the E2E sections); `docs/ANTI_PATTERNS.md`; `archive/td/TD59-S01-TRIM-CANDIDATES.md`
 **Dependencies:** Story 0
 **Pattern:** plain composition — no named pattern applies. A merged flow is one test with named `test.step` blocks; a moved assertion goes to the Vitest spec that already holds it.
 
-**Description:** The measurements show no outlier, so this story is about redundancy, never about a time target chosen up front. Five read-only reviews of the whole suite (2026-11-06, one per cluster: hotsite and settings, recurring and alerts, booking flows, schedule and bookings, services/team/leads/rest) produced a candidate list in `td/TD59-S01-TRIM-CANDIDATES.md`: about 229 of the 445 tests removable or mergeable, an optimistic estimate of 7 minutes that assumes 1-1.5 s of setup per merged test and must be measured (a realistic expectation is 4-5 minutes). The list is unverified agent output; every entry is re-read before use.
+**Description:** The measurements show no outlier, so this story is about redundancy, never about a time target chosen up front. Five read-only reviews of the whole suite (2026-11-06, one per cluster: hotsite and settings, recurring and alerts, booking flows, schedule and bookings, services/team/leads/rest) produced a candidate list in `archive/td/TD59-S01-TRIM-CANDIDATES.md`: about 229 of the 445 tests removable or mergeable, an optimistic estimate of 7 minutes that assumes 1-1.5 s of setup per merged test and must be measured (a realistic expectation is 4-5 minutes). The list is unverified agent output; every entry is re-read before use.
 
 **Locked at `/story-discovery` (2026-11-06): this story is Tier 1 only.**
 - **In Tier 1:** (a) a test that asserts nothing its survivor does not (DUPLICATE), after reading both; (b) a MOVE-DOWN whose covering Vitest assertion is cited, read and break-it checked (below); (c) a rule-violating edge/error test that has such a covering assertion; (d) a 2-test merge with identical setup, where every assertion of the absorbed test becomes a named `test.step` of the survivor, and the merged test stays under about 12 s.
@@ -124,7 +124,7 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 - `apps/web/e2e/**/*.spec.ts` (modify/delete: the Tier 1 specs, final list in the PR's mapping table)
 - `apps/web/**/*.spec.tsx` (modify: a Vitest spec that needs a missing small case before its E2E duplicate goes)
 - `docs/TESTING_STRATEGY.md` (modify: the E2E scenario guidance and the stale "5-8 scenarios" line — doc gate)
-- `td/TD59-E2E-SUITE-DURATION.md` (modify: the "546 tests" miscount is 445, record the measured result)
+- `archive/td/TD59-E2E-SUITE-DURATION.md` (modify: the "546 tests" miscount is 445, record the measured result)
 
 **Acceptance criteria — product:**
 - [ ] No user flow loses its only E2E coverage; every route that had an E2E scenario still has one.
@@ -140,7 +140,7 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 - [ ] The CI test phase is at least 3 minutes below the 19.0-minute baseline on two consecutive runs and the test count falls from 445 to about 345; if either is missed the PR states why
 - [ ] Coverage ≥80% on changed code; `tsc --noEmit` clean, lint clean
 
-**Result (2026-11-06, PR #727):** the suite went from 445 tests in 63 files to 321 in 62 (123 `test()` calls removed or merged, one mapping row each in the PR body). Three consecutive green CI runs with no retry used: 318, 321 and 321 tests, test phase 16.4, 14.4 and 16.5 minutes (job total 18.3, 16.2 and 18.3) against 20.7-20.9 minutes (22.7-22.8 total) at the baseline, so 4-6 minutes faster. About 75 break-it checks (all failing as required) and an independent audit of the removals backed the "nothing lost" claim; the audit's six weaker rows and three bot-flagged tests were put back in the E2E suite. Left for follow-up stories, if the numbers ever ask for them: the merges of three or more tests and every test whose backend proof was not confirmed (`td/TD59-S01-TRIM-CANDIDATES.md`). The merge savings were smaller than estimated (about 4-6 minutes against 7): merging tests that share no setup saves almost nothing, so Tier 1 kept merges to tests with identical setup.
+**Result (2026-11-06, PR #727):** the suite went from 445 tests in 63 files to 321 in 62 (123 `test()` calls removed or merged, one mapping row each in the PR body). Three consecutive green CI runs with no retry used: 318, 321 and 321 tests, test phase 16.4, 14.4 and 16.5 minutes (job total 18.3, 16.2 and 18.3) against 20.7-20.9 minutes (22.7-22.8 total) at the baseline, so 4-6 minutes faster. About 75 break-it checks (all failing as required) and an independent audit of the removals backed the "nothing lost" claim; the audit's six weaker rows and three bot-flagged tests were put back in the E2E suite. Left for follow-up stories, if the numbers ever ask for them: the merges of three or more tests and every test whose backend proof was not confirmed (`archive/td/TD59-S01-TRIM-CANDIDATES.md`). The merge savings were smaller than estimated (about 4-6 minutes against 7): merging tests that share no setup saves almost nothing, so Tier 1 kept merges to tests with identical setup.
 
 ---
 
