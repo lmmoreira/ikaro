@@ -311,9 +311,11 @@ reviews:
         - A server-component generateMetadata() needing the page's data shares one fetch via
           React cache().
         Styling boundary:
-        - --ba-* CSS variables exist only under app/[slug]/ (hotsite). Dashboard and account
-          components use Tailwind + shadcn. A component needing both variants is two
-          implementations. A new full-page hotsite component paints
+        - --ba-* CSS variables exist only inside an applyBranding() wrapper (the hotsite under
+          app/[slug]/, and the tenant-switch page). Dashboard and account components use
+          Tailwind + shadcn, apart from the tenant-branded customer flows named in
+          docs/ENGINEERING_RULES_FRONTEND.md (the --ba-* exception). A component needing
+          both variants is two implementations. A new full-page hotsite component paints
           backgroundColor: 'var(--ba-background)'.
         - CSS custom property types use React.CSSProperties & Record<`--ba-${string}`, string>,
           never `as React.CSSProperties`.
