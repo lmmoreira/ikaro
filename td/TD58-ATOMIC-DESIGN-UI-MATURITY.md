@@ -503,7 +503,7 @@ Backend HTTP surface: none.
 
 ---
 
-### Story 8 — Extract state hooks from three mixed-concern components
+### Story 8 — Extract state hooks from three mixed-concern components ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** L
