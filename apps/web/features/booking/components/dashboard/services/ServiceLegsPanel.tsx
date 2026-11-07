@@ -114,12 +114,9 @@ export function ServiceLegsPanel({
             </div>
 
             <div>
-              <label
-                htmlFor={`leg-${leg.legIndex}-name`}
-                className="mb-1 block text-sm font-semibold text-gray-900"
-              >
+              <Label htmlFor={`leg-${leg.legIndex}-name`} className="mb-1">
                 {t('legNameLabel')}
-              </label>
+              </Label>
               <Input
                 id={`leg-${leg.legIndex}-name`}
                 data-testid="leg-name"
@@ -131,12 +128,9 @@ export function ServiceLegsPanel({
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label
-                  htmlFor={`leg-${leg.legIndex}-duration`}
-                  className="mb-1 block text-sm font-semibold text-gray-900"
-                >
+                <Label htmlFor={`leg-${leg.legIndex}-duration`} className="mb-1">
                   {t('legDurationLabel')}
-                </label>
+                </Label>
                 <Input
                   id={`leg-${leg.legIndex}-duration`}
                   type="number"
@@ -152,12 +146,9 @@ export function ServiceLegsPanel({
                 />
               </div>
               <div>
-                <label
-                  htmlFor={`leg-${leg.legIndex}-transition-gap`}
-                  className="mb-1 block text-sm font-semibold text-gray-900"
-                >
+                <Label htmlFor={`leg-${leg.legIndex}-transition-gap`} className="mb-1">
                   {t('legTransitionGapLabel')}
-                </label>
+                </Label>
                 <Input
                   id={`leg-${leg.legIndex}-transition-gap`}
                   type="number"

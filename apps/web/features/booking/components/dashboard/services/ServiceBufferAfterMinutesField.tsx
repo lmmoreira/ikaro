@@ -4,6 +4,7 @@ import { Input } from '@/shared/components/ui/input';
 import { useTranslations } from 'next-intl';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
+import { Label } from '@/shared/components/ui/label';
 import { cn } from '@/shared/utils/cn';
 
 interface ServiceBufferAfterMinutesFieldProps {
@@ -39,7 +40,9 @@ export function ServiceBufferAfterMinutesField({
     <Card>
       <CardContent className="space-y-1 p-5">
         <h2 className="text-sm font-semibold text-gray-900">
-          <label htmlFor="resource-buffer-input">{t('recursosBufferLabel')}</label>
+          <Label htmlFor="resource-buffer-input" className="mb-0">
+            {t('recursosBufferLabel')}
+          </Label>
         </h2>
         <Input
           id="resource-buffer-input"

@@ -28,14 +28,14 @@ export function IntakeParticipantsCard({
           {t('formularioParticipantsCardTitle')}
         </h2>
         <div className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3">
-          <label htmlFor="intake-participant-count-required">
+          <Label htmlFor="intake-participant-count-required" className="mb-0 font-normal">
             <span className="block text-sm font-semibold text-gray-900">
               {t('formularioParticipantCountLabel')}
             </span>
             <span className="block text-xs text-gray-500">
               {t('formularioParticipantCountSub')}
             </span>
-          </label>
+          </Label>
           <Checkbox
             id="intake-participant-count-required"
             data-testid="intake-participant-count-required"
@@ -44,12 +44,12 @@ export function IntakeParticipantsCard({
           />
         </div>
         <div className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3">
-          <label htmlFor="intake-requires-named-attendees">
+          <Label htmlFor="intake-requires-named-attendees" className="mb-0 font-normal">
             <span className="block text-sm font-semibold text-gray-900">
               {t('formularioNamedAttendeesLabel')}
             </span>
             <span className="block text-xs text-gray-500">{t('formularioNamedAttendeesSub')}</span>
-          </label>
+          </Label>
           <Checkbox
             id="intake-requires-named-attendees"
             data-testid="intake-requires-named-attendees"

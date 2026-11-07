@@ -139,9 +139,9 @@ export function ServiceResourceTypeFields({
           onChange={(event) => onToggle(event.target.checked)}
           className="mt-0.5 h-4 w-4 rounded border-gray-300"
         />
-        <label htmlFor={checkboxId} className="flex-1 cursor-pointer">
+        <Label htmlFor={checkboxId} className="mb-0 flex-1 cursor-pointer">
           <div className="text-sm font-semibold text-gray-900">{t(TYPE_LABEL_KEYS[type])}</div>
-        </label>
+        </Label>
       </div>
 
       {checked && (

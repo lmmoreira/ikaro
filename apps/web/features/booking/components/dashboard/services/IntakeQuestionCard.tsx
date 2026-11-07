@@ -148,7 +148,9 @@ export function IntakeQuestionCard({
           checked={question.required}
           onChange={(event) => onChangeRequired(event.target.checked)}
         />
-        <label htmlFor={requiredId}>{t('formularioQuestionRequiredLabel')}</label>
+        <Label htmlFor={requiredId} className="mb-0 font-normal text-inherit">
+          {t('formularioQuestionRequiredLabel')}
+        </Label>
       </div>
     </div>
   );

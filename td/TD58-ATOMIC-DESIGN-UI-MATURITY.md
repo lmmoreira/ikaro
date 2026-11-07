@@ -669,6 +669,13 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean, `pnpm dep-cruise` clean
 
+*As shipped (implementation, 2026-11-07), where it differs from the locked spec:*
+1. **The exemption is a block plus a split of the reviewed raw-fetch tier, not one block.** ESLint replaces a rule's options per file, so a block that exempts the branded trees by restating the selector list also re-enabled every ban a narrower block had lifted. `shells/hotsite/components/HotsiteAuthBar.tsx` is both a reviewed raw-fetch exception and a branded file, and the first version re-enabled its raw-fetch ban (the full-tree lint caught it). The config now has a helper (`isRawFormControlExempt`) that gives such a file the list minus the raw-control selectors in its own tier, the exempt block leaves the reviewed raw-fetch and feedback files to their blocks, and the spec pins that overlap.
+2. **Five selectors, not one per element:** `input` (not hidden), `textarea`, `select`, `label[htmlFor]` and the `createElement` forms. A tag held in a variable is the one shape a syntax selector cannot follow and is documented as not covered, with look-alike markup and raw `<button>`.
+3. **Only `type="hidden"` is exempt**, as locked in decision 1; the story's first draft also allowed `type="file"`.
+
+*Verified at implementation:* the new spec has 30 cases and each of the five selectors, removed in turn, fails its own fixtures (4, 1, 1, 1 and 5 cases); the rule flags exactly the 8 `<label htmlFor>` sites of decision 6 plus `GalleryImageManager` on the pre-migration sources, and the whole of `apps/web` lints clean after them. The three migrated service-edit screens (Recursos flat, Recursos legs, Formulário de reserva) are bit-identical at `threshold: 0` before and after, measured on a warm server with one fixed dataset (a first pass on a cold server differed on all three and was a compile artifact, not a change); the 18 existing `services-*` Playwright specs pass. Full web suite 726 files and 7,455 tests, `tsc`, lint, `pnpm architecture-check` and `pnpm dep-cruise` clean.
+
 ---
 
 ### Story 11 — Regroup `booking/components/dashboard/bookings/` by flow
