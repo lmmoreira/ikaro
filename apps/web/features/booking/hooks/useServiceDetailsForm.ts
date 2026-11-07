@@ -1,4 +1,4 @@
-import { useRef, useState, type MutableRefObject, type SubmitEvent } from 'react';
+import { useRef, useState, type RefObject, type SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import type { StaffServiceResponse } from '@ikaro/types';
 import {
@@ -55,7 +55,7 @@ interface UseDetailsSaveParams {
   readonly service: StaffServiceResponse;
   readonly feedback: FormFeedback;
   readonly onDirtyChange: (dirty: boolean) => void;
-  readonly editRevisionRef: MutableRefObject<number>;
+  readonly editRevisionRef: RefObject<number>;
 }
 
 // The save request, its pending flag, and the pickup-address value the last save persisted.
