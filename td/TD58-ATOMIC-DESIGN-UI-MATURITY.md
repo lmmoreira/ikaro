@@ -334,33 +334,41 @@ New migration / i18n keys / env vars / feature flags: none. Adds `@radix-ui/reac
 
 ---
 
-### Story 5 — Dashboard and account `PageHeader` and content container
+### Story 5 — Dashboard and account `PageHeader`
 
 **Agent:** frontend-ts
-**Complexity:** M
+**Complexity:** S
 **Docs to load:** `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`; `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives and the action-pane section; `docs/TESTING_STRATEGY.md` § apps/web Testing Infrastructure
 **Dependencies:** none
-**Pattern:** Template Method by composition (a fixed page frame with slots for title, description, actions, body) — plain composition, no inheritance
+**Pattern:** slot-based presentational atom (plain composition: eyebrow, title, description, actions) — no inheritance, no named pattern beyond that
 
-**Description:** About 20 dashboard/account pages render their own `<h1>` and pick their own container width. Add a `PageHeader` (title, optional description, optional actions slot) and a content-container wrapper with a small set of named widths (the set is decided in discovery from the widths actually in use: `max-w-md/lg/none` and the others found), then adopt them in the **unbranded** pages only. Branded public/auth pages (`app/[slug]/login`, `app/auth/error`, `app/dashboard/login`, `app/not-found`, `booking/components/public/*`, `platform/components/public/*`, `shells/hotsite/*`) are out of scope (decision 1). Route-scoped chrome visible in the topbar stays in its provider (`DASHBOARD_FRONTEND_ARCHITECTURE.md`), not in `PageHeader`. This is **not** a replacement for `DashboardSectionShell` (a provider wrapper); do not merge them.
+**Locked at `/story-discovery` (2026-11-07):**
+- **No content container.** Verified: no dashboard or account page sets a page-level width. The pages use `<div className="w-full">` (a no-op, 8 copies); the `max-w-*` hits are dialogs, auth cards and empty-state text. The only centred page container is `mx-auto w-full max-w-lg py-10` in two error boundaries (`MyAccountRouteError`, `app/dashboard/loyalty/[customerId]/error.tsx`), below the TD's "3+ identical copies" bar. The story ships `PageHeader` only; revisit a container if a third consumer appears.
+- **`ui/page-header`** (`shared/components/ui/`, domain-free, takes translated strings). Props: `title` (always an `h1`, `text-lg font-bold text-gray-900`), optional `eyebrow` (rendered with `ui/section-label`), optional `description` (`text-sm text-gray-500`), optional `actions` slot (right of the title row), root HTML props (`className`, `data-testid`). No heading-level prop. It draws no card chrome: callers keep their `Card` and put `PageHeader` inside it.
+- **Eyebrow look change accepted.** The five eyebrow copies (`text-xs font-semibold tracking-wide text-gray-400`) move to `SectionLabel` (`font-bold tracking-[0.07em] text-gray-500`), as in Stories 2 and 6. Browser-verified.
+- **Adoption set (18 files):** bare titles `BookingsList`, `RecurringScheduleList` (with the mobile new-menu in `actions`), `AvailabilityAlertList`, `AvailabilityAlertListStates` (2 headings), `LoyaltyPage`, `HomeDashboard`, `NewRecurringScheduleNoServices`, `NewRecurringScheduleForStaffNoServices`; eyebrow plus title `NewRecurringScheduleForm`, `NewRecurringScheduleReview`, `RecurringSchedulePendingView`, `NewRecurringScheduleResult` (`ResultHeader`), `NewRecurringScheduleForStaff`; title inside a card `AvailabilityAlertDetail` (badge in `actions`), `RecurringScheduleDetail` (subtitle in `description`, badge in `actions`), `ConfirmPage`, `CustomerReschedulePage`.
+- **Left out, on purpose:** `NewRecurringScheduleResult:105` (`sr-only` h1, not a visible header); `ScheduleDayHeader` (a date title with a count badge beside it and a view toolbar: a header API would need extra slots for one caller); `SwitchTenantClient` (branded, paints tenant colours inline); `SelectStaffTenantClient` (a standalone auth-flow card outside both shells, `text-xl` heading); the `Topbar` title (stays in its provider).
+
+**Description:** About 18 dashboard/account pages render their own `<h1>` with the same class string. Add `ui/page-header` and adopt it in the unbranded pages listed above. Branded public/auth pages (`app/[slug]/login`, `app/auth/error`, `app/dashboard/login`, `app/not-found`, `booking/components/public/*`, `platform/components/public/*`, `shells/hotsite/*`) are out of scope (decision 1). Route-scoped chrome visible in the topbar stays in its provider (`DASHBOARD_FRONTEND_ARCHITECTURE.md`), not in `PageHeader`. This is **not** a replacement for `DashboardSectionShell` (a provider wrapper); do not merge them.
 
 New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface: none.
 
 **Files to create/modify:**
-- `apps/web/shared/components/ui/page-header.tsx` + `page-header.spec.tsx`; a container component alongside it or in `shells/dashboard/components/` (discovery locks the location) + spec (new)
-- Adopters (modify; confirm each is unbranded): `features/booking/components/dashboard/bookings/{NewRecurringScheduleForStaff,NewRecurringScheduleForStaffNoServices}.tsx`, `features/booking/components/dashboard/schedule/ScheduleDayHeader.tsx`, `features/customer/components/my-account/{AvailabilityAlertDetail,AvailabilityAlertListStates,AvailabilityAlertList,BookingsList,ConfirmPage,CustomerReschedulePage,HomeDashboard,LoyaltyPage,NewRecurringScheduleForm,NewRecurringScheduleNoServices,NewRecurringScheduleResult,NewRecurringScheduleReview,RecurringScheduleDetail,RecurringScheduleList,RecurringSchedulePendingView}.tsx`, `features/staff/components/SelectStaffTenantClient.tsx`, `features/customer/components/SwitchTenantClient.tsx` (the last two are tenant-selection screens; discovery decides whether they count as branded)
-- `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` (table rows / template note — doc gate)
+- `apps/web/shared/components/ui/page-header.tsx` + `page-header.spec.tsx` (new)
+- Adopters (modify): the 18 files in the adoption set above, under `features/customer/components/my-account/` and `features/booking/components/dashboard/bookings/`
+- `docs/ENGINEERING_RULES_FRONTEND.md` (a `ui/page-header` row in the primitives table), `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` (a page-header note) — in the same PR as the code, doc gate
 
 **Acceptance criteria — product:**
-- [ ] Dashboard and account pages share one header and a small set of container widths; no page changes its visible title or actions.
+- [ ] Dashboard and account pages share one header; no page changes its visible title or actions. The five eyebrows take the shared `SectionLabel` look.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] `page-header.spec.tsx` and the container spec: title as `h1`, optional description and actions, width variants; axe check passes
+  - [ ] `page-header.spec.tsx`: the title is an `h1`; the eyebrow renders through `SectionLabel`; description and actions render only when passed; a caller `className` and `data-testid` are applied; axe check passes. Mutation-checked.
   - [ ] Existing specs of every adopting page pass unchanged
+  - [ ] `RecurringScheduleDetail.spec`: the status badge still renders beside the title and the service subtitle under it
 - E2E:
-  - [ ] none — covered by unit; browser-verified after asking per `CLAUDE.md` §0
-- [ ] No branded public/auth file appears in the diff
+  - [ ] none — markup-only change on routes that already have specs; browser-verified with screenshots at phone and desktop widths (dev stack started after asking per `CLAUDE.md` §0)
+- [ ] No branded public/auth file appears in the diff: `git diff --name-only origin/main` is checked against the out-of-scope paths above in the PR verification (holds by construction, so it is checked, not pinned by a test)
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
