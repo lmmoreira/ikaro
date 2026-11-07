@@ -7,7 +7,7 @@
 - **Created**: 2026-11-05
 - **Discovered**: read-only atomic-design audit of `apps/web` (three parallel structural audits plus a premise-verification pass, 2026-11-05). Grade given at the time: C+ overall (tokens C, atoms C−, molecules B, organisms B+, templates C+, pages A−, tests A).
 - **Decision status**: Ready for discovery and implementation in the dependency order below; every story still begins with `/story-discovery`. The sequence and scope below were confirmed with the user on 2026-11-05; each story's "Pattern" is a starting decision that its own `/story-discovery` Step 4q may refine, and a story's block records what was locked there.
-- **Progress (2026-11-07)**: Stories 0–9 ✅ Done; 10, 11 and 12 remain (11 last among the migrations: it moves files the others edit; 12 is an exploratory inventory).
+- **Progress (2026-11-07)**: Stories 0–9 ✅ Done; 10, 11, 12 and 13 remain (11 last among the migrations: it moves files the others edit; 13 is an exploratory inventory).
 - **Related**: `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives; TD57 (inline feedback + action-pane pattern, the precedent for promoting a repeated UI pattern into `ui/`); `docs/ANTI_PATTERNS.md`; `.copilot/context.md` §8 (the `--ba-*` boundary row).
 
 ---
@@ -633,7 +633,7 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 **Decisions already made** (locked at `/story-discovery`, 2026-11-07):
 1. **What is banned:** a raw `<input>` (except `type="hidden"`), `<textarea>`, `<select>`, and a `<label>` that carries `htmlFor`. Each message names its primitive (`ui/input`, `checkbox`, `radio`, `file-input`, `textarea`, `select` or `native-select`, `label`). `type="file"` is **not** exempt: `ui/file-input` and `ui/file-dropzone` exist since Story 3.
 2. **A wrapping `<label>` stays allowed.** `<label><Radio/> text</label>` and `<label><span>…</span><Textarea/></label>` (about 45 dashboard sites) have no primitive equivalent: `Radio` and `Checkbox` are bare controls, and `ui/Label` is the separate-caption form (`mb-1.5 block text-sm font-semibold text-gray-900`), so using it as a wrapper would mean cancelling its defaults at every site. A label with no `htmlFor` must wrap a control, which `jsx-a11y`'s `label-has-associated-control` already enforces (the spec pins that it is active in this config).
-3. **Raw `<button>` is out of scope.** 61 raw `<button>` in unbranded code, many bespoke (clickable cards, option rows, menu triggers). Banning it blind would need a long exemption list; Story 12 inventories it first.
+3. **Raw `<button>` is out of scope.** 61 raw `<button>` in unbranded code, many bespoke (clickable cards, option rows, menu triggers). Banning it blind would need a long exemption list; Story 12 migrates the clear duplicates of existing primitives and Story 13 inventories the rest.
 4. **File scope: everywhere except the branded trees (fails closed).** Exempt: `shared/components/ui/**`, `**/*.spec.tsx`, `features/booking/components/public/**`, `features/platform/components/public/**`, `shared/components/hotsite/**`, `shells/hotsite/**`, and `features/customer/components/InformationCompletionPhoneField.tsx` (the tenant-branded customer exception). The list is defined once, as a constant in the ESLint config, and the `--ba-*` exception section of `docs/ENGINEERING_RULES_FRONTEND.md` points at it.
 5. **Level: error, no warn phase.** Measured 2026-11-07: raw `<input>`/`<select>`/`<textarea>` outside the branded trees = 0; `<label htmlFor>` = 8 in `features/booking/components/dashboard/services/` plus 1 in `GalleryImageManager.tsx`.
 6. **The 8 `<label htmlFor>` sites migrate to `<Label>` in this story**, with overrides that reproduce today's rendering: the 3 in `ServiceLegsPanel.tsx` already carry `mb-1 block text-sm font-semibold text-gray-900` (so `className="mb-1"`); the 5 bare ones (`IntakeQuestionCard`, `ServiceBufferAfterMinutesField` inside an `<h2>`, `ServiceResourceTypeFields` with `flex-1 cursor-pointer` around a `<div>`, `IntakeParticipantsAndConsentCards` ×2) need `mb-0` plus inherited display, weight and colour. **Rendering must not change:** threshold-0 before/after screenshots of the service-edit tabs affected, compared as in Story 7.
@@ -707,15 +707,42 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 
 ---
 
-### Story 12 — Inventory the remaining raw elements that have a primitive (`<button>`, `<h1>`) ⚪
+### Story 12 — Migrate the raw `<button>` sites that duplicate an existing primitive
 
 **Agent:** frontend-ts
-**Complexity:** S (inventory and decision) — a migration or rule that follows it is its own story
+**Complexity:** M
 **Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives; `.claude/commands/story-discovery.md` check 4s (build the inventory from the construct, not one literal copy)
-**Dependencies:** Story 3, Story 4, Story 5, Story 10 (it reuses Story 10's branded-tree exemption list). If it ends up migrating call sites under `booking/components/dashboard/bookings/`, it must run before Story 11.
+**Dependencies:** Stories 3, 4, 5 (all ✅ Done). If it edits files under `booking/components/dashboard/bookings/`, it must run before Story 11.
 **Pattern:** plain composition — no named pattern applies
 
-**Description:** Exploratory and optional. Story 10 deliberately left raw `<button>` out: on 2026-11-07 there were 61 raw `<button>` in unbranded code (clickable cards, option rows, menu triggers, chips among them) and 11 raw `<h1>` after Story 5's `ui/page-header` adoption. Classify them by construct: how many distinct looks, how many fit an existing `Button` variant or `page-header`, how many need a new variant or are legitimately bespoke. Then decide, with the user, between a lint rule with a short exemption list, new `Button` variants plus a rule, or a docs-only note. If the answer is a migration or a rule, it becomes a new story; this one ends with the recorded inventory and the decision.
+**Description:** Measured 2026-11-07: unbranded code has 61 raw `<button>` in 43 files, against 163 `<Button>` uses. Three groups are plain duplicates of primitives that already exist, so they need no further inventory, only the Story 3/4-style migration with rendering proof: (a) the inline `role="switch"` buttons in `ServicePickupSwitch.tsx` and `ServiceCreatePage.tsx` duplicate `SwitchField`; (b) the two `border-b-2` tab-style buttons in `LoyaltyHistoryHelpers.tsx` duplicate `ui/tabs` (Story 4); (c) the `aria-pressed` filter chips in `ResourceListPage`, `ServiceListPage` and `TeamListPage` probably map to `pill-select` / `pill-multi-select`. Discovery verifies (c) site by site before locking it: a chip whose look or behaviour `pill-select` cannot reproduce is moved to Story 13, not forced. The unclassified remainder (selectable cards, full-width rows, text-link buttons, the other ~28 sites) is Story 13's input, not this story's.
+
+New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface: none.
+
+**Files to create/modify:** the call sites listed above (the exact list is generated at discovery by grep), their specs only where a selector moves with the markup.
+
+**Acceptance criteria — product:**
+- [ ] The migrated switches, tabs and chips render and behave as before (threshold-0 before/after screenshots of each affected screen, as in Story 7), and the hotsite and branded pages are unchanged.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] Existing specs of the migrated components pass; any assertion that changes is listed in the PR body with the reason
+- E2E:
+  - [ ] none new; the existing Playwright specs of the affected screens pass locally
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
+
+---
+
+### Story 13 — Inventory the ambiguous raw elements and decide their guard ⚪
+
+**Agent:** frontend-ts
+**Complexity:** S (inventory and decision) — a migration, new primitive or rule that follows is its own story
+**Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives; `.claude/commands/story-discovery.md` check 4s
+**Dependencies:** Stories 10 and 12 (it reuses Story 10's branded-tree exemption list and starts from what Story 12 left)
+**Pattern:** plain composition — no named pattern applies
+
+**Description:** Exploratory and optional. Story 10 deliberately left raw `<button>` out and Story 12 migrates only the clear duplicates. What remains is genuinely ambiguous: about 15 selectable cards and full-width option rows with no primitive (`ServiceCreatePage`, `ServiceResourceModePicker`, `SlotConflictAlert`, `IntakeVersionHistoryCard`, `RoleOption`, `ScheduleWeekView`, `TenantOptionRow`), the text-link buttons (`text-sm font-semibold text-blue-600 hover:underline` in `ResourceRow`, `MemberRow`) to check against `Button`'s `link` variant, the ~28 sites not yet classified, the 11 raw `<h1>` left after Story 5, and the ~45 wrapping-label captions that repeat `mb-2 block text-sm font-medium text-gray-700`. Classify them by construct: how many distinct looks, how many fit an existing primitive or variant, how many need a new primitive (for example a selectable card or a labelled field) or are legitimately bespoke. Then decide with the user between a lint rule with a short exemption list, new primitives or variants plus a rule, or a docs-only note. If the answer is a migration or a rule, it becomes a new story; this one ends with the recorded inventory and the decision.
 
 New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface: none.
 
@@ -726,6 +753,6 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 - [ ] No UI change in this story.
 
 **Acceptance criteria — technical:**
-- [ ] The inventory counts raw `<button>` and `<h1>` sites per construct (look, trigger type, fits-an-existing-primitive yes/no), with the grep used so it can be re-run
-- [ ] A decision is recorded for each element, or a follow-up story is created for it via `/create-story`
+- [ ] The inventory counts the sites per construct (look, trigger type, fits-an-existing-primitive yes/no), with the grep used so it can be re-run
+- [ ] A decision is recorded for each element group, or a follow-up story is created for it via `/create-story`
 - [ ] `pnpm architecture-check` clean
