@@ -2,6 +2,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import { axe } from '@/axe-helper';
 import {
   EmptyState,
   EntryIcon,
@@ -44,6 +45,12 @@ describe('HistoryTabs', () => {
     expect(screen.getByRole('tab', { name: 'Resgates' })).toHaveAttribute('aria-selected', 'false');
     expect(screen.getByRole('tabpanel')).toHaveTextContent('conteúdo de ganhos');
     expect(screen.queryByText('conteúdo de resgates')).not.toBeInTheDocument();
+  });
+
+  it('has no axe violations', async () => {
+    const { container } = renderTabs('entries');
+
+    expect(await axe(container)).toHaveNoViolations();
   });
 
   it('shows the redemptions panel when it is the active tab', () => {

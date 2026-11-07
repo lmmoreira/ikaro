@@ -74,7 +74,7 @@ async function waitForEarnedPoints(page: Page): Promise<void> {
 async function waitForRedemption(page: Page, customerEmail: string): Promise<void> {
   await expect(async () => {
     await openCustomerLoyaltyDetailByEmail(page, customerEmail);
-    await page.getByRole('button', { name: 'Resgates' }).click();
+    await page.getByRole('tab', { name: 'Resgates' }).click();
     await expect(page.getByTestId('loyalty-redemption-title').first()).toBeVisible({
       timeout: 2_000,
     });
