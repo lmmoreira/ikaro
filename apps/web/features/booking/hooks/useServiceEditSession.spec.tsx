@@ -10,15 +10,9 @@ import { useServiceEditSession } from './useServiceEditSession';
 
 const mockActivateService = vi.fn();
 const mockSetServiceStatus = vi.fn();
-let topbarProvided = true;
 
 vi.mock('@/features/booking/services/useServices', () => ({
   useActivateService: () => ({ mutateAsync: mockActivateService, isPending: false }),
-}));
-
-vi.mock('@/shells/dashboard/components/topbar-status-context', () => ({
-  useDashboardTopbarStatus: () =>
-    topbarProvided ? { setServiceStatus: mockSetServiceStatus } : null,
 }));
 
 vi.mock('@/shared/lib/i18n/use-resolved-locale', () => ({ useResolvedLocale: () => 'pt-BR' }));
@@ -27,11 +21,19 @@ function action(label: string): ServiceTabAction {
   return { label, disabled: false, pending: false, onSubmit: vi.fn(), feedback: null };
 }
 
-function renderSession(service: StaffServiceResponse = makeStaffService()) {
+function renderSession(
+  service: StaffServiceResponse = makeStaffService(),
+  onStatusChange: ((status: 'ACTIVE' | 'INACTIVE') => void) | null = mockSetServiceStatus,
+) {
   const dismissCreatedNotice = vi.fn();
   const view = renderHook(() => {
     const feedback = useFormFeedback();
-    const session = useServiceEditSession({ service, feedback, dismissCreatedNotice });
+    const session = useServiceEditSession({
+      service,
+      feedback,
+      dismissCreatedNotice,
+      onStatusChange: onStatusChange ?? undefined,
+    });
     return { feedback, session };
   });
   return { ...view, dismissCreatedNotice };
@@ -40,7 +42,6 @@ function renderSession(service: StaffServiceResponse = makeStaffService()) {
 describe('useServiceEditSession', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    topbarProvided = true;
   });
 
   it('starts on Detalhes with nothing dirty and the facts taken from the service', () => {
@@ -177,7 +178,7 @@ describe('useServiceEditSession', () => {
     expect(result.current.session.isActivating).toBe(false);
   });
 
-  it('shows the topbar status for the service and follows an activation', async () => {
+  it('reports the status for the service and follows an activation', async () => {
     mockActivateService.mockResolvedValue(undefined);
     const { result } = renderSession(makeStaffService({ isActive: false }));
     expect(mockSetServiceStatus).toHaveBeenLastCalledWith('INACTIVE');
@@ -187,10 +188,8 @@ describe('useServiceEditSession', () => {
     expect(mockSetServiceStatus).toHaveBeenLastCalledWith('ACTIVE');
   });
 
-  it('works without a topbar status provider', () => {
-    topbarProvided = false;
-
-    const { result } = renderSession();
+  it('works without a status listener', () => {
+    const { result } = renderSession(makeStaffService(), null);
 
     expect(result.current.session.isActive).toBe(true);
     expect(mockSetServiceStatus).not.toHaveBeenCalled();

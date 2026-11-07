@@ -5,9 +5,9 @@ import type { ServiceEditTabKey, ServiceTabAction } from '@/features/booking/typ
 import { INITIAL_SERVICE_EDIT_DIRTY_STATE } from '@/features/booking/types/service';
 import type { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
-import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
 
 type FormFeedback = ReturnType<typeof useFormFeedback>;
+type ServiceStatusListener = (status: 'ACTIVE' | 'INACTIVE') => void;
 
 // Which tab is open, which tabs hold unsaved edits and the primary action each config tab
 // registers with the page.
@@ -63,16 +63,19 @@ function useConfigTabFacts(service: StaffServiceResponse) {
 }
 
 // Whether the service is active, the activation request, and the topbar's status badge.
-function useServiceActivation(service: StaffServiceResponse, feedback: FormFeedback) {
+function useServiceActivation(
+  service: StaffServiceResponse,
+  feedback: FormFeedback,
+  onStatusChange: ServiceStatusListener | undefined,
+) {
   const locale = useResolvedLocale();
   const activateServiceMutation = useActivateService();
-  const setTopbarServiceStatus = useDashboardTopbarStatus()?.setServiceStatus;
   const [isActive, setIsActive] = useState(service.isActive);
   const [isActivatingLocal, setIsActivatingLocal] = useState(false);
 
   useEffect(() => {
-    setTopbarServiceStatus?.(isActive ? 'ACTIVE' : 'INACTIVE');
-  }, [isActive, setTopbarServiceStatus]);
+    onStatusChange?.(isActive ? 'ACTIVE' : 'INACTIVE');
+  }, [isActive, onStatusChange]);
 
   async function activate(): Promise<void> {
     feedback.clear();
@@ -96,6 +99,8 @@ interface UseServiceEditSessionParams {
   readonly service: StaffServiceResponse;
   readonly feedback: FormFeedback;
   readonly dismissCreatedNotice: () => void;
+  // Told the service's status on mount and after an activation (the dashboard topbar's badge).
+  readonly onStatusChange?: ServiceStatusListener;
 }
 
 // What ServiceEditPage coordinates across its five tabs.
@@ -103,10 +108,11 @@ export function useServiceEditSession({
   service,
   feedback,
   dismissCreatedNotice,
+  onStatusChange,
 }: UseServiceEditSessionParams) {
   const tabs = useEditTabs(dismissCreatedNotice);
   const facts = useConfigTabFacts(service);
-  const activation = useServiceActivation(service, feedback);
+  const activation = useServiceActivation(service, feedback, onStatusChange);
 
   return { ...tabs, ...facts, ...activation };
 }

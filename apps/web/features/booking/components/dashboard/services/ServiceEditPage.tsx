@@ -6,6 +6,7 @@ import { useServiceDetailsForm } from '@/features/booking/hooks/useServiceDetail
 import { useServiceEditSession } from '@/features/booking/hooks/useServiceEditSession';
 import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import { DiscardChangesDialog } from '@/shared/components/DiscardChangesDialog';
+import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
 import { useCreatedNotice } from './use-created-notice';
 import { useTabFeedback } from './service-tab-action';
 import { useServiceEditLeaveGuard } from './useServiceEditLeaveGuard';
@@ -27,6 +28,7 @@ export function ServiceEditPage({
 }: ServiceEditPageProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
   const form = useFormFeedback();
+  const topbarStatus = useDashboardTopbarStatus();
   const tabFeedback = useTabFeedback(form);
   const created = useCreatedNotice(justCreated, service.serviceId);
   const feedback = tabFeedback ?? created.notice;
@@ -50,6 +52,7 @@ export function ServiceEditPage({
     service,
     feedback: form,
     dismissCreatedNotice: created.dismiss,
+    onStatusChange: topbarStatus?.setServiceStatus,
   });
   const {
     name,
