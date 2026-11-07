@@ -127,6 +127,21 @@ A secondary trap in the same incident: a component with a *fixed*, non-branded a
 
 ---
 
+## The `--ba-*` exception
+
+**A dashboard or account component never reads a `--ba-*` custom property.** The staff dashboard and the customer account (`CustomerShell`) are the fixed SaaS palette, Tailwind and shadcn (`docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` § 2). `applyBranding()` defines the variables on a wrapper element, so outside that wrapper they are undefined and a use renders the browser default (a black or transparent element, with no build error: `Topbar.tsx`, `HotsiteAuthBar` and `/switch-tenant` each broke this way). Under `app/[slug]/` the wrapper (`#hotsite-root`) also encloses `my-account`, so the variables are inherited there; the account shell still stays on the fixed palette by design, because a tenant colour would repaint account chrome.
+
+**The exception: a `features/customer` component may read `--ba-*` only if it renders inside a wrapper that applies the tenant's `applyBranding()` styles.** Three files qualify, in two flows, and no other `features/customer` file does:
+
+| Files (`features/customer/components/`) | Flow | Where the variables come from |
+|---|---|---|
+| `InformationCompletionPrompt.tsx`, `InformationCompletionPhoneField.tsx` | The information-completion prompt, reached from the hotsite | `app/[slug]/layout.tsx` renders the prompt inside `#hotsite-root` |
+| `TenantOptionRow.tsx` | The tenant switch (`/switch-tenant`) | `app/switch-tenant/page.tsx` sits outside `[slug]` and wraps `SwitchTenantClient` in its own `applyBranding()` div |
+
+**Where the rule is enforced.** `scripts/pre-pr.sh` check 27 greps every changed file under `shells/dashboard/components/`, `features/*/components/dashboard/` and `features/customer/components/` for `--ba-`, and its `web_dashboard_tsx` filter excludes exactly the three files above by path. `/bad-smell-audit` WEB-10 flags the same pattern in a full audit and reads this section for the same three names. A new tenant-branded customer flow needs three changes in one PR: its wrapper, a row in the table above and its path in that filter; an exception added to the script alone is invisible to the audit and to a reader.
+
+---
+
 ## Reuse the repo's UI primitives — never hand-roll a control that already exists
 
 **Before writing any interactive control (a calendar, a date or time picker, a select, a popover, a dialog, a switch, a badge, a card), list `apps/web/shared/components/ui/` and grep the app for an existing usage — and build on that.** Writing the control from raw HTML or Tailwind (a hand-built month grid, a bare `<input type="date">`, a homemade popover or modal, a `<div>` styled as a button) when a primitive already exists is a defect, whatever the story's prototype looks like: the prototype shows the *result*, the repo already knows how to build it. A hand-rolled control also forfeits what the primitive carries for free — keyboard handling, focus management, WCAG 2.1 AA, the fixed shadcn palette, and a layout that has already been verified in a real browser (jsdom cannot catch broken layout or hit-testing, which is how M18-S01's calendar shipped three bugs).

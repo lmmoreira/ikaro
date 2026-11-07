@@ -1187,7 +1187,7 @@ it('has no axe violations', async () => {
 - `toHaveNoViolations` registered globally via `expect.extend(toHaveNoViolations)` in `vitest.setup.ts`
 - `color-contrast` rule **disabled in the shared `axe` instance** exported by `apps/web/axe-helper.ts` (`vitest.setup.ts` only registers the matchers) — jsdom cannot resolve CSS custom properties (`--ba-primary`, etc.), causing false-positives on branding tokens; WCAG AA correctness is covered by `contrastRatio` unit tests in `apply-branding.spec.ts`
 - `ContactModule`: pass `{ iframes: false }` to `axe()` — jsdom cannot scan cross-origin `<iframe>` (Google Maps embed)
-- **Dashboard/account components** use Ikaro's fixed design system (no `--ba-*` tokens) — use the **full** default axe ruleset including `color-contrast`
+- **Dashboard/account components** use Ikaro's fixed design system (no `--ba-*` tokens) — use the **full** default axe ruleset including `color-contrast`. The tenant-branded customer files (see `docs/ENGINEERING_RULES_FRONTEND.md` § The `--ba-*` exception) are the exception: jsdom cannot resolve their `--ba-*` colours, for the same reason as the first bullet above
 
 ### Per-component minimum test coverage
 
