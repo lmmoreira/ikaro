@@ -34,6 +34,7 @@ Write every file the story's "Files to create/modify" lists, following the patte
 - **Every new `features/**/components/**/*.tsx`, `shells/**/components/**/*.tsx` or `shared/components/**/*.tsx` ships its `.spec.tsx` in the same commit** (rule: `.copilot/context.md` §7 Testing).
 - **Before adding an E2E `test(`, grep `apps/web/e2e` for the route and the `data-testid`s it would assert.** If an existing test already walks that flow with the same login and seed, add a named `test.step` to it instead; a new test needs a one-line reason in the PR body. An assertion jsdom or an integration test can make goes there (`docs/TESTING_STRATEGY.md` § Layer 5, "Before adding an E2E test").
 - **Before a blind `Write` of a file you believe is new,** grep for its expected exported symbols (`docs/ENGINEERING_RULES_SHARED.md` § Before a blind `Write` on a file).
+- **Editing a `.claude/commands/*.md` file:** run `bash scripts/codex-skill.sh` and stage the regenerated `.agents/skills/<name>/SKILL.md` mirrors in the same commit (see `docs/DEFINITION_OF_DONE.md` § Stale-reference sweep).
 - A story that touches Terraform, IAM, Pub/Sub or CI/CD has a live-verification check; `/pr-land` runs it before the merge review. Do not defer designing it.
 
 ---

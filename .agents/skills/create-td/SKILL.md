@@ -26,6 +26,8 @@ Argument: `$ARGUMENTS` — a problem/evidence description for a **brand-new TD**
 
 A TD reasoning from a stale claim about "what the code does today" produces a wrong remediation — same principle `/discovery-to-milestone`'s Step 0 applies to a discovery doc. Spawn an Explore agent to verify every factual claim in `$ARGUMENTS` (a specific bug, a specific file/behavior, a specific incident) against the actual current codebase. Report any drift found before continuing.
 
+A claim that something is **unenforced, missing or absent** needs a grep of every place it could be enforced, not only the obvious one: `packages/architecture-check/`, the `eslint.config.js` files, `scripts/` (`pre-pr.sh`), `.claude/commands/` (the audit checks) and `.github/workflows/`. Two TD58 stories shipped a wrong premise this way: container widths that no page sets, and "no enforcement" for a rule that `pre-pr.sh` check 27 already enforced.
+
 Also check whether this problem is already tracked: grep `td/*.md` and `docs/ANTI_PATTERNS.md` for the same issue under a different name before creating a duplicate.
 
 ---
