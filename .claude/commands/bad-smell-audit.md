@@ -197,7 +197,7 @@ This is CLAUDE.md's own documented anti-pattern ("New interface in `apps/web/fea
 
 ### WEB-10. `--ba-*` CSS variables used outside the hotsite tree
 
-`--ba-*` custom properties are injected by `applyBranding()` in `app/[slug]/layout.tsx` and are only defined within that layout's subtree — **except** `app/[slug]/my-account/**`, which is the `CustomerShell` (fixed SaaS design system), not hotsite-branded, despite being physically nested under `app/[slug]/`.
+`--ba-*` custom properties are injected by `applyBranding()` on a wrapper element (`app/[slug]/layout.tsx` for the hotsite subtree, and the tenant-switch page's own wrapper) and are only defined inside that wrapper. `app/[slug]/my-account/**` sits inside the hotsite wrapper, so it inherits them, but it is the `CustomerShell` (fixed SaaS design system), not hotsite-branded, and must not read them.
 
 Grep `apps/web/` for `--ba-` references (`var(--ba-*)`, or a CSS-in-JS/style-object key matching `--ba-${string}`). Flag any occurrence in a file that is **not** under `app/[slug]/` (excluding `app/[slug]/my-account/**`), `shells/hotsite/components/`, or `features/platform/hotsite/`. In particular, check `shells/dashboard/`, `app/[slug]/my-account/**`, and `features/customer/` (apart from the three exception files named in `docs/ENGINEERING_RULES_FRONTEND.md` § The `--ba-*` exception: `InformationCompletionPrompt`, `InformationCompletionPhoneField` and `TenantOptionRow`) — this exact pattern has broken 3 separate times in this project's history (`Topbar.tsx`/M13-S15, `HotsiteAuthBar`/M13-S14, `/switch-tenant`/M13-S14, all in `docs/ANTI_PATTERNS.md`), always rendering invisible text or a solid-black element rather than throwing an error.
 
