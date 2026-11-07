@@ -44,8 +44,10 @@ web_spec_tsx_added=$(echo "$added" | grep -E "$web_component_re" | grep -E '\.sp
 # Dashboard shell chrome + dashboard-scoped feature components + CustomerShell/account components.
 # InformationCompletionPrompt and its phone field live in features/customer/ but render over the
 # tenant's hotsite (the [slug] layout paints the --ba-* variables there) and use the branded
-# feedback skin, so they legitimately read --ba-*; every other customer component is account chrome.
-web_dashboard_tsx=$(echo "$ts_prod" | grep -E '^apps/web/(shells/dashboard/components/|features/[^/]+/components/dashboard/|features/customer/components/)' | grep -E '\.tsx$' | grep -vE '^apps/web/features/customer/components/InformationCompletion(Prompt|PhoneField)\.tsx$' || true)
+# feedback skin; TenantOptionRow belongs to /switch-tenant, whose page wraps it in applyBranding().
+# They legitimately read --ba-*; every other customer component is account chrome
+# (docs/ENGINEERING_RULES_FRONTEND.md, the --ba-* exception, lists them; keep the two in sync).
+web_dashboard_tsx=$(echo "$ts_prod" | grep -E '^apps/web/(shells/dashboard/components/|features/[^/]+/components/dashboard/|features/customer/components/)' | grep -E '\.tsx$' | grep -vE '^apps/web/features/customer/components/(InformationCompletion(Prompt|PhoneField)|TenantOptionRow)\.tsx$' || true)
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

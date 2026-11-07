@@ -54,9 +54,9 @@ The dashboard and `my-account` shells belong to the **Ikaro SaaS product**, not 
 | Tailwind utility classes (`bg-white`, `border-gray-100`, `text-gray-900`, …) | `--ba-primary`, `--ba-secondary`, `--ba-text`, `--ba-background`, or any other `--ba-*` CSS variable |
 | shadcn/ui design tokens (`--primary`, `--secondary`, `--muted`, `--border`, …) | `var(--ba-*)` in any inline `style` prop or CSS class |
 
-**Why:** `--ba-*` variables are injected by `applyBranding()` inside `app/[slug]/layout.tsx` and only exist within the `/[slug]/` route subtree (the public hotsite). In the dashboard and `my-account` routes those variables are never set — referencing them renders the browser default (often transparent or black), silently breaking the component with no build or type error.
+**Why:** `--ba-*` variables are injected by `applyBranding()` inside `app/[slug]/layout.tsx` and only exist within the `/[slug]/` route subtree (the public hotsite). In the dashboard routes those variables are never set — referencing them renders the browser default (often transparent or black), silently breaking the component with no build or type error. Under `my-account` they are inherited from the hotsite wrapper, but the account shell stays on the fixed palette by design: a tenant colour would repaint account chrome.
 
-The full rule: **hotsite tree = `--ba-*` tokens; dashboard & account shells = Tailwind + shadcn fixed palette.** See `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` §2 for the `--ba-*` variable definitions and `docs/ANTI_PATTERNS.md` for the concrete failure mode.
+The full rule: **hotsite tree = `--ba-*` tokens; dashboard & account shells = Tailwind + shadcn fixed palette.** The only exception is the tenant-branded customer flows (information completion and the tenant switch): `docs/ENGINEERING_RULES_FRONTEND.md` § The `--ba-*` exception. See `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` §2 for the `--ba-*` variable definitions and `docs/ANTI_PATTERNS.md` for the concrete failure mode.
 
 ---
 

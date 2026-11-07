@@ -257,7 +257,7 @@ Full checklist (coverage, migration pre-production exception, stale-reference sw
 
 ## 8. Anti-Patterns (BLOCK MERGE)
 
-Full list (narrower single-incident precedents included) in `docs/ANTI_PATTERNS.md` (loaded automatically by `/pre-pr`). The 11 below are the highest-severity/most-universal — architecturally broad, still-relevant, likely to be hit *while writing code*, before `/pre-pr` ever loads the full list.
+Full list (narrower single-incident precedents included) in `docs/ANTI_PATTERNS.md` (auto-loaded by `/pre-pr`). The 11 below are the highest-severity/most-universal — architecturally broad, likely to be hit *while writing code*, before `/pre-pr` loads the full list.
 
 | Pattern | Fix |
 |---|---|
@@ -267,7 +267,7 @@ Full list (narrower single-incident precedents included) in `docs/ANTI_PATTERNS.
 | New interface in `apps/web/features/**/api/**`, `apps/web/shared/lib/api/**`, or `apps/web/shared/types/**` without checking `@ikaro/types` | Grep `@ikaro/types` first — either side may be stale; verify against live BFF schema if shapes differ. **CI-enforced** by `packages/architecture-check`'s `ikaro-types-drift` detector — full-codebase, every PR, not diff-scoped |
 | Inline mapper functions accumulating in a BFF `*.controller.ts` | Extract to `<module>.mapper.ts` (plain functions, not a class) once a second mapper appears |
 | Duplicate read endpoints/use cases for projections of the same aggregate/config | Keep one canonical read endpoint/use case; derive caller-specific values in the BFF mapper or web helper |
-| Dashboard or account component uses a `--ba-*` CSS variable | `--ba-*` only exists under `app/[slug]/` (hotsite tree). Use Tailwind + shadcn in dashboard/account shells |
+| Dashboard/account component uses `--ba-*` | Hotsite tree only; use Tailwind + shadcn. Exception: tenant-branded customer flows (`docs/ENGINEERING_RULES_FRONTEND.md` § The `--ba-*` exception) |
 | Fixed a Zod/DTO validation rule in one layer (BFF or backend) without checking the other for a duplicate schema | Grep the field name in both layers — BFF and backend often maintain independent copies of the same schema |
 | A non-repository class (service, publisher, handler) contains raw SQL, `@InjectRepository`, or TypeORM `Repository<T>` directly | Extract `IXxxRepository` (`shared/ports/` for cross-cutting, `<ctx>/application/ports/` for a bounded context) + `TypeOrmXxxRepository` adapter; the class depends on the port only — see `docs/AGENT_PATTERNS.md` Pattern #1 |
 | A module is marked `@Global()` (or re-marked when a token gains new consumers) without adding that token to `exports:` | `@Global()` only waives the *importing* module's need for an `imports:` entry — it never substitutes for `exports:`. A provider left out of `exports:` stays unresolvable everywhere. **CI-enforced**: `di-alias` detector |
