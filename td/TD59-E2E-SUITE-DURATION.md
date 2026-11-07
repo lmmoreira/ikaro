@@ -168,7 +168,7 @@ New migration / i18n keys / env vars / feature flags: none expected.
 
 ---
 
-### Story 3 — Shard the Playwright job into 2 parallel legs
+### Story 3 — Shard the Playwright job into 2 parallel legs ✅ Done
 
 **Agent:** devops
 **Complexity:** M
@@ -200,12 +200,14 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 
 **Acceptance criteria — technical:**
 - E2E:
-  - [ ] on the first sharded run the two legs run 161 and 160 tests and the sum equals the full 321 (read from each leg's `passed` line)
+  - [ ] on the first sharded run the two legs execute 161 and 160 tests and the sum equals the full 321 (read from each leg's `passed` plus `flaky` lines: Playwright reports a test that failed once and passed on retry as `flaky`, not `passed`)
   - [ ] five sharded runs are green with the numbers above; otherwise the workflow change is reverted
 - [ ] Negative guarantee pinned: a deliberately failing leg makes `test-suite-passed` fail, and with `fail-fast: true` the cancelled sibling leg fails it too (shown on a throwaway commit in the PR, then removed)
 - [ ] `actionlint` and `zizmor` clean; the docs above and the cap comment updated
 
 **Live-verification check:** five green sharded PR runs under the new cap, plus the throwaway failing-leg run.
+
+**Result (2026-11-07, PR #730):** the job runs as 2 legs of 161 and 160 tests, and the partition was exact in every run. The trial had to be restarted three times, because each change to what it measured restarted it (18 runs in all, on five heads). The first five runs met the timing targets (slower leg median 11.7 min, worst 12.9) but 3 of 5 retried a test; the user chose to keep sharding and fix the flakes. Two flaky tests were fixed: `select-staff-tenant` asserted the transient `/dashboard` URL that redirects at once to `/dashboard/bookings`, and the `hotsite-editor` drag test clicked Publicar 30 ms after a drop, inside the 50 ms window in which dnd-kit (`@dnd-kit/core` 6.3.1) swallows the next click, so no publish request was sent (found from a saved trace of a failed first attempt; fixed with `waitForDragToSettle`). Final trial on the merged test code: 5 of 5 runs with no retried test, 321 tests each, runner wait at most 2 s, slower leg 12.0, 11.4, 10.4, 10.4 and 12.1 min (median 11.4, worst 12.1) against 16-18 min for the single job. The throwaway failing leg (run 42329037401) failed leg 1, cancelled leg 2 through fail-fast, failed `Test Suite Passed` and skipped SonarCloud. Not in the story's file list, added on the way: the three Dockerfile base-image digests (a repo-wide Trivy failure on the patched musl and zlib, in its own commit), the per-leg report and trace upload on every non-cancelled leg, and the artifact names in `docs/ENGINEERING_RULES_TESTING.md`. Tried and reverted: `trace: 'retain-on-first-failure'`, which made the slower leg 14 min (about 2 min more than `on-first-retry`). Worth knowing for the next flake: re-running a workflow replaces its same-named artifacts, so download a failed attempt's `playwright-traces-N` before re-running.
 
 ---
 
