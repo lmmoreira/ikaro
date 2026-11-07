@@ -1,5 +1,6 @@
 'use client';
 
+import { PageHeader } from '@/shared/components/ui/page-header';
 import { useCallback, useState } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -176,12 +177,7 @@ export function NewRecurringScheduleForStaff({
     >
       <Card data-testid="recipient-header">
         <CardContent className="flex flex-col gap-4 p-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-              {t('stepPattern')}
-            </p>
-            <h1 className="mt-1 text-lg font-bold text-gray-900">{t('title')}</h1>
-          </div>
+          <PageHeader eyebrow={t('stepPattern')} title={t('title')} />
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-gray-900">{customer.name}</p>

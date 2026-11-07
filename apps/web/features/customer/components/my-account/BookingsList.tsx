@@ -6,6 +6,7 @@ import { Bell, ChevronRight, Repeat } from 'lucide-react';
 import type { CustomerBookingListItem } from '@ikaro/types';
 import type { AlertsSummary } from '@/features/booking/api/availability-alerts.server';
 import type { RecurringSummary } from '@/features/booking/api/recurring-booking-schedules.server';
+import { PageHeader } from '@/shared/components/ui/page-header';
 import { alertListPath } from '../../alert-model';
 import { recurringScheduleListPath } from '../../recurring-schedule-model';
 import { splitBookingSections } from '../../booking-sections';
@@ -102,12 +103,15 @@ export function BookingsList({
 
   return (
     <div className="w-full">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-lg font-bold text-gray-900">{t('title')}</h1>
-        <div className="lg:hidden" data-testid="mobile-new-menu">
-          <NewReservationMenu tenantSlug={tenantSlug} />
-        </div>
-      </div>
+      <PageHeader
+        title={t('title')}
+        className="items-center"
+        actions={
+          <div className="lg:hidden" data-testid="mobile-new-menu">
+            <NewReservationMenu tenantSlug={tenantSlug} />
+          </div>
+        }
+      />
 
       {recurringSummary?.hasAny === true && (
         <EntryRow

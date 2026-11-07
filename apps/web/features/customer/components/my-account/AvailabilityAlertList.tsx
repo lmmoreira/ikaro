@@ -1,5 +1,6 @@
 'use client';
 
+import { PageHeader } from '@/shared/components/ui/page-header';
 import Link from 'next/link';
 import { Bell } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -113,7 +114,7 @@ export function AvailabilityAlertList({
 
   return (
     <div className="w-full" data-testid="alerts-list">
-      <h1 className="text-lg font-bold text-gray-900">{t('title')}</h1>
+      <PageHeader title={t('title')} />
 
       {isEmpty ? (
         <EmptyState

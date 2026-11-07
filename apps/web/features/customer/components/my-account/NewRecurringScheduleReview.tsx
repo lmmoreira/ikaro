@@ -1,5 +1,6 @@
 'use client';
 
+import { PageHeader } from '@/shared/components/ui/page-header';
 import { useTranslations } from 'next-intl';
 import type { HotsiteServiceResponse } from '@ikaro/types';
 import {
@@ -94,12 +95,7 @@ export function NewRecurringScheduleReview({
 
   return (
     <NewRecurringScheduleLayout testId="new-schedule-review" pane={renderPane()}>
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-          {tn('stepReview')}
-        </p>
-        <h1 className="mt-1 text-lg font-bold text-gray-900">{tn('reviewTitle')}</h1>
-      </div>
+      <PageHeader eyebrow={tn('stepReview')} title={tn('reviewTitle')} />
 
       <dl className="divide-y divide-gray-100 rounded-xl border border-gray-100 bg-white px-4">
         <Fact label={tn('labelService')} value={service.name} testId="review-service" />

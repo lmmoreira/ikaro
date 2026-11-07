@@ -1,5 +1,6 @@
 'use client';
 
+import { PageHeader } from '@/shared/components/ui/page-header';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { BookingErrorCode, type HotsiteServiceResponse } from '@ikaro/types';
@@ -63,12 +64,7 @@ function Heading({
   readonly eyebrow: string;
   readonly title: string;
 }): React.JSX.Element {
-  return (
-    <div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">{eyebrow}</p>
-      <h1 className="mt-1 text-lg font-bold text-gray-900">{title}</h1>
-    </div>
-  );
+  return <PageHeader eyebrow={eyebrow} title={title} />;
 }
 
 export function NewRecurringScheduleResult({

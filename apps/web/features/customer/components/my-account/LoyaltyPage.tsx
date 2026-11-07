@@ -1,5 +1,6 @@
 'use client';
 
+import { PageHeader } from '@/shared/components/ui/page-header';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -38,7 +39,7 @@ export function LoyaltyPage({
 
   return (
     <div className="w-full">
-      <h1 className="text-lg font-bold text-gray-900">{t('title')}</h1>
+      <PageHeader title={t('title')} />
 
       <div
         className={`mt-4 flex items-center gap-4 rounded-xl p-4 text-white ${

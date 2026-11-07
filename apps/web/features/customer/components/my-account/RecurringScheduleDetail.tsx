@@ -1,5 +1,6 @@
 'use client';
 
+import { PageHeader } from '@/shared/components/ui/page-header';
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -188,24 +189,22 @@ function ScheduleDetailBody({
     <div className="w-full pb-40 lg:pb-0" data-testid="recurring-schedule-detail">
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-6">
         <div className="flex flex-col gap-4">
-          <Card className="flex items-start justify-between gap-3 rounded-xl border-gray-100 p-4 shadow-none">
-            <div className="min-w-0">
-              <h1 className="text-lg font-bold text-gray-900">
-                {recurrenceLine(schedule.recurrence)}
-              </h1>
-              <p className="mt-0.5 text-sm text-gray-500">
-                {t('serviceSubtitle', { service: schedule.serviceName })}
-              </p>
-            </div>
-            <Badge
-              data-testid="recurring-schedule-status-badge"
-              className={cn(
-                'shrink-0 border-0 px-3 py-1.5',
-                RECURRING_SCHEDULE_STATUS_CLASSES[schedule.status],
-              )}
-            >
-              {t(STATUS_LABEL_KEY[schedule.status])}
-            </Badge>
+          <Card className="rounded-xl border-gray-100 p-4 shadow-none">
+            <PageHeader
+              title={recurrenceLine(schedule.recurrence)}
+              description={t('serviceSubtitle', { service: schedule.serviceName })}
+              actions={
+                <Badge
+                  data-testid="recurring-schedule-status-badge"
+                  className={cn(
+                    'shrink-0 border-0 px-3 py-1.5',
+                    RECURRING_SCHEDULE_STATUS_CLASSES[schedule.status],
+                  )}
+                >
+                  {t(STATUS_LABEL_KEY[schedule.status])}
+                </Badge>
+              }
+            />
           </Card>
 
           {schedule.status === 'ENDED' && (

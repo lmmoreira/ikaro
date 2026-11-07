@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import type { RecurringBookingScheduleListItem, RecurringScheduleStatus } from '@ikaro/types';
 import { Badge } from '@/shared/components/ui/badge';
 import { EmptyState } from '@/shared/components/ui/empty-state';
+import { PageHeader } from '@/shared/components/ui/page-header';
 import { cn } from '@/shared/utils/cn';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import {
@@ -129,12 +130,15 @@ export function RecurringScheduleList({
 
   return (
     <div className="w-full">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-lg font-bold text-gray-900">{t('title')}</h1>
-        <div className="lg:hidden" data-testid="mobile-new-menu">
-          <NewReservationMenu tenantSlug={tenantSlug} />
-        </div>
-      </div>
+      <PageHeader
+        title={t('title')}
+        className="items-center"
+        actions={
+          <div className="lg:hidden" data-testid="mobile-new-menu">
+            <NewReservationMenu tenantSlug={tenantSlug} />
+          </div>
+        }
+      />
 
       {isEmpty ? (
         <EmptyState

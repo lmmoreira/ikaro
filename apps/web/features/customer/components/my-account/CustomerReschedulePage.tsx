@@ -1,5 +1,6 @@
 'use client';
 
+import { PageHeader } from '@/shared/components/ui/page-header';
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type {
@@ -178,7 +179,7 @@ export function CustomerReschedulePage({
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-6">
         <div className="flex flex-col gap-4">
           <Card className="rounded-xl border-gray-100 p-4 shadow-none">
-            <h1 className="text-lg font-bold text-gray-900">{t('title')}</h1>
+            <PageHeader title={t('title')} />
             <p className="mb-1 mt-3 text-[0.6875rem] font-bold uppercase tracking-wider text-gray-400">
               {t('currentSectionLabel')}
             </p>

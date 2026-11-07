@@ -1,5 +1,6 @@
 'use client';
 
+import { PageHeader } from '@/shared/components/ui/page-header';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { Bell, Calendar, Repeat, Star } from 'lucide-react';
@@ -53,9 +54,7 @@ export function HomeDashboard({
 
   return (
     <div className="w-full">
-      {userName !== null && (
-        <h1 className="text-lg font-bold text-gray-900">{t('greeting', { name: userName })}</h1>
-      )}
+      {userName !== null && <PageHeader title={t('greeting', { name: userName })} />}
 
       <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-3">
         <HomeCountTile
