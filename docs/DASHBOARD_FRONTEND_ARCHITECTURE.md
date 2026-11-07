@@ -35,6 +35,7 @@ The Dashboard is the authenticated area of Ikaro where **Customers** manage thei
   - `WeekNav.tsx` — week-window navigation control (previous/next, today, selectable date) used by the booking queue page and the schedule page.
   - `topbar-status-context.tsx` (`DashboardTopbarStatusProvider`) — route-scoped chrome state (status badge, back-href/label/onBack overrides), mounted per-section above both the shell and the page.
   - `DashboardLayoutShell.tsx`/`DashboardSectionShell.tsx` — shared layout-composition helpers used by `services/`, `team/`, `settings/`, `hotsite/`, `leads/`, `resources/`, `scheduling-exceptions/` (not yet adopted by `bookings/`, `schedule/`, `loyalty/`, which still hand-roll the same provider nesting inline).
+  - **Page header (account and staff pages that carry their own title):** `shared/components/ui/page-header.tsx` is the one header for a page whose `h1` is not the topbar title (the customer account pages and the recurring-reservation screens). It sets the title, an optional eyebrow, description and actions slot, and nothing else: it is not `DashboardSectionShell` (a provider wrapper) and not the route-scoped topbar state above. There is no content-container component; no page sets a page-level width (TD58 Story 5).
 
 ### **Customer Shell — `/{slug}/my-account/**` (UC-006, UC-007, UC-016, UC-023)**
 - **Focus:** Personal booking history and loyalty for the `CUSTOMER` role.

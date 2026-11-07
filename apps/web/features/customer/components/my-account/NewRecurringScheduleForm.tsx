@@ -1,5 +1,6 @@
 'use client';
 
+import { PageHeader } from '@/shared/components/ui/page-header';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import type { HotsiteServiceResponse } from '@ikaro/types';
@@ -114,12 +115,7 @@ export function NewRecurringScheduleForm({
         form={form}
         heading={
           <div className="flex flex-col gap-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                {tn('stepPattern')}
-              </p>
-              <h1 className="mt-1 text-lg font-bold text-gray-900">{title ?? tn('title')}</h1>
-            </div>
+            <PageHeader eyebrow={tn('stepPattern')} title={title ?? tn('title')} />
             {header}
           </div>
         }

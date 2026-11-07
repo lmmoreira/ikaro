@@ -1,5 +1,6 @@
 'use client';
 
+import { PageHeader } from '@/shared/components/ui/page-header';
 import { ActionPane } from '@/shared/components/ui/action-pane';
 import { Button } from '@/shared/components/ui/button';
 import { Card } from '@/shared/components/ui/card';
@@ -82,7 +83,7 @@ export function ConfirmPage({
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-6">
         <div className="flex flex-col gap-4">
           <Card className="rounded-xl border-gray-100 p-4 shadow-none">
-            <h1 className="text-lg font-bold text-gray-900">{title}</h1>
+            <PageHeader title={title} />
             <p className="mt-1 text-sm text-gray-500">{subtitle}</p>
             <p className="mb-2.5 mt-4 text-[0.6875rem] font-bold uppercase tracking-wider text-gray-400">
               {sectionLabel}

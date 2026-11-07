@@ -162,6 +162,15 @@ describe('RecurringScheduleDetail — ACTIVE', () => {
     );
   });
 
+  it('shows the status badge beside the title, with the service subtitle under it', () => {
+    renderDetail(makeSchedule(), page);
+
+    const heading = screen.getByRole('heading', { level: 1 });
+    const header = heading.closest('.flex');
+    expect(header).toContainElement(screen.getAllByTestId('recurring-schedule-status-badge')[0]);
+    expect(heading.nextElementSibling).toHaveTextContent('serviceSubtitle');
+  });
+
   it('shows the price and the upcoming count read from the loaded bookings', () => {
     renderDetail(makeSchedule(), page);
 

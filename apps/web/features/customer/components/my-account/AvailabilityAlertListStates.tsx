@@ -1,5 +1,6 @@
 'use client';
 
+import { PageHeader } from '@/shared/components/ui/page-header';
 import { useTranslations } from 'next-intl';
 import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 
@@ -9,7 +10,7 @@ export function AvailabilityAlertListSkeleton(): React.JSX.Element {
 
   return (
     <div className="w-full" data-testid="alerts-loading">
-      <h1 className="text-lg font-bold text-gray-900">{t('title')}</h1>
+      <PageHeader title={t('title')} />
       <output className="mt-6 block text-sm text-gray-500">{t('loading')}</output>
     </div>
   );
@@ -27,7 +28,7 @@ export function AvailabilityAlertListError({
 
   return (
     <div className="w-full" data-testid="alerts-load-error">
-      <h1 className="text-lg font-bold text-gray-900">{t('title')}</h1>
+      <PageHeader title={t('title')} />
       <div className="mt-6">
         <FeedbackMessage title={t('loadErrorTitle')} onRetry={onRetry} retryLabel={t('retry')}>
           {t('loadErrorBody')}

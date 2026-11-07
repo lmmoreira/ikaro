@@ -1,5 +1,6 @@
 'use client';
 
+import { PageHeader } from '@/shared/components/ui/page-header';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import type { NoRecurrenceServicesReason } from '@/features/booking/model/recurring-service-eligibility';
@@ -28,7 +29,7 @@ export function NewRecurringScheduleForStaffNoServices({
   return (
     <Card data-testid="new-schedule-no-services">
       <CardContent className="space-y-3 p-5">
-        <h1 className="text-lg font-bold text-gray-900">{t('title')}</h1>
+        <PageHeader title={t('title')} />
         <p className="text-sm font-semibold text-gray-700">
           {t(enabledButUnavailable ? 'noServices.unavailable' : 'noServices.none')}
         </p>

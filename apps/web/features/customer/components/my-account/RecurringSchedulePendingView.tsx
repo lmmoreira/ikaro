@@ -1,5 +1,6 @@
 'use client';
 
+import { PageHeader } from '@/shared/components/ui/page-header';
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -73,10 +74,7 @@ export function RecurringSchedulePendingView({
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-6">
         <div className="flex flex-col gap-4">
           <Card className="rounded-xl border-gray-100 p-4 shadow-none">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-              {schedule.serviceName}
-            </p>
-            <h1 className="mt-1 text-lg font-bold text-gray-900">{t('pendingTitle')}</h1>
+            <PageHeader eyebrow={schedule.serviceName} title={t('pendingTitle')} />
             <p className="mt-1 text-sm text-gray-500">
               {t('pendingLead', {
                 recurrence: recurrenceLine(schedule.recurrence),
