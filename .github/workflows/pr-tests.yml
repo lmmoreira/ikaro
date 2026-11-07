@@ -211,17 +211,24 @@ jobs:
           ENABLE_DEV_AUTH: 'true'
 
   e2e:
-    name: Playwright E2E
+    name: Playwright E2E (${{ matrix.shard }}/${{ strategy.job-total }})
     needs: detect-changes
     if: needs.detect-changes.outputs.app == 'true'
     runs-on: ubuntu-latest
-    # 35: the suite is 321 tests and takes 14-17 minutes of Playwright on a CI runner after about
-    # 2 minutes of setup (445 tests and 20-21 minutes before the TD59-S01 trim; the slowest healthy
-    # run seen in the 40 before it was 26.7 minutes). The cap went 20 -> 30
-    # -> 45 as the suite grew, but the one run that actually hit 30 (2026-11-05) lost 9.5 minutes in
-    # the browser install, not in the tests (TD59). That step is now bounded on its own, so the cap
-    # is back to real headroom over a healthy run (docs/CI_TRAPS.md).
-    timeout-minutes: 35
+    # Two parallel legs (TD59): Playwright splits the 321 tests by file (161 and 160), each leg runs
+    # its share against its own stack, database and seed, and the shard total comes from the matrix
+    # (`strategy.job-total`), so the flag cannot disagree with the number of legs. `test-suite-passed`
+    # needs every leg to be "success". fail-fast stops the sibling as soon as one leg fails: the PR
+    # has to be fixed locally anyway, so finishing the other leg is wasted time (the cost is that a
+    # round shows only the first failing leg's failures).
+    strategy:
+      fail-fast: true
+      matrix:
+        shard: [1, 2]
+    # 20: a leg takes about 11 minutes (about 2 of setup, the rest tests); the single job it
+    # replaced took 16-18 (22-23 before the TD59-S01 trim, and one run hit the old 30-minute cap
+    # because the browser install stalled, TD59-S00). The cap history is in docs/CI_TRAPS.md.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -403,9 +410,12 @@ jobs:
         timeout-minutes: 3
         run: pnpm --filter @ikaro/web exec playwright install chromium
 
+      # No `--` before the flag: it makes Playwright ignore --shard and run every test.
       - name: Run Playwright E2E
-        run: pnpm --filter @ikaro/web e2e:ci
+        run: pnpm --filter @ikaro/web e2e:ci --shard="${SHARD_INDEX}/${SHARD_TOTAL}"
         env:
+          SHARD_INDEX: ${{ matrix.shard }}
+          SHARD_TOTAL: ${{ strategy.job-total }}
           PLAYWRIGHT_BASE_URL: 'http://localhost:3000'
           INTERNAL_API_KEY: 'e2e-ci-internal-api-key-must-be-32-chars!!'
           JWT_SECRET: 'e2e-ci-jwt-secret-must-be-at-least-64-characters-long-xxxxxxxxxxxxx'
@@ -414,19 +424,22 @@ jobs:
           # compose database the migrations ran against, as the migrator role.
           PLAYWRIGHT_DB_URL: 'postgres://ikaro_migrator:ikaro_migrator@localhost:5432/ikaro'
 
+      # Report and traces are kept whenever the leg was not cancelled, not only on failure: a test
+      # that fails once and passes on retry leaves its trace here and nowhere else, and a green leg
+      # would otherwise throw it away. Server logs stay failure-only (they are large).
       - name: Upload Playwright report
-        if: failure()
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.shard }}
           path: apps/web/playwright-report/
           retention-days: 1
 
       - name: Upload Playwright traces
-        if: failure()
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: playwright-traces
+          name: playwright-traces-${{ matrix.shard }}
           path: apps/web/test-results/
           retention-days: 1
 
@@ -434,7 +447,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: server-logs
+          name: server-logs-${{ matrix.shard }}
           path: |
             /tmp/backend.log
             /tmp/bff.log
