@@ -1,14 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, type SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import type { ServiceIntakeSchemaResponse, StaffServiceResponse } from '@ikaro/types';
-import { useActivateService, useUpdateService } from '@/features/booking/services/useServices';
-import { toFieldErrors, validateServiceForm } from '@/features/booking/services/service-form';
-import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
+import { useServiceDetailsForm } from '@/features/booking/hooks/useServiceDetailsForm';
+import { useServiceEditSession } from '@/features/booking/hooks/useServiceEditSession';
 import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
-import type { ServiceEditTabKey, ServiceTabAction } from '@/features/booking/types/service';
-import { INITIAL_SERVICE_EDIT_DIRTY_STATE } from '@/features/booking/types/service';
 import { DiscardChangesDialog } from '@/shared/components/DiscardChangesDialog';
 import { useCreatedNotice } from './use-created-notice';
 import { useTabFeedback } from './service-tab-action';
@@ -17,7 +13,6 @@ import { ServiceEditActionPanels } from './ServiceEditPanels';
 import { ServiceEditTabBar } from './ServiceEditTabBar';
 import { ServiceEditDetailsTab } from './ServiceEditDetailsTab';
 import { ServiceEditConfigTabPanels } from './ServiceEditConfigTabPanels';
-import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
 
 interface ServiceEditPageProps {
   readonly service: StaffServiceResponse;
@@ -31,136 +26,58 @@ export function ServiceEditPage({
   justCreated = false,
 }: ServiceEditPageProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
-  const locale = useResolvedLocale();
-  const updateServiceMutation = useUpdateService();
-  const activateServiceMutation = useActivateService();
-  const topbarStatus = useDashboardTopbarStatus();
-  const setTopbarServiceStatus = topbarStatus?.setServiceStatus;
-
-  const [activeTab, setActiveTab] = useState<ServiceEditTabKey>('detalhes');
-  const [dirty, setDirty] = useState(INITIAL_SERVICE_EDIT_DIRTY_STATE);
-  const [tabActions, setTabActions] = useState<
-    Partial<Record<ServiceEditTabKey, ServiceTabAction | null>>
-  >({});
-  const [name, setName] = useState(service.name);
-  const [description, setDescription] = useState(service.description ?? '');
-  const [priceAmount, setPriceAmount] = useState(String(service.price.amount));
-  const [durationMinutes, setDurationMinutes] = useState(String(service.durationMinutes));
-  // Whether the service has legs — from the start, or as soon as a flat→legs save lands in this
-  // session. A legged service's duration is its legs' span (computed by the backend, so locked)
-  // and it can never be customer-selected, so the policy panel needs the same fact.
-  const [hasLegs, setHasLegs] = useState(service.legs !== null);
-  // The flat requirements as last saved, for the Políticas tab's recurrence hint.
-  const [savedRequirements, setSavedRequirements] = useState(service.resourceRequirements);
-  const [loyaltyPointsValue, setLoyaltyPointsValue] = useState(String(service.loyaltyPointsValue));
-  const [requiresPickupAddress, setRequiresPickupAddress] = useState(service.requiresPickupAddress);
-  // The pickup-address value as last saved, for the Políticas tab's recurrence hint: toggling the
-  // switch changes `requiresPickupAddress` at once, but the hint follows only a successful save.
-  const [savedRequiresPickupAddress, setSavedRequiresPickupAddress] = useState(
-    service.requiresPickupAddress,
-  );
-  const [isActive, setIsActive] = useState(service.isActive);
-  const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
-  const [isActivatingLocal, setIsActivatingLocal] = useState(false);
   const form = useFormFeedback();
   const tabFeedback = useTabFeedback(form);
   const created = useCreatedNotice(justCreated, service.serviceId);
   const feedback = tabFeedback ?? created.notice;
 
-  const isSubmitting = isSubmittingLocal || updateServiceMutation.isPending;
-  const isActivating = isActivatingLocal || activateServiceMutation.isPending;
-  const anyDirty = Object.values(dirty).some(Boolean);
+  const {
+    activeTab,
+    setActiveTab,
+    dirty,
+    anyDirty,
+    setTabDirty,
+    tabActions,
+    handleTabActionChange,
+    hasLegs,
+    markHasLegs,
+    savedRequirements,
+    setSavedRequirements,
+    isActive,
+    isActivating,
+    activate,
+  } = useServiceEditSession({
+    service,
+    feedback: form,
+    dismissCreatedNotice: created.dismiss,
+  });
+  const {
+    name,
+    description,
+    priceAmount,
+    durationMinutes,
+    loyaltyPointsValue,
+    requiresPickupAddress,
+    savedRequiresPickupAddress,
+    isSubmitting,
+    onNameChange,
+    onDescriptionChange,
+    onPriceAmountChange,
+    onDurationMinutesChange,
+    onLoyaltyPointsValueChange,
+    onToggleRequiresPickupAddress,
+    handleSubmit,
+    applyLegsDuration,
+  } = useServiceDetailsForm({
+    service,
+    isActive,
+    canSubmit: activeTab === 'detalhes',
+    feedback: form,
+    onDirtyChange: (isDirty) => setTabDirty('detalhes', isDirty),
+    dismissCreatedNotice: created.dismiss,
+  });
   const { discardConfirmOpen, closeDiscardConfirm, handleCancelClick, handleConfirmDiscard } =
     useServiceEditLeaveGuard(anyDirty);
-  // Bumped on every Detalhes field edit — lets a save in flight tell whether a *newer* edit
-  // landed while it was pending, so it never clears dirty for an edit it didn't actually persist.
-  const detalhesEditRevisionRef = useRef(0);
-
-  function markDetalhesDirty(): void {
-    detalhesEditRevisionRef.current += 1;
-    form.clear();
-    setTabDirty('detalhes', true);
-  }
-
-  useEffect(() => {
-    setTopbarServiceStatus?.(isActive ? 'ACTIVE' : 'INACTIVE');
-  }, [isActive, setTopbarServiceStatus]);
-
-  // Every tab reports an edit with `true` and a successful save with `false`, so any report
-  // means the user acted after landing here: the created notice has served its purpose.
-  function setTabDirty(tab: ServiceEditTabKey, value: boolean): void {
-    created.dismiss();
-    setDirty((current) => (current[tab] === value ? current : { ...current, [tab]: value }));
-  }
-
-  const handleTabActionChange = useCallback(
-    (tab: ServiceEditTabKey, action: ServiceTabAction | null): void => {
-      setTabActions((current) =>
-        current[tab] === action ? current : { ...current, [tab]: action },
-      );
-    },
-    [],
-  );
-
-  async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-
-    // The page is now one <form> so each tab's own save button (all type="button") can sit
-    // beside the Detalhes tab's submit button without a second nested <form> — but that also
-    // means an Enter keypress inside a Recursos/Políticas field would otherwise submit Detalhes'
-    // data. Only the Detalhes tab's own submit button should ever reach this handler for real.
-    if (activeTab !== 'detalhes') return;
-
-    if (!isActive) {
-      form.setError(t('editInactiveUpdateBlocked'));
-      return;
-    }
-
-    const validation = validateServiceForm(
-      { name, description, priceAmount, durationMinutes, loyaltyPointsValue },
-      t,
-    );
-    form.clear();
-    created.dismiss();
-    if (validation.normalized === null) {
-      form.setError(t('feedbackValidationSummary'));
-      form.setFieldErrors(toFieldErrors(validation.errors));
-      return;
-    }
-
-    const revisionAtSubmit = detalhesEditRevisionRef.current;
-    const pickupAtSubmit = requiresPickupAddress;
-    setIsSubmittingLocal(true);
-    try {
-      await updateServiceMutation.mutateAsync({
-        id: service.serviceId,
-        body: { ...validation.normalized, requiresPickupAddress: pickupAtSubmit },
-      });
-      setSavedRequiresPickupAddress(pickupAtSubmit);
-      if (detalhesEditRevisionRef.current === revisionAtSubmit) {
-        setTabDirty('detalhes', false);
-        form.setSuccess(t('editSavedBody'));
-      }
-    } catch (err) {
-      form.setFromApiError(err, locale);
-    } finally {
-      setIsSubmittingLocal(false);
-    }
-  }
-
-  async function handleActivate(): Promise<void> {
-    form.clear();
-    setIsActivatingLocal(true);
-
-    try {
-      await activateServiceMutation.mutateAsync(service.serviceId);
-      setIsActive(true);
-    } catch (err) {
-      form.setFromApiError(err, locale);
-    } finally {
-      setIsActivatingLocal(false);
-    }
-  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 pb-28 lg:space-y-6 lg:pb-0">
@@ -188,30 +105,12 @@ export function ServiceEditPage({
               requiresPickupAddress={requiresPickupAddress}
               durationLocked={hasLegs}
               feedback={form}
-              onNameChange={(value) => {
-                setName(value);
-                markDetalhesDirty();
-              }}
-              onDescriptionChange={(value) => {
-                setDescription(value);
-                markDetalhesDirty();
-              }}
-              onPriceAmountChange={(value) => {
-                setPriceAmount(value);
-                markDetalhesDirty();
-              }}
-              onDurationMinutesChange={(value) => {
-                setDurationMinutes(value);
-                markDetalhesDirty();
-              }}
-              onLoyaltyPointsValueChange={(value) => {
-                setLoyaltyPointsValue(value);
-                markDetalhesDirty();
-              }}
-              onToggleRequiresPickupAddress={() => {
-                setRequiresPickupAddress((value) => !value);
-                markDetalhesDirty();
-              }}
+              onNameChange={onNameChange}
+              onDescriptionChange={onDescriptionChange}
+              onPriceAmountChange={onPriceAmountChange}
+              onDurationMinutesChange={onDurationMinutesChange}
+              onLoyaltyPointsValueChange={onLoyaltyPointsValueChange}
+              onToggleRequiresPickupAddress={onToggleRequiresPickupAddress}
             />
           </div>
 
@@ -227,8 +126,8 @@ export function ServiceEditPage({
             onTabDirtyChange={setTabDirty}
             onTabActionChange={handleTabActionChange}
             onLegsSaved={(totalSpanMinutes) => {
-              setDurationMinutes(String(totalSpanMinutes));
-              setHasLegs(true);
+              applyLegsDuration(totalSpanMinutes);
+              markHasLegs();
             }}
           />
         </div>
@@ -237,7 +136,7 @@ export function ServiceEditPage({
           isActive={isActive}
           isSubmitting={isSubmitting}
           isActivating={isActivating}
-          onActivate={handleActivate}
+          onActivate={activate}
           showPrimaryAction={activeTab === 'detalhes'}
           tabAction={activeTab === 'detalhes' ? null : (tabActions[activeTab] ?? null)}
           feedback={feedback}
