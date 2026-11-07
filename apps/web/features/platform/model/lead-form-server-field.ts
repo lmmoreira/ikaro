@@ -1,6 +1,6 @@
 import type { useTranslations } from 'next-intl';
 import type { LeadFormQuestion } from '@ikaro/types';
-import { questionFieldName } from './lead-form-field-binding';
+import { questionFieldName } from './lead-form-fields';
 
 const CONTACT_FIELDS = ['name', 'email', 'phone'] as const;
 const ANSWER_FIELD_PREFIX = 'answers.';

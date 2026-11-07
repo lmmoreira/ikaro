@@ -13,10 +13,13 @@ import {
 import { extractProblemDetailShape } from '@/shared/lib/api/errors';
 import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import { Unavailable } from '@/shells/hotsite/components/Unavailable';
-import { LeadFormFields, type LeadFormAnswers } from './LeadFormFields';
+import {
+  questionFieldName,
+  type LeadFormAnswers,
+} from '@/features/platform/model/lead-form-fields';
+import { serverFieldError } from '@/features/platform/model/lead-form-server-field';
+import { LeadFormFields } from './LeadFormFields';
 import { LeadFormLoginRequiredGate } from './LeadFormLoginRequiredGate';
-import { questionFieldName } from './lead-form-field-binding';
-import { serverFieldError } from './lead-form-server-field';
 import { LeadFormSkeleton } from './LeadFormSkeleton';
 import { LeadFormSuccess } from './LeadFormSuccess';
 import { LeadFormTerminalCard } from './LeadFormTerminalCard';

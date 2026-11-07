@@ -4,15 +4,16 @@ import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feed
 import type { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 import { ContactField } from './ContactField';
-import { questionFieldName } from './lead-form-field-binding';
+import {
+  questionFieldName,
+  type LeadFormAnswers,
+} from '@/features/platform/model/lead-form-fields';
 import { LeadFormPhoneField } from './LeadFormPhoneField';
 import { LeadFormQuestionField } from './LeadFormQuestionField';
 import { TurnstileWidget } from './TurnstileWidget';
 
 /** The form's feedback state: the banner message, the field marks and the focus registry. */
 export type LeadFormFeedback = ReturnType<typeof useFormFeedback>;
-
-export type LeadFormAnswers = Record<string, string | string[]>;
 
 const btnStyle: React.CSSProperties = {
   backgroundColor: 'var(--ba-btn-bg)',
