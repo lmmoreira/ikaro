@@ -724,18 +724,28 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 
 **Description:** Measured 2026-11-07: unbranded code has 61 raw `<button>` in 43 files, against 163 `<Button>` uses. Three groups are plain duplicates of primitives that already exist, so they need no further inventory, only the Story 3/4-style migration with rendering proof: (a) the inline `role="switch"` buttons in `ServicePickupSwitch.tsx` and `ServiceCreatePage.tsx` duplicate `SwitchField`; (b) the two `border-b-2` tab-style buttons in `LoyaltyHistoryHelpers.tsx` duplicate `ui/tabs` (Story 4); (c) the `aria-pressed` filter chips in `ResourceListPage`, `ServiceListPage` and `TeamListPage` probably map to `pill-select` / `pill-multi-select`. Discovery verifies (c) site by site before locking it: a chip whose look or behaviour `pill-select` cannot reproduce is moved to Story 13, not forced. The unclassified remainder (selectable cards, full-width rows, text-link buttons, the other ~28 sites) is Story 13's input, not this story's.
 
+**Locked in discovery (2026-11-07):**
+- **(a) Switches:** `ServicePickupSwitch` and the "active" switch in `ServiceCreatePage` are byte-identical to `ui/switch-field`. Both move to `<SwitchField>` with `testId` (`service-pickup-switch`, `service-active-switch`); `SwitchField` calls `onChange(!checked)`, so `ServicePickupSwitch` keeps its `onToggle` API and adapts. No visual change.
+- **(b) `HistoryTabs`:** migrates to `ui/tabs` `variant="underline"`, each branch of `CustomerLoyaltyPage`'s `activeTabContent` wrapped in a `TabsContent`. **Accepted visual shift** (the root-cause fix, not a workaround): 1px list border instead of 2px, inactive text `gray-500` instead of `gray-400`, hover and focus ring, `py-2.5` padding, and real `tablist`/`tab`/`tabpanel` roles. Before/after screenshots go in the PR body instead of threshold 0. `CustomerTabNav` is route links, not tabs, and stays.
+- **(c) Filter chips:** `pill-select` is a `radiogroup` with `role="radio"`, a required label, `py-2` and `primary`/`input` tokens; `pill-multi-select` is a labelled `fieldset`. Neither reproduces the chips (`aria-pressed` toggle, `py-1.5`, `text-[0.8125rem]`, `blue-600`/`border-border`), and forcing them would change semantics and the `ResourceListPage` spec. The 4 groups in 3 files (`ResourceListPage` ×2, `ServiceListPage`, `TeamListPage`) share an identical local `buildFilterClass`, so the root-cause fix is a new `ui/filter-chip` primitive (an `aria-pressed` button, same look, semantic tokens only where the value is visually equivalent), with its own spec. Story 13 drops these chips from its inventory.
+
 New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface: none.
 
 **Files to create/modify:** the call sites listed above (the exact list is generated at discovery by grep), their specs only where a selector moves with the markup.
+- Create: `apps/web/shared/components/ui/filter-chip.tsx` + `filter-chip.spec.tsx`.
+- Modify: `features/booking/components/dashboard/services/{ServicePickupSwitch,ServiceCreatePage,ServiceListPage}.tsx`; `features/booking/components/dashboard/resources/ResourceListPage.tsx`; `features/staff/components/team/TeamListPage.tsx`; `features/loyalty/components/dashboard/{LoyaltyHistoryHelpers,CustomerLoyaltyPage}.tsx`.
+- Docs: `docs/ENGINEERING_RULES_FRONTEND.md` — a primitives-table row for `ui/filter-chip` (explicit yes at implementation).
 
 **Acceptance criteria — product:**
-- [ ] The migrated switches, tabs and chips render and behave as before (threshold-0 before/after screenshots of each affected screen, as in Story 7), and the hotsite and branded pages are unchanged.
+- [ ] The migrated switches and filter chips render and behave as before (threshold-0 before/after screenshots of each affected screen, as in Story 7); the loyalty history tabs show the accepted shift above (before/after screenshots in the PR body); the hotsite and branded pages are unchanged.
 
 **Acceptance criteria — technical:**
 - Unit:
   - [ ] Existing specs of the migrated components pass; any assertion that changes is listed in the PR body with the reason
+  - [ ] `filter-chip.spec.tsx`: renders `aria-pressed` true/false, fires `onClick`, passes `className`/`data-testid` through, axe clean
+  - [ ] `HistoryTabs`/`CustomerLoyaltyPage`: tabs expose `role="tab"` with `aria-selected`, switching shows the matching panel, the `?tab=redemptions` initial tab still opens the redemptions panel
 - E2E:
-  - [ ] none new; the existing Playwright specs of the affected screens pass locally
+  - [ ] none new (existing E2E of the same routes cover the flows; the switches via `services-create` and `services-manage`); the existing Playwright specs of the affected screens pass locally
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
