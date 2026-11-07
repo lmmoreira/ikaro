@@ -161,6 +161,8 @@ If Step 3 produced zero real fixes and Codex reported 0 Critical/Important this 
 
 If the "consecutive rounds with Critical/Important still open" counter (Round state, updated in Step 4) reaches **5**, stop iterating — regardless of whether each of those rounds individually got fixed or declined. Five straight rounds where Codex keeps finding *something* Critical/Important is itself the signal, even when every one was properly triaged (PR #483's 13 rounds never tripped this because each round's finding was resolved before the next dispatch and nobody tracked the counter). Describe to the user: what's recurring across rounds, what's been tried (fixed vs. declined and why), and why it hasn't converged to a clean round. This is a stuck condition — ask for a decision rather than attempting another round unprompted.
 
+**What the counter does not cover.** It counts *real Critical/Important defects that keep coming back*. An Important item that only says evidence is missing ("live verification not evidenced", a trial still running) is closed by posting the evidence, not by a fix round, and one that is still open at round 5 because the author had not posted yet is not a convergence failure: post the evidence, then dispatch the next round and let it confirm. Dispatching the next round after any push that changes the PR never needs a question to the user (PR #730, TD59-S03: five rounds with the same evidence item open made me ask "want me to dispatch round 6?", and the user answered "why i had to ask you that was an autonomous flow"). Ask only when the same real defect has survived five rounds.
+
 ---
 
 ## Output format (each round)
