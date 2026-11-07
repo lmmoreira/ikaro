@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { StaffServiceResponse } from '@ikaro/types';
 import { renderWithIntl, TabActionFeedback } from '@/test-utils';
 import { ApiError } from '@/shared/lib/api/errors';
-import type { ServiceTabAction } from './service-tab-action';
+import type { ServiceTabAction } from '@/features/booking/types/service';
 import { ServicePublicPageTab } from './ServicePublicPageTab';
 
 const mutateAsync = vi.fn();

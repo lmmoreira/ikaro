@@ -1,22 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useTranslations } from 'next-intl';
+import type { ServiceTabActionChange } from '@/features/booking/types/service';
 import type { FeedbackModel } from '@/shared/components/ui/feedback-message';
 import type { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
-
-// A config tab's (Recursos / Políticas / Formulário) primary action — Save or Publish. Each panel
-// still owns its own draft state and mutation; it only *registers* this descriptor with
-// ServiceEditPage so the sticky action panel (desktop aside + mobile bar) can render the button
-// the same way it does for Detalhes, instead of every panel drawing its own inline button.
-export interface ServiceTabAction {
-  readonly label: string;
-  readonly disabled: boolean;
-  readonly pending: boolean;
-  readonly onSubmit: () => void;
-  // The tab's last save result, shown below the buttons in the same sticky pane.
-  readonly feedback: FeedbackModel | null;
-}
-
-export type ServiceTabActionChange = (action: ServiceTabAction | null) => void;
 
 interface TabActionInput {
   readonly label: string;

@@ -7,11 +7,8 @@ import { useUpdateServicePublicPage } from '@/features/booking/services/useServi
 import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { useTenant } from '@/providers/tenant-provider';
-import {
-  useRegisterTabAction,
-  useTabFeedback,
-  type ServiceTabActionChange,
-} from './service-tab-action';
+import type { ServiceTabActionChange } from '@/features/booking/types/service';
+import { useRegisterTabAction, useTabFeedback } from './service-tab-action';
 import {
   toPublicPageDraft,
   toPublicPageProfileRequest,

@@ -16,11 +16,8 @@ import {
   normalizeResourcePoolIds,
 } from './resource-pool-normalization';
 import { hasUnsatisfiableRequirement } from './resource-requirement-quantity';
-import {
-  useRegisterTabAction,
-  useTabFeedback,
-  type ServiceTabActionChange,
-} from './service-tab-action';
+import type { ServiceTabActionChange } from '@/features/booking/types/service';
+import { useRegisterTabAction, useTabFeedback } from './service-tab-action';
 import { bufferToField, fieldToBuffer, isValidBufferField } from './service-buffer-field';
 import { ServiceFlatRequirementsCard } from './ServiceFlatRequirementsCard';
 import { ServiceLegsPanel } from './ServiceLegsPanel';

@@ -6,8 +6,7 @@ import type {
   ServiceIntakeSchemaResponse,
   StaffServiceResponse,
 } from '@ikaro/types';
-import type { ServiceEditTabKey } from '@/features/booking/types/service';
-import type { ServiceTabAction } from './service-tab-action';
+import type { ServiceEditTabKey, ServiceTabAction } from '@/features/booking/types/service';
 import { ServiceResourceRequirementsPanel } from './ServiceResourceRequirementsPanel';
 import { ServiceBookingPolicyPanel } from './ServiceBookingPolicyPanel';
 import { ServiceIntakeSchemaPanel } from './ServiceIntakeSchemaPanel';

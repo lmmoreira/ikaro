@@ -11,11 +11,8 @@ import { recurrenceShapeBlockers } from '@/features/booking/model/recurrence-sha
 import { useUpdateServiceBookingPolicy } from '@/features/booking/services/useServices';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
-import {
-  useRegisterTabAction,
-  useTabFeedback,
-  type ServiceTabActionChange,
-} from './service-tab-action';
+import type { ServiceTabActionChange } from '@/features/booking/types/service';
+import { useRegisterTabAction, useTabFeedback } from './service-tab-action';
 import { validateBookingPolicy } from './policy-validation';
 import { PolicyDurationPricingCard } from './PolicyDurationPricingCard';
 import { isValidRecurringHorizonDays } from './recurring-horizon';
