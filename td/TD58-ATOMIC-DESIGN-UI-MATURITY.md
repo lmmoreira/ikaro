@@ -7,7 +7,7 @@
 - **Created**: 2026-11-05
 - **Discovered**: read-only atomic-design audit of `apps/web` (three parallel structural audits plus a premise-verification pass, 2026-11-05). Grade given at the time: C+ overall (tokens C, atoms C−, molecules B, organisms B+, templates C+, pages A−, tests A).
 - **Decision status**: Ready for discovery and implementation in the dependency order below; every story still begins with `/story-discovery`. The sequence and scope below were confirmed with the user on 2026-11-05; each story's "Pattern" is a starting decision that its own `/story-discovery` Step 4q may refine, and a story's block records what was locked there.
-- **Progress (2026-11-07)**: Stories 0–7 and 9 ✅ Done; 8, 10 and 11 remain (11 last: it moves files the others edit).
+- **Progress (2026-11-07)**: Stories 0–9 ✅ Done; 10, 11 and 12 remain (11 last among the migrations: it moves files the others edit; 12 is an exploratory inventory).
 - **Related**: `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives; TD57 (inline feedback + action-pane pattern, the precedent for promoting a repeated UI pattern into `ui/`); `docs/ANTI_PATTERNS.md`; `.copilot/context.md` §8 (the `--ba-*` boundary row).
 
 ---
@@ -620,34 +620,54 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 
 ---
 
-### Story 10 — Guard against regrowth: lint rule for raw controls outside `ui/` ⚪
+### Story 10 — Guard against regrowth: lint rule for raw controls outside `ui/` 🟡
 
 **Agent:** frontend-ts
 **Complexity:** M
-**Docs to load:** `docs/ENGINEERING_RULES_SHARED.md` § `no-restricted-syntax` selectors must be checked against the 3 bypass classes; `docs/ENGINEERING_RULES_FRONTEND.md`; `docs/ANTI_PATTERNS.md`
-**Dependencies:** Story 3, Story 4
-**Pattern:** plain composition — no named pattern applies (ESLint `no-restricted-syntax` selector, the repo's existing mechanism)
+**Docs to load:** `docs/ENGINEERING_RULES_SHARED.md` § `no-restricted-syntax` selectors must be checked against every already-documented bypass shape; `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives and § The `--ba-*` exception; `docs/ANTI_PATTERNS.md`
+**Dependencies:** Story 3, Story 4 (both ✅ Done)
+**Pattern:** plain composition — no named pattern applies (ESLint `no-restricted-syntax` selectors, the repo's existing mechanism, same shape as `FEEDBACK_ROLE_SELECTOR`)
 
-**Description:** Exploratory and optional — decide in discovery whether it is worth it. Once the primitives exist and the call sites are migrated, a new raw `<input>`/`<label>`/`<select>`/`<textarea>` in dashboard/account code silently regrows the debt. Add an ESLint `no-restricted-syntax` selector in `apps/web/eslint.config.js` that flags those JSX elements in unbranded paths, with the same shape as the existing `FEEDBACK_ROLE_SELECTOR`. Exempt `shared/components/ui/**`, specs, and the branded public/hotsite paths (they legitimately use their own controls); allow `type="hidden"` and `type="file"`. The selector **must be checked against the 3 documented bypass classes** before it is considered complete. If the exemption list needs more than a handful of entries, the rule is the wrong tool — stop and propose a docs-only rule instead (mounting-complexity signal, `CLAUDE.md` §7). Ship non-blocking (warn) first if discovery cannot reach zero existing violations.
+**Description:** Once the primitives exist and the call sites are migrated, a new raw `<input>`, `<textarea>`, `<select>` or `<label htmlFor>` in unbranded code silently regrows the debt. Add `no-restricted-syntax` selectors in `apps/web/eslint.config.js` that flag them, and migrate the few `<label htmlFor>` still outstanding so the rule lands at **error** level with zero violations.
+
+**Decisions already made** (locked at `/story-discovery`, 2026-11-07):
+1. **What is banned:** a raw `<input>` (except `type="hidden"`), `<textarea>`, `<select>`, and a `<label>` that carries `htmlFor`. Each message names its primitive (`ui/input`, `checkbox`, `radio`, `file-input`, `textarea`, `select` or `native-select`, `label`). `type="file"` is **not** exempt: `ui/file-input` and `ui/file-dropzone` exist since Story 3.
+2. **A wrapping `<label>` stays allowed.** `<label><Radio/> text</label>` and `<label><span>…</span><Textarea/></label>` (about 45 dashboard sites) have no primitive equivalent: `Radio` and `Checkbox` are bare controls, and `ui/Label` is the separate-caption form (`mb-1.5 block text-sm font-semibold text-gray-900`), so using it as a wrapper would mean cancelling its defaults at every site. A label with no `htmlFor` must wrap a control, which `jsx-a11y`'s `label-has-associated-control` already enforces (the spec pins that it is active in this config).
+3. **Raw `<button>` is out of scope.** 61 raw `<button>` in unbranded code, many bespoke (clickable cards, option rows, menu triggers). Banning it blind would need a long exemption list; Story 12 inventories it first.
+4. **File scope: everywhere except the branded trees (fails closed).** Exempt: `shared/components/ui/**`, `**/*.spec.tsx`, `features/booking/components/public/**`, `features/platform/components/public/**`, `shared/components/hotsite/**`, `shells/hotsite/**`, and `features/customer/components/InformationCompletionPhoneField.tsx` (the tenant-branded customer exception). The list is defined once, as a constant in the ESLint config, and the `--ba-*` exception section of `docs/ENGINEERING_RULES_FRONTEND.md` points at it.
+5. **Level: error, no warn phase.** Measured 2026-11-07: raw `<input>`/`<select>`/`<textarea>` outside the branded trees = 0; `<label htmlFor>` = 8 in `features/booking/components/dashboard/services/` plus 1 in `GalleryImageManager.tsx`.
+6. **The 8 `<label htmlFor>` sites migrate to `<Label>` in this story**, with overrides that reproduce today's rendering: the 3 in `ServiceLegsPanel.tsx` already carry `mb-1 block text-sm font-semibold text-gray-900` (so `className="mb-1"`); the 5 bare ones (`IntakeQuestionCard`, `ServiceBufferAfterMinutesField` inside an `<h2>`, `ServiceResourceTypeFields` with `flex-1 cursor-pointer` around a `<div>`, `IntakeParticipantsAndConsentCards` ×2) need `mb-0` plus inherited display, weight and colour. **Rendering must not change:** threshold-0 before/after screenshots of the service-edit tabs affected, compared as in Story 7.
+7. **`GalleryImageManager.tsx` keeps its `<label htmlFor>`.** It is drawn as a button that opens the hidden file input, not a caption, so `ui/Label` would be the wrong primitive. One inline `eslint-disable-next-line no-restricted-syntax` with the reason, at that node. A second such need would mean the rule is the wrong tool (mounting-complexity signal, `CLAUDE.md` §7).
+8. **Tests live in a new `apps/web/shared/lib/eslint/raw-form-control.eslint.spec.ts`**, beside `restricted-syntax.eslint.spec.ts` (569 lines already). It loads the real config through the `Linter` API.
+9. **Hotsite and tenant branding do not change:** no branded file is edited, and the rule exempts those trees by path.
 
 New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface: none.
 
 **Files to create/modify:**
 - `apps/web/eslint.config.js` (config-shaped — explicit yes)
-- an ESLint spec file next to it following the pattern of `apps/web/eslint-next-plugin.eslint.spec.ts` (new)
-- `docs/ANTI_PATTERNS.md` (one row — doc gate)
+- `apps/web/shared/lib/eslint/raw-form-control.eslint.spec.ts` (new)
+- the 4 services files with a bare `<label htmlFor>` (`IntakeQuestionCard`, `ServiceBufferAfterMinutesField`, `ServiceResourceTypeFields`, `IntakeParticipantsAndConsentCards`) and `ServiceLegsPanel.tsx` (decision 6)
+- `apps/web/features/platform/components/hotsite/modules/GalleryImageManager.tsx` (the one inline disable)
+- `docs/ANTI_PATTERNS.md` (one row) and `docs/ENGINEERING_RULES_FRONTEND.md` § The `--ba-*` exception (point at the constant) — doc gate
 
 **Acceptance criteria — product:**
-- [ ] Adding a raw `<input>` in a dashboard component fails lint with a message pointing at `ui/input`.
+- [ ] Adding a raw `<input>`, `<textarea>`, `<select>` or `<label htmlFor>` to a dashboard or account component fails lint with a message naming the `ui/` primitive.
+- [ ] The service-edit tabs render pixel-identical after the label migration (threshold-0 screenshots), and the hotsite and branded public pages are unchanged.
 
 **Acceptance criteria — technical:**
-- Unit:
-  - [ ] Rule spec: flags `<input>`/`<label>`/`<select>`/`<textarea>` in a dashboard path; does not flag `ui/**`, specs, branded paths, `type="hidden"`/`"file"`; the 3 bypass classes are each tested
+- Unit (`raw-form-control.eslint.spec.ts`, Linter API on fixture strings):
+  - [ ] flags `<input>`, `<textarea>`, `<select>` and `<label htmlFor>` in a dashboard path and in an account path
+  - [ ] does not flag `type="hidden"`, a wrapping `<label>` with no `htmlFor`, `shared/components/ui/**`, a spec file, or each branded tree (one fixture per exempt path)
+  - [ ] flags `type="file"` (negative guarantee: it is not exempt)
+  - [ ] the bypass shapes are each tested: `React.createElement('input')`, `React['createElement']('input')`, a bare destructured `createElement('input')`, `'input'` nested in a conditional passed to `createElement`, and `type={'hidden'}` in an expression container
+  - [ ] `jsx-a11y/label-has-associated-control` is active in the config: a `<label>` with no `htmlFor` and no control is reported
+  - [ ] mutation check: removing each selector makes its own fixture fail
+- Existing specs of the 5 migrated files: zero diff, pass (`getByLabelText` still resolves through `<Label htmlFor>`)
 - E2E:
-  - [ ] none — lint only
-- [ ] Zero lint violations on `main` after the story (or the rule ships as warn with the remaining count recorded)
+  - [ ] none new; the existing services Playwright specs pass locally
+- [ ] `pnpm lint` reports zero new violations on the whole of `apps/web` (the rule lands at error)
 - [ ] Coverage ≥80% on changed code
-- [ ] `tsc --noEmit` clean, lint clean
+- [ ] `tsc --noEmit` clean, lint clean, `pnpm dep-cruise` clean
 
 ---
 
@@ -684,3 +704,28 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 - [ ] Closing documentation sweep (above) done: every `ui/` file has a primitives-table row, and `/docs-audit` on the frontend docs reports no drift
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
+
+---
+
+### Story 12 — Inventory the remaining raw elements that have a primitive (`<button>`, `<h1>`) ⚪
+
+**Agent:** frontend-ts
+**Complexity:** S (inventory and decision) — a migration or rule that follows it is its own story
+**Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives; `.claude/commands/story-discovery.md` check 4s (build the inventory from the construct, not one literal copy)
+**Dependencies:** Story 3, Story 4, Story 5, Story 10 (it reuses Story 10's branded-tree exemption list). If it ends up migrating call sites under `booking/components/dashboard/bookings/`, it must run before Story 11.
+**Pattern:** plain composition — no named pattern applies
+
+**Description:** Exploratory and optional. Story 10 deliberately left raw `<button>` out: on 2026-11-07 there were 61 raw `<button>` in unbranded code (clickable cards, option rows, menu triggers, chips among them) and 11 raw `<h1>` after Story 5's `ui/page-header` adoption. Classify them by construct: how many distinct looks, how many fit an existing `Button` variant or `page-header`, how many need a new variant or are legitimately bespoke. Then decide, with the user, between a lint rule with a short exemption list, new `Button` variants plus a rule, or a docs-only note. If the answer is a migration or a rule, it becomes a new story; this one ends with the recorded inventory and the decision.
+
+New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface: none.
+
+**Files to create/modify:**
+- `td/TD58-ATOMIC-DESIGN-UI-MATURITY.md` (the inventory and the decision, recorded under this story — doc gate)
+
+**Acceptance criteria — product:**
+- [ ] No UI change in this story.
+
+**Acceptance criteria — technical:**
+- [ ] The inventory counts raw `<button>` and `<h1>` sites per construct (look, trigger type, fits-an-existing-primitive yes/no), with the grep used so it can be re-run
+- [ ] A decision is recorded for each element, or a follow-up story is created for it via `/create-story`
+- [ ] `pnpm architecture-check` clean
