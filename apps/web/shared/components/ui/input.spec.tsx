@@ -70,8 +70,8 @@ describe('Input', () => {
 
     const input = screen.getByRole('textbox', { name: 'Name' });
     expect(input).toHaveClass(
-      'aria-[invalid=true]:border-red-500',
-      'aria-[invalid=true]:bg-red-50',
+      'aria-[invalid=true]:border-destructive',
+      'aria-[invalid=true]:bg-destructive-tint',
     );
   });
 

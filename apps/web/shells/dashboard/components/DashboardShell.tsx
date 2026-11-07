@@ -39,7 +39,7 @@ export function DashboardShell({
 
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar tenantName={tenantName} userName={userName} action={topbarAction} />
-        <main className="flex-1 bg-[#f9fafb] p-4 pb-24 lg:p-6 lg:pb-6">{children}</main>
+        <main className="flex-1 bg-surface-app p-4 pb-24 lg:p-6 lg:pb-6">{children}</main>
         <BottomNav
           role={role}
           leadFormEnabled={leadFormEnabled}

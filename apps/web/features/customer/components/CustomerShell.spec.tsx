@@ -33,6 +33,16 @@ describe('CustomerShell', () => {
     clearPublicEnv();
   });
 
+  it('paints the page area with the app-surface token, not a hex', () => {
+    render(
+      <CustomerShell {...DEFAULT_PROPS}>
+        <p>Conteúdo da página</p>
+      </CustomerShell>,
+    );
+
+    expect(screen.getByText('Conteúdo da página').closest('main')).toHaveClass('bg-surface-app');
+  });
+
   it('renders children inside the main content area', () => {
     render(
       <CustomerShell {...DEFAULT_PROPS}>

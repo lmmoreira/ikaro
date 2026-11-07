@@ -5,6 +5,7 @@ import {
   createApprovedBookingAt,
   createAuthenticatedBooking,
   createFreshApprovedBooking,
+  createSoonestApprovedBookingInOwnRoom,
   deactivateResource,
 } from './helpers/booking';
 import {
@@ -230,24 +231,31 @@ test.describe('customer my-account: reschedule a booking (M23-S30, UC-069)', () 
   }) => {
     const customerEmail = uniqueTestEmail('reschedule-expired');
     // 'soonest' is the nearest open slot, so it is inside the 48h window a customer may reschedule
-    // from whatever weekday the run happens on.
-    const setup = await createFreshApprovedBooking(page, 'soonest', STAFF_EMAIL, {
+    // from whatever weekday the run happens on. It is booked on a room of its own: the few slots a
+    // 48h look-ahead leaves (two on a Saturday) are not shared with the other specs that need one.
+    const { setup, cleanup } = await createSoonestApprovedBookingInOwnRoom(page, {
+      prefix: 'e2e-reschedule-expired',
       contactEmail: customerEmail,
+      staffEmail: STAFF_EMAIL,
     });
-    // The fixture helper moves to a later open day when every slot of the nearest one is taken; a
-    // booking that drifted past the 48h window would make this scenario assert nothing.
-    const msUntilStart = Date.parse(setup.scheduledAt) - Date.now();
-    expect(msUntilStart).toBeGreaterThan(0);
-    expect(msUntilStart).toBeLessThan(48 * 60 * 60 * 1000);
-    await loginAsCustomer(page, customerEmail, TENANT_SLUG);
+    try {
+      // The fixture helper moves to a later open day when every slot of the nearest one is taken; a
+      // booking that drifted past the 48h window would make this scenario assert nothing.
+      const msUntilStart = Date.parse(setup.scheduledAt) - Date.now();
+      expect(msUntilStart).toBeGreaterThan(0);
+      expect(msUntilStart).toBeLessThan(48 * 60 * 60 * 1000);
+      await loginAsCustomer(page, customerEmail, TENANT_SLUG);
 
-    await page.goto(detailUrl(setup.bookingId));
-    await expect(page.getByTestId('topbar-booking-status-badge')).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Reagendar' })).toHaveCount(0);
+      await page.goto(detailUrl(setup.bookingId));
+      await expect(page.getByTestId('topbar-booking-status-badge')).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Reagendar' })).toHaveCount(0);
 
-    await page.goto(`${detailUrl(setup.bookingId)}/reschedule`);
-    await expect(page.getByTestId('reschedule-window-error')).toBeVisible();
-    await expect(page.getByTestId('time-slot')).toHaveCount(0);
+      await page.goto(`${detailUrl(setup.bookingId)}/reschedule`);
+      await expect(page.getByTestId('reschedule-window-error')).toBeVisible();
+      await expect(page.getByTestId('time-slot')).toHaveCount(0);
+    } finally {
+      await cleanup();
+    }
   });
 
   test('a PENDING booking offers no reschedule and its reschedule URL returns to the detail', async ({

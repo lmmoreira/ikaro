@@ -1,6 +1,10 @@
 import { expect, test } from '@playwright/test';
 import { loginAsCustomer, uniqueTestEmail } from './helpers/auth';
-import { createAuthenticatedBooking, createFreshApprovedBooking } from './helpers/booking';
+import {
+  createAuthenticatedBooking,
+  createFreshApprovedBooking,
+  createSoonestApprovedBookingInOwnRoom,
+} from './helpers/booking';
 
 const TENANT_SLUG = 'lavacar-beloauto';
 const STAFF_EMAIL = 'admin@lavacar.com.br';
@@ -57,16 +61,24 @@ test.describe('customer my-account: home + bookings list', () => {
   }) => {
     const customerEmail = uniqueTestEmail('my-account-window-closed');
     // 'soonest' is the nearest open slot, so it is inside the 48h cancellationWindowHours setting
-    // whatever weekday the run happens on (a weekday offset lands on Monday from a Friday).
-    const setup = await createFreshApprovedBooking(page, 'soonest', STAFF_EMAIL, {
+    // whatever weekday the run happens on (a weekday offset lands on Monday from a Friday). It is
+    // booked on a room of its own: the few slots a 48h look-ahead leaves (two on a Saturday) are
+    // not shared with the other specs that need one.
+    const { setup, cleanup } = await createSoonestApprovedBookingInOwnRoom(page, {
+      prefix: 'e2e-window-closed',
       contactEmail: customerEmail,
+      staffEmail: STAFF_EMAIL,
     });
-    await loginAsCustomer(page, customerEmail, TENANT_SLUG);
+    try {
+      await loginAsCustomer(page, customerEmail, TENANT_SLUG);
 
-    await page.goto(`/${TENANT_SLUG}/my-account/bookings`);
+      await page.goto(`/${TENANT_SLUG}/my-account/bookings`);
 
-    const row = page.locator('li').filter({ has: page.locator(`a[href*="${setup.bookingId}"]`) });
-    await expect(row.getByTestId('booking-window-closed-note')).toBeVisible();
-    await expect(row.getByRole('link', { name: 'Cancelar' })).toHaveCount(0);
+      const row = page.locator('li').filter({ has: page.locator(`a[href*="${setup.bookingId}"]`) });
+      await expect(row.getByTestId('booking-window-closed-note')).toBeVisible();
+      await expect(row.getByRole('link', { name: 'Cancelar' })).toHaveCount(0);
+    } finally {
+      await cleanup();
+    }
   });
 });

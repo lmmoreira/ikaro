@@ -103,7 +103,7 @@ export function SchedulePage(props: SchedulePageProps): React.JSX.Element {
           (Sidebar/Topbar) rather than a new nested scroll container. z-30 (matching
           ResourceFilterMenu's own always-on-top FAB) — the grid's own booking/opening blocks
           reach z-20, which would otherwise paint over this as they scroll under it. */}
-      <div className="sticky top-[3.375rem] z-30 space-y-4 bg-[#f9fafb] pb-2">
+      <div className="sticky top-[3.375rem] z-30 space-y-4 bg-surface-app pb-2">
         <WeekNav
           windowStart={toLocalDate(ui.weekStartKey)}
           windowDays={7}

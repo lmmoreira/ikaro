@@ -38,10 +38,10 @@ describe('Button', () => {
     const button = screen.getByRole('button', { name: 'Voltar' });
     expect(button).toHaveClass(
       'border-0',
-      'bg-white',
-      'text-gray-900',
+      'bg-background',
+      'text-foreground',
       'shadow-sm',
-      'hover:bg-gray-50',
+      'hover:bg-muted',
     );
     expect(button).not.toHaveClass('bg-primary');
   });
@@ -67,7 +67,7 @@ describe('Button', () => {
       </Button>,
     );
 
-    expect(screen.getByRole('button', { name: 'Voltar' })).toHaveClass('w-full', 'bg-white');
+    expect(screen.getByRole('button', { name: 'Voltar' })).toHaveClass('w-full', 'bg-background');
   });
 
   it('renders the child element instead of a button when asChild is set', () => {
@@ -78,7 +78,7 @@ describe('Button', () => {
     );
 
     const link = screen.getByRole('link', { name: 'Voltar' });
-    expect(link).toHaveClass('bg-white');
+    expect(link).toHaveClass('bg-background');
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 

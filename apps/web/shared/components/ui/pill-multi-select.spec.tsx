@@ -48,4 +48,30 @@ describe('PillMultiSelect', () => {
     const group = screen.getByRole('group', { name: 'Dias' });
     expect(group).toHaveAttribute('data-invalid', 'true');
   });
+
+  it('gives each state exactly one border colour token', () => {
+    const { rerender } = render(
+      <PillMultiSelect label="Dias" values={['tue']} options={OPTIONS} onChange={vi.fn()} />,
+    );
+    const [mon, tue] = screen.getAllByRole('button');
+    expect(tue).toHaveClass('border-primary', 'bg-accent', 'text-accent-foreground');
+    expect(mon).toHaveClass('border-input', 'bg-background');
+    expect(mon).not.toHaveClass('border-destructive');
+
+    rerender(
+      <PillMultiSelect
+        label="Dias"
+        values={['tue']}
+        options={OPTIONS}
+        onChange={vi.fn()}
+        invalid
+      />,
+    );
+    const [invalidMon, invalidTue] = screen.getAllByRole('button');
+    expect(invalidMon).toHaveClass('border-destructive');
+    expect(invalidMon).not.toHaveClass('border-input');
+    // A chosen pill keeps its selected colour while the group is invalid.
+    expect(invalidTue).toHaveClass('border-primary');
+    expect(invalidTue).not.toHaveClass('border-destructive');
+  });
 });
