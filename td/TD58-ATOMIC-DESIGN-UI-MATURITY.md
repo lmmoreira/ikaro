@@ -479,33 +479,44 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 
 ---
 
-### Story 9 — Document the `--ba-*` customer information-completion exception
+### Story 9 — Document the `--ba-*` exception in `features/customer`
 
 **Agent:** frontend-ts
 **Complexity:** S
-**Docs to load:** `.copilot/context.md` §8; `docs/ENGINEERING_RULES_FRONTEND.md` § Hotsite full-page components; `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`
+**Docs to load:** `.copilot/context.md` §8; `docs/ENGINEERING_RULES_FRONTEND.md` § Hotsite full-page components; `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`; `docs/ANTI_PATTERNS.md` (the `--ba-*` row); `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` § 2
 **Dependencies:** none
-**Pattern:** plain composition — no named pattern applies (documentation)
+**Pattern:** plain composition — no named pattern applies (documentation, one canonical home plus pointers)
 **Discovered:** 2026-11-05, audit of `apps/web`. User decision the same day: the information-completion flow is reached from the hotsite and must follow tenant branding, so the files stay where they are.
-**Root cause:** `.copilot/context.md:270` states the `--ba-*` rule as "dashboard or account component", with no mention that three `features/customer` files are hotsite-branded by design. The rule has no code enforcement (no ESLint selector, no `architecture-check` detector — verified by grep of `packages/architecture-check` and `apps/web/eslint.config.js`).
+**Root cause:** `.copilot/context.md:270` states the `--ba-*` rule as "dashboard or account component", with no mention that three `features/customer` files are tenant-branded by design.
 
-**Description:** Reword the §8 row and add a short note to `docs/ENGINEERING_RULES_FRONTEND.md` naming `TenantOptionRow`, `InformationCompletionPrompt` and `InformationCompletionPhoneField` as the explicit exception (customer information completion, reached from the hotsite, tenant-branded), and state the test: a `features/customer` component may read `--ba-*` only if it renders inside the hotsite-branded information-completion flow. Doc-only; `.copilot/context.md` is edited directly, never through the symlinks. Both files are doc/config and need the explicit yes before editing.
+**Locked at `/story-discovery` (2026-11-07), correcting the premises above:**
+- **The rule is enforced, partly.** `scripts/pre-pr.sh:48` defines `web_dashboard_tsx` over `features/customer/components/` and check 27 greps `--ba-` in every changed file there. Its allowlist already exempts `InformationCompletionPrompt` and `InformationCompletionPhoneField` but **not `TenantOptionRow`**, so any PR editing it fails check 27. `/bad-smell-audit` WEB-10 also tells the audit to flag `features/customer/`.
+- **Two flows, not one.** `InformationCompletionPrompt` and `InformationCompletionPhoneField` render in `app/[slug]/layout.tsx` inside `#hotsite-root`, which applies the tenant branding. `TenantOptionRow` belongs to the tenant-switch flow: `app/switch-tenant/page.tsx` sits outside `[slug]` and wraps `SwitchTenantClient` in its own `applyBranding()` div.
+- **The test:** a `features/customer` component may read `--ba-*` only if it renders inside a wrapper that applies the tenant's `applyBranding()` styles. Today: information completion and tenant switch. A third flow is added to the doc list and the script allowlist in the same PR.
+- **Existing wording to correct:** the `--ba-*` row of `docs/ANTI_PATTERNS.md` and the colour-system section of `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` say the variables are "never set" under `my-account`. `#hotsite-root` wraps `{children}`, so they are inherited there; `CustomerShell` stays on the fixed palette by design (a tenant colour would repaint account chrome), and the black or transparent failure applies outside the `[slug]` tree (the dashboard `Topbar` incident). Re-read `app/[slug]/layout.tsx` before writing it.
+- **Canonical home:** a new section in `docs/ENGINEERING_RULES_FRONTEND.md`. Every other statement of the rule gets a one-line pointer to it, not a restatement.
+- **Budget:** `.copilot/context.md` is at its character budget (56274 of 56281) and §8 at its own. The §8 row is rewritten, and §8's own wording tightened, until the net change is 0 or less. `agent-context-policy.json` is not touched unless that proves impossible, and then only after asking.
+
+**Description:** Document the exception where the rule lives and where it is enforced. Add the canonical section to `docs/ENGINEERING_RULES_FRONTEND.md` naming `TenantOptionRow`, `InformationCompletionPrompt` and `InformationCompletionPhoneField`, the two flows and the test above. Reword the `.copilot/context.md` §8 row (edited directly, never through the symlinks) and add pointers in `docs/ANTI_PATTERNS.md`, `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` § 2, `.claude/commands/bad-smell-audit.md` WEB-10, `.claude/commands/pre-pr.md` (the `--ba-*` check) and `.claude/commands/pr-review.md` (styling boundary). Add `TenantOptionRow` to the exact-path allowlist in `scripts/pre-pr.sh` and update its comment. Each doc and config file needs the explicit yes at implementation time (given at discovery).
 
 New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface: none.
 
 **Files to create/modify:**
-- `.copilot/context.md` (§8 row — explicit yes; the `agent-context-file` CI guard must stay green: no PR# or ISO-date literals, section budget)
-- `docs/ENGINEERING_RULES_FRONTEND.md`
+- `.copilot/context.md` (§8 row — `agent-context-file` guard must stay green: no PR# or ISO-date literals, file and §8 budgets)
+- `docs/ENGINEERING_RULES_FRONTEND.md` (new section), `docs/ANTI_PATTERNS.md`, `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`
+- `.claude/commands/bad-smell-audit.md`, `.claude/commands/pre-pr.md`, `.claude/commands/pr-review.md`
+- `scripts/pre-pr.sh` (one regex and its comment)
 
 **Acceptance criteria — product:**
-- [ ] A reader of §8 learns the exception and its test without opening the code.
+- [ ] A reader of §8 learns the exception and its test without opening the code, and no skill or doc still contradicts it.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] none — documentation only
+  - [ ] none — documentation and one script regex
 - E2E:
   - [ ] none — documentation only
 - [ ] `pnpm architecture-check` (`agent-context-file`, `doc-link-integrity`) passes
+- [ ] The `pre-pr.sh` allowlist is proven by a direct check, pasted in the PR body: the three exception paths are excluded from `web_dashboard_tsx` and `features/customer/components/CustomerShell.tsx` is still included (negative control)
 - [ ] Coverage ≥80% on changed code (n/a — no code)
 - [ ] `tsc --noEmit` clean, lint clean
 
