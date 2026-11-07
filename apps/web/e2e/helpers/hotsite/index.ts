@@ -2,6 +2,7 @@ export {
   enterDetailedEditor,
   openDetailedEditor,
   openVisualEditor,
+  waitForDragToSettle,
 } from './hotsite-editor-navigation';
 export {
   getHotsiteConfig,

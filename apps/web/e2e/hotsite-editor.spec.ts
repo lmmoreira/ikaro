@@ -8,6 +8,7 @@ import {
   getPublicManifest,
   openDetailedEditor,
   openVisualEditor,
+  waitForDragToSettle,
   publishHotsite,
   toUpdateRequest,
   makeSolidPng,
@@ -1244,6 +1245,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.mouse.down();
     await page.mouse.move(handleBox.x + handleBox.width / 2, targetBox.y + 2, { steps: 12 });
     await page.mouse.up();
+    await waitForDragToSettle(page);
 
     await expect.poll(order).toEqual([...pinned, second, first, ...rest]);
 
