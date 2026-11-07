@@ -3,6 +3,8 @@ import { Linter } from 'eslint';
 
 const webRoot = resolve(__dirname, '../../..');
 // Load the real flat config rather than copying its selectors, like restricted-syntax.eslint.spec.ts.
+// An `import` of the CommonJS config is not an option: the type-check would then follow it into
+// packages/config/eslint-base.js and fail on that untyped file (TS7006, TS2322), so `require` it.
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- load the real CommonJS flat config in this ESLint regression test
 const productionConfig = require(resolve(webRoot, 'eslint.config.js')) as Linter.Config[];
 
