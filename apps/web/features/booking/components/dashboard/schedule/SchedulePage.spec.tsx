@@ -223,6 +223,25 @@ describe('SchedulePage', () => {
     expect(screen.getByRole('button', { name: 'Abrir dia' })).toBeInTheDocument();
   });
 
+  it('pins the week and filter strip on the app-surface token, not a hex', async () => {
+    mockMatchMedia(true);
+
+    const { container } = renderWithIntl(
+      <SchedulePage
+        initialClosures={emptyClosures()}
+        initialOpenings={emptyOpenings()}
+        initialBookings={emptyBookings()}
+        businessHours={makeBusinessHours(true)}
+        todayKey="2026-07-06"
+        weekStartKey="2026-07-06"
+        slotGranularityMinutes={30}
+      />,
+    );
+
+    await screen.findByTestId('schedule-week-view');
+    expect(container.querySelector('div.sticky.z-30')).toHaveClass('bg-surface-app');
+  });
+
   it('renders the week grid on desktop browsers', async () => {
     mockMatchMedia(true);
 

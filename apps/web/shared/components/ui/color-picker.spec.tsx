@@ -57,4 +57,18 @@ describe('ColorPicker', () => {
     ).toBeInTheDocument();
     expect(screen.getByTestId('primary-color')).toHaveAttribute('aria-invalid', 'true');
   });
+
+  it('paints a valid hex on the swatch and the neutral border token otherwise', () => {
+    const { rerender } = render(
+      <ColorPicker id="primary-color" label="Cor primária" value="#2563eb" onChange={vi.fn()} />,
+    );
+    const swatch = screen.getByTestId('color-picker-swatch');
+    expect(swatch).toHaveStyle({ backgroundColor: '#2563eb' });
+
+    rerender(
+      <ColorPicker id="primary-color" label="Cor primária" value="azul" onChange={vi.fn()} />,
+    );
+    expect(swatch).toHaveClass('bg-border');
+    expect(swatch.style.backgroundColor).toBe('');
+  });
 });

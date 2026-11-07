@@ -1,5 +1,15 @@
 @import 'tailwindcss';
 
+/* Design tokens (TD58 Story 7). Each value is the Tailwind v4 palette step the components render,
+   copied as an oklch literal from node_modules/tailwindcss/theme.css (a literal, not a
+   var(--color-*) reference: v4 emits palette variables only when a utility uses them).
+
+   The foreground/background family below stays on its original hex on purpose: `body` reads
+   --foreground and --background and the tenant hotsite inherits body text, so retuning them would
+   move tenant hotsite pixels. Do not retune them; `globals-css-tokens.spec.ts` pins them.
+
+   A new token needs its `--color-*` alias in @theme inline: without it Tailwind emits no CSS for
+   the class and the element renders transparent, with no build or type error. */
 :root {
   --background: #ffffff;
   --foreground: #0f172a;
@@ -7,19 +17,25 @@
   --card-foreground: #0f172a;
   --popover: #ffffff;
   --popover-foreground: #0f172a;
-  --primary: #2563eb;
+  --primary: oklch(54.6% 0.245 262.881); /* blue-600 */
   --primary-foreground: #ffffff;
-  --secondary: #e2e8f0;
+  --secondary: oklch(92.8% 0.006 264.531); /* gray-200 */
   --secondary-foreground: #0f172a;
-  --muted: #f8fafc;
-  --muted-foreground: #475569;
-  --accent: #dbeafe;
-  --accent-foreground: #1d4ed8;
-  --destructive: #dc2626;
+  --muted: oklch(96.7% 0.003 264.542); /* gray-100 */
+  --muted-foreground: oklch(55.1% 0.027 264.364); /* gray-500 */
+  --accent: oklch(97% 0.014 254.604); /* blue-50 */
+  --accent-foreground: oklch(48.8% 0.243 264.376); /* blue-700 */
+  --destructive: oklch(57.7% 0.245 27.325); /* red-600 */
   --destructive-foreground: #ffffff;
-  --border: #e2e8f0;
-  --input: #e2e8f0;
-  --ring: #2563eb;
+  --border: oklch(92.8% 0.006 264.531); /* gray-200 */
+  --input: oklch(92.8% 0.006 264.531); /* gray-200 */
+  --ring: oklch(62.3% 0.214 259.815); /* blue-500, the focus colour every field uses */
+
+  --surface-app: oklch(98.5% 0.002 247.839); /* gray-50: page background behind the shells */
+  --sidebar: oklch(21% 0.034 264.665); /* gray-900: the dashboard sidebar rail */
+  --subtle-foreground: oklch(70.7% 0.022 261.325); /* gray-400: placeholder, disabled text */
+  --border-strong: oklch(87.2% 0.01 258.338); /* gray-300: hover borders */
+  --destructive-tint: oklch(97.1% 0.013 17.38); /* red-50: invalid-field background */
 }
 
 @theme inline {
@@ -42,6 +58,11 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-surface-app: var(--surface-app);
+  --color-sidebar: var(--sidebar);
+  --color-subtle-foreground: var(--subtle-foreground);
+  --color-border-strong: var(--border-strong);
+  --color-destructive-tint: var(--destructive-tint);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

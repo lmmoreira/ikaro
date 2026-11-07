@@ -16,7 +16,7 @@ function getModifiersClassName(): Record<string, string> {
     months: 'flex w-full flex-col gap-4 sm:flex-row sm:gap-8',
     month: 'relative space-y-4',
     month_caption: 'relative flex h-11 w-full items-center justify-center px-11 pt-1',
-    caption_label: 'text-sm font-semibold text-gray-900',
+    caption_label: 'text-sm font-semibold text-foreground',
     button_previous: cn(
       buttonVariants({ variant: 'outline' }),
       'absolute left-0 top-0 z-10 h-11 w-11 bg-transparent p-0 opacity-70 hover:opacity-100',
@@ -34,7 +34,7 @@ function getModifiersClassName(): Record<string, string> {
     // 2026-08-27: Sunday's header cell rendered far wider than the rest, throwing off the whole
     // row's alignment against the day grid beneath it.
     weekdays: 'flex w-full',
-    weekday: 'text-gray-500 rounded-md w-9 font-normal text-[0.8rem]',
+    weekday: 'text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]',
     month_grid: 'w-full border-collapse space-y-1',
     // react-day-picker v10 renamed these from v8/v9's `row`/`cell` to `week`/`day` — the old
     // keys aren't recognized `classNames` keys anymore, so this styling was silently dead code
@@ -46,7 +46,7 @@ function getModifiersClassName(): Record<string, string> {
     // className is always this same static string, with no modifier awareness at all (confirmed
     // in the library's own DayButton.js/DayPicker.js source, not assumed). The ghost variant's
     // own `text-primary` therefore always wins for the button's actual visible number, no matter
-    // what `!text-white`/`!important` the ancestor `<td>` carries — CSS specificity on the
+    // what `!text-primary-foreground`/`!important` the ancestor `<td>` carries — CSS specificity on the
     // button's own declaration beats an ancestor's inherited value regardless of `!important`
     // there. The `[[data-selected=true]_&]:` arbitrary variant targets the button itself via the
     // ancestor's `data-selected` attribute (set on the `<td>` for every day in a selection,
@@ -54,17 +54,17 @@ function getModifiersClassName(): Record<string, string> {
     // DayPicker.js's own `modifiers[SelectionState.selected] = isSelected?.(date) || ...`).
     // Found live via a real rendered range-mode screenshot, M20-S13 story feedback, 2026-08-27:
     // every day in the middle of a selected date range showed blue-on-blue, invisible numbers —
-    // `calendar.spec.tsx`'s own existing test only asserted the `<td>` carries the `!text-white`
+    // `calendar.spec.tsx`'s own existing test only asserted the `<td>` carries the `!text-primary-foreground`
     // class string, never that the visible button text actually renders white.
     day_button: cn(
       buttonVariants({ variant: 'ghost' }),
       'h-9 w-9 p-0 font-normal aria-selected:opacity-100',
-      '[[data-selected=true]_&]:!bg-blue-600 [[data-selected=true]_&]:!text-white [[data-selected=true]_&]:hover:!bg-blue-600 [[data-selected=true]_&]:hover:!text-white',
+      '[[data-selected=true]_&]:!bg-primary [[data-selected=true]_&]:!text-primary-foreground [[data-selected=true]_&]:hover:!bg-primary [[data-selected=true]_&]:hover:!text-primary-foreground',
     ),
-    today: 'ring-1 ring-inset ring-blue-400',
-    selected: 'bg-blue-600 !text-white hover:bg-blue-600 hover:!text-white',
-    outside: 'text-gray-400 opacity-50',
-    disabled: 'text-gray-300 opacity-50',
+    today: 'ring-1 ring-inset ring-ring',
+    selected: 'bg-primary !text-primary-foreground hover:bg-primary hover:!text-primary-foreground',
+    outside: 'text-subtle-foreground opacity-50',
+    disabled: 'text-subtle-foreground opacity-50',
     hidden: 'invisible',
   };
 }

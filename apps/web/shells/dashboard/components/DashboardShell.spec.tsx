@@ -53,6 +53,16 @@ describe('DashboardShell', () => {
     expect(screen.getByTestId('topbar')).toBeInTheDocument();
   });
 
+  it('paints the page area with the app-surface token, not a hex', () => {
+    render(
+      <DashboardShell {...DEFAULT_PROPS} role={STAFF}>
+        children
+      </DashboardShell>,
+    );
+
+    expect(screen.getByText('children').closest('main')).toHaveClass('bg-surface-app');
+  });
+
   it('renders MoreSheet for MANAGER role even when leadFormEnabled is false', () => {
     render(
       <DashboardShell {...DEFAULT_PROPS} role={MANAGER}>

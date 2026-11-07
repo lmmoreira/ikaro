@@ -28,7 +28,7 @@ describe('Calendar', () => {
     );
 
     expect(container.querySelector('[data-day="2026-07-13"][data-selected="true"]')).toHaveClass(
-      '!text-white',
+      '!text-primary-foreground',
     );
   });
 });

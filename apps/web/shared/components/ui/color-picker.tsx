@@ -5,10 +5,12 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/
 import { cn } from '@/shared/utils/cn';
 import { HEX_COLOR_REGEX } from '@/shared/utils/hex-color';
 
-const FALLBACK_SWATCH = '#e5e7eb';
+// The colour `react-colorful` starts from while the typed value is not a valid hex: a colour-model
+// input the library parses as hex, not a styling colour (the swatch itself paints `bg-border`).
+const PICKER_START_COLOR = '#e5e7eb';
 
 const INPUT_CLASS =
-  'w-full rounded-md border border-border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 aria-[invalid=true]:border-red-500 aria-[invalid=true]:bg-red-50';
+  'w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-subtle-foreground focus:border-ring focus:ring-1 focus:ring-ring aria-[invalid=true]:border-destructive aria-[invalid=true]:bg-destructive-tint';
 
 interface ColorPickerProps {
   readonly id: string;
@@ -36,12 +38,12 @@ export function ColorPicker({
   hint,
   placeholder,
 }: ColorPickerProps): React.JSX.Element {
-  const swatchColor = HEX_COLOR_REGEX.test(value) ? value : FALLBACK_SWATCH;
+  const validColor = HEX_COLOR_REGEX.test(value) ? value : undefined;
   const errorId = `${id}-error`;
 
   return (
     <div>
-      <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-gray-900">
+      <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-foreground">
         {label}
       </label>
       <div className="flex items-center gap-2">
@@ -51,11 +53,11 @@ export function ColorPicker({
             data-testid="color-picker-swatch"
             data-field-id={id}
             aria-label={label}
-            className="h-9 w-9 shrink-0 rounded-md border border-gray-200 shadow-sm"
-            style={{ backgroundColor: swatchColor }}
+            className="h-9 w-9 shrink-0 rounded-md border border-border bg-border shadow-sm"
+            style={validColor ? { backgroundColor: validColor } : undefined}
           />
           <PopoverContent align="start" className="w-auto p-3">
-            <HexColorPicker color={swatchColor} onChange={onChange} />
+            <HexColorPicker color={validColor ?? PICKER_START_COLOR} onChange={onChange} />
           </PopoverContent>
         </Popover>
         <input
@@ -71,9 +73,9 @@ export function ColorPicker({
           className={cn(INPUT_CLASS)}
         />
       </div>
-      {hint && !error && <p className="mt-1.5 text-sm text-gray-500">{hint}</p>}
+      {hint && !error && <p className="mt-1.5 text-sm text-muted-foreground">{hint}</p>}
       {error && (
-        <p id={errorId} data-testid={errorId} className="mt-1.5 text-sm text-red-600">
+        <p id={errorId} data-testid={errorId} className="mt-1.5 text-sm text-destructive">
           {error}
         </p>
       )}

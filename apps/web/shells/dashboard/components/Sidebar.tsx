@@ -67,7 +67,7 @@ export function Sidebar({
   const mainNavKeys = leadFormEnabled ? [...MAIN_NAV_KEYS, LEADS_NAV_ITEM] : MAIN_NAV_KEYS;
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col overflow-y-auto bg-[#111827] lg:flex">
+    <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col overflow-y-auto bg-sidebar lg:flex">
       {/* Header — logo mark + tenant name + @slug */}
       <div className="flex items-center gap-3 border-b border-white/[0.07] px-4 py-[1.125rem]">
         <div className="flex h-[1.875rem] w-[1.875rem] shrink-0 items-center justify-center rounded-md bg-blue-600 text-[0.8125rem] font-bold text-white">

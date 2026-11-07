@@ -53,6 +53,20 @@ afterEach(() => {
 });
 
 describe('Sidebar', () => {
+  it('paints the rail with the sidebar token, not a hex', () => {
+    const { container } = render(
+      <Sidebar
+        tenantName="Lavacar BH"
+        tenantSlug="lavacar-bh"
+        userName="Ana Pereira"
+        role={STAFF}
+        leadFormEnabled={false}
+      />,
+    );
+
+    expect(container.querySelector('aside')).toHaveClass('bg-sidebar');
+  });
+
   it('renders tenant name and @slug', () => {
     render(
       <Sidebar

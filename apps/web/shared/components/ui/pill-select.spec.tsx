@@ -101,8 +101,8 @@ describe('PillSelect', () => {
     const selectedDisabled = screen.getByRole('radio', { name: 'Bem arredondados' });
     expect(selectedDisabled).toBeDisabled();
     expect(selectedDisabled).toHaveAttribute('aria-checked', 'true');
-    expect(selectedDisabled).toHaveClass('border-blue-200');
-    expect(selectedDisabled).not.toHaveClass('border-gray-100');
+    expect(selectedDisabled).toHaveClass('border-primary', 'bg-primary', 'opacity-50');
+    expect(selectedDisabled).not.toHaveClass('bg-muted');
 
     render(
       <PillSelect
@@ -116,8 +116,8 @@ describe('PillSelect', () => {
     const unselectedDisabled = screen
       .getByRole('radiogroup', { name: 'Cantos (2)' })
       .querySelector('[aria-checked="false"][disabled]');
-    expect(unselectedDisabled).toHaveClass('border-gray-100');
-    expect(unselectedDisabled).not.toHaveClass('border-blue-200');
+    expect(unselectedDisabled).toHaveClass('bg-muted', 'text-subtle-foreground');
+    expect(unselectedDisabled).not.toHaveClass('bg-primary');
   });
 
   it('leaves options without an explicit disabled flag enabled, unaffected by a sibling being disabled', async () => {
@@ -159,7 +159,7 @@ describe('PillSelect', () => {
     const group = screen.getByRole('radiogroup', { name: 'Cantos' });
     expect(group).toHaveAttribute('aria-invalid', 'true');
     expect(group).toHaveAttribute('aria-describedby', 'cantos-error');
-    expect(screen.getByRole('radio', { name: 'Retos' }).className).toContain('border-red-600');
+    expect(screen.getByRole('radio', { name: 'Retos' }).className).toContain('border-destructive');
   });
 
   it('carries no invalid marks while valid', () => {

@@ -29,18 +29,18 @@ function pillButtonClassName(
   invalid: boolean,
 ): string {
   if (disabled && selected) {
-    return 'cursor-not-allowed border-blue-200 bg-blue-50 text-blue-400';
+    return 'cursor-not-allowed border-primary bg-primary text-primary-foreground opacity-50';
   }
   if (disabled) {
-    return 'cursor-not-allowed border-gray-100 bg-gray-50 text-gray-400';
+    return 'cursor-not-allowed border-border bg-muted text-subtle-foreground';
   }
   if (selected) {
-    return 'border-blue-600 bg-blue-600 text-white';
+    return 'border-primary bg-primary text-primary-foreground';
   }
   if (invalid) {
-    return 'border-red-600 bg-red-50/40 text-gray-700 hover:border-red-700';
+    return 'border-destructive bg-destructive-tint/40 text-foreground';
   }
-  return 'border-gray-200 bg-white text-gray-700 hover:border-gray-300';
+  return 'border-input bg-background text-foreground hover:border-border-strong';
 }
 
 export function PillSelect<T extends string>({
@@ -54,7 +54,7 @@ export function PillSelect<T extends string>({
 }: PillSelectProps<T>): React.JSX.Element {
   return (
     <div>
-      <span className="mb-1.5 block text-sm font-semibold text-gray-900">{label}</span>
+      <span className="mb-1.5 block text-sm font-semibold text-foreground">{label}</span>
       <div
         className="flex flex-wrap gap-2"
         role="radiogroup"
