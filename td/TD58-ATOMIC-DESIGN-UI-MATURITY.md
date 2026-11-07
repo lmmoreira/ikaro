@@ -416,7 +416,7 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 
 ---
 
-### Story 7 — Token cleanup: remaining hex and `ui/` primitives onto semantic tokens
+### Story 7 — Token cleanup: remaining hex and `ui/` primitives onto semantic tokens ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** M
