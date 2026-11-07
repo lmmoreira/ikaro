@@ -334,7 +334,7 @@ New migration / i18n keys / env vars / feature flags: none. Adds `@radix-ui/reac
 
 ---
 
-### Story 5 — Dashboard and account `PageHeader`
+### Story 5 — Dashboard and account `PageHeader` ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** S
