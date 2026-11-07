@@ -1,15 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { DayPicker } from 'react-day-picker';
-import type { DaySummary, ResourceSelectionItem } from '@ikaro/types';
-import { fetchAvailabilitySummary } from '@/features/platform/hotsite/api/schedule';
-import {
-  earliestBookableDate,
-  lastBookableDate,
-  tenantToday,
-} from '@/features/booking/model/booking-window';
+import type { ResourceSelectionItem } from '@ikaro/types';
+import { useAvailabilityCalendarState } from '@/features/booking/hooks/useAvailabilityCalendarState';
 import { resolveDayPickerLocale } from '@/shared/lib/i18n/day-picker-locale';
 import { cn } from '@/shared/utils/cn';
 import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feedback-message';
@@ -27,36 +21,6 @@ interface AvailabilityCalendarProps {
   readonly durationMinutes?: number;
 }
 
-// DayPicker's CalendarDay wraps a *local* Date instance for each rendered cell — reading it back
-// with UTC getters would shift the cell's own calendar day for any viewer not at UTC+0 (e.g. a
-// local midnight in a positive-offset timezone is still "yesterday" in UTC). These two helpers
-// stay local-only and are only ever used to read the date a specific rendered/clicked cell
-// represents — never to compute "today" or the advance-window boundary (see the tenant-timezone
-// helpers in booking-window.ts, used below, for those).
-function toLocalISODate(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function startOfMonth(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), 1);
-}
-
-function endOfMonth(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth() + 1, 0);
-}
-
-interface FetchResult {
-  // Identifies the from/to range this result was fetched for — compared against the currently
-  // displayed month at render time so a month change is detected without a synchronous setState
-  // reset inside the effect (react-hooks/set-state-in-effect; same tagging technique as
-  // BookingPhotoPicker.tsx's candidate-photos effect).
-  readonly rangeKey: string;
-  readonly days: DaySummary[] | null; // null means the fetch for this range failed
-}
-
 export function AvailabilityCalendar({
   slug,
   serviceIds,
@@ -70,125 +34,30 @@ export function AvailabilityCalendar({
 }: AvailabilityCalendarProps): React.JSX.Element {
   const t = useTranslations('booking');
   const locale = useLocale();
-  // "Today", the first day the minimum notice still leaves and the last bookable day are all the
-  // *tenant's* calendar days — the backend's booking-window rule uses the same day boundary, so
-  // the client never offers or hides a boundary day the backend disagrees with (for a UTC−3
-  // tenant the UTC date runs ahead of the local one for the last 3 hours of every local day).
-  const { todayIso, earliestIso, maxDateIso } = useMemo(() => {
-    const now = new Date();
-    return {
-      todayIso: tenantToday(now, timezone),
-      earliestIso: earliestBookableDate(now, minBookingAdvanceHours, timezone),
-      maxDateIso: lastBookableDate(now, maxBookingAdvanceDays, timezone),
-    };
-  }, [timezone, minBookingAdvanceHours, maxBookingAdvanceDays]);
-  const [month, setMonth] = useState(() => startOfMonth(new Date(`${todayIso}T00:00:00`)));
-  const [result, setResult] = useState<FetchResult | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
-  // Tagged with the range it was raised for, so navigating to a different month clears it
-  // without an effect-driven reset — mirrors the `result`/rangeKey staleness check above.
-  const [outOfRangeMessageKey, setOutOfRangeMessageKey] = useState<string | null>(null);
-
-  const monthStartIso = toLocalISODate(startOfMonth(month));
-  const monthEndIso = toLocalISODate(endOfMonth(month));
-  // GetAvailabilitySummaryUseCase caps the *span* of `from`..`to` at maxBookingAdvanceDays,
-  // regardless of how far in the future the span starts (UC-011's own A4 flow) — the whole
-  // calendar month can't be requested as-is for a tenant with a small limit. Clamping only `to`
-  // isn't enough either: `from` must clamp forward to the first bookable day too, since a from/to
-  // span that still starts at the 1st of the currently-viewed month (when today is mid-month) is a
-  // span just as easily over the limit as one reaching too far into the future. Past-month
-  // backward navigation is separately blocked via DayPicker's startMonth below, so from never
-  // needs to clamp backward past the month start.
-  const fetchFromIso = monthStartIso > earliestIso ? monthStartIso : earliestIso;
-  const fetchToIso = monthEndIso < maxDateIso ? monthEndIso : maxDateIso;
-  // Nothing bookable is left in the visible month once the clamped window is inverted — either
-  // every day is already past the limit, or (not reachable given startMonth, kept as a guard)
-  // the whole month is in the past. Skip the network call entirely rather than ask for a range
-  // past the tenant's own configured limit.
-  const monthEntirelyOutOfRange = fetchFromIso > fetchToIso;
-  const currentRangeKey = `${fetchFromIso}_${fetchToIso}`;
-
-  const isCurrent = result?.rangeKey === currentRangeKey;
-  const days = useMemo(() => {
-    if (monthEntirelyOutOfRange) return [];
-    if (isCurrent) return result?.days;
-    return undefined;
-  }, [monthEntirelyOutOfRange, isCurrent, result]);
-  const error = !monthEntirelyOutOfRange && isCurrent && result?.days === null;
-
-  useEffect(() => {
-    if (monthEntirelyOutOfRange) return;
-    let cancelled = false;
-
-    fetchAvailabilitySummary(slug, fetchFromIso, fetchToIso, serviceIds, {
-      resourceSelections,
-      durationMinutes,
-    })
-      .then((fetchedDays) => {
-        if (!cancelled) setResult({ rangeKey: currentRangeKey, days: fetchedDays });
-      })
-      .catch(() => {
-        if (!cancelled) setResult({ rangeKey: currentRangeKey, days: null });
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
+  const {
+    month,
+    startMonth,
+    endMonth,
+    selected,
+    days,
+    error,
+    isDisabled,
+    isOutOfRange,
+    showOutOfRangeMessage,
+    handleSelect,
+    handleMonthChange,
+    handleRetry,
+  } = useAvailabilityCalendarState({
     slug,
     serviceIds,
+    selectedDate,
+    onSelectDate,
+    maxBookingAdvanceDays,
+    minBookingAdvanceHours,
+    timezone,
     resourceSelections,
     durationMinutes,
-    fetchFromIso,
-    fetchToIso,
-    monthEntirelyOutOfRange,
-    currentRangeKey,
-    retryCount,
-  ]);
-
-  const handleRetry = useCallback(() => {
-    setResult(null);
-    setRetryCount((c) => c + 1);
-  }, []);
-
-  const availabilityByDate = useMemo(() => {
-    const map = new Map<string, boolean>();
-    for (const day of days ?? []) {
-      map.set(day.date, day.available);
-    }
-    return map;
-  }, [days]);
-
-  const isOutOfRange = useCallback((date: Date) => toLocalISODate(date) > maxDateIso, [maxDateIso]);
-
-  // Dates before the first bookable day (already past, or inside the minimum notice) are never
-  // fetched (fetchFromIso clamps forward) — availabilityByDate has no entry for them, so they'd
-  // otherwise read as available. Disabling them outright (rather than treating them as "out of
-  // range") matches business reality: such a date isn't a forward-looking limit the tenant
-  // configured, it's simply not bookable.
-  const isPast = useCallback((date: Date) => toLocalISODate(date) < earliestIso, [earliestIso]);
-
-  const isUnavailable = useCallback(
-    (date: Date) => availabilityByDate.get(toLocalISODate(date)) === false,
-    [availabilityByDate],
-  );
-
-  function handleSelect(date: Date | undefined): void {
-    if (!date) return;
-    if (isOutOfRange(date)) {
-      setOutOfRangeMessageKey(currentRangeKey);
-      return;
-    }
-    setOutOfRangeMessageKey(null);
-    onSelectDate(toLocalISODate(date));
-  }
-
-  function handleMonthChange(newMonth: Date): void {
-    setMonth(newMonth);
-    // Otherwise a stale out-of-range message from a previous visit to this same month
-    // reappears immediately on navigating back to it, with no new click causing it.
-    setOutOfRangeMessageKey(null);
-  }
+  });
 
   if (error) {
     return (
@@ -211,12 +80,12 @@ export function AvailabilityCalendar({
         locale={resolveDayPickerLocale(locale)}
         month={month}
         onMonthChange={handleMonthChange}
-        startMonth={startOfMonth(new Date(`${todayIso}T00:00:00`))}
-        endMonth={new Date(`${maxDateIso}T00:00:00`)}
+        startMonth={startMonth}
+        endMonth={endMonth}
         showOutsideDays={false}
-        selected={selectedDate ? new Date(`${selectedDate}T00:00:00`) : undefined}
+        selected={selected}
         onSelect={handleSelect}
-        disabled={(date) => isPast(date) || (!isOutOfRange(date) && isUnavailable(date))}
+        disabled={isDisabled}
         modifiers={{ outOfRange: isOutOfRange }}
         labels={{
           labelPrevious: () => t('availability.previousMonth'),
@@ -260,7 +129,7 @@ export function AvailabilityCalendar({
         }}
       />
 
-      {outOfRangeMessageKey === currentRangeKey && (
+      {showOutOfRangeMessage && (
         <div className="mt-3" data-testid="calendar-out-of-range-message">
           <BrandedFeedbackMessage
             title={t('availability.outOfRangeMessage', { days: maxBookingAdvanceDays })}
