@@ -411,10 +411,6 @@ jobs:
         run: pnpm --filter @ikaro/web exec playwright install chromium
 
       # No `--` before the flag: it makes Playwright ignore --shard and run every test.
-      - name: THROWAWAY failing leg (TD59-S03 demonstration, reverted in the next commit)
-        if: ${{ matrix.shard == 1 }}
-        run: exit 1
-
       - name: Run Playwright E2E
         run: pnpm --filter @ikaro/web e2e:ci --shard="${SHARD_INDEX}/${SHARD_TOTAL}"
         env:
