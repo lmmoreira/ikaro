@@ -479,7 +479,7 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 
 ---
 
-### Story 9 — Document the `--ba-*` exception in `features/customer`
+### Story 9 — Document the `--ba-*` exception in `features/customer` ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** S
