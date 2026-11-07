@@ -424,25 +424,77 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 **Dependencies:** Story 0, Story 1, Story 3 (they touch `ui/` files this story also edits; run after to avoid conflicts)
 **Pattern:** plain composition — no named pattern applies (design tokens)
 
-**Description:** (1) Replace the six hardcoded hex sites with tokens: define `--surface-app` (`#f9fafb`) and `--sidebar` (`#111827`) in `app/globals.css` plus their `@theme inline` aliases and use them at `SchedulePage.tsx:106`, `DashboardShell.tsx:42`, `CustomerShell.tsx:24` and `Sidebar.tsx:70`; the two `stroke="#dc2626"` sites (`app/auth/error/page.tsx:89`, `booking/components/public/InvalidLinkView.tsx:60`) use `currentColor`/`text-destructive` **unless** the hotsite fixed-palette rule makes the fixed red intentional on the branded one, in which case record it and leave it. (2) Align the existing `ui/` primitives that use raw palette classes (`pill-select`, `color-picker`, `select`, `pill-multi-select`, `calendar`) to semantic tokens **without changing the rendered colour** (pick the token that resolves to the same value, or add a token; a visible change is a regression). This is a targeted fix at the leak point; the ~2,000 palette sites in features stay as-is (decision 5). Dark mode is not introduced.
+**Description:** The semantic tokens in `app/globals.css` are slate hex values (Tailwind v3 era) while every component renders the Tailwind v4 palette (oklch), so the tokens describe colours the app does not show (`Button` uses `bg-primary` = `#2563eb`; `calendar` and `pill-select` use `blue-600` = `oklch(54.6% 0.245 262.881)`), and nobody could use them without a visible change. This story **reconciles the tokens with the rendered palette** (decided at `/story-discovery`, 2026-11-07, over adding a parallel set of role tokens), then moves the hex sites and the `ui/` field primitives onto them. (1) Retune the existing tokens and add five new ones (the tables under "Locked at discovery"). (2) Replace the hardcoded hex sites: `SchedulePage.tsx:106`, `DashboardShell.tsx:42`, `CustomerShell.tsx:24` (`bg-surface-app`), `Sidebar.tsx:70` (`bg-sidebar`), `app/auth/error/page.tsx:89` (`stroke="currentColor"` + `text-destructive`). (3) Move `pill-select`, `pill-multi-select`, `color-picker`, `select`, `calendar`, plus `input` and `textarea` (whose own file comment promised this) and `Button`'s `surface` variant, onto the tokens. The ~2,000 palette sites in features stay as-is (decision 5). Dark mode is not introduced. **Visible change is limited to the shifts listed below, each browser-verified.**
 
 New migration / i18n keys / env vars / feature flags: none (`globals.css` is a config-shaped file — explicit yes at implementation time).
 Backend HTTP surface: none.
 
 **Files to create/modify:**
 - `apps/web/app/globals.css` (modify — explicit yes)
-- `features/booking/components/dashboard/schedule/SchedulePage.tsx`, `shells/dashboard/components/{DashboardShell,Sidebar}.tsx`, `features/customer/components/CustomerShell.tsx`, `apps/web/app/auth/error/page.tsx`, `features/booking/components/public/InvalidLinkView.tsx` (conditional)
-- `apps/web/shared/components/ui/{pill-select,color-picker,select,pill-multi-select,calendar}.tsx` and their specs (modify)
+- `features/booking/components/dashboard/schedule/SchedulePage.tsx`, `shells/dashboard/components/{DashboardShell,Sidebar}.tsx`, `features/customer/components/CustomerShell.tsx`, `apps/web/app/auth/error/page.tsx` (modify). `features/booking/components/public/InvalidLinkView.tsx` is **not** touched (see "Left alone").
+- `apps/web/shared/components/ui/{pill-select,pill-multi-select,color-picker,select,calendar,input,textarea,button}.tsx` and their specs (modify; `button.tsx` only the `surface` variant)
+- `apps/web/shared/lib/design-tokens/globals-css-tokens.spec.ts` (create — `node` env, pins the `globals.css` definitions and `--color-*` aliases)
+- `apps/web/shared/lib/design-tokens/hotsite-token-isolation.spec.ts` (create — `node` env, scans the branded roots and fails on any token utility class; `AvailabilityAlertPickers.tsx` is the only allowed `ui/` primitive consumer, listed with its rationale)
+- `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` (one paragraph on the token roles; explicit yes at implementation time); `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives (one line: use the tokens, the palette-to-token rule)
+
+**Locked at `/story-discovery` (2026-11-07)**
+
+*Why not pixel-equivalent:* Tailwind v4's palette is oklch and the old tokens are v3 hex, so almost no existing token "resolves to the same value" as the classes the primitives use, and the specs pinned those classes. Adding a parallel set of 10–14 role tokens would leave `--primary` wrong beside a "real blue" token. Retuning the tokens (they have about 8 `ui/` consumers plus `border-border`/`divide-border` in about 14 feature files, no `var(--…)` consumers and no e2e computed-colour assertion) is the root-cause fix and needs 5 new tokens, not 14. Values are `oklch()` literals copied from `node_modules/tailwindcss/theme.css`, not `var(--color-*)` references (v4 emits palette variables only when a utility uses them).
+
+*A. Existing tokens, retuned*
+
+| Token | Now | New | Visible shift |
+|---|---|---|---|
+| `--foreground`, `--card-foreground`, `--popover-foreground`, `--secondary-foreground` | slate-900 `#0f172a` | **unchanged** | none. `body` reads `--foreground` and the tenant hotsite inherits `body` text, so it must not move (see "Tenant hotsite safety") |
+| `--primary` | `#2563eb` | blue-600 `oklch(54.6% 0.245 262.881)` | **yes** — `Button` default/ghost/link, `Badge` default more saturated |
+| `--ring` | `#2563eb` | blue-500 `oklch(62.3% 0.214 259.815)` | slight; matches the focus colour the fields already use |
+| `--secondary` | slate-200 | gray-200 `oklch(92.8% 0.006 264.531)` | imperceptible |
+| `--muted` | slate-50 `#f8fafc` | gray-100 `oklch(96.7% 0.003 264.542)` | `Button` outline hover and avatar background slightly darker |
+| `--muted-foreground` | slate-600 (no consumer) | gray-500 `oklch(55.1% 0.027 264.364)` | none |
+| `--accent` / `--accent-foreground` | blue-100 `#dbeafe` / v3 blue-700 | blue-50 `oklch(97% 0.014 254.604)` / blue-700 `oklch(48.8% 0.243 264.376)` | `Button` ghost hover lighter |
+| `--destructive` | `#dc2626` | red-600 `oklch(57.7% 0.245 27.325)` | **yes** — `Button`/`Badge` destructive more saturated |
+| `--border`, `--input` | slate-200 | gray-200 | imperceptible (about 14 feature files use `border-border`/`divide-border`) |
+| `--background`, `--card`, `--popover`, `--primary-foreground`, `--destructive-foreground` | `#fff` | unchanged | none |
+
+*B. New tokens (each with its `@theme inline` alias `--color-*`)*
+
+| Token | Value | Replaces |
+|---|---|---|
+| `--surface-app` | gray-50 `oklch(98.5% 0.002 247.839)` | `bg-[#f9fafb]` (3 shells + `SchedulePage`) |
+| `--sidebar` | gray-900 | `bg-[#111827]` (`Sidebar`) |
+| `--subtle-foreground` | gray-400 `oklch(70.7% 0.022 261.325)` | placeholder, disabled and outside-day text |
+| `--border-strong` | gray-300 `oklch(87.2% 0.01 258.338)` | pill hover borders |
+| `--destructive-tint` | red-50 `oklch(97.1% 0.013 17.38)` | invalid-field backgrounds |
+
+*C. Call-site mapping*
+
+- **`input`, `textarea`, `select`:** `bg-white` → `bg-background` (select menu `bg-popover`); `border-gray-200` → `border-input`; `text-gray-950` → `text-foreground` (shift: gray-950 → slate-900, slightly lighter field text); `focus:border-blue-500 focus:ring-blue-500` → `focus:border-ring focus:ring-ring`; `placeholder:text-gray-400` → `placeholder:text-subtle-foreground`; `aria-[invalid=true]:border-red-500 bg-red-50` → `border-destructive bg-destructive-tint` (shift: red-500 → red-600); `select` item focus and separator `bg-gray-100` → `bg-muted`; labels `text-gray-900` → `text-foreground`. `input`'s file comment about tokenising later is removed.
+- **`color-picker`:** the same field classes; focus becomes the 1px `ring-ring` like `Input` (shift: was a 2px blue-100 ring); hint `text-muted-foreground`, error `text-destructive`, swatch border `border-border`; `FALLBACK_SWATCH = '#e5e7eb'` → `'var(--border)'`.
+- **`pill-select`:** unselected `border-input bg-background text-foreground hover:border-border-strong` (shift: label gray-700 → 900); selected `border-primary bg-primary text-primary-foreground`; selected + disabled = selected style + `cursor-not-allowed opacity-50` (drops the blue-200/blue-400 pair); unselected + disabled `border-border bg-muted text-subtle-foreground`; invalid `border-destructive` (the red-700 hover darkening is dropped).
+- **`pill-multi-select`:** selected `border-primary bg-accent text-accent-foreground`; unselected as in `pill-select`; invalid + unselected `border-destructive` (shift: red-300 → red-600).
+- **`calendar`:** selected `bg-primary` + `!text-primary-foreground`; today ring `ring-ring`; caption `text-foreground`; weekday `text-muted-foreground`; outside and disabled days `text-subtle-foreground` (they keep their `opacity-50`).
+- **`Button` `surface`:** `border-0 bg-background text-foreground shadow-sm hover:bg-muted` (shift: hover gray-50 → gray-100).
+- **Shells and pages:** `bg-surface-app`, `bg-sidebar`; `auth/error` svg `stroke="currentColor"` with `text-destructive`.
+
+*Left alone, with the reason:* `InvalidLinkView` (tenant-branded page, so its red stroke and `#fee2e2` disc are a fixed semantic colour by the rule in `ENGINEERING_RULES_FRONTEND.md` § Public hotsite; `currentColor` would inherit `--ba-text` and a tenant colour could make the icon vanish; the PR body records this). `Button` `destructive-outline` and the `Badge` tone family (red-200, red-700, blue-800, gray-600 steps are a status scale added by Story 1, not part of this story's list).
+
+*Tenant hotsite safety (hard requirement, added at discovery 2026-11-07):* nothing here may change how tenant branding is applied. Verified by grep: the branded tree (`app/[slug]`, `shells/hotsite`, `features/*/components/public`, `features/platform/hotsite`, `features/platform/components/public`, `shared/components/hotsite`) reads **no** token utility class, and the branded customer files (`TenantOptionRow`, `InformationCompletionPrompt`, `InformationCompletionPhoneField`, `SwitchTenantClient`) import no `ui/` primitive. This story edits no `--ba-*` file, no `applyBranding()`, no hotsite layout or branded component. Two paths could still leak and are closed or recorded as follows. (1) `body { color: var(--foreground) }` is inherited by any hotsite text that paints no colour of its own, so the `--foreground` family and `--background` stay **unchanged**. (2) `features/booking/components/public/AvailabilityAlertPickers.tsx` (the public availability-alert form) renders `ui/button`, `calendar`, `popover`, `select` and `time-picker` in the fixed palette and never follows `--ba-*`; it picks up the table C shifts that apply to those primitives (calendar today ring blue-400 → blue-500, `Button` outline border and hover, `Select` field text). Those are recorded, not silent, and the form is browser-verified on a light and on a dark tenant theme, before and after.
+
+*Pattern:* plain composition (design tokens). *Test plan:* class-name assertions change in `pill-select.spec` (`border-blue-200`, `border-gray-100`, `border-red-600`), `calendar.spec` (`!text-white`), `input.spec` (`aria-[invalid=true]:border-red-500`); their behaviour assertions do not. Each shell spec asserts its new token class. A new `node`-env spec reads `app/globals.css` and asserts every token above and its alias exists with the locked value (a missing alias makes Tailwind emit no CSS and the shell renders transparent with no build, type or jsdom failure). Existing e2e specs reference no retuned colour.
 
 **Acceptance criteria — product:**
-- [ ] The dashboard and account shells and all five primitives look pixel-equivalent to before (browser-verified).
+- [ ] No visible change except the shifts listed in tables A and C. The two shells, `SchedulePage`, `auth/error`, every `Button` variant, `Badge`, and the seven field primitives are compared before and after in a browser (asked first per `CLAUDE.md` §0). **A tenant hotsite page (light and dark branding) is unchanged**, including its body text, and the availability-alert form shows only the listed shifts.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] Existing specs of the five primitives and the shells pass unchanged; a spec asserts the shell background/sidebar use the new tokens
+  - [ ] Behaviour assertions of the primitives' and shells' specs pass unchanged; only the class-name assertions listed in the test plan change
+  - [ ] Each shell spec asserts `bg-surface-app` / `bg-sidebar`
+  - [ ] `globals-css-tokens.spec.ts` pins all 10 retuned, the unchanged foreground family and the 5 new tokens and their aliases (negative guarantee: removing an alias fails it)
+  - [ ] `hotsite-token-isolation.spec.ts` fails if any file under the branded roots uses a token utility class or imports a `ui/` primitive outside its allow-list (negative guarantee: the tenant hotsite never reads the retuned tokens)
 - E2E:
-  - [ ] none — covered by unit; browser-verified after asking per `CLAUDE.md` §0
-- [ ] No hex literal remains in `shells/dashboard`, `features/customer/components/CustomerShell.tsx`, `SchedulePage.tsx` (grep proof)
+  - [ ] none — no route or flow changes and no e2e spec asserts a retuned colour; browser-verified as above
+- [ ] No hex literal remains in `shells/dashboard`, `features/customer/components/CustomerShell.tsx`, `SchedulePage.tsx`, `app/auth/error/page.tsx`, or `shared/components/ui/color-picker.tsx` (grep proof); `InvalidLinkView` is the one recorded exception
+- [ ] No raw `gray-*`, `blue-*`, `red-*`, `bg-white` or `text-white` class remains in the seven primitives, including calendar's `!important` selected-day selectors (grep proof)
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
