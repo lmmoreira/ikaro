@@ -179,11 +179,12 @@ export function parseRange(text: string): { readonly start: number; readonly end
   return { start: startHour * 60 + startMinute, end: endHour * 60 + endMinute };
 }
 
-// One fresh ROOM and a 60-minute service restricted to it, so a resource-scoped closure or a
-// competing booking on that room affects this service alone.
+// One fresh ROOM and a service (60 minutes unless `durationMinutes` says otherwise) restricted to
+// it, so a resource-scoped closure or a competing booking on that room affects this service alone.
 export async function seedSingleRoomService(
   page: Page,
   prefix: string,
+  durationMinutes = 60,
 ): Promise<{
   readonly service: Awaited<ReturnType<typeof createService>>;
   readonly room: SeededResource;
@@ -192,7 +193,7 @@ export async function seedSingleRoomService(
   const service = await createService(page, {
     name: makeUniqueServiceName(prefix),
     priceAmount: 150,
-    durationMinutes: 60,
+    durationMinutes,
     loyaltyPointsValue: 10,
   });
   await setResourceRequirements(page, service.serviceId, [

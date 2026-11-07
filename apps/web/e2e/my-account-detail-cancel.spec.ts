@@ -4,6 +4,7 @@ import {
   createAuthenticatedBooking,
   createFreshApprovedBooking,
   createInfoRequestedBooking,
+  createSoonestApprovedBookingInOwnRoom,
 } from './helpers/booking';
 import { createCompletedLoyaltyFlow } from './helpers/loyalty';
 
@@ -67,22 +68,29 @@ test.describe('customer my-account: booking detail, cancel and info-submit', () 
     const customerEmail = uniqueTestEmail('detail-cancel-outside-window');
     // 'soonest' is the nearest open slot, so it is inside the 48h cancellationWindowHours setting
     // whatever weekday the run happens on — i.e. already outside the window a customer is allowed
-    // to self-cancel from.
-    const setup = await createFreshApprovedBooking(page, 'soonest', STAFF_EMAIL, {
+    // to self-cancel from. It is booked on a room of its own: the few slots a 48h look-ahead leaves
+    // (two on a Saturday) are not shared with the other specs that need one.
+    const { setup, cleanup } = await createSoonestApprovedBookingInOwnRoom(page, {
+      prefix: 'e2e-cancel-outside-window',
       contactEmail: customerEmail,
+      staffEmail: STAFF_EMAIL,
     });
-    await loginAsCustomer(page, customerEmail, TENANT_SLUG);
+    try {
+      await loginAsCustomer(page, customerEmail, TENANT_SLUG);
 
-    await page.goto(`/${TENANT_SLUG}/my-account/bookings/${setup.bookingId}/cancel`);
-    await page
-      .getByTestId('action-pane-desktop')
-      .getByRole('button', { name: 'Confirmar cancelamento' })
-      .click();
+      await page.goto(`/${TENANT_SLUG}/my-account/bookings/${setup.bookingId}/cancel`);
+      await page
+        .getByTestId('action-pane-desktop')
+        .getByRole('button', { name: 'Confirmar cancelamento' })
+        .click();
 
-    await expect(page).toHaveURL(
-      `/${TENANT_SLUG}/my-account/bookings/${setup.bookingId}/cancel/error`,
-    );
-    await expect(page.getByRole('link', { name: 'Voltar ao agendamento' })).toBeVisible();
+      await expect(page).toHaveURL(
+        `/${TENANT_SLUG}/my-account/bookings/${setup.bookingId}/cancel/error`,
+      );
+      await expect(page.getByRole('link', { name: 'Voltar ao agendamento' })).toBeVisible();
+    } finally {
+      await cleanup();
+    }
   });
 
   test('INFO_REQUESTED: submitting a response shows a confirmation and flips the badge to PENDING', async ({
