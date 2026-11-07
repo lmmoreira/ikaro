@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { SectionLabel } from '@/shared/components/ui/section-label';
+import { SwitchField } from '@/shared/components/ui/switch-field';
 
 interface ServicePickupSwitchProps {
   readonly checked: boolean;
@@ -19,32 +20,13 @@ export function ServicePickupSwitch({
   return (
     <section className="space-y-3">
       <SectionLabel>{t('servicesOptionsTitle')}</SectionLabel>
-      <button
-        type="button"
-        role="switch"
-        data-testid="service-pickup-switch"
-        aria-checked={checked}
-        onClick={onToggle}
-        className="flex w-full items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-left transition-colors hover:bg-slate-100"
-      >
-        <span className="pr-4">
-          <span className="block text-sm font-semibold text-gray-900">
-            {t('createPickupLabel')}
-          </span>
-          <span className="mt-0.5 block text-sm text-gray-500">{t('createPickupHint')}</span>
-        </span>
-        <span
-          className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors ${
-            checked ? 'bg-blue-600' : 'bg-slate-300'
-          }`}
-        >
-          <span
-            className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
-              checked ? 'translate-x-5' : 'translate-x-0.5'
-            }`}
-          />
-        </span>
-      </button>
+      <SwitchField
+        testId="service-pickup-switch"
+        checked={checked}
+        onChange={onToggle}
+        label={t('createPickupLabel')}
+        hint={t('createPickupHint')}
+      />
     </section>
   );
 }

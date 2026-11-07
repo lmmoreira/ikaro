@@ -143,7 +143,7 @@ describe('CustomerLoyaltyPage', () => {
     expect(setBackLabelOverride).toHaveBeenCalledWith('Fidelidade');
     expect(setPageTitleOverride).toHaveBeenCalledWith('João Silva');
 
-    await user.click(screen.getByRole('button', { name: 'Resgates' }));
+    await user.click(screen.getByRole('tab', { name: 'Resgates' }));
     expect(screen.getByText('Resgate no agendamento')).toBeInTheDocument();
   });
 

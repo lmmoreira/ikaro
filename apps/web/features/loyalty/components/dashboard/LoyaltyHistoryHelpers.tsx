@@ -1,3 +1,4 @@
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
 import { cn } from '@/shared/utils/cn';
 
 export function formatShortDateLabel(date: string, locale: string): string {
@@ -9,44 +10,32 @@ export function formatShortDateLabel(date: string, locale: string): string {
   }).format(new Date(date));
 }
 
+type HistoryTab = 'entries' | 'redemptions';
+
 export function HistoryTabs({
   activeTab,
   onChange,
   entriesLabel,
   redemptionsLabel,
+  entriesContent,
+  redemptionsContent,
 }: {
-  readonly activeTab: 'entries' | 'redemptions';
-  readonly onChange: (tab: 'entries' | 'redemptions') => void;
+  readonly activeTab: HistoryTab;
+  readonly onChange: (tab: HistoryTab) => void;
   readonly entriesLabel: string;
   readonly redemptionsLabel: string;
+  readonly entriesContent: React.ReactNode;
+  readonly redemptionsContent: React.ReactNode;
 }): React.JSX.Element {
   return (
-    <div className="mb-4 flex border-b-2 border-gray-200">
-      <button
-        type="button"
-        onClick={() => onChange('entries')}
-        className={cn(
-          'mb-[-2px] border-b-2 px-4 pb-3 pt-2 text-sm font-semibold transition-colors',
-          activeTab === 'entries'
-            ? 'border-blue-600 text-blue-600'
-            : 'border-transparent text-gray-400',
-        )}
-      >
-        {entriesLabel}
-      </button>
-      <button
-        type="button"
-        onClick={() => onChange('redemptions')}
-        className={cn(
-          'mb-[-2px] border-b-2 px-4 pb-3 pt-2 text-sm font-semibold transition-colors',
-          activeTab === 'redemptions'
-            ? 'border-blue-600 text-blue-600'
-            : 'border-transparent text-gray-400',
-        )}
-      >
-        {redemptionsLabel}
-      </button>
-    </div>
+    <Tabs value={activeTab} onValueChange={(tab) => onChange(tab as HistoryTab)}>
+      <TabsList variant="underline" className="mb-4">
+        <TabsTrigger value="entries">{entriesLabel}</TabsTrigger>
+        <TabsTrigger value="redemptions">{redemptionsLabel}</TabsTrigger>
+      </TabsList>
+      <TabsContent value="entries">{entriesContent}</TabsContent>
+      <TabsContent value="redemptions">{redemptionsContent}</TabsContent>
+    </Tabs>
   );
 }
 

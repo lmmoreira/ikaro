@@ -6,8 +6,8 @@ import { useTranslations } from 'next-intl';
 import type { StaffServiceResponse } from '@ikaro/types';
 import { FloatingCreateButton } from '@/shared/components/ui/floating-create-button';
 import { Card } from '@/shared/components/ui/card';
+import { FilterChip } from '@/shared/components/ui/filter-chip';
 import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
-import { cn } from '@/shared/utils/cn';
 import { ServiceCard } from './ServiceCard';
 
 type ServiceFilter = 'all' | 'active' | 'inactive';
@@ -16,15 +16,6 @@ interface ServiceListPageProps {
   readonly services: readonly StaffServiceResponse[];
   // The server page could not fetch the services: shown instead of a misleading empty list.
   readonly loadFailed?: boolean;
-}
-
-function buildFilterClass(active: boolean): string {
-  return cn(
-    'rounded-full border px-3.5 py-1.5 text-[0.8125rem] font-semibold transition-colors',
-    active
-      ? 'border-blue-600 bg-blue-600 text-white'
-      : 'border-border bg-white text-gray-900 hover:bg-slate-50',
-  );
 }
 
 export function ServiceListPage({
@@ -74,30 +65,15 @@ export function ServiceListPage({
         ) : (
           <>
             <div className="flex flex-wrap gap-2 border-b border-border px-4 py-3.5">
-              <button
-                type="button"
-                className={buildFilterClass(filter === 'all')}
-                aria-pressed={filter === 'all'}
-                onClick={() => setFilter('all')}
-              >
+              <FilterChip selected={filter === 'all'} onClick={() => setFilter('all')}>
                 {t('tabAll', { count: counts.all })}
-              </button>
-              <button
-                type="button"
-                className={buildFilterClass(filter === 'active')}
-                aria-pressed={filter === 'active'}
-                onClick={() => setFilter('active')}
-              >
+              </FilterChip>
+              <FilterChip selected={filter === 'active'} onClick={() => setFilter('active')}>
                 {t('tabActive', { count: counts.active })}
-              </button>
-              <button
-                type="button"
-                className={buildFilterClass(filter === 'inactive')}
-                aria-pressed={filter === 'inactive'}
-                onClick={() => setFilter('inactive')}
-              >
+              </FilterChip>
+              <FilterChip selected={filter === 'inactive'} onClick={() => setFilter('inactive')}>
                 {t('tabInactive', { count: counts.inactive })}
-              </button>
+              </FilterChip>
             </div>
 
             {filteredServices.length > 0 ? (

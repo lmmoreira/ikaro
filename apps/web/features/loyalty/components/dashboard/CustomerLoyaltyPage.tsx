@@ -81,29 +81,29 @@ export function CustomerLoyaltyPage({
   const returnToHref = `/dashboard/loyalty/${customer.customerId}${
     activeTab === 'redemptions' ? '?tab=redemptions' : ''
   }`;
-  const activeTabContent =
-    activeTab === 'entries' ? (
-      <CustomerLoyaltyEntriesTab
-        entries={entries}
-        locale={locale}
-        formatDateLong={formatDateLong}
-        isLoadingEntries={isLoadingEntries}
-        loadMoreEntries={loadMoreEntries}
-        loadMoreEntriesError={loadMoreEntriesError}
-        returnToHref={returnToHref}
-        t={t}
-      />
-    ) : (
-      <CustomerLoyaltyRedemptionsTab
-        redemptions={redemptions}
-        formatDateLong={formatDateLong}
-        isLoadingRedemptions={isLoadingRedemptions}
-        loadMoreRedemptions={loadMoreRedemptions}
-        loadMoreRedemptionsError={loadMoreRedemptionsError}
-        returnToHref={returnToHref}
-        t={t}
-      />
-    );
+  const entriesContent = (
+    <CustomerLoyaltyEntriesTab
+      entries={entries}
+      locale={locale}
+      formatDateLong={formatDateLong}
+      isLoadingEntries={isLoadingEntries}
+      loadMoreEntries={loadMoreEntries}
+      loadMoreEntriesError={loadMoreEntriesError}
+      returnToHref={returnToHref}
+      t={t}
+    />
+  );
+  const redemptionsContent = (
+    <CustomerLoyaltyRedemptionsTab
+      redemptions={redemptions}
+      formatDateLong={formatDateLong}
+      isLoadingRedemptions={isLoadingRedemptions}
+      loadMoreRedemptions={loadMoreRedemptions}
+      loadMoreRedemptionsError={loadMoreRedemptionsError}
+      returnToHref={returnToHref}
+      t={t}
+    />
+  );
 
   async function loadMoreEntries(): Promise<void> {
     if (isLoadingEntries || entries.items.length >= entries.total) return;
@@ -170,9 +170,9 @@ export function CustomerLoyaltyPage({
             onChange={setActiveTab}
             entriesLabel={t('entriesTab')}
             redemptionsLabel={t('redemptionsTab')}
+            entriesContent={entriesContent}
+            redemptionsContent={redemptionsContent}
           />
-
-          {activeTabContent}
         </div>
       </Card>
     </section>
