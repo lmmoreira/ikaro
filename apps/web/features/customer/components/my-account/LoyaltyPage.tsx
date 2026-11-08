@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { LoyaltyEntriesPanel } from './LoyaltyEntriesPanel';
 import { LoyaltyRedemptionsPanel } from './LoyaltyRedemptionsPanel';
+import { Button } from '@/shared/components/ui/button';
 
 interface LoyaltyPageProps {
   readonly balance: CustomerLoyaltyBalanceResponse;
@@ -81,12 +82,9 @@ export function LoyaltyPage({
         >
           <p className="text-base font-semibold text-gray-900">{t('emptyTitle')}</p>
           <p className="mt-1 max-w-sm text-sm text-gray-500">{t('emptyBody')}</p>
-          <Link
-            href={`/${tenantSlug}/booking`}
-            className="mt-5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-          >
-            {t('emptyCta')}
-          </Link>
+          <Button asChild className="mt-5">
+            <Link href={`/${tenantSlug}/booking`}>{t('emptyCta')}</Link>
+          </Button>
         </div>
       ) : (
         <>

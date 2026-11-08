@@ -12,6 +12,7 @@ import {
   type LeadFormSearchQuery,
 } from '@/features/platform/model/lead-form-search';
 import { LeadFormSearchPanel } from './LeadFormSearchPanel';
+import { Button } from '@/shared/components/ui/button';
 
 interface LeadFormSubmissionsListProps {
   readonly items: readonly LeadFormSubmissionListItem[];
@@ -118,12 +119,9 @@ export function LeadFormSubmissionsList({
       <Card className="mx-auto max-w-md space-y-3 p-8 text-center">
         <p className="text-base font-bold text-gray-900">{t('emptyTitle')}</p>
         <p className="text-sm text-gray-500">{t('emptyBody')}</p>
-        <Link
-          href="/dashboard/hotsite"
-          className="inline-block rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-        >
-          {t('emptyCta')}
-        </Link>
+        <Button asChild>
+          <Link href="/dashboard/hotsite">{t('emptyCta')}</Link>
+        </Button>
       </Card>
     );
   }
@@ -172,12 +170,9 @@ export function LeadFormSubmissionsList({
         <Card className="mx-auto max-w-md space-y-3 p-8 text-center" data-testid="leads-no-results">
           <p className="text-base font-bold text-gray-900">{noResultsCopy.title}</p>
           <p className="text-sm text-gray-500">{noResultsCopy.body}</p>
-          <Link
-            href={clearHref}
-            className="inline-block rounded-md border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-          >
-            {noResultsCopy.clearLabel}
-          </Link>
+          <Button asChild variant="outline">
+            <Link href={clearHref}>{noResultsCopy.clearLabel}</Link>
+          </Button>
         </Card>
       ) : (
         <>

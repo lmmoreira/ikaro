@@ -20,6 +20,7 @@ import {
 import { NewReservationMenu } from '../NewReservationMenu';
 import { AccountListRow } from './AccountListRow';
 import { useRecurrenceText } from './use-recurrence-text';
+import { Button } from '@/shared/components/ui/button';
 
 interface RecurringScheduleListProps {
   readonly schedules: readonly RecurringBookingScheduleListItem[];
@@ -148,13 +149,14 @@ export function RecurringScheduleList({
           title={t('emptyTitle')}
           body={t('emptyBody')}
           action={
-            <Link
-              href={recurringScheduleNewPath(tenantSlug)}
-              data-testid="recurring-schedules-empty-cta"
-              className="mt-5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-            >
-              {t('createCta')}
-            </Link>
+            <Button asChild className="mt-5">
+              <Link
+                href={recurringScheduleNewPath(tenantSlug)}
+                data-testid="recurring-schedules-empty-cta"
+              >
+                {t('createCta')}
+              </Link>
+            </Button>
           }
         />
       ) : (
