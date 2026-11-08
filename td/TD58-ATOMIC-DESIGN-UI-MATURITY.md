@@ -678,7 +678,7 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 
 ---
 
-### Story 11 — Regroup `booking/components/dashboard/bookings/` by flow
+### Story 11 — Regroup `booking/components/dashboard/bookings/` by flow ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** M
