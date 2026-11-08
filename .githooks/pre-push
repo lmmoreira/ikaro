@@ -1,7 +1,8 @@
 #!/bin/bash
 # pre-push hook: lint + prettier + type-check + architecture-check + backend/BFF unit tests.
+# A docs/tooling-only push runs architecture-check alone (see the skip branch below).
 # Web Vitest runs in CI via ci:integration.
-# Skipped when every changed file relative to the diff base is docs/tooling-only
+# The full set is skipped (architecture-check still runs) when every changed file relative to the diff base is docs/tooling-only
 # (*.md anywhere, or any file under td/, plan/, scripts/, infra/terraform/,
 # .agents/, .claude/, .copilot/, .github/, .githooks/) — no app code changed.
 # Activate: git config core.hooksPath .githooks
@@ -46,7 +47,12 @@ do
 done
 
 if [ "$run_ci_fast" = false ]; then
-  echo "pre-push: only docs/tooling changed (*.md, td/**, plan/**, scripts/**, infra/terraform/**, .agents/**, .claude/**, .copilot/**, .github/**, .githooks/**) — skipping ci:fast"
+  # No app code changed, so the lint/type-check/unit-test legs of ci:fast have nothing to find, but
+  # architecture-check still guards what a doc edit can break (dead pointers, doc-orientation, the
+  # .copilot/context.md size budget). A docs-only push once put a dead pointer on main because this
+  # branch exited without running it. set -e blocks the push on a non-zero exit.
+  echo "pre-push: only docs/tooling changed (*.md, td/**, plan/**, scripts/**, infra/terraform/**, .agents/**, .claude/**, .copilot/**, .github/**, .githooks/**) — skipping ci:fast, running architecture-check"
+  pnpm architecture-check
   exit 0
 fi
 
