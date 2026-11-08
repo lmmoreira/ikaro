@@ -1131,3 +1131,42 @@ export function ThingForm(): React.JSX.Element {
 Client-side validation uses the same pieces: `feedback.setFieldErrors({ durationMinMinutes: t('required') })` marks every named field and focuses the first in document order; add `feedback.setError(...)` for a form-level line. A control that forwards no ref (`color-picker`, `pill-multi-select`, `time-picker`) takes `ref={feedback.registerField('name')}` on its wrapper. A list-row action uses `FeedbackMessage size="inline"` instead of a pane.
 
 **The public hotsite uses the same hook with a different skin** (it has no shell and no `ActionPane`): render `BrandedFeedbackMessage` (`shared/components/hotsite/`) directly under the submit button with `feedback.feedback`'s `variant`/`title`, and `BrandedFieldFeedback` + `BRANDED_FIELD_INVALID_CLASS` for the field. Never reach for `FeedbackMessage` there (it reads no `--ba-*`) and never colour the box from a tenant token.
+
+### 26. Screen composed of state hooks and presentational panels
+
+A feature screen whose state outgrows its markup (a form draft, the active tab, dirty tracking, a leave guard) is split in three: **hooks** own state and effects, the **page component** wires the hooks and passes plain props, **panels** render. Where each piece lives and what it may import: `docs/ENGINEERING_RULES_FRONTEND.md` § UI layer model. Canonical source: `features/booking/components/dashboard/services/ServiceEditPage.tsx` with `hooks/useServiceEditSession.ts`, `hooks/useServiceDetailsForm.ts` and `useServiceEditLeaveGuard.ts`.
+
+```tsx
+'use client';
+
+export function ThingEditPage({ thing }: ThingEditPageProps): React.JSX.Element {
+  const form = useFormFeedback();
+  const topbarStatus = useDashboardTopbarStatus(); // the PAGE reads the shell context …
+  const session = useThingEditSession({            // … and hands the hook only what it needs
+    thing,
+    feedback: form,
+    onStatusChange: topbarStatus?.setThingStatus,
+  });
+  const details = useThingDetailsForm({
+    thing,
+    feedback: form,
+    onDirtyChange: (dirty) => session.setTabDirty('details', dirty),
+  });
+  const guard = useThingEditLeaveGuard(session.anyDirty);
+
+  return (
+    <form onSubmit={details.handleSubmit}>
+      <ThingEditTabBar activeTab={session.activeTab} onTabChange={session.setActiveTab} />
+      <ThingEditDetailsTab name={details.name} onNameChange={details.onNameChange} feedback={form} />
+      <ThingEditActionPanels isSubmitting={details.isSubmitting} feedback={form.feedback} />
+      <DiscardChangesDialog open={guard.discardConfirmOpen} onCancel={guard.closeDiscardConfirm} /* … */ />
+    </form>
+  );
+}
+```
+
+- **Hooks** live in `features/<domain>/hooks/` (pure helpers in `model/`) and import nothing from a `components/` directory (ESLint): a value the page owns, such as a topbar setter, arrives as a parameter, as `onStatusChange` does above.
+- **A hook over the 40-line function cap** is split from the start into module-level sub-hooks and helpers inside the same file (`useDetailsFields` and `useDetailsSave` inside `useServiceDetailsForm.ts`), never an `eslint-disable`. Each hook ships its own `renderHook` spec.
+- **Panels** (`ServiceEditDetailsTab`, `ServiceEditTabBar`, `ServiceEditActionPanels`) take plain values and callbacks, compose `ui/` primitives, and fetch nothing.
+- **The page stays small:** the 200-line `.tsx` function cap and the 250-line file cap are ESLint errors (`ServiceEditPage` is 162 lines). A page that approaches them has a hook or a panel still inside it.
+- **Wrong shapes:** all the state inline in one 400-line component; a hook importing a component's context or type; a panel that calls `bffClient` or a mutation hook itself; a second copy of the same panel markup instead of a `ui/` composed pattern once three exist.

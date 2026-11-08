@@ -876,7 +876,7 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 **Dependencies:** Story 14 (✅ Done: the `no-restricted-imports` guard shape and spec this story copies)
 **Pattern:** the same as Story 14: an ESLint `no-restricted-imports` rule with a `regex` pattern in its own block (own rule key, so no `no-restricted-syntax` list is restated).
 
-**Discovered:** 2026-11-08, the TD58 closing docs review. `docs/ENGINEERING_RULES_FRONTEND.md` § UI layer model lists "`shared/components/ui/**` importing from `features/` or `shells/`" as the one layer rule that only review catches.
+**Discovered:** 2026-11-08, the TD58 closing docs review. The "not enforced" row of `docs/ENGINEERING_RULES_FRONTEND.md` § UI layer model, which lists "`shared/components/ui/**` importing from `features/` or `shells/`" as the one layer rule that only review catches.
 **Root cause:** nothing stops a primitive from reaching up into a feature or a shell, so the bottom layer can quietly acquire domain knowledge.
 
 **Description:** `shared/components/ui/` is the bottom layer of the UI model: primitives and composed patterns with no domain word in them. Measured 2026-11-08, it imports nothing from `@/features`, `@/shells` (alias or relative, specs included), `@/providers`, `@/app` or `@/i18n`, so the rule holds today but is not enforced. This story adds the guard.

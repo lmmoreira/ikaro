@@ -164,7 +164,7 @@ A secondary trap in the same incident: a component with a *fixed*, non-branded a
 | a single control with no domain word (a toggle, a field) | `shared/components/ui/`, ported wholesale from the shadcn/Radix reference with a spec (never a one-off inside a feature) |
 | a frame built only from primitives that **3 or more** places already draw the same way | `shared/components/ui/` as a composed pattern; migrate the copies in the same change |
 | the same, with fewer than 3 copies, or it names a domain type (`Booking`, `Service`) | the feature, in its flow folder; promote it when a third copy appears |
-| form values, selection, submit state or an effect | a hook in `features/<domain>/hooks/`; the component renders it. A hook over the 40-line function cap is sub-hooks plus module-level helpers from the start, never an `eslint-disable`. Exemplars: `useServiceDetailsForm`, `useServiceEditSession`, `useAvailabilityCalendarState`, `useBookingSubmitRunner` |
+| form values, selection, submit state or an effect | a hook in `features/<domain>/hooks/`; the component renders it. A hook over the 40-line function cap is sub-hooks plus module-level helpers from the start, never an `eslint-disable`. Skeleton: `docs/AGENT_PATTERNS.md` Pattern #26; exemplars: `useServiceDetailsForm`, `useServiceEditSession`, `useAvailabilityCalendarState`, `useBookingSubmitRunner` |
 | a fetcher or a response mapper | `features/<domain>/api/` or a BFF mapper (`docs/BFF_ARCHITECTURE.md`); never in a component |
 | chrome shared by every screen of a surface | `shells/<surface>/` |
 | needed by both the branded hotsite and the dashboard | share `model/` and hooks, write two views (the dashboard never reads `--ba-*`; § The `--ba-*` exception) |
