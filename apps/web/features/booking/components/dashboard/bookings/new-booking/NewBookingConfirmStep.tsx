@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { Card, CardContent } from '@/shared/components/ui/card';
-import type { BookingSubmissionStatus } from '@/features/booking/components/public/ConfirmationStep';
+import type { BookingSubmissionStatus } from '@/features/booking/model/booking-submission-status';
 import { NewBookingStepLayout } from './NewBookingStepLayout';
 
 interface NewBookingConfirmStepProps {

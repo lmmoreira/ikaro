@@ -19,7 +19,7 @@ import {
 import type { BookingStepId, ResolvedErrorStep } from '@/features/booking/model/booking-steps';
 import type { PersonalInfoValue } from '@/features/booking/model/personal-info';
 import type { SupportedLocale } from '@/shared/lib/i18n/get-messages';
-import type { BookingSubmissionStatus } from '../components/public/ConfirmationStep';
+import type { BookingSubmissionStatus } from '../model/booking-submission-status';
 import { useBookingSubmitRunner } from './useBookingSubmitRunner';
 
 interface UseBookingSubmissionParams {

@@ -473,6 +473,36 @@ module.exports = [
       ],
     },
   },
+  // TD58-S14: a hooks/ or model/ file is a logic layer and does not import from any components/
+  // directory (a type or helper both sides need lives in model/; a provider value is passed in by
+  // the component). `no-restricted-imports` is its own rule key, so unlike the no-restricted-syntax
+  // blocks above it restates nothing. The regex flags a path that has a `components` segment and
+  // does not run through shared/components/ui/ (the primitives are the lowest layer). It sees
+  // static imports, `import type` and `export ... from`; `require()` is already an error through
+  // @typescript-eslint/no-require-imports, and a dynamic `import()` is not covered (none exists in
+  // these folders).
+  {
+    files: [
+      'features/*/hooks/**/*.{ts,tsx}',
+      'features/*/model/**/*.{ts,tsx}',
+      'shells/*/model/**/*.{ts,tsx}',
+    ],
+    ignores: ['**/*.spec.ts', '**/*.spec.tsx'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              regex: String.raw`^(?!.*(^|/)shared/components/ui/).*(^|/)components(/|$)`,
+              message:
+                'A hooks/ or model/ file does not import from a components/ directory: move the shared type or helper to model/, or pass the value in from the component (docs/REPOSITORY_STRUCTURE.md § Web placement rules). shared/components/ui/** is allowed.',
+            },
+          ],
+        },
+      ],
+    },
+  },
   // TD37-S23: E2E-1 only — scoped to Playwright e2e specs themselves, which the two
   // no-restricted-syntax blocks above deliberately ignore (**/*.spec.ts). A separate block is
   // required here rather than folding this into NON_FETCH_SELECTORS: e2e specs are exactly the

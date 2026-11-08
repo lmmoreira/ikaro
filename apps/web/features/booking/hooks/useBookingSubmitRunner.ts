@@ -9,7 +9,7 @@ import {
   type ResolvedErrorStep,
 } from '@/features/booking/model/booking-steps';
 import type { SupportedLocale } from '@/shared/lib/i18n/get-messages';
-import type { BookingSubmissionStatus } from '../components/public/ConfirmationStep';
+import type { BookingSubmissionStatus } from '../model/booking-submission-status';
 
 export interface BookingSubmitRunnerParams {
   readonly selectedSlot: AvailableSlot | null;

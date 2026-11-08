@@ -20,6 +20,7 @@ import {
   resolveCorrectionPoints,
 } from '@/features/booking/model/booking-no-show';
 import { useTenant } from '@/providers/tenant-provider';
+import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
 import { BookingStatusHistory } from './BookingStatusHistory';
 import {
   bookingNeedsDecision,
@@ -98,7 +99,7 @@ export function BookingDetailPage({
     setActionState,
     setSheetState,
   });
-  useBookingDetailTopbarSync(booking.status, returnTo);
+  useBookingDetailTopbarSync(booking.status, returnTo, useDashboardTopbarStatus());
   const backHref = returnTo ?? '/dashboard/bookings';
 
   const serviceIds = useMemo(() => booking.lines.map((line) => line.serviceId), [booking.lines]);
