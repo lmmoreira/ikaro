@@ -7,7 +7,7 @@
 - **Created**: 2026-11-05
 - **Discovered**: read-only atomic-design audit of `apps/web` (three parallel structural audits plus a premise-verification pass, 2026-11-05). Grade given at the time: C+ overall (tokens C, atoms C−, molecules B, organisms B+, templates C+, pages A−, tests A).
 - **Decision status**: Ready for discovery and implementation in the dependency order below; every story still begins with `/story-discovery`. The sequence and scope below were confirmed with the user on 2026-11-05; each story's "Pattern" is a starting decision that its own `/story-discovery` Step 4q may refine, and a story's block records what was locked there.
-- **Progress (2026-11-07)**: Stories 0–10 ✅ Done; 11, 12 and 13 remain (11 last among the migrations: it moves files the others edit; 13 is an exploratory inventory).
+- **Progress (2026-11-08)**: Stories 0–10 and 12 ✅ Done; 11 and 13 remain (11 last among the migrations: it moves files the others edit; 13 is an exploratory inventory).
 - **Related**: `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives; TD57 (inline feedback + action-pane pattern, the precedent for promoting a repeated UI pattern into `ui/`); `docs/ANTI_PATTERNS.md`; `.copilot/context.md` §8 (the `--ba-*` boundary row).
 
 ---
@@ -714,7 +714,7 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 
 ---
 
-### Story 12 — Migrate the raw `<button>` sites that duplicate an existing primitive
+### Story 12 — Migrate the raw `<button>` sites that duplicate an existing primitive ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** M
