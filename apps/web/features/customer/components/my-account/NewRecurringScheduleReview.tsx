@@ -15,6 +15,7 @@ import {
   NewRecurringScheduleLayout,
 } from '@/features/booking/components/recurring/NewRecurringScheduleLayout';
 import { useRecurrenceText } from './use-recurrence-text';
+import { Button } from '@/shared/components/ui/button';
 
 interface NewRecurringScheduleReviewProps {
   readonly service: HotsiteServiceResponse;
@@ -71,24 +72,25 @@ export function NewRecurringScheduleReview({
   function renderPane(): React.JSX.Element {
     return (
       <ActionPane aside={tn('reviewAside')}>
-        <button
+        <Button
           type="button"
           data-testid="new-schedule-confirm"
           disabled={submitting}
           onClick={onConfirm}
-          className="rounded-lg bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+          className="w-full"
         >
           {submitting ? tn('submitting') : tn('confirmButton')}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
           data-testid="new-schedule-back"
           disabled={submitting}
           onClick={onBack}
-          className="rounded-lg border border-gray-200 px-4 py-2.5 text-center text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+          variant="outline"
+          className="w-full"
         >
           {tn('backButton')}
-        </button>
+        </Button>
       </ActionPane>
     );
   }

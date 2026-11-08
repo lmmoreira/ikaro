@@ -1,9 +1,10 @@
 'use client';
 
 import { Textarea } from '@/shared/components/ui/textarea';
-import { useState, type SubmitEvent } from 'react';
+import { useState, type SubmitEvent, useId } from 'react';
 import { useTranslations } from 'next-intl';
 import { BookingActionSheetShell } from './BookingActionSheetShell';
+import { Label } from '@/shared/components/ui/label';
 
 interface RequestInfoSheetProps {
   readonly open: boolean;
@@ -18,6 +19,7 @@ export function RequestInfoSheet({
   onClose,
   onSubmit,
 }: RequestInfoSheetProps): React.JSX.Element | null {
+  const fieldId = useId();
   const t = useTranslations('dashboard.bookingDetail');
   const [message, setMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -52,16 +54,17 @@ export function RequestInfoSheet({
       submitDisabled={isSubmitting || !message.trim()}
       error={error}
     >
-      <label className="block">
-        <span className="mb-2 block text-sm font-medium text-gray-700">{t('questionLabel')}</span>
+      <div className="block">
+        <Label htmlFor={fieldId}>{t('questionLabel')}</Label>
         <Textarea
+          id={fieldId}
           value={message}
           onChange={(event) => setMessage(event.target.value)}
           maxLength={200}
           rows={5}
           placeholder={t('requestPlaceholder')}
         />
-      </label>
+      </div>
 
       <div className="mt-2 flex items-center justify-between text-xs text-gray-400">
         <span>{message.trim().length > 0 ? t('readyToSend') : t('required')}</span>

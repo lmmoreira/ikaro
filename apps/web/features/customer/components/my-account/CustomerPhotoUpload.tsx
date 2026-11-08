@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 import { createCustomerAttachmentSignedUrl } from '@/features/booking/api/customer';
 import { uploadFileToSignedUrl } from '@/shared/lib/upload/upload-to-signed-url';
 import { compressImage } from '@/shared/utils/compress-image';
+import { Button } from '@/shared/components/ui/button';
 
 interface CustomerPhotoUploadProps {
   readonly bookingId: string;
@@ -114,13 +115,15 @@ export function CustomerPhotoUpload({
                 {statusLabel(item.status)}
               </p>
               {item.status !== 'uploading' && (
-                <button
+                <Button
                   type="button"
                   onClick={() => handleRemove(item.id)}
-                  className="text-xs font-medium text-blue-600 underline"
+                  variant="link"
+                  size="inline"
+                  className="text-xs"
                 >
                   {t('photoRemove')}
-                </button>
+                </Button>
               )}
             </li>
           ))}

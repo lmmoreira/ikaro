@@ -12,6 +12,7 @@ import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { cn } from '@/shared/utils/cn';
+import { DragHandle } from '@/shared/components/ui/drag-handle';
 
 export type AdminQuestion = LeadFormQuestion & { hasSubmissions?: boolean };
 
@@ -92,15 +93,11 @@ export function LeadFormSortableQuestion({
       data-question-index={index}
     >
       <summary className="flex cursor-pointer list-none items-center gap-3 p-4">
-        <button
-          type="button"
-          className="cursor-grab touch-none text-gray-400 active:cursor-grabbing"
-          aria-label={t('question.dragLabel', { index: index + 1 })}
+        <DragHandle
           {...attributes}
           {...listeners}
-        >
-          ⋮⋮
-        </button>
+          label={t('question.dragLabel', { index: index + 1 })}
+        />
         <span className="flex-1 truncate font-semibold text-gray-900">
           {question.label || t('question.untitled', { index: index + 1 })}
         </span>

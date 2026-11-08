@@ -17,6 +17,7 @@ import { isTmpImagePath } from '@/features/platform/hotsite/resolve-hotsite-imag
 import { extractProblemCode, resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { BookingPhotoPicker } from './BookingPhotoPicker';
+import { Button } from '@/shared/components/ui/button';
 
 interface GalleryImageManagerProps {
   readonly images: readonly GalleryImage[];
@@ -158,17 +159,19 @@ export function GalleryImageManager({
                 onChange={(event) => handleCaptionChange(index, event.target.value)}
                 className="mb-2 px-2 py-1 text-xs"
               />
-              <button
+              <Button
                 type="button"
                 data-testid="gallery-remove"
                 data-index={index}
                 onClick={() => {
                   void handleRemove(index);
                 }}
-                className="text-xs font-semibold text-red-600 underline"
+                variant="link-destructive"
+                size="inline"
+                className="text-xs"
               >
                 {t('removeLabel')}
-              </button>
+              </Button>
             </div>
           ))}
         </div>
@@ -190,14 +193,14 @@ export function GalleryImageManager({
             void handleUpload(event);
           }}
         />
-        <button
+        <Button
           type="button"
           data-testid="gallery-open-picker"
           onClick={() => setPickerOpen(true)}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          variant="outline"
         >
           {t('addFromBookingLabel')}
-        </button>
+        </Button>
       </div>
 
       {status === 'error' && (

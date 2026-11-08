@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { ChevronDown } from 'lucide-react';
+import { Button } from '@/shared/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover';
 import { cn } from '@/shared/utils/cn';
 import { recurringScheduleNewPath } from '../recurring-schedule-model';
@@ -44,17 +45,15 @@ export function NewReservationMenu({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button
+        <Button
           type="button"
+          size={fullWidth ? 'default' : 'sm'}
           data-testid="new-menu-trigger"
-          className={cn(
-            'inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md bg-blue-600 px-3 py-1.5 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-blue-700',
-            fullWidth && 'w-full rounded-lg px-4 py-2.5 text-sm',
-          )}
+          className={cn('gap-1.5', fullWidth && 'w-full')}
         >
           + {t('label')}
           <ChevronDown className="h-3 w-3" aria-hidden="true" />
-        </button>
+        </Button>
       </PopoverTrigger>
       <PopoverContent
         align="end"

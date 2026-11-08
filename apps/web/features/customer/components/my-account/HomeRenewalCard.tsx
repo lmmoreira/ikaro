@@ -10,14 +10,12 @@ import {
   recurringScheduleRenewPath,
 } from '../../recurring-schedule-model';
 import { useRecurrenceText } from './use-recurrence-text';
+import { Button } from '@/shared/components/ui/button';
 
 interface HomeRenewalCardProps {
   readonly selection: RenewalSelection;
   readonly tenantSlug: string;
 }
-
-const BUTTON_CLASSES =
-  'shrink-0 whitespace-nowrap rounded-lg bg-blue-600 px-3.5 py-2 text-[0.8125rem] font-semibold text-white hover:bg-blue-700';
 
 /**
  * The amber prompt on the customer Início for a recurring reservation about to end: the one that
@@ -54,13 +52,14 @@ export function HomeRenewalCard({
               {`${recurrenceLine(selection.schedule.recurrence)} · ${termText(selection.schedule)}`}
             </p>
           </div>
-          <Link
-            href={recurringScheduleRenewPath(tenantSlug, selection.schedule.id)}
-            data-testid="home-renewal-action"
-            className={BUTTON_CLASSES}
-          >
-            {tSchedules('renewAction')}
-          </Link>
+          <Button asChild size="sm" className="shrink-0">
+            <Link
+              href={recurringScheduleRenewPath(tenantSlug, selection.schedule.id)}
+              data-testid="home-renewal-action"
+            >
+              {tSchedules('renewAction')}
+            </Link>
+          </Button>
         </>
       ) : (
         <>
@@ -75,13 +74,11 @@ export function HomeRenewalCard({
               {t('renewMetaMany', { days: selection.firstDaysLeft })}
             </p>
           </div>
-          <Link
-            href={recurringScheduleListPath(tenantSlug)}
-            data-testid="home-renewal-action"
-            className={BUTTON_CLASSES}
-          >
-            {t('renewViewAll')}
-          </Link>
+          <Button asChild size="sm" className="shrink-0">
+            <Link href={recurringScheduleListPath(tenantSlug)} data-testid="home-renewal-action">
+              {t('renewViewAll')}
+            </Link>
+          </Button>
         </>
       )}
     </Card>

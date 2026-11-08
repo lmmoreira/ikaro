@@ -35,6 +35,8 @@ import {
   disableModuleRemovingLinks,
   hasNavigationReferences,
 } from '@/features/platform/hotsite/navigation-links';
+import { Button } from '@/shared/components/ui/button';
+import { DragHandle } from '@/shared/components/ui/drag-handle';
 
 interface LayoutTabProps {
   readonly layout: readonly HotsiteModuleResponse[];
@@ -124,24 +126,13 @@ function LayoutRow({
           </svg>
         </span>
       ) : (
-        <button
-          type="button"
+        <DragHandle
           data-testid="layout-row-drag"
           data-module-type={module.type}
-          aria-label={dragLabel}
-          className="cursor-grab touch-none text-gray-400 hover:text-gray-600"
           {...attributes}
           {...listeners}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <circle cx="9" cy="6" r="1.5" />
-            <circle cx="15" cy="6" r="1.5" />
-            <circle cx="9" cy="12" r="1.5" />
-            <circle cx="15" cy="12" r="1.5" />
-            <circle cx="9" cy="18" r="1.5" />
-            <circle cx="15" cy="18" r="1.5" />
-          </svg>
-        </button>
+          label={dragLabel}
+        />
       )}
 
       <div className="flex-1">
@@ -153,15 +144,16 @@ function LayoutRow({
         />
       </div>
 
-      <button
+      <Button
         type="button"
         data-testid="layout-row-configure"
         data-module-type={module.type}
         onClick={() => onConfigure(module.type)}
-        className="text-sm font-semibold text-blue-600 hover:text-blue-700"
+        variant="link"
+        size="inline"
       >
         {configureLabel}
-      </button>
+      </Button>
     </div>
   );
 }

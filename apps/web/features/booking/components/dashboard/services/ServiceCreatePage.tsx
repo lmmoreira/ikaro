@@ -14,6 +14,7 @@ import { ServiceFormFields } from './ServiceFormFields';
 import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
 import { SectionLabel } from '@/shared/components/ui/section-label';
 import { SwitchField } from '@/shared/components/ui/switch-field';
+import { ChoiceCard } from '@/shared/components/ui/choice-card';
 
 export function ServiceCreatePage(): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
@@ -88,16 +89,10 @@ export function ServiceCreatePage(): React.JSX.Element {
             <section className="space-y-2">
               <SectionLabel>{t('createBookingModelLabel')}</SectionLabel>
               <div className="grid gap-3 sm:grid-cols-2">
-                <button
-                  type="button"
+                <ChoiceCard
                   data-testid="booking-model-appointment"
-                  aria-pressed={bookingModel === 'APPOINTMENT'}
                   onClick={() => handleSelectBookingModel('APPOINTMENT')}
-                  className={`rounded-2xl border p-4 text-left transition-colors ${
-                    bookingModel === 'APPOINTMENT'
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-slate-200 hover:bg-slate-50'
-                  }`}
+                  selected={bookingModel === 'APPOINTMENT'}
                 >
                   <p className="text-sm font-semibold text-gray-900">
                     {t('createBookingModelAppointment')}
@@ -105,17 +100,11 @@ export function ServiceCreatePage(): React.JSX.Element {
                   <p className="mt-0.5 text-xs text-gray-500">
                     {t('createBookingModelAppointmentSub')}
                   </p>
-                </button>
-                <button
-                  type="button"
+                </ChoiceCard>
+                <ChoiceCard
                   data-testid="booking-model-session"
-                  aria-pressed={bookingModel === 'SESSION'}
                   onClick={() => handleSelectBookingModel('SESSION')}
-                  className={`rounded-2xl border p-4 text-left transition-colors ${
-                    bookingModel === 'SESSION'
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-slate-200 hover:bg-slate-50'
-                  }`}
+                  selected={bookingModel === 'SESSION'}
                 >
                   <p className="text-sm font-semibold text-gray-900">
                     {t('createBookingModelSession')}
@@ -123,7 +112,7 @@ export function ServiceCreatePage(): React.JSX.Element {
                   <p className="mt-0.5 text-xs text-gray-500">
                     {t('createBookingModelSessionSub')}
                   </p>
-                </button>
+                </ChoiceCard>
               </div>
               <p className="text-xs text-gray-500">{t('createBookingModelImmutableHint')}</p>
             </section>

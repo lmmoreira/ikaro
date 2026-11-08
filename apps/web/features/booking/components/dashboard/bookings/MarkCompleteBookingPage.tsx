@@ -1,7 +1,7 @@
 'use client';
 
 import { Textarea } from '@/shared/components/ui/textarea';
-import { useEffect } from 'react';
+import { useEffect, useId } from 'react';
 import { useTranslations } from 'next-intl';
 import { BOOKING_STATUS, type StaffBookingDetailResponse } from '@ikaro/types';
 import { useMarkCompleteLoyalty } from '@/features/booking/hooks/useMarkCompleteLoyalty';
@@ -19,6 +19,7 @@ import { MarkCompleteSuccessView } from './MarkCompleteSuccessView';
 import { MarkCompleteSummaryCard } from './MarkCompleteSummaryCard';
 import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
 import { LabeledSection } from '@/shared/components/ui/labeled-section';
+import { Label } from '@/shared/components/ui/label';
 
 interface MarkCompleteBookingPageProps {
   readonly booking: StaffBookingDetailResponse;
@@ -33,6 +34,7 @@ export function MarkCompleteBookingPage({
   backHref,
   pointsPerCurrencyUnit,
 }: MarkCompleteBookingPageProps): React.JSX.Element {
+  const fieldId = useId();
   const t = useTranslations('dashboard.bookingDetail');
   const topbarStatus = useDashboardTopbarStatus();
   const setTopbarBookingStatus = topbarStatus?.setBookingStatus;
@@ -158,18 +160,17 @@ export function MarkCompleteBookingPage({
             <Card>
               <CardContent className="p-4">
                 <p className="mb-3 text-sm font-semibold text-gray-900">{t('notesSection')}</p>
-                <label className="block">
-                  <span className="mb-2 block text-sm font-medium text-gray-700">
-                    {t('notesLabel')}
-                  </span>
+                <div className="block">
+                  <Label htmlFor={fieldId}>{t('notesLabel')}</Label>
                   <Textarea
+                    id={fieldId}
                     value={submission.adminNotes}
                     onChange={(event) => submission.setAdminNotes(event.target.value)}
                     rows={5}
                     maxLength={500}
                     placeholder={t('notesPlaceholder')}
                   />
-                </label>
+                </div>
               </CardContent>
             </Card>
           </section>

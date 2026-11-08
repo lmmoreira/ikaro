@@ -19,6 +19,7 @@ import type {
 import type { NoRecurrenceServicesReason } from '@/features/booking/model/recurring-service-eligibility';
 import { recurringScheduleListPath } from '../../recurring-schedule-model';
 import { NewRecurringScheduleNoServices } from './NewRecurringScheduleNoServices';
+import { Button } from '@/shared/components/ui/button';
 
 interface NewRecurringScheduleFormProps {
   /** Already filtered to the recurrence-eligible services. */
@@ -72,21 +73,18 @@ export function NewRecurringScheduleForm({
   function renderPane(): React.JSX.Element {
     return (
       <ActionPane aside={aside}>
-        <button
+        <Button
           type="button"
           data-testid="new-schedule-review"
           disabled={service === null || picks.blocked}
           onClick={onReview}
-          className="rounded-lg bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+          className="w-full"
         >
           {tn('reviewButton')}
-        </button>
-        <Link
-          href={recurringScheduleListPath(tenantSlug)}
-          className="rounded-lg border border-gray-200 px-4 py-2.5 text-center text-sm font-semibold text-gray-700 hover:bg-gray-50"
-        >
-          {tn('cancelButton')}
-        </Link>
+        </Button>
+        <Button asChild variant="outline" className="w-full">
+          <Link href={recurringScheduleListPath(tenantSlug)}>{tn('cancelButton')}</Link>
+        </Button>
       </ActionPane>
     );
   }

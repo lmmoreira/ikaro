@@ -1,5 +1,5 @@
 import type { StaffRole } from '@ikaro/types';
-import { cn } from '@/shared/utils/cn';
+import { ChoiceCard } from '@/shared/components/ui/choice-card';
 
 export interface RoleOptionProps {
   readonly staffRole: StaffRole;
@@ -20,21 +20,14 @@ export function RoleOption({
   onSelect,
 }: RoleOptionProps): React.JSX.Element {
   return (
-    <button
-      type="button"
+    <ChoiceCard
       data-testid="role-option"
       data-role={staffRole}
-      aria-pressed={selected}
       onClick={() => onSelect(staffRole)}
-      className={cn(
-        'rounded-md border px-3.5 py-3.5 text-left transition-colors',
-        selected
-          ? 'border-2 border-blue-600 bg-blue-50'
-          : 'border-border bg-white hover:bg-slate-50',
-      )}
+      selected={selected}
     >
       <span className="block text-sm font-bold text-gray-900">{title}</span>
       <span className="mt-0.5 block text-sm text-gray-500">{description}</span>
-    </button>
+    </ChoiceCard>
   );
 }

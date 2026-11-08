@@ -153,7 +153,7 @@ const FEEDBACK_FIELD_MESSAGE_SELECTOR = {
 // a computed member (`React['createElement']`), a bare destructured call (`createElement(...)`)
 // and a literal nested in a conditional or logical expression. A tag name held in a variable
 // (`const Tag = 'input'`) is the one shape a syntax selector cannot follow.
-const RAW_CONTROL_TAG = '/^(input|textarea|select)$/';
+const RAW_CONTROL_TAG = '/^(input|textarea|select|button)$/';
 const CREATE_ELEMENT_CALL =
   "CallExpression:matches([callee.name='createElement'], [callee.property.name='createElement'], [callee.property.value='createElement'])";
 const HIDDEN_TYPE_VALUE =
@@ -181,9 +181,19 @@ const RAW_LABEL_FOR_SELECTOR = {
 const RAW_CREATE_ELEMENT_SELECTOR = {
   selector: `:matches(${CREATE_ELEMENT_CALL}[arguments.0.value=${RAW_CONTROL_TAG}], ${CREATE_ELEMENT_CALL}[arguments.0.type=/^(ConditionalExpression|LogicalExpression)$/]:has(:matches(ConditionalExpression, LogicalExpression) Literal[value=${RAW_CONTROL_TAG}]))`,
   message:
-    "createElement('input' | 'textarea' | 'select') is the same raw control written without JSX. Use the shared form primitive instead (docs/ENGINEERING_RULES_FRONTEND.md § Reuse the repo's UI primitives; TD58).",
+    "createElement('input' | 'textarea' | 'select' | 'button') is the same raw control written without JSX. Use the shared primitive instead (docs/ENGINEERING_RULES_FRONTEND.md § Reuse the repo's UI primitives; TD58).",
+};
+// TD58-S13: a raw <button> in dashboard or account code regrows the debt ui/button, ui/choice-card,
+// ui/drag-handle, ui/filter-chip and ui/tabs retired. The files whose buttons are genuinely
+// bespoke (a full-width row, a nav item, a thumbnail) are listed by exact path in
+// rawButtonExemptPaths below, so a new raw button anywhere else fails closed.
+const RAW_BUTTON_SELECTOR = {
+  selector: "JSXOpeningElement[name.name='button']",
+  message:
+    "A raw <button> bypasses the shared primitives. Use ui/button (variants link, link-destructive, link-muted, ghost-muted, outline; sizes inline, icon, icon-sm), ui/filter-chip, ui/choice-card, ui/drag-handle, ui/switch-field or ui/tabs; a genuinely bespoke control goes in rawButtonExemptPaths with a reason (docs/ENGINEERING_RULES_FRONTEND.md § Reuse the repo's UI primitives; TD58).",
 };
 const RAW_FORM_CONTROL_SELECTORS = [
+  RAW_BUTTON_SELECTOR,
   RAW_INPUT_SELECTOR,
   RAW_TEXTAREA_SELECTOR,
   RAW_SELECT_SELECTOR,
@@ -200,6 +210,26 @@ const rawFormControlExemptPaths = [
   'shared/components/hotsite/**',
   'shells/hotsite/**',
   'features/customer/components/InformationCompletionPhoneField.tsx',
+];
+// TD58-S13: the files whose raw <button>s are bespoke, listed by exact path (never a folder) so a
+// new raw button elsewhere still fails. Each holds a control no primitive reproduces: a full-width
+// option row, a week or timeline cell, a nav item or back link, a thumbnail, a hotsite preview
+// wrapper, or a tenant-branded customer control (docs/ENGINEERING_RULES_FRONTEND.md § The
+// `--ba-*` exception). Only the button ban is lifted for these; every other ban still applies.
+const rawButtonExemptPaths = [
+  'features/booking/components/dashboard/bookings/SlotConflictAlert.tsx',
+  'features/booking/components/dashboard/schedule/ScheduleWeekView.tsx',
+  'features/booking/components/dashboard/schedule/TimelineBlockShell.tsx',
+  'features/booking/components/dashboard/services/IntakeVersionHistoryCard.tsx',
+  'features/customer/components/InformationCompletionPrompt.tsx',
+  'features/customer/components/SwitchTenantClient.tsx',
+  'features/customer/components/TenantOptionRow.tsx',
+  'features/platform/components/hotsite/PreviewSelectionWrapper.tsx',
+  'features/platform/components/hotsite/modules/BookingPhotoThumbnailGroup.tsx',
+  'features/staff/components/SelectStaffTenantClient.tsx',
+  'shells/dashboard/components/BottomNav.tsx',
+  'shells/dashboard/components/Topbar.tsx',
+  'shells/dashboard/components/WeekNav.tsx',
 ];
 // Whether a file path (relative to apps/web) falls under rawFormControlExemptPaths. The list holds
 // `dir/**` prefixes and exact files; used to give a file that two tiers both name the right list.
@@ -421,6 +451,25 @@ module.exports = [
         'error',
         RAW_FETCH_SELECTOR,
         ...NON_FETCH_SELECTORS.filter((entry) => !RAW_FORM_CONTROL_SELECTORS.includes(entry)),
+      ],
+    },
+  },
+  // TD58-S13: the bespoke raw-button files lose the button ban only. A later block replaces the
+  // earlier one's selector list for the files it matches, so this one restates the list minus
+  // RAW_BUTTON_SELECTOR and keeps the other raw-control bans (and the raw-fetch ban).
+  {
+    files: rawButtonExemptPaths,
+    ignores: [
+      '**/*.spec.ts',
+      '**/*.spec.tsx',
+      ...feedbackRoleAllowedPaths,
+      ...reviewedRawFetchPaths,
+    ],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        RAW_FETCH_SELECTOR,
+        ...NON_FETCH_SELECTORS.filter((entry) => entry !== RAW_BUTTON_SELECTOR),
       ],
     },
   },

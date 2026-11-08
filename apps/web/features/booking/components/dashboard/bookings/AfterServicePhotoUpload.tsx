@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { createAttachmentSignedUrl } from '@/features/booking/api/public';
 import { uploadFileToSignedUrl } from '@/shared/lib/upload/upload-to-signed-url';
 import { compressImage } from '@/shared/utils/compress-image';
+import { Button } from '@/shared/components/ui/button';
 
 interface AfterServicePhotoUploadProps {
   readonly slug: string;
@@ -138,13 +139,15 @@ export function AfterServicePhotoUpload({
                 <p className="mt-1 truncate text-xs text-gray-600">{statusLabel(item.status)}</p>
               )}
               {(item.status === 'done' || item.status === 'error') && (
-                <button
+                <Button
                   type="button"
                   onClick={() => handleRemove(item.id)}
-                  className="text-xs font-medium text-blue-700 underline underline-offset-2"
+                  variant="link"
+                  size="inline"
+                  className="text-xs"
                 >
                   {t('remove')}
-                </button>
+                </Button>
               )}
             </li>
           ))}

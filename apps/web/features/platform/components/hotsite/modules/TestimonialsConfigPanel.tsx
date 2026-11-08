@@ -180,15 +180,16 @@ export function TestimonialsConfigPanel({
                 />
               </div>
 
-              <button
+              <Button
                 type="button"
                 data-testid="testimonial-remove"
                 data-index={index}
                 onClick={() => removeItem(index)}
-                className="text-sm font-semibold text-red-600 underline"
+                variant="link-destructive"
+                size="inline"
               >
                 {t('removeItemLabel')}
-              </button>
+              </Button>
             </div>
           ))}
         </div>

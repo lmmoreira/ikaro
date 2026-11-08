@@ -26,6 +26,7 @@ describe('Button', () => {
     ['secondary', ['bg-secondary', 'text-secondary-foreground']],
     ['ghost', ['text-primary', 'hover:bg-accent']],
     ['link', ['text-primary', 'underline-offset-4']],
+    ['ghost-muted', ['text-muted-foreground', 'hover:bg-muted', 'hover:text-foreground']],
   ] as const)('keeps the existing %s variant unchanged', (variant, classes) => {
     render(<Button variant={variant}>Ação</Button>);
 
@@ -58,6 +59,41 @@ describe('Button', () => {
       'hover:text-red-700',
     );
     expect(button).not.toHaveClass('hover:text-foreground');
+  });
+
+  it('renders the link-destructive and link-muted variants as text actions', () => {
+    render(
+      <>
+        <Button variant="link-destructive">Remover</Button>
+        <Button variant="link-muted">Fechar</Button>
+      </>,
+    );
+
+    expect(screen.getByRole('button', { name: 'Remover' })).toHaveClass(
+      'text-destructive',
+      'hover:underline',
+    );
+    expect(screen.getByRole('button', { name: 'Fechar' })).toHaveClass(
+      'text-muted-foreground',
+      'hover:text-foreground',
+    );
+    expect(screen.getByRole('button', { name: 'Fechar' })).not.toHaveClass('bg-primary');
+  });
+
+  it('gives the inline size no height or padding and the icon-sm size a 32px square', () => {
+    render(
+      <>
+        <Button variant="link" size="inline">
+          Ativar
+        </Button>
+        <Button variant="outline" size="icon-sm" aria-label="Anterior" />
+      </>,
+    );
+
+    const inline = screen.getByRole('button', { name: 'Ativar' });
+    expect(inline).toHaveClass('h-auto', 'p-0', 'font-semibold');
+    expect(inline).not.toHaveClass('h-9', 'px-4');
+    expect(screen.getByRole('button', { name: 'Anterior' })).toHaveClass('h-8', 'w-8', 'p-0');
   });
 
   it('lets a caller className add width next to a variant', () => {

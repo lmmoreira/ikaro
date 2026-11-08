@@ -8,6 +8,7 @@ import type { ResourceStaffOptionItem, ResourceType } from '@ikaro/types';
 import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
 import type { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import { cn } from '@/shared/utils/cn';
+import { ChoiceCard } from '@/shared/components/ui/choice-card';
 
 const EDITABLE_TYPES: readonly Exclude<ResourceType, 'LOCATION'>[] = ['STAFF', 'ROOM', 'EQUIPMENT'];
 
@@ -63,21 +64,16 @@ export function ResourceIdentityFields({
           <Label>{t('typeLabel')}</Label>
           <div className="grid grid-cols-3 gap-3">
             {EDITABLE_TYPES.map((option) => (
-              <button
+              <ChoiceCard
                 key={option}
-                type="button"
                 data-testid="resource-identity-type-option"
                 data-type={option}
                 onClick={() => onTypeChange(option)}
-                className={cn(
-                  'rounded-2xl border p-3.5 text-center text-sm font-semibold transition-colors',
-                  type === option
-                    ? 'border-blue-600 bg-blue-50 text-blue-700'
-                    : 'border-border bg-white text-gray-700 hover:bg-slate-50',
-                )}
+                selected={type === option}
+                className="p-3.5 text-center text-sm font-semibold"
               >
                 {t(TYPE_CARD_LABEL_KEY[option])}
-              </button>
+              </ChoiceCard>
             ))}
           </div>
         </div>

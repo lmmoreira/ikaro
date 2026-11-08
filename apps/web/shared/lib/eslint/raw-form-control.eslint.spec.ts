@@ -208,6 +208,132 @@ describe('raw form control ban (TD58-S10)', () => {
     });
   });
 
+  describe('raw <button> ban (TD58-S13)', () => {
+    const BESPOKE_BUTTON_FILES = [
+      'features/booking/components/dashboard/bookings/SlotConflictAlert.tsx',
+      'features/booking/components/dashboard/schedule/ScheduleWeekView.tsx',
+      'features/booking/components/dashboard/schedule/TimelineBlockShell.tsx',
+      'features/booking/components/dashboard/services/IntakeVersionHistoryCard.tsx',
+      'features/customer/components/InformationCompletionPrompt.tsx',
+      'features/customer/components/SwitchTenantClient.tsx',
+      'features/customer/components/TenantOptionRow.tsx',
+      'features/platform/components/hotsite/PreviewSelectionWrapper.tsx',
+      'features/platform/components/hotsite/modules/BookingPhotoThumbnailGroup.tsx',
+      'features/staff/components/SelectStaffTenantClient.tsx',
+      'shells/dashboard/components/BottomNav.tsx',
+      'shells/dashboard/components/Topbar.tsx',
+      'shells/dashboard/components/WeekNav.tsx',
+    ];
+    const RAW_BUTTON = '<button type="button">Salvar</button>';
+
+    // The two exemption tiers as the loaded config declares them, so this spec cannot drift from it.
+    function declaredFiles(...mustInclude: string[]): string[] {
+      const entry = productionConfig.find((config) => {
+        const files = (config.files ?? []).flat();
+        return mustInclude.every((path) => files.includes(path));
+      });
+      return (entry?.files ?? []).flat();
+    }
+
+    it('the config exempts exactly the reviewed bespoke files, no more and no fewer', () => {
+      const declared = declaredFiles('shells/dashboard/components/WeekNav.tsx');
+
+      expect([...declared].sort()).toEqual([...BESPOKE_BUTTON_FILES].sort());
+    });
+
+    it('no bespoke button file also sits in the raw-form-control exemption, whose later block would restore those bans', () => {
+      const formControlExempt = declaredFiles('shared/components/ui/**', 'shells/hotsite/**');
+      const overlaps = declaredFiles('shells/dashboard/components/WeekNav.tsx').filter((path) =>
+        formControlExempt.some((entry) =>
+          entry.endsWith('/**') ? path.startsWith(entry.slice(0, -2)) : path === entry,
+        ),
+      );
+
+      expect(formControlExempt.length).toBeGreaterThan(0);
+      expect(overlaps).toEqual([]);
+    });
+
+    it('flags a raw <button> in a dashboard and in an account path, naming ui/button', () => {
+      for (const path of [DASHBOARD_PATH, ACCOUNT_PATH]) {
+        const messages = rawControlMessages(component(RAW_BUTTON), path);
+
+        expect(messages).toHaveLength(1);
+        expect(messages[0].message).toContain('ui/button');
+      }
+    });
+
+    it('flags a raw <button> in a folder the rule has never heard of (it fails closed)', () => {
+      expect(
+        rawControlMessages(
+          component(RAW_BUTTON),
+          'features/staff/components/brand-new-folder/example.tsx',
+        ),
+      ).toHaveLength(1);
+    });
+
+    it('flags a raw <button> in a file next to an exempt one (the exemption is by exact path)', () => {
+      expect(
+        rawControlMessages(component(RAW_BUTTON), 'shells/dashboard/components/WeekNavExtras.tsx'),
+      ).toHaveLength(1);
+    });
+
+    it.each([
+      ['React.createElement', "export const a = React.createElement('button', null);"],
+      ["React['createElement']", "export const a = React['createElement']('button', null);"],
+      [
+        'a bare destructured createElement',
+        "const { createElement } = React; export const a = createElement('button', null);",
+      ],
+      [
+        'a literal inside a conditional',
+        "export const a = React.createElement(flag ? 'button' : 'span', null);",
+      ],
+    ])('flags the bypass shape %s', (_name, source) => {
+      expect(rawControlMessages(source, DASHBOARD_PATH)).toHaveLength(1);
+    });
+
+    it('allows the primitives, each branded tree and a spec file', () => {
+      for (const path of [
+        'shared/components/ui/button.tsx',
+        'features/booking/components/public/SlotPicker.tsx',
+        'features/platform/components/public/ContactField.tsx',
+        'shared/components/hotsite/branded-feedback-message.tsx',
+        'shells/hotsite/components/ChatbotPanel.tsx',
+        'features/booking/components/dashboard/x.spec.tsx',
+      ]) {
+        expect(rawControlMessages(component(RAW_BUTTON), path)).toEqual([]);
+      }
+    });
+
+    it.each(BESPOKE_BUTTON_FILES)('allows a raw <button> in the bespoke file %s', (path) => {
+      expect(rawControlMessages(component(RAW_BUTTON), path)).toEqual([]);
+    });
+
+    it('lifts only the button ban from a bespoke file: a raw input, fetch() and a role="alert" stay banned', () => {
+      const path = 'shells/dashboard/components/WeekNav.tsx';
+
+      expect(rawControlMessages(component('<input />'), path)).toHaveLength(1);
+      expect(
+        lint("export async function load() { return fetch('https://example.com'); }", path),
+      ).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            ruleId: 'no-restricted-syntax',
+            message: expect.stringContaining('sanctioned BFF transport helpers'),
+          }),
+        ]),
+      );
+      expect(lint(component('<div role="alert">oops</div>'), path)).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            ruleId: 'no-restricted-syntax',
+            message: expect.stringContaining('FeedbackMessage'),
+          }),
+        ]),
+      );
+    });
+  });
+
   describe('the wrapping-label allowance holds because jsx-a11y enforces it', () => {
     it('reports a label with no htmlFor and no control inside it', () => {
       const messages = lint(component('<label>Name</label>'), DASHBOARD_PATH).filter(

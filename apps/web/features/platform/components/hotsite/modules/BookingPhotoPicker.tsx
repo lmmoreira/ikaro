@@ -12,6 +12,7 @@ import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { BookingPhotoThumbnailGroup } from './BookingPhotoThumbnailGroup';
+import { Button } from '@/shared/components/ui/button';
 
 interface BookingPhotoPickerProps {
   readonly onPick: (image: GalleryImage, previewUrl: string) => void;
@@ -166,14 +167,15 @@ export function BookingPhotoPicker({
     <div className="rounded-md border border-gray-200 bg-gray-50 p-4">
       <div className="mb-3 flex items-center justify-between">
         <h4 className="text-sm font-semibold text-gray-900">{t('title')}</h4>
-        <button
+        <Button
           type="button"
           data-testid="booking-photo-picker-close"
           onClick={onClose}
-          className="text-sm text-gray-500 hover:text-gray-700"
+          variant="link-muted"
+          size="inline"
         >
           {t('closeLabel')}
-        </button>
+        </Button>
       </div>
 
       {pickError && (

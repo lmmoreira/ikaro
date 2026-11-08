@@ -17,6 +17,7 @@ import {
 } from '../../alert-model';
 import { AccountListRow } from './AccountListRow';
 import { useAlertText } from './use-alert-text';
+import { Button } from '@/shared/components/ui/button';
 
 interface AvailabilityAlertListProps {
   readonly alerts: readonly AvailabilityAlertResponse[];
@@ -124,13 +125,11 @@ export function AvailabilityAlertList({
           title={t('emptyTitle')}
           body={t('emptyBody')}
           action={
-            <Link
-              href={`/${tenantSlug}/booking`}
-              data-testid="alerts-empty-cta"
-              className="mt-5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-            >
-              {t('newBooking')}
-            </Link>
+            <Button asChild className="mt-5">
+              <Link href={`/${tenantSlug}/booking`} data-testid="alerts-empty-cta">
+                {t('newBooking')}
+              </Link>
+            </Button>
           }
         />
       ) : (

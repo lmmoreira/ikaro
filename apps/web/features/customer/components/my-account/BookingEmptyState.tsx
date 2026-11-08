@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { CalendarDays } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { EmptyState } from '@/shared/components/ui/empty-state';
+import { Button } from '@/shared/components/ui/button';
 
 interface BookingEmptyStateProps {
   readonly tenantSlug: string;
@@ -18,12 +19,9 @@ export function BookingEmptyState({ tenantSlug }: BookingEmptyStateProps): React
       title={t('title')}
       body={t('body')}
       action={
-        <Link
-          href={`/${tenantSlug}/booking`}
-          className="mt-5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-        >
-          {t('cta')}
-        </Link>
+        <Button asChild className="mt-5">
+          <Link href={`/${tenantSlug}/booking`}>{t('cta')}</Link>
+        </Button>
       }
     />
   );

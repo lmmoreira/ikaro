@@ -40,9 +40,6 @@ interface NewRecurringScheduleResultProps {
   readonly onRetry: () => void;
 }
 
-const PRIMARY_BUTTON =
-  'rounded-lg bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60';
-
 function ListLinkButton({
   href,
   children,
@@ -51,7 +48,7 @@ function ListLinkButton({
   readonly children: React.ReactNode;
 }): React.JSX.Element {
   return (
-    <Button asChild variant="outline" className="h-10 font-semibold text-gray-700">
+    <Button asChild variant="outline" className="w-full">
       <Link href={href}>{children}</Link>
     </Button>
   );
@@ -91,9 +88,11 @@ export function NewRecurringScheduleResult({
         testId="new-schedule-created"
         pane={
           <ActionPane aside={tn('createdAside')}>
-            <Link href={detailHref} data-testid="new-schedule-view" className={PRIMARY_BUTTON}>
-              {tn('viewSchedule')}
-            </Link>
+            <Button asChild className="w-full">
+              <Link href={detailHref} data-testid="new-schedule-view">
+                {tn('viewSchedule')}
+              </Link>
+            </Button>
             <ListLinkButton href={listHref}>{tn('backToList')}</ListLinkButton>
           </ActionPane>
         }
@@ -124,14 +123,14 @@ export function NewRecurringScheduleResult({
         testId="new-schedule-conflict"
         pane={
           <ActionPane aside={tn('conflictAside')}>
-            <button
+            <Button
               type="button"
               data-testid="new-schedule-change-pattern"
               onClick={onChangePattern}
-              className={PRIMARY_BUTTON}
+              className="w-full"
             >
               {tn('changePattern')}
-            </button>
+            </Button>
             <ListLinkButton href={listHref}>{tn('cancelButton')}</ListLinkButton>
           </ActionPane>
         }
@@ -162,14 +161,14 @@ export function NewRecurringScheduleResult({
         testId="new-schedule-cap"
         pane={
           <ActionPane aside={tn('capAside')}>
-            <button
+            <Button
               type="button"
               data-testid="new-schedule-change-pattern"
               onClick={onChangePattern}
-              className={PRIMARY_BUTTON}
+              className="w-full"
             >
               {tn('changePattern')}
-            </button>
+            </Button>
             <ListLinkButton href={listHref}>{tn('viewMine')}</ListLinkButton>
           </ActionPane>
         }
@@ -194,15 +193,15 @@ export function NewRecurringScheduleResult({
       }}
       pane={
         <ActionPane aside={tn('failureAside')}>
-          <button
+          <Button
             type="button"
             data-testid="new-schedule-retry"
             disabled={retrying}
             onClick={onRetry}
-            className={PRIMARY_BUTTON}
+            className="w-full"
           >
             {retrying ? tn('submitting') : tn('retryButton')}
-          </button>
+          </Button>
           <ListLinkButton href={listHref}>{tn('cancelButton')}</ListLinkButton>
         </ActionPane>
       }
