@@ -1,4 +1,4 @@
-import { RecurringScheduleApprovalDetail } from '@/features/booking/components/dashboard/bookings/RecurringScheduleApprovalDetail';
+import { RecurringScheduleApprovalDetail } from '@/features/booking/components/dashboard/bookings/recurring/RecurringScheduleApprovalDetail';
 
 interface RecurringScheduleApprovalRouteProps {
   readonly params: Promise<{ id: string }>;

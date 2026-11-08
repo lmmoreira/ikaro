@@ -2,14 +2,14 @@
 
 import type { BookingActorRef, StaffBookingDetailResponse } from '@ikaro/types';
 import { useTranslations } from 'next-intl';
-import { BookingAddressesCard } from '../../booking-detail/BookingAddressesCard';
-import { BookingIntakeCard } from '../../booking-detail/BookingIntakeCard';
-import { BookingItineraryCard } from '../../booking-detail/BookingItineraryCard';
-import { BookingOriginCard } from '../../booking-detail/BookingOriginCard';
-import { BookingParticipantsCard } from '../../booking-detail/BookingParticipantsCard';
-import { BookingResourcesCard } from '../../booking-detail/BookingResourcesCard';
-import { BookingTerminationCard } from '../../booking-detail/BookingTerminationCard';
-import { BookingTextCard } from '../../booking-detail/BookingTextCard';
+import { BookingAddressesCard } from '../../../booking-detail/BookingAddressesCard';
+import { BookingIntakeCard } from '../../../booking-detail/BookingIntakeCard';
+import { BookingItineraryCard } from '../../../booking-detail/BookingItineraryCard';
+import { BookingOriginCard } from '../../../booking-detail/BookingOriginCard';
+import { BookingParticipantsCard } from '../../../booking-detail/BookingParticipantsCard';
+import { BookingResourcesCard } from '../../../booking-detail/BookingResourcesCard';
+import { BookingTerminationCard } from '../../../booking-detail/BookingTerminationCard';
+import { BookingTextCard } from '../../../booking-detail/BookingTextCard';
 
 interface StaffBookingExtrasProps {
   readonly booking: StaffBookingDetailResponse;

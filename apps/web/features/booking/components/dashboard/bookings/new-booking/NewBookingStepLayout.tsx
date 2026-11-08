@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
-import { BookingOutcomeActionRail } from '../BookingOutcomeActionRail';
+import { BookingOutcomeActionRail } from '../detail/BookingOutcomeActionRail';
 
 interface NewBookingStepLayoutProps {
   readonly children: ReactNode;

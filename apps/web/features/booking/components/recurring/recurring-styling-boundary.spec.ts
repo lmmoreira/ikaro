@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 // file of the flow does (.copilot/context.md § Web styling boundary). It holds by construction —
 // nothing else would notice a regression.
 const SHARED_DIR = __dirname;
-const BOOKINGS_DIR = join(__dirname, '..', 'dashboard', 'bookings');
+const BOOKINGS_DIR = join(__dirname, '..', 'dashboard', 'bookings', 'recurring');
 
 const STAFF_FILES_IN_BOOKINGS_DIR = [
   'NewRecurringScheduleForStaff',

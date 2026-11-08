@@ -5,16 +5,8 @@ import { useTranslations } from 'next-intl';
 import type { StaffBookingDetailResponse } from '@ikaro/types';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
+import type { BookingNoShowActionState } from '@/features/booking/model/booking-detail-state';
 import { BookingStatusBannerIcon, type BannerVariant } from './BookingStatusBannerIcon';
-
-export type BookingNoShowActionState =
-  | 'no-show'
-  | 'no-show-terminal'
-  | 'no-show-not-ended'
-  | 'no-show-error'
-  | 'corrected'
-  | 'correct-error'
-  | 'correct-forbidden';
 
 export function isBookingNoShowActionState(state: string): state is BookingNoShowActionState {
   return (

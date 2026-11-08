@@ -6,7 +6,7 @@ import { Badge } from '@/shared/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/shared/components/ui/card';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
-import { PhotoTile } from '../../PhotoTile';
+import { PhotoTile } from '../../../PhotoTile';
 import { BookingClientCard } from './BookingClientCard';
 import { StaffBookingExtras } from './StaffBookingExtras';
 import { SectionLabel } from '@/shared/components/ui/section-label';

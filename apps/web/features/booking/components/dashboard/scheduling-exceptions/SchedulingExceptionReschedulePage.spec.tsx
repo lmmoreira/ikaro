@@ -25,12 +25,15 @@ interface CapturedProps {
 }
 const captured = vi.hoisted(() => ({ props: null as unknown }));
 
-vi.mock('@/features/booking/components/dashboard/bookings/RescheduleBookingPage', () => ({
-  RescheduleBookingPage: (props: unknown) => {
-    captured.props = props;
-    return <div data-testid="staff-reschedule-page" />;
-  },
-}));
+vi.mock(
+  '@/features/booking/components/dashboard/bookings/reschedule/RescheduleBookingPage',
+  () => ({
+    RescheduleBookingPage: (props: unknown) => {
+      captured.props = props;
+      return <div data-testid="staff-reschedule-page" />;
+    },
+  }),
+);
 
 const booking = { bookingId: 'bk-1', status: 'APPROVED' } as StaffBookingDetailResponse;
 const props = () => captured.props as CapturedProps;

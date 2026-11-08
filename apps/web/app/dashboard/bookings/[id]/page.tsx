@@ -1,4 +1,4 @@
-import { BookingDetailPage } from '@/features/booking/components/dashboard/bookings/BookingDetailPage';
+import { BookingDetailPage } from '@/features/booking/components/dashboard/bookings/detail/BookingDetailPage';
 import { getAccessToken } from '@/features/auth/get-access-token';
 import { resolveReturnTo } from '@/features/booking/model/booking-navigation';
 import { loadBookingDetailRouteData } from '@/shells/dashboard/model/booking-route.server';

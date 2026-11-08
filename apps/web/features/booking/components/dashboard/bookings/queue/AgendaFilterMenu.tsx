@@ -3,8 +3,8 @@
 import type { RefObject } from 'react';
 import { useTranslations } from 'next-intl';
 import type { AgendaFilterOption } from '@/features/booking/schedule/agenda-preferences';
-import { FilterCheckboxOption } from '../FilterCheckboxOption';
-import { FloatingFilterMenu } from '../FloatingFilterMenu';
+import { FilterCheckboxOption } from '../../FilterCheckboxOption';
+import { FloatingFilterMenu } from '../../FloatingFilterMenu';
 
 export type AgendaFilterCounts = Readonly<Record<AgendaFilterOption, number>>;
 

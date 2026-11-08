@@ -23,7 +23,7 @@ vi.mock('./BookingCard', () => ({
   ),
 }));
 
-vi.mock('./RecurringScheduleCard', () => ({
+vi.mock('../recurring/RecurringScheduleCard', () => ({
   RecurringScheduleCard: ({ schedule }: { schedule: { id: string } }) => (
     <div data-testid="recurring-card" data-id={schedule.id} />
   ),

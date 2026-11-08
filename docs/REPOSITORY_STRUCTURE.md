@@ -201,6 +201,7 @@ apps/web/
 - Domain-owned code lives under `features/<domain>/`.
 - Feature-local transport helpers: `customer` and `loyalty` use flat `api.ts` (client-safe) and `api.server.ts` (server-only) at the feature root, and `auth` only a flat `api.ts`; `booking` and `staff` use an `api/` folder with `<resource>.ts` / `<resource>.server.ts` files; `platform` has both the flat files and an `api/` folder. Follow the convention of the feature you are editing.
 - Feature-local non-transport shared logic belongs in sibling folders such as `model/`, `hooks/`, `components/`, or `utils/`, depending on the concern.
+- A large screen area under `components/` is grouped by flow, not left flat: `features/booking/components/dashboard/bookings/` holds `mark-complete/`, `reschedule/`, `recurring/`, `detail/`, `sheets/`, `queue/` and `new-booking/`, each component beside its spec. A `model/` or `hooks/` file does not import from a `components/` directory in the bookings area; a type both sides share lives in `model/` (e.g. `model/booking-detail-state.ts`). The remaining cases (the `public/` submission hooks and the dashboard topbar status context) are tracked as a TD58 follow-up.
 - `features/platform/hotsite` owns hotsite page-model logic, manifest shaping, and public fetchers.
 - `shells/dashboard` owns authenticated dashboard composition and shell-only presentation.
 - `shells/hotsite` owns public route composition only.

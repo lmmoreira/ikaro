@@ -106,7 +106,7 @@ Eleven stories (S01–S11), all merged. Hotsite booking page and hotsite editor 
 
 | Artifact | Path |
 |---|---|
-| Reschedule page receives `maxBookingAdvanceDays` from `fetchTenantSettings` (S01 Part 7) | `apps/web/features/booking/components/dashboard/bookings/RescheduleBookingPage.tsx`, `apps/web/app/dashboard/bookings/[id]/reschedule/page.tsx` |
+| Reschedule page receives `maxBookingAdvanceDays` from `fetchTenantSettings` (S01 Part 7) | `apps/web/features/booking/components/dashboard/bookings/reschedule/RescheduleBookingPage.tsx`, `apps/web/app/dashboard/bookings/[id]/reschedule/page.tsx` |
 | Buffer tail derivation per resource column (S10) | `apps/web/features/booking/schedule/schedule-resource-columns.ts` |
 | New `buffer` timeline-event kind | `apps/web/features/booking/schedule/schedule-timeline-events.ts`, `apps/web/features/booking/schedule/schedule-timeline.ts` |
 | Rendering of the held-time segment | `apps/web/features/booking/components/dashboard/schedule/ScheduleTimelineEventRenderer.tsx`, `apps/web/features/booking/components/dashboard/schedule/TimelineBlockShell.tsx`, `apps/web/features/booking/components/dashboard/schedule/ScheduleResourceColumnsBoard.tsx` |

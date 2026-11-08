@@ -20,12 +20,12 @@ import type { StaffBookingRecipient } from '@/features/booking/model/staff-booki
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { NewBookingFailureOutcome, NewBookingCreatedOutcome } from './NewBookingOutcome';
 import { NewBookingSummaryCard } from './NewBookingSummaryCard';
-import { NewBookingAvailabilityStep } from './new-booking/NewBookingAvailabilityStep';
-import { NewBookingConfirmStep } from './new-booking/NewBookingConfirmStep';
-import { NewBookingDurationStep } from './new-booking/NewBookingDurationStep';
-import { NewBookingIntakeStep } from './new-booking/NewBookingIntakeStep';
-import { NewBookingResourcePickerStep } from './new-booking/NewBookingResourcePickerStep';
-import { NewBookingServicesStep } from './new-booking/NewBookingServicesStep';
+import { NewBookingAvailabilityStep } from './NewBookingAvailabilityStep';
+import { NewBookingConfirmStep } from './NewBookingConfirmStep';
+import { NewBookingDurationStep } from './NewBookingDurationStep';
+import { NewBookingIntakeStep } from './NewBookingIntakeStep';
+import { NewBookingResourcePickerStep } from './NewBookingResourcePickerStep';
+import { NewBookingServicesStep } from './NewBookingServicesStep';
 
 interface NewBookingForStaffPageProps {
   readonly slug: string;

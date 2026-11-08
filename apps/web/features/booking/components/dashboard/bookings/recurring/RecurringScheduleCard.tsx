@@ -13,7 +13,7 @@ import {
   maxOccurrenceCount,
   recurringScheduleStaffPath,
 } from '@/features/booking/model/recurring-approval';
-import { BookingCardShell } from './BookingCardShell';
+import { BookingCardShell } from '../queue/BookingCardShell';
 
 interface RecurringScheduleCardProps {
   readonly schedule: RecurringBookingScheduleListItem;

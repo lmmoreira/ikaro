@@ -6,8 +6,7 @@ import {
 import { ApiError } from '@/shared/lib/api/errors';
 import { extractProblemCode } from '@/shared/lib/i18n/resolve-error-message';
 import { fetchBookingAvailability } from '@/features/booking/api/availability';
-import type { BookingDetailActionState } from '../components/dashboard/bookings/BookingDetailMainBanner';
-import type { BookingDetailSheetState } from '../components/dashboard/bookings/BookingDetailSheets';
+import type { BookingDetailActionState, BookingDetailSheetState } from './booking-detail-state';
 
 interface BuildApproveHandlerParams {
   readonly bookingId: string;

@@ -25,12 +25,16 @@ import {
   bookingNeedsDecision,
   buildBookingRefreshedHandler,
 } from '@/features/booking/model/booking-decision';
+import type {
+  BookingDetailActionState,
+  BookingDetailSheetState,
+} from '@/features/booking/model/booking-detail-state';
 import { BookingDecisionBanner } from './BookingDecisionBanner';
 import { BookingDetailAsideCard } from './BookingDetailAsideCard';
 import { BookingDetailMain } from './BookingDetailMain';
-import { BookingDetailMainBanner, type BookingDetailActionState } from './BookingDetailMainBanner';
-import { BookingDetailSheets, type BookingDetailSheetState } from './BookingDetailSheets';
-import { SlotConflictAlert } from './SlotConflictAlert';
+import { BookingDetailMainBanner } from './BookingDetailMainBanner';
+import { BookingDetailSheets } from './BookingDetailSheets';
+import { SlotConflictAlert } from '../reschedule/SlotConflictAlert';
 import {
   BOOKING_STATUS_CLASSES,
   buildBookingStatusLabels,

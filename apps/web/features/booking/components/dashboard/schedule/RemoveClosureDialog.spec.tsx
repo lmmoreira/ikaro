@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithIntl } from '@/test-utils';
 import { RemoveClosureDialog } from './RemoveClosureDialog';
 
-vi.mock('@/features/booking/components/dashboard/bookings/BookingActionSheetShell', () => ({
+vi.mock('@/features/booking/components/dashboard/bookings/sheets/BookingActionSheetShell', () => ({
   BookingActionSheetShell: ({
     children,
     onClose,

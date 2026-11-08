@@ -3,23 +3,10 @@
 import { useTranslations } from 'next-intl';
 import { BOOKING_STATUS, type StaffBookingDetailResponse } from '@ikaro/types';
 import { Card, CardContent } from '@/shared/components/ui/card';
+import type { BookingDetailActionState } from '@/features/booking/model/booking-detail-state';
 import { BookingCompletionSummary } from './BookingCompletionSummary';
-import {
-  BookingNoShowBanner,
-  isBookingNoShowActionState,
-  type BookingNoShowActionState,
-} from './BookingNoShowBanner';
+import { BookingNoShowBanner, isBookingNoShowActionState } from './BookingNoShowBanner';
 import { BookingStatusBannerIcon } from './BookingStatusBannerIcon';
-
-export type BookingDetailActionState =
-  | 'idle'
-  | 'submitting'
-  | 'approved'
-  | 'rejected'
-  | 'info-requested'
-  | 'slot-conflict'
-  | 'cancelled'
-  | BookingNoShowActionState;
 
 interface BookingDetailMainBannerProps {
   readonly actionState: BookingDetailActionState;

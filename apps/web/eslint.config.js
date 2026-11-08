@@ -217,7 +217,7 @@ const rawFormControlExemptPaths = [
 // wrapper, or a tenant-branded customer control (docs/ENGINEERING_RULES_FRONTEND.md § The
 // `--ba-*` exception). Only the button ban is lifted for these; every other ban still applies.
 const rawButtonExemptPaths = [
-  'features/booking/components/dashboard/bookings/SlotConflictAlert.tsx',
+  'features/booking/components/dashboard/bookings/reschedule/SlotConflictAlert.tsx',
   'features/booking/components/dashboard/schedule/ScheduleWeekView.tsx',
   'features/booking/components/dashboard/schedule/TimelineBlockShell.tsx',
   'features/booking/components/dashboard/services/IntakeVersionHistoryCard.tsx',

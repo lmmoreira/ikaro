@@ -1,4 +1,4 @@
-import { RescheduleBookingPage } from '@/features/booking/components/dashboard/bookings/RescheduleBookingPage';
+import { RescheduleBookingPage } from '@/features/booking/components/dashboard/bookings/reschedule/RescheduleBookingPage';
 import { getAccessToken } from '@/features/auth/get-access-token';
 import { appendReturnTo, resolveReturnTo } from '@/features/booking/model/booking-navigation';
 import { loadBookingDetailRouteData } from '@/shells/dashboard/model/booking-route.server';

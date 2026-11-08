@@ -138,7 +138,7 @@ Add a required `appointmentEndsAt` to every availability slot, computed in the d
 - `apps/web/features/platform/hotsite/api/schedule.ts`, `apps/web/features/booking/api/booking.spec.ts`
 - `apps/web/features/booking/components/public/SlotPicker.tsx` + `.spec.tsx`
 - `apps/web/features/customer/components/my-account/CustomerReschedulePage.tsx` + spec
-- `apps/web/features/booking/components/dashboard/bookings/RescheduleActionRail.tsx` + spec
+- `apps/web/features/booking/components/dashboard/bookings/reschedule/RescheduleActionRail.tsx` + spec
 - Regression specs for `BookingSummaryCard`, `BookingSubmittedDetails`, `BasketLines`
 - `apps/web/e2e/` booking spec (customer booking and customer reschedule)
 - Docs: `docs/API_CONTRACTS.md` § 4, `docs/BUSINESS_LOGIC_REFERENCE.md` (buffer formulas), `docs/DOMAIN_MODEL.md` (if it describes the slot), `journeys/customer/book-a-service.md` (status), guest and customer `dev-notes.md`, `02-calendar-slot.html`

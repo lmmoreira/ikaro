@@ -3,7 +3,7 @@
 import { Textarea } from '@/shared/components/ui/textarea';
 import { useState, type SubmitEvent, useId } from 'react';
 import { useTranslations } from 'next-intl';
-import { BookingActionSheetShell } from '@/features/booking/components/dashboard/bookings/BookingActionSheetShell';
+import { BookingActionSheetShell } from '@/features/booking/components/dashboard/bookings/sheets/BookingActionSheetShell';
 import { Label } from '@/shared/components/ui/label';
 
 interface CancelSheetProps {
