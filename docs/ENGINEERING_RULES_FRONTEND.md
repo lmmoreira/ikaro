@@ -142,6 +142,51 @@ A secondary trap in the same incident: a component with a *fixed*, non-branded a
 
 ---
 
+## UI layer model — where a piece of UI lives, what it may import and what the repo enforces
+
+**`apps/web` is built bottom-up in six layers (atomic design).** Read this before adding any component, hook or folder: a piece placed in the wrong layer is the commonest source of duplicated markup and of dependencies pointing the wrong way.
+
+| Layer | Where | Holds | May import | Enforced by |
+|---|---|---|---|---|
+| 1. Tokens | `app/globals.css` | role-named colour tokens (`--primary`, `--border`, `--surface-app`, …) | — | `shared/lib/design-tokens/globals-css-tokens.spec.ts`, `hotsite-token-isolation.spec.ts` |
+| 2. Primitives (atoms) | `shared/components/ui/` | one control or surface, no domain word in it (`button`, `input`, `badge`, `dialog`, `tabs`) | tokens, other primitives, `shared/lib` | review (see "not enforced" below); raw controls elsewhere are lint errors |
+| 3. Composed patterns (molecules) | `shared/components/ui/` too | a frame built only from primitives, repeated 3+ times (`labeled-section`, `empty-state`, `page-header`, `form-action-pane`, `feedback-message`, `filter-chip`, `choice-card`) | primitives | review |
+| 4. Feature components (organisms) | `features/<domain>/components/`, grouped by flow (`bookings/detail/`, `bookings/sheets/`, `public/`) | domain-aware screens and sections that compose layers 2–3 | `ui/`, `shared/lib`, their own slice's `model/`, `hooks/`, `api/`; another slice only under the actor-scoped rule (`docs/REPOSITORY_STRUCTURE.md` § Web placement rules) | review |
+| 5. Shells (templates) | `shells/dashboard/`, `shells/hotsite/` | chrome and route composition: sidebar, topbar, section shell, the topbar status context; no business policy | features, `ui/` | review |
+| 6. Pages | `app/**/page.tsx`, `layout.tsx` | thin: read the route, call a fetcher, render a shell or feature component | anything | E2E only (no unit test beside a page) |
+
+**Logic never sits in a view layer.** `model/` (pure functions, shared types), `hooks/` and `api/` hold state, effects, fetching and mapping; a component renders what they return. A `hooks/` or `model/` file imports nothing from a `components/` directory (ESLint, `shared/components/ui/**` excepted): a type both sides need lives in `model/`, and a value a component owns is passed into the hook as a parameter (`useBookingDetailTopbarSync` takes the topbar handle).
+
+**Where does a new piece go?**
+
+| The piece is… | Put it in |
+|---|---|
+| a single control with no domain word (a toggle, a field) | `shared/components/ui/`, ported wholesale from the shadcn/Radix reference with a spec (never a one-off inside a feature) |
+| a frame built only from primitives that **3 or more** places already draw the same way | `shared/components/ui/` as a composed pattern; migrate the copies in the same change |
+| the same, with fewer than 3 copies, or it names a domain type (`Booking`, `Service`) | the feature, in its flow folder; promote it when a third copy appears |
+| form values, selection, submit state or an effect | a hook in `features/<domain>/hooks/`; the component renders it. A hook over the 40-line function cap is sub-hooks plus module-level helpers from the start, never an `eslint-disable`. Exemplars: `useServiceDetailsForm`, `useServiceEditSession`, `useAvailabilityCalendarState`, `useBookingSubmitRunner` |
+| a fetcher or a response mapper | `features/<domain>/api/` or a BFF mapper (`docs/BFF_ARCHITECTURE.md`); never in a component |
+| chrome shared by every screen of a surface | `shells/<surface>/` |
+| needed by both the branded hotsite and the dashboard | share `model/` and hooks, write two views (the dashboard never reads `--ba-*`; § The `--ba-*` exception) |
+| a customer's or staff's view of another domain's aggregate | the owning domain's slice, with an actor-scoped export name (`.copilot/context.md` §11) |
+| route-level logic that needs a test | extract it to `shared/lib/**` or the feature and unit-test it there; `page.tsx` stays thin |
+
+**Rules of thumb that review checks.** Promote at 3 copies, not 1 or 2: an early promotion freezes a guess, a late one leaves drift (TD58 audited `apps/web` and found 32 copies of one input string and 25 of one eyebrow, each spelled slightly differently). A `ui/` primitive uses the semantic tokens, never a raw `gray-*` or a hex literal (§ Reuse the repo's UI primitives); feature components may use the Tailwind palette classes. A screen is one folder per flow, not a flat folder of 60 files.
+
+**What the repo enforces, and what only review catches.**
+
+| Rule | Mechanism |
+|---|---|
+| a raw `<input>`, `<textarea>`, `<select>`, `<label htmlFor>` or `<button>` outside `ui/` and the tenant-branded trees | ESLint `no-restricted-syntax` (the exempt lists are by exact path in `eslint.config.js`) |
+| a hand-written `role="alert"` / `role="status"`, a hardcoded locale literal, a raw `fetch()`, an `as React.CSSProperties` return | ESLint `no-restricted-syntax` |
+| a `hooks/` or `model/` file importing from a `components/` directory | ESLint `no-restricted-imports` (`features/*/hooks`, `features/*/model`, `shells/*/model`); a dynamic `import()` is not covered |
+| function and file size (40 lines for a `.ts` function, 200 for a `.tsx`, 250 per file) | ESLint `max-lines-per-function`, `max-lines` |
+| a token without its `--color-*` alias; the hotsite reading dashboard tokens | `globals-css-tokens.spec.ts`, `hotsite-token-isolation.spec.ts` |
+| a `--ba-*` variable in a dashboard or account component | `scripts/pre-pr.sh` check 27 and `/bad-smell-audit` WEB-10 (not ESLint) |
+| **not enforced, review only:** `shared/components/ui/**` importing from `features/` or `shells/` (none does today); the 3-copies promotion threshold; one folder per flow; keeping a page thin; a state-heavy component being split into a hook | — |
+
+**Known reach-ups, not a licence to add more.** The dashboard shell hands services to features: `topbar-status-context` (14 importers), `mobile-action-bar` and `WeekNav`, and `shells/` imports `features/platform/hotsite`. Two `shared/lib` files import from a feature (`i18n/resolve-locale.ts` → `platform/api.server`, `api/bff-server.ts` → `auth/session-cookie`). Each is a deliberate seam; a new one needs the same reason written next to it.
+
 ## Reuse the repo's UI primitives — never hand-roll a control that already exists
 
 **Before writing any interactive control (a calendar, a date or time picker, a select, a popover, a dialog, a switch, a badge, a card), list `apps/web/shared/components/ui/` and grep the app for an existing usage — and build on that.** Writing the control from raw HTML or Tailwind (a hand-built month grid, a bare `<input type="date">`, a homemade popover or modal, a `<div>` styled as a button) when a primitive already exists is a defect, whatever the story's prototype looks like: the prototype shows the *result*, the repo already knows how to build it. A hand-rolled control also forfeits what the primitive carries for free — keyboard handling, focus management, WCAG 2.1 AA, the fixed shadcn palette, and a layout that has already been verified in a real browser (jsdom cannot catch broken layout or hit-testing, which is how M18-S01's calendar shipped three bugs).

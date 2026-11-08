@@ -227,7 +227,7 @@ If a design keeps needing new safeguards or caveats as it's developed (e.g. "thi
 
 *(`--ba-*` dashboard/hotsite boundary already covered in §8's anti-patterns excerpt below — not restated here.)*
 - If a new component needs both SaaS and hotsite variants, build separate implementations rather than one component reading both branding systems.
-- **Before writing a UI control (calendar, picker, select, dialog, switch), `ls apps/web/shared/components/ui/` and reuse it — never hand-roll.** → `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives
+- **Before writing a UI control (calendar, picker, select, dialog), `ls apps/web/shared/components/ui/` and reuse it — never hand-roll.** → `docs/ENGINEERING_RULES_FRONTEND.md` § UI layer model
 - Route-scoped chrome state visible in a shell header/topbar lives in a provider above both shell and page — never shell-local state or effect-based sync (`docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`).
 - If Sonar flags a UI smell that seems to change behavior, reproduce it in the browser before applying the suggested refactor — static analysis identifies a smell, not the runtime cause.
 
@@ -346,8 +346,8 @@ A doc with a `§` or "only" is read at that section (`grep -n '^## ' <doc>` for 
 | New notification type | `docs/ENGINEERING_RULES_BACKEND.md` § Adding a new notification type |
 | New error code (`@ikaro/types`) | `docs/ENGINEERING_RULES_SHARED.md` § Adding a new error — checklist (step 2: translation entry in **both** locale files, or CI's exhaustiveness test fails) + `docs/ERROR_CATALOG.md` § Code Origins (where each code originates) |
 | New UI copy / locale key | `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys + `docs/CODE_STANDARDS.md` (19 KB) |
-| Hotsite / public frontend | `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` (94 KB) — the task's numbered section only: `grep -n '^## ' docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` (a new module: § Adding a New Module) + `docs/API_CONTRACTS.md` § Tenant Hotsite Manifest + `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` (30 KB) + `docs/ENGINEERING_RULES_FRONTEND.md` (22 KB) |
-| Dashboard / admin frontend | `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` (30 KB) + `docs/API_CONTRACTS.md` § Base Standards + the resource's numbered section + `docs/ENGINEERING_RULES_FRONTEND.md` (22 KB) |
+| Hotsite / public frontend | `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` (94 KB) — the task's numbered section only: `grep -n '^## ' docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` (a new module: § Adding a New Module) + `docs/API_CONTRACTS.md` § Tenant Hotsite Manifest + `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` (34 KB) + `docs/ENGINEERING_RULES_FRONTEND.md` (50 KB) |
+| Dashboard / admin frontend | `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` (34 KB) + `docs/API_CONTRACTS.md` § Base Standards + the resource's numbered section + `docs/ENGINEERING_RULES_FRONTEND.md` (50 KB) |
 | BFF implementation | `docs/BFF_ARCHITECTURE.md` (54 KB) — the task's own section only (a new controller: § Module & Controller Naming Conventions) + `docs/API_CONTRACTS.md` § Base Standards + the resource's numbered section + `docs/ENGINEERING_RULES_BACKEND.md` § Backend read use cases for cross-context access (also § Express `Request.user` typing) |
 | Web → BFF transport | `docs/BFF_ARCHITECTURE.md` § Web → BFF Transport Layer |
 | Architecture question; repo layout / new file location | `docs/ARCHITECTURE.md` (11 KB) + `docs/BOUNDED_CONTEXTS.md` § Context Descriptions (the context concerned) + `docs/REPOSITORY_STRUCTURE.md` § Web target structure (or the Backend / BFF one); §11 below has the quick summary |
