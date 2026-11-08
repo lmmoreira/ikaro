@@ -34,6 +34,14 @@ describe('shared/components/ui/** does not import upward (TD58-S15)', () => {
       ['an app route by a relative path', "import { a } from '../../../app/x';"],
       ['an i18n helper by a relative path', "import { a } from '../../../i18n/x';"],
       ['a barrel (the directory itself)', "import { a } from '@/features';"],
+      [
+        'a relative path with a redundant segment',
+        "import { a } from '../../../shared/../features/booking/model/example';",
+      ],
+      [
+        'an alias path with a redundant segment',
+        "import { a } from '@/shared/../features/booking/model/example';",
+      ],
       ['a type-only import', "import type { A } from '@/features/booking/model/example';"],
       ['an export-from', "export { a } from '@/shells/dashboard/example';"],
       ['an export-all', "export * from '../../../features/booking/model/example';"],
@@ -50,6 +58,7 @@ describe('shared/components/ui/** does not import upward (TD58-S15)', () => {
       ['a sibling primitive by alias', "import { a } from '@/shared/components/ui/button';"],
       ['a sibling primitive by a ./ path', "import { a } from './button';"],
       ['a sibling primitive by a ../ path', "import { a } from '../button';"],
+      ['a normalised climb of several levels', "import { a } from '../../../shared/lib/utils';"],
       ['a package', "import { a } from 'next-intl';"],
       ['a folder merely named like a layer', "import { a } from '../features-helper/x';"],
     ])('%s', (_name, source) => {

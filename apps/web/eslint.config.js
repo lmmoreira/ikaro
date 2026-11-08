@@ -522,6 +522,14 @@ module.exports = [
               message:
                 'A shared/components/ui/** primitive does not import from features, shells, providers, app or i18n: it is the bottom UI layer, so pass what it needs in as props (docs/ENGINEERING_RULES_FRONTEND.md § UI layer model).',
             },
+            // A specifier with a `segment/..` step (`@/shared/../features/x`) resolves into another
+            // layer without matching the pattern above, and a regex cannot resolve a path, so such a
+            // non-normalised specifier is rejected outright. Leading `../` chains stay allowed.
+            {
+              regex: String.raw`(^|/)(?!\.\.(/|$))[^/]+/\.\.(/|$)`,
+              message:
+                'A shared/components/ui/** primitive does not use a non-normalised import path (a `segment/..` step): write the direct path, so the layer check can see where it points.',
+            },
           ],
         },
       ],
