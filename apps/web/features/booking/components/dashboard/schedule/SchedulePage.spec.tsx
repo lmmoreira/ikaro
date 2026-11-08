@@ -44,7 +44,7 @@ const resourcesHooks = vi.hoisted(() => ({ useResources: vi.fn() }));
 
 vi.mock('@/features/booking/hooks/useResources', () => resourcesHooks);
 
-vi.mock('@/features/booking/components/dashboard/bookings/BookingActionSheetShell', () => ({
+vi.mock('@/features/booking/components/dashboard/bookings/sheets/BookingActionSheetShell', () => ({
   BookingActionSheetShell: ({
     children,
     onClose,

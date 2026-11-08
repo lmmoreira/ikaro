@@ -2,7 +2,7 @@
 
 import type { ReactNode, SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
-import { BookingActionSheetShell } from '@/features/booking/components/dashboard/bookings/BookingActionSheetShell';
+import { BookingActionSheetShell } from '@/features/booking/components/dashboard/bookings/sheets/BookingActionSheetShell';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';

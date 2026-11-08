@@ -6,7 +6,7 @@ import { renderWithIntl } from '@/test-utils';
 import { ApiError } from '@/shared/lib/api/errors';
 import { ScheduleDateTimeRangeSheet } from './ScheduleDateTimeRangeSheet';
 
-vi.mock('@/features/booking/components/dashboard/bookings/BookingActionSheetShell', () => ({
+vi.mock('@/features/booking/components/dashboard/bookings/sheets/BookingActionSheetShell', () => ({
   BookingActionSheetShell: ({
     children,
     onClose,

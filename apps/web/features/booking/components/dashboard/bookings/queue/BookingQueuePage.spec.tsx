@@ -80,7 +80,7 @@ vi.mock('@/providers/tenant-provider', () => ({
   useTenant: () => ({ tenantId: 't-1', tenantSlug: 'lavacar-bh' }),
 }));
 
-vi.mock('./RecurringScheduleCard', () => ({
+vi.mock('../recurring/RecurringScheduleCard', () => ({
   RecurringScheduleCard: ({ schedule }: { schedule: { id: string; serviceName: string } }) => (
     <div data-testid="recurring-card" data-id={schedule.id}>
       {schedule.serviceName}

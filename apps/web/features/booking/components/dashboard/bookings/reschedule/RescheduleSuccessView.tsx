@@ -2,7 +2,7 @@ import { useTranslations } from 'next-intl';
 import type { StaffBookingDetailResponse } from '@ikaro/types';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
-import { BookingOutcomeLayout } from './BookingOutcomeLayout';
+import { BookingOutcomeLayout } from '../detail/BookingOutcomeLayout';
 import { SectionLabel } from '@/shared/components/ui/section-label';
 import { LabeledSection } from '@/shared/components/ui/labeled-section';
 

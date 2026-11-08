@@ -5,8 +5,8 @@ import type { StaffBookingDetailResponse } from '@ikaro/types';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
-import { BookingCompletionSummary } from './BookingCompletionSummary';
-import { BookingOutcomeLayout } from './BookingOutcomeLayout';
+import { BookingCompletionSummary } from '../detail/BookingCompletionSummary';
+import { BookingOutcomeLayout } from '../detail/BookingOutcomeLayout';
 import { LabeledSection } from '@/shared/components/ui/labeled-section';
 
 interface MarkCompleteSuccessViewProps {

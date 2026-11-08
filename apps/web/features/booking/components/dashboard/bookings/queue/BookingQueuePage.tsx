@@ -26,12 +26,12 @@ import {
   extractProblemCode,
   resolveErrorMessageFromApiError,
 } from '@/shared/lib/i18n/resolve-error-message';
-import { FloatingFilterDock } from '../FloatingFilterDock';
+import { FloatingFilterDock } from '../../FloatingFilterDock';
 import { AgendaFilterMenu } from './AgendaFilterMenu';
 import { BookingCard } from './BookingCard';
 import { BookingQueueActionNeeded } from './BookingQueueActionNeeded';
 import { BookingQueueSection } from './BookingQueueSection';
-import { NewMenu } from './NewMenu';
+import { NewMenu } from '../new-booking/NewMenu';
 
 export interface BookingQueuePageProps {
   readonly initialActionNeeded?: StaffBookingListResponse;

@@ -1,7 +1,9 @@
 import { BOOKING_STATUS, type StaffBookingDetailResponse } from '@ikaro/types';
 import { getBooking } from '@/features/booking/api/booking';
-import type { BookingDetailActionState } from '@/features/booking/components/dashboard/bookings/BookingDetailMainBanner';
-import type { BookingDetailSheetState } from '@/features/booking/components/dashboard/bookings/BookingDetailSheets';
+import type {
+  BookingDetailActionState,
+  BookingDetailSheetState,
+} from '@/features/booking/model/booking-detail-state';
 import type {
   CorrectNoShowFailureState,
   NoShowFailureState,

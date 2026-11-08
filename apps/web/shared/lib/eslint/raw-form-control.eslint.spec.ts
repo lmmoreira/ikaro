@@ -210,7 +210,7 @@ describe('raw form control ban (TD58-S10)', () => {
 
   describe('raw <button> ban (TD58-S13)', () => {
     const BESPOKE_BUTTON_FILES = [
-      'features/booking/components/dashboard/bookings/SlotConflictAlert.tsx',
+      'features/booking/components/dashboard/bookings/reschedule/SlotConflictAlert.tsx',
       'features/booking/components/dashboard/schedule/ScheduleWeekView.tsx',
       'features/booking/components/dashboard/schedule/TimelineBlockShell.tsx',
       'features/booking/components/dashboard/services/IntakeVersionHistoryCard.tsx',

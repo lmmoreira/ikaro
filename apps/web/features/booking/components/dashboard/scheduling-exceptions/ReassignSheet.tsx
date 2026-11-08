@@ -5,7 +5,7 @@ import { Textarea } from '@/shared/components/ui/textarea';
 import { useMemo, useState, type SubmitEvent, useId } from 'react';
 import { useTranslations } from 'next-intl';
 import type { SchedulingExceptionItem, SchedulingExceptionReassignTarget } from '@ikaro/types';
-import { BookingActionSheetShell } from '@/features/booking/components/dashboard/bookings/BookingActionSheetShell';
+import { BookingActionSheetShell } from '@/features/booking/components/dashboard/bookings/sheets/BookingActionSheetShell';
 import { buildReassignChoices } from '@/features/booking/model/scheduling-exception-view';
 import { Label } from '@/shared/components/ui/label';
 

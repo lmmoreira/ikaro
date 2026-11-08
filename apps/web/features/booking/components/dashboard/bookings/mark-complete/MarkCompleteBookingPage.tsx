@@ -11,7 +11,7 @@ import {
 } from '@/features/booking/hooks/useMarkCompleteSubmission';
 import { AfterServicePhotoUpload } from './AfterServicePhotoUpload';
 import { Card, CardContent } from '@/shared/components/ui/card';
-import { BookingClientCard } from './BookingClientCard';
+import { BookingClientCard } from '../detail/BookingClientCard';
 import { MarkCompleteActionRail } from './MarkCompleteActionRail';
 import { MarkCompleteLineFields } from './MarkCompleteLineFields';
 import { MarkCompleteLoyaltyPanel } from './MarkCompleteLoyaltyPanel';

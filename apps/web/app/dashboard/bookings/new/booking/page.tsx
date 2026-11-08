@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getAccessToken } from '@/features/auth/get-access-token';
 import { decodeJwtPayload } from '@/features/auth/decode-jwt';
-import { NewBookingForStaffPage } from '@/features/booking/components/dashboard/bookings/NewBookingForStaffPage';
+import { NewBookingForStaffPage } from '@/features/booking/components/dashboard/bookings/new-booking/NewBookingForStaffPage';
 import { fetchCustomerProfileForStaff } from '@/features/customer/api.server';
 import { fetchManifest } from '@/features/platform/api.server';
 import { fetchServices } from '@/features/platform/hotsite/api/services.server';

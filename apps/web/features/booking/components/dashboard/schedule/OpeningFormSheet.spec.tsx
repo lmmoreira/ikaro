@@ -21,7 +21,7 @@ vi.mock('@/features/booking/hooks/useResources', () => ({
   useResources: () => useResourcesMock(),
 }));
 
-vi.mock('@/features/booking/components/dashboard/bookings/BookingActionSheetShell', () => ({
+vi.mock('@/features/booking/components/dashboard/bookings/sheets/BookingActionSheetShell', () => ({
   BookingActionSheetShell: ({
     children,
     onClose,

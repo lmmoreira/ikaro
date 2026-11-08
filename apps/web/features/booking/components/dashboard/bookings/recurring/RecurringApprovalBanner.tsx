@@ -7,7 +7,7 @@ import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { useRecurrenceDescription } from '@/features/booking/hooks/useRecurrenceDescription';
 import { maxOccurrenceCount } from '@/features/booking/model/recurring-approval';
 import type { DecisionOutcome } from '@/features/booking/model/recurring-approval-outcome';
-import { BookingStatusBannerIcon, type BannerVariant } from './BookingStatusBannerIcon';
+import { BookingStatusBannerIcon, type BannerVariant } from '../detail/BookingStatusBannerIcon';
 import { RecurringConflictList } from './RecurringConflictList';
 
 interface RecurringApprovalBannerProps {

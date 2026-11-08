@@ -128,7 +128,7 @@ private validateLayout(layout: HotsiteModule[], ctx: LayoutValidationContext): v
 
 #### Part 7 — Thread `maxBookingAdvanceDays` into the dashboard reschedule flow
 
-`AvailabilityCarousel` isn't only used by the public hotsite — `apps/web/features/booking/components/dashboard/bookings/RescheduleBookingPage.tsx` (staff-facing reschedule) also renders it, today with a hardcoded `carouselDays={14}` and no advance-limit awareness. Since Part 5 makes `maxBookingAdvanceDays` a required prop, this call site must supply it too:
+`AvailabilityCarousel` isn't only used by the public hotsite — `apps/web/features/booking/components/dashboard/bookings/reschedule/RescheduleBookingPage.tsx` (staff-facing reschedule) also renders it, today with a hardcoded `carouselDays={14}` and no advance-limit awareness. Since Part 5 makes `maxBookingAdvanceDays` a required prop, this call site must supply it too:
 
 - `apps/web/app/dashboard/bookings/[id]/reschedule/page.tsx`: call the existing `fetchTenantSettings(token)` (`apps/web/features/platform/api/tenant-settings.server.ts` — already used by the settings page, no new fetcher needed) alongside `loadBookingDetailRouteData`, and pass `maxBookingAdvanceDays={settings.booking.maxBookingAdvanceDays}` down.
 - `RescheduleBookingPageProps` gains `readonly maxBookingAdvanceDays: number`, forwarded to `AvailabilityCarousel`.
@@ -155,7 +155,7 @@ private validateLayout(layout: HotsiteModule[], ctx: LayoutValidationContext): v
 - NEW `apps/web/features/booking/components/public/AvailabilityCalendar.spec.tsx` — branding style assertions mirroring `AvailabilityCarousel.spec.tsx`'s `toHaveStyle` pattern (selected/today/hover state reads `var(--ba-primary, ...)`/`var(--ba-radius, ...)`), month-navigation triggers a refetch for the new range, clicking an in-range available day calls `onSelectDate`, clicking a day past `maxBookingAdvanceDays` renders muted/disabled and does **not** call `onSelectDate` and shows the message, loading/error states (mirroring `AvailabilityCarousel`'s existing `ErrorAlert`/retry coverage), pt-BR/en month and weekday label rendering.
 - UPDATE `apps/web/features/booking/components/public/AvailabilityCarousel.spec.tsx` — new case(s) for the `min(carouselDays, maxBookingAdvanceDays)` clamp; `maxBookingAdvanceDays` is now a required prop in every existing test setup.
 - UPDATE `apps/web/features/booking/components/public/BookingForm.spec.tsx` — renders `AvailabilityCarousel` vs. `AvailabilityCalendar` based on `datePickerType`.
-- UPDATE `apps/web/features/booking/components/dashboard/bookings/RescheduleBookingPage.spec.tsx` — new required `maxBookingAdvanceDays` prop, forwarded to `AvailabilityCarousel`.
+- UPDATE `apps/web/features/booking/components/dashboard/bookings/reschedule/RescheduleBookingPage.spec.tsx` — new required `maxBookingAdvanceDays` prop, forwarded to `AvailabilityCarousel`.
 - UPDATE `apps/web/features/platform/components/hotsite/modules/BookingCtaConfigPanel.spec.tsx` — new "Calendar" section renders; `carouselDays` visibility toggles with `datePickerType`; `onChange` wiring for both fields.
 - UPDATE `apps/web/features/platform/hotsite/module-schemas.spec.ts` — `datePickerType` enum accepts `'carousel'`/`'calendar'`/`undefined`, rejects other values.
 

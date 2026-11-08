@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import type { StaffBookingDetailResponse } from '@ikaro/types';
-import { RescheduleBookingPage } from '@/features/booking/components/dashboard/bookings/RescheduleBookingPage';
+import { RescheduleBookingPage } from '@/features/booking/components/dashboard/bookings/reschedule/RescheduleBookingPage';
 import { useResolveSchedulingExceptions } from '@/features/booking/hooks/useSchedulingExceptions';
 import { assertEntryRescheduled } from '@/features/booking/model/scheduling-exception-reschedule';
 

@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getAccessToken } from '@/features/auth/get-access-token';
 import { decodeJwtPayload } from '@/features/auth/decode-jwt';
-import { NewRecurringScheduleForStaff } from '@/features/booking/components/dashboard/bookings/NewRecurringScheduleForStaff';
+import { NewRecurringScheduleForStaff } from '@/features/booking/components/dashboard/bookings/recurring/NewRecurringScheduleForStaff';
 import {
   filterRecurrenceEligibleServices,
   noRecurrenceServicesReason,

@@ -983,7 +983,7 @@
     },
     {
       "rule": "eslint-suppression",
-      "path": "apps/web/features/booking/components/dashboard/bookings/AfterServicePhotoUpload.tsx",
+      "path": "apps/web/features/booking/components/dashboard/bookings/mark-complete/AfterServicePhotoUpload.tsx",
       "name": "@next/next/no-img-element",
       "rationale": "Booking photo previews render authenticated or signed runtime URLs that are not stable image-source props for next/image optimization; the native element is intentionally limited to this preview boundary.",
       "owner": "web",
@@ -991,7 +991,7 @@
     },
     {
       "rule": "eslint-suppression",
-      "path": "apps/web/features/booking/components/dashboard/bookings/MarkCompleteBookingPage.tsx",
+      "path": "apps/web/features/booking/components/dashboard/bookings/mark-complete/MarkCompleteBookingPage.tsx",
       "name": "@next/next/no-img-element",
       "rationale": "Booking photo previews render authenticated or signed runtime URLs that are not stable image-source props for next/image optimization; the native element is intentionally limited to this preview boundary.",
       "owner": "web",
@@ -999,7 +999,7 @@
     },
     {
       "rule": "eslint-suppression",
-      "path": "apps/web/features/booking/components/dashboard/bookings/MarkCompleteSuccessView.tsx",
+      "path": "apps/web/features/booking/components/dashboard/bookings/mark-complete/MarkCompleteSuccessView.tsx",
       "name": "@next/next/no-img-element",
       "rationale": "Booking photo previews render authenticated or signed runtime URLs that are not stable image-source props for next/image optimization; the native element is intentionally limited to this preview boundary.",
       "owner": "web",

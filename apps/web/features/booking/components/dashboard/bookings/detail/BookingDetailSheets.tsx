@@ -18,14 +18,12 @@ import {
   type CorrectNoShowFailureState,
   type NoShowFailureState,
 } from '@/features/booking/model/booking-no-show';
-import { AdminCancelBookingSheet } from './AdminCancelBookingSheet';
-import { CorrectNoShowSheet } from './CorrectNoShowSheet';
-import { NoShowSheet } from './NoShowSheet';
-import { RejectBookingSheet } from './RejectBookingSheet';
-import { RequestInfoSheet } from './RequestInfoSheet';
-
-export type BookingDetailSheetState =
-  'reject' | 'info' | 'cancel' | 'no-show' | 'correct-no-show' | null;
+import type { BookingDetailSheetState } from '@/features/booking/model/booking-detail-state';
+import { AdminCancelBookingSheet } from '../sheets/AdminCancelBookingSheet';
+import { CorrectNoShowSheet } from '../sheets/CorrectNoShowSheet';
+import { NoShowSheet } from '../sheets/NoShowSheet';
+import { RejectBookingSheet } from '../sheets/RejectBookingSheet';
+import { RequestInfoSheet } from '../sheets/RequestInfoSheet';
 
 function extractValidationMessage(
   err: unknown,

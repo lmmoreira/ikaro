@@ -1,4 +1,4 @@
-import { MarkCompleteBookingPage } from '@/features/booking/components/dashboard/bookings/MarkCompleteBookingPage';
+import { MarkCompleteBookingPage } from '@/features/booking/components/dashboard/bookings/mark-complete/MarkCompleteBookingPage';
 import { getAccessToken } from '@/features/auth/get-access-token';
 import { resolveReturnTo } from '@/features/booking/model/booking-navigation';
 import { fetchTenantSettings } from '@/features/platform/api/tenant-settings.server';

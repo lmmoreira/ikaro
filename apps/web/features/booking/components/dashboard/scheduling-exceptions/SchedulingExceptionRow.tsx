@@ -19,7 +19,7 @@ import {
 import { appendReturnTo } from '@/features/booking/model/booking-navigation';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
-import { BookingCardShell } from '@/features/booking/components/dashboard/bookings/BookingCardShell';
+import { BookingCardShell } from '@/features/booking/components/dashboard/bookings/queue/BookingCardShell';
 
 const WORKLIST_HREF = '/dashboard/scheduling-exceptions';
 

@@ -5,7 +5,7 @@ import type { RecurringBookingScheduleListItem, StaffBookingCardResponse } from 
 import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import { BookingCard } from './BookingCard';
 import { BookingQueueSection } from './BookingQueueSection';
-import { RecurringScheduleCard } from './RecurringScheduleCard';
+import { RecurringScheduleCard } from '../recurring/RecurringScheduleCard';
 
 type QueueTranslator = (key: string, values?: Record<string, string | number>) => string;
 

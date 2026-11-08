@@ -6,7 +6,7 @@ import type { BookingResponse } from '@ikaro/types';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import type { StaffBookingFailureKind } from '@/features/booking/model/staff-booking-failure';
-import { BookingOutcomeActionRail } from './BookingOutcomeActionRail';
+import { BookingOutcomeActionRail } from '../detail/BookingOutcomeActionRail';
 
 type OutcomeTone = 'success' | 'danger';
 

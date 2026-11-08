@@ -1,4 +1,4 @@
-import { BookingQueuePage } from '@/features/booking/components/dashboard/bookings/BookingQueuePage';
+import { BookingQueuePage } from '@/features/booking/components/dashboard/bookings/queue/BookingQueuePage';
 import { getAccessToken } from '@/features/auth/get-access-token';
 import { listAllBookings } from '@/features/booking/api/booking.server';
 import { resolveBookingQueueWindow } from '@/features/booking/model/booking-queue-window';

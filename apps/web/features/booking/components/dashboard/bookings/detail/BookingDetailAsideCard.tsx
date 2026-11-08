@@ -10,7 +10,7 @@ import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { bookingNeedsDecision } from '@/features/booking/model/booking-decision';
 import { BookingActionPanel } from './BookingActionPanel';
 import { BookingDecisionPanel } from './BookingDecisionPanel';
-import type { BookingDetailActionState } from './BookingDetailMainBanner';
+import type { BookingDetailActionState } from '@/features/booking/model/booking-detail-state';
 
 function PaneHeading({ children }: { readonly children: React.ReactNode }): React.JSX.Element {
   return <p className="text-sm font-semibold text-gray-900">{children}</p>;

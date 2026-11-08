@@ -9,7 +9,7 @@ import { findContactError } from '@/features/booking/model/contact-validation';
 import type { StaffBookingRecipient } from '@/features/booking/model/staff-booking-payload';
 import type { StaffGuestContact } from '@/features/booking/hooks/useStaffGuestContact';
 import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
-import { BookingOutcomeActionRail } from './BookingOutcomeActionRail';
+import { BookingOutcomeActionRail } from '../detail/BookingOutcomeActionRail';
 import { CustomerSearchPanel } from './CustomerSearchPanel';
 import { GuestContactForm } from './GuestContactForm';
 

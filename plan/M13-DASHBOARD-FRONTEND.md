@@ -1999,13 +1999,13 @@ fetchStaffBookings(params: { status: string; date?: string; from?: string; page?
 - Renders `<BookingQueuePage actionNeeded={...} today={...} upcoming={...} />`
 - Empty state handled inline, per section
 
-`apps/web/components/dashboard/bookings/BookingQueuePage.tsx`:
+`apps/web/components/dashboard/bookings/queue/BookingQueuePage.tsx`:
 - Three sections, each a `<BookingSection title="..." items={...} />`: "Precisa de ação", "Hoje", "Próximos dias"
 - Each card in "Precisa de ação" and "Próximos dias" shows its own date inline (e.g. "Hoje · 10:00", "Amanhã · 09:00", "Qui, 18 de junho · 09:00") since these sections span multiple days — "Hoje" cards show time only (date is implied by the section)
 - Empty state per section: "Nenhum agendamento precisa de ação." / "Nenhum agendamento confirmado para hoje." / "Nenhum agendamento confirmado nos próximos dias." (pt-BR, not an error)
 - **Superseded by implementation:** the week-strip (`journeys/staff/prototypes/agenda/00-agenda.html`'s `.week-strip`) was originally planned as scroll-only, NOT a filter. The shipped `WeekNav.tsx` is a real, configurable date-window navigator instead — clicking a day genuinely filters "Próximos dias" to that day, and the window size itself is driven by the tenant's `welcomeStaffScreenDays` setting (`docs/TENANTS_SETTINGS_SCHEMA.md`), added in a same-story follow-up. Do not implement against the scroll-only description above.
 
-`apps/web/components/dashboard/bookings/BookingCard.tsx`:
+`apps/web/components/dashboard/bookings/queue/BookingCard.tsx`:
 - Customer name (truncated with ellipsis if long)
 - Service names joined ", "
 - Scheduled time, with date prefix when the card is in "Precisa de ação" or "Próximos dias" (see above)
@@ -2095,11 +2095,11 @@ requestMoreInfo(bookingId: string, message: string): Promise<void>
 
 **Implemented files / current shape:**
 - `apps/web/app/dashboard/(protected)/bookings/[id]/page.tsx` fetches the detail payload and renders `<BookingDetailPage />`.
-- `apps/web/components/dashboard/bookings/BookingDetailPage.tsx` coordinates triage state, topbar badge sync, and the inline success/error banners.
-- `apps/web/components/dashboard/bookings/BookingDetailMain.tsx` renders the read-only booking body.
-- `apps/web/components/dashboard/bookings/BookingActionPanel.tsx` provides the pending/info-request action buttons and mobile bottom bar.
-- `apps/web/components/dashboard/bookings/RejectBookingSheet.tsx` and `RequestInfoSheet.tsx` handle the two sheet-based actions.
-- `apps/web/components/dashboard/bookings/SlotConflictAlert.tsx` handles approve retries when the slot is no longer available.
+- `apps/web/components/dashboard/bookings/detail/BookingDetailPage.tsx` coordinates triage state, topbar badge sync, and the inline success/error banners.
+- `apps/web/components/dashboard/bookings/detail/BookingDetailMain.tsx` renders the read-only booking body.
+- `apps/web/components/dashboard/bookings/detail/BookingActionPanel.tsx` provides the pending/info-request action buttons and mobile bottom bar.
+- `apps/web/components/dashboard/bookings/sheets/RejectBookingSheet.tsx` and `RequestInfoSheet.tsx` handle the two sheet-based actions.
+- `apps/web/components/dashboard/bookings/reschedule/SlotConflictAlert.tsx` handles approve retries when the slot is no longer available.
 
 **Acceptance criteria delivered:**
 - [x] `/dashboard/bookings/[id]` renders the detail page from the BFF payload and keeps the flow localized
@@ -2153,10 +2153,10 @@ rescheduleBooking(bookingId: string, scheduledAt: string, adminNotes?: string): 
 ```
 
 **Implemented files / current shape:**
-- `apps/web/components/dashboard/bookings/BookingDetailPage.tsx` branches the action panel by status and routes approved actions to the nested pages.
-- `apps/web/components/dashboard/bookings/AdminCancelBookingSheet.tsx` handles the optional cancel reason inline.
-- `apps/web/components/dashboard/bookings/RescheduleBookingPage.tsx` is the dedicated route-based reschedule flow.
-- `apps/web/components/dashboard/bookings/SlotConflictAlert.tsx` is reused for reschedule conflicts as well as approve conflicts.
+- `apps/web/components/dashboard/bookings/detail/BookingDetailPage.tsx` branches the action panel by status and routes approved actions to the nested pages.
+- `apps/web/components/dashboard/bookings/sheets/AdminCancelBookingSheet.tsx` handles the optional cancel reason inline.
+- `apps/web/components/dashboard/bookings/reschedule/RescheduleBookingPage.tsx` is the dedicated route-based reschedule flow.
+- `apps/web/components/dashboard/bookings/reschedule/SlotConflictAlert.tsx` is reused for reschedule conflicts as well as approve conflicts.
 
 **Acceptance criteria delivered:**
 - [x] Approved bookings expose complete, reschedule, and cancel actions from the same detail shell
@@ -2213,7 +2213,7 @@ completeBooking(body: CompleteBookingRequest): Promise<CompleteBookingResponse>
 
 **Implemented files / current shape:**
 - `apps/web/app/dashboard/(protected)/bookings/[id]/complete/page.tsx` exposes the completion route.
-- `apps/web/components/dashboard/bookings/MarkCompleteBookingPage.tsx` handles the per-line charged-price editor, totals, notes, and success state.
+- `apps/web/components/dashboard/bookings/mark-complete/MarkCompleteBookingPage.tsx` handles the per-line charged-price editor, totals, notes, and success state.
 
 **Acceptance criteria delivered:**
 - [x] Each line's charged amount defaults to `priceAtBooking` and updates the live total immediately
@@ -2855,9 +2855,9 @@ On confirm: pass `discountByPoints` to `completeBooking()` fetcher.
 - `apps/backend/.../use-cases/get-booking-by-id.use-case.ts` (+ `.spec.ts`), `apps/backend/src/test/builders/booking/booking.builder.ts` (`withCompletedAt`)
 - `apps/bff/src/features/booking/bookings.types.ts`, `bookings.mapper.ts` (+ `.spec.ts`)
 - `packages/types/src/booking.dto.ts`
-- `apps/web/features/booking/components/dashboard/bookings/BookingCompletionSummary.tsx` (+ `.spec.tsx`) — new shared component
-- `apps/web/features/booking/components/dashboard/bookings/MarkCompleteBookingPage.tsx` — loyalty section (form) + refactored to reuse `BookingCompletionSummary` for its success banner
-- `apps/web/features/booking/components/dashboard/bookings/BookingDetailPage.tsx` — new `COMPLETED`-status banner/aside branch reusing `BookingCompletionSummary`
+- `apps/web/features/booking/components/dashboard/bookings/detail/BookingCompletionSummary.tsx` (+ `.spec.tsx`) — new shared component
+- `apps/web/features/booking/components/dashboard/bookings/mark-complete/MarkCompleteBookingPage.tsx` — loyalty section (form) + refactored to reuse `BookingCompletionSummary` for its success banner
+- `apps/web/features/booking/components/dashboard/bookings/detail/BookingDetailPage.tsx` — new `COMPLETED`-status banner/aside branch reusing `BookingCompletionSummary`
 
 **Validated Playwright coverage (`apps/web/e2e/staff-booking-lifecycle.spec.ts`):**
 - "complete loyalty flow earns points on one booking and redeems them on the next" — earns points on booking A, redeems them on booking B, asserts the `discountByPoints` request body, the success-banner discount row, and (reopening the booking's plain detail page afterward) the persisted charge/discount summary

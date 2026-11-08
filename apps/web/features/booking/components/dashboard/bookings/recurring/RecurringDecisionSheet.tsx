@@ -2,7 +2,7 @@
 
 import type { SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
-import { BookingActionSheetShell } from './BookingActionSheetShell';
+import { BookingActionSheetShell } from '../sheets/BookingActionSheetShell';
 
 interface RecurringDecisionSheetProps {
   readonly kind: 'approve' | 'reject';

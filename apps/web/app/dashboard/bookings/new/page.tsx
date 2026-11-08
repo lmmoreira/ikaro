@@ -1,6 +1,6 @@
 import { getAccessToken } from '@/features/auth/get-access-token';
 import { decodeJwtPayload } from '@/features/auth/decode-jwt';
-import { NewBookingChooserPage } from '@/features/booking/components/dashboard/bookings/NewBookingChooserPage';
+import { NewBookingChooserPage } from '@/features/booking/components/dashboard/bookings/new-booking/NewBookingChooserPage';
 import { fetchManifest } from '@/features/platform/api.server';
 
 // UC-108: who is the booking for? The first step of everything staff create on a customer's behalf.
