@@ -7,7 +7,7 @@
 - **Created**: 2026-11-05
 - **Discovered**: read-only atomic-design audit of `apps/web` (three parallel structural audits plus a premise-verification pass, 2026-11-05). Grade given at the time: C+ overall (tokens C, atoms C−, molecules B, organisms B+, templates C+, pages A−, tests A).
 - **Decision status**: Ready for discovery and implementation in the dependency order below; every story still begins with `/story-discovery`. The sequence and scope below were confirmed with the user on 2026-11-05; each story's "Pattern" is a starting decision that its own `/story-discovery` Step 4q may refine, and a story's block records what was locked there.
-- **Progress (2026-11-08)**: Stories 0–10 and 12 ✅ Done; 13 (inventory and migration of the remaining raw buttons, rescoped 2026-11-08) and 11 remain (11 last: it moves files the others edit).
+- **Progress (2026-11-08)**: Stories 0–10, 12 and 13 ✅ Done; only Story 11 (regroup `bookings/` by flow, last because it moves files the others edit) remains.
 - **Related**: `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives; TD57 (inline feedback + action-pane pattern, the precedent for promoting a repeated UI pattern into `ui/`); `docs/ANTI_PATTERNS.md`; `.copilot/context.md` §8 (the `--ba-*` boundary row).
 
 ---
@@ -751,7 +751,7 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 
 ---
 
-### Story 13 — Migrate the remaining raw `<button>`s and captions onto primitives, then guard against regrowth
+### Story 13 — Migrate the remaining raw `<button>`s and captions onto primitives, then guard against regrowth ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** L (rescoped 2026-11-08 at `/story-discovery`: it was an inventory and a decision, and now carries the migration, the two new primitives and the guard in one PR, by the user's decision)
