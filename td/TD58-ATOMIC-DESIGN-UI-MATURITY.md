@@ -7,7 +7,7 @@
 - **Created**: 2026-11-05
 - **Discovered**: read-only atomic-design audit of `apps/web` (three parallel structural audits plus a premise-verification pass, 2026-11-05). Grade given at the time: C+ overall (tokens C, atoms C−, molecules B, organisms B+, templates C+, pages A−, tests A).
 - **Decision status**: Ready for discovery and implementation in the dependency order below; every story still begins with `/story-discovery`. The sequence and scope below were confirmed with the user on 2026-11-05; each story's "Pattern" is a starting decision that its own `/story-discovery` Step 4q may refine, and a story's block records what was locked there.
-- **Progress (2026-11-08)**: Stories 0–10, 12 and 13 ✅ Done; only Story 11 (regroup `bookings/` by flow, last because it moves files the others edit) remains.
+- **Progress (2026-11-08)**: Stories 0–13 ✅ Done; Story 14 (stop `hooks/` and `model/` importing from `components/`, then guard it) remains.
 - **Related**: `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives; TD57 (inline feedback + action-pane pattern, the precedent for promoting a repeated UI pattern into `ui/`); `docs/ANTI_PATTERNS.md`; `.copilot/context.md` §8 (the `--ba-*` boundary row).
 
 ---
@@ -818,3 +818,50 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 5. **`choice-card` stays on the palette for the two shades no token matches** (`border-blue-500`, `border-slate-200`), as `filter-chip` does; the six sites render the booking-model cards bit-identically, and the resource-type and role cards take the normalised look.
 6. **Screens not captured at the checkpoint** (no seed data): the member, resource and exception text links, the photo-upload remove links, the cancel, no-show, correct-no-show, reassign and notes captions, the gallery, testimonial and navigation remove links, the home renewal card and the empty states of the account and leads lists. They use the same primitives and variants as the captured screens.
 
+
+---
+
+### Story 14 — Stop `hooks/` and `model/` importing from `components/` in the booking slice, then guard it
+
+**Agent:** frontend-ts
+**Complexity:** M
+**Docs to load:** `docs/ENGINEERING_RULES_SHARED.md` § `no-restricted-syntax` selectors must be checked against every already-documented bypass shape; `docs/REPOSITORY_STRUCTURE.md` § Web placement rules; `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives; `.claude/commands/story-discovery.md` check 4s2
+**Dependencies:** Story 11 (✅ Done: it extracted `model/booking-detail-state.ts` and recorded this follow-up), Story 10 (✅ Done: the `no-restricted-syntax` guard pattern this story reuses)
+**Pattern:** plain composition for the moves; the guard is an ESLint `no-restricted-syntax` selector set, the same mechanism as Stories 10 and 13.
+
+**Discovered:** 2026-11-08, `/story-discovery` of Story 11. Story 11 fixed the `model/` -> `components/` inversion in `bookings/`; the same inversion remains in the four `hooks/` files below.
+**Root cause:** types and context hooks were declared next to the component that first needed them, and nothing stops a later `hooks/` file from importing them.
+
+**Description:** Story 11 fixed `model/` importing from `components/` for the booking-detail state types. Four non-spec files under `features/booking/hooks/` still import from a `components/` directory (measured 2026-11-08, `grep` over `features/*/hooks`, `features/*/model`, `shells/*/model`):
+
+| File | Imports | Decision |
+|---|---|---|
+| `useBookingSubmission`, `useBookingSubmitRunner`, `useStaffBookingSubmission` | type `BookingSubmissionStatus` from `components/public/ConfirmationStep` (defined at line 19) | move the type to `features/booking/model/booking-submission-status.ts`; the three hooks, `ConfirmationStep` and `NewBookingConfirmStep` import it from there; no re-export is kept |
+| `useBookingDetailTopbarSync` | `useDashboardTopbarStatus` from `shells/dashboard/components/topbar-status-context` | the page component (it may import the shell context) reads the topbar-status value and passes it into the hook; the hook's parameters carry it. The context file does not move: about 25 importers and 12 `vi.mock` paths would change for no gain, the mounting-complexity signal of CLAUDE.md §7 |
+| `useBookingPaneFeedback` | type `FeedbackModel` from `shared/components/ui/feedback-message` | stays: a `ui/` primitive is the lowest layer; the guard exempts `shared/components/ui/**` |
+
+**Guard:** `no-restricted-syntax` selectors for an import, export-from, dynamic `import()` and `require()` whose source resolves into a `components/` directory, in non-spec files of `apps/web/features/*/hooks/**`, `apps/web/features/*/model/**`, `apps/web/shells/*/model/**` and `apps/web/shared/hooks/**` (if present). It exempts `@/shared/components/ui/**`. It catches relative paths (`../components/x`), the `@/` alias and `export … from`; the bypass shapes are checked against `docs/ENGINEERING_RULES_SHARED.md` § `no-restricted-syntax` selectors must be checked. Tests live in a sibling of `raw-form-control.eslint.spec.ts`, mutation-checked per selector.
+
+**Out of scope:** the `schedule/` -> `bookings/sheets/` import (a sibling-area coupling inside `components/`, not a layering violation; read what it imports before deciding), regrouping `public/`, and hooks that live inside `components/` folders (for example `useServiceEditLeaveGuard`).
+
+New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface: none.
+
+**Files to create/modify:**
+- Create: `apps/web/features/booking/model/booking-submission-status.ts`; the guard spec beside `apps/web/shared/lib/eslint/raw-form-control.eslint.spec.ts`
+- Modify: `useBookingSubmission.ts`, `useBookingSubmitRunner.ts`, `useStaffBookingSubmission.ts`, `useBookingDetailTopbarSync.ts` (+ its spec), `components/public/ConfirmationStep.tsx`, `NewBookingConfirmStep.tsx`, the page component that mounts `useBookingDetailTopbarSync` (+ its spec)
+- Config (explicit yes): `apps/web/eslint.config.js`
+- Docs (doc gate): `docs/REPOSITORY_STRUCTURE.md` (drop the "tracked as a follow-up" sentence), `docs/ANTI_PATTERNS.md` (one row)
+
+**Acceptance criteria — product:**
+- [ ] No behaviour change; the booking and staff-booking submission flows and the booking-detail topbar behave as before.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] existing specs of the moved and edited files pass with only import and prop-passing changes; any changed assertion is listed in the PR body
+  - [ ] the guard flags a `components/` import in a `hooks/` file and a `model/` file (relative, alias, `export … from`, `import()` and `require`); it does not flag `@/shared/components/ui/**`, a spec file, or a `components/` file; mutation check per selector
+- [ ] `pnpm lint` reports zero violations across `apps/web` (the rule lands at error)
+- [ ] `grep` shows no non-spec `hooks/` or `model/` file importing a `components/` path other than `shared/components/ui/**`
+- E2E:
+  - [ ] none new; existing Playwright specs for the booking flow and booking detail pass in CI
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean, `pnpm architecture-check` clean
