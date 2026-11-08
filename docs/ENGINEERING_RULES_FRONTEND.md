@@ -149,7 +149,7 @@ A secondary trap in the same incident: a component with a *fixed*, non-branded a
 | Layer | Where | Holds | May import | Enforced by |
 |---|---|---|---|---|
 | 1. Tokens | `app/globals.css` | role-named colour tokens (`--primary`, `--border`, `--surface-app`, …) | — | `shared/lib/design-tokens/globals-css-tokens.spec.ts`, `hotsite-token-isolation.spec.ts` |
-| 2. Primitives (atoms) | `shared/components/ui/` | one control or surface, no domain word in it (`button`, `input`, `badge`, `dialog`, `tabs`) | tokens, other primitives, `shared/lib` | review (see "not enforced" below); raw controls elsewhere are lint errors |
+| 2. Primitives (atoms) | `shared/components/ui/` | one control or surface, no domain word in it (`button`, `input`, `badge`, `dialog`, `tabs`) | tokens, other primitives, `shared/lib` | ESLint `no-restricted-imports` (no feature, shell, provider, app or i18n import); raw controls elsewhere are lint errors |
 | 3. Composed patterns (molecules) | `shared/components/ui/` too | a frame built only from primitives, repeated 3+ times (`labeled-section`, `empty-state`, `page-header`, `form-action-pane`, `feedback-message`, `filter-chip`, `choice-card`) | primitives | review |
 | 4. Feature components (organisms) | `features/<domain>/components/`, grouped by flow (`bookings/detail/`, `bookings/sheets/`, `public/`) | domain-aware screens and sections that compose layers 2–3 | `ui/`, `shared/lib`, their own slice's `model/`, `hooks/`, `api/`; another slice only under the actor-scoped rule (`docs/REPOSITORY_STRUCTURE.md` § Web placement rules) | review |
 | 5. Shells (templates) | `shells/dashboard/`, `shells/hotsite/` | chrome and route composition: sidebar, topbar, section shell, the topbar status context; no business policy | features, `ui/` | review |
@@ -183,7 +183,8 @@ A secondary trap in the same incident: a component with a *fixed*, non-branded a
 | function and file size (40 lines for a `.ts` function, 200 for a `.tsx`, 250 per file) | ESLint `max-lines-per-function`, `max-lines` |
 | a token without its `--color-*` alias; the hotsite reading dashboard tokens | `globals-css-tokens.spec.ts`, `hotsite-token-isolation.spec.ts` |
 | a `--ba-*` variable in a dashboard or account component | `scripts/pre-pr.sh` check 27 and `/bad-smell-audit` WEB-10 (not ESLint) |
-| **not enforced, review only:** `shared/components/ui/**` importing from `features/` or `shells/` (none does today); the 3-copies promotion threshold; one folder per flow; keeping a page thin; a state-heavy component being split into a hook | — |
+| a `shared/components/ui/**` file importing from `features/`, `shells/`, `providers/`, `app/` or `i18n/` (alias or relative; a spec may) | ESLint `no-restricted-imports` in `apps/web/eslint.config.js`; pinned by `shared/lib/eslint/ui-layer-imports.eslint.spec.ts`. A dynamic `import()` is not covered. `shared/components/hotsite/**` and `shared/lib/**` are outside it |
+| **not enforced, review only:** the 3-copies promotion threshold; one folder per flow; keeping a page thin; a state-heavy component being split into a hook | — |
 
 **Known reach-ups, not a licence to add more.** The dashboard shell hands services to features: `topbar-status-context` (14 importers), `mobile-action-bar` and `WeekNav`, and `shells/` imports `features/platform/hotsite`. Two `shared/lib` files import from a feature (`i18n/resolve-locale.ts` → `platform/api.server`, `api/bff-server.ts` → `auth/session-cookie`). Each is a deliberate seam; a new one needs the same reason written next to it.
 

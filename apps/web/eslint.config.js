@@ -503,6 +503,38 @@ module.exports = [
       ],
     },
   },
+  // TD58-S15: shared/components/ui/** is the bottom UI layer (primitives and composed patterns with
+  // no domain word in them), so it imports nothing app-local above shared/lib: no feature, shell,
+  // provider, route or app-local i18n helper. Own rule key and own `files` glob, so it neither
+  // restates nor replaces the S14 block above. The regex catches the `@/` alias and a relative
+  // path that climbs out (`../`), for static imports, `import type` and `export ... from`; a
+  // dynamic `import()` is not covered (none exists in ui/). Specs are skipped, like S14.
+  {
+    files: ['shared/components/ui/**/*.{ts,tsx}'],
+    ignores: ['**/*.spec.ts', '**/*.spec.tsx'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              regex: String.raw`^(@/|(\.\./)+)(features|shells|providers|app|i18n)(/|$)`,
+              message:
+                'A shared/components/ui/** primitive does not import from features, shells, providers, app or i18n: it is the bottom UI layer, so pass what it needs in as props (docs/ENGINEERING_RULES_FRONTEND.md § UI layer model).',
+            },
+            // A specifier with a `segment/..` step (`@/shared/../features/x`) resolves into another
+            // layer without matching the pattern above, and a regex cannot resolve a path, so such a
+            // non-normalised specifier is rejected outright. Leading `../` chains stay allowed.
+            {
+              regex: String.raw`(^|/)(?!\.\.(/|$))[^/]+/\.\.(/|$)`,
+              message:
+                'A shared/components/ui/** primitive does not use a non-normalised import path (a `segment/..` step): write the direct path, so the layer check can see where it points.',
+            },
+          ],
+        },
+      ],
+    },
+  },
   // TD37-S23: E2E-1 only — scoped to Playwright e2e specs themselves, which the two
   // no-restricted-syntax blocks above deliberately ignore (**/*.spec.ts). A separate block is
   // required here rather than folding this into NON_FETCH_SELECTORS: e2e specs are exactly the
