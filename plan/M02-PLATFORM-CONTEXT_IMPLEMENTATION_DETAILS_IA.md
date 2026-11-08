@@ -23,7 +23,7 @@
 | TypeORM repositories | `src/contexts/platform/infrastructure/repositories/` | `TypeOrmTenantRepository`, `TypeOrmHotsiteConfigRepository` |
 | Cross-cutting cache | `src/shared/infrastructure/cache/` + `src/shared/ports/cache.port.ts` | Shared cache adapter/port used by context-specific caching decorators |
 | DB migrations | `src/contexts/platform/infrastructure/migrations/` | `CreatePlatformTenants`, `CreatePlatformHotsiteConfigs` |
-| PlatformModule | `src/contexts/platform/platform.module.ts` | Imports `TenantModule` — never exports repository tokens |
+| PlatformModule | `src/contexts/platform/platform.module.ts` | Imports `TenantModule` *(historical: no longer in the codebase — see the request-context note above)* — never exports repository tokens |
 | TenantContext | `src/shared/tenant/tenant-context.ts` | AsyncLocalStorage-based, not request-scoped DI *(historical: replaced by `RequestContext` / `RequestInterceptor` in `apps/backend/src/shared/request/` — no longer in the codebase)* |
 | TenantInterceptor | `src/shared/tenant/tenant.interceptor.ts` | Skips `/health` and `/internal` — reads `X-Tenant-ID` header *(historical: replaced by `RequestContext` / `RequestInterceptor` in `apps/backend/src/shared/request/` — no longer in the codebase)* |
 | TenantModule | `src/shared/tenant/tenant.module.ts` | Exported from AppModule; also imported by PlatformModule — safe due to shared AsyncLocalStorage *(historical: replaced by `RequestContext` / `RequestInterceptor` in `apps/backend/src/shared/request/` — no longer in the codebase)* |

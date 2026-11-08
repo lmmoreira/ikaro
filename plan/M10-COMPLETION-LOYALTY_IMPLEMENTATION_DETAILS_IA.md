@@ -114,7 +114,7 @@ Pub/Sub consumer idempotency now lives in the shared `shared.inbox` table instea
 `BookingCompletedHandler` runs outside the HTTP request lifecycle — AsyncLocalStorage TenantContext is not set. Loyalty settings are loaded via `ILoyaltyTenantSettingsPort.getLoyaltySettings(tenantId)` (injects `GetTenantByIdUseCase`). Fallback: `expiryDays = 180` if tenant settings absent.
 
 ### Cross-context reads via DataSource injection (not repo tokens)
-`ServiceCatalogAdapter` queries `booking.services` table via `@InjectDataSource()` and raw TypeORM `DataSource`. Same pattern for `INotificationServicePort`. Never import a repository token from another context — context isolation invariant.
+`ServiceCatalogAdapter` *(historical: no longer in the codebase)* queried the `booking.services` table via `@InjectDataSource()` and raw TypeORM `DataSource`. Same pattern for `INotificationServicePort`. Never import a repository token from another context — context isolation invariant.
 
 ### ServicePointsEarned emitted once per booking, inside txManager.run() (corrected — was originally built as one event per line, published after commit; both since changed)
 One `ServicePointsEarned` event per booking (not per line), carrying a `lines[]` summary array of all entries earned in that booking (see the event's current payload shape in `docs/DOMAIN_EVENTS.md`). `LoyaltyEntry`/`LoyaltyBalance` aren't among the auto-draining aggregates (`Booking`/`Staff`/`Tenant`/`LeadFormSubmission`), so the use case publishes directly via `OUTBOX_PUBLISHER` as the last call **inside** the same `txManager.run()` block as the entry/balance/inbox writes — not a post-commit flush. Publishing inside the transaction closed a real bug (TD24-S03, "the loyalty re-emit"): a crash between commit and a post-commit publish used to lose `ServicePointsEarned` forever, since `hasBeenProcessed` already short-circuits any `BookingCompleted` redelivery. `currentBalance` field added to the event so the notification use case doesn't need a second DB query for the balance.
@@ -128,8 +128,8 @@ If `expiredPoints > balance.currentPoints` (e.g. balance was reduced by redempti
 
 | Port | Adapter | What it reads |
 |---|---|---|
-| `ILoyaltyTenantSettingsPort` | `LoyaltyTenantSettingsAdapter` | `GetTenantByIdUseCase` → `settings.loyalty.expiryDays` |
-| `IServiceCatalogPort` | `ServiceCatalogAdapter` | `booking.services` via `DataSource` |
+| `ILoyaltyTenantSettingsPort` | `LoyaltyTenantSettingsAdapter` | `GetTenantByIdUseCase` → `settings.loyalty.expiryDays` *(historical: no longer in the codebase)* |
+| `IServiceCatalogPort` | `ServiceCatalogAdapter` | `booking.services` via `DataSource` *(historical: no longer in the codebase)* |
 | `INotificationCustomerPort` | `CustomerInfoAdapter` | `CustomerQueryService` (from CustomerModule) *(historical: no longer in the codebase)* |
 | `INotificationServicePort` | `ServiceInfoAdapter` | `booking.services` via `DataSource` *(historical: no longer in the codebase)* |
 

@@ -25,8 +25,8 @@
 | S03 | BFF http service | `apps/bff/src/shared/http/backend-http.service.ts` | `X-Internal-Key` in private `headers()` + explicit in all `*ForPublic` methods |
 | S04 | Booking aggregate | `src/contexts/booking/domain/booking.aggregate.ts` | All 4 `contact*` getters; no `guest*` remains |
 | S04 | Contact notification DTO | `src/contexts/notification/…/base-contact-notification.dto.ts` | Replaces `base-guest-notification.dto.ts` |
-| S04 | Booking migration | `src/contexts/booking/infrastructure/migrations/…-CreateBookingBookings.ts` | Edited in place: columns `contact_email/name/phone/address` |
-| S04 | Notification seed migration | `src/contexts/notification/infrastructure/migrations/…-CreateNotificationTemplates.ts` | `{{guestName}}` → `{{contactName}}` in all templates |
+| S04 | Booking migration | `src/contexts/booking/infrastructure/migrations/1748000000014-CreateBookingBookings.ts` | Edited in place: columns `contact_email/name/phone/address` |
+| S04 | Notification seed migration | `src/contexts/notification/infrastructure/migrations/1748100000010-CreateNotificationTemplates.ts` | `{{guestName}}` → `{{contactName}}` in all templates |
 
 ---
 

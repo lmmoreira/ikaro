@@ -64,7 +64,7 @@ BookingContext must read Customer data for authenticated booking (UC-002) withou
 - Port (interface): `booking/application/ports/customer-profile.port.ts` — `CUSTOMER_PROFILE_PORT` symbol *(historical: no longer in the codebase)*
 - Adapter (infra): `booking/infrastructure/adapters/customer-profile.adapter.ts` — injects `CustomerQueryService` (not `CUSTOMER_REPOSITORY`) *(historical: no longer in the codebase)*
 - `CustomerQueryService` is exported from `CustomerModule` *(historical: no longer in the codebase)*
-- `BookingModule` imports `CustomerModule` and provides `CustomerProfileAdapter`
+- `BookingModule` imports `CustomerModule` and provides `CustomerProfileAdapter` *(historical: no longer in the codebase)*
 
 **Rule:** adapters inject services, never repository tokens from other contexts.
 
@@ -216,4 +216,4 @@ data: {
 
 ## `getManagerEmails` port (notification)
 
-`IGetManagerEmailsPort` (`GET_MANAGER_EMAILS_PORT`) — cross-context port in notification application layer. Adapter queries `StaffRepository` for `role = 'MANAGER'` rows in the tenant. Used by `SendBookingRequestedNotificationUseCase` to send admin confirmation email.
+`IGetManagerEmailsPort` (`GET_MANAGER_EMAILS_PORT`) *(historical: no longer in the codebase)* — cross-context port in notification application layer. Adapter queries `StaffRepository` for `role = 'MANAGER'` rows in the tenant. Used by `SendBookingRequestedNotificationUseCase` to send admin confirmation email.

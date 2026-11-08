@@ -18,7 +18,7 @@
 | `Tenant` aggregate | `domain/tenant.aggregate.ts` |
 | `TenantSettings` VO (incl. `BusinessInfo`, `BusinessInfoAddress`, `SocialLinks`) | `domain/value-objects/tenant-settings.vo.ts` |
 | `HotsiteImagePathsService` | `domain/services/hotsite-image-paths.service.ts` |
-| `HotsiteImageUrlResolverService` | `domain/services/hotsite-image-url-resolver.service.ts` |
+| `HotsiteImageUrlResolver` | `domain/services/hotsite-image-url-resolver.service.ts` |
 | `PlatformDomainError` (incl. removed `HotsiteNotPublishedError`) | `domain/errors/platform-domain.error.ts` |
 | `GetHotsiteManifestUseCase` | `application/use-cases/get-hotsite-manifest.use-case.ts` |
 | `GetHotsiteContentUseCase` | `application/use-cases/get-hotsite-content.use-case.ts` |
@@ -39,8 +39,8 @@
 | `HotsiteAdminController` | `infrastructure/controllers/hotsite-admin.controller.ts` |
 | `InternalTenantController` / `InternalTenantReadController` | `infrastructure/controllers/internal-tenant{,-read}.controller.ts` |
 | `TenantSettingsController` | `infrastructure/controllers/tenant-settings.controller.ts` |
-| `TypeormHotsiteConfigRepository` | `infrastructure/repositories/typeorm-hotsite-config.repository.ts` |
-| `TypeormTenantRepository` | `infrastructure/repositories/typeorm-tenant.repository.ts` |
+| `TypeOrmHotsiteConfigRepository` | `infrastructure/repositories/typeorm-hotsite-config.repository.ts` |
+| `TypeOrmTenantRepository` | `infrastructure/repositories/typeorm-tenant.repository.ts` |
 
 ### BFF (`apps/bff/src/features/platform/`; originally `apps/bff/src/platform/`)
 
@@ -67,7 +67,7 @@
 | `MODULE_MAP`, `MODULE_DATA_SCHEMAS`, `isValidModuleData()` | `lib/hotsite/module-schemas.ts`, module-list renderer in `[slug]/page.tsx` |
 | `HOTSITE_REVALIDATE_SECONDS = 300` | `lib/hotsite/revalidate.ts` |
 | `buildHotsiteMetadata`, `buildLocalBusinessJsonLd`, `toJsonLdScript`, `SITE_URL` | `lib/hotsite/seo.ts` |
-| `format-money.ts`, `format-duration.ts`, `module-styles.ts` | `lib/hotsite/*.ts` |
+| `format-money.ts`, `format-duration.ts`, `module-styles.ts` | `apps/web/shared/lib/formatting/format-money.ts`, `.../format-duration.ts` and `apps/web/features/platform/hotsite/module-styles.ts` |
 | `date-range.ts`, `format-time.ts`, `personal-info.ts` (booking helpers) | `lib/booking/*.ts` |
 | `AddressLookup` port, `viaCepAddressLookup` adapter, `InMemoryAddressLookup` test double | `lib/address/*.ts` |
 | `fetchManifest`/`fetchServices`/`fetchAvailability*`/`createBooking`/`createAttachmentSignedUrl`/`fetchPublishedHotsiteSlugs` | `lib/api/{platform,services,schedule,bookings}.ts` |

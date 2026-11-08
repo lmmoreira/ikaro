@@ -86,7 +86,7 @@ Guards run before interceptors in NestJS. On the `POST /services`, `PATCH /servi
 
 ### TenantContextBuilder — builder class in src/test/factories/
 
-Not a plain factory function. Per CLAUDE.md §7 Testing: all test data uses builder classes with fluent `withXxx()` methods and `build()`. `TenantContextBuilder` is the canonical example for shared infrastructure stubs (as opposed to entity builders in `src/test/builders/<context>/`). The `build()` return value requires no type assertion — the plain object structurally satisfies `TenantContext`.
+Not a plain factory function. Per CLAUDE.md §7 Testing: all test data uses builder classes with fluent `withXxx()` methods and `build()`. `TenantBuilder` (`apps/backend/src/test/`) is the canonical example for shared infrastructure stubs (as opposed to entity builders in `src/test/builders/<context>/`). The `build()` return value requires no type assertion — the plain object structurally satisfies the tenant type it stands in for.
 
 ### Service.update() SonarCloud — inverted conditions
 
