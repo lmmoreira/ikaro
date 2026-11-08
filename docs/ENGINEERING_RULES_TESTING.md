@@ -304,6 +304,14 @@ A URL that is composed from configuration (a public host, a bucket) is correct o
 - A test that passes only because local and CI agree proves nothing about a deployed environment. Where a value can be wrong only after deploy, add an E2E assertion on the real result (an `<img>` with `naturalWidth > 0` and a `src` on the backend-resolved host) instead of on the input.
 - Trace how the consumer composes an app-consumed environment variable before you wire its value (`infra/terraform/README.md` § Gotchas).
 
+## A unit test pins a rule on fixtures — it never lints or scans the real tree, because `pnpm lint` and the detectors already do
+
+**A spec that reads every real file of a folder and runs the full production ESLint config over each one takes seconds locally and more than the default 10 s under CI coverage, so it passes on a developer's machine and times out in the pipeline.** The TD58-S14 guard spec had a "holds for the real files" case that did this: 12.6 s in CI against a 10 s limit, while `pnpm lint` (a CI job of its own) already enforces the same rule over the same tree on every PR.
+
+- Pin a lint rule with a spec that runs the real config over small fixtures at realistic paths (`new Linter(...).verify(source, productionConfig, 'features/booking/hooks/example.ts')`): the flagging shapes, the allowed shapes, the exempt paths, and a mutation check that breaks the rule and watches the matching cases fail.
+- Leave whole-tree enforcement to `pnpm lint` or an `architecture-check` detector; a unit test that re-scans the tree duplicates it at the cost of a slow, machine-dependent case.
+- A test that is slow only in CI is fixed by making it cheaper or removing the duplicate, not by raising its timeout.
+
 ## Billing provider tests *(planned)* — a forgiving fake, a real clock or a shared contract gap each hide a money bug
 
 > **PLANNED, NOT YET BUILT** (Billing milestone). The strategy and the environment matrix are in `docs/TESTING_STRATEGY.md` § Testing the billing provider — fake, sandbox, contract suite and clock; this section is only the writing-time traps.

@@ -64,7 +64,7 @@ Argument: `$ARGUMENTS` — the story ID to mark done: a milestone story (`M03-S0
 
    (M17-S14 precedent, 2026-07-17: S07 was marked ✅ Done while its own "project-level org-policy exceptions" AC line had never been executed — surfaced only during a later story's implementation, well after the fact.)
 
-5. Append ` ✅ Done` to the end of that heading line. Do not change any other content, except the single follow-up annotation Step 4 may have added (under the affected AC checkbox, or under the story heading for a review-finding gap).
+5. Append ` ✅ Done` to the end of that heading line. Do not change any other content, except the single follow-up annotation Step 4 may have added (under the affected AC checkbox, or under the story heading for a review-finding gap), and, for a TD story, the TD's own status line when it names this story as still remaining (for example a `Progress` line saying "Story N remains"): bring it in step with the heading, say so in the Step 4 summary block, and when this was the TD's last open story word it as complete. A story's PR never edits that line (a story is marked done only after its merge, and a PR reviewer who asks for it earlier is answered with this step); leaving it stale is a stale reference that Step 9 would otherwise have to catch.
 
 6. Re-check `git branch --show-current` is still `main` just before committing (Step 0 verified it at the start; this guards against a branch change during a long audit). If not, stop and ask, as in Step 0.
 
