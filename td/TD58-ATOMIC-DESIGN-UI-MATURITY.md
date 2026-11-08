@@ -692,7 +692,7 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 
 **`public/` is not regrouped:** its prefixes already group the 40 files, and the branded-page risk (a threshold-0 screenshot proof) outweighs the gain. At most `availability-alert/` could be extracted when that feature is next touched.
 
-**Follow-up candidate (not in S11):** the same inversion exists in `hooks/useBookingSubmission`, `useBookingSubmitRunner` and `useStaffBookingSubmission` (type `BookingSubmissionStatus` from `components/public/ConfirmationStep`), in `useBookingDetailTopbarSync` (`shells/dashboard/components/topbar-status-context`) and in `schedule/` importing from `bookings/`; draft it as a Story 14 with `/create-story`.
+**Follow-up (done in Story 14, not in S11):** the same inversion existed in `hooks/useBookingSubmission`, `useBookingSubmitRunner` and `useStaffBookingSubmission` (type `BookingSubmissionStatus` from `components/public/ConfirmationStep`) and in `useBookingDetailTopbarSync` (`shells/dashboard/components/topbar-status-context`); Story 14 fixed both and added the lint guard. The `schedule/` importing from `bookings/` is a sibling-area coupling inside `components/`, not a layering violation, and stays out of scope.
 
 New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface: none.
 

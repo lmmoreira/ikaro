@@ -1,5 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { Linter } from 'eslint';
 
 const webRoot = resolve(__dirname, '../../..');
@@ -74,35 +73,5 @@ describe('hooks/ and model/ do not import from components/ (TD58-S14)', () => {
       expect(layeringMessages(source, 'features/booking/components/example.tsx')).toHaveLength(0);
       expect(layeringMessages(source, 'app/dashboard/example/page.tsx')).toHaveLength(0);
     });
-  });
-
-  it('holds for the real files: no non-spec hooks/ or model/ file imports a components/ path', () => {
-    const features = join(webRoot, 'features');
-    const dirs = [
-      ...readdirSync(features).flatMap((name) => [
-        join(features, name, 'hooks'),
-        join(features, name, 'model'),
-      ]),
-      join(webRoot, 'shells', 'dashboard', 'model'),
-    ];
-    const offenders: string[] = [];
-
-    for (const dir of dirs) {
-      let names: string[];
-      try {
-        names = readdirSync(dir);
-      } catch {
-        continue;
-      }
-      for (const name of names.filter((n) => /\.tsx?$/.test(n) && !/\.spec\.tsx?$/.test(n))) {
-        const file = join(dir, name);
-        const relative = file.slice(webRoot.length + 1);
-        if (layeringMessages(readFileSync(file, 'utf8'), relative).length > 0) {
-          offenders.push(relative);
-        }
-      }
-    }
-
-    expect(offenders).toEqual([]);
   });
 });
