@@ -310,7 +310,7 @@ Extend `middleware.ts` (which already runs on every non-`api`/`_next`/favicon pa
 
 ---
 
-### AUD-008 — Isolate BFF HTTP-client auth state (`client-only` guard) ✅
+### AUD-008 — Isolate BFF HTTP-client auth state (`client-only` guard) ✅ Done
 **Risk:** 🟠 High (latent) · **Effort:** XS · **Phase:** Now (before dashboard) · **Depends on:** — · **Audit ref:** §8.4
 **Status:** ✅ Done
 
@@ -542,7 +542,7 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 **Fix:** Diff-and-upsert (insert new, update changed, delete removed) when justified. Low urgency at MVP volumes.
 **Acceptance:** ☑ Line saves no longer delete-all unless the line set actually changed.
 
-### AUD-028 — Polish bundle (VO error mapping, default params, minor notes) ✅
+### AUD-028 — Polish bundle (VO error mapping, default params, minor notes) ✅ Done
 **Risk:** 🔵 Low · **Effort:** S · **Phase:** Now · **Audit ref:** §6, §8.7, §10.7
 **Status:** ✅ Done — all 5 sub-items resolved
 
@@ -677,7 +677,7 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 
 ---
 
-### AUD-044 — Explicit `--max-old-space-size` for backend Jest runs (local/CI OOM under V8's default heap) ✅
+### AUD-044 — Explicit `--max-old-space-size` for backend Jest runs (local/CI OOM under V8's default heap) ✅ Done
 **Risk:** 🔵 Low · **Effort:** XS · **Phase:** Now · **Depends on:** — · **Audit ref:** not in the original audit — found 2026-09-16 while diagnosing a local backend integration-test OOM kill
 **Status:** ✅ Done
 
@@ -726,7 +726,7 @@ Verify by running the full `test:integration` suite in the worktree before openi
 
 ---
 
-### AUD-045 — Fix incomplete/asymmetric teardown causing flaky CI failures in a booking backfill migration integration test ✅
+### AUD-045 — Fix incomplete/asymmetric teardown causing flaky CI failures in a booking backfill migration integration test ✅ Done
 **Risk:** 🟡 Medium · **Effort:** XS · **Phase:** Now · **Depends on:** — · **Audit ref:** not in the original audit — found 2026-09-16 while triaging PR #484's CI (this project has zero tolerance for flaky tests)
 **Status:** ✅ Done
 
