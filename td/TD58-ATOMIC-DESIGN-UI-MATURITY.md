@@ -800,3 +800,12 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 - [ ] `pnpm lint` reports zero violations across `apps/web` (the rule lands at error)
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean, `pnpm dep-cruise` clean, `pnpm architecture-check` clean
+
+*As shipped (implementation, 2026-11-08), where it differs from the locked spec:*
+1. **The `WeekNav` prev/next buttons are not bit-identical.** They moved to `Button` outline `icon-sm`, which brings a soft shadow, a 6px radius, the default text colour and 50% (not 30%) opacity when disabled. The locked text said they would stay identical; under the normalisation rule that shift is accepted.
+2. **A seventh `Button` variant was needed: `ghost-muted`** (neutral icon actions: the intake-question move and remove buttons). The plan listed `link-destructive`, `link-muted`, `inline` and `icon-sm` only.
+3. **The nine captions became `<div><Label htmlFor={id}>…</Label><Textarea id={id} /></div>` with `useId()`**, not a `Label` swapped in for the span: `ui/label` renders a `<label>`, which cannot nest in the wrapping `<label>`. Each field is now associated by `htmlFor`/`id`.
+4. **Anchors styled as buttons joined the migration** (found by the user at the design checkpoint): the recurring form's "Cancelar", the recurring result's primary and list links, four empty-state calls to action, the home renewal card's two links and the two links in the leads list now use `Button asChild`. They are `<Link>`, not `<button>`, so the guard does not cover them: a class-string selector for "a link that looks like a button" cannot tell a button from a card and was left out.
+5. **`choice-card` stays on the palette for the two shades no token matches** (`border-blue-500`, `border-slate-200`), as `filter-chip` does; the six sites render the booking-model cards bit-identically, and the resource-type and role cards take the normalised look.
+6. **Screens not captured at the checkpoint** (no seed data): the member, resource and exception text links, the photo-upload remove links, the cancel, no-show, correct-no-show, reassign and notes captions, the gallery, testimonial and navigation remove links, the home renewal card and the empty states of the account and leads lists. They use the same primitives and variants as the captured screens.
+
