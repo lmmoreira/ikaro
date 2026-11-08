@@ -83,7 +83,7 @@
 
 | Double | Path |
 |---|---|
-| `InMemoryResourceRepository`, `InMemoryTenantLockPort` (no-op `lockTenantStaff` added S06) | `apps/backend/src/test/repositories/booking/`, `apps/backend/src/test/infrastructure/in-memory-tenant-lock.ts` |
+| `InMemoryResourceRepository`, `InMemoryTenantLock` (no-op `lockTenantStaff` added S06) | `apps/backend/src/test/repositories/booking/`, `apps/backend/src/test/infrastructure/in-memory-tenant-lock.ts` |
 | `ResourceBuilder` / `ResourceEntityBuilder` | `apps/backend/src/test/builders/booking/` |
 | `TenantEntityBuilder.withName()` (S02, needed to assert locale-aware generated names) | `apps/backend/src/test/builders/platform/tenant-entity.builder.ts` |
 | E2E specs | `apps/web/e2e/resources-manage.spec.ts` (S04), `apps/web/e2e/schedule.spec.ts` (5 M21-S05-tagged scenarios) |

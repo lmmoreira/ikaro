@@ -274,9 +274,9 @@ The lists above describe the original MVP. These have since shipped; the canonic
 
 ---
 
-## Out of Scope (MVP)
+## Out of Scope (original MVP — see `plan/` for what has since shipped or is planned)
 
-- ❌ Payment processing (business handles cash/card at location)
+- ❌ Payment processing between a tenant and its customers (the business handles cash/card at the location). Ikaro charging its own tenants is a separate capability: UC-110..145, planned in M25/M26.
 - ❌ SMS notifications (email only for now)
 - ❌ Multi-location support (single location MVP)
 - ❌ Loyalty promotions (tracking only, business logic later)
@@ -303,7 +303,7 @@ The lists above describe the original MVP. These have since shipped; the canonic
 - **Architecture:** Hexagonal (ports & adapters) with DDD principles.
 - **Deployment:** **Docker-centric**. The entire platform is containerized and runs on GCP Cloud Run (the committed, GCP-only target; see `docs/TECH_STACK_DECISIONS.md`).
 - **No Vendor Lock-in:** 
-  - Strict use of standard PostgreSQL (no proprietary extensions).
+  - Standard PostgreSQL only — no proprietary extensions; only the bundled contrib extension `btree_gist` (used for the exclusion constraints) is enabled.
   - Observability using open standards: **OpenTelemetry** exported to Google Cloud Trace, Logging and Managed Service for Prometheus.
   - Infrastructure as Code (Terraform) focused on portable resources.
 - **Stack:** NestJS backend and BFF gateway, Next.js 16 / React 19 frontend.

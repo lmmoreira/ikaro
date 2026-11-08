@@ -27,7 +27,7 @@
 | `GetLeadFormSubmissionUseCase` (detail, incl. `customerId`) | `.../get-lead-form-submission.use-case.ts` |
 | `GetLeadFormFilterOptionsUseCase` (distinct question labels) | `.../get-lead-form-filter-options.use-case.ts` |
 | `LeadFormRetentionPurgeJob` (UC-043) | `apps/backend/src/contexts/platform/application/jobs/lead-form-retention-purge.job.ts` |
-| `LogLeadFormSubmissionReceivedUseCase` (placeholder `audit-log` consumer, S16 — see below and Structural Decisions) | `.../log-lead-form-submission-received.use-case.ts` |
+| `LogLeadFormSubmissionReceivedUseCase` *(historical: no longer in the codebase — the event is now consumed by `PlatformAuditLogHandler`, `apps/backend/src/contexts/platform/infrastructure/events/platform-audit-log.handler.ts`)* (placeholder `audit-log` consumer, S16 — see below and Structural Decisions) | `.../log-lead-form-submission-received.use-case.ts` |
 
 ### Backend — infrastructure
 
@@ -230,7 +230,7 @@ The original S02 draft copied Chatbot's Ikaro-only-override pattern for `maxSubm
 | Trigger | Topic | Schedule | Handler |
 |---|---|---|---|
 | Retention purge (UC-043) | `ikaro-cron-lead-form-retention` | daily `0 3 * * *` | `LeadFormRetentionPurgeTriggerHandler` → `LeadFormRetentionPurgeJob` |
-| Domain event (S16) | `ikaro-LeadFormSubmissionReceived` (subscription `-audit-log`) | — (event-driven, not cron) | `LeadFormSubmissionReceivedHandler` → `LogLeadFormSubmissionReceivedUseCase` |
+| Domain event (S16) | `ikaro-LeadFormSubmissionReceived` (subscription `-audit-log`) | — (event-driven, not cron) | `LeadFormSubmissionReceivedHandler` → `LogLeadFormSubmissionReceivedUseCase` *(historical: now `PlatformAuditLogHandler`, `platform-audit-log.handler.ts`)* |
 
 Local/manual trigger: `POST /cron/lead-form-retention` (`InternalApiGuard`). Job itself needs no S12 changes — `lead_form_answers`'/`lead_form_submission_question_refs`' `ON DELETE CASCADE` FKs mean deleting the parent `lead_form_submissions` row is enough.
 

@@ -10,7 +10,7 @@
 ```mermaid
 flowchart TD
     Start(["Hotsite /{slug} (autenticado)<br/>LEAD_FORM teaser section"]) --> CTA(("Clica 'Preencher formulário'"))
-    CTA --> Fetch{"GET /public/platform/lead-form/:slug<br/>+ GET /customers/me (server-side)"}
+    CTA --> Fetch{"GET /public/platform/lead-form/:slug<br/>+ client-side customer-profile fetch (getHotsiteCustomerProfile)"}
     Fetch --> Form["formulário pré-preenchido<br/>(01-form-prefilled) |UC-040|"]
 
     LoginReturn(["Retorno de guest/prototypes/lead-form/01g-login-required.html<br/>após login"]) --> Fetch

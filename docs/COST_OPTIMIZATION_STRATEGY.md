@@ -64,11 +64,11 @@ While a $5 VPS can run Postgres, a **Cloud SQL** instance (starting at ~$15) pro
 
 ## 5. Cost Scaling Roadmap
 
-1. **Seed (0-100 users):** Stay on free tiers and smallest managed instances (~$30/mo).
+1. **Seed (0-100 users):** Stay on free tiers and smallest managed instances (~$43/mo at launch scale — the canonical figure is in `docs/TECH_STACK_DECISIONS.md` § COST SUMMARY).
 2. **Growth (100-1000 users):** Scale compute horizontally. Upgrade DB instance size (~$100/mo).
 3. **Scale (1000+ users):** Consider committed-use (reserved) discounts to optimize high-volume costs. Observability is on managed GCP services; no self-hosted Grafana or Prometheus exists (see the Observability row above).
 
 ---
 
 **Status:** Strategy reference — the committed infrastructure (GCP, M17) is in `docs/TECH_STACK_DECISIONS.md` and `docs/DEPLOYMENT_STRATEGY.md`  
-**Validated:** Professional engineering standards at a startup-friendly price point.
+**Goal:** Professional engineering standards at a startup-friendly price point.

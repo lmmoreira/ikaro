@@ -27,6 +27,7 @@ journeys/
 │   ├── customer-dashboard.html      ← "Início" tab of /{slug}/my-account
 │   ├── dashboard-shell.html         ← staff/manager dashboard master template (copy-me, not a page)
 │   ├── feedback-pane.css            ← TD57 inline feedback: message card under the action buttons (.fb*, .fb-pane*, .fb-ba*)
+│   ├── customer-shell.css           ← customer-account shell skin (SaaS tokens, never --ba-*); link instead of tokens.css from customer-account prototypes
 │   ├── reschedule-picker.css        ← date strip + slot grid + alerts as the real picker renders them
 │   └── entry.html                   ← prototype-only actor picker
 ├── guest/
@@ -85,7 +86,7 @@ Two UCs don't belong in any folder here:
 ### File naming
 
 - `use-cases.md` — per-folder inventory of every UC relevant to that actor
-- `<journey-slug>.md` — one file per journey, e.g. `staff/booking-management.md`
+- `<journey-slug>.md` — one file per journey, e.g. `staff/agenda.md`
 
 A "journey" = a cluster of related UCs the actor would naturally work through in one sitting — group by **goal**, not by UC number. One UC can appear in multiple journeys/folders if multiple actors are involved.
 
@@ -196,6 +197,7 @@ Currently shared:
 | `shared/staff-login.html` | Google OAuth login screen (staff/manager) — referenced by all staff-side journeys; links out to the canonical error states in `staff/prototypes/login/` rather than duplicating their copy |
 | `shared/customer-dashboard.html` | "Início" tab of `/{slug}/my-account` (the prototype folder keeps the pt-BR name "minha-conta") — overview stats + upcoming/history preview; cross-links to the Agendamentos (`customer/prototypes/minha-conta/01-minha-conta.html`) and Fidelidade tabs |
 | `shared/dashboard-shell.html` | Generic staff/manager dashboard master template (sidebar + bottom-nav + bottom-sheet). NOT a finished page — copy the shell when building a new staff page; `staff/prototypes/agenda/00-agenda.html` is the validated reference implementation, not this file |
+| `shared/customer-shell.css` | The look of `CustomerShell` / `CustomerTopbar` / `CustomerBottomNav` and the cards, buttons and badges of the logged-in customer account (SaaS skin — never reads `--ba-*`); link it instead of `tokens.css` from a customer-account prototype |
 | `shared/reschedule-picker.css` | The date strip + slot grid + loading/empty/error alerts exactly as `AvailabilityCarousel`/`SlotPicker`/`PickerLoadError` render with `variant="dashboard"` — link it from any dashboard/account-shell prototype that picks a date and time (staff reschedule, customer reschedule) |
 | `shared/feedback-pane.css` | The TD57 inline-feedback pattern as the real components render it: `.fb*` (`FeedbackMessage`, SaaS skin), `.fb-pane*` / `.fb-mobile-bar` (`ActionPane`), `.fb-ba*` (branded hotsite counterpart) — link it after `tokens.css` from any prototype that shows a form error or success |
 | `shared/entry.html` | Prototype-only actor picker (Sou cliente / Sou funcionário) — lets a reviewer start from one URL; has no production equivalent |
@@ -742,7 +744,7 @@ Sidebar, bottom-nav, and bottom-sheet items that point to another journey (e.g. 
 | MANAGER/STAFF — View Leads Submissions | `manager/lead-form-submissions.md` | `manager/prototypes/leads/` | Built (M20-S10, S12, S13) |
 | MANAGER — Recursos (Resource Management) | `manager/resources.md` | `manager/prototypes/resources/` | Shipped (M21-S01, M21-S04) |
 | MANAGER — Scheduling Exceptions (Future Commitment Worklist) | `manager/scheduling-exceptions.md` | `manager/prototypes/scheduling-exceptions/` | Built (M23 Cluster 3); TD57-S12 built: `01d`, `01j`, `01k` redrawn for the feedback pattern |
-| MANAGER — Feedback e painel de ações (inline feedback pattern, cross-actor) | `manager/feedback-pane.md` | `manager/prototypes/feedback-pane/` | In progress (TD57-S01–S04 and S06–S16 shipped; S05 pending; S15's loyalty states are in `staff/prototypes/fidelidade/` `00c`, `01d`, `01e`; S16's public-hotsite states are drawn in `guest/prototypes/{book-a-service,submit-info,lead-form,ask-chatbot}` and `customer/prototypes/{book-a-service,login}`, § TD57-S16 in each `dev-notes.md`) |
+| MANAGER — Feedback e painel de ações (inline feedback pattern, cross-actor) | `manager/feedback-pane.md` | `manager/prototypes/feedback-pane/` | Complete (TD57 stories 0–17 shipped; S15's loyalty states are in `staff/prototypes/fidelidade/` `00c`, `01d`, `01e`; S16's public-hotsite states are drawn in `guest/prototypes/{book-a-service,submit-info,lead-form,ask-chatbot}` and `customer/prototypes/{book-a-service,login}`, § TD57-S16 in each `dev-notes.md`) |
 | MANAGER — Onboarding Preset Wizard | `manager/onboarding.md` | `manager/prototypes/onboarding/` | Draft (M24 Cluster 4) |
 | MANAGER — Assinatura (Billing, Plan & Payment) | `manager/billing.md` | `manager/prototypes/billing/` | Draft (planned Billing milestone) |
 | CUSTOMER — Reservar Aula (Turmas) | `customer/reservar-aula.md` | `customer/prototypes/reservar-aula/` | Draft (M24 Cluster 4) |

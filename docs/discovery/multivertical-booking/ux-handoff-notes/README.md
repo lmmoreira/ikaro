@@ -9,6 +9,8 @@
 
 ## Arquivos nesta pasta
 
+> **Atenção (verificado em 2026-11-08):** esta pasta contém hoje apenas `README.md` e `RECORRENCIA_HANDOFF.md`. A árvore abaixo é o **histórico** do layout original de `ux-handoff/`: `ONBOARDING_PRESETS.md` agora é `../multivertical-booking_ONBOARDING_PRESETS.md`, e os protótipos HTML vivem em `../prototype/` (alguns com nomes diferentes, p. ex. `customer-07-class-access.html`; veja `../prototype/ROUTE_MAP.md` e os `dev-notes.md`).
+
 ```
 ux-handoff/
 ├── README.md                        ← este arquivo

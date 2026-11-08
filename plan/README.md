@@ -1,6 +1,6 @@
 # Ikaro — Project Plan
 
-- **Milestones:** M00 – M13, M17 – M24 and M115. M14 – M16 (observability, GCP infrastructure, deploy pipelines) were superseded by M17 and removed; they stay recoverable from git history.
+- **Milestones:** M00 – M13, M17 – M26 and M115. M14 – M16 (observability, GCP infrastructure, deploy pipelines) were superseded by M17 and removed; they stay recoverable from git history.
 - **Stories:** counted in each milestone file
 - **Two phases:** Local Development (no cloud cost) → Cloud Deployment
 - **Development model:** All stories are designed to be executed by AI agents under human review.
@@ -9,7 +9,7 @@
 
 ## Phase Overview
 
-### Phase 1 — Local Development (M00 – M13, M18 – M24, M115)
+### Phase 1 — Local Development (M00 – M13, M18 – M26, M115)
 All work runs on the developer's machine via Docker Compose. Zero GCP cost.  
 The local environment replicates production exactly:  
 PostgreSQL 17 · GCP Pub/Sub Emulator · GCS Emulator · MailHog (email preview).
@@ -46,6 +46,8 @@ GCP infrastructure is provisioned, CI/CD deploy pipelines are activated, and the
 | [M22](M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md) | Multi-Vertical Scheduling: Service Extensions & Availability Engine | Local | 6 | M21 |
 | [M23](M23-MULTIVERTICAL-APPOINTMENT-BOOKING.md) | Multi-Vertical Scheduling: Appointment Booking & Extensions | Local | 51 | M21, M22 |
 | [M24](M24-MULTIVERTICAL-CLASSES-SESSIONS.md) | Multi-Vertical Scheduling: Classes & Sessions | Local | 22 | M21, M22, M23 |
+| [M25](M25-TENANT-BILLING-FOUNDATION.md) | Tenant Billing: Foundation & Dark Enforcement | Local | 35 | — (does not depend on M24) |
+| [M26](M26-TENANT-BILLING-COLLECTION-LAUNCH.md) | Tenant Billing: BR Collection, Self-Signup & Launch | Local | 39 | M25 |
 | [M115](M115-PRODUCTION-READINESS.md) | Production Readiness | Local | 4 | M10, M03, M00 |
 
 ---
@@ -69,6 +71,8 @@ M00 (Foundation)
  └─► M17 (Cloud Deploy)          ← after M13; includes infra, CI/CD and observability
  └─► M21 (Multi-Vertical Foundation) ◄─ independent of the sequence above
            └─► M22 ─► M23 ─► M24
+ └─► M25 (Tenant Billing: Foundation) ◄─ does not depend on M24
+           └─► M26 (BR Collection, Self-Signup & Launch)
 ```
 
 ---

@@ -1291,7 +1291,7 @@ Domain events represent significant business occurrences that other contexts may
 
 ### **Booking Context Events**
 
-Every event below also has an `audit-log` consumer (one thin `<Context>AuditLogHandler` per context, M23-S36) — omitted from the Consumers column for brevity. Payloads and the authoritative consumer list per event: `docs/DOMAIN_EVENTS.md` and `infra/terraform/pubsub-catalog.json`.
+Every event below also has an `audit-log` consumer (one thin `<Context>AuditLogHandler` per context, M23-S36) — omitted from the Consumers column for brevity. Payloads and the authoritative consumer list per event: `docs/DOMAIN_EVENTS.md` and `infra/terraform/pubsub-catalog.json`. The booking cron *commands* — `BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder` and `RecurringScheduleRenewalDue` (`booking/domain/commands/*.command.ts`) — are published through the outbox but are not audited domain events, so they are not rows below; see `docs/DOMAIN_EVENTS.md`.
 
 | Event | Trigger | Consumers |
 |-------|---------|-----------|

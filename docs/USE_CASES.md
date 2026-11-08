@@ -1981,7 +1981,7 @@ Returns:
 - **Events Triggered:** None (read operation).
 - **Out of scope (MVP):** No tier labels (BRONZE/SILVER/GOLD), no per-service breakdown (deferred to M13 dashboard). Gifts and rewards are offered by the admin outside the system.
 
-> **Undocumented endpoint found via `/docs-audit` (2026-08-04):** `POST /v1/loyalty/redeem` (`apps/bff/src/features/loyalty/loyalty.controller.ts`, `@Roles('MANAGER', 'STAFF')`, body `{ customerId, pointsToRedeem, notes?, bookingId? }`) is fully implemented but has no corresponding UC — this contradicted the "no manual admin point adjustments" out-of-scope line above, which has been removed since the feature evidently exists. **Do not treat this note as the UC** — write a real `UC-032` (or next available number) covering this flow's actual preconditions/main flow/alt flows before citing it in a story.
+> **Undocumented endpoint found via `/docs-audit` (2026-08-04):** `POST /v1/loyalty/redeem` (`apps/bff/src/features/loyalty/loyalty.controller.ts`, `@Roles('MANAGER', 'STAFF')`, body `{ customerId, pointsToRedeem, notes?, bookingId? }`) is fully implemented but has no corresponding UC — this contradicted the "no manual admin point adjustments" out-of-scope line above, which has been removed since the feature evidently exists. **Do not treat this note as the UC** — write a real UC under the next free number (UC-146 or later; UC-032 is reserved for `plan/M17-CLOUD-DEPLOY.md` S38's custom-domain UC) covering this flow's actual preconditions/main flow/alt flows before citing it in a story.
 
 ---
 
@@ -3398,9 +3398,9 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 | UC-016 | View loyalty metrics | Customer/Admin | Read-only: `current_points` (O(1) balance), next expiry date/points, paginated earning entries + redemptions |
 | UC-016b | Weekly loyalty expiry warning | System (cron) | Monday 06:00 UTC — emit `PointsExpiringSoon` per customer with expiring points; Notification context sends email |
 | UC-017 | View analytics | Admin | Future feature |
-| UC-018 | Admin receives daily schedule | System | Scheduled reminder email at 6 AM |
-| UC-019 | Customer reminder (day before) | System | Cron emits `BookingReminderDue`; Notification sends email at 6 AM |
-| UC-020 | Customer reminder (day of) | System | Cron emits `BookingReminderDueToday`; Notification sends email at 6 AM |
+| UC-018 | Admin receives daily schedule | System & Admin | Scheduled reminder email at 6 AM |
+| UC-019 | Customer reminder (day before) | System & Customer | Cron emits `BookingReminderDue`; Notification sends email at 6 AM |
+| UC-020 | Customer reminder (day of) | System & Customer | Cron emits `BookingReminderDueToday`; Notification sends email at 6 AM |
 | UC-021 | Customer login | Customer | OAuth, tenant-scoped (login-time multi-tenant selection descoped — see UC-021 note) |
 | UC-022 | Staff login (single or multi-tenant) | Staff | OAuth, per-tenant from the OAuth state (`tenantSlug`); `/select-staff-tenant` is the post-login tenant switch |
 | UC-023 | Customer switches tenant | Customer | Switch session to different tenant |
@@ -3450,7 +3450,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 | UC-066 | Customer views a specific staff member's own calendar | Customer \| Guest | Read operation |
 | UC-067 | Customer books a variable-duration resource reservation | Customer \| Guest | Booking with customer-selected duration + per-increment quote |
 | UC-068 | Customer submits versioned booking intake and attendees | Customer \| Guest | `bookings.intakeSchemaVersion`/`intakeAnswers` snapshotted |
-| UC-069 | Customer reschedules an appointment or reservation | Customer | `BookingRescheduled`; `booking_quote_revisions` row on a price change |
+| UC-069 | Customer reschedules an appointment or reservation | Customer, or STAFF \| MANAGER on the customer's behalf | `BookingRescheduled`; `booking_quote_revisions` row on a price change |
 | UC-070 | Customer (or staff) manages a recurring private reservation schedule | Customer \| STAFF \| MANAGER | `RecurringBookingSchedule` created `ACTIVE` or `PENDING_APPROVAL` |
 | UC-071 | Staff approves or rejects a recurring schedule request | STAFF \| MANAGER | `RecurringBookingSchedule.status` → `ACTIVE`\|`CANCELLED` |
 | UC-072 | Authenticated customer creates an availability alert | Customer | `AvailabilityAlert` created |

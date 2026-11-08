@@ -2,7 +2,7 @@
 
 > **When to load:** questioning or revisiting a technology choice (TypeORM, NestJS, Next.js, Pub/Sub, Cloud Run, PostgreSQL, Secret Manager, Terraform, the email provider, the payment providers) and why it was made, with its scaling path; current infrastructure facts are in `docs/DEPLOYMENT_STRATEGY.md` and `docs/INFRASTRUCTURE_TOOLING_MAP.md`.
 > **Tags:** agent-process
-**Date:** 2026-05-12  
+**Date:** 2026-05-12 (originally written; later edits are dated where they occur)  
 **Status:** Decision record. The stack below is implemented, except §10 Payment Providers, which is planned (Billing milestone); the checklist and next-steps sections near the end are the original pre-development plan, kept as history.  
 **Audience:** Development team, stakeholders, AI agents  
 **Related Documents:** See cross-references throughout
@@ -13,11 +13,11 @@
 
 ## Executive Summary
 
-This document defines the technology stack for Ikaro, a multi-tenant SaaS platform for car wash booking and loyalty management. The stack is designed to be **production-grade from day 1**, **cost-efficient for MVP**, and **scalable without refactoring**.
+This document defines the technology stack for Ikaro, a multi-tenant SaaS platform for booking and loyalty management for local service businesses (car wash is the flagship vertical). The stack is designed to be **production-grade from day 1**, **cost-efficient for MVP**, and **scalable without refactoring**.
 
 **Philosophy:**
 - ✅ Robust: Every component proven at enterprise scale
-- ✅ Lean: Start at $50/month, not $300+
+- ✅ Lean: Start at ~$43/month (§ COST SUMMARY is the canonical figure), not $300+
 - ✅ Future-proof: Scale to 1M users without code changes
 - ✅ Portable where it is cheap (containers, standard Postgres, OpenTelemetry); the committed target is GCP only
 
@@ -469,7 +469,7 @@ Per `docs/OBSERVABILITY_STRATEGY.md`, Next.js optimizations help:
 | **Scaling** | Manual (complex) | Manual (complex) | Automatic |
 | **Reliability** | Needs HA setup | Needs cluster | 99.95% SLA |
 | **Dev Parity** | Docker container | Docker container | Free emulator |
-| **Future Path** | Painful migration | Good foundation | Migrate to Kafka (easy) |
+| **Future Path** | Painful migration | Good foundation | Kafka possible behind `IEventBus`, not planned |
 
 ### Why NOT RabbitMQ
 
@@ -1307,7 +1307,7 @@ Year 2 (with actual traffic): $1-5k/month
 ```
 Architecture: TypeORM + NestJS → Cloud Run + Cloud SQL
 Traffic: 10-1000 users
-Cost: $50/month
+Cost: ~$43/month (§ COST SUMMARY)
 Code Changes: Zero
 ```
 
@@ -1337,7 +1337,7 @@ Cost: $800/month → $2k/month
 Code Changes: Zero
 ```
 
-### Stage 4: Enterprise (Year 2+)
+### Stage 4: Enterprise (Year 2+) — *historical illustration, not planned (GCP only; see the note under the title)*
 
 ```
 Architecture: Same code, Kubernetes if needed
@@ -1451,7 +1451,7 @@ Before development begins, confirm:
 ### Post-MVP (Month 4+)
 1. [ ] Gather real traffic data
 2. [ ] Re-evaluate costs vs. actual usage
-3. [ ] Plan for Phase 2 (read replicas, Kafka, etc.)
+3. [ ] Plan for Phase 2 (read replicas, etc.; Kafka is a historical option, not planned)
 4. [ ] Document learnings and optimizations
 
 ---

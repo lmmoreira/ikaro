@@ -3,7 +3,7 @@
 **Actor(s):** MANAGER (dashboard), CUSTOMER (conta do cliente), GUEST/CUSTOMER (hotsite público)
 **Goal:** When a save, action or load fails or succeeds, the user sees the result next to the action they just took, with the offending field marked — on every surface of `apps/web`.
 **UCs covered:** none — a cross-cutting UI pattern. Source of truth: `archive/td/TD57-INLINE-FEEDBACK-AND-ACTION-PANE-PATTERN.md`. Lives under `manager/` because the dashboard is its main surface. The customer-account and public-hotsite screens live in their own actor folders, as the folder convention requires: `customer/prototypes/minha-conta/03c`–`03d` and `guest/prototypes/lead-form/01j`–`01k`; the hub `index.html` here links to them.
-**Status:** In progress (TD57) — the shared components shipped with TD57-S01 and the service edit screen uses them since TD57-S02; the screens below marked ⚠ still use their own boxes until their stories land (done: TD57-S01–S04 and S06–S16; pending: S05). The service-edit error that triggered it is real: a 422 rendered below four cards, out of view.
+**Status:** Complete (TD57, stories 0–17 done; S05, the lint guard, merged in #718 and S17 plus the TD close in #719). The shared components shipped with TD57-S01 and every screen listed below uses them. The service-edit error that triggered it is real: a 422 rendered below four cards, out of view.
 
 ## Flow
 

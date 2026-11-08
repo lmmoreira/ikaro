@@ -23,6 +23,7 @@ A single-page public form at `/[slug]/lead-form`, reached from the `LEAD_FORM` h
 | `packages/types/src/enums.ts` | ✅ Shipped M20-S01/S07 | Defines the `LEAD_FORM` member of the hotsite module-type union |
 | `packages/types/src/hotsite.ts` | ✅ Shipped M20-S01/S07 | Defines `LeadFormModuleData` |
 | `apps/web/app/api/platform/lead-form/submissions/route.ts` | ✅ Shipped | Next Route Handler the client POSTs to (`submitLeadFormClient`, a deliberate raw `fetch` that carries the customer bearer token); forwards to the BFF submissions endpoint |
+| `apps/web/features/platform/hooks/useLeadFormState.ts` | ✅ Shipped | Owns the submit state machine (`SubmitPhase`), validation and the Turnstile token; `LeadFormWidget` consumes it |
 | `apps/web/features/platform/components/public/LeadFormFields.tsx`, `LeadFormQuestionField.tsx`, `LeadFormPhoneField.tsx`, `LeadFormSkeleton.tsx`, `LeadFormSuccess.tsx`, `LeadFormLoginRequiredGate.tsx` | ✅ Shipped | Form fields, per-question field, phone field, loading skeleton, success card and the `CUSTOMER_ONLY` login gate used by `LeadFormWidget` |
 
 ---
@@ -84,7 +85,7 @@ Full contract: `docs/API_CONTRACTS.md` § Lead Form Widget (Public).
 
 ## States
 
-`idle → submitting → validation-error / captcha-error / rate-limited / submission-error / success` (the real `SubmitPhase` union in `LeadFormWidget.tsx`). The question-catalog fetch (prototype `01b-loading.html`) and the filled form are not `SubmitPhase` members — the loading skeleton shows while the config is unset (`undefined`/`null`), the form once it resolves.
+`idle → submitting → validation-error / captcha-error / rate-limited / submission-error / success` (the real `SubmitPhase` union, exported from `apps/web/features/platform/hooks/useLeadFormState.ts`). The question-catalog fetch (prototype `01b-loading.html`) and the filled form are not `SubmitPhase` members — the loading skeleton shows while the config is unset (`undefined`/`null`), the form once it resolves.
 
 ## Mobile notes
 

@@ -29,6 +29,8 @@
 ├── infra/
 │   └── terraform/        # GCP resources (Cloud Run, Cloud SQL, Pub/Sub, Secret Manager) — modules/, envs/{staging,prod}/, foundation/; see infra/terraform/README.md
 ├── .github/workflows/    # CI/CD pipeline YAML files
+├── scripts/              # repo tooling: pre-pr.sh, ci-local.sh, infra-e2e.sh, provision-tenant.sh, relay-vm-up/down.sh, dep-cruise, attw and knip helpers
+├── knip.config.ts · sonar-project.properties  # unused-code and SonarCloud configuration
 ├── docker/               # docker-compose.yml, init-db.sh (local dev); each app owns its Dockerfile
 ├── .copilot/context.md   # canonical agent context (symlinked as AGENTS.md, CLAUDE.md, gemini.md)
 ├── docs/                 # source of truth documentation (see CLAUDE.md §10)
@@ -242,7 +244,7 @@ apps/backend/src/test/
 └── repositories/     # test-only repository helpers
 ```
 
-Also at the root of `apps/backend/src/test/`: `test-datasource.ts`, `integration-global-setup.ts` and `integration-global-teardown.ts`.
+Also at the root of `apps/backend/src/test/`: `test-datasource.ts`, `integration-global-setup.ts`, `integration-global-teardown.ts` and `integration-run-guard.ts`.
 
 `apps/bff/src/test/` holds the BFF equivalents: `backend-http.mock.ts`, `component-test.helpers.ts`, `execution-context.factory.ts` and `builders/` (`current-user-payload`, `hotsite-service`).
 

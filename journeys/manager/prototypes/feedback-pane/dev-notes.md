@@ -29,7 +29,7 @@ Shared CSS: `journeys/shared/feedback-pane.css` (`.fb*` SaaS skin, `.fb-pane*`, 
 | `apps/web/features/booking/components/dashboard/services/ServiceCreatePage.tsx`, `ServiceFormFields.tsx`, `ServiceDeactivatePage.tsx`, `ServiceListPage.tsx` | ✅ DONE | TD57-S13 — drawn in `staff/prototypes/servicos/` (`02b`, `02c`, `03b`, `03j`, `01`, `01b`); the pages use `FormActionPane`, `ActionPane`, `FieldFeedback` and a page-level `FeedbackMessage` |
 | `apps/web/features/customer/components/my-account/CancelConfirmPage.tsx` | ✅ DONE | TD57-S11 — the error renders under the buttons, in the pane |
 
-## Screen 01 / 01b / 01c / 01d — Service edit, Políticas (`ServiceEditPanels` + `ActionPane`)
+## Screen 01 / 01b / 01c / 01d — Service edit, Políticas (`ServiceEditStatusSection` / `ServiceEditActionPanels` in `ServiceEditPanels.tsx` + `ActionPane`)
 
 **BFF call:** `PATCH /v1/services/:id/booking-policy` → `422` with a per-reason code (TD57-S02 replaced the catch-all `BOOKING_SERVICE_BOOKING_POLICY_INVALID`), e.g. `BOOKING_SERVICE_POLICY_DURATION_DETAILS_REQUIRED` with `field: "durationMinMinutes"`; the window codes carry the business limit in `params`. The web also blocks the three checkable rules before sending (empty custom-duration fields, max below min, per-increment pricing missing details).
 

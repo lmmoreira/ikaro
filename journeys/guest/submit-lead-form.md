@@ -63,6 +63,8 @@ Folder: `guest/prototypes/lead-form/`
 | `01i-submission-error.html` | Erro genérico ao enviar (rede/5xx) | — | ✅ Criado |
 | `01f-success.html` | Envio recebido | — | ✅ Criado |
 | `01g-login-required.html` | Login exigido (`CUSTOMER_ONLY`) | UC-040 A1 | ✅ Criado |
+| `01j-erro-feedback.html` | Erro de formulário e de campo com a mensagem de marca (TD57) | UC-039 A3/A4 | ✅ Criado |
+| `01k-sucesso-feedback.html` | Sucesso com a mensagem de marca (TD57) | — | ✅ Criado |
 | `dev-notes.md` | Implementation handoff | — | ✅ Criado |
 
 Entry point (teaser on the hotsite) is `shared/hotsite.html`'s `.lead-form-teaser` section — a normal full-width section mirroring `BookingCtaModule.tsx`'s treatment, not a floating bubble like `ask-chatbot`'s widget (this module has its own dedicated page, so it earns a real section). No dedicated teaser screen in this folder.

@@ -37,6 +37,19 @@ flowchart TD
 
 **Legend:** `existing` (green) = code already in production. `gap` (red, dashed) = no design or prototype exists yet — genuinely undesigned.
 
+## Prototype screens
+
+All files are in `guest/prototypes/submit-info/` (`index.html` is the navigation hub; `dev-notes.md` documents `01`, `01b` and `01f` in detail).
+
+| File | Screen |
+|---|---|
+| `01-submit-form.html` | Formulário "Responder solicitação" (resposta + fotos) |
+| `01b-invalid-link.html` | Link inválido ou expirado |
+| `01c-submitting.html` | Enviando — formulário bloqueado |
+| `01d-validation-error.html` | Erro de validação (mensagem sob o campo, `aria-invalid`) |
+| `01e-submit-error.html` | Erro ao enviar (mensagem de erro no painel de ações, `role="alert"`) |
+| `01f-success.html` | Resposta enviada |
+
 ## Pages referenced
 
 | Page / Route | Component | Story | Status |

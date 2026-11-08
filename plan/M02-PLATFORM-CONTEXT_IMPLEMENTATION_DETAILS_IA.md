@@ -24,9 +24,9 @@
 | Cross-cutting cache | `src/shared/infrastructure/cache/` + `src/shared/ports/cache.port.ts` | Shared cache adapter/port used by context-specific caching decorators |
 | DB migrations | `src/contexts/platform/infrastructure/migrations/` | `CreatePlatformTenants`, `CreatePlatformHotsiteConfigs` |
 | PlatformModule | `src/contexts/platform/platform.module.ts` | Imports `TenantModule` — never exports repository tokens |
-| TenantContext | `src/shared/tenant/tenant-context.ts` | AsyncLocalStorage-based, not request-scoped DI |
-| TenantInterceptor | `src/shared/tenant/tenant.interceptor.ts` | Skips `/health` and `/internal` — reads `X-Tenant-ID` header |
-| TenantModule | `src/shared/tenant/tenant.module.ts` | Exported from AppModule; also imported by PlatformModule — safe due to shared AsyncLocalStorage |
+| TenantContext | `src/shared/tenant/tenant-context.ts` | AsyncLocalStorage-based, not request-scoped DI *(historical: replaced by `RequestContext` / `RequestInterceptor` in `apps/backend/src/shared/request/` — no longer in the codebase)* |
+| TenantInterceptor | `src/shared/tenant/tenant.interceptor.ts` | Skips `/health` and `/internal` — reads `X-Tenant-ID` header *(historical: replaced by `RequestContext` / `RequestInterceptor` in `apps/backend/src/shared/request/` — no longer in the codebase)* |
+| TenantModule | `src/shared/tenant/tenant.module.ts` | Exported from AppModule; also imported by PlatformModule — safe due to shared AsyncLocalStorage *(historical: replaced by `RequestContext` / `RequestInterceptor` in `apps/backend/src/shared/request/` — no longer in the codebase)* |
 | PlatformAdminGuard | `src/contexts/platform/infrastructure/guards/platform-admin.guard.ts` | `crypto.timingSafeEqual` + SHA-256 normalisation |
 | ManagerRoleGuard | `src/shared/guards/manager-role.guard.ts` | Shipped as a stub in M02 (always returned true); enforces the real MANAGER check via `X-Actor-Role` since M03-S05 and now lives in `src/shared/guards/` |
 | platform-error.mapper.ts | `src/contexts/platform/infrastructure/http/platform-error.mapper.ts` | Maps `SlugAlreadyTakenError`→409, `TenantInactiveError`→409, `TenantNotFoundError`→404, `PlatformDomainError`→400 |
@@ -123,9 +123,9 @@ Never `DATABASE_URL`.
 
 **#4 — TenantContext is AsyncLocalStorage, not request-scoped DI**  
 `TenantContext` holds no state itself — it delegates to a module-level `AsyncLocalStorage<TenantStore>`. This means:
-- Importing `TenantModule` in both `AppModule` and `PlatformModule` is safe — both `TenantContext` instances share the same storage.
+- Importing `TenantModule` in both `AppModule` and `PlatformModule` is safe — both `TenantContext` instances share the same storage. *(historical: replaced by `RequestContext` / `RequestInterceptor` in `apps/backend/src/shared/request/` — no longer in the codebase)*
 - No `REQUEST` scope needed — AsyncLocalStorage propagates through async chains automatically.
-- `TenantInterceptor` calls `runWithTenantContext(tenantId, correlationId, () => next.handle().subscribe(subscriber))` to bind the store to the request.
+- `TenantInterceptor` calls `runWithTenantContext(tenantId, correlationId, () => next.handle().subscribe(subscriber))` to bind the store to the request. *(historical: replaced by `RequestContext` / `RequestInterceptor` in `apps/backend/src/shared/request/` — no longer in the codebase)*
 
 **#5 — PlatformAdminGuard: SHA-256 before timingSafeEqual**  
 `timingSafeEqual` requires equal-length buffers. Rather than padding, we hash both sides with SHA-256 first. This also prevents key-length leaks (different-length tokens take the same time to compare).
@@ -179,13 +179,13 @@ UNIQUE(tenant_id)
 
 ```
 BFF (M03) → X-Tenant-ID, X-Actor-ID, X-Actor-Type, X-Actor-Role headers
-  → TenantInterceptor → runWithTenantContext(tenantId, correlationId, ...)
+  → TenantInterceptor → runWithTenantContext(tenantId, correlationId, ...) *(historical: replaced by `RequestContext` / `RequestInterceptor` in `apps/backend/src/shared/request/` — no longer in the codebase)*
   → TenantContext.tenantId / .actorId / .actorType / .actorRole available anywhere in the call chain
   → Controller reads TenantContext.tenantId → passes to use case
   → Use case queries repo with tenantId → domain logic → save
 ```
 
-Guest / internal routes skip `TenantInterceptor` (bypass paths: `/health`, `/internal`).
+Guest / internal routes skip `TenantInterceptor` (bypass paths: `/health`, `/internal`). *(historical: replaced by `RequestContext` / `RequestInterceptor` in `apps/backend/src/shared/request/` — no longer in the codebase)*
 
 ---
 

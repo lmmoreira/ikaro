@@ -130,7 +130,7 @@ A response field that refers to a stored public object is a **full public URL, r
 
 ### **Auth Flow (UC-021, UC-022, UC-023)**
 - `GET /auth/google` -> Redirects to Google OAuth.
-- `GET /auth/google/callback` -> Sets `access_token` httpOnly cookie directly and redirects; no intermediate temporary-code step for the flows that ship today.
+- `GET /auth/google/callback` -> Sets the session httpOnly cookie (`access_token`; `__Host-access_token` when `NODE_ENV=production` — `apps/bff/src/features/auth/session-cookie.ts`) directly and redirects; no intermediate temporary-code step for the flows that ship today.
 - `GET /auth/logout` -> Clears the `access_token` cookie, redirects to the hotsite (or bare frontend URL if `tenantSlug` is absent/invalid).
 - `POST /auth/switch-tenant` -> (UC-023, customer) `{ targetTenantId: uuid }` — sets `access_token` httpOnly cookie with new tenant scope; returns `{ tenantSlug: string; expiresIn: string }`. No JWT in response body.
 - `GET /auth/staff-tenants` -> (UC-022, staff, authenticated) Lists every active tenant the current Google account is staff at. *(Planned with Billing: each entry gains `operational`, and a suspended tenant stays listed — `## Billing — Access Resolution and Suspended-State Effects`.)*

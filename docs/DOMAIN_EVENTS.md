@@ -456,7 +456,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 #### **BookingResourceReassigned**
 - **Trigger:** UC-077 REASSIGN — a manager moves a booking to another resource at the same time. Recorded by `Booking.recordResourceReassigned()` and drained through the outbox on the booking's `save()`. The time, price and status do not change, so no `BookingRescheduled` is published.
 - **State change:** none on the booking.
-- **Data:** `{ bookingId, customerId: string | null, contactEmail, contactName, slot, lineSummary, reassignedBy, newResourceName: string | null }` — `newResourceName` is set only when every affected line's requirement discloses the resource (`CUSTOMER_CHOICE`, `AUTO_ANY`), otherwise `null` (UC-062/063). There is no `reason`: the manager's note is internal.
+- **Data:** `{ bookingId, customerId: string | null, contactEmail, contactName, slot, lineSummary, reassignedBy, newResourceName: string | null }` — each `lineSummary` element is `{ serviceId, serviceNameAtBooking, priceAtBooking: { amount, currency } }`; `newResourceName` is set only when every affected line's requirement discloses the resource (`CUSTOMER_CHOICE`, `AUTO_ANY`), otherwise `null` (UC-062/063). There is no `reason`: the manager's note is internal.
 - **Consumers:** audit-log subscriber, and the Notification Context: one email per moved booking to the booking's own `contactEmail`, in the tenant's language, saying the time is unchanged and, when disclosed, the new resource.
 
 #### **FutureCommitmentExceptionResolved**

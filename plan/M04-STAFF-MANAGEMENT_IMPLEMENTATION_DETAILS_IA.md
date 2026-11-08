@@ -76,6 +76,8 @@ The `countActiveManagersByTenant` call and `save()` are **inside the same `txMan
 
 ### /internal routes skip TenantInterceptor
 
+> *(historical: `TenantInterceptor`, `TenantContext` and `TenantModule` were replaced by `RequestContext` / `RequestInterceptor` in `apps/backend/src/shared/request/` and are no longer in the codebase; the rule — `/internal` routes carry no tenant scope — still holds, see `request.interceptor.ts`.)*
+
 `InternalStaffController` lives at `/internal/staff`. The `TenantInterceptor` calls `next.handle()` early for any path starting with `/internal`, so `TenantContext` is **never populated** for these routes. Do not inject `TenantContext` into `InternalStaffController`. It receives `tenantId` explicitly as query params (`?tenantId=...`).
 
 `StaffController` at `/staff` is on a normal path — `TenantContext` is populated normally. `StaffModule` imports `TenantModule` to enable this.

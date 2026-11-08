@@ -8,6 +8,8 @@
 
 ## Artifacts Table
 
+> *(Path note: the `lib/hotsite/*` helpers listed below now live under `apps/web/features/platform/hotsite/` — e.g. `apply-branding.ts`, `font-config.ts`, `module-schemas.ts`, `revalidate.ts`.)*
+
 ### Backend — Platform context (`apps/backend/src/contexts/platform/`)
 
 | Artifact | Path |

@@ -102,10 +102,10 @@ Pub/Sub consumer idempotency now lives in the shared `shared.inbox` table instea
 `loyalty_balances.current_points` is the authoritative balance. It is incremented on earn (`RecordLoyaltyEntriesUseCase`, now `CompleteBookingLoyaltyEffectsUseCase`), decremented on redemption (`RedeemPointsUseCase`) and expiry (`ExpirePointsUseCase`, now `ExpirePointsJob`). Never compute balance via `SUM(loyalty_entries.points)` — O(n) and ignores redemptions.
 
 ### Points expiry via HTTP trigger, not @Cron
-`POST /cron/loyalty-expiry` is called by GCP Cloud Scheduler at 02:00 UTC daily. `@nestjs/schedule` / `@Cron` not used. Reason: Cloud Run scales to zero (in-process cron never fires); multi-pod would duplicate. One HTTP request → one pod handles it. Controller is `CronLoyaltyController` — no TenantContext, no guard in MVP (M115-S03 adds `CronAuthGuard` with OIDC token).
+`POST /cron/loyalty-expiry` is called by GCP Cloud Scheduler at 02:00 UTC daily. `@nestjs/schedule` / `@Cron` not used. Reason: Cloud Run scales to zero (in-process cron never fires); multi-pod would duplicate. One HTTP request → one pod handles it. Controller is `CronLoyaltyController` — no TenantContext, no guard in MVP (M115-S03 adds `CronAuthGuard` with OIDC token). *(Current flow, M17-S03: the endpoint only publishes `CRON_LOYALTY_EXPIRY_TRIGGER` on the trigger bus — `cron-loyalty.controller.ts`; the expiry runs from the trigger handler. `CronAuthGuard` no longer exists.)*
 
 ### Expiry trigger idempotency via `balance_expiry_log`
-`ExpirePointsUseCase` calls `findExpiringBefore(new Date())` then filters out already-processed entry IDs via `IBalanceExpiryLogRepository.hasBeenProcessed()`. Entries marked in the same `txManager.run()` as the balance upsert. If balance is already 0 or null, entries are still marked — no infinite retry.
+`ExpirePointsUseCase` calls `findExpiringBefore(new Date())` then filters out already-processed entry IDs via `IBalanceExpiryLogRepository.hasBeenProcessed()`. Entries marked in the same `txManager.run()` as the balance upsert. If balance is already 0 or null, entries are still marked — no infinite retry. *(historical name — now `ExpirePointsJob`.)*
 
 ### Pub/Sub consumer idempotency via the shared inbox (updated by TD24-S04 — `loyalty.processed_events` no longer exists, replaced by `shared.inbox`; value updated by `fix/consistency-naming-consumer`, 2026-07-20 — repo-wide consumer-name casing convention)
 `CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME = 'complete-booking-loyalty-effects'`. Each event checked via `inboxRepo.hasBeenProcessed(eventId, CONSUMER_NAME)` (`IInboxRepository`) before processing. Marked in the same transaction as entry saves + balance upsert.
@@ -119,7 +119,7 @@ Pub/Sub consumer idempotency now lives in the shared `shared.inbox` table instea
 ### ServicePointsEarned emitted once per booking, inside txManager.run() (corrected — was originally built as one event per line, published after commit; both since changed)
 One `ServicePointsEarned` event per booking (not per line), carrying a `lines[]` summary array of all entries earned in that booking (see the event's current payload shape in `docs/DOMAIN_EVENTS.md`). `LoyaltyEntry`/`LoyaltyBalance` aren't among the auto-draining aggregates (`Booking`/`Staff`/`Tenant`/`LeadFormSubmission`), so the use case publishes directly via `OUTBOX_PUBLISHER` as the last call **inside** the same `txManager.run()` block as the entry/balance/inbox writes — not a post-commit flush. Publishing inside the transaction closed a real bug (TD24-S03, "the loyalty re-emit"): a crash between commit and a post-commit publish used to lose `ServicePointsEarned` forever, since `hasBeenProcessed` already short-circuits any `BookingCompleted` redelivery. `currentBalance` field added to the event so the notification use case doesn't need a second DB query for the balance.
 
-### Clamped decrement in ExpirePointsUseCase
+### Clamped decrement in ExpirePointsUseCase *(historical name — now `ExpirePointsJob`.)*
 If `expiredPoints > balance.currentPoints` (e.g. balance was reduced by redemptions since entries were created), the use case decrements `Math.min(expiredPoints, balance.currentPoints)` — clamps to 0 rather than throwing `LoyaltyInsufficientPointsError`. Entry IDs are still marked processed.
 
 ---
@@ -130,8 +130,8 @@ If `expiredPoints > balance.currentPoints` (e.g. balance was reduced by redempti
 |---|---|---|
 | `ILoyaltyTenantSettingsPort` | `LoyaltyTenantSettingsAdapter` | `GetTenantByIdUseCase` → `settings.loyalty.expiryDays` |
 | `IServiceCatalogPort` | `ServiceCatalogAdapter` | `booking.services` via `DataSource` |
-| `INotificationCustomerPort` | `CustomerInfoAdapter` | `CustomerQueryService` (from CustomerModule) |
-| `INotificationServicePort` | `ServiceInfoAdapter` | `booking.services` via `DataSource` |
+| `INotificationCustomerPort` | `CustomerInfoAdapter` | `CustomerQueryService` (from CustomerModule) *(historical: no longer in the codebase)* |
+| `INotificationServicePort` | `ServiceInfoAdapter` | `booking.services` via `DataSource` *(historical: no longer in the codebase)* |
 
 ---
 

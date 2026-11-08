@@ -8,6 +8,8 @@ Token-efficient reference for AI agents. No prose — facts, gotchas, structural
 
 ## Artifacts
 
+> *(Historical, as of M06: several names below no longer exist — `BookedSlot` (`booked-slot.ts`), `IScheduleTenantSettingsPort` / `schedule-tenant-settings.{port,adapter}.ts`, `InMemoryBookingAvailabilityAdapter` and `InMemoryScheduleTenantSettingsPort`. The booking-availability port is now `application/ports/booking-availability.port.ts`, backed by `infrastructure/cross-context/typeorm-booking-availability.adapter.ts` and the test double `apps/backend/src/test/infrastructure/in-memory-booking-availability.ts`; the `TypeOrmBookingAvailabilityAdapter` has been wired since M07.)*
+
 ### Domain
 
 | Artifact | Path |
@@ -90,6 +92,8 @@ Token-efficient reference for AI agents. No prose — facts, gotchas, structural
 ---
 
 ## Critical Gotchas
+
+> *(Historical, as of M06 — see the note under § Artifacts for the names that no longer exist.)*
 
 ### 1. PostgreSQL `time` → `HH:MM:SS` — normalised by `TimeOfDay.create()`
 
@@ -229,6 +233,8 @@ else                                   → use businessHours[day]; filter slots 
 
 ## Test Helpers
 
+> *(Historical, as of M06 — see the note under § Artifacts for the names that no longer exist.)*
+
 **`InMemoryScheduleTenantSettingsPort`** — defaults Mon–Sat open, Sunday null (matches `TenantSettings.default()`). Use for all tests needing `IScheduleTenantSettingsPort` without DB. Override per-tenant:
 ```typescript
 settingsPort.setBusinessHours(tenantId, { ...customHours });
@@ -241,6 +247,8 @@ settingsPort.setBusinessHours(tenantId, { ...customHours });
 ---
 
 ## M07 Integration Points
+
+> *(Historical, as of M06 — see the note under § Artifacts for the names that no longer exist.)*
 
 M07-S03 must implement `TypeOrmBookingAvailabilityAdapter` with:
 - `findApprovedByTenantAndDate(tenantId, date)` — filter APPROVED bookings whose `scheduled_at` falls on `date` in tenant TZ

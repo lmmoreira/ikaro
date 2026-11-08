@@ -63,7 +63,7 @@ apps/bff/src/
 
 **Mapper extraction:** before adding a new request/response interface in `apps/web/features/**/api/**`, `apps/web/shared/lib/api/**`, or `apps/web/shared/types/**`, grep `@ikaro/types` first — verify against the live BFF schema if shapes differ. Once a second mapper function appears in a `*.controller.ts`, extract both into a sibling `<module>.mapper.ts` (plain functions, not a class) — this is the file that owns translating the backend-internal shape into the public/staff response types above.
 
-**Frontend fetchers (`apps/web/features/<domain>/api/<name>.ts` or `apps/web/shells/<surface>/...`) mirror the BFF feature slice name** they call — e.g. `features/platform/hotsite/api/services.ts` ↔ `platform.public.controller.ts`.
+**Frontend fetchers (`apps/web/features/<domain>/api/<name>.ts` or `apps/web/shells/<surface>/...`) mirror the BFF feature slice name** they call — e.g. `features/booking/api/booking.ts` ↔ `bookings.controller.ts`. The hotsite's `features/platform/hotsite/api/services.ts` is a deliberate exception: it lives in the web `platform` slice (hotsite rendering) but calls `GET /public/services`, served by the booking slice's `services.public.controller.ts`.
 
 ### Web-facing composite views
 

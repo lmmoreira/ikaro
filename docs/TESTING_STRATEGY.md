@@ -407,7 +407,7 @@ Files: `booking-lock-order.integration.spec.ts` (resource-lock paths, the servic
 
 > ⚠️ **Not implemented:** there is no `docs/api/openapi.yaml`, no `.spectral.yml` and no Spectral step in any workflow. API contracts live in `docs/API_CONTRACTS.md` and the shared Zod/DTO schemas (`@ikaro/validation`, `@ikaro/types`). The rest of this layer describes the original design intent.
 
-**Scope:** The OpenAPI spec at `docs/api/openapi.yaml` is validated against Spectral rules in CI.
+**Scope (design intent — not implemented, see the warning above):** the OpenAPI spec at `docs/api/openapi.yaml` would be validated against Spectral rules in CI.
 
 **Goal:** Prevent broken or inconsistent API contracts before a single line of implementation is written or changed.
 

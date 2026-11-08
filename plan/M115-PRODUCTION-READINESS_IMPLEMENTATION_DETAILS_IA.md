@@ -11,7 +11,7 @@
 | Story | Artifact | Path | Notes |
 |---|---|---|---|
 | S01 | Storage port | `src/shared/ports/storage.service.port.ts` | Token: `STORAGE_SERVICE`; interface: `IStorageService` |
-| S01 | GCS adapter | `src/shared/infrastructure/gcs-signed-url.adapter.ts` | `GcsSignedUrlAdapter` (not `…Service`) |
+| S01 | GCS adapter | `src/shared/infrastructure/gcs/gcs-signed-url.adapter.ts` | `GcsSignedUrlAdapter` (not `…Service`) |
 | S01 | Storage module | `src/shared/infrastructure/storage.module.ts` | `useClass` (not `useExisting`) — critical for test override |
 | S01 | Attachments controller | `src/contexts/booking/infrastructure/controllers/booking-attachments.controller.ts` | `POST /v1/bookings/attachments/signed-url` |
 | S01 | In-memory stub | `src/test/infrastructure/in-memory-storage.service.ts` | Default override in both booking + notification integration app helpers |

@@ -61,9 +61,9 @@ Events are flushed **after** `txManager.run()` returns — not inside the transa
 
 ### `ICustomerProfilePort` cross-context pattern *(historical, M07-era — these files no longer exist; the current port/adapter pair is `booking/application/ports/booking-customer.port.ts` and `booking/infrastructure/cross-context/booking-customer.adapter.ts`)*
 BookingContext must read Customer data for authenticated booking (UC-002) without importing CustomerRepository directly.
-- Port (interface): `booking/application/ports/customer-profile.port.ts` — `CUSTOMER_PROFILE_PORT` symbol
-- Adapter (infra): `booking/infrastructure/adapters/customer-profile.adapter.ts` — injects `CustomerQueryService` (not `CUSTOMER_REPOSITORY`)
-- `CustomerQueryService` is exported from `CustomerModule`
+- Port (interface): `booking/application/ports/customer-profile.port.ts` — `CUSTOMER_PROFILE_PORT` symbol *(historical: no longer in the codebase)*
+- Adapter (infra): `booking/infrastructure/adapters/customer-profile.adapter.ts` — injects `CustomerQueryService` (not `CUSTOMER_REPOSITORY`) *(historical: no longer in the codebase)*
+- `CustomerQueryService` is exported from `CustomerModule` *(historical: no longer in the codebase)*
 - `BookingModule` imports `CustomerModule` and provides `CustomerProfileAdapter`
 
 **Rule:** adapters inject services, never repository tokens from other contexts.
@@ -182,9 +182,9 @@ Imports `PlatformModule` + `CustomerModule` + `EventBusModule`.
 | NUMERIC columns return `string` in TypeORM | `entity.totalPriceAmount` is `string` — always pass through `Money.from(str, 'BRL')` |
 | `serviceNameAtBooking` is a snapshot | Never read from the live `Service` aggregate after booking creation |
 | `clearDomainEvents()` must be called after `txManager.run()` | Inside the transaction = events published before commit; on failure you'd get orphan events |
-| `CustomerModule` must export `CustomerQueryService` | `BookingModule` imports `CustomerModule` to wire `CustomerProfileAdapter` |
+| `CustomerModule` must export `CustomerQueryService` | `BookingModule` imports `CustomerModule` to wire `CustomerProfileAdapter` | *(historical: no longer in the codebase)*
 | `BookingModule` must NOT export repository tokens | Cross-context access goes through the port, not the repository |
-| `createBookingIntegrationApp` needs `CustomerEntity` | `CustomerQueryService` joins nothing but TypeORM needs the entity declared |
+| `createBookingIntegrationApp` needs `CustomerEntity` | `CustomerQueryService` joins nothing but TypeORM needs the entity declared | *(historical: no longer in the codebase)*
 | `@UsePipes` at method level breaks `@CurrentUser()` | Attach `ZodValidationPipe` to `@Body()` parameter, never at method level |
 | BFF component spec error propagation | Mock with `new HttpException({status: N}, N)` — plain objects are not caught by the error filter |
 | `Date.now()` not unique enough for parallel tests | Use `uuidv7()` for `withGoogleOAuthId()` in `beforeEach` — avoids UNIQUE constraint race |
