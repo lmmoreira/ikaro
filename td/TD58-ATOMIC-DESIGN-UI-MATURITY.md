@@ -7,7 +7,7 @@
 - **Created**: 2026-11-05
 - **Discovered**: read-only atomic-design audit of `apps/web` (three parallel structural audits plus a premise-verification pass, 2026-11-05). Grade given at the time: C+ overall (tokens C, atoms C−, molecules B, organisms B+, templates C+, pages A−, tests A).
 - **Decision status**: Ready for discovery and implementation in the dependency order below; every story still begins with `/story-discovery`. The sequence and scope below were confirmed with the user on 2026-11-05; each story's "Pattern" is a starting decision that its own `/story-discovery` Step 4q may refine, and a story's block records what was locked there.
-- **Progress (2026-11-08)**: Stories 0–10 and 12 ✅ Done; 11 and 13 remain (11 last among the migrations: it moves files the others edit; 13 is an exploratory inventory).
+- **Progress (2026-11-08)**: Stories 0–10 and 12 ✅ Done; 13 (inventory and migration of the remaining raw buttons, rescoped 2026-11-08) and 11 remain (11 last: it moves files the others edit).
 - **Related**: `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives; TD57 (inline feedback + action-pane pattern, the precedent for promoting a repeated UI pattern into `ui/`); `docs/ANTI_PATTERNS.md`; `.copilot/context.md` §8 (the `--ba-*` boundary row).
 
 ---
@@ -683,7 +683,7 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 **Agent:** frontend-ts
 **Complexity:** M
 **Docs to load:** `docs/REPOSITORY_STRUCTURE.md` § Web placement rules; `docs/CODE_STANDARDS.md`; `docs/CI_TRAPS.md` (path-sensitive CI entries — `architecture-policy.json` exceptions are keyed by exact path)
-**Dependencies:** Stories 1, 2, 3, 4, 5, 6 (all edit files in this folder; a pure move must run after them or every in-flight branch conflicts)
+**Dependencies:** Stories 1, 2, 3, 4, 5, 6, 12 and 13 (all edit files in this folder; a pure move must run after them or every in-flight branch conflicts)
 **Pattern:** plain composition — no named pattern applies (pure file move)
 
 **Description:** The folder holds 60 non-spec files (plus their 60 specs) directly, mixing route-level pages with tiny pieces; only `new-booking/` is grouped. Group by flow, moving each component with its spec: `mark-complete/` (`MarkComplete*`), `reschedule/` (`Reschedule*`), `recurring/` (`Recurring*`, `NewRecurringScheduleForStaff*`), `detail/` (`BookingDetail*`, `BookingStatus*`). Pure move: no content change, no renamed exports. Update imports, and update every `packages/architecture-check/architecture-policy.json` entry whose exact path points at a moved file (entries are keyed by exact path, no wildcards — policy/registry JSON needs the explicit yes). Also **consider** grouping `booking/components/public/` (40 flat files) the same way; discovery decides whether it is worth it. The final grouping names are locked in discovery against the folder's contents after Stories 1–6 land.
@@ -751,25 +751,52 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 
 ---
 
-### Story 13 — Inventory the ambiguous raw elements and decide their guard ⚪
+### Story 13 — Migrate the remaining raw `<button>`s and captions onto primitives, then guard against regrowth
 
 **Agent:** frontend-ts
-**Complexity:** S (inventory and decision) — a migration, new primitive or rule that follows is its own story
-**Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives; `.claude/commands/story-discovery.md` check 4s
-**Dependencies:** Stories 10 and 12 (it reuses Story 10's branded-tree exemption list and starts from what Story 12 left)
-**Pattern:** plain composition — no named pattern applies
+**Complexity:** L (rescoped 2026-11-08 at `/story-discovery`: it was an inventory and a decision, and now carries the migration, the two new primitives and the guard in one PR, by the user's decision)
+**Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives and § The `--ba-*` exception; `docs/ENGINEERING_RULES_SHARED.md` § `no-restricted-syntax` selectors must be checked against every already-documented bypass shape; `docs/TESTING_STRATEGY.md` § Running Playwright locally (before/after screenshots); `.claude/commands/story-discovery.md` check 4s
+**Dependencies:** Stories 10 and 12 (both ✅ Done). Story 11 (regroup `bookings/`) now depends on this story.
+**Pattern:** plain composition for the migration; two new `forwardRef` primitives (`ui/choice-card`, `ui/drag-handle`) and new `Button` variants/sizes via `cva`; the guard is an ESLint `no-restricted-syntax` selector, the same mechanism as Story 10.
 
-**Description:** Exploratory and optional. Story 10 deliberately left raw `<button>` out and Story 12 migrates only the clear duplicates. What remains is genuinely ambiguous: about 15 selectable cards and full-width option rows with no primitive (`ServiceCreatePage`, `ServiceResourceModePicker`, `SlotConflictAlert`, `IntakeVersionHistoryCard`, `RoleOption`, `ScheduleWeekView`, `TenantOptionRow`), the text-link buttons (`text-sm font-semibold text-blue-600 hover:underline` in `ResourceRow`, `MemberRow`) to check against `Button`'s `link` variant, the ~28 sites not yet classified, the 11 raw `<h1>` left after Story 5, and the ~45 wrapping-label captions that repeat `mb-2 block text-sm font-medium text-gray-700`. Classify them by construct: how many distinct looks, how many fit an existing primitive or variant, how many need a new primitive (for example a selectable card or a labelled field) or are legitimately bespoke. Then decide with the user between a lint rule with a short exemption list, new primitives or variants plus a rule, or a docs-only note. If the answer is a migration or a rule, it becomes a new story; this one ends with the recorded inventory and the decision.
+**Description:** Story 10 left raw `<button>` unguarded and Story 12 migrated only the clear duplicates. The inventory below (measured 2026-11-08, unbranded code, re-runnable) found **52 raw `<button>` in 39 files**, 7 raw `<h1>` and 9 label captions. All are classified, every group with a primitive or a variant moves onto it in this one PR, and a lint rule then stops regrowth.
+
+**Inventory and decisions (locked at `/story-discovery`, 2026-11-08):**
+
+| Group | Sites | Decision |
+|---|---|---|
+| A. Text-link buttons (`ResourceRow`, `MemberRow` ×2, `SchedulingExceptionGroups`, `LayoutTab`, `AfterServicePhotoUpload`, `CustomerPhotoUpload`, `SingleImageUploadField`, `GalleryImageManager`, `TestimonialsConfigPanel`, `BookingPhotoPicker`, `BookingActionSheetShell`) | 12 | `Button variant="link"` plus a new `inline` size (`text-sm font-semibold`, primary, underline on hover); new variants `link-destructive` (red) and `link-muted` (gray) |
+| B. Filled and outline action buttons (`NewRecurringScheduleForm`, `NewRecurringScheduleReview` ×2, `NewRecurringScheduleResult` ×3, `NewReservationMenu`, `GalleryImageManager` outline, `ServicePublicPageContent` outline, `ServicePublicPageImages` outline) | 10 | plain `Button` default and outline (`h-9 rounded-md font-medium`) |
+| C. Icon buttons (`IntakeQuestionCard` ×3, `EligiblePoolPicker`, `ServicePublicPageContent` icon, `WeekNav` ×2) | 7 | `Button size="icon"` (36px) and a new `icon-sm` (32px); `WeekNav`'s 32px bordered buttons stay identical |
+| D. Drag handles (`LayoutTab`, `LeadFormSortableQuestion`, `NavigationItemRow`) | 3 | new `ui/drag-handle`, the existing look extracted exactly |
+| E. Choice cards (`ServiceCreatePage` ×2, `ServiceResourceModePicker` ×2, `ResourceIdentityFields`, `RoleOption`) | 6 | new `ui/choice-card` (an `aria-pressed` toggle card, the existing look extracted; the variants of the last two are props, not new components) |
+| F. Full-width row buttons (`SlotConflictAlert`, `IntakeVersionHistoryCard`, `SelectStaffTenantClient`, `ScheduleWeekView`, `WeekNav` day selector, `TimelineBlockShell`) | 6 | stay raw: six different looks and structures, bespoke |
+| G. Other bespoke (`BottomNav` more button, `Topbar` back link, `BookingPhotoThumbnailGroup`, `PreviewSelectionWrapper`, `TenantOptionRow`) | 5 | stay raw, bespoke or the tenant-branded exception |
+| Branded (`InformationCompletionPrompt`, `SwitchTenantClient`, `branded-feedback-message`) | 3 | untouched: tenant `--ba-*` branding |
+| Label captions (`mb-2 block text-sm font-medium text-gray-700`) | 9 | `ui/label` (`semibold text-gray-900 mb-1.5`) |
+| Raw `<h1>` | 7 | no migration: topbar title, login, auth error, not-found, one sr-only, the schedule day header are all legitimate; a one-line docs note |
+
+**Normalisation rule (decided 2026-11-08):** each primitive has one canonical look and the sites move to it, so small visual shifts are accepted and are the point of the story; identical-copy extractions (D, E) and the `WeekNav` buttons are pixel-identical. Visible shifts: text links lose the permanent underline on the red ones; customer-account action buttons go from 40px / 8px radius / semibold to 36px / 6px / medium; the `p-1` icon buttons grow to a 32px target; captions become semibold and darker.
+
+**Design checkpoint (before the PR):** capture before/after screenshots at `threshold: 0` of every affected screen (the method in `docs/TESTING_STRATEGY.md` § Running Playwright locally), list every difference with its reason, and show the diffs to the user for approval before `gh pr create`. A shift the user rejects is changed to a variant or reverted.
+
+**Guard:** a `no-restricted-syntax` selector for a raw `<button>` (JSX and the `createElement` bypass forms, as in Story 10) outside `shared/components/ui/**`, the branded trees and the exact files of groups F and G, listed by path in the same shape as `rawFormControlExemptPaths`. Tests in `raw-form-control.eslint.spec.ts` or a sibling spec, mutation-checked.
 
 New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface: none.
 
-**Files to create/modify:**
-- `td/TD58-ATOMIC-DESIGN-UI-MATURITY.md` (the inventory and the decision, recorded under this story — doc gate)
+**Files to create/modify:** the call sites in the table above (the list is generated by `python3 -I` scanner over `<button` at implementation); `apps/web/shared/components/ui/{button,choice-card,drag-handle}.tsx` with specs; `apps/web/eslint.config.js` (config-shaped, explicit yes) and its guard spec; `docs/ENGINEERING_RULES_FRONTEND.md` (primitives table rows, the `<h1>` note) and `docs/ANTI_PATTERNS.md` (one row) (doc gate).
 
 **Acceptance criteria — product:**
-- [ ] No UI change in this story.
+- [ ] Every migrated screen renders as its canonical primitive; every difference from before is listed in the PR body and was approved at the design checkpoint; groups D and E and the `WeekNav` buttons are bit-identical at `threshold: 0`.
+- [ ] No branded hotsite, public or auth page changes.
 
 **Acceptance criteria — technical:**
-- [ ] The inventory counts the sites per construct (look, trigger type, fits-an-existing-primitive yes/no), with the grep used so it can be re-run
-- [ ] A decision is recorded for each element group, or a follow-up story is created for it via `/create-story`
-- [ ] `pnpm architecture-check` clean
+- Unit:
+  - [ ] new variants and sizes of `Button` (`link-destructive`, `link-muted`, `inline`, `icon-sm`), `choice-card` (aria-pressed, selected look, disabled) and `drag-handle` (aria-label, keeps its `dnd-kit` props) each have specs, with an axe check
+  - [ ] existing specs of the migrated components pass; any changed assertion is listed in the PR body
+  - [ ] the guard flags a raw `<button>` in a dashboard and in an account path, and the `createElement('button')` bypass forms; it does not flag `ui/**`, a spec file, each branded tree, or each exact exempt file; mutation check per selector
+- E2E:
+  - [ ] none new; the existing Playwright specs of the affected screens pass locally, including every spec that selected a migrated control by role
+- [ ] `pnpm lint` reports zero violations across `apps/web` (the rule lands at error)
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean, `pnpm dep-cruise` clean, `pnpm architecture-check` clean
