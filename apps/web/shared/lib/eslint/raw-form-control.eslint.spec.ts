@@ -226,6 +226,33 @@ describe('raw form control ban (TD58-S10)', () => {
     ];
     const RAW_BUTTON = '<button type="button">Salvar</button>';
 
+    // The two exemption tiers as the loaded config declares them, so this spec cannot drift from it.
+    function declaredFiles(...mustInclude: string[]): string[] {
+      const entry = productionConfig.find((config) => {
+        const files = (config.files ?? []).flat();
+        return mustInclude.every((path) => files.includes(path));
+      });
+      return (entry?.files ?? []).flat();
+    }
+
+    it('the config exempts exactly the reviewed bespoke files, no more and no fewer', () => {
+      const declared = declaredFiles('shells/dashboard/components/WeekNav.tsx');
+
+      expect([...declared].sort()).toEqual([...BESPOKE_BUTTON_FILES].sort());
+    });
+
+    it('no bespoke button file also sits in the raw-form-control exemption, whose later block would restore those bans', () => {
+      const formControlExempt = declaredFiles('shared/components/ui/**', 'shells/hotsite/**');
+      const overlaps = declaredFiles('shells/dashboard/components/WeekNav.tsx').filter((path) =>
+        formControlExempt.some((entry) =>
+          entry.endsWith('/**') ? path.startsWith(entry.slice(0, -2)) : path === entry,
+        ),
+      );
+
+      expect(formControlExempt.length).toBeGreaterThan(0);
+      expect(overlaps).toEqual([]);
+    });
+
     it('flags a raw <button> in a dashboard and in an account path, naming ui/button', () => {
       for (const path of [DASHBOARD_PATH, ACCOUNT_PATH]) {
         const messages = rawControlMessages(component(RAW_BUTTON), path);
