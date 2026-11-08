@@ -7,7 +7,7 @@
 - **Created**: 2026-11-05
 - **Discovered**: read-only atomic-design audit of `apps/web` (three parallel structural audits plus a premise-verification pass, 2026-11-05). Grade given at the time: C+ overall (tokens C, atoms C−, molecules B, organisms B+, templates C+, pages A−, tests A).
 - **Decision status**: Ready for discovery and implementation in the dependency order below; every story still begins with `/story-discovery`. The sequence and scope below were confirmed with the user on 2026-11-05; each story's "Pattern" is a starting decision that its own `/story-discovery` Step 4q may refine, and a story's block records what was locked there.
-- **Progress (2026-11-08)**: All stories, 0–14, ✅ Done; TD58 is complete.
+- **Progress (2026-11-08)**: Stories 0–14 ✅ Done; Story 15 (guard `shared/components/ui/**` from importing features and shells) remains.
 - **Related**: `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives; TD57 (inline feedback + action-pane pattern, the precedent for promoting a repeated UI pattern into `ui/`); `docs/ANTI_PATTERNS.md`; `.copilot/context.md` §8 (the `--ba-*` boundary row).
 
 ---
@@ -864,4 +864,43 @@ New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface
 - E2E:
   - [ ] none new; existing Playwright specs for the booking flow and booking detail pass in CI
 - [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean, `pnpm architecture-check` clean
+
+---
+
+### Story 15 — Guard `shared/components/ui/**` from importing features and shells
+
+**Agent:** frontend-ts
+**Complexity:** S
+**Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md` § UI layer model; `docs/ENGINEERING_RULES_TESTING.md` § A unit test pins a rule on fixtures — it never lints or scans the real tree; `docs/REPOSITORY_STRUCTURE.md` § Web placement rules
+**Dependencies:** Story 14 (✅ Done: the `no-restricted-imports` guard shape and spec this story copies)
+**Pattern:** the same as Story 14: an ESLint `no-restricted-imports` rule with a `regex` pattern in its own block (own rule key, so no `no-restricted-syntax` list is restated).
+
+**Discovered:** 2026-11-08, the TD58 closing docs review. `docs/ENGINEERING_RULES_FRONTEND.md` § UI layer model lists "`shared/components/ui/**` importing from `features/` or `shells/`" as the one layer rule that only review catches.
+**Root cause:** nothing stops a primitive from reaching up into a feature or a shell, so the bottom layer can quietly acquire domain knowledge.
+
+**Description:** `shared/components/ui/` is the bottom layer of the UI model: primitives and composed patterns with no domain word in them. Measured 2026-11-08, it imports nothing from `@/features`, `@/shells` (alias or relative, specs included), `@/providers`, `@/app` or `@/i18n`, so the rule holds today but is not enforced. This story adds the guard.
+
+**Guard:** a separate `no-restricted-imports` rule with a `regex` pattern, `^(@/|(\.\./)+)(features|shells)(/|$)`, scoped to non-spec files under `apps/web/shared/components/ui/**`. It has its own rule key and its own `files` glob, which does not overlap Story 14's block (`features/*/hooks`, `features/*/model`, `shells/*/model`), so neither replaces the other's options. The scope stays `ui/` only: `shared/components/hotsite/` has one file that imports a feature, and the root-level `shared/components/*.tsx` are outside the primitives layer. Whether `@/providers` and `@/app` join the regex is decided at `/story-discovery` (0 violations either way; `providers/` is app-wide composition and a primitive reading it would be the same upward reach).
+
+**Out of scope:** `shared/components/hotsite/**` (one existing feature import, a tenant-branded tree with its own isolation spec), `shared/lib/**` (two known seams, listed in § UI layer model), and the `hooks/` and `model/` guard (Story 14).
+
+New migration / i18n keys / env vars / feature flags: none. Backend HTTP surface: none.
+
+**Files to create/modify:**
+- Create: `apps/web/shared/lib/eslint/ui-layer-imports.eslint.spec.ts` (beside `logic-layer-imports.eslint.spec.ts`)
+- Config (explicit yes): `apps/web/eslint.config.js` (one new block next to Story 14's)
+- Docs (doc gate): `docs/ENGINEERING_RULES_FRONTEND.md` § UI layer model (move the row from "not enforced, review only" into the enforced table; the Layer 2 "Enforced by" cell), `docs/ANTI_PATTERNS.md` (one row)
+
+**Acceptance criteria — product:**
+- [ ] No behaviour change; nothing under `shared/components/ui/` changes.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] `ui-layer-imports.eslint.spec.ts` runs the real flat config over fixtures: it flags `@/features/...` and `@/shells/...` imports, relative `../../features/...` and `../../../shells/...` imports, `import type` and `export … from`, in a `ui/` file; it does not flag `@/shared/lib/...`, a sibling primitive (`./button`, `@/shared/components/ui/button`), a spec file, a file in `shared/components/hotsite/`, or a feature file; mutation check: with the regex broken the flagging cases fail
+  - [ ] the spec does not scan the real tree (the whole-tree check is `pnpm lint`)
+- [ ] `pnpm lint` reports zero violations across `apps/web` (the rule lands at error)
+- [ ] `grep` over `shared/components/ui/` for `@/features`, `@/shells` and relative reaches returns nothing
+- E2E:
+  - [ ] none; existing Playwright specs unaffected
 - [ ] `tsc --noEmit` clean, lint clean, `pnpm architecture-check` clean
