@@ -82,12 +82,9 @@ export function NewRecurringScheduleForm({
         >
           {tn('reviewButton')}
         </Button>
-        <Link
-          href={recurringScheduleListPath(tenantSlug)}
-          className="rounded-lg border border-gray-200 px-4 py-2.5 text-center text-sm font-semibold text-gray-700 hover:bg-gray-50"
-        >
-          {tn('cancelButton')}
-        </Link>
+        <Button asChild variant="outline" className="w-full">
+          <Link href={recurringScheduleListPath(tenantSlug)}>{tn('cancelButton')}</Link>
+        </Button>
       </ActionPane>
     );
   }
