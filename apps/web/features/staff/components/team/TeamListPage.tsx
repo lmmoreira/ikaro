@@ -6,8 +6,8 @@ import { useTranslations } from 'next-intl';
 import type { StaffListItem, StaffStatus } from '@ikaro/types';
 import { FloatingCreateButton } from '@/shared/components/ui/floating-create-button';
 import { Card } from '@/shared/components/ui/card';
+import { FilterChip } from '@/shared/components/ui/filter-chip';
 import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
-import { cn } from '@/shared/utils/cn';
 import { MemberRow } from './MemberRow';
 
 type TeamFilter = 'all' | StaffStatus;
@@ -22,15 +22,6 @@ interface TeamListPageProps {
   // renders an inline success banner that auto-dismisses, mirroring ServiceListPage's
   // showCreatedBanner mechanism.
   readonly invitedEmail?: string;
-}
-
-function buildFilterClass(active: boolean): string {
-  return cn(
-    'rounded-full border px-3.5 py-1.5 text-[0.8125rem] font-semibold transition-colors',
-    active
-      ? 'border-blue-600 bg-blue-600 text-white'
-      : 'border-border bg-white text-gray-900 hover:bg-slate-50',
-  );
 }
 
 const FILTERS: readonly { key: TeamFilter; labelKey: string }[] = [
@@ -90,15 +81,9 @@ export function TeamListPage({
         <div className="space-y-3 border-b border-border p-4">
           <div className="flex flex-wrap items-center gap-2">
             {FILTERS.map(({ key, labelKey }) => (
-              <button
-                key={key}
-                type="button"
-                className={buildFilterClass(filter === key)}
-                aria-pressed={filter === key}
-                onClick={() => setFilter(key)}
-              >
+              <FilterChip key={key} selected={filter === key} onClick={() => setFilter(key)}>
                 {t(labelKey, { count: counts[key] })}
-              </button>
+              </FilterChip>
             ))}
           </div>
 

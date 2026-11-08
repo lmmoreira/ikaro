@@ -2,6 +2,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import { axe } from '@/axe-helper';
 import {
   EmptyState,
   EntryIcon,
@@ -21,24 +22,51 @@ describe('formatShortDateLabel', () => {
 });
 
 describe('HistoryTabs', () => {
-  it('highlights the active tab and calls onChange when the other tab is clicked', async () => {
-    const user = userEvent.setup();
-    const onChange = vi.fn();
-    render(
+  function renderTabs(activeTab: 'entries' | 'redemptions', onChange = vi.fn()) {
+    return render(
       <HistoryTabs
-        activeTab="entries"
+        activeTab={activeTab}
         onChange={onChange}
         entriesLabel="Histórico de ganhos"
         redemptionsLabel="Resgates"
+        entriesContent={<p>conteúdo de ganhos</p>}
+        redemptionsContent={<p>conteúdo de resgates</p>}
       />,
     );
+  }
 
-    const entriesTab = screen.getByRole('button', { name: 'Histórico de ganhos' });
-    const redemptionsTab = screen.getByRole('button', { name: 'Resgates' });
-    expect(entriesTab.className).toContain('text-blue-600');
-    expect(redemptionsTab.className).toContain('text-gray-400');
+  it('marks the active tab as selected and shows only its panel', () => {
+    renderTabs('entries');
 
-    await user.click(redemptionsTab);
+    expect(screen.getByRole('tab', { name: 'Histórico de ganhos' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    expect(screen.getByRole('tab', { name: 'Resgates' })).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByRole('tabpanel')).toHaveTextContent('conteúdo de ganhos');
+    expect(screen.queryByText('conteúdo de resgates')).not.toBeInTheDocument();
+  });
+
+  it('has no axe violations', async () => {
+    const { container } = renderTabs('entries');
+
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('shows the redemptions panel when it is the active tab', () => {
+    renderTabs('redemptions');
+
+    expect(screen.getByRole('tab', { name: 'Resgates' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tabpanel')).toHaveTextContent('conteúdo de resgates');
+  });
+
+  it('calls onChange when the other tab is activated', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    renderTabs('entries', onChange);
+
+    await user.click(screen.getByRole('tab', { name: 'Resgates' }));
+
     expect(onChange).toHaveBeenCalledWith('redemptions');
   });
 });

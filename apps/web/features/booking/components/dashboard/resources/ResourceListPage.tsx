@@ -6,7 +6,7 @@ import type { ResourceResponse, ResourceType } from '@ikaro/types';
 import { useResources } from '@/features/booking/hooks/useResources';
 import { FloatingCreateButton } from '@/shared/components/ui/floating-create-button';
 import { Card } from '@/shared/components/ui/card';
-import { cn } from '@/shared/utils/cn';
+import { FilterChip } from '@/shared/components/ui/filter-chip';
 import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import { resolveApiErrorFeedback } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
@@ -36,15 +36,6 @@ const STATUS_FILTERS: readonly { key: StatusFilter; labelKey: string }[] = [
   { key: 'active', labelKey: 'tabActive' },
   { key: 'inactive', labelKey: 'tabInactive' },
 ];
-
-function buildFilterClass(active: boolean): string {
-  return cn(
-    'rounded-full border px-3.5 py-1.5 text-[0.8125rem] font-semibold transition-colors',
-    active
-      ? 'border-blue-600 bg-blue-600 text-white'
-      : 'border-border bg-white text-gray-900 hover:bg-slate-50',
-  );
-}
 
 interface ResourceTypeGroup {
   readonly type: ResourceType;
@@ -158,29 +149,21 @@ export function ResourceListPage(): React.JSX.Element {
         <div className="space-y-3 border-b border-border p-4">
           <div className="flex flex-wrap items-center gap-2">
             {FILTERS.map(({ key, labelKey }) => (
-              <button
-                key={key}
-                type="button"
-                className={buildFilterClass(filter === key)}
-                aria-pressed={filter === key}
-                onClick={() => setFilter(key)}
-              >
+              <FilterChip key={key} selected={filter === key} onClick={() => setFilter(key)}>
                 {t(labelKey, { count: counts[key] })}
-              </button>
+              </FilterChip>
             ))}
           </div>
 
           <div data-testid="resource-status-filters" className="flex flex-wrap items-center gap-2">
             {STATUS_FILTERS.map(({ key, labelKey }) => (
-              <button
+              <FilterChip
                 key={key}
-                type="button"
-                className={buildFilterClass(statusFilter === key)}
-                aria-pressed={statusFilter === key}
+                selected={statusFilter === key}
                 onClick={() => setStatusFilter(key)}
               >
                 {t(labelKey, { count: statusCounts[key] })}
-              </button>
+              </FilterChip>
             ))}
           </div>
         </div>

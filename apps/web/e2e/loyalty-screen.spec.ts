@@ -41,7 +41,7 @@ test.describe('loyalty screen coverage', () => {
     await bookingBackLink.click();
     await expect(page).toHaveURL(detailPath);
 
-    await page.getByRole('button', { name: 'Resgates' }).click();
+    await page.getByRole('tab', { name: 'Resgates' }).click();
     await expect(page.getByTestId('loyalty-redemption-title')).toContainText(
       'Resgate no agendamento',
     );
