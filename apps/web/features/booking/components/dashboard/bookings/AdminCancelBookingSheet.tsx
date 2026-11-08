@@ -1,9 +1,10 @@
 'use client';
 
 import { Textarea } from '@/shared/components/ui/textarea';
-import { useState, type SubmitEvent } from 'react';
+import { useState, type SubmitEvent, useId } from 'react';
 import { useTranslations } from 'next-intl';
 import { BookingActionSheetShell } from './BookingActionSheetShell';
+import { Label } from '@/shared/components/ui/label';
 
 interface AdminCancelBookingSheetProps {
   readonly open: boolean;
@@ -18,6 +19,7 @@ export function AdminCancelBookingSheet({
   onClose,
   onSubmit,
 }: AdminCancelBookingSheetProps): React.JSX.Element | null {
+  const fieldId = useId();
   const t = useTranslations('dashboard.bookingDetail');
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -47,18 +49,19 @@ export function AdminCancelBookingSheet({
       submitDisabled={isSubmitting}
       error={error}
     >
-      <label className="block">
-        <span className="mb-2 block text-sm font-medium text-gray-700">
+      <div className="block">
+        <Label htmlFor={fieldId}>
           {t('reasonLabel')} <span className="font-normal text-gray-400">({t('optional')})</span>
-        </span>
+        </Label>
         <Textarea
+          id={fieldId}
           value={reason}
           onChange={(event) => setReason(event.target.value)}
           maxLength={200}
           rows={5}
           placeholder={t('cancelPlaceholder')}
         />
-      </label>
+      </div>
 
       <div className="mt-2 flex items-center justify-between text-xs text-gray-400">
         <span>{t('optional')}</span>

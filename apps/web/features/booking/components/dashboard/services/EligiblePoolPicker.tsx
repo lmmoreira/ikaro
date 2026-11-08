@@ -4,6 +4,7 @@ import { Label } from '@/shared/components/ui/label';
 import { NativeSelect } from '@/shared/components/ui/native-select';
 import { useTranslations } from 'next-intl';
 import type { ResourceResponse } from '@ikaro/types';
+import { Button } from '@/shared/components/ui/button';
 
 interface EligiblePoolPickerProps {
   readonly addEligibleId: string;
@@ -37,14 +38,15 @@ export function EligiblePoolPicker({
             className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs text-gray-700"
           >
             {resource.name}
-            <button
+            <Button
               type="button"
               aria-label={t('resourceRemoveEligible', { name: resource.name })}
               onClick={() => onChange((poolIds ?? []).filter((id) => id !== resource.id))}
-              className="text-gray-400 hover:text-gray-700"
+              variant="link-muted"
+              size="inline"
             >
               ×
-            </button>
+            </Button>
           </span>
         ))}
       </div>

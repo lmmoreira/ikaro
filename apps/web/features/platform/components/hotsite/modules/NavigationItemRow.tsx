@@ -12,6 +12,7 @@ import {
 } from '@/features/platform/hotsite/navigation-links';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
+import { DragHandle } from '@/shared/components/ui/drag-handle';
 
 export type TargetEnabled = (target: HotsiteNavigationTarget) => boolean;
 
@@ -51,23 +52,13 @@ export function NavigationItemRow({
       className={`space-y-3 rounded-md border border-gray-200 bg-white p-3 ${isDragging ? 'opacity-50' : ''}`}
     >
       <div className="flex items-end gap-3">
-        <button
-          type="button"
+        <DragHandle
           data-testid="navigation-item-drag"
-          aria-label={t('dragLabel', { position })}
-          className="mb-2 cursor-grab touch-none text-gray-400 hover:text-gray-600"
           {...attributes}
           {...listeners}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <circle cx="9" cy="6" r="1.5" />
-            <circle cx="15" cy="6" r="1.5" />
-            <circle cx="9" cy="12" r="1.5" />
-            <circle cx="15" cy="12" r="1.5" />
-            <circle cx="9" cy="18" r="1.5" />
-            <circle cx="15" cy="18" r="1.5" />
-          </svg>
-        </button>
+          label={t('dragLabel', { position })}
+          className="mb-2"
+        />
         <div className="flex-1">
           <Label htmlFor={`navigation-item-label-${index}`}>{t('itemLabel', { position })}</Label>
           <Input

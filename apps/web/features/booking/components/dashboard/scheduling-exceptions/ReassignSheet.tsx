@@ -2,11 +2,12 @@
 
 import { Radio } from '@/shared/components/ui/radio';
 import { Textarea } from '@/shared/components/ui/textarea';
-import { useMemo, useState, type SubmitEvent } from 'react';
+import { useMemo, useState, type SubmitEvent, useId } from 'react';
 import { useTranslations } from 'next-intl';
 import type { SchedulingExceptionItem, SchedulingExceptionReassignTarget } from '@ikaro/types';
 import { BookingActionSheetShell } from '@/features/booking/components/dashboard/bookings/BookingActionSheetShell';
 import { buildReassignChoices } from '@/features/booking/model/scheduling-exception-view';
+import { Label } from '@/shared/components/ui/label';
 
 const AUTO = 'AUTO';
 
@@ -31,6 +32,7 @@ export function ReassignSheet({
   onClose,
   onSubmit,
 }: ReassignSheetProps): React.JSX.Element | null {
+  const fieldId = useId();
   const t = useTranslations('dashboard.schedulingExceptionsPage');
   const [choice, setChoice] = useState<string>(AUTO);
   const [reason, setReason] = useState('');
@@ -92,18 +94,19 @@ export function ReassignSheet({
         ))}
       </div>
 
-      <label className="mt-3 block">
-        <span className="mb-2 block text-sm font-medium text-gray-700">
+      <div className="mt-3 block">
+        <Label htmlFor={fieldId}>
           {t('reasonLabel')} <span className="font-normal text-gray-400">({t('optional')})</span>
-        </span>
+        </Label>
         <Textarea
+          id={fieldId}
           value={reason}
           onChange={(event) => setReason(event.target.value)}
           maxLength={500}
           rows={2}
         />
         <span className="mt-1 block text-xs text-gray-400">{t('reasonHelp')}</span>
-      </label>
+      </div>
     </BookingActionSheetShell>
   );
 }

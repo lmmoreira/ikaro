@@ -12,6 +12,7 @@ import { resolveApiErrorFeedback } from '@/shared/lib/i18n/resolve-error-message
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { getInitials } from '@/shared/utils/initials';
 import { cn } from '@/shared/utils/cn';
+import { Button } from '@/shared/components/ui/button';
 
 const STATUS_BADGE_CLASSES: Record<StaffStatus, string> = {
   ACTIVE: 'bg-emerald-50 text-emerald-700',
@@ -78,15 +79,16 @@ function ResendInviteAction({ member }: { readonly member: StaffListItem }): Rea
 
   return (
     <div className="relative z-20 flex items-center gap-2">
-      <button
+      <Button
         type="button"
         data-testid="resend-invite-button"
         onClick={() => void handleResend()}
         disabled={inviteStaffMutation.isPending}
-        className="text-sm font-semibold text-blue-600 hover:underline disabled:opacity-50"
+        variant="link"
+        size="inline"
       >
         {inviteStaffMutation.isPending ? t('resendInviting') : t('resendInvite')}
-      </button>
+      </Button>
       {resendState === 'success' && (
         <FeedbackMessage
           variant="success"
@@ -129,15 +131,16 @@ function ActivateMemberAction({ member }: { readonly member: StaffListItem }): R
 
   return (
     <div className="relative z-20 flex items-center gap-2">
-      <button
+      <Button
         type="button"
         data-testid="activate-member-button"
         onClick={() => void handleActivate()}
         disabled={activateStaffMutation.isPending || activated}
-        className="text-sm font-semibold text-blue-600 hover:underline disabled:opacity-50"
+        variant="link"
+        size="inline"
       >
         {activateStaffMutation.isPending ? t('activating') : t('activate')}
-      </button>
+      </Button>
       {errorMessage && (
         <FeedbackMessage size="inline" title={errorMessage} testId="activate-member-error" />
       )}

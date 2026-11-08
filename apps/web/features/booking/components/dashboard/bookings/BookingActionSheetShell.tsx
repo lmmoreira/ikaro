@@ -65,9 +65,9 @@ export function BookingActionSheetShell({
                 <DialogDescription className="mt-1">{description}</DialogDescription>
               ) : null}
             </div>
-            <button type="button" onClick={onClose} className="text-sm font-semibold text-gray-500">
+            <Button type="button" onClick={onClose} variant="link-muted" size="inline">
               {cancelLabel}
-            </button>
+            </Button>
           </div>
 
           {children}

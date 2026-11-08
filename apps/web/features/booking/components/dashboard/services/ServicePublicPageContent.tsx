@@ -10,6 +10,7 @@ import { SectionCard } from '@/shared/components/ui/section-card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { newInclusionDraft, type InclusionDraft } from './service-public-page-draft';
+import { Button } from '@/shared/components/ui/button';
 
 interface ServicePublicPageContentProps {
   readonly longDescription: string;
@@ -120,27 +121,30 @@ export function ServicePublicPageContent({
                 }
                 className={FIELD_CLASS}
               />
-              <button
+              <Button
                 type="button"
                 data-testid="public-page-inclusion-remove"
                 aria-label={t('publicPageInclusionRemove')}
                 onClick={() => onInclusionsChange(inclusions.filter((_, slot) => slot !== index))}
-                className="shrink-0 rounded-md border border-gray-200 px-3 text-gray-500 hover:bg-gray-50"
+                variant="outline"
+                size="icon"
+                className="shrink-0 text-muted-foreground"
               >
                 <span aria-hidden="true">×</span>
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
-        <button
+        <Button
           type="button"
           data-testid="public-page-inclusion-add"
           disabled={inclusions.length >= LIMITS.inclusions}
           onClick={() => onInclusionsChange([...inclusions, newInclusionDraft()])}
-          className="mt-2 rounded-md border border-gray-200 px-4 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50 disabled:cursor-not-allowed disabled:text-gray-400 disabled:hover:bg-transparent"
+          variant="outline"
+          className="text-primary hover:bg-accent hover:text-primary mt-2"
         >
           {t('publicPageInclusionAdd')}
-        </button>
+        </Button>
       </div>
 
       <div>

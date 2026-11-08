@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { addDays, isSameDay, toISODate } from '@/shared/lib/formatting/date-utils';
+import { Button } from '@/shared/components/ui/button';
 
 export interface WeekNavProps {
   readonly windowStart: Date;
@@ -60,29 +61,31 @@ export function WeekNav({
     <div className="bg-white" data-testid="week-nav">
       {/* Month + navigation row */}
       <div className="flex items-center justify-between border-b border-gray-200 px-4 py-2">
-        <button
+        <Button
           type="button"
           onClick={onPrev}
           disabled={disablePrev}
           aria-label={t('previousPeriod')}
-          className="flex h-8 w-8 items-center justify-center rounded border border-gray-200 bg-white text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30"
+          variant="outline"
+          size="icon-sm"
         >
           <ChevronLeft className="h-4 w-4" />
-        </button>
+        </Button>
 
         <span className="text-sm font-semibold text-gray-800" data-testid="week-nav-label">
           {monthLabel}
         </span>
 
-        <button
+        <Button
           type="button"
           onClick={onNext}
           disabled={disableNext}
           aria-label={t('nextPeriod')}
-          className="flex h-8 w-8 items-center justify-center rounded border border-gray-200 bg-white text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30"
+          variant="outline"
+          size="icon-sm"
         >
           <ChevronRight className="h-4 w-4" />
-        </button>
+        </Button>
       </div>
 
       {/* Day strip */}

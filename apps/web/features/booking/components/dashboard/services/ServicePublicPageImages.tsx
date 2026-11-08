@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import { SERVICE_PUBLIC_PROFILE_LIMITS } from '@ikaro/types';
 import { SingleImageUploadField } from '@/features/platform/components/hotsite/SingleImageUploadField';
 import { SectionCard } from '@/shared/components/ui/section-card';
+import { Button } from '@/shared/components/ui/button';
 
 interface ServicePublicPageImagesProps {
   readonly cover: string;
@@ -113,15 +114,16 @@ export function ServicePublicPageImages({
             {...labels}
           />
         ))}
-        <button
+        <Button
           type="button"
           data-testid="public-page-gallery-add"
           disabled={gallery.length >= max}
           onClick={() => onGalleryChange([...gallery, ''])}
-          className="rounded-md border border-gray-200 px-4 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50 disabled:cursor-not-allowed disabled:text-gray-400 disabled:hover:bg-transparent"
+          variant="outline"
+          className="text-primary hover:bg-accent hover:text-primary"
         >
           {t('publicPageGalleryAdd')}
-        </button>
+        </Button>
       </div>
     </SectionCard>
   );

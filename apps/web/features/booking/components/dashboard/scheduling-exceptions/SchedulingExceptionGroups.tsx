@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import type { SchedulingExceptionItem } from '@ikaro/types';
 import { groupBySource } from '@/features/booking/model/scheduling-exception-view';
 import { SchedulingExceptionRow } from './SchedulingExceptionRow';
+import { Button } from '@/shared/components/ui/button';
 
 interface SchedulingExceptionGroupsProps {
   readonly items: readonly SchedulingExceptionItem[];
@@ -38,13 +39,15 @@ export function SchedulingExceptionGroups({
             <span className="text-[0.6875rem] font-bold text-gray-400">
               {t('groupCount', { count: group.items.length })}
             </span>
-            <button
+            <Button
               type="button"
               onClick={() => onToggleGroup(group.items)}
-              className="cursor-pointer text-xs font-semibold text-blue-600"
+              variant="link"
+              size="inline"
+              className="text-xs"
             >
               {t('selectAll')}
-            </button>
+            </Button>
           </div>
           {group.items.map((item) => (
             <SchedulingExceptionRow

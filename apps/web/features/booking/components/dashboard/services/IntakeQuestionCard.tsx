@@ -8,6 +8,7 @@ import { useTranslations } from 'next-intl';
 import type { ServiceIntakeQuestionType } from '@ikaro/types';
 import { FIELD_INVALID_CLASS } from '@/shared/components/ui/field-feedback';
 import { cn } from '@/shared/utils/cn';
+import { Button } from '@/shared/components/ui/button';
 
 export interface IntakeQuestionDraft {
   readonly key: string;
@@ -64,38 +65,41 @@ export function IntakeQuestionCard({
           {index + 1}
         </span>
         <div className="flex gap-1">
-          <button
+          <Button
             type="button"
             aria-label={t('formularioMoveQuestionUp')}
             data-testid="intake-question-up"
             data-question-index={index}
             disabled={isFirst}
             onClick={() => onMove(-1)}
-            className="rounded p-1 text-gray-500 hover:bg-slate-100 disabled:opacity-30"
+            variant="ghost-muted"
+            size="icon-sm"
           >
             ↑
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             aria-label={t('formularioMoveQuestionDown')}
             data-testid="intake-question-down"
             data-question-index={index}
             disabled={isLast}
             onClick={() => onMove(1)}
-            className="rounded p-1 text-gray-500 hover:bg-slate-100 disabled:opacity-30"
+            variant="ghost-muted"
+            size="icon-sm"
           >
             ↓
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             aria-label={t('formularioRemoveQuestion')}
             data-testid="intake-question-remove"
             data-question-index={index}
             onClick={onRemove}
-            className="rounded p-1 text-gray-500 hover:bg-slate-100"
+            variant="ghost-muted"
+            size="icon-sm"
           >
             ×
-          </button>
+          </Button>
         </div>
       </div>
 

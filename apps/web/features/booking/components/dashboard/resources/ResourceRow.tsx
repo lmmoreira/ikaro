@@ -9,6 +9,7 @@ import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import { resolveApiErrorFeedback } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { cn } from '@/shared/utils/cn';
+import { Button } from '@/shared/components/ui/button';
 
 export const TYPE_BADGE_CLASSES: Record<ResourceType, string> = {
   LOCATION: 'bg-sky-50 text-sky-700',
@@ -60,15 +61,16 @@ function ReactivateResourceAction({
 
   return (
     <div className="relative z-20 flex items-center gap-2">
-      <button
+      <Button
         type="button"
         data-testid="resource-row-reactivate-button"
         onClick={() => void handleReactivate()}
         disabled={reactivateResourceMutation.isPending || reactivated}
-        className="text-sm font-semibold text-blue-600 hover:underline disabled:opacity-50"
+        variant="link"
+        size="inline"
       >
         {reactivateResourceMutation.isPending ? t('activating') : t('activate')}
-      </button>
+      </Button>
       {errorMessage && (
         <FeedbackMessage
           size="inline"

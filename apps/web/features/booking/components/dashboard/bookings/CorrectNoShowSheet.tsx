@@ -1,13 +1,14 @@
 'use client';
 
 import { Textarea } from '@/shared/components/ui/textarea';
-import { useState, type SubmitEvent } from 'react';
+import { useState, type SubmitEvent, useId } from 'react';
 import { useTranslations } from 'next-intl';
 import { BookingActionSheetShell } from './BookingActionSheetShell';
 import {
   isCorrectionReasonValid,
   NO_SHOW_REASON_MAX,
 } from '@/features/booking/model/booking-no-show';
+import { Label } from '@/shared/components/ui/label';
 
 interface CorrectNoShowSheetProps {
   readonly open: boolean;
@@ -33,6 +34,7 @@ export function CorrectNoShowSheet({
   onClose,
   onSubmit,
 }: CorrectNoShowSheetProps): React.JSX.Element | null {
+  const fieldId = useId();
   const t = useTranslations('dashboard.bookingDetail');
   const [reason, setReason] = useState('');
 
@@ -62,18 +64,19 @@ export function CorrectNoShowSheet({
       submitDisabled={isSubmitting || !isValid}
       error={null}
     >
-      <label className="block">
-        <span className="mb-2 block text-sm font-medium text-gray-700">
+      <div className="block">
+        <Label htmlFor={fieldId}>
           {t('reasonLabel')} <span className="font-normal text-gray-400">({t('required')})</span>
-        </span>
+        </Label>
         <Textarea
+          id={fieldId}
           value={reason}
           onChange={(event) => setReason(event.target.value)}
           maxLength={NO_SHOW_REASON_MAX}
           rows={4}
           placeholder={t('correctReasonPlaceholder')}
         />
-      </label>
+      </div>
 
       <div className="mt-2 text-xs text-gray-400">
         {t('correctReasonCounter', { count: reason.trim().length })}

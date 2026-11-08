@@ -15,6 +15,7 @@ import { FieldFeedback } from '@/shared/components/ui/field-feedback';
 import { isTmpImagePath } from '@/features/platform/hotsite/resolve-hotsite-image-url';
 import { extractProblemCode, resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
+import { Button } from '@/shared/components/ui/button';
 
 export type { HotsiteImagePurpose };
 
@@ -224,17 +225,19 @@ export function SingleImageUploadField({
       {hasError && <FieldFeedback id={errorId}>{errorMessage}</FieldFeedback>}
 
       {displaySrc && status !== 'uploading' && (
-        <button
+        <Button
           type="button"
           data-testid="single-image-upload-remove"
           data-field-id={id}
           onClick={() => {
             void handleRemove();
           }}
-          className="mt-1.5 text-sm font-semibold text-red-600 underline"
+          variant="link-destructive"
+          size="inline"
+          className="mt-1.5"
         >
           {removeLabel}
-        </button>
+        </Button>
       )}
     </div>
   );
