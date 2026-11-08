@@ -13,7 +13,7 @@ import {
   buildStaffBookingPayload,
   type StaffBookingRecipient,
 } from '@/features/booking/model/staff-booking-payload';
-import type { BookingSubmissionStatus } from '../components/public/ConfirmationStep';
+import type { BookingSubmissionStatus } from '../model/booking-submission-status';
 import { useBookingSubmitRunner, type BookingSubmitRunnerParams } from './useBookingSubmitRunner';
 
 interface UseStaffBookingSubmissionParams extends BookingSubmitRunnerParams {

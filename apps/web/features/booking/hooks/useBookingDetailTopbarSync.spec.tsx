@@ -3,24 +3,19 @@ import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useBookingDetailTopbarSync } from './useBookingDetailTopbarSync';
 
-const setBookingStatus = vi.hoisted(() => vi.fn());
-const setBackHrefOverride = vi.hoisted(() => vi.fn());
-const topbar = vi.hoisted(() => ({ current: null as unknown }));
-
-vi.mock('@/shells/dashboard/components/topbar-status-context', () => ({
-  useDashboardTopbarStatus: () => topbar.current,
-}));
+const setBookingStatus = vi.fn();
+const setBackHrefOverride = vi.fn();
+const topbar = { setBookingStatus, setBackHrefOverride };
 
 describe('useBookingDetailTopbarSync', () => {
   beforeEach(() => {
     setBookingStatus.mockReset();
     setBackHrefOverride.mockReset();
-    topbar.current = { setBookingStatus, setBackHrefOverride };
   });
 
   it('publishes the booking status and the return target, and clears both on unmount', () => {
     const { rerender, unmount } = renderHook(
-      ({ status, returnTo }) => useBookingDetailTopbarSync(status, returnTo),
+      ({ status, returnTo }) => useBookingDetailTopbarSync(status, returnTo, topbar),
       { initialProps: { status: 'APPROVED' as const, returnTo: '/dashboard/bookings?x=1' } },
     );
 
@@ -36,10 +31,8 @@ describe('useBookingDetailTopbarSync', () => {
   });
 
   it('does nothing outside the dashboard topbar provider', () => {
-    topbar.current = null;
-
     expect(() =>
-      renderHook(() => useBookingDetailTopbarSync('APPROVED', null)).unmount(),
+      renderHook(() => useBookingDetailTopbarSync('APPROVED', null, null)).unmount(),
     ).not.toThrow();
     expect(setBookingStatus).not.toHaveBeenCalled();
   });

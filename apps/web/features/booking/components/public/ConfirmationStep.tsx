@@ -11,12 +11,11 @@ import type {
 } from '@ikaro/types';
 import { composeBasket, type ChosenDuration } from '@/features/booking/model/basket-lines';
 import { useBasketTotalText } from '@/features/booking/hooks/useBasketText';
+import type { BookingSubmissionStatus } from '@/features/booking/model/booking-submission-status';
 import { BasketLines } from './BasketLines';
 import { BookingSubmittedDetails } from './BookingSubmittedDetails';
 import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feedback-message';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
-
-export type BookingSubmissionStatus = 'idle' | 'submitting' | 'success' | 'error';
 
 interface ConfirmationStepProps {
   readonly slug: string;
