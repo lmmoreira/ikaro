@@ -5,15 +5,11 @@ describe('resolveAppEnv', () => {
     expect(resolveAppEnv({} as NodeJS.ProcessEnv)).toBe('local');
   });
 
-  it('treats an empty APP_ENV as local', () => {
-    expect(resolveAppEnv({ APP_ENV: '' } as NodeJS.ProcessEnv)).toBe('local');
-  });
-
   it.each(['local', 'staging', 'production'] as const)('passes %s through', (appEnv) => {
     expect(resolveAppEnv({ APP_ENV: appEnv } as NodeJS.ProcessEnv)).toBe(appEnv);
   });
 
-  it.each(['prod', 'Production', 'ci', 'development', ' staging'])(
+  it.each(['', 'prod', 'Production', 'ci', 'development', ' staging'])(
     'throws on the unknown value "%s"',
     (value) => {
       expect(() => resolveAppEnv({ APP_ENV: value } as NodeJS.ProcessEnv)).toThrow(

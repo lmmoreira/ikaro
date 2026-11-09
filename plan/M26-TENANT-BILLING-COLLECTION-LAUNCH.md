@@ -2246,7 +2246,7 @@ The go / no-go for charging real customers. The story is complete when each item
 - Tenant isolation: none
 - E2E: [ ] S35's suite green against the release candidate; the sandbox money-loop run observed once on staging
 - [ ] Checkov / Tfsec clean
-- [ ] Every item (1)–(10) recorded as observed in the PR description, including the fiscal retention years written into `docs/DATA_RETENTION_AND_PRIVACY.md` and the real webhook of the production smoke charge
+- [ ] Every item (1)–(8) recorded as observed in the PR description, including the fiscal retention years written into `docs/DATA_RETENTION_AND_PRIVACY.md` and the real webhook of the production smoke charge
 - [ ] **Follow-up gate:** `plan/M27-*.md` is drafted (its deletion-rules discovery done) before this story is marked done — see § Follow-up milestones to write; the first erasure can happen 90 days after the first real suspension
 
 ---

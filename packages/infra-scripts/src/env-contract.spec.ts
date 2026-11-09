@@ -78,11 +78,16 @@ function writeFixtureRepo(options: {
   return root;
 }
 
-function writeDbKeyFixtureRepo(options: {
-  backendTfHasDbHost: boolean;
-  backendTfHasInstanceConnectionName: boolean;
+/**
+ * Fixture repo whose only varying parts are the backend schema body and the backend `env_vars`
+ * lines wired in both Terraform roots; the BFF, web and non-backend Terraform scaffold is fixed.
+ */
+function writeBackendFixtureRepo(options: {
+  fixturePrefix: string;
+  backendSchemaFields: string;
+  backendEnvVars: string;
 }): string {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'env-contract-db-fixture-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), options.fixturePrefix));
 
   const backendSchemaDir = path.join(root, 'apps/backend/src/config');
   fs.mkdirSync(backendSchemaDir, { recursive: true });
@@ -90,8 +95,7 @@ function writeDbKeyFixtureRepo(options: {
     path.join(backendSchemaDir, 'env.validation.ts'),
     `
       const schema = z.object({
-        DB_HOST: z.string().optional(),
-        DB_INSTANCE_CONNECTION_NAME: z.string().optional(),
+        ${options.backendSchemaFields}
       });
     `,
   );
@@ -116,13 +120,6 @@ function writeDbKeyFixtureRepo(options: {
     `,
   );
 
-  const backendEnvVars = [
-    options.backendTfHasDbHost ? 'DB_HOST = "10.0.0.5"' : '',
-    options.backendTfHasInstanceConnectionName
-      ? 'DB_INSTANCE_CONNECTION_NAME = "proj:region:instance"'
-      : '',
-  ].join('\n');
-
   for (const env of ['staging', 'prod']) {
     const envDir = path.join(root, `infra/terraform/envs/${env}`);
     fs.mkdirSync(envDir, { recursive: true });
@@ -131,7 +128,7 @@ function writeDbKeyFixtureRepo(options: {
       `
         module "cloudrun_backend" {
           env_vars = {
-            ${backendEnvVars}
+            ${options.backendEnvVars}
           }
         }
 
@@ -154,74 +151,31 @@ function writeDbKeyFixtureRepo(options: {
   return root;
 }
 
+function writeDbKeyFixtureRepo(options: {
+  backendTfHasDbHost: boolean;
+  backendTfHasInstanceConnectionName: boolean;
+}): string {
+  return writeBackendFixtureRepo({
+    fixturePrefix: 'env-contract-db-fixture-',
+    backendSchemaFields: `
+        DB_HOST: z.string().optional(),
+        DB_INSTANCE_CONNECTION_NAME: z.string().optional(),`,
+    backendEnvVars: [
+      options.backendTfHasDbHost ? 'DB_HOST = "10.0.0.5"' : '',
+      options.backendTfHasInstanceConnectionName
+        ? 'DB_INSTANCE_CONNECTION_NAME = "proj:region:instance"'
+        : '',
+    ].join('\n'),
+  });
+}
+
+// Optional in the schema (local runs without it) yet required in Terraform: it is not exempt.
 function writeOwnerSlugFixtureRepo(options: { backendTfHasOwnerSlug: boolean }): string {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'env-contract-owner-slug-fixture-'));
-
-  const backendSchemaDir = path.join(root, 'apps/backend/src/config');
-  fs.mkdirSync(backendSchemaDir, { recursive: true });
-  // Optional in the schema (local runs without it) yet required in Terraform: it is not exempt.
-  fs.writeFileSync(
-    path.join(backendSchemaDir, 'env.validation.ts'),
-    `
-      const schema = z.object({
-        PLATFORM_OWNER_TENANT_SLUG: z.string().optional(),
-      });
-    `,
-  );
-
-  const bffSchemaDir = path.join(root, 'apps/bff/src/config');
-  fs.mkdirSync(bffSchemaDir, { recursive: true });
-  fs.writeFileSync(
-    path.join(bffSchemaDir, 'env.validation.ts'),
-    `
-      const schema = z.object({
-        BACKEND_INTERNAL_URL: z.url(),
-      });
-    `,
-  );
-
-  const webRuntimeEnvDir = path.join(root, 'apps/web/shared/lib/runtime-env');
-  fs.mkdirSync(webRuntimeEnvDir, { recursive: true });
-  fs.writeFileSync(
-    path.join(webRuntimeEnvDir, 'public-env.ts'),
-    `
-      const PUBLIC_ENV_KEYS = ['NEXT_PUBLIC_BFF_URL'] as const;
-    `,
-  );
-
-  const backendEnvVars = options.backendTfHasOwnerSlug
-    ? 'PLATFORM_OWNER_TENANT_SLUG = "ikaro"'
-    : '';
-
-  for (const env of ['staging', 'prod']) {
-    const envDir = path.join(root, `infra/terraform/envs/${env}`);
-    fs.mkdirSync(envDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(envDir, 'main.tf'),
-      `
-        module "cloudrun_backend" {
-          env_vars = {
-            ${backendEnvVars}
-          }
-        }
-
-        module "cloudrun_bff" {
-          env_vars = {
-            BACKEND_INTERNAL_URL = "x"
-          }
-        }
-
-        module "cloudrun_web" {
-          env_vars = {
-            NEXT_PUBLIC_BFF_URL = "x"
-            BFF_UPSTREAM_URL = "x"
-          }
-        }
-      `,
-    );
-  }
-
-  return root;
+  return writeBackendFixtureRepo({
+    fixturePrefix: 'env-contract-owner-slug-fixture-',
+    backendSchemaFields: 'PLATFORM_OWNER_TENANT_SLUG: z.string().optional(),',
+    backendEnvVars: options.backendTfHasOwnerSlug ? 'PLATFORM_OWNER_TENANT_SLUG = "ikaro"' : '',
+  });
 }
 
 describe('checkEnvContract', () => {
