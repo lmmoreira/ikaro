@@ -1337,7 +1337,7 @@ Every event below also has an `audit-log` consumer (one thin `<Context>AuditLogH
 | `TenantDeactivated` *(slice G, not implemented)* | A tenant is deactivated (emitter decided at story discovery, sequenced with M17-S51; UC-142) | **Billing Context** (cancels the subscription), `audit-log` |
 
 ### **Billing Context Events**
-> **PLANNED, NOT YET BUILT** (Billing milestone; rules and design only — no code, table or migration exists yet).
+> **PARTLY BUILT** (Billing milestone): the `billing` schema exists (`docs/DATABASE_SCHEMA.md` § Schema: `billing`, M25-S03); aggregates, repositories and use cases are rules and design only until their stories land.
 
 
 Payloads and consumers: `docs/DOMAIN_EVENTS.md` § Billing Context Events. Every event also has an `audit-log` consumer (`BillingAuditLogHandler`).
@@ -1715,7 +1715,7 @@ LeadFormAnswer {
 ---
 
 ### **Context 7: Billing Context**
-> **PLANNED, NOT YET BUILT** (Billing milestone; rules and design only — no code, table or migration exists yet).
+> **PARTLY BUILT** (Billing milestone): the `billing` schema exists (`docs/DATABASE_SCHEMA.md` § Schema: `billing`, M25-S03); aggregates, repositories and use cases are rules and design only until their stories land.
 
 **Slice-to-milestone mapping:** the deferred slices are the follow-up milestones M27 = slice G (tenant purge and deactivation), M28 = slice E (Stripe/US tax), M29 = slice F (automatic collection, incl. F2 recurring card) and M30 = slice H (annual billing); M25 and M26 deliver the first (BR-only) release.
 

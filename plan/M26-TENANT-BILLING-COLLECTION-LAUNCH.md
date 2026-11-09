@@ -347,7 +347,7 @@ Give the money its model. **`Charge`** (root, `apps/backend/src/contexts/billing
 - `apps/backend/src/contexts/billing/application/ports/charge-repository.port.ts`, `provider-event-repository.port.ts` (new)
 - `apps/backend/src/contexts/billing/infrastructure/entities/charge.entity.ts`, `charge-line.entity.ts`, `provider-event.entity.ts` (new)
 - `apps/backend/src/contexts/billing/infrastructure/repositories/typeorm-charge.repository.ts`, `typeorm-provider-event.repository.ts` (+ `.spec.ts`, `.integration.spec.ts`) (new)
-- `apps/backend/src/test/utils/billing-integration-app.ts` (modify — M25-S03 created it; register the three new entities), `apps/backend/src/test/integration-global-setup.ts` and `apps/backend/src/test/test-datasource.ts` (modify — entity registration; the harness must stay in sync with entities/migrations)
+- `apps/backend/src/test/utils/billing-integration-app.ts` (modify — M25-S04 created it; register the three new entities), `apps/backend/src/test/integration-global-setup.ts` and `apps/backend/src/test/test-datasource.ts` (modify — entity registration; the harness must stay in sync with entities/migrations)
 - `apps/backend/src/test/builders/billing/index.ts` (modify — export the new builders), `apps/backend/src/test/builders/billing/charge.builder.ts`, `charge-entity.builder.ts`, `charge-line.builder.ts`, `charge-line-entity.builder.ts`, `provider-event.builder.ts`, `provider-event-entity.builder.ts` (new — default `uuidv7()` ids; date defaults relative to `Date.now()`)
 - `apps/backend/src/contexts/billing/billing.module.ts` (modify)
 - `packages/architecture-check/architecture-policy.json` (modify — add the three entities to the `testDataHarnessRegistrations` `entities` array)
