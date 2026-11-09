@@ -308,7 +308,7 @@ The BR launch list is decided (HOTSITE R$ 49, BOOKING R$ 109 with recurrence and
 
 ---
 
-### M25-S03 — `billing` schema, `btree_gist`, first-schema DDL, `BillingModule` skeleton
+### M25-S03 — `billing` schema, `btree_gist`, first-schema DDL, `BillingModule` skeleton ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** L
