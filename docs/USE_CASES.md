@@ -2917,7 +2917,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 - **Actor:** Any request, job or handler (system)
 - **Preconditions:** None.
 - **Trigger:** A guard, use case, handler or cron needs "is this tenant operational, and is feature X entitled?".
-- **Main Flow:** The caller passes an explicit `tenantId` to the shared `TenantAccessPort`; Billing's cached adapter returns `{ status, suspensionReason, operational, features: [{ key, tier }] }`. `operational` is `status != SUSPENDED`; a feature is entitled when the tenant is operational and the feature is in `features`. The contract, the asymmetric cache TTLs, the fail-open rule and the kill switch are in `docs/DOMAIN_MODEL.md` § Entry point: `TenantAccessPort`. The web reads a role-reduced answer through `GET /v1/billing/access` (`docs/API_CONTRACTS.md` § Billing — Access Resolution and Suspended-State Effects); the BFF guard reads the backend's internal access endpoint instead.
+- **Main Flow:** The caller passes an explicit `tenantId` to the shared `TenantAccessPort`; Billing's cached adapter returns `{ status, suspensionReason, operational, features: [{ key, tier }] }`. `operational` is `status != SUSPENDED`; a feature is entitled when the tenant is operational and the feature is in `features`. The contract, the asymmetric cache TTLs and the fail-open rule are in `docs/DOMAIN_MODEL.md` § Entry point: `TenantAccessPort`. The web reads a role-reduced answer through `GET /v1/billing/access` (`docs/API_CONTRACTS.md` § Billing — Access Resolution and Suspended-State Effects); the BFF guard reads the backend's internal access endpoint instead.
 - **Alternative Flows:**
    - **A1: No subscription row after a successful lookup** → a provisioning / data-integrity incident, distinct from a lookup error. Inside the `PROVISIONING_GRACE_MINUTES` window the tenant is treated as a pending trial; after it, tenant operations are denied, a metric / log is emitted and the self-heal job (UC-140) repairs the row. An alert fires only if self-heal fails.
    - **A2: Lookup error** → fail open and log.
@@ -3283,7 +3283,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
    - **A1: Tenant is Ikaro's own** (`PLATFORM_OWNER_TENANT_SLUG`) → clearing is rejected (`403 BILLING_EXEMPT_PROTECTED`).
    - **A2: Already in the requested state** → no-op, no audit row.
    - **A3: Tenant `SUSPENDED`** → setting `exempt` reactivates it without payment (the only operator route back to access, and only by making the tenant free); `SubscriptionReactivated` is raised.
-- **Postconditions:** The tenant is free (or back on the paid ladder), audited. `exempt` is a flag, not a price of zero and not the global kill switch.
+- **Postconditions:** The tenant is free (or back on the paid ladder), audited. `exempt` is a flag, not a price of zero.
 - **Events Triggered:** `SubscriptionReactivated` (A3 only)
 
 ---

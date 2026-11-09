@@ -154,6 +154,76 @@ function writeDbKeyFixtureRepo(options: {
   return root;
 }
 
+function writeOwnerSlugFixtureRepo(options: { backendTfHasOwnerSlug: boolean }): string {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'env-contract-owner-slug-fixture-'));
+
+  const backendSchemaDir = path.join(root, 'apps/backend/src/config');
+  fs.mkdirSync(backendSchemaDir, { recursive: true });
+  // Optional in the schema (local runs without it) yet required in Terraform: it is not exempt.
+  fs.writeFileSync(
+    path.join(backendSchemaDir, 'env.validation.ts'),
+    `
+      const schema = z.object({
+        PLATFORM_OWNER_TENANT_SLUG: z.string().optional(),
+      });
+    `,
+  );
+
+  const bffSchemaDir = path.join(root, 'apps/bff/src/config');
+  fs.mkdirSync(bffSchemaDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(bffSchemaDir, 'env.validation.ts'),
+    `
+      const schema = z.object({
+        BACKEND_INTERNAL_URL: z.url(),
+      });
+    `,
+  );
+
+  const webRuntimeEnvDir = path.join(root, 'apps/web/shared/lib/runtime-env');
+  fs.mkdirSync(webRuntimeEnvDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(webRuntimeEnvDir, 'public-env.ts'),
+    `
+      const PUBLIC_ENV_KEYS = ['NEXT_PUBLIC_BFF_URL'] as const;
+    `,
+  );
+
+  const backendEnvVars = options.backendTfHasOwnerSlug
+    ? 'PLATFORM_OWNER_TENANT_SLUG = "ikaro"'
+    : '';
+
+  for (const env of ['staging', 'prod']) {
+    const envDir = path.join(root, `infra/terraform/envs/${env}`);
+    fs.mkdirSync(envDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(envDir, 'main.tf'),
+      `
+        module "cloudrun_backend" {
+          env_vars = {
+            ${backendEnvVars}
+          }
+        }
+
+        module "cloudrun_bff" {
+          env_vars = {
+            BACKEND_INTERNAL_URL = "x"
+          }
+        }
+
+        module "cloudrun_web" {
+          env_vars = {
+            NEXT_PUBLIC_BFF_URL = "x"
+            BFF_UPSTREAM_URL = "x"
+          }
+        }
+      `,
+    );
+  }
+
+  return root;
+}
+
 describe('checkEnvContract', () => {
   const fixtureRoots: string[] = [];
 
@@ -290,5 +360,29 @@ describe('checkEnvContract', () => {
       expect(violation.appName).toBe('backend');
       expect(violation.missingKeys).toEqual(['DB_INSTANCE_CONNECTION_NAME']);
     }
+  });
+
+  it('requires PLATFORM_OWNER_TENANT_SLUG in both env roots even though the schema marks it optional', () => {
+    const root = writeOwnerSlugFixtureRepo({ backendTfHasOwnerSlug: false });
+    fixtureRoots.push(root);
+
+    const violations = checkEnvContract(root);
+
+    expect(violations).toHaveLength(2);
+    for (const violation of violations) {
+      expect(violation.appName).toBe('backend');
+      expect(violation.missingKeys).toEqual(['PLATFORM_OWNER_TENANT_SLUG']);
+    }
+    expect(violations.map((v) => v.envRoot).sort()).toEqual([
+      'infra/terraform/envs/prod/main.tf',
+      'infra/terraform/envs/staging/main.tf',
+    ]);
+  });
+
+  it('reports no violation once PLATFORM_OWNER_TENANT_SLUG is wired in both env roots', () => {
+    const root = writeOwnerSlugFixtureRepo({ backendTfHasOwnerSlug: true });
+    fixtureRoots.push(root);
+
+    expect(checkEnvContract(root)).toEqual([]);
   });
 });

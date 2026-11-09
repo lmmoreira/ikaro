@@ -6,12 +6,12 @@
 
 ## Ordering principles
 
-1. **Nothing changes for any tenant until enforcement is switched on**, and it is switched on only after the access port, the trial/backfill rows and the kill switch exist, so a release can never lock anyone out.
+1. **Nothing changes for any tenant until enforcement is switched on**, and it is switched on only after the access port, the trial/backfill rows exist, so a release can never lock anyone out.
 2. **Backend/BFF before frontend**; each frontend story sits after the endpoint it needs.
 3. **Verify the provider before designing the port.** The Asaas sandbox spike is the first story, and the Asaas production account (KYC lead time unknown) is requested today.
 4. **The money loop (issue → pay → webhook → status) is built against the `FakeBillingProvider`** so every environment runs it with no account; the real Asaas adapter is built late against the same contract suite (`tenant-billing.md` §5.3).
 5. **Operator-free by default (R13).** Self-heal, reminders, provider health, exception-only alerts and runbooks are stories of milestone 2 (before launch), not post-launch polish: no real money flows until they exist.
-6. **Each provider and optional slice is independently releasable and flag-gated** (`FEATURE_FLAG_BILLING_ENFORCEMENT`, Pix Automático gate).
+6. **Each provider and optional slice is independently releasable and flag-gated** (Pix Automático gate).
 7. **Purge ships last**: the first possible erasure is 90 days after the first suspension.
 8. **First schema is BR-only** (decision 99); US tax columns and tables arrive with slice E.
 
@@ -23,7 +23,7 @@
 | A1 | Commercial catalog: BR list is decided (BOOKING R$ 109, decision 80); settled in M25-S02: Plus is `claude-haiku-5.5` on Basic's caps (`docs/TENANTS_SETTINGS_SCHEMA.md` § 7), tiers defined by caps not model name, OpenRouter settings validated for Haiku; US list stays staging-only | 07 | Small; only the Plus model/caps block the production seed |
 | A2 | `billing` schema (`btree_gist`), 7th context, five-member `FeatureKey`, `FeaturePrice` + versions, seed, `provider_health`, **CPF/CNPJ value object and `CountrySpec` tax-ID entry**, **error-code plumbing for the two new origins (`BillingErrorCode`, `SignupErrorCode`: `error-codes.ts`, `AnyErrorCode`, the `CATALOGS` list in the web exhaustiveness spec, both `errors.json`, `ERROR_CATALOG.md`, `BffThrowableCode`)**, docs and `architecture-policy` entries | 07 | Pure expand; closed-enum detector wiring. Moved here from the identity story because A3 needs it |
 | A3 | `Subscription`/items/`BillingAccount` aggregates (entitlement formula, no trial rows, `plan_confirmed_at`, `next_due_date` lifecycle); `TenantProvisioned` additive fields (`countryCode`, `exempt`, `registrationId`); trial handler tolerant of legacy payloads; `signup_registrations` with `POST /internal/billing/registrations` (self-signup and script); read-only tenant-info port for self-heal/backfill; environment-based `merchant_profile_key`; backfill as `exempt`; `taxId` required for non-exempt BR in `POST /internal/tenants` **and `scripts/provision-tenant.sh` updated (`--exempt`, tax id, registration call)** | 01, 21 | The bus does not version-route (verified): publisher, handler and registration endpoint ship in one release; legacy outbox rows are repaired by self-heal |
-| A4 | `TenantAccessPort` + caching adapter (asymmetric TTL, explicit invalidation, provisioning window) + access endpoints + kill switch | 15 | Read-only; nothing calls it yet |
+| A4 | `TenantAccessPort` + caching adapter (asymmetric TTL, explicit invalidation, provisioning window) + access endpoints | 15 | Read-only; nothing calls it yet |
 | A5 | `IClock` port + system clock; dev-only clock advance endpoint and script; `APP_ENV` guards | 33 | Every later date rule depends on it |
 | A6 | Provider port (from A0's facts) + `FakeBillingProvider` + contract suite skeleton; live-adapter startup guard; fake/sandbox key rule | 33 | |
 | A7 | Operator edge cases: `exempt` set/clear, `suspend`/`unsuspend` (reason `OPERATOR`), `grace`, read-only tenant list, audit; US-before-Stripe rejection | 32, 06 | Exactly the mapped operator touchpoints, nothing more |
@@ -64,7 +64,7 @@ Enforcement can be merged dark and stays off until milestone 2's launch story (L
 | D5 | Hosting of the Terms and Privacy pages (owner-supplied texts) | 22 | Linked from the signup checkbox |
 | D6 | First-run onboarding checklist | 24 | Optional |
 | D7 | **Manual offboarding runbook for never-paid tenants** (minimal slice of `plan/M17` S51: operator-triggered erase of a stuck trial tenant, OPERATIONS O13) so the signup dead end has an answer at launch, before the automated discard (G12) exists | 36 (interim) | Without it a mistyped slug has no fix at launch |
-| L1 | **Launch readiness**: production config and secrets, dedicated non-exempt smoke-test tenant, smoke test, takedown runbook check, flip `FEATURE_FLAG_BILLING_ENFORCEMENT`, go-live checklist (NFS-e gate, accountant answers) | — | Last story before launch |
+| L1 | **Launch readiness**: production config and secrets, dedicated non-exempt smoke-test tenant, smoke test, takedown runbook check, go-live checklist (NFS-e gate, accountant answers) | — | Last story before launch |
 
 ## Later slices (each independent)
 

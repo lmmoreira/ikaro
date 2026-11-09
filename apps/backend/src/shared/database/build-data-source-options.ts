@@ -1,5 +1,6 @@
 import type { DataSourceOptions } from 'typeorm';
 import { getCloudSqlConnectorExtra } from '../infrastructure/database/cloud-sql-connector.adapter';
+import { resolveAppEnv } from './resolve-app-env';
 
 export function requireEnv(env: NodeJS.ProcessEnv, keys: string[]): void {
   const missing = keys.filter((k) => !env[k]);
@@ -30,7 +31,7 @@ export async function buildDataSourceOptions(
   env: NodeJS.ProcessEnv,
   base: BaseDataSourceOptions,
 ): Promise<DataSourceOptions> {
-  const appEnv = env['APP_ENV'] ?? 'local';
+  const appEnv = resolveAppEnv(env);
 
   if (appEnv === 'local') {
     requireEnv(env, ['DB_HOST', 'DB_MIGRATOR_USER', 'DB_MIGRATOR_PASSWORD', 'DB_NAME']);

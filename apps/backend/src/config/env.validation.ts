@@ -112,6 +112,16 @@ export const schema = z.object({
   CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD: z.coerce.number().positive().default(1),
   CHATBOT_MIN_PROVIDER_BALANCE_USD: z.coerce.number().positive().default(2),
   CHATBOT_PROVIDER_HEALTH_COOLDOWN_MINUTES: z.coerce.number().int().positive().default(5),
+  // M25-S07 — slug of Ikaro's own tenant, whose subscription is permanently exempt (M25-S08/S11
+  // resolve it into the aggregate's isPlatformOwner flag). Optional in the schema so local runs
+  // without it; the env-contract check still requires it in both Terraform roots, so a deployed
+  // environment can never silently lose the protection.
+  PLATFORM_OWNER_TENANT_SLUG: z
+    .string()
+    .regex(/^[a-z0-9-]+$/, {
+      message: 'PLATFORM_OWNER_TENANT_SLUG must match ^[a-z0-9-]+$ (a tenant slug)',
+    })
+    .optional(),
 });
 
 export type Env = z.infer<typeof schema>;

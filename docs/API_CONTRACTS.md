@@ -1838,7 +1838,7 @@ Billing codes are `BILLING_*`, signup codes `SIGNUP_*`; every code and where it 
 
 ## Billing — Access Resolution and Suspended-State Effects
 
-> **PLANNED, NOT YET BUILT** (Billing milestone). The read side of enforcement: how the web learns whether a tenant is operational and what a `SUSPENDED` tenant changes on routes that already exist (UC-120–UC-125). Unlike the manager routes above, these are not `MANAGER`-only. The mechanism (guard, decorators, event and cron gates, kill switch) is in `docs/ENGINEERING_RULES_SHARED.md` § Tenant access enforcement — the declarative choke points (planned); the access contract itself (fields, TTLs, fail-open) is in `docs/DOMAIN_MODEL.md` § Entry point: `TenantAccessPort`.
+> **PLANNED, NOT YET BUILT** (Billing milestone). The read side of enforcement: how the web learns whether a tenant is operational and what a `SUSPENDED` tenant changes on routes that already exist (UC-120–UC-125). Unlike the manager routes above, these are not `MANAGER`-only. The mechanism (guard, decorators, event and cron gates) is in `docs/ENGINEERING_RULES_SHARED.md` § Tenant access enforcement — the declarative choke points (planned); the access contract itself (fields, TTLs, fail-open) is in `docs/DOMAIN_MODEL.md` § Entry point: `TenantAccessPort`.
 
 **`GET /v1/billing/access`** (any authenticated role; UC-120)
 

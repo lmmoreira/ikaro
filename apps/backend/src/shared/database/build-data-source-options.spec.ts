@@ -100,6 +100,24 @@ describe('buildDataSourceOptions', () => {
     });
   });
 
+  describe('unknown APP_ENV', () => {
+    it('throws instead of silently taking the cloud path', async () => {
+      await expect(
+        buildDataSourceOptions(
+          {
+            APP_ENV: 'prod',
+            DB_INSTANCE_CONNECTION_NAME: 'proj:region:instance',
+            DB_MIGRATOR_USER: 'ikaro_migrator',
+            DB_MIGRATOR_PASSWORD: 'secret',
+            DB_NAME: 'ikaro',
+          } as NodeJS.ProcessEnv,
+          base,
+        ),
+      ).rejects.toThrow('Unknown APP_ENV "prod"');
+      expect(mockGetCloudSqlConnectorExtra).not.toHaveBeenCalled();
+    });
+  });
+
   describe('APP_ENV=staging/production', () => {
     it('builds Cloud SQL Connector options from DB_INSTANCE_CONNECTION_NAME', async () => {
       const fakeExtra = { stream: () => ({}) as never };
