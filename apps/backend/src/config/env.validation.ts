@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { validateEnvWithSchema } from '@ikaro/env-validation';
+import { Slug } from '../shared/value-objects/slug.vo';
 
 // Exported (not just validatedSchema below) so packages/infra-scripts'
 // env-contract check can introspect the real key set via schema.shape,
@@ -118,7 +119,7 @@ export const schema = z.object({
   // environment can never silently lose the protection.
   PLATFORM_OWNER_TENANT_SLUG: z
     .string()
-    .regex(/^[a-z0-9-]+$/, {
+    .refine(Slug.isValid, {
       message: 'PLATFORM_OWNER_TENANT_SLUG must match ^[a-z0-9-]+$ (a tenant slug)',
     })
     .optional(),
