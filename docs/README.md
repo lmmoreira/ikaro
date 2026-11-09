@@ -48,4 +48,5 @@ Every other doc, grouped by purpose:
 
 - **Code rules:** `CODE_STANDARDS.md`, `ENGINEERING_RULES_SHARED.md`, `ENGINEERING_RULES_BACKEND.md`, `ENGINEERING_RULES_FRONTEND.md`, `ENGINEERING_RULES_INFRA.md`, `ENGINEERING_RULES_TESTING.md`, `ANTI_PATTERNS.md`, `AGENT_PATTERNS.md`, `VALUE_OBJECTS_REFERENCE.md`, `REPOSITORY_STRUCTURE.md`.
 - **Delivery:** `DEFINITION_OF_DONE.md`, `CI_TRAPS.md`, `STORY_SCHEMA.md`, `RUNBOOKS.md`.
+- **Providers:** `ASAAS_PROVIDER.md` (the verified Asaas facts, sandbox observations and launch gates; Stripe has none yet).
 - **Agent context upkeep:** `AGENT_CONTEXT_TRAP_SCENARIOS.md` (the eval prompts for `.copilot/context.md`).

@@ -235,7 +235,7 @@ After payment the banner disappears immediately; a short "pagamento recebido, re
 
 - **US full address required before the first paid selection.** New screen `02e-billing-identity-us-address-required.html`: a US trial tenant on the Dados tab sees the red alert "Add your full billing address" with street, city, state and ZIP highlighted (the number is optional); without it the first invoice cannot be issued and the trial suspends at its end. Error code `BILLING_ADDRESS_REQUIRED` from `PUT /v1/billing/plan` (same for BR).
 - **Auto-billing is Pix Automático only.** The card option and "Cartão final 4242" were removed from `07*` and every Resumo/Automática panel; the activation tab offers only Pix Automático ("Pague o primeiro Pix e aprove a autorização no app do seu banco"). Tenants still pay any monthly charge by card, Pix or boleto on the hosted page. `POST /v1/billing/auto-billing` accepts `{ mode: 'PIX_AUTOMATICO' }` only.
-- **Provider facts and launch gates** for these screens are in `docs/discovery/tenant-billing/tenant-billing_PROVIDERS.md`.
+- **Provider facts and launch gates** for these screens are in `docs/ASAAS_PROVIDER.md` (Asaas) and `docs/discovery/tenant-billing/tenant-billing_PROVIDERS.md` (Stripe, until it has its own doc).
 - **No UI for non-production controls.** The simulate, advance-time and seed tools are internal endpoints and scripts only (`tenant-billing_API.md` §5 "Non-production endpoints"); there is no dev panel in the dashboard. The seed script creates one tenant per screen state shown in this prototype (trial, active, scheduled cancel, past due, suspended ×2, exempt, US with and without address).
 
 

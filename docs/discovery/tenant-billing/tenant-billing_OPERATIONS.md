@@ -25,7 +25,7 @@
 | Price-change announcement to every affected manager | price-change transaction + outbox |
 | Drift between Ikaro and the provider | reconcile (fixes by itself; alerts only above a threshold) |
 | Tenant provisioned but Billing row missing | **provisioning self-heal** (CAND-35 step 1): creates the trial through the same idempotent use case |
-| Webhook endpoint disabled/paused at the provider | **provider health job** (CAND-35 step 2): re-enables it through the provider API if the API allows (launch-gate check), otherwise alerts; reconcile keeps money correct meanwhile |
+| Webhook endpoint disabled/paused at the provider | **provider health job** (CAND-35 step 2): raises the alert and re-enables it once through the provider API, keeping the alert until a delivery succeeds (`docs/ASAAS_PROVIDER.md` § 4); reconcile keeps money correct meanwhile |
 | Provider unhealthy (reconcile failing > 24 h, API down) | **suspension freeze** (CAND-35 step 3): the sweep stops suspending anyone until reconcile succeeds again, so an outage never locks out a paying tenant and no operator "grace" is needed |
 | Billing identity missing/invalid blocks a charge | charge held, manager gets a banner + email; **issuing resumes automatically** when the identity is saved |
 | First paid plan not confirmed | `PLAN_CONFIRMATION` reminders at 10/7/4 days, then the default plan is invoiced 3 days before trial end with a plain-language email (decision 115) |
@@ -67,7 +67,7 @@ Alerts are metric/log-based alert policies first (`docs/OBSERVABILITY_STRATEGY.m
 
 | Alert | Fires when | Automatic response before it fires | Runbook |
 |---|---|---|---|
-| Webhook failure ratio | > 5% non-200 over 15 min, or provider queue paused and not re-enabled | retry, re-enable, reconcile | Webhook |
+| Webhook failure ratio | > 5% non-200 over 15 min, or provider queue paused and no delivery has succeeded since it was re-enabled | retry, re-enable, reconcile | Webhook |
 | Reconcile failing | no successful reconcile for 24 h (also starts the suspension freeze) | retry hourly | Provider incident |
 | Reconcile drift | more than N charges differ in one run | drift is corrected | Drift |
 | Charge creation stuck | `provider_creation_status = PENDING` > 24 h after N attempts | backoff retries | Charge creation |

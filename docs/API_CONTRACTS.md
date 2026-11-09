@@ -1648,7 +1648,7 @@ BFF routes called by the payment provider (never by the web app).
 - **Decorators:** `@Public()` **and** `@BypassWebOnlyGuard()` — the provider is not the web app and sends no `x-web-internal-key`; `WebOnlyGuard` has no `@Public()` escape, so these are the first non-health routes to bypass it — **and** `@SkipThrottle()` (or a tuned `@Throttle`) so provider retries from a few source IPs are not rate-limited.
 - **Authenticity:** Asaas — static header `asaas-access-token` compared timing-safe, **in the BFF only**, with `ASAAS_WEBHOOK_TOKEN` (Ikaro does not use an IP allowlist; the backend never receives the token and the internal route is guarded by `InternalApiGuard`). Stripe (slice E) — `Stripe-Signature` (HMAC-SHA256, 5-minute tolerance) verified on the **raw body**, which that route must preserve. While `FEATURE_FLAG_BILLING_PROVIDER_LIVE` is off (production before the Asaas account is approved) the Asaas route answers exactly `200` as a logged no-op.
 - **Processing:** the BFF forwards the JSON body to `POST /internal/billing/webhooks/{provider}` (a dedicated tenant-less call; Stripe forwards the raw body). The backend resolves the tenant from the provider customer id, deduplicates on `(provider, event_id)`, applies the charge / subscription transition and writes the outbox rows in **one transaction**, and for Asaas applies a state-changing event only after `fetchChargeStatus` confirms it and the amount matches; for Stripe the invoice is re-read before applying (events arrive out of order and duplicated).
-- **Response:** exactly `200` after the transaction commits — never `201`, `204` or a redirect (Asaas counts those as failures and pauses its queue after 15 consecutive failures). A duplicate event and an unknown provider customer also return `200`. `401` for a wrong token / signature (nothing stored); a non-2xx on a backend failure so the provider retries.
+- **Response:** exactly `200` after the transaction commits — never `201`, `204` or a redirect (Asaas counts those as failures and documents a pause of its queue after 15 consecutive failures; the sandbox did not reproduce the pause, `docs/ASAAS_PROVIDER.md` G3). A duplicate event and an unknown provider customer also return `200`. `401` for a wrong token / signature (nothing stored); a non-2xx on a backend failure so the provider retries.
 
 ### Internal backend endpoints (`InternalApiGuard`; operator routes also `PlatformAdminGuard`)
 
@@ -1741,8 +1741,8 @@ Body: { "tenantId" | "chargeId": "…",
 
 ```ts
 interface BillingProviderPort {
-  ensureCustomer(tenantId, identity): Promise<{ providerCustomerId: string }>;   // Asaas: name + cpfCnpj required, notificationDisabled=true; Stripe: location for tax
-  // Asaas: billingType UNDEFINED, our charge id as externalReference. Stripe: one finalized invoice (send_invoice) with automatic_tax.
+  ensureCustomer(tenantId, identity): Promise<{ providerCustomerId: string }>;   // Asaas: name + cpfCnpj (Asaas enforces cpfCnpj when the charge is created, not the customer: docs/ASAAS_PROVIDER.md § 1), notificationDisabled=true; Stripe: location for tax
+  // Asaas: billingType UNDEFINED, our charge id as externalReference (Asaas allows at most 100 characters, docs/ASAAS_PROVIDER.md § 1). Stripe: one finalized invoice (send_invoice) with automatic_tax.
   createCharge(input: { merchantProfileKey, customerId, dueDate, lines, currency, taxBehavior, customerLocation, description, externalReference, returnUrl }):
     Promise<{ providerChargeId, paymentUrl, expiresAt, totalMinor, tax: { totalTaxMinor, lines, providerCalculationId? } }>;   // tax is empty while every price is tax-inclusive (BR); the Stripe adapter fills it (slice E)
   regeneratePaymentLink(providerChargeId): Promise<{ paymentUrl, expiresAt }>;
@@ -1752,7 +1752,7 @@ interface BillingProviderPort {
   fetchChargeStatus(providerChargeId): Promise<NormalizedChargeStatus>;
   // Provider health (UC-140): the account-health read and the webhook-queue re-enable.
   readAccountHealth(merchantProfileKey): Promise<{ webhookStatus: 'OK' | 'PAUSED' | 'UNKNOWN', queuePaused: boolean }>;
-  reenableWebhookQueue(merchantProfileKey): Promise<void>;   // Asaas: whether the API allows it is launch gate 0 (tenant-billing_PROVIDERS.md § 5); otherwise a documented operator step
+  reenableWebhookQueue(merchantProfileKey): Promise<void>;   // Asaas: PUT /v3/webhooks/{id} {interrupted: false} is the documented reactivation (docs/ASAAS_PROVIDER.md § 4, launch gate G3). The health job raises the alert when the queue is PAUSED and closes it only after a webhook delivery succeeds after the call, never because the flag was cleared
 }
 // Inbound: adapter.parseWebhook(rawBody, headers) -> NormalizedProviderEvent   (normalises only; the Asaas token check is the BFF's, Stripe's signature check is the adapter's, slice E)
 // cancelCharge throws the typed ChargeAlreadyPaidError when the provider refuses because the charge was just paid (not a new method); fetchChargeStatus returns NormalizedChargeStatus incl. receiptUrl
