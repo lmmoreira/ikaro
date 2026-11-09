@@ -1439,7 +1439,7 @@ Created **before** the tenant exists, by every non-exempt provisioning path (sel
 | source | VARCHAR(12) | NOT NULL — `SELF_SIGNUP` \| `OPERATOR` |
 | status | VARCHAR(10) | NOT NULL — `RESERVED` \| `COMPLETED`; a `RESERVED` row older than one hour is released by the sweep |
 | google_sub | VARCHAR(100) | NULLABLE — NOT NULL for `SELF_SIGNUP` |
-| tax_id_type / tax_id | VARCHAR | NULLABLE — copied to `billing_accounts` by the handler and **cleared from this row on completion** |
+| tax_id_type / tax_id | VARCHAR(10) / VARCHAR(32) | NULLABLE (same types as `billing_accounts`) — copied to `billing_accounts` by the handler and **cleared from this row on completion** |
 | terms_version / terms_accepted_at | VARCHAR(20) / TIMESTAMP WITH TIME ZONE | NULLABLE — NOT NULL for `SELF_SIGNUP` |
 | created_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
 | **INDEX** (standalone) | (google_sub) | the signup eligibility check runs before any tenant context exists |
@@ -1502,6 +1502,33 @@ Types are the minimum M25-S03 needs (the discovery data model lists column names
 - Platform-level (`tenant_id IS NULL`) Billing notification templates are inserted by migration (one row per template key and locale; content comes from `packages/i18n/locales/{pt-BR,en}/notifications.json`).
 - `Slug` value object (`apps/backend/src/shared/value-objects/slug.vo.ts`, not a table): add length 3–30, no leading/trailing hyphen and a reserved-word list with a typed error; existing tenants are unaffected (`Tenant.reconstitute()` takes an already-built `Slug` and does not re-validate; `Slug` itself has only `isValid`/`create`).
 - `tenants.settings.chatbot.*` overrides become **derived from the chatbot tier** in code (`docs/TENANTS_SETTINGS_SCHEMA.md`); no column change.
+
+### Billing constraint naming and closed-value CHECKs (first migration, M25-S03)
+
+**Naming:** `CHK_billing_<table>_<rule>`, `FK_billing_<table>_<ref>`, plus the `UQ_` / `IDX_` / `EX_` names already given per table. Every constraint is named so the integration test can enumerate `pg_constraint` / `pg_indexes` deterministically.
+
+**Every closed value set gets a CHECK** (the repo precedent is `CHK_notification_logs_status`). First-schema values only; a value added by a later slice (`ADDON`, `ANNUAL`, a new status) arrives with that slice's expand migration, using `NOT VALID` + `VALIDATE` (`docs/ANTI_PATTERNS.md`, plain `ALTER TABLE`):
+
+| Column | Allowed values |
+|---|---|
+| `subscriptions.status` | `TRIALING`, `ACTIVE`, `PAST_DUE`, `SUSPENDED` |
+| `subscriptions.suspension_reason` | `NON_PAYMENT`, `CANCELED`, `PAYMENT_REVERSED`, `OPERATOR` (NOT NULL iff `status = 'SUSPENDED'`) |
+| `subscriptions.cycle`, `feature_prices.cycle` | `MONTHLY` |
+| `subscription_items.feature_key`, `charge_lines.feature_key`, `feature_prices.feature_key` | the `FeatureKey` set (`closed-enum-registry` mirror) |
+| `charges.kind` | `PERIOD`, `RECOVERY` |
+| `charges.status` | `PENDING`, `PAID`, `OVERDUE`, `FAILED`, `CANCELED`, `REFUNDED`, `CHARGEBACK` |
+| `charges.method` | `CARD`, `PIX`, `BOLETO` |
+| `charges.provider_creation_status` | `PENDING`, `READY`, `FAILED` (`READY` ⇒ `provider_charge_id` NOT NULL) |
+| `charges.period_start` / `period_end` | NOT NULL for `PERIOD`, NULL for `RECOVERY` |
+| `billing_accounts.provider`, `charges.provider`, `provider_events.provider` | `ASAAS`, `STRIPE` |
+| `billing_accounts.tax_id_type`, `signup_registrations.tax_id_type` | `CNPJ`, `CPF`, `OTHER` |
+| `billing_accounts.auto_billing` | `NONE`, `PIX_AUTOMATICO`, `CARD_RECURRING` |
+| `billing_accounts.auto_billing_status` | `INACTIVE`, `PENDING_AUTHORIZATION`, `ACTIVE` |
+| `signup_registrations.source` | `SELF_SIGNUP`, `OPERATOR` |
+| `signup_registrations.status` | `RESERVED`, `COMPLETED` |
+| `signup_registrations.google_sub` | NOT NULL when `source = 'SELF_SIGNUP'` |
+| `operator_audit.action` | `GRACE`, `SUSPEND`, `UNSUSPEND`, `SET_EXEMPT` |
+| `tenant_purge_*`, `provider_health.*` | as specified in their own tables above |
 
 ### Billing migration ordering
 1. (M25-S03) Create schema `billing`, `CREATE EXTENSION IF NOT EXISTS btree_gist`, and all first-schema tables (including `signup_registrations`, `provider_health`) — expand only, no existing table touched.
