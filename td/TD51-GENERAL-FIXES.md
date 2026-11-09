@@ -180,76 +180,80 @@ Add a required `appointmentEndsAt` to every availability slot, computed in the d
 
 **Agent:** frontend-ts
 **Complexity:** M
-**Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md` § UI layer model and § The `--ba-*` exception; `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys; `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` (booking CTA / branding sections only); `docs/TESTING_STRATEGY.md` § apps/web Testing Infrastructure; `journeys/guest/prototypes/book-a-service/dev-notes.md`
-**Dependencies:** none (Story 1 already changed `SlotPicker`; this story builds on its current shape)
-**Pattern:** plain composition — no named pattern applies (a presentational month-marker element rendered inside the existing day strip, plus a heading in `SlotPicker`)
+**Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md` § UI layer model and § The `--ba-*` exception; `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys; `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` (booking CTA / branding sections only); `docs/TESTING_STRATEGY.md` § apps/web Testing Infrastructure and § Layer 5 (before adding an E2E test); `journeys/README.md`; `journeys/guest/prototypes/book-a-service/dev-notes.md`
+**Dependencies:** none (Stories 0 and 1 are unrelated to this story)
+**Pattern:** plain composition — no named pattern applies (a presentational month-marker element rendered inside the existing day strip, plus a date line above the slots)
 **Discovered:** 2026-11-09, user report on the production hotsite `/smassagem/booking` with `carouselDays` set to 90: every day pill shows only a weekday and a day number, so the month is unknowable.
-**Root cause:** `AvailabilityCarousel.tsx` renders each pill from `dayCarouselLabel()` (weekday, or "Hoje" for index 0) and `dayNumber()` (`apps/web/shared/lib/formatting/date-utils.ts`), neither of which carries month or year. `SlotPicker.tsx` renders no selected-date label either, so nothing after the click confirms which date was chosen.
+**Root cause:** `AvailabilityCarousel.tsx` renders each pill from `dayCarouselLabel()` (weekday, or "Hoje" for index 0) and `dayNumber()` (`apps/web/shared/lib/formatting/date-utils.ts`), neither of which carries month or year. The hotsite `AvailabilityStep.tsx` renders no selected-date line above `SlotPicker`, so nothing after the click confirms which date was chosen.
 
 **Description:**
-Add month context to the date carousel in two places. The approved prototype is `journeys/guest/prototypes/book-a-service/02-calendar-slot.html` (commit `3b9d3b8e`).
+Add month context to the date carousel in two places. The approved prototype is `journeys/guest/prototypes/book-a-service/02-calendar-slot.html` (commit `3b9d3b8e`; its copy and styling are adjusted as decided below).
 
-1. **Month markers inside the strip.** `AvailabilityCarousel` renders a small muted marker in the scroll container before the first pill and before every pill whose year-month differs from the previous pill's (e.g. `JUN.`, then `JUL.`). Markers scroll with the pills, so a week that spans two months shows both and no scroll-position tracking is needed. A marker after the first one has a thin left divider. The marker shows the year only when its year differs from the first pill's year, which covers the January boundary. Month names come from `Intl.DateTimeFormat(locale, { month: 'short' })`, so no new i18n keys are needed for them. Month comparison uses the ISO string (`date.slice(0, 7)`), never a `Date` round-trip.
-2. **Selected-date label.** `SlotPicker` renders a heading above the slots, e.g. "Horários disponíveis — **Quinta, 2 de julho**" (weekday long, day, month long, no year). It is rendered for every picker state once a date is selected: loaded, loading, empty and error. It uses `data-testid="slot-picker-date-label"`. `SlotPicker` is the one place that owns it, because all four carousel callers and the calendar variant render it. (The original prototype already showed this line but it was never built.)
+1. **Month markers inside the strip.** `AvailabilityCarousel` renders a small marker in the scroll container before the first pill and before every pill whose year-month differs from the previous pill's (e.g. `JUN.`, then `JUL.`). Markers scroll with the pills, so a week that spans two months shows both and no scroll-position tracking is needed. A marker after the first one has a thin left divider. A marker shows the year only when its year differs from the first pill's year, which covers the January boundary. The first marker is always shown, also when the strip stays within one month (consistency across every strip). Month names come from `Intl.DateTimeFormat(locale, { month: 'short' })`, so no i18n keys are needed for them. Month comparison uses the ISO string (`date.slice(0, 7)`), never a `Date` round-trip. The only new helper is `monthMarkerLabel(isoDate, locale, includeYear)` in `date-utils.ts`, following that file's local-time parsing convention.
+2. **Selected-date line.** Every surface that picks a day gets the chosen date in the heading above its slots. It reuses `formatDateLong` (via `useFormatting()`) fed by `utcDateFromISO(date)`, which gives "Quinta-feira, 2 de julho" (capitalised, UTC-pinned); no new date-formatting helper is created.
+   - **Hotsite** (`AvailabilityStep`, both `datePickerType: 'carousel'` and `'calendar'`): a new line above `SlotPicker`, "Horários disponíveis — {date}" (key `booking.availability.slotsHeading`). `SlotPicker` itself is unchanged: it renders no label.
+   - **Dashboard** (`ReschedulePicker`, `NewBookingAvailabilityStep`, `RescheduleBookingPage`): the existing heading above `SlotPicker` gains the date instead of a second heading appearing: `customer.reschedule.slotsSectionLabel`, the new-booking `slotsLabel` and the staff reschedule `availableSlotsLabel` become "… — {date}" in both locales.
 
 **Where the carousel and picker are used (audit result):**
 
 | Surface | Component | Branding | Change |
 |---|---|---|---|
-| Public hotsite booking, `datePickerType: 'carousel'` (`AvailabilityStep`) | `AvailabilityCarousel` `variant="hotsite"` | Tenant-branded (`--ba-*`) | Markers + label |
-| Public hotsite booking, `datePickerType: 'calendar'` | `AvailabilityCalendar` (react-day-picker) | Tenant-branded | Month grid already shows the month; only the new `SlotPicker` label applies |
-| Customer my-account reschedule (`ReschedulePicker`) | `AvailabilityCarousel` `variant="dashboard"` | Tailwind, not `--ba-*` | Markers + label |
-| Staff reschedule (`RescheduleBookingPage`) | `AvailabilityCarousel` `variant="dashboard"` | Tailwind | Markers + label |
-| Staff new booking (`NewBookingAvailabilityStep`) | `AvailabilityCarousel` `variant="dashboard"` | Tailwind | Markers + label |
+| Public hotsite booking, `datePickerType: 'carousel'` (`AvailabilityStep`) | `AvailabilityCarousel` `variant="hotsite"` | Tenant-branded (`--ba-*`) | Markers + date line |
+| Public hotsite booking, `datePickerType: 'calendar'` | `AvailabilityCalendar` (react-day-picker) | Tenant-branded | Month grid already shows the month; only the date line applies |
+| Customer my-account reschedule (`ReschedulePicker`) | `AvailabilityCarousel` `variant="dashboard"` | Tailwind, not `--ba-*` | Markers + heading gains the date |
+| Staff reschedule (`RescheduleBookingPage`), also reused by the scheduling-exceptions reschedule | `AvailabilityCarousel` `variant="dashboard"` | Tailwind | Markers + heading gains the date |
+| Staff new booking (`NewBookingAvailabilityStep`) | `AvailabilityCarousel` `variant="dashboard"` | Tailwind | Markers + heading gains the date |
 | Availability alert form (`AvailabilityAlertPickers`), schedule range sheet, recurring schedule date field | shadcn `Calendar` popover | Dashboard | None: month caption already visible |
 
 **Decisions (pre-made):**
-- **Branding.** The `hotsite` variant uses only existing tokens: `color: var(--ba-text)` at reduced opacity, and `var(--ba-secondary)` for the divider. It introduces no new token and no hardcoded colour. The `dashboard` variant uses Tailwind (`text-slate-500`, `border-slate-200`). The two variants share the marker's structure and are never merged into one branding-aware style (CLAUDE.md §7 Web styling boundary).
-- **Hotsite stays unchanged elsewhere.** No other hotsite component, token or `applyBranding()` path is touched. The existing `hotsite-token-isolation.spec.ts` must stay green.
-- **Accessibility.** The marker is `aria-hidden="true"`. To keep month context for screen readers, each `day-option` gets an `aria-label` with the full date (weekday, day, month), e.g. "sábado, 6 de fevereiro". The pill's visible text and `data-testid`/`data-date` are unchanged.
-- **Contrast.** The muted marker text must meet WCAG AA against `--ba-background` for the default hotsite palette. If reduced opacity fails AA, use the full `--ba-text` colour at a smaller weight and size instead. It must never fall back to a hardcoded grey.
-- **Locale.** Both `pt-BR` and `en` are handled by `Intl` and by the new `slotPicker.availableOn` key. No locale literal is hardcoded.
-- **Prototypes.** The guest prototype `02-calendar-slot.html` is already updated. The dashboard-variant prototypes that contain a day strip are updated to match: `journeys/customer/prototypes/minha-conta/15-reagendar.html` and `journeys/staff/prototypes/agenda/05-reschedule.html` (primary states). The sibling error and loading states (`15b`, `15d`, `15f`, `15h`, `15i`, `15k`, `05d`) and `journeys/manager/prototypes/scheduling-exceptions/01e-reagendar.html` get the same strip.
+- **Branding.** The `hotsite` variant marker uses only existing tokens: the full `var(--ba-text)` colour (no opacity, so its contrast is exactly the tenant's own text contrast) and `var(--ba-secondary)` for the divider; small, uppercase. It introduces no new token and no hardcoded colour. The `dashboard` variant uses Tailwind (`text-gray-500`, `border-gray-200`). The two variants are never merged into one branding-aware style (CLAUDE.md §7 Web styling boundary).
+- **Hotsite stays unchanged elsewhere.** No other hotsite component, token or `applyBranding()` path is touched; the pill styling (radius, colours) is unchanged and pinned by a test. The existing `hotsite-token-isolation.spec.ts` must stay green.
+- **Accessibility.** No `aria-label` on the pills: it would override the visible text ("Hoje", the weekday) and fail WCAG label-in-name. Each pill instead contains an `sr-only` span with its month name, so the accessible name still contains the visible text; the marker itself is `aria-hidden="true"`.
+- **Locale.** `pt-BR` and `en` come from `Intl` and from locale keys. No locale literal is hardcoded.
+- **Prototypes.** Marker styling is a `.month-marker` class in the two shared stylesheets, `journeys/shared/tokens.css` (hotsite look) and `journeys/shared/reschedule-picker.css` (dashboard look), never inline per file. The guest `02-calendar-slot.html` already updated is refactored from inline styles to that class and its copy changes to "Quinta-feira, 2 de julho". Every prototype file with a day strip gets the markers and the dated heading: guest `02`, `02d`, `02e`, `02f`, `09b`, `10b`; customer `book-a-service/02`; customer `minha-conta/15`, `15b`, `15d`, `15f`, `15h`, `15i`, `15k`; staff `agenda/05`, `05d`; manager `scheduling-exceptions/01e`. `guest/prototypes/book-a-class/01-class-agenda.html` is a different journey and out of scope.
+- **One PR** carries the code, the locale keys and the prototype updates.
 
-**Prototype references:** `journeys/guest/prototypes/book-a-service/02-calendar-slot.html` (approved); the dashboard prototypes above.
+**Prototype references:** `journeys/guest/prototypes/book-a-service/02-calendar-slot.html` (approved, refactored as above) and the prototypes listed under Prototypes.
 **Backend HTTP surface:** none.
 **BFF endpoint spec:** none.
-**New migration / i18n keys / env vars / feature flags:** i18n key `booking.slotPicker.availableOn` ("Horários disponíveis — {date}" / "Available times — {date}") in both `packages/i18n/locales/pt-BR/web.json` and `.../en/web.json`. No migration, env var or flag.
+**New migration / i18n keys / env vars / feature flags:** new key `booking.availability.slotsHeading` ("Horários disponíveis — {date}" / "Available times — {date}"); modified keys `customer.reschedule.slotsSectionLabel`, the new-booking `slotsLabel` and the staff reschedule `availableSlotsLabel`, all with a `{date}` parameter, in both `packages/i18n/locales/pt-BR/web.json` and `.../en/web.json`. No migration, env var or flag.
 
 **Files to create/modify:**
-- `apps/web/features/booking/components/public/AvailabilityCarousel.tsx` (modify)
-- `apps/web/features/booking/components/public/AvailabilityCarousel.spec.tsx` (modify)
-- `apps/web/features/booking/components/public/SlotPicker.tsx` (modify)
-- `apps/web/features/booking/components/public/SlotPicker.spec.tsx` (modify if it exists, else create)
-- `apps/web/shared/lib/formatting/date-utils.ts` (modify: add `monthMarkerLabel(isoDate, locale, includeYear)` and `slotDateLabel(isoDate, locale)`)
-- `apps/web/shared/lib/formatting/date-utils.spec.ts` (modify)
+- `apps/web/features/booking/components/public/AvailabilityCarousel.tsx` and `.spec.tsx` (modify)
+- `apps/web/features/booking/components/public/AvailabilityStep.tsx` and `.spec.tsx` (modify)
+- `apps/web/features/customer/components/my-account/ReschedulePicker.tsx` and `.spec.tsx` (modify)
+- `apps/web/features/booking/components/dashboard/bookings/new-booking/NewBookingAvailabilityStep.tsx` and `.spec.tsx` (modify)
+- `apps/web/features/booking/components/dashboard/bookings/reschedule/RescheduleBookingPage.tsx` and `.spec.tsx` (modify)
+- `apps/web/shared/lib/formatting/date-utils.ts` and `.spec.ts` (modify: add `monthMarkerLabel`)
 - `packages/i18n/locales/pt-BR/web.json`, `packages/i18n/locales/en/web.json` (modify)
-- `apps/web/e2e/guest-booking.spec.ts` (modify)
-- `journeys/customer/prototypes/minha-conta/15*.html`, `journeys/staff/prototypes/agenda/05-reschedule.html`, `journeys/staff/prototypes/agenda/05d-reagendar-erro.html`, `journeys/manager/prototypes/scheduling-exceptions/01e-reagendar.html` (modify)
-- `journeys/guest/prototypes/book-a-service/dev-notes.md` and the matching dev-notes for the customer and staff prototypes (modify, to document the markers)
+- `apps/web/e2e/guest-booking.spec.ts` (modify: steps inside the existing golden-path test)
+- `journeys/shared/tokens.css`, `journeys/shared/reschedule-picker.css` (modify: `.month-marker`)
+- The prototype files listed under Prototypes, including `journeys/guest/prototypes/book-a-service/02-calendar-slot.html` (modify)
+- `journeys/guest/prototypes/book-a-service/dev-notes.md`, `journeys/customer/prototypes/minha-conta/dev-notes.md`, `journeys/staff/prototypes/agenda/dev-notes.md`, `journeys/manager/prototypes/scheduling-exceptions/dev-notes.md` (modify, to document the markers and the dated heading)
 
 **Acceptance criteria — product:**
-- [ ] A customer scrolling a long hotsite carousel (for example 90 days) always sees which month a day belongs to. A marker appears before the first day and at every month boundary.
+- [ ] A customer scrolling a long hotsite carousel (for example 90 days) always sees which month a day belongs to: a marker appears before the first day and at every month boundary.
 - [ ] A week that spans two months shows both month markers.
 - [ ] The year appears on a marker only when it differs from the first day's year.
-- [ ] After choosing a day, the date is confirmed above the time slots, e.g. "Horários disponíveis — Quinta, 2 de julho".
-- [ ] The same behavior applies to the customer reschedule and the staff reschedule and new-booking carousels, styled with the dashboard (Tailwind) palette.
+- [ ] After choosing a day on the hotsite, the date is confirmed above the time slots, e.g. "Horários disponíveis — Quinta-feira, 2 de julho", for both the carousel and the calendar.
+- [ ] The customer reschedule, staff reschedule (including the scheduling-exceptions reschedule) and staff new-booking screens show the markers, styled with the dashboard palette, and their slots heading includes the chosen date.
 - [ ] A tenant's branding looks unchanged apart from the new markers: no new colours, the same radius, and the same selected and unselected pill styling.
-- [ ] The calendar (`datePickerType: 'calendar'`) layout is unchanged, and it gains the selected-date label.
+- [ ] The calendar (`datePickerType: 'calendar'`) layout is unchanged apart from the new date line.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] `date-utils.spec.ts`: `monthMarkerLabel` for pt-BR and en, with and without year; `slotDateLabel` for pt-BR and en.
-  - [ ] `AvailabilityCarousel.spec.tsx`: a marker precedes the first pill and each month-boundary pill, and a 14-day strip crossing a month boundary renders exactly 2 markers.
+  - [ ] `date-utils.spec.ts`: `monthMarkerLabel` for pt-BR and en, with and without year.
+  - [ ] `AvailabilityCarousel.spec.tsx`: a marker precedes the first pill and each month-boundary pill; a 14-day strip crossing a month boundary renders exactly 2 markers; a single-month strip renders 1.
   - [ ] `AvailabilityCarousel.spec.tsx`: the marker carries the year across a December-to-January boundary and not within a single year.
-  - [ ] `AvailabilityCarousel.spec.tsx`: the `hotsite` variant marker reads `var(--ba-text)`/`var(--ba-secondary)` (`toHaveStyle`), and the `dashboard` variant uses its Tailwind classes and no `--ba-*`.
-  - [ ] `AvailabilityCarousel.spec.tsx`: each `day-option` has the full-date `aria-label`, and `data-testid`/`data-date`/`aria-pressed` are unchanged.
-  - [ ] `SlotPicker.spec.tsx`: the date label renders in the loaded, loading, empty and error states, in both locales.
+  - [ ] `AvailabilityCarousel.spec.tsx`: the `hotsite` marker reads `var(--ba-text)`/`var(--ba-secondary)` (`toHaveStyle`) and the `dashboard` marker uses its Tailwind classes and no `--ba-*`.
+  - [ ] `AvailabilityCarousel.spec.tsx`: each pill's accessible name contains its visible text ("Hoje" on the first, the weekday, the day number) plus the month; the marker is `aria-hidden`; `data-testid`/`data-date`/`aria-pressed` are unchanged.
+  - [ ] `AvailabilityCarousel.spec.tsx` (negative guarantee): the hotsite pill keeps its `var(--ba-radius)`, `--ba-secondary` and `--ba-primary` styling, unchanged by this story.
+  - [ ] `AvailabilityStep.spec.tsx`: the dated heading renders after a day is selected, for both `datePickerType` values, in pt-BR and en (negative guarantee: the calendar branch still renders `AvailabilityCalendar` unchanged).
+  - [ ] `ReschedulePicker.spec.tsx`, `NewBookingAvailabilityStep.spec.tsx`, `RescheduleBookingPage.spec.tsx`: the existing slots heading now includes the formatted date.
   - [ ] Regression: `hotsite-token-isolation.spec.ts` stays green.
 - Tenant isolation: none — pure presentation, no tenant data read or written.
 - E2E:
-  - [ ] `guest-booking.spec.ts`: after loading the carousel, at least one `month-marker` is visible, and after picking a day `slot-picker-date-label` shows that date.
-  - [ ] No other E2E selector breaks (`day-option`, `day-strip` unchanged).
+  - [ ] `guest-booking.spec.ts`: extend the existing golden-path test (no new test): after `openFirstDayWithSlots`, assert a `month-marker` is visible and the dated heading contains the picked day. Not a separate test, because the flow is identical and each assertion is already proven at unit level.
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean (including the `LOCALE_LITERAL_SELECTOR` ESLint rule)
 
@@ -258,4 +262,4 @@ Add month context to the date carousel in two places. The approved prototype is 
 - The two stories are sequenced because Story 1 must present the inheritance-correct effective buffer behavior from Story 0.
 - No database migration is appropriate: the column is already nullable, and historical numeric values are ambiguous. Preserving them avoids silently changing a manager’s intentional configuration.
 - Story discovery must confirm the applicable validated journey/prototype paths and the full customer-confirmation component set before implementation.
-- Story 2 (month markers) is independent of Stories 0 and 1. `AvailabilityCarousel` is one component with a `variant` prop used by five surfaces, so one change covers the hotsite and the three dashboard callers; the calendar variant and the calendar popovers already show the month. Contrast of the muted marker against tenant palettes is the main risk and is covered by an explicit fallback decision.
+- Story 2 (month markers) is independent of Stories 0 and 1. `AvailabilityCarousel` is one component with a `variant` prop used by five surfaces, so one change covers the hotsite and the three dashboard callers; the calendar variant and the calendar popovers already show the month. Discovery (2026-11-09) fixed three draft errors: the dashboard callers already print a slots heading (so the date goes into those headings instead of a second label inside `SlotPicker`), `formatDateLong` already exists (no new date helper), and an `aria-label` on the pills would break label-in-name (an `sr-only` month span is used instead).
