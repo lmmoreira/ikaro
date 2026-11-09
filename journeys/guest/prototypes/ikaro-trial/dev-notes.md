@@ -26,7 +26,7 @@
 
 - **`03` and `03b` draw a Turnstile widget on the Google step.** Prototype debt, kept as is: Turnstile is verified only on the final `POST /v1/public/signup/tenant` (M26-S33 rule R9), so the widget belongs to the form step (`04`), and the `03b` "verification failed" state is the failure state of that widget (`400 SIGNUP_TURNSTILE_FAILED`).
 - **The annual toggle (Mensal | Anual) is drawn on `02`/`02b` but deferred to slice H / post-launch.** M26-S33 is BR monthly only and renders no toggle.
-- **The US variant (`02b`, `04g`) is not offered by M26-S33** while `FEATURE_FLAG_SIGNUP_US` is off.
+- **The US variant (`02b`, `04g`) is not offered by M26-S33** where the country has no price list (production).
 - **The 60 s "Reenviar e-mail" cooldown on `05` is a UI-only cosmetic cooldown**; the enforced limits are 3 per hour per tenant and 10 per day per IP (Screen 5).
 - **Links "Termos de Uso" / "Política de Privacidade" are `href="#"`** in `04`–`04g` until M26-S33 wires them to `/ikaro-trial/termos` and `/ikaro-trial/privacidade`.
 - **Not drawn:** the "cadastro indisponível" notice (`503 SIGNUP_CLOSED`), the `SIGNUP_TRIAL_NOT_AVAILABLE` 409 other than via the `03c` card.
@@ -103,7 +103,7 @@ POST /v1/public/signup/tenant
 ## Conventions and decisions added in the review pass
 
 - **Currency display:** the public price page keeps the `US$` prefix (`US$ 12.00`, period as decimal separator, as in the BRL page's `R$`) on the United States table, including the pt-BR text around it; `02b` and `04g` stay `lang="pt-BR"` because the page is Portuguese until the visitor chooses the country (the page's own note says so), only the price strings are USD. The real implementation formats with `Intl.NumberFormat` for the page locale and the price list's currency.
-- **US gate:** the US switch/option (`02b`, `04g`) is shown only while `FEATURE_FLAG_SIGNUP_US` is on; otherwise a US request is refused with `422 BILLING_US_NOT_AVAILABLE` (`docs/ERROR_CATALOG.md`).
+- **US gate:** the US switch/option (`02b`, `04g`) is shown only where the US has a price list; otherwise a US request fails in the Billing handler with `BILLING_NO_PRICE_FOR_COUNTRY` (UC-110 A2).
 - **Slug-taken suggestions (`04b`)** are generated client-side (typed slug plus a suffix) and each is checked with `GET /v1/public/signup/slug-availability`; the endpoint returns no suggestions.
 - **Placeholder links:** "Termos de Uso" and "Política de Privacidade" are `href="#"` in the signup form screens `04`–`04g` (prototype placeholders; `03` and `03b` only mention them as plain text). They are wired to `/ikaro-trial/termos` and `/ikaro-trial/privacidade` by M26-S33.
 - **Dashboard shell language:** the manager billing screens for the US tenant (`manager/prototypes/billing/02c`, `02e`; tenant "Sunrise Auto Spa") keep the dashboard shell (sidebar, topbar, nav) in pt-BR while the page content is English. Whether the shell language follows the tenant country or the user is a product decision still open.
@@ -128,8 +128,8 @@ Enforced limits: 3 per hour per tenant and 10 per day per IP (best-effort per BF
 
 ## Addenda that apply to these screens (from the discovery review rounds)
 
-- **Signup.** The language field was removed from `04*`; language derives from the country. The country selector offers only "Brasil" by default with the hint "Define a moeda, o fuso padrão e o idioma"; "Estados Unidos" appears only in `04g`, which models `FEATURE_FLAG_SIGNUP_US` on. Error `SIGNUP_TRIAL_NOT_AVAILABLE` reuses the `03c` card.
+- **Signup.** The language field was removed from `04*`; language derives from the country. The country selector offers only "Brasil" by default with the hint "Define a moeda, o fuso padrão e o idioma"; "Estados Unidos" appears only in `04g`, which models a country with a US price list. Error `SIGNUP_TRIAL_NOT_AVAILABLE` reuses the `03c` card.
 - **BR tax ID at signup.** `04*` now has a required "CPF ou CNPJ da empresa" field for BR (check digits validated; error `SIGNUP_TAX_ID_INVALID`/`SIGNUP_TAX_ID_REQUIRED`; screen 04c shows the invalid case). It is saved to the billing account and is editable but not blankable on the Dados tab for BR tenants.
-- **New `04g-signup-us-selected`** (UC-127 A7): US selected, CPF/CNPJ hidden, note that the full address is collected in the dashboard before the first charge; only reachable when `FEATURE_FLAG_SIGNUP_US` is on.
+- **New `04g-signup-us-selected`** (UC-127 A7): US selected, CPF/CNPJ hidden, note that the full address is collected in the dashboard before the first charge; only reachable where the US has a price list.
 - **Signup details.** `05` has a rate-limited "Reenviar e-mail" (60 s cosmetic cooldown; enforced 3/h per tenant, 10/day per IP) and "Já confirmou? Entrar com Google"; `03c` offers "Entrar na conta existente" or discarding the unpaid trial; `04*` offers only "Brasil" (US only in `04g`, flag on) with the hint "Define a moeda, o fuso padrão e o idioma"; `02b` is in Portuguese before the country is picked and says so.
 - **Price tables (`02`, `02b`).** Same toggle (slice H / post-launch; not built by M26-S33); the header becomes "Preço anual", amounts switch to "/ano" with "equivale a .../mês" (the US page keeps its existing Portuguese UI copy).
