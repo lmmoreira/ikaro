@@ -13,6 +13,7 @@ import {
   earliestBookableDate,
   tenantToday,
 } from '@/features/booking/model/booking-window';
+import { cn } from '@/shared/utils/cn';
 import { dayCarouselLabel, dayNumber, monthMarkerLabel } from '@/shared/lib/formatting/date-utils';
 
 interface AvailabilityCarouselProps {
@@ -219,16 +220,17 @@ function MonthMarker({
   readonly isFirst: boolean;
   readonly isDashboardVariant: boolean;
 }): React.JSX.Element {
-  const dividerClass = isFirst
-    ? ''
-    : `border-l pl-2 ${isDashboardVariant ? 'border-gray-200' : 'border-[var(--ba-secondary)]'}`;
+  const textColor = isDashboardVariant ? 'text-gray-500' : 'text-[var(--ba-text)]';
+  const dividerColor = isDashboardVariant ? 'border-gray-200' : 'border-[var(--ba-secondary)]';
   return (
     <span
       data-testid="month-marker"
       aria-hidden="true"
-      className={`flex shrink-0 flex-col justify-end pb-1 text-[0.7rem] font-bold uppercase tracking-wide ${
-        isDashboardVariant ? 'text-gray-500' : 'text-[var(--ba-text)]'
-      } ${dividerClass}`}
+      className={cn(
+        'flex shrink-0 flex-col justify-end pb-1 text-[0.7rem] font-bold uppercase tracking-wide',
+        textColor,
+        !isFirst && ['border-l pl-2', dividerColor],
+      )}
     >
       {label}
     </span>
