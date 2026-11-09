@@ -226,7 +226,7 @@ Wave notes (a wave is a sequencing guarantee, not a concurrency one — see `## 
 
 ## Wave 0 — Migration safety and the two decisions everything else needs
 
-### M25-S01 — Asaas sandbox spike — verified provider facts
+### M25-S01 — Asaas sandbox spike — verified provider facts ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** S
