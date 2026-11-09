@@ -209,6 +209,11 @@ module "cloudrun_backend" {
       CHATBOT_MIN_PROVIDER_BALANCE_USD         = "2"
       CHATBOT_PROVIDER_HEALTH_COOLDOWN_MINUTES = "5"
       OUTBOX_CLAIM_LEASE_SECONDS               = "120"
+
+      # M25-S07: slug of Ikaro's own tenant — its Billing subscription is permanently exempt and
+      # can never be un-exempted. A plain env var (not a secret); the env-contract check requires
+      # it in both environment roots so the protection can never be silently off when deployed.
+      PLATFORM_OWNER_TENANT_SLUG = "ikaro"
     },
     # BREVO_SMTP_LOGIN is optional-with-min-length in the backend schema — a
     # present "" satisfies "not absent" but fails min(1), crashing app boot
