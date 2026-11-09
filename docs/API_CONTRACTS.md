@@ -1752,7 +1752,7 @@ interface BillingProviderPort {
   fetchChargeStatus(providerChargeId): Promise<NormalizedChargeStatus>;
   // Provider health (UC-140): the account-health read and the webhook-queue re-enable.
   readAccountHealth(merchantProfileKey): Promise<{ webhookStatus: 'OK' | 'PAUSED' | 'UNKNOWN', queuePaused: boolean }>;
-  reenableWebhookQueue(merchantProfileKey): Promise<void>;   // Asaas: PUT /v3/webhooks/{id} {interrupted: false} is accepted (its effect on a genuinely paused queue is launch gate G3, docs/ASAAS_PROVIDER.md § 4); if the webhook is still not healthy after the call the health job raises the alert and an operator re-enables it
+  reenableWebhookQueue(merchantProfileKey): Promise<void>;   // Asaas: PUT /v3/webhooks/{id} {interrupted: false} is the documented reactivation (docs/ASAAS_PROVIDER.md § 4, launch gate G3). The health job raises the alert when the queue is PAUSED and closes it only after a webhook delivery succeeds after the call, never because the flag was cleared
 }
 // Inbound: adapter.parseWebhook(rawBody, headers) -> NormalizedProviderEvent   (normalises only; the Asaas token check is the BFF's, Stripe's signature check is the adapter's, slice E)
 // cancelCharge throws the typed ChargeAlreadyPaidError when the provider refuses because the charge was just paid (not a new method); fetchChargeStatus returns NormalizedChargeStatus incl. receiptUrl

@@ -3330,11 +3330,11 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 - **Trigger:** The hourly trigger.
 - **Main Flow:**
    1. **Provisioning repair:** tenants older than `PROVISIONING_GRACE_MINUTES` with no subscription get their trial created through the UC-110 use case (idempotent), reading `country_code`, `timezone`, `slug` and `created_at` through the narrow read-only tenant-info port.
-   2. **Provider health:** check each provider's webhook state through its API; a paused or disabled webhook is re-enabled where the API allows (a launch-gate check), otherwise an alert is raised. Record the result in `billing.provider_health`.
+   2. **Provider health:** check each provider's webhook state through its API; a paused or disabled webhook raises the billing alert and is re-enabled once through the API (`PUT interrupted: false`); the alert is closed only after a webhook delivery succeeds after the call, never because the flag was cleared (`docs/ASAAS_PROVIDER.md` § 4). Record the result in `billing.provider_health`.
    3. **Suspension freeze:** if reconcile has not succeeded for 24 hours, or the provider is unreachable, `freeze_active` is set and the status sweep (UC-115) suspends nobody; it clears itself after the next successful reconcile. Tenants are never locked out because Ikaro or the provider was down, so no operator grace is needed.
 - **Alternative Flows:**
    - **A1: Repair fails repeatedly** → an alert fires after N attempts.
-   - **A2: The provider API cannot re-enable the webhook** → an alert with the runbook; reconcile (UC-116) keeps the money correct meanwhile.
+   - **A2: The re-enable call fails, or no delivery succeeds after it** (a wrong token keeps answering `401`, so the queue pauses again) → the alert stays raised with the runbook; reconcile (UC-116) keeps the money correct meanwhile.
 - **Postconditions:** The common failure modes resolve without an operator.
 - **Events Triggered:** None (a repaired trial raises nothing new; `SubscriptionSuspended` is simply delayed during a freeze).
 
@@ -3524,7 +3524,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 | UC-137 | Operator sets or clears a tenant's `exempt` flag *(planned, not built)* | Operator | Free access on/off; items replaced; audited |
 | UC-138 | Developer or operator simulates billing in non-production *(planned, not built)* | Developer \| Operator | Clock advance, simulated provider webhook, per-state seed; never in production |
 | UC-139 | System sends dunning reminders *(planned, not built)* | System | `BillingReminderDue` per milestone (plan confirmation, trial ending, due soon, overdue), deduplicated |
-| UC-140 | System heals itself (provisioning repair, provider health, suspension freeze) *(planned, not built)* | System | Missing trial created; webhook re-enabled or alerted; sweep frozen while the provider is unhealthy |
+| UC-140 | System heals itself (provisioning repair, provider health, suspension freeze) *(planned, not built)* | System | Missing trial created; webhook re-enabled, with the alert kept until a delivery succeeds; sweep frozen while the provider is unhealthy |
 | UC-141 | Manager discards a never-paid tenant *(planned, slice G, deferred)* | Manager | Type-the-slug confirmation; immediate purge (`SELF_SERVICE_DISCARD`); slug and trial eligibility freed |
 | UC-142 | A deactivated tenant stops being billed *(planned, slice G, deferred)* | System | Open charges cancelled, subscription `SUSPENDED`/`CANCELED`; the issue job skips inactive tenants |
 
