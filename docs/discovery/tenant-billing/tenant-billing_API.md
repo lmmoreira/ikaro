@@ -211,7 +211,7 @@ All three sit behind `InternalApiGuard` + `PlatformAdminGuard`, are registered o
 
 ```ts
 interface BillingProviderPort {
-  ensureCustomer(tenantId, identity): Promise<{ providerCustomerId: string }>;   // Asaas: name + cpfCnpj required, notificationDisabled=true; Stripe: location for tax
+  ensureCustomer(tenantId, identity): Promise<{ providerCustomerId: string }>;   // Asaas: name + cpfCnpj (Asaas enforces cpfCnpj when the charge is created; see docs/ASAAS_PROVIDER.md § 1), notificationDisabled=true; Stripe: location for tax
   // Asaas: billingType UNDEFINED, our charge id as externalReference. Stripe: one finalized invoice (send_invoice) with automatic_tax.
   createCharge(input: { merchantProfileKey, customerId, dueDate, lines, currency, taxBehavior, customerLocation, description, externalReference }):
     Promise<{ providerChargeId, paymentUrl, expiresAt, totalMinor, tax: { totalTaxMinor, lines, providerCalculationId? } }>;   // tax is empty in the BR-only first schema (all prices tax-inclusive); the Stripe adapter fills it in slice E
