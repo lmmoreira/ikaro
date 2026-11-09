@@ -267,7 +267,7 @@ Wave notes (a wave is a sequencing guarantee, not a concurrency one — see `## 
 
 ---
 
-### M25-S02 — Commercial catalog — Plus model, caps and OpenRouter validation
+### M25-S02 — Commercial catalog — Plus model, caps and OpenRouter validation ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** S
