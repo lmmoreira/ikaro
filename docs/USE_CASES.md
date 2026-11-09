@@ -2975,7 +2975,6 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 - **Alternative Flows:**
    - **A1: A Billing email but the manager has no address** → logged, with an ops alert.
    - **A2: Access lookup error** → fail open (send).
-   - **A3: `APP_ENV=staging` and the recipient is not in `EMAIL_RECIPIENT_ALLOWLIST`** → dropped and logged `SKIPPED_NOT_ALLOWLISTED` for every template, Billing's included. The rule is in `docs/ENGINEERING_RULES_INFRA.md` § Billing configuration (planned).
 - **Postconditions:** No tenant, customer or staff messages while suspended.
 - **Events Triggered:** None.
 
@@ -3303,7 +3302,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
    - **A1: `APP_ENV` is neither `local` nor `staging`** (production included) → the routes do not exist (404); the live-adapter and profile-key startup rules are in `docs/ENGINEERING_RULES_INFRA.md` § Billing configuration (planned).
    - **A2: The subscription uses a sandbox or live key** → `simulate` is refused; staging sandboxes are driven through the provider's own sandbox actions.
    - **A3: Missing or wrong operator keys** → `401`, like every operator route.
-- **Postconditions:** Billing state changed exactly as the real event would have changed it; nothing was charged and no real communication was sent (Mailhog locally; the staging email recipient allowlist).
+- **Postconditions:** Billing state changed exactly as the real event would have changed it; nothing was charged and no real communication was sent (Mailhog locally).
 - **Events Triggered:** Whatever the simulated flow triggers (`ChargePaid`, `SubscriptionPastDue`, …).
 
 ---

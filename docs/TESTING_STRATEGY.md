@@ -871,7 +871,7 @@ describe('RescheduleBookingUseCase', () => {
 | `local` | `BRL_FAKE` / `USD_FAKE` — `FakeBillingProvider`; a real adapter can be opted into with a tunnel for webhooks | Mailhog | injectable `IClock`, "advance N days" |
 | CI per PR | the fake | Mailhog | fixed clock |
 | CI nightly (scheduled) | none — the shared contract suite runs against the Asaas sandbox and Stripe test mode to catch drift between the fake and the real APIs | — | — |
-| `staging` | `BRL_ASAAS_SANDBOX`, `USD_STRIPE_TEST` | Brevo with a recipient allowlist (rule: `docs/ENGINEERING_RULES_INFRA.md` § Billing configuration (planned) — live adapters, fake/sandbox keys, the staging email allowlist and the scheduler jobs) | operator "advance time" action |
+| `staging` | `BRL_ASAAS_SANDBOX`, `USD_STRIPE_TEST` | Brevo (real email; the recipients are your own test tenants) | operator "advance time" action |
 | `production` | live keys only | Brevo | real clock |
 
 - **`FakeBillingProvider`** is an `InMemoryXxx`-style double that is also wired as a real adapter in `local`. It implements the whole `BillingProviderPort`, returns a hosted-link URL served by the app, and emits **signed webhooks to the app's own endpoint** on demand, reproducing the verified provider behaviour: Pix `RECEIVED` only; boleto `CONFIRMED` → `RECEIVED`; card `CONFIRMED`, `RECEIVED` later; overdue; refund; chargeback; **duplicate, delayed and out-of-order** delivery; provider 5xx; expired link; invalid location. A forgiving fake would hide the money loop's real bugs.

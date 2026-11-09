@@ -40,7 +40,7 @@ Enforcement can be merged dark and stays off until milestone 2's launch story (L
 
 | # | Story | CAND | Notes |
 |---|---|---|---|
-| C1 | Infra first: Terraform for the scheduler jobs (issue, hourly sweep, reminders, reconcile, self-heal, provider-events purge) **and their Pub/Sub topics/subscriptions via the regenerated `pubsub-catalog.json`**, sandbox secrets, env vars and flags (all new: `FEATURE_FLAG_*`, `PLATFORM_OWNER_TENANT_SLUG`, `EMAIL_RECIPIENT_ALLOWLIST` through `env.validation.ts` and the env contract) | — | Staging cannot run any cron without it; live check per CLAUDE.md §9 |
+| C1 | Infra first: Terraform for the scheduler jobs (issue, hourly sweep, reminders, reconcile, self-heal, provider-events purge) **and their Pub/Sub topics/subscriptions via the regenerated `pubsub-catalog.json`**, sandbox secrets, env vars and flags (all new: `FEATURE_FLAG_*`, `PLATFORM_OWNER_TENANT_SLUG` through `env.validation.ts` and the env contract) | — | Staging cannot run any cron without it; live check per CLAUDE.md §9 |
 | C2 | Webhook route(s) + `provider_events` inbox + normalizer + exact-`200` contract + re-read/amount verification, on the fake; the fake's `simulate` endpoint | 09, 33 | Same code path the real adapter uses |
 | C3 *(split at promotion: C3a charge + lines + issuing job, C3b recovery charge + creation retry + identity hold)* | `Charge`/lines, charge-issuing job (first invoice only after `plan_confirmed_at` or the 3-day fallback; `next_due_date` advanced in the insert transaction), recovery-charge issuing, creation retry, identity-hold auto-resume | 08, 29 | `ITriggerBus` pattern |
 | C4 | Hourly status sweep (due date, trial end with the method-aware settlement margin, `PAST_DUE` → `SUSPENDED`, cancel-at) honouring the suspension freeze | 10 | Tenant-timezone logic; business-day calendar for the 3-day margin |
@@ -53,7 +53,7 @@ Enforcement can be merged dark and stays off until milestone 2's launch story (L
 | C11 | Cancel and reactivate (confirm page, scheduled cancel, trial-with-paid-invoice rule, recovery flow UI) | 28, 29 | |
 | C12 | Operator **percentage-adjust endpoint** (`/feature-prices/adjust`, dry run + preview hash, `batch_id`, whole-unit rounding, one consolidated `SubscriptionPriceChangeAnnounced` per tenant) plus the single exact-price endpoint; manager announcement + Plano/Resumo notice | 07, 19 | May follow launch if prices are static at first |
 | C13 | **Operations package**: exception-only alert policies and dashboard (OPERATIONS §5–6), RUNBOOKS Billing section, UC-024 documented as the exception path, weekly KPI numbers, customer help/FAQ text | — | Required before real money (R13) |
-| C14 | Seed script (one tenant per billing state), staging `EMAIL_RECIPIENT_ALLOWLIST` + `SKIPPED_NOT_ALLOWLISTED` | 33 | |
+| C14 | Seed script (one tenant per billing state), staging seed data | 33 | |
 | C15 | E2E: money loop on the fake and the suspended experience per role | — | Playwright helpers per `TESTING_STRATEGY` |
 | C16 | **Real `AsaasBillingProvider`** passing the contract suite on the sandbox, nightly sandbox contract job, automatic NFS-e emission configured, webhook re-enable verified (G3 in `docs/ASAAS_PROVIDER.md`) | 08, 09 | **GATE (Asaas production account, PROVIDERS §5, nota fiscal)** |
 

@@ -130,4 +130,4 @@ Rationale and the environment matrix are in `tenant-billing.md` §5.3; this sect
 
 - **Secrets:** sandbox and live keys are separate Secret Manager entries per environment (`ASAAS_API_KEY`/`ASAAS_WEBHOOK_TOKEN`, `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`), the live ones are bound to `production` only, and a live key in a non-production environment fails the startup check.
 - **Contract suite:** one provider-agnostic suite (create customer and charge, link, cancel, regenerate link, paid per method, overdue, refund, duplicate/out-of-order webhook, idempotent re-delivery, invalid location) runs against the fake on every PR and against the sandboxes nightly; a divergence is a bug in the fake or an undocumented provider behaviour to record in §5.
-- **Nothing real is sent:** the fake never leaves the process; sandbox charges move no money; staging email is allowlisted; local email goes to Mailhog.
+- **Nothing real is sent:** the fake never leaves the process; sandbox charges move no money; staging email goes to the owner's own test tenants; local email goes to Mailhog.

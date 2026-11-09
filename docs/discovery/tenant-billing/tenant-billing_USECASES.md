@@ -106,7 +106,7 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
   - **A1: `APP_ENV=production`** → the routes do not exist (404); a live adapter also refuses to start outside production, and a fake/sandbox profile key is rejected at provisioning in production.
   - **A2: Subscription uses a sandbox or live key** → `simulate` is refused; staging sandboxes are driven through the provider's own sandbox actions.
   - **A3: Missing or wrong operator keys** → `401` like every operator route.
-- **Postconditions:** Billing state changed exactly as the real event would have changed it; nothing was charged and no real communication was sent (Mailhog locally; staging email allowlist).
+- **Postconditions:** Billing state changed exactly as the real event would have changed it; nothing was charged and no real communication was sent (Mailhog locally).
 - **Events Triggered:** whatever the simulated flow triggers (`ChargePaid`, `SubscriptionPastDue`, …).
 
 ---
@@ -278,7 +278,6 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
 - **Alternative Flows:**
   - **A1: Billing email but the manager has no address** → logged, ops alert.
   - **A2: Access lookup error** → fail open (send).
-  - **A3: `APP_ENV=staging` and the recipient is not in `EMAIL_RECIPIENT_ALLOWLIST`** → the send is dropped and logged `SKIPPED_NOT_ALLOWLISTED`, for every template including Billing's (decision 69). Ignored in `production` and `local` (Mailhog).
 - **Postconditions:** No tenant/customer/staff messages while suspended.
 - **Events Triggered:** None.
 
