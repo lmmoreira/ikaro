@@ -1375,6 +1375,7 @@ The chatbot becomes a tiered, billed feature (`CHATBOT`, `BASIC` / `PLUS`; displ
 
 **Acceptance criteria — product:**
 - [ ] A Básico tenant's chatbot behaves exactly as today; a Plus tenant gets the Plus model on the same caps as Básico; a tenant without the CHATBOT feature (or suspended) gets an inert chatbot that resumes, with its knowledge text intact, when entitled again.
+- [ ] **Recorded at M25-S02, to settle at this story's discovery:** `BASIC`'s measured worst case is about 95% of R$ 39 at the most expensive eligible endpoint, because the adapter's `max_price` (US$ 10 / 50) admits every DeepSeek flash provider (`docs/TENANTS_SETTINGS_SCHEMA.md` § 7, Chatbot Settings). Decide a tier-specific provider price ceiling for `BASIC`: about US$ 0.15 input / 0.50 output per million tokens leaves about 19 endpoints and, at list prices, brings the worst case to about 33% of R$ 39; confirm availability and speed against the live endpoint list before adopting it. This deliberately changes `BASIC`'s routing, so it is the one exception to "behaves exactly as today" above; its model, caps and answers stay the same. Also decide whether `CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD` (US$ 1 a day, platform-wide) changes, and whether a per-tenant monthly cost bound is needed, since the daily cap counts new conversations only.
 
 **Acceptance criteria — technical:**
 - Unit:
