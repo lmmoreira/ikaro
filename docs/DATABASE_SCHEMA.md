@@ -1249,7 +1249,7 @@ Replaced by `shared.inbox` (see **Schema: `shared`** below). Pre-production, so 
 
 ## Schema: `billing`
 
-> **PLANNED, NOT YET BUILT** (Billing milestone; rules and design only — no code, table or migration exists yet). Every table below is documented ahead of the code.
+> **Schema built (M25-S03); no domain code yet.** The first migration (`CreateBillingSchema`, `apps/backend/src/contexts/billing/infrastructure/migrations/`) creates every table below except the ones marked *slice E/F2/H*. Entities, aggregates, repositories and use cases arrive with their own M25 stories, so a table described here may not yet have code reading or writing it.
 
 Owned by: **Billing Context** (`src/contexts/billing/`) — Ikaro charging its tenants (`docs/DOMAIN_MODEL.md` § Billing Context, `docs/USE_CASES.md` UC-110–UC-145). A new schema; the first migration touches no existing table (**expand only**). `tenant_id` is a plain NOT NULL UUID with **no** FK to `platform.tenants` (§2), which is also what lets the billing history outlive a purged tenant. Every composite FK is `(tenant_id, id)`.
 

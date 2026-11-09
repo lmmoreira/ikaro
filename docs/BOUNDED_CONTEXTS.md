@@ -136,7 +136,7 @@ Notification Context subscribes:
 
 ## Context Descriptions
 
-> The Billing context drawn in the diagram above is **planned, not yet built** (§ 7). Contexts **1–5** are described below. **§ 6. Platform Context (Foundational Domain)** is further down, after *Deployment & CI/CD Implications* — it was added later and was not moved here. Use the heading `6. Platform Context` to find it. **§ 7. Billing Context (Supporting Domain)** follows Platform, directly before *Future Scaling*.
+> The Billing context drawn in the diagram above is **only partly built** (§ 7): its `billing` schema and an empty `BillingModule` exist (M25-S03); aggregates, use cases and endpoints are still planned. Contexts **1–5** are described below. **§ 6. Platform Context (Foundational Domain)** is further down, after *Deployment & CI/CD Implications* — it was added later and was not moved here. Use the heading `6. Platform Context` to find it. **§ 7. Billing Context (Supporting Domain)** follows Platform, directly before *Future Scaling*.
 
 ### **1. Booking Context (Core Domain, Tenant-Scoped)**
 

@@ -50,7 +50,7 @@ Backend is already in the canonical shape and should stay close to this layout:
 apps/backend/src/
 ├── config/
 ├── contexts/
-│   ├── billing/       # planned: Subscription, Charge, FeaturePrice, BillingAccount
+│   ├── billing/       # schema + empty BillingModule (M25-S03); aggregates land story by story: Subscription, Charge, FeaturePrice, BillingAccount
 │   ├── booking/
 │   │   ├── domain/
 │   │   ├── application/
