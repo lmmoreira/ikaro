@@ -72,6 +72,48 @@ describe('AvailabilityStep', () => {
     expect(screen.queryByTestId('day-option')).not.toBeInTheDocument();
   });
 
+  it.each(['carousel', 'calendar'] as const)(
+    'names the chosen date above the slots for the %s picker',
+    async (datePickerType) => {
+      vi.mocked(fetchAvailabilitySummary).mockResolvedValue([day]);
+      vi.mocked(fetchAvailability).mockResolvedValue(availability);
+      renderWithIntl(
+        <AvailabilityStep
+          {...baseProps()}
+          datePickerType={datePickerType}
+          selectedDate="2026-06-15"
+        />,
+      );
+
+      expect(screen.getByTestId('slots-heading')).toHaveTextContent(
+        'Horários disponíveis — Segunda-feira, 15 de junho',
+      );
+      expect(await screen.findAllByTestId('time-slot')).not.toHaveLength(0);
+    },
+  );
+
+  it('words the date line in English for an English hotsite', async () => {
+    vi.mocked(fetchAvailabilitySummary).mockResolvedValue([day]);
+    vi.mocked(fetchAvailability).mockResolvedValue(availability);
+    renderWithIntl(
+      <AvailabilityStep {...baseProps()} datePickerType="carousel" selectedDate="2026-06-15" />,
+      { locale: 'en' },
+    );
+
+    expect(screen.getByTestId('slots-heading')).toHaveTextContent(
+      'Available times — Monday, June 15',
+    );
+    expect(await screen.findAllByTestId('time-slot')).not.toHaveLength(0);
+  });
+
+  it('shows no date line before a date is chosen', async () => {
+    vi.mocked(fetchAvailabilitySummary).mockResolvedValue([day]);
+    renderWithIntl(<AvailabilityStep {...baseProps()} datePickerType="carousel" />);
+
+    expect(await screen.findAllByTestId('day-option')).not.toHaveLength(0);
+    expect(screen.queryByTestId('slots-heading')).not.toBeInTheDocument();
+  });
+
   it('shows the slot picker once a date is selected', async () => {
     vi.mocked(fetchAvailabilitySummary).mockResolvedValue([day]);
     vi.mocked(fetchAvailability).mockResolvedValue(availability);

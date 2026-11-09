@@ -11,6 +11,9 @@
 .avc-chev { display:none; flex-shrink:0; background:none; border:0; padding:0; cursor:pointer; color:var(--ik-text, #111827); }
 @media (min-width:640px) { .avc-chev { display:block; } }
 .avc-day { display:flex; flex-shrink:0; flex-direction:column; align-items:center; padding:0.5rem 1rem; border:1px solid #bfdbfe; border-radius:0.75rem; background:#ffffff; color:#1d4ed8; box-shadow:0 1px 2px rgba(15,23,42,0.04); font-family:inherit; cursor:pointer; transition:background-color .15s; }
+/* Month marker (TD51-S2), dashboard look: gray-500 text, gray-200 divider (never the tokens.css hotsite marker). */
+.avc-scroll .month-marker { display:flex; flex-shrink:0; flex-direction:column; justify-content:flex-end; padding-bottom:0.25rem; font-size:0.7rem; font-weight:700; letter-spacing:0.025em; text-transform:uppercase; color:#6b7280; }
+.avc-scroll .month-marker.boundary { padding-left:0.5rem; border-left:1px solid #e5e7eb; }
 .avc-day .wd { font-size:0.75rem; }
 .avc-day .dn { font-size:1.125rem; font-weight:600; }
 .avc-day.selected { background:#2563eb; border-color:#2563eb; color:#ffffff; box-shadow:0 1px 2px rgba(37,99,235,0.18); }

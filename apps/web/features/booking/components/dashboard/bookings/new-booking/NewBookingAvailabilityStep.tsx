@@ -8,6 +8,8 @@ import { SlotPicker } from '@/features/booking/components/public/SlotPicker';
 import { NewBookingStepLayout } from './NewBookingStepLayout';
 import { SECTION_LABEL_CLASS } from './new-booking-styles';
 import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
+import { useFormatting } from '@/shared/lib/formatting/use-formatting';
+import { utcDateFromISO } from '@/shared/lib/formatting/calendar-day';
 
 const CAROUSEL_DAYS = 14;
 
@@ -52,6 +54,7 @@ export function NewBookingAvailabilityStep({
 }: NewBookingAvailabilityStepProps): React.JSX.Element {
   const t = useTranslations('booking.availability');
   const tn = useTranslations('dashboard.newBooking.steps');
+  const { formatDateLong } = useFormatting();
 
   return (
     <NewBookingStepLayout
@@ -80,7 +83,9 @@ export function NewBookingAvailabilityStep({
 
       {selectedDate && (
         <section>
-          <p className={SECTION_LABEL_CLASS}>{tn('slotsLabel')}</p>
+          <p className={SECTION_LABEL_CLASS}>
+            {tn('slotsLabel', { date: formatDateLong(utcDateFromISO(selectedDate)) })}
+          </p>
           <SlotPicker
             slug={slug}
             serviceIds={selectedServiceIds}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feedback-message';
@@ -13,7 +13,7 @@ import {
   earliestBookableDate,
   tenantToday,
 } from '@/features/booking/model/booking-window';
-import { dayCarouselLabel, dayNumber } from '@/shared/lib/formatting/date-utils';
+import { dayCarouselLabel, dayNumber, monthMarkerLabel } from '@/shared/lib/formatting/date-utils';
 
 interface AvailabilityCarouselProps {
   readonly slug: string;
@@ -136,31 +136,46 @@ export function AvailabilityCarousel({
 
         <div ref={scrollRef} className="flex gap-2 overflow-x-auto scroll-smooth py-1">
           {days.map((day, index) => (
-            <button
-              key={day.date}
-              type="button"
-              disabled={!day.available}
-              onClick={() => onSelectDate(day.date)}
-              data-testid="day-option"
-              data-date={day.date}
-              aria-pressed={day.date === selectedDate}
-              className="flex shrink-0 flex-col items-center border px-4 py-2 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
-              style={{
-                borderRadius: isDashboardVariant ? DASHBOARD_DAY_RADIUS : 'var(--ba-radius)',
-                backgroundColor: getDayBackgroundColor(
-                  day.date === selectedDate,
-                  isDashboardVariant,
-                ),
-                borderColor: getDayBorderColor(day.date === selectedDate, isDashboardVariant),
-                color: getDayTextColor(day.date === selectedDate, isDashboardVariant),
-                boxShadow: getDayBoxShadow(day.date === selectedDate, isDashboardVariant),
-              }}
-            >
-              <span className="text-xs">
-                {dayCarouselLabel(day.date, index, locale, t('availability.today'))}
-              </span>
-              <span className="text-lg font-semibold">{dayNumber(day.date)}</span>
-            </button>
+            <Fragment key={day.date}>
+              {isMonthStart(days, index) && (
+                <MonthMarker
+                  label={monthMarkerLabel(
+                    day.date,
+                    locale,
+                    day.date.slice(0, 4) !== days[0].date.slice(0, 4),
+                  )}
+                  isFirst={index === 0}
+                  isDashboardVariant={isDashboardVariant}
+                />
+              )}
+              <button
+                type="button"
+                disabled={!day.available}
+                onClick={() => onSelectDate(day.date)}
+                data-testid="day-option"
+                data-date={day.date}
+                aria-pressed={day.date === selectedDate}
+                className="flex shrink-0 flex-col items-center border px-4 py-2 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                style={{
+                  borderRadius: isDashboardVariant ? DASHBOARD_DAY_RADIUS : 'var(--ba-radius)',
+                  backgroundColor: getDayBackgroundColor(
+                    day.date === selectedDate,
+                    isDashboardVariant,
+                  ),
+                  borderColor: getDayBorderColor(day.date === selectedDate, isDashboardVariant),
+                  color: getDayTextColor(day.date === selectedDate, isDashboardVariant),
+                  boxShadow: getDayBoxShadow(day.date === selectedDate, isDashboardVariant),
+                }}
+              >
+                <span className="text-xs">
+                  {dayCarouselLabel(day.date, index, locale, t('availability.today'))}
+                </span>
+                <span className="text-lg font-semibold">{dayNumber(day.date)}</span>
+                {/* The marker above is aria-hidden; this keeps the month in the pill's accessible
+                    name without replacing its visible text (WCAG label-in-name). */}
+                <span className="sr-only">{monthMarkerLabel(day.date, locale, false)}</span>
+              </button>
+            </Fragment>
           ))}
         </div>
 
@@ -184,6 +199,39 @@ export function AvailabilityCarousel({
         </div>
       )}
     </div>
+  );
+}
+
+// A marker opens the strip and every month boundary; the comparison is on the ISO string, never a
+// Date round-trip, so it cannot shift with the runtime's offset.
+function isMonthStart(days: readonly DaySummary[], index: number): boolean {
+  return index === 0 || days[index].date.slice(0, 7) !== days[index - 1].date.slice(0, 7);
+}
+
+// Month context for a long strip. Hotsite: only existing tenant tokens (no opacity, so its
+// contrast is the tenant's own text contrast). Dashboard: Tailwind, never --ba-*.
+function MonthMarker({
+  label,
+  isFirst,
+  isDashboardVariant,
+}: {
+  readonly label: string;
+  readonly isFirst: boolean;
+  readonly isDashboardVariant: boolean;
+}): React.JSX.Element {
+  const dividerClass = isFirst
+    ? ''
+    : `border-l pl-2 ${isDashboardVariant ? 'border-gray-200' : 'border-[var(--ba-secondary)]'}`;
+  return (
+    <span
+      data-testid="month-marker"
+      aria-hidden="true"
+      className={`flex shrink-0 flex-col justify-end pb-1 text-[0.7rem] font-bold uppercase tracking-wide ${
+        isDashboardVariant ? 'text-gray-500' : 'text-[var(--ba-text)]'
+      } ${dividerClass}`}
+    >
+      {label}
+    </span>
   );
 }
 
