@@ -856,7 +856,7 @@ For MVP: All deployed as single service, but code organized as separate modules 
 - `FeaturePrice` (platform-wide, no `tenant_id`) — feature × country × tier × cycle with dated `feature_price_versions`
 - Supporting tables: `provider_events` (webhook inbox), `signup_registrations` (provisioning registration), `tenant_purge_jobs` / `tenant_purge_steps` (erasure coordinator), `provider_health`, `operator_audit`
 
-**Responsibilities:** issue and track charges against the provider (`BillingProviderPort`: Asaas for BRL, Stripe for USD, a `FakeBillingProvider` outside production); apply provider webhooks and reconcile; sweep statuses hourly; send every billing email; answer `TenantAccessPort`; own the operator touchpoints (`exempt`, `suspend`/`unsuspend`, `grace`, list-price changes); coordinate tenant erasure.
+**Responsibilities:** issue and track charges against the provider (`BillingProviderPort`: Asaas for BRL, Stripe for USD, a `FakeBillingProvider` outside production; the verified Asaas facts are in `docs/ASAAS_PROVIDER.md`); apply provider webhooks and reconcile; sweep statuses hourly; send every billing email; answer `TenantAccessPort`; own the operator touchpoints (`exempt`, `suspend`/`unsuspend`, `grace`, list-price changes); coordinate tenant erasure.
 
 **Database:** schema `billing` (`docs/DATABASE_SCHEMA.md` § Schema: billing).
 

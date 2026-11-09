@@ -137,7 +137,7 @@ Every policy emails the `notification_email` channel. Thresholds are module vari
 
 **Billing alert policies and KPI numbers *(planned, Billing milestone)*.** Billing is operator-free by default, so its alerts are metric / log-based policies that fire **only after the automatic response failed**, each naming its runbook in `docs/RUNBOOKS.md` § Billing (planned):
 
-- webhook failure (three or more consecutive failures, or any backend `5xx` on the webhook route, within 15 min — a BFF `401` is excluded — or the provider queue paused and not re-enabled);
+- webhook failure (three or more consecutive failures, or any backend `5xx` on the webhook route, within 15 min — a BFF `401` is excluded — or the provider queue paused and no delivery has succeeded since it was re-enabled);
 - reconcile failing (two consecutive daily-pass failures, or no success for 24 h — the latter also starts the suspension freeze);
 - reconcile drift (any difference in a daily pass is a warning, more than 5 is critical);
 - charge creation stuck (`provider_creation_status = PENDING` with 3 or more attempts, or for more than 1 hour);

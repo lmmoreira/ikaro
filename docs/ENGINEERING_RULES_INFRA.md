@@ -83,7 +83,7 @@ This makes our own ratio the actual authority on our own sampling regardless of 
 
 ## Billing configuration (planned) — live adapters, fake/sandbox keys, the staging email allowlist and the scheduler jobs
 
-> **PLANNED, NOT YET BUILT** (Billing milestone). Writing-time traps for the infra a Billing story adds; the strategy is in `docs/TESTING_STRATEGY.md` § Testing the billing provider — fake, sandbox, contract suite and clock.
+> **PLANNED, NOT YET BUILT** (Billing milestone). Writing-time traps for the infra a Billing story adds; the strategy is in `docs/TESTING_STRATEGY.md` § Testing the billing provider — fake, sandbox, contract suite and clock; the verified Asaas facts and launch gates are in `docs/ASAAS_PROVIDER.md`.
 
 - **A live provider adapter refuses to start unless `APP_ENV=production`.** Validate it in `env.validation.ts` the way the existing rule forbids `EMAIL_ADAPTER=mailhog` outside `local`. A `*_FAKE` or `*_SANDBOX` `merchant_profile_key` is rejected in production, and the live secrets are bound to the `production` environment only, so a live key in staging fails the startup check. The simulate / clock / seed routes are registered only when `APP_ENV` is `local` or `staging`.
 - **Staging email goes through `EMAIL_RECIPIENT_ALLOWLIST`.** Required when `APP_ENV` is `staging`, ignored in `production` and `local` (Mailhog); a recipient outside it is dropped and logged `SKIPPED_NOT_ALLOWLISTED`, for every template including Billing's (the new `SKIPPED_*` notification statuses and the widened `CHK_notification_logs_status` constraint are in `docs/DATABASE_SCHEMA.md` § Schema: `notification`). Without it a sandbox charge on staging emails a real address.
