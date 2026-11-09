@@ -1,8 +1,11 @@
-// Grants the application database role access to a schema, guarded by a role-existence check so
-// the migration is order-safe when the infrastructure-created role is provisioned after it
-// (docs/ENGINEERING_RULES_BACKEND.md § Migration-driven privilege grants to infrastructure-created
-// roles). Mirrors platform's 1700000000000-BootstrapSchemas exactly. Lives outside migrations/
-// because TypeORM treats every export of a migration file as a migration class.
+// Grants the application database role access to a schema. Mirrors platform's
+// 1700000000000-BootstrapSchemas exactly: the role-existence check only keeps the migration from
+// failing on a database that has no such role (a bare local database). It is NOT convergent: if
+// the role is created after this runs, nothing is granted retroactively, so the role must exist
+// before the migrate job runs (docs/ENGINEERING_RULES_BACKEND.md § Migration-driven privilege
+// grants to infrastructure-created roles; recovery recipe: docs/RUNBOOKS.md § Debugging a
+// permission-denied-shaped 500). Lives outside migrations/ because TypeORM treats every export of
+// a migration file as a migration class.
 export function appRoleGrantSql(schema: string, role: string): string {
   return `
     DO $$ BEGIN

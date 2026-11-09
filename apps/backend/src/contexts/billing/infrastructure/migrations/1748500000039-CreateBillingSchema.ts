@@ -364,7 +364,10 @@ export class CreateBillingSchema1748500000039 implements MigrationInterface {
         CONSTRAINT "CHK_billing_signup_registrations_google_sub"
           CHECK ("source" <> 'SELF_SIGNUP' OR "google_sub" IS NOT NULL),
         CONSTRAINT "CHK_billing_signup_registrations_tax_id_type"
-          CHECK ("tax_id_type" IS NULL OR "tax_id_type" IN (${TAX_ID_TYPES}))
+          CHECK ("tax_id_type" IS NULL OR "tax_id_type" IN (${TAX_ID_TYPES})),
+        CONSTRAINT "CHK_billing_signup_registrations_terms"
+          CHECK ("source" <> 'SELF_SIGNUP'
+            OR ("terms_version" IS NOT NULL AND "terms_accepted_at" IS NOT NULL))
       )
     `);
     await queryRunner.query(`

@@ -2,12 +2,13 @@ import { DataSource } from 'typeorm';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { createTestDataSource } from '../../../test/test-datasource';
 import { appRoleGrantSql } from './billing-schema-grants';
-import { CreateBillingSchema1748500000039 } from './migrations/1748500000039-CreateBillingSchema';
 
 // M25-S03: the first Billing migration. The schema is created once by integration-global-setup;
 // this spec checks it against docs/DATABASE_SCHEMA.md § Schema: `billing` (columns, every named
-// index and constraint), then each constraint that must reject a bad row, the app-role grants and
-// the down()/up() round trip (the last test, so it leaves the schema as it found it).
+// index and constraint), then each constraint that must reject a bad row and each closed value set
+// that must accept every documented value, and the app-role grants. It only reads and inserts its
+// own rows; it never re-runs up()/down() on the shared datasource (docs/ENGINEERING_RULES_TESTING.md
+// § Migration specs).
 const COLUMNS: Record<string, string> = {
   feature_prices:
     'id feature_key country_code tier cycle currency selectable created_at updated_at',
@@ -70,6 +71,7 @@ const CONSTRAINTS = `
   PK_billing_provider_events CHK_billing_provider_events_provider PK_billing_signup_registrations
   UQ_billing_signup_registrations_tenant CHK_billing_signup_registrations_source
   CHK_billing_signup_registrations_status CHK_billing_signup_registrations_google_sub
+  CHK_billing_signup_registrations_terms
   CHK_billing_signup_registrations_tax_id_type PK_billing_tenant_purge_jobs
   UQ_billing_tenant_purge_jobs_tenant_id CHK_billing_tenant_purge_jobs_reason
   CHK_billing_tenant_purge_jobs_status PK_billing_tenant_purge_steps
@@ -178,6 +180,17 @@ describe('CreateBillingSchema migration (integration)', () => {
   });
 
   afterAll(async () => {
+    for (const table of [
+      'tenant_purge_steps',
+      'tenant_purge_jobs',
+      'operator_audit',
+      'provider_events',
+      'billing_accounts',
+    ]) {
+      await ds.query(`DELETE FROM billing.${table} WHERE tenant_id = ANY($1::uuid[])`, [
+        usedTenants,
+      ]);
+    }
     await ds.query(`DELETE FROM billing.charge_lines WHERE tenant_id = ANY($1::uuid[])`, [
       usedTenants,
     ]);
@@ -417,9 +430,19 @@ describe('CreateBillingSchema migration (integration)', () => {
 
     it('subscriptions: accepts a valid SUSPENDED row and every anchor-day bound', async () => {
       const t = uuidv7();
+      const lowest = uuidv7();
+      usedTenants.push(t, lowest);
       await insertSubscription(t, { status: 'SUSPENDED', reason: 'NON_PAYMENT', anchorDay: 28 });
-      await insertSubscription(uuidv7(), { anchorDay: 1 });
-      await ds.query(`DELETE FROM billing.subscriptions WHERE tenant_id = $1`, [t]);
+      await insertSubscription(lowest, { anchorDay: 1 });
+      const stored = await rows<{ status: string; anchor_day: number }>(
+        `SELECT status, anchor_day FROM billing.subscriptions WHERE tenant_id = ANY($1::uuid[])
+          ORDER BY anchor_day`,
+        [[t, lowest]],
+      );
+      expect(stored).toEqual([
+        { status: 'ACTIVE', anchor_day: 1 },
+        { status: 'SUSPENDED', anchor_day: 28 },
+      ]);
     });
 
     it('charges: closed kind, status, method, provider, creation status and READY needs a provider id', async () => {
@@ -575,6 +598,9 @@ describe('CreateBillingSchema migration (integration)', () => {
       await expect(insertReg('OPERATOR', 'RESERVED', null, 'SSN')).rejects.toThrow(
         'CHK_billing_signup_registrations_tax_id_type',
       );
+      await expect(insertReg('SELF_SIGNUP', 'RESERVED', 'sub', null)).rejects.toThrow(
+        'CHK_billing_signup_registrations_terms',
+      );
       const operatorId = uuidv7();
       await ds.query(
         `INSERT INTO billing.signup_registrations (id, source, status) VALUES ($1, 'OPERATOR', 'RESERVED')`,
@@ -654,6 +680,244 @@ describe('CreateBillingSchema migration (integration)', () => {
     });
   });
 
+  describe('closed value sets accept every documented value', () => {
+    const FEATURES = ['HOTSITE', 'BOOKING', 'LOYALTY', 'CHATBOT', 'LEAD_FORM'];
+    const signupIds: string[] = [];
+    const healthKeys: string[] = [];
+    const accepts = (sql: string, params: unknown[]) =>
+      expect(ds.query(sql, params)).resolves.toBeDefined();
+
+    afterAll(async () => {
+      await ds.query(`DELETE FROM billing.signup_registrations WHERE id = ANY($1::uuid[])`, [
+        signupIds,
+      ]);
+      await ds.query(
+        `DELETE FROM billing.provider_health WHERE merchant_profile_key = ANY($1::text[])`,
+        [healthKeys],
+      );
+      await ds.query(
+        `DELETE FROM billing.feature_price_versions WHERE feature_price_id IN
+           (SELECT id FROM billing.feature_prices WHERE country_code = 'ZZ')`,
+      );
+      await ds.query(`DELETE FROM billing.feature_prices WHERE country_code = 'ZZ'`);
+    });
+
+    it.each(['TRIALING', 'ACTIVE', 'PAST_DUE'])('subscriptions.status accepts %s', (status) =>
+      expect(insertSubscription(tenantA, { status })).resolves.toEqual(expect.any(String)),
+    );
+
+    it.each(['NON_PAYMENT', 'CANCELED', 'PAYMENT_REVERSED', 'OPERATOR'])(
+      'a SUSPENDED subscription accepts suspension reason %s',
+      (reason) =>
+        expect(insertSubscription(tenantA, { status: 'SUSPENDED', reason })).resolves.toEqual(
+          expect.any(String),
+        ),
+    );
+
+    it.each(['PENDING', 'PAID', 'OVERDUE', 'FAILED', 'CANCELED', 'REFUNDED', 'CHARGEBACK'])(
+      'charges.status accepts %s',
+      async (status) => {
+        const subscriptionId = await insertSubscription(tenantA);
+        await expect(insertCharge(tenantA, subscriptionId, { status })).resolves.toEqual(
+          expect.any(String),
+        );
+      },
+    );
+
+    it.each(['CARD', 'PIX', 'BOLETO'])('charges.method accepts %s', async (method) => {
+      const subscriptionId = await insertSubscription(tenantA);
+      await expect(insertCharge(tenantA, subscriptionId, { method })).resolves.toEqual(
+        expect.any(String),
+      );
+    });
+
+    it.each(['ASAAS', 'STRIPE'])('charges.provider accepts %s', async (provider) => {
+      const subscriptionId = await insertSubscription(tenantA);
+      await expect(insertCharge(tenantA, subscriptionId, { provider })).resolves.toEqual(
+        expect.any(String),
+      );
+    });
+
+    it.each(['PENDING', 'FAILED'])('charges.provider_creation_status accepts %s', async (value) => {
+      const subscriptionId = await insertSubscription(tenantA);
+      await expect(
+        insertCharge(tenantA, subscriptionId, { creationStatus: value }),
+      ).resolves.toEqual(expect.any(String));
+    });
+
+    it.each(FEATURES)('subscription_items.feature_key accepts %s', async (feature) => {
+      const subscriptionId = await insertSubscription(tenantA);
+      await accepts(
+        `INSERT INTO billing.subscription_items
+           (id, tenant_id, subscription_id, feature_key, starts_at, created_by)
+         VALUES ($1, $2, $3, $4, now(), 'SYSTEM')`,
+        [uuidv7(), tenantA, subscriptionId, feature],
+      );
+    });
+
+    it.each(FEATURES)('charge_lines.feature_key accepts %s', async (feature) => {
+      const subscriptionId = await insertSubscription(tenantA);
+      const chargeId = await insertCharge(tenantA, subscriptionId);
+      await accepts(
+        `INSERT INTO billing.charge_lines (id, tenant_id, charge_id, feature_key, tier, unit_price_minor)
+         VALUES ($1, $2, $3, $4, 'STANDARD', 1)`,
+        [uuidv7(), tenantA, chargeId, feature],
+      );
+    });
+
+    it.each(FEATURES)('feature_prices.feature_key accepts %s', (feature) =>
+      accepts(
+        `INSERT INTO billing.feature_prices (id, feature_key, country_code, currency)
+         VALUES ($1, $2, 'ZZ', 'BRL')`,
+        [uuidv7(), feature],
+      ),
+    );
+
+    it.each(['ASAAS', 'STRIPE'])('billing_accounts.provider accepts %s', (provider) =>
+      accepts(
+        `INSERT INTO billing.billing_accounts (id, tenant_id, provider) VALUES ($1, $2, $3)`,
+        [uuidv7(), tenantA, provider],
+      ),
+    );
+
+    it.each(['CNPJ', 'CPF', 'OTHER'])('billing_accounts.tax_id_type accepts %s', (type) =>
+      accepts(
+        `INSERT INTO billing.billing_accounts (id, tenant_id, tax_id_type) VALUES ($1, $2, $3)`,
+        [uuidv7(), tenantA, type],
+      ),
+    );
+
+    it.each(['NONE', 'PIX_AUTOMATICO', 'CARD_RECURRING'])(
+      'billing_accounts.auto_billing accepts %s',
+      (value) =>
+        accepts(
+          `INSERT INTO billing.billing_accounts (id, tenant_id, auto_billing) VALUES ($1, $2, $3)`,
+          [uuidv7(), tenantA, value],
+        ),
+    );
+
+    it.each(['INACTIVE', 'PENDING_AUTHORIZATION', 'ACTIVE'])(
+      'billing_accounts.auto_billing_status accepts %s',
+      (value) =>
+        accepts(
+          `INSERT INTO billing.billing_accounts (id, tenant_id, auto_billing_status) VALUES ($1, $2, $3)`,
+          [uuidv7(), tenantA, value],
+        ),
+    );
+
+    it.each(['ASAAS', 'STRIPE'])('provider_events.provider accepts %s', (provider) =>
+      accepts(
+        `INSERT INTO billing.provider_events (provider, event_id, tenant_id, event_type, received_at, processed_at)
+         VALUES ($1, $2, $3, 'PAYMENT_CONFIRMED', now(), now())`,
+        [provider, uuidv7(), tenantA],
+      ),
+    );
+
+    it.each([
+      ['SELF_SIGNUP', 'RESERVED'],
+      ['SELF_SIGNUP', 'COMPLETED'],
+      ['OPERATOR', 'RESERVED'],
+      ['OPERATOR', 'COMPLETED'],
+    ])('signup_registrations accepts source %s with status %s', (source, status) => {
+      const id = uuidv7();
+      signupIds.push(id);
+      return accepts(
+        `INSERT INTO billing.signup_registrations
+           (id, source, status, google_sub, terms_version, terms_accepted_at)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        source === 'SELF_SIGNUP'
+          ? [id, source, status, 'google-sub', 'v1', new Date()]
+          : [id, source, status, null, null, null],
+      );
+    });
+
+    it.each(['CNPJ', 'CPF', 'OTHER'])('signup_registrations.tax_id_type accepts %s', (type) => {
+      const id = uuidv7();
+      signupIds.push(id);
+      return accepts(
+        `INSERT INTO billing.signup_registrations (id, source, status, tax_id_type)
+         VALUES ($1, 'OPERATOR', 'RESERVED', $2)`,
+        [id, type],
+      );
+    });
+
+    it.each(['REQUESTED', 'IN_PROGRESS', 'FAILED', 'COMPLETED'])(
+      'tenant_purge_jobs.status accepts %s',
+      (status) =>
+        accepts(
+          `INSERT INTO billing.tenant_purge_jobs (id, tenant_id, reason, status, requested_at)
+           VALUES ($1, $2, 'SUSPENSION_AGE', $3, now())`,
+          [uuidv7(), tenantA, status],
+        ),
+    );
+
+    it.each(['SUSPENSION_AGE', 'SELF_SERVICE_DISCARD', 'OPERATOR_REQUEST'])(
+      'tenant_purge_jobs.reason accepts %s',
+      (reason) =>
+        accepts(
+          `INSERT INTO billing.tenant_purge_jobs (id, tenant_id, reason, requested_at)
+           VALUES ($1, $2, $3, now())`,
+          [uuidv7(), tenantA, reason],
+        ),
+    );
+
+    it.each([
+      'BOOKING',
+      'CUSTOMER',
+      'STAFF',
+      'LOYALTY',
+      'NOTIFICATION',
+      'PLATFORM',
+      'BILLING',
+      'STORAGE',
+      'PROVIDER',
+    ])('tenant_purge_steps.participant accepts %s', async (participant) => {
+      const jobId = uuidv7();
+      await ds.query(
+        `INSERT INTO billing.tenant_purge_jobs (id, tenant_id, reason, requested_at)
+         VALUES ($1, $2, 'SUSPENSION_AGE', now())`,
+        [jobId, tenantA],
+      );
+      await accepts(
+        `INSERT INTO billing.tenant_purge_steps (tenant_id, job_id, participant, completed_at)
+         VALUES ($1, $2, $3, now())`,
+        [tenantA, jobId, participant],
+      );
+    });
+
+    it.each(['OK', 'PAUSED', 'UNKNOWN'])('provider_health.webhook_status accepts %s', (status) => {
+      const key = `TEST_${uuidv7()}`.slice(0, 40);
+      healthKeys.push(key);
+      return accepts(
+        `INSERT INTO billing.provider_health (merchant_profile_key, webhook_status) VALUES ($1, $2)`,
+        [key, status],
+      );
+    });
+
+    it.each([
+      [true, new Date()],
+      [false, null],
+    ])('provider_health accepts freeze_active=%s with a matching freeze_since', (active, since) => {
+      const key = `TEST_${uuidv7()}`.slice(0, 40);
+      healthKeys.push(key);
+      return accepts(
+        `INSERT INTO billing.provider_health (merchant_profile_key, freeze_active, freeze_since)
+         VALUES ($1, $2, $3)`,
+        [key, active, since],
+      );
+    });
+
+    it.each(['GRACE', 'SUSPEND', 'UNSUSPEND', 'SET_EXEMPT'])(
+      'operator_audit.action accepts %s',
+      (action) =>
+        accepts(
+          `INSERT INTO billing.operator_audit (id, tenant_id, actor, action, payload, occurred_at)
+           VALUES ($1, $2, 'op', $3, '{}', now())`,
+          [uuidv7(), tenantA, action],
+        ),
+    );
+  });
+
   describe('application role grants', () => {
     it('lets the ikaro role use the schema and read/write every existing table', async () => {
       const [schema] = await rows<{ usage: boolean }>(
@@ -689,32 +953,6 @@ describe('CreateBillingSchema migration (integration)', () => {
         `SELECT EXISTS (SELECT FROM pg_roles WHERE rolname = 'ikaro_absent_role') AS exists`,
       );
       expect(row?.exists).toBe(false);
-    });
-  });
-
-  describe('down() / up() round trip', () => {
-    // Last on purpose: it drops and recreates the schema, so earlier rows are gone afterwards.
-    it('drops the schema on down(), keeps btree_gist, and up() recreates it', async () => {
-      const queryRunner = ds.createQueryRunner();
-      try {
-        await new CreateBillingSchema1748500000039().down(queryRunner);
-        const [gone] = await rows<{ count: string }>(
-          `SELECT count(*)::text AS count FROM pg_namespace WHERE nspname = 'billing'`,
-        );
-        expect(gone?.count).toBe('0');
-        const [ext] = await rows<{ count: string }>(
-          `SELECT count(*)::text AS count FROM pg_extension WHERE extname = 'btree_gist'`,
-        );
-        expect(ext?.count).toBe('1');
-
-        await new CreateBillingSchema1748500000039().up(queryRunner);
-        const tables = await rows<{ count: string }>(
-          `SELECT count(*)::text AS count FROM information_schema.tables WHERE table_schema = 'billing'`,
-        );
-        expect(Number(tables[0]?.count)).toBe(Object.keys(COLUMNS).length);
-      } finally {
-        await queryRunner.release();
-      }
     });
   });
 });

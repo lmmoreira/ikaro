@@ -845,7 +845,7 @@ For MVP: All deployed as single service, but code organized as separate modules 
 
 ### **7. Billing Context (Supporting Domain, Tenant-Scoped)**
 
-> **PLANNED, NOT YET BUILT** (Billing milestone; rules and design only — no code, table or migration exists yet).
+> **PARTLY BUILT** (Billing milestone): the `billing` schema and an empty `BillingModule` exist (M25-S03); aggregates, use cases and endpoints are rules and design only until their stories land.
 
 **Purpose:** Ikaro charging its tenants — price list, subscription, charges, payment-provider integration, the access ladder (`TRIALING → ACTIVE → PAST_DUE → SUSPENDED`) and the entitlement set. The payment provider owns the money; Billing owns only three policies: the access ladder, the entitlement set and the clean-up (`docs/DOMAIN_MODEL.md` § Context 7: Billing Context).
 

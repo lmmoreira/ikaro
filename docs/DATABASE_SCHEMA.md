@@ -15,7 +15,7 @@ Single PostgreSQL instance
 ├── staff      (Staff Context)
 ├── loyalty    (Loyalty Context)
 ├── notification (Notification Context)
-└── billing    (Billing Context — planned, not yet built)
+└── billing    (Billing Context — schema built, domain code planned; M25-S03)
 ```
 
 Plus a `shared` schema (not a bounded context) holding the transactional outbox/inbox transport tables (see **Schema: `shared`** below).
@@ -1527,6 +1527,7 @@ Types are the minimum M25-S03 needs (the discovery data model lists column names
 | `signup_registrations.source` | `SELF_SIGNUP`, `OPERATOR` |
 | `signup_registrations.status` | `RESERVED`, `COMPLETED` |
 | `signup_registrations.google_sub` | NOT NULL when `source = 'SELF_SIGNUP'` |
+| `signup_registrations.terms_version` / `terms_accepted_at` | both NOT NULL when `source = 'SELF_SIGNUP'` (`CHK_billing_signup_registrations_terms`) |
 | `operator_audit.action` | `GRACE`, `SUSPEND`, `UNSUSPEND`, `SET_EXEMPT` |
 | `tenant_purge_*`, `provider_health.*` | as specified in their own tables above |
 
