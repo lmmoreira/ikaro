@@ -42,7 +42,13 @@ if [ -z "${INTERNAL_API_KEY:-}" ]; then
 fi
 
 call() {
-  curl -sS --fail-with-body -H "X-Internal-Key: $INTERNAL_API_KEY" -H "Content-Type: application/json" "$@"
+  local out
+  # Keep the body on a 4xx/5xx so the operator sees the violation or the 401 detail.
+  if ! out="$(curl -sS --fail-with-body -H "X-Internal-Key: $INTERNAL_API_KEY" -H "Content-Type: application/json" "$@")"; then
+    echo "Request failed: $out" >&2
+    exit 1
+  fi
+  printf '%s' "$out"
 }
 
 case "$ACTION" in

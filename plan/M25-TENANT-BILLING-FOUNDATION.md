@@ -837,7 +837,7 @@ Every date rule in Billing (trial end, due dates, grace, purge age) must be test
 - `apps/backend/src/shared/ports/dev-clock-control.port.ts` (new — `IDevClockControl`)
 - `apps/backend/src/shared/infrastructure/clock/system-clock.adapter.ts` + `advanceable-clock.adapter.ts` + `clock.module.ts` (+ `.spec.ts`) (new)
 - `apps/backend/src/app.module.ts` (modify — import `ClockModule`)
-- `apps/backend/src/test/infrastructure/fixed-clock.ts` (new — `FixedClock`, a settable `IClock` test double; unit specs never `jest.fn()` the port, `no-jest-fn-for-repository-or-port`)
+- `apps/backend/src/test/infrastructure/fixed-clock.ts` (new — `FixedClock`, an immutable `IClock` test double frozen at the instant it is built with (read-only like the port; moving time is `IDevClockControl`'s job); unit specs never `jest.fn()` the port, `no-jest-fn-for-repository-or-port`)
 - `apps/backend/src/contexts/billing/application/use-cases/advance-clock.use-case.ts` + `reset-clock.use-case.ts` + `get-clock.use-case.ts` (+ `.spec.ts` each) (new)
 - `apps/backend/src/contexts/billing/infrastructure/dev-clock.module.ts` (+ `.spec.ts`) (new — `DevClockModule.register(appEnv)`)
 - `apps/backend/src/contexts/billing/infrastructure/controllers/internal-dev-clock.controller.ts` (+ `.spec.ts`, `.integration.spec.ts`) (new)

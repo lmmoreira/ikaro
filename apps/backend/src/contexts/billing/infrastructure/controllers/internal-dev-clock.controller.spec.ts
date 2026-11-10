@@ -18,21 +18,27 @@ describe('InternalDevClockController', () => {
     );
   });
 
-  it('advance moves the clock and returns the offset and instanceId', () => {
-    expect(controller.advance({ days: 1 })).toEqual({
+  it('advance moves the clock and returns the offset and instanceId', async () => {
+    await expect(controller.advance({ days: 1 })).resolves.toEqual({
       offsetMs: 24 * 60 * 60 * 1000,
       instanceId: clock.instanceId,
     });
   });
 
-  it('get returns the offset and instanceId', () => {
-    controller.advance({ hours: 1 });
+  it('advance past the cumulative cap is a 400 through the error mapper', async () => {
+    await controller.advance({ days: 36_500 });
+
+    await expect(controller.advance({ hours: 1 })).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('get returns the offset and instanceId', async () => {
+    await controller.advance({ hours: 1 });
 
     expect(controller.get()).toEqual({ offsetMs: 60 * 60 * 1000, instanceId: clock.instanceId });
   });
 
-  it('reset returns the offset to zero', () => {
-    controller.advance({ hours: 1 });
+  it('reset returns the offset to zero', async () => {
+    await controller.advance({ hours: 1 });
 
     expect(controller.reset().offsetMs).toBe(0);
   });

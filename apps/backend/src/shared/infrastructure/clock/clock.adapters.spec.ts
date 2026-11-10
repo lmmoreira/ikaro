@@ -1,4 +1,5 @@
 import { Test } from '@nestjs/testing';
+import { ClockOffsetLimitError, MAX_CLOCK_OFFSET_MS } from '../../domain/clock-offset-limit.error';
 import { CLOCK, IClock } from '../../ports/clock.port';
 import { AdvanceableClock } from './advanceable-clock.adapter';
 import { ClockModule } from './clock.module';
@@ -31,6 +32,16 @@ describe('AdvanceableClock', () => {
     expect(() => clock.advanceBy(-1)).toThrow(RangeError);
     expect(() => clock.advanceBy(Number.NaN)).toThrow(RangeError);
     expect(clock.offsetMs).toBe(500);
+  });
+
+  it('accepts an advance up to the cap and rejects one past it, so now() stays a valid Date', () => {
+    const clock = new AdvanceableClock();
+    clock.advanceBy(MAX_CLOCK_OFFSET_MS);
+
+    expect(Number.isNaN(clock.now().getTime())).toBe(false);
+    expect(() => clock.advanceBy(1)).toThrow(ClockOffsetLimitError);
+    expect(clock.offsetMs).toBe(MAX_CLOCK_OFFSET_MS);
+    expect(Number.isNaN(clock.now().getTime())).toBe(false);
   });
 
   it('reset returns the offset to zero and is idempotent', () => {

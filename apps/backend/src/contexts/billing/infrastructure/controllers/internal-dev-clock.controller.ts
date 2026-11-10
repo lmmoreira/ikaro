@@ -14,6 +14,7 @@ import {
   ResetClockUseCase,
   ResetClockUseCaseResult,
 } from '../../application/use-cases/reset-clock.use-case';
+import { mapClockError } from '../../../../shared/http/clock-error.mapper';
 
 // Interim guard (M25-S12 until S15a): `InternalApiGuard` alone, because `PlatformAdminGuard` still
 // lives in Platform. S15a moves it to `src/shared/guards/` and adds it here. Registered only in
@@ -36,8 +37,8 @@ export class InternalDevClockController {
   @HttpCode(HttpStatus.OK)
   advance(
     @Body(new ZodValidationPipe(AdvanceClockSchema)) dto: AdvanceClockDto,
-  ): AdvanceClockUseCaseResult {
-    return this.advanceClock.execute({ days: dto.days, hours: dto.hours });
+  ): Promise<AdvanceClockUseCaseResult> {
+    return this.advanceClock.execute({ days: dto.days, hours: dto.hours }).catch(mapClockError);
   }
 
   @Post('reset')

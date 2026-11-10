@@ -22,7 +22,9 @@ export type AdvanceClockUseCaseResult = {
 export class AdvanceClockUseCase {
   constructor(@Inject(DEV_CLOCK_CONTROL) private readonly clock: IDevClockControl) {}
 
-  execute(input: AdvanceClockUseCaseInput): AdvanceClockUseCaseResult {
+  // Async so a ClockOffsetLimitError reaches the controller's `.catch(mapDevClockError)` like every
+  // other use case's domain error.
+  async execute(input: AdvanceClockUseCaseInput): Promise<AdvanceClockUseCaseResult> {
     this.clock.advanceBy((input.days ?? 0) * MS_PER_DAY + (input.hours ?? 0) * MS_PER_HOUR);
     return { offsetMs: this.clock.offsetMs, instanceId: this.clock.instanceId };
   }

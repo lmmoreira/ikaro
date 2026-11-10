@@ -55,7 +55,7 @@ describe('InternalDevClockController (integration)', () => {
       expect(clock.now().getTime() - before).toBeGreaterThanOrEqual(26 * HOUR_MS);
     });
 
-    it.each([{ days: -1 }, { days: 1.5 }, {}, { days: 0, hours: 0 }])(
+    it.each([{ days: -1 }, { days: 1.5 }, {}, { days: 0, hours: 0 }, { days: 1e308 }])(
       'rejects %j with 400 GENERIC_VALUE_OUT_OF_RANGE and leaves the clock alone',
       async (body) => {
         const res = await request(app.getHttpServer())
@@ -77,6 +77,23 @@ describe('InternalDevClockController (integration)', () => {
         expect(state.offsetMs).toBe(0);
       },
     );
+
+    it('rejects a cumulative advance past the cap with 400 and keeps IClock.now() a valid Date', async () => {
+      await request(app.getHttpServer())
+        .post('/internal/dev/clock/advance')
+        .set('X-Internal-Key', INTERNAL_KEY)
+        .send({ days: 36_500 })
+        .expect(200);
+
+      const res = await request(app.getHttpServer())
+        .post('/internal/dev/clock/advance')
+        .set('X-Internal-Key', INTERNAL_KEY)
+        .send({ hours: 1 })
+        .expect(400);
+
+      expect(res.body.code).toBe(GenericErrorCode.VALUE_OUT_OF_RANGE);
+      expect(Number.isNaN(clock.now().getTime())).toBe(false);
+    });
 
     it('GET returns the offset and a stable instanceId', async () => {
       const first = await request(app.getHttpServer())
