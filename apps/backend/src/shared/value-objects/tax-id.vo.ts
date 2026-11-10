@@ -53,7 +53,8 @@ function cnpjDigit(characters: number[], weights: number[]): number {
 function isValidCnpj(value: string): boolean {
   if (!CNPJ_PATTERN.test(value) || allSame(value)) return false;
   // Each character is worth its ASCII code minus 48, so digits keep their value and 'A' is 17.
-  const characters = [...value].map((char) => char.charCodeAt(0) - 48);
+  // CNPJ_PATTERN already limited the value to ASCII digits and capitals, so codePointAt is defined.
+  const characters = Array.from(value, (char) => (char.codePointAt(0) ?? 0) - 48);
   const first = cnpjDigit(characters.slice(0, 12), CNPJ_WEIGHTS);
   const second = cnpjDigit([...characters.slice(0, 12), first], CNPJ_WEIGHTS_SECOND);
   return first === characters[12] && second === characters[13];
