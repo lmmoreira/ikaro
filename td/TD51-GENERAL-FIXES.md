@@ -363,8 +363,8 @@ Not numeric-quantity inputs, so out of scope: phone fields (`type="tel"`, `input
 ### Story 4 — Number the booking-detail itinerary by leg, not by resource row 🔴
 
 **Agent:** frontend-ts
-**Complexity:** S
-**Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md` § UI layer model; `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys; `docs/TESTING_STRATEGY.md` § apps/web Testing Infrastructure and § Layer 5 (before touching an E2E test); `docs/CODE_STANDARDS.md`
+**Complexity:** M
+**Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md` § UI layer model; `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys; `docs/TESTING_STRATEGY.md` § apps/web Testing Infrastructure and § Layer 5 (before touching an E2E test); `docs/CODE_STANDARDS.md`; `journeys/README.md` (prototype updates and the §15 hard stop); `journeys/staff/prototypes/agenda/dev-notes.md`; `journeys/customer/prototypes/minha-conta/dev-notes.md`
 **Dependencies:** none (Stories 0–3 are unrelated)
 **Pattern:** plain composition — no named pattern applies. A pure grouping helper (`groupItineraryByLeg`) in the booking slice, consumed by the existing card; no API or contract change.
 **Discovered:** 2026-11-10, user report on the production booking detail page (`/dashboard/bookings/01a1c78c-43ec-7edf-90f0-ddd62ac6526f`): a service with 3 legs shows a "Trajeto" list numbered 1 to 6.
@@ -373,23 +373,28 @@ Not numeric-quantity inputs, so out of scope: phone fields (`type="tel"`, `input
 **Description:**
 The itinerary card shows one numbered step per leg, in order, with the leg's name and time range once and the leg's resources listed beneath it. The badge counts legs (1, 2, 3), not resource rows.
 
-1. **Grouping.** A pure helper `groupItineraryByLeg(itinerary)` (in `apps/web/features/booking/utils/`, next to its spec) folds the flat `BookingItineraryLeg[]` into `{ key, lineId, serviceName, legIndex, legName, startsAt, endsAt, resourceNames[] }[]`. The group key is `lineId + legIndex`, so two lines of the same service, or two lines whose legs share an index, never merge. Order is the input order of first appearance (the backend already sorts by line, then `legIndex`, so rows of one leg are adjacent); the helper never re-sorts. The group's time range is the earliest `startsAt` and the latest `endsAt` among its rows, and null when no row has times (cancelled, rejected or purged booking); a group whose rows disagree on whether times exist uses the ones that exist. Resource names keep the input order and are de-duplicated.
+1. **Grouping.** A pure helper `groupItineraryByLeg(itinerary)` (in `apps/web/features/booking/model/`, next to its spec, like the sibling `basket-lines.ts`) folds the flat `BookingItineraryLeg[]` into `{ key, lineId, serviceName, legIndex, legName, startsAt, endsAt, resourceNames[] }[]`. The group key is `lineId + legIndex`, so two lines of the same service, or two lines whose legs share an index, never merge. Order is the input order of first appearance (the backend already sorts by line, then `legIndex`, so rows of one leg are adjacent); the helper never re-sorts. The group's time range is the earliest `startsAt` and the latest `endsAt` among its rows, and null when no row has times (cancelled, rejected or purged booking); a group whose rows disagree on whether times exist uses the ones that exist. Resource names keep the input order and are de-duplicated.
 2. **Card.** `BookingItineraryCard` maps the groups: the badge shows the group's position (`index + 1`), the first line is the leg name (falling back to the new key `itineraryLegFallback`, "Etapa {number}" / "Step {number}", when `legName` is null), with the time range after ` · ` as today; the second line lists the resource names joined with ", ". When the itinerary spans more than one distinct `serviceName`, the leg line is prefixed with the line's service name; a single-service booking shows no prefix. `data-testid="booking-itinerary-card"` is unchanged; each `<li>` gets `data-testid="booking-itinerary-leg"`.
 3. **Copy.** `itineraryNote` ("The legs, in order, with each leg's resource…") is reworded to match: each step lists the resources it uses. Both locales in the same change.
-4. **No contract change.** `BookingItineraryLeg` in `@ikaro/types`, the BFF mapper (`bookings-detail.mapper.ts`) and the backend helper are untouched. The type name stays; the doc comment on the interface in `booking.dto.ts` is corrected to say each entry is one resource of a leg, so the next reader is not misled the same way.
+4. **Decisions locked in discovery (2026-11-10).** (a) Layout: the first line of a step is the leg name and its time range, the second line lists the leg's resources (not the prototype's former "resource bold, leg name grey" look, which only ever drew one resource per leg); the prototypes are redrawn to match (item 5). (b) Steps are numbered 1…N continuously across all lines of a basket, never restarted per service. (c) Resource names inside a leg keep the backend's order (resource type, alphabetical). (d) The fallback "Etapa {number}" / "Step {number}" is for a leg whose name cannot be resolved: the domain requires a leg name (`service-leg.ts:37`), so `legName` is null only when the service's current legs no longer include that `legIndex` (the service was edited after the booking), never because a name was left empty.
+5. **Prototypes and journey docs.** The validated Trajeto card is redrawn leg by leg in the 14 screens that carry the `?forma=trajeto` variant, with one leg that has two resources (the "Passeio" step lists "Paula Nogueira (guia), Van 2"), and the cancelled and rejected screens keep their legs without times. Order, per `CLAUDE.md` §15: a clean `/docs-audit` baseline of `journeys/` first, then the journey `.md` rows, then the prototype files. The journey docs and both `dev-notes.md` files describe the card as "per leg: name, time, every resource of the leg". No `❓ GAP` status changes (the card is already ✅ built, M23-S47). A grep of `docs/`, `journeys/**` and the two `_IMPLEMENTATION_DETAILS_IA.md` files for "per leg: resource" or "each leg's resource" wording finds any other stale statement, and each is fixed in the same change.
+6. **No contract change.** `BookingItineraryLeg` in `@ikaro/types`, the BFF mapper (`bookings-detail.mapper.ts`) and the backend helper are untouched. The type name stays; the doc comment on the interface in `booking.dto.ts` is corrected to say each entry is one resource of a leg, so the next reader is not misled the same way.
 
 **Backend HTTP surface:** none — reuses the existing booking detail endpoints.
 **BFF endpoint spec:** none — the detail payload is unchanged.
-**Prototype references:** check `journeys/**/prototypes/` for a booking-detail prototype that shows the itinerary; if it numbers by row, correct it in the same change (doc gate applies).
+**Prototype references:** `journeys/staff/prototypes/agenda/` — `01-booking-detail`, `01e-acao-falhou`, `03-booking-detail-approved`, `03f-booking-detail-no-show`, `03h-booking-detail-completed`, `03i-booking-detail-cancelled`, `03j-booking-detail-precisa-decisao`, `03k-booking-detail-precisa-decisao-staff` (.html); `journeys/customer/prototypes/minha-conta/` — `02-agendamento-detail`, `02b-agendamento-info-requested`, `02c-agendamento-historico`, `02f-agendamento-nao-compareceu`, `02g-agendamento-cancelado`, `02h-agendamento-recusado` (.html); parent journeys `journeys/staff/agenda.md` (Trajeto row, ~line 168) and `journeys/customer/minha-conta.md` (Trajeto line, ~line 359).
 **New migration / i18n keys / env vars / feature flags:** i18n keys `booking.detailCards.itineraryLegFallback` (new) and `itineraryNote` (reworded), in `packages/i18n/locales/pt-BR/web.json` and `.../en/web.json`; no migration, env var or flag.
 
 **Files to create/modify:**
 - `apps/web/features/booking/components/booking-detail/BookingItineraryCard.tsx` (modify; exists)
 - `apps/web/features/booking/components/booking-detail/BookingItineraryCard.spec.tsx` (modify; exists)
-- `apps/web/features/booking/utils/group-itinerary-by-leg.ts` + `group-itinerary-by-leg.spec.ts` (new; check a sibling file in `features/booking/utils/` for the exact naming)
+- `apps/web/features/booking/model/group-itinerary-by-leg.ts` + `group-itinerary-by-leg.spec.ts` (new; sibling pattern: `basket-lines.ts` / `basket-lines.spec.ts` in the same folder)
 - `packages/i18n/locales/pt-BR/web.json`, `packages/i18n/locales/en/web.json` (modify; `booking.detailCards.*` near line 404)
 - `packages/types/src/booking.dto.ts` (modify the comment on `BookingItineraryLeg` only, line ~245)
 - `apps/web/e2e/booking-detail.spec.ts` (modify; the existing itinerary scenario at line ~146)
+- The 14 prototype `.html` files listed under Prototype references (modify; the `?forma=trajeto` block and its `fx-note`)
+- `journeys/staff/prototypes/agenda/dev-notes.md`, `journeys/customer/prototypes/minha-conta/dev-notes.md`, `journeys/staff/agenda.md`, `journeys/customer/minha-conta.md` (modify; the Trajeto wording)
+- `journeys/README.md` (modify only if its index mentions the card; checked at implementation)
 
 **Acceptance criteria — product:**
 - [ ] A service with 3 legs shows steps numbered 1, 2, 3, never more than the number of legs, however many resources each leg needs.
@@ -398,6 +403,7 @@ The itinerary card shows one numbered step per leg, in order, with the leg's nam
 - [ ] A leg without a name shows "Etapa N" (pt-BR) / "Step N" (en) instead of a blank line.
 - [ ] A basket with more than one service keeps its steps distinguishable by service name; a single-service booking shows no service prefix.
 - [ ] The visual style of the card (badge, divider, note) is unchanged.
+- [ ] The 14 Trajeto prototype screens show one numbered step per leg, with a leg that has two resources, and the staff and customer journey docs and `dev-notes.md` describe it that way; no other doc under `docs/` or `journeys/` still says the card lists one resource per leg.
 
 **Acceptance criteria — technical:**
 - Unit:
@@ -409,7 +415,7 @@ The itinerary card shows one numbered step per leg, in order, with the leg's nam
 - Integration: none (frontend-ts, no integration tier).
 - Tenant isolation: none — pure presentation of data already scoped by the existing endpoint; no tenant data read or written.
 - E2E:
-  - [ ] `booking-detail.spec.ts`: extend the existing journey scenario so the itinerary card shows exactly as many `booking-itinerary-leg` items as the service has legs, numbered from 1, for a service whose leg needs more than one resource (the seeded Sauna / Massagem / Relaxamento journey; if no seeded leg has two resources, assert the count equals the leg count and cover the multi-resource case at unit tier only, stating the reason in the PR).
+  - [ ] `booking-detail.spec.ts`: extend the existing legged-booking scenario (line ~137). The seeded journey is Sauna (1 room), Massagem (a professional and a room) and Relaxamento (equipment): 3 legs, 4 resource rows. Assert exactly 3 `booking-itinerary-leg` items numbered 1–3, the Massagem item naming both the professional and the room, and, after the cancel, the same 3 items with no time range. It is a step of that scenario, not a new test: same route, same booking.
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
