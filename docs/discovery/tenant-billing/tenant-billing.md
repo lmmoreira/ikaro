@@ -167,11 +167,11 @@ A daily job selects tenants that stay `SUSPENDED` too long: **90 days** if the s
 
 | Feature | BR | US |
 |---|---|---|
-| HOTSITE | R$ 49,00 | US$ 12 |
-| BOOKING (includes recurring reservations and availability alerts) | R$ 109,00 | US$ 26 |
-| LOYALTY | R$ 29,00 | US$ 7 |
-| CHATBOT BASIC / PLUS | R$ 39,00 / R$ 79,00 | US$ 9 / US$ 19 |
-| LEAD_FORM | R$ 19,00 | US$ 5 |
+| HOTSITE | R$ 49,00 | US$ 68.60 |
+| BOOKING (includes recurring reservations and availability alerts) | R$ 109,00 | US$ 152.60 |
+| LOYALTY | R$ 29,00 | US$ 40.60 |
+| CHATBOT BASIC / PLUS | R$ 39,00 / R$ 79,00 | US$ 54.60 / US$ 110.60 |
+| LEAD_FORM | R$ 19,00 | US$ 26.60 |
 
 **Self-service plan changes (R11):** additions, removals, chatbot upgrades and downgrades all become effective at the **next paid service-period start**. They never change current-period entitlements, require no proration and cannot be used without payment. During the **trial**, all features remain enabled; the Plan tab only records the first paid selection. The proposed final selection is validated as one dependency graph, so dependent features may be added together in one save. A plan always keeps at least one feature. `PAST_DUE` and `SUSPENDED` plans are read-only. If the next invoice is already issued and unpaid, it is cancelled and re-issued from the scheduled next-period selection (a new `PERIOD` charge for the same period; the cancelled one stays as history and the uniqueness index ignores cancelled charges); a paid invoice is never changed, and if the provider refuses the cancel because it was just paid, the change waits for the following renewal. **List price changes:** the operator schedules a dated version (normally a percentage adjustment of every price of a country in one call, decision 127) and announces it by email to every affected `TRIALING`, `ACTIVE` or `PAST_DUE` manager (trial tenants included, so the first early invoice never surprises them). `effective_from` is a **service-period start date**, and an increase requires at least `PRICE_CHANGE_MIN_NOTICE_DAYS + CHARGE_ISSUE_LEAD_DAYS` notice (default 40 days). A catalog row may be hidden from new selection while existing subscribers continue renewing it; a planned retirement needs a separately announced migration date. Annual billing is designed in §4.8 (slice H) and released after launch. No coupons. Billing country is fixed when the subscription starts. **A newly selected feature starts only at the next paid period, up to about a month later:** the locked-feature screens and the Plano tab say so ("começa em dd/mm"), they never imply instant access. This delay is the main upsell friction, so add-feature conversion is reviewed after launch (decision 90). **US totals shown on the Summary and Plano tabs are net of tax** and carry a "+ imposto calculado na cobrança" label; the tax amount exists only on the issued charge (R4). A suspended tenant is not notified of price changes; its recovery charge snapshots the price in force on its issue date.
 
