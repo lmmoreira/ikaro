@@ -446,9 +446,7 @@ Create the platform-wide `FeaturePrice` aggregate (root; **no `tenant_id`**, the
 - `apps/backend/src/contexts/billing/infrastructure/migrations/<timestamp>-BackfillExemptSubscriptions.ts` (new)
 - `apps/backend/eslint.config.js` (modify — add the `BackfillExemptSubscriptions` migration's file name to `PERSISTENCE_BYPASS_IGNORES`)
 - `apps/backend/src/test/integration-global-setup.ts` (modify — register the `BackfillExemptSubscriptions` migration class)
-- `apps/backend/src/contexts/billing/infrastructure/backfill-exempt-subscriptions.integration.spec.ts` (new — beside, not inside, `migrations/`: Jest ignores every path containing `/migrations/`; each test runs in a rolled-back transaction)
 - `apps/backend/src/shared/database/seed.ts` (modify — call the migration class's `up()` once after all tenant inserts, so all four seeded tenants get an exempt subscription + items + billing account)
-- `apps/backend/src/test/factories/` (modify — only if a helper is needed to seed a legacy tenant for the integration test)
 
 **Acceptance criteria — product:**
 - [ ] After the migration every existing tenant is `ACTIVE`, `exempt`, entitled to all five features (`CHATBOT` Basic), and nothing changes for any user.
@@ -456,21 +454,21 @@ Create the platform-wide `FeaturePrice` aggregate (root; **no `tenant_id`**, the
 
 **Acceptance criteria — technical:**
 - Unit: none — SQL only.
-- Integration:
-  - [ ] Given N seeded tenants without subscriptions, the migration creates exactly N subscriptions with 5 open-ended items each and N billing-account shells.
-  - [ ] A tenant that already has a subscription is untouched (idempotent re-run).
-  - [ ] The inserted `timezone` and `country_code` equal the tenant's.
-  - [ ] A tenant whose country has **no** `feature_prices` rows (e.g. `US` before its list is seeded, or a country with none) still gets its subscription, with `currency` equal to the `CountrySpec` currency of its `countryCode` (UC-126 A2) — the migration performs no `feature_prices` lookup.
-  - [ ] **Sparse settings:** a tenant whose `settings` has no `localization.countryCode` (and no `businessHours.timezone`) is backfilled as `BR` with that country's default timezone.
-  - [ ] **Re-run:** after a first run, adding one new tenant and re-running creates exactly one more subscription; the first tenants' items and billing accounts are unchanged (not duplicated).
-  - [ ] `merchant_profile_key` equals `resolveMerchantProfileKey(APP_ENV, countryCode)` for each of `local` and `staging` (never a live key outside production); `anchor_day` is in 1–28 and equals the trial-end-day rule for a tenant created on the 31st and on the 15th; every exempt row has `trial_ends_at`, `next_due_date` and `suspended_at` NULL.
-  - [ ] A tenant with `is_active = false` receives a subscription and `is_active` is unchanged.
-  - [ ] **Items:** each new subscription has five items with `starts_at` = the tenant's `created_at`, `ends_at` NULL, `created_by = 'SYSTEM'`, tier `STANDARD` except `CHATBOT` = `BASIC`.
-  - [ ] **Bad data aborts:** a tenant with an unsupported `countryCode` (e.g. `AR`) and a tenant with an invalid timezone string each make the migration throw an error naming the tenant id, and nothing is inserted (transaction rolled back).
-  - [ ] **Seed:** a freshly seeded database (`pnpm db:seed` after migrations) has an exempt `ACTIVE` subscription, five items and a billing account for each of `tenantIkaro` (`US` / `USD` / `USD_FAKE`, `America/New_York`), `tenantA`, `tenantB` and `tenantTeam`; running the seed twice adds nothing.
-- Tenant isolation: [ ] each inserted row carries the owning tenant's id; a test with two tenants of different countries asserts no cross-copy.
-- E2E: none — covered by integration.
-- [ ] Coverage ≥80% on changed code (migration helper logic, if any)
+- Integration: none — `docs/ENGINEERING_RULES_TESTING.md` § Migration specs: a migration gets no integration spec; a data-moving migration is verified against real data in a real environment and the result is recorded here. (Found at PR review: the story first listed integration tests here, which that rule forbids; the spec that was written was removed.)
+- Real-environment verification (run 2026-11-10 on a fresh local stack: `pnpm infra:e2e`, six legacy-shaped tenants inserted, migration 041 reverted — its `down()` only drops the bookkeeping row — and re-run through `pnpm db:migrate`):
+  - [x] Every tenant without a subscription got exactly one `ACTIVE`, `exempt` subscription, five items and one billing-account shell (10 subscriptions / 50 items / 10 accounts across the 4 seeded + 6 legacy tenants); the four seeded tenants' rows were untouched.
+  - [x] Items: `starts_at` = the tenant's `created_at`, `ends_at` NULL, `created_by = 'SYSTEM'`, tier `STANDARD` except `CHATBOT` = `BASIC`; `trial_ends_at`, `next_due_date` and `suspended_at` NULL on every row.
+  - [x] Country and timezone equal the tenant's (`BR` / `America/Fortaleza`, `US` / `America/New_York`), each with its own currency and merchant key (`local` → `BRL_FAKE` / `USD_FAKE`); the `staging` mapping is covered by S07's unit spec for the pure `resolveMerchantProfileKey`.
+  - [x] Sparse settings (`{}`) backfilled as `BR` / `America/Sao_Paulo` / `BRL`.
+  - [x] `anchor_day` (always 1–28): created Jan 31 → 14; Jan 15 → 28 (29 clamped); Jan 20 (`US`) → 3; created 02:00 UTC on Feb 1, which is still Jan 31 in São Paulo → 14 (the tenant-local day, not the UTC day 15).
+  - [x] An inactive tenant was backfilled and its `is_active` stayed `false`.
+  - [x] Idempotent: reverting and re-running the migration left the totals unchanged at 10 / 50 / 10.
+  - [x] Bad data aborts and inserts nothing: a tenant with `countryCode` `AR` and, separately, one with timezone `Mars/Olympus_Mons` each failed the run with an error naming the tenant id, while a valid tenant created after the bad one was not inserted either (totals unchanged).
+  - [x] No `feature_prices` lookup: the migration SQL references no pricing table (read in review), and the currency comes from the `CountrySpec` of the resolved country.
+  - [x] **Seed:** a fresh `pnpm infra:e2e` (migrate + `pnpm db:seed`) gave `ikaro` (`US` / `USD` / `USD_FAKE` / `America/New_York`), `lavacar-beloauto`, `autospa-premium` and `equipe-e2e` each an exempt `ACTIVE` subscription, five items and one account; a second `pnpm db:seed` changed nothing.
+- Tenant isolation: [x] every inserted row takes its `tenant_id` from the source tenant row (`WHERE t."id" = $n`); the two-country run above showed each tenant carrying only its own country, timezone and currency.
+- E2E: none — covered by the real-environment verification.
+- [ ] Coverage: not applicable — migrations are excluded from Jest and Sonar coverage.
 - [ ] `tsc --noEmit` clean, lint clean
 
 ---

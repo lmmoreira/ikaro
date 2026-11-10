@@ -19,9 +19,8 @@ import { resolveMerchantProfileKey } from '../../domain/merchant-profile-key';
 // the account are inserted only for a subscription this run created, so a re-run (or a tenant
 // that already has a subscription) changes nothing.
 
-// The five sellable features and the tier each starts with. Local on purpose (frozen with this
-// migration); the integration spec pins the list to FEATURE_KEYS so a sixth feature is a
-// conscious decision about what the seed grants, not a silent gap.
+// The five sellable features and the tier each starts with. Local on purpose: frozen with this
+// migration, so a feature added to the catalog later is not silently granted by a re-run of it.
 const EXEMPT_ITEMS: ReadonlyArray<{ featureKey: string; tier: string }> = [
   { featureKey: 'HOTSITE', tier: 'STANDARD' },
   { featureKey: 'BOOKING', tier: 'STANDARD' },
@@ -182,10 +181,6 @@ async function insertSubscription(
 }
 
 export class BackfillExemptSubscriptions1748500000041 implements MigrationInterface {
-  // The feature keys every exempt subscription gets; the integration spec pins them to the
-  // catalog's FEATURE_KEYS.
-  static readonly FEATURE_KEYS: readonly string[] = EXEMPT_ITEMS.map((item) => item.featureKey);
-
   public async up(queryRunner: QueryRunner): Promise<void> {
     // An unset APP_ENV means `local` inside a migration; an unknown value throws (S07 rule).
     await backfillExemptSubscriptions(queryRunner, resolveAppEnv(process.env));
