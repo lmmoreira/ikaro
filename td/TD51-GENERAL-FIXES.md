@@ -259,7 +259,7 @@ Add month context to the date carousel in two places. The approved prototype is 
 
 ---
 
-### Story 3 — Show the unit of every numeric input through one shared `NumberInput` primitive, and lint raw `<Input type="number">`
+### Story 3 — Show the unit of every numeric input through one shared `NumberInput` primitive, and lint raw `<Input type="number">` ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** L
