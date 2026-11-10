@@ -43,3 +43,12 @@ export function dayCarouselLabel(
     new Date(`${isoDate}T00:00:00`),
   );
 }
+
+// Short month name for the carousel's month markers ("jun.", or "jun. de 2027" with the year).
+// Parses and formats in the runtime's local timezone, like dayNumber/dayCarouselLabel above.
+export function monthMarkerLabel(isoDate: string, locale: string, includeYear: boolean): string {
+  return new Intl.DateTimeFormat(
+    locale,
+    includeYear ? { month: 'short', year: 'numeric' } : { month: 'short' },
+  ).format(new Date(`${isoDate}T00:00:00`));
+}

@@ -15,6 +15,7 @@ import { ApiError } from '@/shared/lib/api/errors';
 import { fetchBookingAvailability } from '@/features/booking/api/availability';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
+import { utcDateFromISO } from '@/shared/lib/formatting/calendar-day';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import {
   extractProblemCode,
@@ -219,7 +220,9 @@ export function RescheduleBookingPage({
               <Card>
                 <CardContent className="p-4">
                   <p className="mb-3 text-sm font-semibold text-gray-900">
-                    {t('availableSlotsLabel')}
+                    {t('availableSlotsLabel', {
+                      date: formatDateLong(utcDateFromISO(selectedDate)),
+                    })}
                   </p>
                   <SlotPicker
                     slug={tenantSlug}

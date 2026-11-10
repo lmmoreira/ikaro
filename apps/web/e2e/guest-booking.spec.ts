@@ -23,7 +23,12 @@ test.describe('UC-001 — Guest booking golden path', () => {
     await page.locator('[data-testid="step-next"]').click();
 
     // Step 2 — pick first available day then first slot
-    await openFirstDayWithSlots(page);
+    const pickedDate = await openFirstDayWithSlots(page);
+    await test.step('the carousel shows its month and the chosen date heads the slots', async () => {
+      await expect(page.getByTestId('month-marker').first()).toBeVisible();
+      const pickedDay = String(Number(pickedDate.slice(8, 10)));
+      await expect(page.getByTestId('slots-heading')).toContainText(pickedDay);
+    });
     await page.locator('[data-testid="time-slot"]').first().click();
     await page.locator('[data-testid="step-next"]').click();
 

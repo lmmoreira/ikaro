@@ -78,11 +78,16 @@ function writeFixtureRepo(options: {
   return root;
 }
 
-function writeDbKeyFixtureRepo(options: {
-  backendTfHasDbHost: boolean;
-  backendTfHasInstanceConnectionName: boolean;
+/**
+ * Fixture repo whose only varying parts are the backend schema body and the backend `env_vars`
+ * lines wired in both Terraform roots; the BFF, web and non-backend Terraform scaffold is fixed.
+ */
+function writeBackendFixtureRepo(options: {
+  fixturePrefix: string;
+  backendSchemaFields: string;
+  backendEnvVars: string;
 }): string {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'env-contract-db-fixture-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), options.fixturePrefix));
 
   const backendSchemaDir = path.join(root, 'apps/backend/src/config');
   fs.mkdirSync(backendSchemaDir, { recursive: true });
@@ -90,8 +95,7 @@ function writeDbKeyFixtureRepo(options: {
     path.join(backendSchemaDir, 'env.validation.ts'),
     `
       const schema = z.object({
-        DB_HOST: z.string().optional(),
-        DB_INSTANCE_CONNECTION_NAME: z.string().optional(),
+        ${options.backendSchemaFields}
       });
     `,
   );
@@ -116,13 +120,6 @@ function writeDbKeyFixtureRepo(options: {
     `,
   );
 
-  const backendEnvVars = [
-    options.backendTfHasDbHost ? 'DB_HOST = "10.0.0.5"' : '',
-    options.backendTfHasInstanceConnectionName
-      ? 'DB_INSTANCE_CONNECTION_NAME = "proj:region:instance"'
-      : '',
-  ].join('\n');
-
   for (const env of ['staging', 'prod']) {
     const envDir = path.join(root, `infra/terraform/envs/${env}`);
     fs.mkdirSync(envDir, { recursive: true });
@@ -131,7 +128,7 @@ function writeDbKeyFixtureRepo(options: {
       `
         module "cloudrun_backend" {
           env_vars = {
-            ${backendEnvVars}
+            ${options.backendEnvVars}
           }
         }
 
@@ -152,6 +149,33 @@ function writeDbKeyFixtureRepo(options: {
   }
 
   return root;
+}
+
+function writeDbKeyFixtureRepo(options: {
+  backendTfHasDbHost: boolean;
+  backendTfHasInstanceConnectionName: boolean;
+}): string {
+  return writeBackendFixtureRepo({
+    fixturePrefix: 'env-contract-db-fixture-',
+    backendSchemaFields: `
+        DB_HOST: z.string().optional(),
+        DB_INSTANCE_CONNECTION_NAME: z.string().optional(),`,
+    backendEnvVars: [
+      options.backendTfHasDbHost ? 'DB_HOST = "10.0.0.5"' : '',
+      options.backendTfHasInstanceConnectionName
+        ? 'DB_INSTANCE_CONNECTION_NAME = "proj:region:instance"'
+        : '',
+    ].join('\n'),
+  });
+}
+
+// Optional in the schema (local runs without it) yet required in Terraform: it is not exempt.
+function writeOwnerSlugFixtureRepo(options: { backendTfHasOwnerSlug: boolean }): string {
+  return writeBackendFixtureRepo({
+    fixturePrefix: 'env-contract-owner-slug-fixture-',
+    backendSchemaFields: 'PLATFORM_OWNER_TENANT_SLUG: z.string().optional(),',
+    backendEnvVars: options.backendTfHasOwnerSlug ? 'PLATFORM_OWNER_TENANT_SLUG = "ikaro"' : '',
+  });
 }
 
 describe('checkEnvContract', () => {
@@ -290,5 +314,29 @@ describe('checkEnvContract', () => {
       expect(violation.appName).toBe('backend');
       expect(violation.missingKeys).toEqual(['DB_INSTANCE_CONNECTION_NAME']);
     }
+  });
+
+  it('requires PLATFORM_OWNER_TENANT_SLUG in both env roots even though the schema marks it optional', () => {
+    const root = writeOwnerSlugFixtureRepo({ backendTfHasOwnerSlug: false });
+    fixtureRoots.push(root);
+
+    const violations = checkEnvContract(root);
+
+    expect(violations).toHaveLength(2);
+    for (const violation of violations) {
+      expect(violation.appName).toBe('backend');
+      expect(violation.missingKeys).toEqual(['PLATFORM_OWNER_TENANT_SLUG']);
+    }
+    expect(violations.map((v) => v.envRoot).sort()).toEqual([
+      'infra/terraform/envs/prod/main.tf',
+      'infra/terraform/envs/staging/main.tf',
+    ]);
+  });
+
+  it('reports no violation once PLATFORM_OWNER_TENANT_SLUG is wired in both env roots', () => {
+    const root = writeOwnerSlugFixtureRepo({ backendTfHasOwnerSlug: true });
+    fixtureRoots.push(root);
+
+    expect(checkEnvContract(root)).toEqual([]);
   });
 });

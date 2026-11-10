@@ -99,6 +99,7 @@
       "nextDays": "Próximos dias",
       "noSlots": "Nenhum horário disponível nos próximos dias",
       "today": "Hoje",
+      "slotsHeading": "Horários disponíveis — {date}",
       "previousMonth": "Mês anterior",
       "nextMonth": "Próximo mês",
       "outOfRangeMessage": "Esta data está além do limite de {days, plural, one {# dia} other {# dias}} para agendamento."
@@ -777,7 +778,7 @@
       "keptPickLabel": "{name} · {type}",
       "keptNote": "Para trocar de profissional ou equipamento, cancele este agendamento e faça uma nova reserva. Salas atribuídas automaticamente podem mudar.",
       "dateSectionLabel": "Escolha a nova data",
-      "slotsSectionLabel": "Horários disponíveis",
+      "slotsSectionLabel": "Horários disponíveis — {date}",
       "sameDurationNote": "Seu serviço continua com a mesma duração e o mesmo valor.",
       "serviceLabel": "Serviço",
       "whenLabel": "Data e horário",
@@ -2426,7 +2427,7 @@
       "rescheduleSheetDescription": "{name} • {date} às {time}",
       "currentSlotLabel": "Horário atual",
       "chooseNewDateLabel": "Escolha o novo dia",
-      "availableSlotsLabel": "Horários disponíveis",
+      "availableSlotsLabel": "Horários disponíveis — {date}",
       "rescheduleNotesPlaceholder": "Notas opcionais sobre o reagendamento",
       "summaryCurrent": "Atual: {time}",
       "summaryNew": "Novo: {time}",
@@ -2934,7 +2935,7 @@
       "steps": {
         "servicesHint": "Só aparecem serviços de agendamento (aulas e turmas têm fluxo próprio). Quando um serviço exige escolher um recurso, um passo a mais aparece aqui.",
         "retry": "Tentar novamente",
-        "slotsLabel": "Horários disponíveis",
+        "slotsLabel": "Horários disponíveis — {date}",
         "noticeLegend": "• Dentro do aviso mínimo do negócio ({hours} h). Só a equipe pode marcar esses horários; um cliente não os vê.",
         "intakeOptional": "Tudo é opcional para a equipe: continue com o que o cliente informou."
       },

@@ -157,6 +157,113 @@ describe('AvailabilityCarousel', () => {
     expect(getDayOption('2026-06-15').getAttribute('style')).toContain('--ba-primary');
   });
 
+  describe('month markers', () => {
+    const crossing: DaySummary[] = [
+      { date: '2026-06-29', available: true, slotCount: 1 },
+      { date: '2026-06-30', available: true, slotCount: 1 },
+      { date: '2026-07-01', available: true, slotCount: 1 },
+      { date: '2026-07-02', available: true, slotCount: 1 },
+    ];
+
+    it('opens the strip with a marker and adds one at each month boundary', async () => {
+      vi.mocked(fetchAvailabilitySummary).mockResolvedValue(crossing);
+
+      renderCarousel();
+
+      await screen.findAllByTestId('day-option');
+      const markers = screen.getAllByTestId('month-marker');
+      expect(markers.map((marker) => marker.textContent)).toEqual(['jun.', 'jul.']);
+    });
+
+    it('shows a single marker for a strip inside one month', async () => {
+      vi.mocked(fetchAvailabilitySummary).mockResolvedValue(crossing.slice(0, 2));
+
+      renderCarousel();
+
+      await screen.findAllByTestId('day-option');
+      expect(screen.getAllByTestId('month-marker')).toHaveLength(1);
+    });
+
+    it('places each marker right before the first day of its month', async () => {
+      vi.mocked(fetchAvailabilitySummary).mockResolvedValue(crossing);
+
+      renderCarousel();
+
+      await screen.findAllByTestId('day-option');
+      const second = screen.getAllByTestId('month-marker')[1];
+      expect(second.nextElementSibling).toBe(getDayOption('2026-07-01'));
+    });
+
+    it('carries the year only when it differs from the first day', async () => {
+      vi.mocked(fetchAvailabilitySummary).mockResolvedValue([
+        { date: '2026-12-31', available: true, slotCount: 1 },
+        { date: '2027-01-01', available: true, slotCount: 1 },
+      ]);
+
+      renderCarousel();
+
+      await screen.findAllByTestId('day-option');
+      const [december, january] = screen.getAllByTestId('month-marker');
+      expect(december.textContent).not.toMatch(/\d{4}/);
+      expect(january.textContent).toMatch(/2027/);
+    });
+
+    it('hides the marker from assistive tech and keeps the month in each pill name', async () => {
+      vi.mocked(fetchAvailabilitySummary).mockResolvedValue(crossing);
+
+      renderCarousel();
+
+      await screen.findAllByTestId('day-option');
+      for (const marker of screen.getAllByTestId('month-marker')) {
+        expect(marker).toHaveAttribute('aria-hidden', 'true');
+      }
+      expect(getDayOption('2026-06-29')).toHaveAccessibleName(/29.*jun\./);
+      expect(getDayOption('2026-07-01')).toHaveAccessibleName(/1.*jul\./);
+      // the visible text stays part of the name (label-in-name)
+      expect(getDayOption('2026-06-29')).toHaveAccessibleName(/Hoje/);
+      expect(getDayOption('2026-06-30')).toHaveAccessibleName(/ter\./);
+    });
+
+    it('styles the hotsite marker with existing tenant tokens only', async () => {
+      vi.mocked(fetchAvailabilitySummary).mockResolvedValue(crossing);
+
+      renderCarousel();
+
+      await screen.findAllByTestId('day-option');
+      const [first, second] = screen.getAllByTestId('month-marker');
+      expect(first).toHaveClass('text-[var(--ba-text)]');
+      expect(first).not.toHaveClass('border-l');
+      expect(second).toHaveClass('border-l', 'border-[var(--ba-secondary)]');
+    });
+
+    it('styles the dashboard marker with Tailwind and no tenant branding variable', async () => {
+      vi.mocked(fetchAvailabilitySummary).mockResolvedValue(crossing);
+
+      renderCarousel({ variant: 'dashboard' });
+
+      await screen.findAllByTestId('day-option');
+      const [first, second] = screen.getAllByTestId('month-marker');
+      expect(first).toHaveClass('text-gray-500');
+      expect(second).toHaveClass('border-gray-200');
+      for (const marker of [first, second]) {
+        expect(marker.className).not.toContain('--ba-');
+      }
+    });
+
+    it('leaves the hotsite pill styling unchanged by the markers', async () => {
+      vi.mocked(fetchAvailabilitySummary).mockResolvedValue(crossing);
+
+      renderCarousel({ selectedDate: '2026-06-30' });
+
+      await screen.findAllByTestId('day-option');
+      const unselected = getDayOption('2026-06-29').getAttribute('style') ?? '';
+      expect(unselected).toContain('var(--ba-radius)');
+      expect(unselected).toContain('--ba-secondary');
+      expect(unselected).toContain('--ba-primary');
+      expect(getDayOption('2026-06-30').getAttribute('style')).toContain('--ba-primary');
+    });
+  });
+
   it('shows an error message with a retry button when the fetch fails', async () => {
     vi.mocked(fetchAvailabilitySummary).mockRejectedValue(new Error('network error'));
 

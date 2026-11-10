@@ -4,6 +4,7 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TerminusModule } from '@nestjs/terminus';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { BillingModule } from './contexts/billing/billing.module';
 import { BookingModule } from './contexts/booking/booking.module';
 import { CustomerModule } from './contexts/customer/customer.module';
 import { LoyaltyModule } from './contexts/loyalty/loyalty.module';
@@ -87,6 +88,7 @@ import {
     LoyaltyModule,
     StaffModule,
     NotificationModule,
+    BillingModule,
   ],
   controllers: [HealthController, PubSubPushController],
   providers: [
