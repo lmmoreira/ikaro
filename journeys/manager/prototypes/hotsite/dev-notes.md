@@ -152,3 +152,6 @@ Mobile: fixed action bar above the bottom nav (`bottom: 3.75rem`, main `padding-
 Arquivo: `01h-module-config-trial-signup-cta-erro.html` — Status: GAP (same component).
 Whole panel shown; invalid fields only highlighted: title over 80 chars (counter `105/80`), empty button label. "Aplicar" disabled until fixed; aside shows the summary error. Server 422 re-renders the same state.
 
+## TD51-S3 — units on the module number fields
+
+"Máximo de imagens visíveis" shows `imagens`, "Número de dias exibidos" shows `dias`, and the overlay opacity fields show `%` inside the field (`ui/number-input` in the app; the opacity labels no longer carry "(%)").

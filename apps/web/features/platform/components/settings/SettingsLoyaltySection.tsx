@@ -1,8 +1,9 @@
 'use client';
 
-import { Input } from '@/shared/components/ui/input';
+import { NumberInput } from '@/shared/components/ui/number-input';
 import { Label } from '@/shared/components/ui/label';
 import { useTranslations } from 'next-intl';
+import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { SectionCard } from '@/shared/components/ui/section-card';
 import { SwitchField } from '@/shared/components/ui/switch-field';
 import { FieldFeedback } from '@/shared/components/ui/field-feedback';
@@ -30,6 +31,8 @@ export function SettingsLoyaltySection({
   onFieldChange,
 }: SettingsLoyaltySectionProps): React.JSX.Element {
   const t = useTranslations('dashboard.settingsPage');
+  const tUnits = useTranslations('common.units');
+  const { currencySymbol } = useFormatting();
   const points = settingsFieldWiring(
     feedback,
     'pointsPerCurrencyUnit',
@@ -58,17 +61,18 @@ export function SettingsLoyaltySection({
         />
         <div>
           <Label htmlFor="settings-points-per-unit">{t('pointsLabel')}</Label>
-          <Input
+          <NumberInput
             id="settings-points-per-unit"
             data-testid="settings-points-per-unit-input"
-            type="number"
             inputMode="numeric"
+            unit={tUnits('pointsPerCurrency', { currency: currencySymbol })}
             min={0}
             max={10000}
             value={values.pointsPerCurrencyUnit}
             onChange={(event) => onFieldChange('pointsPerCurrencyUnit', event.target.value)}
             {...points.inputProps}
-            className={points.inputClassName('max-w-56')}
+            wrapperClassName="max-w-56"
+            className={points.inputClassName()}
           />
           {!points.error && (
             <p id={points.hintId} className="mt-1.5 text-sm text-gray-500">
@@ -100,17 +104,18 @@ export function SettingsLoyaltySection({
           <Label htmlFor="settings-loyalty-notification-min-points">
             {t('notificationMinPointsLabel')}
           </Label>
-          <Input
+          <NumberInput
             id="settings-loyalty-notification-min-points"
             data-testid="settings-loyalty-notification-min-points-input"
-            type="number"
             inputMode="numeric"
+            unit={tUnits('points')}
             min={0}
             max={10000}
             value={values.loyaltyNotificationMinPoints}
             onChange={(event) => onFieldChange('loyaltyNotificationMinPoints', event.target.value)}
             {...minPoints.inputProps}
-            className={minPoints.inputClassName('max-w-56')}
+            wrapperClassName="max-w-56"
+            className={minPoints.inputClassName()}
           />
           {!minPoints.error && (
             <p id={minPoints.hintId} className="mt-1.5 text-sm text-gray-500">

@@ -1,6 +1,6 @@
 'use client';
 
-import { Input } from '@/shared/components/ui/input';
+import { NumberInput } from '@/shared/components/ui/number-input';
 import { useTranslations } from 'next-intl';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
@@ -30,6 +30,7 @@ export function ServiceBufferAfterMinutesField({
   onChange,
 }: ServiceBufferAfterMinutesFieldProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
+  const tUnits = useTranslations('common.units');
   const inherits = !disabled && value === '' && tenantDefaultMinutes !== null;
 
   let hint = t('recursosBufferHint');
@@ -44,9 +45,9 @@ export function ServiceBufferAfterMinutesField({
             {t('recursosBufferLabel')}
           </Label>
         </h2>
-        <Input
+        <NumberInput
           id="resource-buffer-input"
-          type="number"
+          unit={tUnits('minutes')}
           min={0}
           step={1}
           disabled={disabled}
@@ -58,8 +59,9 @@ export function ServiceBufferAfterMinutesField({
           aria-invalid={invalid || undefined}
           aria-describedby={invalid ? 'resource-buffer-invalid' : undefined}
           onChange={(event) => onChange(event.target.value)}
+          wrapperClassName="w-48"
           className={cn(
-            'w-48 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-gray-400',
+            'disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-gray-400',
             invalid && FIELD_INVALID_CLASS,
           )}
         />

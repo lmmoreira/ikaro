@@ -112,9 +112,39 @@ describe('ServiceBufferAfterMinutesField', () => {
     expect(message).toHaveAttribute('id', 'resource-buffer-invalid');
     expect(message).not.toHaveAttribute('role');
     expect(screen.getByTestId('resource-buffer-input')).toHaveAttribute('aria-invalid', 'true');
-    expect(screen.getByTestId('resource-buffer-input')).toHaveAttribute(
-      'aria-describedby',
-      'resource-buffer-invalid',
+    expect(screen.getByTestId('resource-buffer-input').getAttribute('aria-describedby')).toMatch(
+      /^resource-buffer-invalid( |$)/,
     );
+  });
+});
+
+describe('ServiceBufferAfterMinutesField unit (TD51-S3)', () => {
+  it('shows the unit inside the field, so the buffer is not read as hours or days', () => {
+    renderWithIntl(
+      <ServiceBufferAfterMinutesField
+        value="10"
+        disabled={false}
+        tenantDefaultMinutes={60}
+        invalid={false}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('resource-buffer-input').parentElement).toHaveTextContent('min');
+    expect(screen.getByTestId('resource-buffer-input')).toHaveAccessibleDescription(/min/);
+  });
+
+  it('keeps the unit while the field is disabled by legs mode', () => {
+    renderWithIntl(
+      <ServiceBufferAfterMinutesField
+        value=""
+        disabled
+        tenantDefaultMinutes={null}
+        invalid={false}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('resource-buffer-input').parentElement).toHaveTextContent('min');
   });
 });

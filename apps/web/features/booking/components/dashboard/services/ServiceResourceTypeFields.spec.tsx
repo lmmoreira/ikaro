@@ -280,9 +280,8 @@ describe('ServiceResourceTypeFields', () => {
     // Field message pattern (TD57): FieldFeedback, linked from the input, never a role.
     const message = screen.getByTestId('resource-type-quantity-error');
     expect(message).not.toHaveAttribute('role');
-    expect(screen.getByTestId('resource-type-quantity')).toHaveAttribute(
-      'aria-describedby',
-      message.id,
+    expect(screen.getByTestId('resource-type-quantity').getAttribute('aria-describedby')).toMatch(
+      new RegExp(`^${message.id}( |$)`),
     );
   });
 
@@ -353,5 +352,29 @@ describe('ServiceResourceTypeFields', () => {
 
     expect(screen.queryByTestId('resource-type-stale-pool')).not.toBeInTheDocument();
     expect(screen.queryByTestId('resource-type-quantity-error')).not.toBeInTheDocument();
+  });
+});
+
+describe('ServiceResourceTypeFields unit (TD51-S3)', () => {
+  it('shows the unit of the required quantity', () => {
+    renderWithIntl(
+      <ServiceResourceTypeFields
+        type="STAFF"
+        checked
+        requirement={{
+          type: 'STAFF',
+          selectionMode: 'AUTO_ANY',
+          resourcePoolIds: null,
+          requiredQuantity: 1,
+        }}
+        availableResources={[STAFF_A, STAFF_B]}
+        radioGroupName="selmode-staff"
+        scope="flat"
+        onToggle={vi.fn()}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('resource-type-quantity').parentElement).toHaveTextContent('unid.');
   });
 });

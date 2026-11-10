@@ -320,3 +320,16 @@ describe('ResourceEditFormFields', () => {
     );
   });
 });
+
+describe('ResourceEditFormFields units (TD51-S3)', () => {
+  it('shows minutes on the turnover and spots on the capacity', () => {
+    renderWithIntl(<ResourceEditFormFields resourceId="r-1" resource={ROOM_RESOURCE} />);
+
+    expect(document.getElementById('resource-turnover-minutes')?.parentElement).toHaveTextContent(
+      'min',
+    );
+    expect(screen.getByTestId('resource-max-capacity-input').parentElement).toHaveTextContent(
+      'vagas',
+    );
+  });
+});

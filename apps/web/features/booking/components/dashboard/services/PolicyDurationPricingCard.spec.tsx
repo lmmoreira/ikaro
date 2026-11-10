@@ -116,12 +116,15 @@ describe('PolicyDurationPricingCard', () => {
       />,
     );
 
-    expect(screen.getByLabelText('Duração mínima (minutos)')).toBeInTheDocument();
-    expect(screen.getByLabelText('Duração máxima (minutos)')).toBeInTheDocument();
-    expect(screen.getByLabelText('Intervalo de escolha (minutos)')).toBeInTheDocument();
-    expect(screen.getByLabelText('Incremento de cobrança (minutos)')).toBeInTheDocument();
-    expect(screen.getByLabelText('Valor por incremento (R$)')).toBeInTheDocument();
-    expect(screen.getByLabelText('Cobrança mínima (R$, opcional)')).toBeInTheDocument();
+    // The unit is drawn inside the field (TD51-S3), no longer written into the label.
+    expect(screen.getByLabelText('Duração mínima')).toHaveAccessibleDescription(/min/);
+    expect(screen.getByLabelText('Duração máxima')).toHaveAccessibleDescription(/min/);
+    expect(screen.getByLabelText('Intervalo de escolha')).toHaveAccessibleDescription(/min/);
+    expect(screen.getByLabelText('Incremento de cobrança')).toHaveAccessibleDescription(/min/);
+    expect(screen.getByLabelText('Valor por incremento')).toHaveAccessibleDescription(/R\$/);
+    expect(screen.getByLabelText('Cobrança mínima (opcional)')).toHaveAccessibleDescription(/R\$/);
+    expect(screen.getAllByText('min')).toHaveLength(4);
+    expect(screen.getAllByText('R$')).toHaveLength(2);
   });
 
   it('explains what each policy does, including how the total is computed', () => {

@@ -78,3 +78,31 @@ describe('PolicyBookingWindowCard', () => {
     expect(onPatch).toHaveBeenCalledWith({ minBookingAdvanceHoursOverride: 2 });
   });
 });
+
+describe('policy cards units (TD51-S3)', () => {
+  it('shows the unit of the hold time, the cancel and reschedule windows', () => {
+    renderWithIntl(
+      <PolicyConfirmationCard
+        policy={{ ...BASE_POLICY, defaultApprovalMode: 'MANUAL_APPROVAL' }}
+        onPatch={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('policy-hold-minutes').parentElement).toHaveTextContent('min');
+    expect(screen.getByTestId('policy-cancellation-window').parentElement).toHaveTextContent(
+      'h antes',
+    );
+    expect(screen.getByTestId('policy-reschedule-window').parentElement).toHaveTextContent(
+      'h antes',
+    );
+  });
+
+  it('shows hours on the minimum notice and days on the maximum advance', () => {
+    renderWithIntl(
+      <PolicyBookingWindowCard policy={BASE_POLICY} fields={NO_FIELD_BINDINGS} onPatch={vi.fn()} />,
+    );
+
+    expect(screen.getByTestId('policy-min-advance').parentElement).toHaveTextContent('h');
+    expect(screen.getByTestId('policy-max-advance').parentElement).toHaveTextContent('dias');
+  });
+});

@@ -300,3 +300,19 @@ describe('ResourceCreateForm', () => {
     }
   });
 });
+
+describe('ResourceCreateForm units (TD51-S3)', () => {
+  it('shows minutes on the turnover and spots on the capacity', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<ResourceCreateForm />);
+
+    await user.click(getTypeOption('ROOM'));
+
+    expect(document.getElementById('resource-turnover-minutes')?.parentElement).toHaveTextContent(
+      'min',
+    );
+    expect(screen.getByTestId('resource-max-capacity-input').parentElement).toHaveTextContent(
+      'vagas',
+    );
+  });
+});

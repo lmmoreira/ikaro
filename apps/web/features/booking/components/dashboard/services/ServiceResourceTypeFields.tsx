@@ -1,7 +1,7 @@
 'use client';
 
 import { Checkbox } from '@/shared/components/ui/checkbox';
-import { Input } from '@/shared/components/ui/input';
+import { NumberInput } from '@/shared/components/ui/number-input';
 import { Label } from '@/shared/components/ui/label';
 import { Radio } from '@/shared/components/ui/radio';
 import { useTranslations } from 'next-intl';
@@ -80,6 +80,7 @@ export function ServiceResourceTypeFields({
   onChange,
 }: ServiceResourceTypeFieldsProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
+  const tUnits = useTranslations('common.units');
   const checkboxId = `${scope}-${type}-checkbox`;
   const quantityId = `${scope}-${type}-quantity`;
   const addEligibleId = `${scope}-${type}-add-eligible`;
@@ -153,9 +154,9 @@ export function ServiceResourceTypeFields({
             >
               {t('resourceQuantityLabel')}
             </Label>
-            <Input
+            <NumberInput
               id={quantityId}
-              type="number"
+              unit={tUnits('quantity')}
               min={1}
               data-testid="resource-type-quantity"
               value={requiredQuantity}
@@ -172,7 +173,8 @@ export function ServiceResourceTypeFields({
               }}
               aria-invalid={quantityExceedsCandidates}
               aria-describedby={quantityExceedsCandidates ? `${quantityId}-error` : undefined}
-              className={cn('w-24 py-1.5', quantityExceedsCandidates && FIELD_INVALID_CLASS)}
+              wrapperClassName="w-28"
+              className={cn('py-1.5', quantityExceedsCandidates && FIELD_INVALID_CLASS)}
             />
             {quantityExceedsCandidates && (
               <FieldFeedback id={`${quantityId}-error`} testId="resource-type-quantity-error">

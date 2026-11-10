@@ -1,6 +1,6 @@
 'use client';
 
-import { Input } from '@/shared/components/ui/input';
+import { NumberInput } from '@/shared/components/ui/number-input';
 import { Label } from '@/shared/components/ui/label';
 import { useEffect, useState, type SubmitEvent } from 'react';
 import { useRouter } from 'next/navigation';
@@ -17,6 +17,7 @@ import { FormActionPane } from '@/shared/components/ui/form-action-pane';
 
 export function ResourceCreateForm(): React.JSX.Element {
   const t = useTranslations('dashboard.resourcesPage');
+  const tUnits = useTranslations('common.units');
   const dashboardT = useTranslations('dashboard');
   const locale = useResolvedLocale();
   const router = useRouter();
@@ -108,9 +109,9 @@ export function ResourceCreateForm(): React.JSX.Element {
 
             <div>
               <Label htmlFor="resource-turnover-minutes">{t('turnoverLabel')}</Label>
-              <Input
+              <NumberInput
                 id="resource-turnover-minutes"
-                type="number"
+                unit={tUnits('minutes')}
                 min={0}
                 value={turnoverMinutes}
                 onChange={(event) => edit(setTurnoverMinutes)(event.target.value)}
@@ -121,10 +122,10 @@ export function ResourceCreateForm(): React.JSX.Element {
             {type !== 'STAFF' && (
               <div>
                 <Label htmlFor="resource-max-capacity">{t('maxCapacityLabel')}</Label>
-                <Input
+                <NumberInput
                   id="resource-max-capacity"
                   data-testid="resource-max-capacity-input"
-                  type="number"
+                  unit={tUnits('spots')}
                   min={1}
                   value={maxCapacity}
                   onChange={(event) => edit(setMaxCapacity)(event.target.value)}

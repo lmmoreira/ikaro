@@ -188,3 +188,7 @@ Address uses a ViaCEP-backed zip lookup (`PostalCodeField`), matching the patter
 ## Out of scope (confirmed, don't build)
 
 - **Audit log view** — UC-026 step 6 mentions logging who changed what, but CLAUDE.md §6 lists "audit log view" as an explicitly undocumented/missing UC. No "Histórico de alterações" screen in this prototype.
+
+## TD51-S3 — units on the loyalty fields
+
+"Pontos por unidade monetária" shows `pts / R$` (the tenant's currency symbol) and "Pontos mínimos para avisar" shows `pts`, drawn with the same `.input-suffix-group` the other settings fields use; all of them are `ui/number-input` in the app.

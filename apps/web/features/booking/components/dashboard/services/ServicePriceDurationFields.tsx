@@ -1,6 +1,6 @@
 'use client';
 
-import { Input } from '@/shared/components/ui/input';
+import { NumberInput } from '@/shared/components/ui/number-input';
 import { Label } from '@/shared/components/ui/label';
 import { useTranslations } from 'next-intl';
 import { AlertTriangle } from 'lucide-react';
@@ -33,6 +33,7 @@ export function ServicePriceDurationFields({
   onDurationMinutesChange,
 }: ServicePriceDurationFieldsProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
+  const tUnits = useTranslations('common.units');
   const { currencySymbol } = useFormatting();
   const { fieldProps, fieldErrors, fieldErrorId } = feedback;
   const priceError = fieldErrors.priceAmount;
@@ -45,28 +46,24 @@ export function ServicePriceDurationFields({
     <div className="grid gap-4 md:grid-cols-2">
       <div>
         <Label htmlFor="service-price">{t('createPriceLabel')}</Label>
-        <div className="relative">
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-gray-500">
-            {currencySymbol}
-          </span>
-          <Input
-            id="service-price"
-            data-testid="service-price-input"
-            type="number"
-            inputMode="decimal"
-            min="0"
-            step="0.01"
-            value={priceAmount}
-            onChange={(event) => onPriceAmountChange(event.target.value)}
-            placeholder={t('createPricePlaceholder')}
-            {...fieldProps('priceAmount')}
-            aria-describedby={priceError ? fieldErrorId('priceAmount') : 'service-price-warning'}
-            className={cn(
-              'w-full rounded-md border border-border bg-white py-2.5 pl-10 pr-3 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100',
-              priceError && FIELD_INVALID_CLASS,
-            )}
-          />
-        </div>
+        <NumberInput
+          id="service-price"
+          data-testid="service-price-input"
+          unit={currencySymbol}
+          unitPosition="prefix"
+          inputMode="decimal"
+          min="0"
+          step="0.01"
+          value={priceAmount}
+          onChange={(event) => onPriceAmountChange(event.target.value)}
+          placeholder={t('createPricePlaceholder')}
+          {...fieldProps('priceAmount')}
+          aria-describedby={priceError ? fieldErrorId('priceAmount') : 'service-price-warning'}
+          className={cn(
+            'border-border bg-white py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100',
+            priceError && FIELD_INVALID_CLASS,
+          )}
+        />
         <FieldFeedback id={fieldErrorId('priceAmount')}>{priceError}</FieldFeedback>
         {!priceError && (
           <p
@@ -81,30 +78,25 @@ export function ServicePriceDurationFields({
 
       <div>
         <Label htmlFor="service-duration">{t('createDurationLabel')}</Label>
-        <div className="relative">
-          <Input
-            id="service-duration"
-            data-testid="service-duration-input"
-            type="number"
-            inputMode="numeric"
-            min="1"
-            step="1"
-            value={durationMinutes}
-            readOnly={durationLocked}
-            aria-readonly={durationLocked || undefined}
-            onChange={(event) => onDurationMinutesChange(event.target.value)}
-            placeholder={t('createDurationPlaceholder')}
-            {...fieldProps('durationMinutes')}
-            aria-describedby={durationDescribedBy}
-            className={cn(
-              'w-full rounded-md border border-border bg-white py-2.5 pl-3 pr-12 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100',
-              durationError && FIELD_INVALID_CLASS,
-            )}
-          />
-          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-500">
-            min
-          </span>
-        </div>
+        <NumberInput
+          id="service-duration"
+          data-testid="service-duration-input"
+          unit={tUnits('minutes')}
+          inputMode="numeric"
+          min="1"
+          step="1"
+          value={durationMinutes}
+          readOnly={durationLocked}
+          aria-readonly={durationLocked || undefined}
+          onChange={(event) => onDurationMinutesChange(event.target.value)}
+          placeholder={t('createDurationPlaceholder')}
+          {...fieldProps('durationMinutes')}
+          aria-describedby={durationDescribedBy}
+          className={cn(
+            'border-border bg-white py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100',
+            durationError && FIELD_INVALID_CLASS,
+          )}
+        />
         {durationLocked && (
           <p
             id="service-duration-locked-hint"

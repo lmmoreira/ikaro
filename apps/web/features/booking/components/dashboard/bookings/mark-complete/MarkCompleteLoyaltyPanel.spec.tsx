@@ -73,7 +73,7 @@ describe('MarkCompleteLoyaltyPanel', () => {
       />,
     );
 
-    await user.type(screen.getByRole('spinbutton', { name: 'Pontos a usar' }), '5');
+    await user.type(screen.getByRole('spinbutton', { name: /^Pontos a usar/ }), '5');
 
     expect(onPointsChange).toHaveBeenCalled();
   });
@@ -106,5 +106,25 @@ describe('MarkCompleteLoyaltyPanel', () => {
     );
 
     expect(screen.getByText('Desconto fidelidade: -R$ 24,00')).toBeInTheDocument();
+  });
+});
+
+describe('MarkCompleteLoyaltyPanel unit (TD51-S3)', () => {
+  it('shows points as the unit of the points to use', () => {
+    renderWithIntl(
+      <MarkCompleteLoyaltyPanel
+        loyaltyBalance={240}
+        loyaltyPointsPerCurrencyUnit={10}
+        maxRedeemablePoints={240}
+        pointsUsed={0}
+        discountAmount={0}
+        onPointsChange={vi.fn()}
+        onUseAllPoints={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole('spinbutton', { name: /^Pontos a usar/ }).parentElement,
+    ).toHaveTextContent('pts');
   });
 });

@@ -160,3 +160,19 @@ describe('ServiceLegsPanel', () => {
     expect(onChange).toHaveBeenCalled();
   });
 });
+
+describe('ServiceLegsPanel units (TD51-S3)', () => {
+  it('shows minutes on every leg duration and transition field', () => {
+    renderWithIntl(
+      <ServiceLegsPanel legs={LEGS} availableResourcesByType={() => []} onChange={vi.fn()} />,
+    );
+
+    for (const input of screen.getAllByTestId('leg-duration')) {
+      expect(input.parentElement).toHaveTextContent('min');
+    }
+    for (const input of screen.getAllByTestId('leg-transition-gap')) {
+      expect(input.parentElement).toHaveTextContent('min');
+    }
+    expect(screen.getAllByTestId('leg-duration')).toHaveLength(2);
+  });
+});

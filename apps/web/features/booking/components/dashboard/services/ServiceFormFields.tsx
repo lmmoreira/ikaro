@@ -1,6 +1,7 @@
 'use client';
 
 import { Input } from '@/shared/components/ui/input';
+import { NumberInput } from '@/shared/components/ui/number-input';
 import { Label } from '@/shared/components/ui/label';
 import { Textarea } from '@/shared/components/ui/textarea';
 import type { ReactNode } from 'react';
@@ -57,6 +58,7 @@ export function ServiceFormFields({
   children,
 }: ServiceFormFieldsProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
+  const tUnits = useTranslations('common.units');
   const { fieldProps, fieldErrors, fieldErrorId } = feedback;
 
   return (
@@ -104,10 +106,10 @@ export function ServiceFormFields({
 
         <div>
           <Label htmlFor="service-points">{t('createPointsLabel')}</Label>
-          <Input
+          <NumberInput
             id="service-points"
             data-testid="service-points-input"
-            type="number"
+            unit={tUnits('points')}
             inputMode="numeric"
             min="0"
             step="1"

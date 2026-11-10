@@ -16,13 +16,19 @@ const INVALID: PolicyFieldBindings = {
   }),
 };
 
-function renderField(fields: PolicyFieldBindings, onChange = vi.fn(), value: number | null = null) {
+function renderField(
+  fields: PolicyFieldBindings,
+  onChange = vi.fn(),
+  value: number | null = null,
+  unitProps: { unit: string; unitPosition?: 'prefix' | 'suffix' } = { unit: 'min' },
+) {
   renderWithIntl(
     <PolicyNumberField
       name="durationMinMinutes"
       id="policy-duration-min"
       testId="policy-duration-min"
       label="Duração mínima"
+      {...unitProps}
       value={value}
       min={1}
       fields={fields}
@@ -41,12 +47,25 @@ describe('PolicyNumberField', () => {
     expect(screen.queryByText('Informe a duração mínima.')).not.toBeInTheDocument();
   });
 
+  it('shows its unit after the number, so the label no longer carries it', () => {
+    renderField(NO_FIELD_BINDINGS);
+
+    expect(screen.getByText('min')).toHaveClass('right-3');
+    expect(screen.getByLabelText('Duração mínima')).toHaveAccessibleDescription('min');
+  });
+
+  it('puts a currency symbol before the number (prefix)', () => {
+    renderField(NO_FIELD_BINDINGS, vi.fn(), null, { unit: 'R$', unitPosition: 'prefix' });
+
+    expect(screen.getByText('R$')).toHaveClass('left-3');
+  });
+
   it('marks the input invalid and shows the message it is described by', () => {
     renderField(INVALID);
 
     const input = screen.getByTestId('policy-duration-min');
     expect(input).toHaveAttribute('aria-invalid', 'true');
-    expect(input).toHaveAttribute('aria-describedby', 'durationMinMinutes-error');
+    expect(input.getAttribute('aria-describedby')).toContain('durationMinMinutes-error');
     expect(input).toHaveClass('border-red-600');
     expect(screen.getByText('Informe a duração mínima.')).toHaveAttribute(
       'id',

@@ -302,3 +302,15 @@ describe('BookingCtaConfigPanel', () => {
     });
   });
 });
+
+describe('BookingCtaConfigPanel unit (TD51-S3)', () => {
+  it('shows days as the unit of the carousel length', () => {
+    renderWithIntl(
+      <BookingCtaConfigPanel data={writeModuleData(BOOKING_CTA)} onChange={vi.fn()} />,
+    );
+
+    expect(document.getElementById('booking-cta-carousel-days')?.parentElement).toHaveTextContent(
+      'dias',
+    );
+  });
+});

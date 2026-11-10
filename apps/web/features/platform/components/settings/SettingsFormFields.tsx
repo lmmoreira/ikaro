@@ -2,6 +2,7 @@ import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { NativeSelect } from '@/shared/components/ui/native-select';
+import { NumberInput } from '@/shared/components/ui/number-input';
 import { Textarea } from '@/shared/components/ui/textarea';
 import type { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import type { SettingsFormErrors } from '@/features/platform/settings-form';
@@ -77,21 +78,17 @@ export function SuffixNumberField({
   return (
     <div>
       <Label htmlFor={id}>{label}</Label>
-      <div className="relative max-w-56">
-        <Input
-          id={id}
-          data-testid={id}
-          type="number"
-          inputMode="numeric"
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          {...field.inputProps}
-          className={field.inputClassName('pr-16')}
-        />
-        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
-          {suffix}
-        </span>
-      </div>
+      <NumberInput
+        id={id}
+        data-testid={id}
+        inputMode="numeric"
+        unit={suffix}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        {...field.inputProps}
+        wrapperClassName="max-w-56"
+        className={field.inputClassName()}
+      />
       {hint && !field.error && (
         <p id={field.hintId} className="mt-1.5 text-sm text-gray-500">
           {hint}

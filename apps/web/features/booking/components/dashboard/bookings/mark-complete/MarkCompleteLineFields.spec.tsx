@@ -39,8 +39,8 @@ describe('MarkCompleteLineFields', () => {
     );
 
     expect(screen.getAllByTestId('complete-line-name')).toHaveLength(2);
-    expect(screen.getAllByRole('spinbutton', { name: 'Cobrado' })[0]).toHaveValue(60);
-    expect(screen.getAllByRole('spinbutton', { name: 'Cobrado' })[1]).toHaveValue(40);
+    expect(screen.getAllByRole('spinbutton', { name: /^Cobrado/ })[0]).toHaveValue(60);
+    expect(screen.getAllByRole('spinbutton', { name: /^Cobrado/ })[1]).toHaveValue(40);
   });
 
   it('calls onLinePriceChange with the edited line id and value', () => {
@@ -53,9 +53,26 @@ describe('MarkCompleteLineFields', () => {
       />,
     );
 
-    const inputs = screen.getAllByRole('spinbutton', { name: 'Cobrado' });
+    const inputs = screen.getAllByRole('spinbutton', { name: /^Cobrado/ });
     fireEvent.change(inputs[0], { target: { value: '75' } });
 
     expect(onLinePriceChange).toHaveBeenCalledWith('l-1', '75');
+  });
+});
+
+describe('MarkCompleteLineFields unit (TD51-S3)', () => {
+  it('puts the currency symbol before each charged price', () => {
+    renderWithIntl(
+      <MarkCompleteLineFields
+        lines={LINES}
+        linePrices={{ 'l-1': '60', 'l-2': '40' }}
+        onLinePriceChange={vi.fn()}
+      />,
+    );
+
+    for (const input of screen.getAllByRole('spinbutton', { name: /^Cobrado/ })) {
+      expect(input.parentElement).toHaveTextContent('R$');
+      expect(input.parentElement?.querySelector('span')).toHaveClass('left-3');
+    }
   });
 });

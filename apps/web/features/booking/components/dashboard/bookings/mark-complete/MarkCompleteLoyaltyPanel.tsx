@@ -1,6 +1,6 @@
 'use client';
 
-import { Input } from '@/shared/components/ui/input';
+import { NumberInput } from '@/shared/components/ui/number-input';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
@@ -29,6 +29,7 @@ export function MarkCompleteLoyaltyPanel({
   onUseAllPoints,
 }: MarkCompleteLoyaltyPanelProps): React.JSX.Element {
   const t = useTranslations('dashboard.bookingDetail');
+  const tUnits = useTranslations('common.units');
   const { formatMoney } = useFormatting();
 
   return (
@@ -56,8 +57,8 @@ export function MarkCompleteLoyaltyPanel({
               <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.07em] text-gray-400">
                 {t('loyaltyPointsLabel')}
               </span>
-              <Input
-                type="number"
+              <NumberInput
+                unit={tUnits('points')}
                 min="0"
                 max={maxRedeemablePoints}
                 step={loyaltyPointsPerCurrencyUnit}

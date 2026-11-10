@@ -33,9 +33,8 @@ describe('ServicePriceDurationFields', () => {
     renderWithIntl(<Fields {...baseProps} />);
 
     expect(screen.getByTestId('service-price-input')).not.toHaveAttribute('aria-invalid');
-    expect(screen.getByTestId('service-price-input')).toHaveAttribute(
-      'aria-describedby',
-      'service-price-warning',
+    expect(screen.getByTestId('service-price-input').getAttribute('aria-describedby')).toMatch(
+      /^service-price-warning( |$)/,
     );
   });
 
@@ -47,7 +46,7 @@ describe('ServicePriceDurationFields', () => {
     const input = screen.getByTestId('service-price-input');
     expect(input).toHaveAttribute('aria-invalid', 'true');
     expect(input).toHaveClass('ring-red-600');
-    const describedBy = input.getAttribute('aria-describedby') ?? '';
+    const describedBy = (input.getAttribute('aria-describedby') ?? '').split(' ')[0];
     expect(document.getElementById(describedBy)).toHaveTextContent('Preço inválido');
     expect(document.getElementById('service-price-warning')).toBeNull();
   });
@@ -58,7 +57,7 @@ describe('ServicePriceDurationFields', () => {
     const input = screen.getByTestId('service-duration-input');
     expect(input).toHaveAttribute('readonly');
     expect(input).toHaveAttribute('aria-readonly', 'true');
-    expect(input).toHaveAttribute('aria-describedby', 'service-duration-locked-hint');
+    expect(input.getAttribute('aria-describedby')).toMatch(/^service-duration-locked-hint( |$)/);
     expect(screen.getByTestId('service-duration-locked-hint')).toBeInTheDocument();
   });
 
@@ -81,7 +80,7 @@ describe('ServicePriceDurationFields', () => {
     const input = screen.getByTestId('service-duration-input');
     expect(input).toHaveAttribute('aria-invalid', 'true');
     expect(input).toHaveClass('ring-red-600');
-    const describedBy = input.getAttribute('aria-describedby') ?? '';
+    const describedBy = (input.getAttribute('aria-describedby') ?? '').split(' ')[0];
     expect(document.getElementById(describedBy)).toHaveTextContent('Duração inválida');
   });
 
@@ -103,5 +102,18 @@ describe('ServicePriceDurationFields', () => {
 
     await user.type(screen.getByTestId('service-duration-input'), '3');
     expect(onDurationMinutesChange).toHaveBeenCalledWith('3');
+  });
+});
+
+describe('ServicePriceDurationFields units (TD51-S3)', () => {
+  it('puts the currency symbol before the price and the minutes unit after the duration', () => {
+    renderWithIntl(<Fields {...baseProps} />);
+
+    const price = screen.getByTestId('service-price-input');
+    expect(price.parentElement).toHaveTextContent('R$');
+    expect(price.parentElement?.querySelector('span')).toHaveClass('left-3');
+    const duration = screen.getByTestId('service-duration-input');
+    expect(duration.parentElement).toHaveTextContent('min');
+    expect(duration.parentElement?.querySelector('span')).toHaveClass('right-3');
   });
 });
