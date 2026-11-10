@@ -97,3 +97,27 @@ describe('SectionOverlayFields', () => {
     expect(onChange).toHaveBeenLastCalledWith({ ...GRADIENT, toOpacity: 0.5 });
   });
 });
+
+describe('SectionOverlayFields opacity units', () => {
+  it('shows a percent sign on the solid opacity, and the label no longer carries it', () => {
+    renderFields(SOLID);
+
+    const input = screen.getByTestId('presentation-overlay-opacity');
+    expect(input.parentElement).toHaveTextContent('%');
+    expect(screen.getByLabelText('Opacidade')).toBe(input);
+  });
+
+  it('shows a percent sign on both gradient stops', () => {
+    renderFields(GRADIENT);
+
+    for (const testId of ['presentation-overlay-from-opacity', 'presentation-overlay-to-opacity']) {
+      expect(screen.getByTestId(testId).parentElement).toHaveTextContent('%');
+    }
+    expect(screen.getByLabelText('Opacidade inicial')).toBe(
+      screen.getByTestId('presentation-overlay-from-opacity'),
+    );
+    expect(screen.getByLabelText('Opacidade final')).toBe(
+      screen.getByTestId('presentation-overlay-to-opacity'),
+    );
+  });
+});
