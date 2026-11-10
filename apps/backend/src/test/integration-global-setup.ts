@@ -70,6 +70,9 @@ import { AddBookingApprovalExpiredCustomerTemplate1748500000036 } from '../conte
 import { AddResourceOccupancyHoldExpiryIndex1748500000037 } from '../contexts/booking/infrastructure/migrations/1748500000037-AddResourceOccupancyHoldExpiryIndex';
 import { AddServicePublicPage1748500000038 } from '../contexts/booking/infrastructure/migrations/1748500000038-AddServicePublicPage';
 import { CreateBillingSchema1748500000039 } from '../contexts/billing/infrastructure/migrations/1748500000039-CreateBillingSchema';
+import { SeedFeaturePrices1748500000040 } from '../contexts/billing/infrastructure/migrations/1748500000040-SeedFeaturePrices';
+import { FeaturePriceVersionEntity } from '../contexts/billing/infrastructure/entities/feature-price-version.entity';
+import { FeaturePriceEntity } from '../contexts/billing/infrastructure/entities/feature-price.entity';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
 import { CreateCustomerCustomers1716600000001 } from '../contexts/customer/infrastructure/migrations/1716600000001-CreateCustomerCustomers';
 import { AddCustomerTenantOAuthUniqueConstraint1748000000002 } from '../contexts/customer/infrastructure/migrations/1748000000002-AddCustomerTenantOAuthUniqueConstraint';
@@ -167,6 +170,8 @@ export default async function globalSetup(): Promise<void> {
       ChatbotSessionEntity,
       ChatbotMessageEntity,
       ChatbotProviderBalanceEntity,
+      FeaturePriceEntity,
+      FeaturePriceVersionEntity,
       LeadFormSubmissionEntity,
       LeadFormAnswerEntity,
       ResourceEntity,
@@ -259,6 +264,7 @@ export default async function globalSetup(): Promise<void> {
       AddResourceOccupancyHoldExpiryIndex1748500000037,
       AddServicePublicPage1748500000038,
       CreateBillingSchema1748500000039,
+      SeedFeaturePrices1748500000040,
     ],
     synchronize: false,
     migrationsRun: false,
