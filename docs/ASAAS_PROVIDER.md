@@ -158,6 +158,7 @@ So "re-enable is impossible" does not apply; if production proves the call ineff
 | G14 | The production account's default interest, fine and discount are zero, and an explicit zero interest and fine are accepted there | The sandbox defaults are zero and cannot show the production account's |
 | G15 | `Idempotency-Key` in production: how long a key is remembered, whether it is scoped per endpoint and per account, and whether `POST /v3/customers` and `POST /v3/subscriptions` honour it | The sandbox showed the 409 on `/v3/payments` only; the window was not measured |
 | G16 | The full status list (the ones § 2.2 lists as documentation only), and the `callback` rule: which domain must be registered and whether the URL must match it | The sandbox reaches only a few statuses and the account here has no registered site |
+| G17 | Whether Asaas accepts an **alphanumeric CNPJ** (12 alphanumeric characters + 2 check digits, issued by the Receita Federal since July 2026, e.g. `12ABC34501DE35`) as `cpfCnpj` on `POST /v3/customers` and when creating a charge. If it does not, `TaxId` still stores it correctly but the BR charge path needs a documented fallback | Not tried in the sandbox run (M25-S06 added the format after it) |
 
 Owner and accountant items (legal texts, real prices, US tax) are not Asaas facts and stay in `docs/discovery/tenant-billing/tenant-billing_PROVIDERS.md` (its § 5), until their own stories close them.
 

@@ -262,6 +262,7 @@ Codes are additive-only once shipped — never renamed or repurposed (a released
 2. Add a translation entry to **both** `packages/i18n/locales/pt-BR/errors.json` and `.../en/errors.json` — the exhaustiveness test (`apps/web/shared/lib/i18n/error-codes-exhaustiveness.spec.ts`) rejects a missing one.
 3. Construct/throw the error with the typed constructor from step 1's origin — `throwProblemDetail(status, BookingErrorCode.XXX, detail, field?)` for a raw throw, or a named domain error class implementing `DomainErrorShape` for a VO/aggregate error.
 4. **A brand-new origin** (a new `<ORIGIN>_*` prefix such as `BILLING_*` / `SIGNUP_*`, added in M25-S06) also needs, in the same change or CI fails: the new `<Origin>ErrorCode` added to the `AnyErrorCode` union; to the hard-coded `CATALOGS` map in `apps/web/shared/lib/i18n/error-codes-exhaustiveness.spec.ts`; the origin row in `docs/ERROR_CATALOG.md` § Code Origins; and, for a code the BFF itself throws, to the `BffThrowableCode` union used by `throwProblemDetail`.
+5. **Copy for a code thrown for several countries or types is country-neutral.** A message must not name one country's document ("CPF ou CNPJ") when the same code is thrown for another's (a US EIN): a locale is not a country, since a `pt-BR` tenant can have a US billing country. Name the document in the field label beside the input, not in the message. (M25-S06: `SIGNUP_TAX_ID_*` first named CPF/CNPJ; found in review.)
 
 ### Security-sensitive errors: specificity is a per-case decision
 

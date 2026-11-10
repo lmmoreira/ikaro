@@ -143,6 +143,8 @@ Set `--max-old-space-size` explicitly on every Jest entry point that can run a l
 
 **TD08 AUD-044 precedent, PR #484, 2026-09-16:** a local OOM kill on a KVM VM with 6GB+ free RAM traced directly to this default. Fixed by adding an explicit `--max-old-space-size` to all four backend Jest scripts (`test`, `test:unit`, `test:integration`, `test:cov`; live values in `apps/backend/package.json` — currently 5120 for `test`/`test:integration`, 3072 for `test:unit`/`test:cov`) — the first fix covered only two of the four and was caught by a PR review round.
 
+**Host RAM is a separate limit from the heap setting.** The backend integration suite starts a 5 GB heap plus Docker. On an 8 GB host, running it beside another heavy job gets background shells reaped (exit 143, "system is running low on memory"). Run it alone, check `free -m` first (about 5 GB available), and never restart a reaped job automatically: report it, then use CI's result or ask. (M25-S06: two background runs were killed.)
+
 
 ## An integration test seeding fixtures under fixed/hardcoded tenant UUIDs needs symmetric, complete setup/teardown — CI's Testcontainers reuse can carry a prior run's corruption into an unrelated later run
 

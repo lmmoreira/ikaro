@@ -30,6 +30,14 @@
 | Service public-page address | `ServicePublicSlug` | `service-public-slug.vo.ts` | `/^[a-z0-9]+(-[a-z0-9]+)*$/`, 3–60 chars, never typed by a user: `fromName(name, uniqueSuffix?)` derives it (accents stripped; a name with no usable text becomes `servico`; the suffix is appended and the base shortened so it always fits 60) on the first publish; `create()` validates and lowercases/trims, `reconstitute()` skips validation; typed error `ServicePublicSlugInvalidError` (`BOOKING_SERVICE_PUBLIC_SLUG_INVALID`, defensive only: the slug is always generated, never user input); getter: `.value` |
 | Service public-page content | `ServicePublicProfile` | `service-public-profile.vo.ts` | cover + gallery (≤ 8) image paths (never a URL or traversal), `longDescription` ≤ 4000 (restricted Markdown), `inclusions` ≤ 12 × 120 (blank rows dropped), `preparationNotes` ≤ 1000; each image path ≤ 512 characters; limits from `SERVICE_PUBLIC_PROFILE_LIMITS` (`@ikaro/types`); typed error `ServicePublicProfileInvalidError` with seven reasons (`gallery-too-large`, `long-description-too-long`, `inclusions-too-many`, `inclusion-too-long`, `preparation-notes-too-long`, `image-path-invalid`, `image-not-uploaded`) — the two image reasons always report the field `coverImageUrl`, even when the bad path is a gallery entry; `imagePaths()`/`mapImagePaths()` expose and rewrite the paths for promotion; persisted as one JSONB column via `toJSON()`/`reconstitute()` |
 
+### A value object that accepts several formats (M25-S06, `TaxId`)
+
+- **The user declares the type.** `create(raw, spec, declaredType?)` checks the declared type only. Without one, the country's checked types are tried, and free-text `OTHER` is never a silent fallback, so a mistyped value is refused, not stored unchecked.
+- **Two formats can share a shape** (a US SSN and EIN are both nine digits), so only the declared type tells them apart.
+- **Which types a country accepts, its label and one placeholder per type live in `CountrySpec`**, never in the VO.
+- **Length limits count characters, not UTF-16 units:** `[...value].length`, and `codePointAt` rather than `charCodeAt` (SonarCloud S7758).
+- **An aggregate holding an id it did not build checks `isAllowedFor(spec)`.**
+
 The folder also holds two plain type files that are not validated VOs and have no `create()`: `business-hours.vo.ts` (the `BusinessHours`/`DayHours` shapes and `DAYS_OF_WEEK`) and `tenant-settings-data.ts` (the typed `tenants.settings` sections). Do not copy them as a VO template.
 
 ---

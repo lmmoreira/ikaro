@@ -253,7 +253,7 @@ visitor opens `/ikaro-trial` (S33), signs up with Google, tax id and terms (S24)
 ## Reserved follow-ups (not drafted until their gates open)
 
 - **M27 — Purge, discard, deactivation** (UC-132, UC-141, UC-142). *Gate:* the first possible erasure is 90 days after the first suspension, so M27 must ship before the first suspended tenant ages out; the `billing-tenant-purge` cron stays disabled until all nine purge participants (storage, provider cancellation, Billing anonymization, the seven bounded-context deletions) ship, and `summary.canDiscard` flips on only then. Open there: the per-context deletion rules, the emitter of `TenantDeactivated` (sequenced with M17-S51), the self-service data export (no UC yet).
-- **M28 — Stripe / US** (no UC of its own; cross-cuts UC-113, 114, 118, 127, 128). *Gate:* a Stripe account, the accountant's US sales-tax decision and real Stripe fees; adds `charge_tax_lines`, `StripeBillingProvider`, and the US price list.
+- **M28 — Stripe / US** (no UC of its own; cross-cuts UC-113, 114, 118, 127, 128). *Gate:* a Stripe account, the accountant's US sales-tax decision and real Stripe fees; adds `charge_tax_lines`, `StripeBillingProvider`, and the US price list. US identity (M25-S06 added the `EIN` type): validate the 9-digit EIN, which is shape-checked only today, and send it to Stripe as `us_ein`; widen the `tax_id_type` CHECK only if M28 needs a new type.
 - **M29 — Automatic collection** (UC-135 Pix Automático, UC-143 hosted recurring card). *Gate:* the real PJ account with a CNPJ active for 6+ months and the end-to-end Pix Automático verification in sandbox and production; F2 also needs the spike's F2 checks.
 - **M30 — Annual billing** (UC-144, UC-145). *Gate:* the owner sets the annual prices; adds `cycle`, `next_cycle*`, the co-terminus `ADDON` charge and the 30-day annual issue lead.
 - Numbers M27–M30 are reserved; M115 is an existing completed milestone, so M27–M30 do not collide with it.
@@ -2149,6 +2149,7 @@ Any divergence is fixed in the **fake** (and the corrected sequences in `docs/TE
 - Integration:
   - [ ] The contract suite passes on the **fake** on every PR, and its sandbox-live and recorded-payload cases pass on the **Asaas sandbox** in the nightly job; each case is tagged in the table in `docs/TESTING_STRATEGY.md` (fake-only cases are named, never silently skipped)
   - [ ] Nightly workflow: least-privilege `permissions`, `persist-credentials: false`, SHA-pinned actions, de-duplicated failure issue, no PII / URL / key in the log (workflow lint clean)
+  - [ ] The sandbox contract run creates a customer with an alphanumeric CNPJ (`12ABC34501DE35`) and a charge for it, and records the result as launch gate G17 in `docs/ASAAS_PROVIDER.md`; a refusal is a stuck condition for the BR charge path, not a silent skip
 - Tenant isolation: none — the adapter carries no tenant data beyond the provider customer reference
 - E2E: none — live check above
 - [ ] Checkov / Tfsec clean (workflow lint)
