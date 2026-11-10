@@ -6,6 +6,7 @@ import {
   MoneyErrorCode,
   PhoneErrorCode,
   SeoErrorCode,
+  SignupErrorCode,
   SlugErrorCode,
   TimeOfDayErrorCode,
   TimezoneErrorCode,
@@ -20,6 +21,7 @@ import { TimezoneValidationError } from '../value-objects/timezone.vo';
 import { TimeOfDayValidationError } from '../value-objects/time-of-day.vo';
 import { CalendarDateValidationError } from '../value-objects/calendar-date.vo';
 import { EmailValidationError } from '../value-objects/email.vo';
+import { TaxIdValidationError } from '../value-objects/tax-id.vo';
 import { mapSharedVoError } from './vo-validation-error.mapper';
 
 function call(err: unknown): HttpException {
@@ -94,6 +96,15 @@ describe('mapSharedVoError', () => {
     expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
     expect(err.getResponse()).toMatchObject({ code: CalendarDateErrorCode.FORMAT_INVALID });
   });
+
+  it.each([SignupErrorCode.TAX_ID_INVALID, SignupErrorCode.TAX_ID_REQUIRED])(
+    'maps TaxIdValidationError %s to 422 with code',
+    (code) => {
+      const err = call(new TaxIdValidationError('bad tax id', code));
+      expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+      expect(err.getResponse()).toMatchObject({ code });
+    },
+  );
 
   it('maps EmailValidationError to 400 with code', () => {
     const err = call(new EmailValidationError('bad email', EmailErrorCode.FORMAT_INVALID));

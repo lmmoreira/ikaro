@@ -30,6 +30,21 @@ export interface AddressSpec {
   readonly lookupService: 'viacep' | 'none';
 }
 
+export type TaxIdType = 'CNPJ' | 'CPF' | 'OTHER';
+
+export interface TaxIdSpec {
+  /** Whether a non-exempt tenant must provide a tax id at signup (BR: the provider needs it to charge). */
+  readonly required: boolean;
+  /** The id types this country accepts. 'OTHER' = free text, no format check. */
+  readonly types: readonly TaxIdType[];
+  /** Field label — e.g. 'CPF/CNPJ', 'Tax ID (EIN)'. Not translated. */
+  readonly label: string;
+  /** Input placeholder example. */
+  readonly placeholder: string;
+  /** Max stored length for an 'OTHER' free-text id (the column width). null = unconstrained. */
+  readonly maxLength: number | null;
+}
+
 export interface CountrySpec {
   /** ISO 4217 currency code — default for tenants in this country. */
   readonly currency: string;
@@ -53,6 +68,8 @@ export interface CountrySpec {
   readonly firstDayOfWeek: 0 | 1;
   /** Address layout and validation rules — country-specific, not translated. */
   readonly address: AddressSpec;
+  /** Tax-identity requirement for billing — country-specific, not translated. */
+  readonly taxId: TaxIdSpec;
 }
 
 const REGISTRY: Readonly<Record<string, CountrySpec>> = {
@@ -86,6 +103,13 @@ const REGISTRY: Readonly<Record<string, CountrySpec>> = {
       complementLabel: 'Complemento',
       cityLabel: 'Cidade',
       lookupService: 'viacep',
+    },
+    taxId: {
+      required: true,
+      types: ['CNPJ', 'CPF'],
+      label: 'CPF/CNPJ',
+      placeholder: '00.000.000/0000-00',
+      maxLength: null,
     },
   },
 
@@ -121,6 +145,13 @@ const REGISTRY: Readonly<Record<string, CountrySpec>> = {
       cityLabel: 'City',
       lookupService: 'none',
     },
+    taxId: {
+      required: false,
+      types: ['OTHER'],
+      label: 'Tax ID (EIN)',
+      placeholder: '12-3456789',
+      maxLength: 32,
+    },
   },
 };
 
@@ -148,6 +179,13 @@ const FALLBACK: CountrySpec = {
     complementLabel: 'Complement',
     cityLabel: 'City',
     lookupService: 'none',
+  },
+  taxId: {
+    required: false,
+    types: ['OTHER'],
+    label: 'Tax ID',
+    placeholder: '',
+    maxLength: 32,
   },
 };
 

@@ -10,11 +10,12 @@ import { TimezoneValidationError } from '../value-objects/timezone.vo';
 import { TimeOfDayValidationError } from '../value-objects/time-of-day.vo';
 import { CalendarDateValidationError } from '../value-objects/calendar-date.vo';
 import { EmailValidationError } from '../value-objects/email.vo';
+import { TaxIdValidationError } from '../value-objects/tax-id.vo';
 
 /**
- * Shared branch for the 10 plain-VO-level errors (Money, PhoneNumber, SeoTitle,
- * SeoDescription, Slug, HexColor, Timezone, TimeOfDay, CalendarDate, Email — SeoTitle and
- * SeoDescription share one SeoErrorCode union) every context mapper that calls one of these VOs must handle identically — extracted to avoid re-duplicating this
+ * Shared branch for the 11 plain-VO-level errors (Money, PhoneNumber, SeoTitle,
+ * SeoDescription, Slug, HexColor, Timezone, TimeOfDay, CalendarDate, Email, TaxId — SeoTitle and
+ * SeoDescription share one SeoErrorCode union; TaxId is the one 422: a signup field rule, M25-S06) every context mapper that calls one of these VOs must handle identically — extracted to avoid re-duplicating this
  * block per context (SonarCloud new-code-duplication gate, same reasoning as
  * mapSharedAddressError). Returns without throwing when `err` isn't one of these types, so
  * callers can fall through to their own context-specific branches.
@@ -33,5 +34,9 @@ export function mapSharedVoError(err: unknown): void {
     err instanceof EmailValidationError
   ) {
     throw throwProblemDetail(HttpStatus.BAD_REQUEST, err.code, err.message);
+  }
+  // SIGNUP_TAX_ID_INVALID / SIGNUP_TAX_ID_REQUIRED: 422 per docs/API_CONTRACTS.md.
+  if (err instanceof TaxIdValidationError) {
+    throw throwProblemDetail(HttpStatus.UNPROCESSABLE_ENTITY, err.code, err.message);
   }
 }

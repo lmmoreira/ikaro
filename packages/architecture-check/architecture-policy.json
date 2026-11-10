@@ -839,7 +839,7 @@
       "rule": "error-mapper-coverage",
       "class": "FeaturePriceNotFoundError",
       "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
-      "rationale": "M25-S04 builds the platform-wide price list's read side only: its two use cases are consumed in-process by M26 and no billing HTTP surface exists yet. M25-S06 creates contexts/billing/infrastructure/http/billing-error.mapper.ts and maps this error; remove this entry then.",
+      "rationale": "M25-S04 builds the platform-wide price list's read side only: its two use cases are consumed in-process by M26 and no billing HTTP surface exists yet. M25-S06 created contexts/billing/infrastructure/http/billing-error.mapper.ts but deliberately does not map this error: no endpoint can throw it, and mapping it now would fix a wire status and code before one exists (codes are additive-only once shipped). The first story whose HTTP surface can throw it (M25-S08/S15b or M26) maps it in billing-error.mapper.ts and removes this entry.",
       "owner": "billing",
       "reviewBy": "2026-12-31"
     },
@@ -847,7 +847,7 @@
       "rule": "error-mapper-coverage",
       "class": "FeaturePriceInvariantError",
       "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
-      "rationale": "Same as FeaturePriceNotFoundError above: no billing HTTP surface until M25-S06 creates billing-error.mapper.ts; remove this entry when it maps this error.",
+      "rationale": "Same as FeaturePriceNotFoundError above: no billing HTTP surface can throw it yet; the story that first gives it one maps it in billing-error.mapper.ts and removes this entry.",
       "owner": "billing",
       "reviewBy": "2026-12-31"
     },
@@ -855,15 +855,7 @@
       "rule": "error-mapper-coverage",
       "class": "MinorAmountValidationError",
       "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
-      "rationale": "Same as FeaturePriceNotFoundError above: no billing HTTP surface until M25-S06 creates billing-error.mapper.ts; remove this entry when it maps this error.",
-      "owner": "billing",
-      "reviewBy": "2026-12-31"
-    },
-    {
-      "rule": "shared-vo-error-mapper-coverage",
-      "context": "billing",
-      "path": "apps/backend/src/contexts/billing/domain/feature-price.aggregate.ts",
-      "rationale": "M25-S04 has no billing HTTP surface: feature-price.aggregate.ts and the price use cases construct the shared CountryCode and CalendarDate VOs, but their only callers are in-process (M26). M25-S06 creates contexts/billing/infrastructure/http/billing-error.mapper.ts; remove this entry then.",
+      "rationale": "Same as FeaturePriceNotFoundError above: no billing HTTP surface can throw it yet; the story that first gives it one maps it in billing-error.mapper.ts and removes this entry.",
       "owner": "billing",
       "reviewBy": "2026-12-31"
     },
