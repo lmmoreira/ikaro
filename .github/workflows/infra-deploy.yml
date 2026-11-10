@@ -17,7 +17,9 @@ name: Infra — Terraform Deploy Pipeline
 # trigger; this is the PR-path-filter analogue).
 #
 # Deliberately no top-level `concurrency:` block: this workflow mixes
-# cancel-safe PR plan jobs (job-level concurrency, cancel-in-progress: true)
+# PR plan jobs (job-level concurrency, cancel-in-progress: false — a
+# cancelled plan can strand the remote state lock; concurrent plans from
+# different PRs queue on the state lock via -lock-timeout=5m instead)
 # with apply jobs that must never be cancelled mid-`terraform apply`
 # (job-level concurrency, cancel-in-progress: false, fixed group names
 # shared with the S25 app-deploy workflow). A single workflow-level group
@@ -221,7 +223,10 @@ jobs:
     timeout-minutes: 10
     concurrency:
       group: infra-plan-staging-${{ github.ref }}
-      cancel-in-progress: true
+      # false: killing terraform mid-plan can strand the remote state lock
+      # (a stale lock then fails every later plan until force-unlocked).
+      # A newer push to the same PR just queues behind the running plan.
+      cancel-in-progress: false
     permissions:
       contents: read
       id-token: write # mints the short-lived WIF token for google-github-actions/auth
@@ -252,7 +257,7 @@ jobs:
           TF_VAR_notification_email: ${{ secrets.NOTIFICATION_EMAIL }}
         run: |
           terraform init -input=false -lockfile=readonly
-          terraform plan -input=false -no-color -lock-timeout=60s -out=tfplan
+          terraform plan -input=false -no-color -lock-timeout=5m -out=tfplan
           terraform show -no-color tfplan > plan-output.txt
           terraform show -json tfplan > plan.json
 
@@ -370,7 +375,10 @@ jobs:
     timeout-minutes: 10
     concurrency:
       group: infra-plan-prod-${{ github.ref }}
-      cancel-in-progress: true
+      # false: killing terraform mid-plan can strand the remote state lock
+      # (a stale lock then fails every later plan until force-unlocked).
+      # A newer push to the same PR just queues behind the running plan.
+      cancel-in-progress: false
     permissions:
       contents: read
       id-token: write # mints the short-lived WIF token for google-github-actions/auth
@@ -419,7 +427,7 @@ jobs:
           TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           terraform init -input=false -lockfile=readonly
-          terraform plan -input=false -no-color -lock-timeout=60s -out=tfplan
+          terraform plan -input=false -no-color -lock-timeout=5m -out=tfplan
           terraform show -no-color tfplan > plan-output.txt
           terraform show -json tfplan > plan.json
 
@@ -523,7 +531,7 @@ jobs:
       # Allow-list, not deny-list: only "success" or "skipped" (the correct
       # no-op for a non-infra PR) satisfy the gate. Checking only for
       # "failure" would let a "cancelled" result — a real possibility, since
-      # plan-staging/plan-prod use cancel-in-progress: true — slip through
+      # a plan job can still be cancelled manually or by a timeout — slip through
       # as a false pass. Results are passed via env rather than expanded
       # directly into the run: script — GitHub-controlled values (job
       # results can only ever be success/failure/cancelled/skipped), but
@@ -1021,7 +1029,7 @@ jobs:
           TF_VAR_notification_email: ${{ secrets.NOTIFICATION_EMAIL }}
         run: |
           terraform init -input=false -lockfile=readonly
-          terraform plan -input=false -no-color -lock-timeout=60s -detailed-exitcode
+          terraform plan -input=false -no-color -lock-timeout=5m -detailed-exitcode
 
   drift-prod:
     name: Drift check (prod)
@@ -1102,7 +1110,7 @@ jobs:
           TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           terraform init -input=false -lockfile=readonly
-          terraform plan -input=false -no-color -lock-timeout=60s -detailed-exitcode
+          terraform plan -input=false -no-color -lock-timeout=5m -detailed-exitcode
 
       # TD27: gs://ikaro-tfstate's own security posture (versioning, uniform
       # access, public access prevention, the env-scoped IAM conditions) was
