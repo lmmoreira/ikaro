@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { config } from 'dotenv';
 import { DataSource } from 'typeorm';
+import { BackfillExemptSubscriptions1748500000041 } from '../../contexts/billing/infrastructure/migrations/1748500000041-BackfillExemptSubscriptions';
 import {
   SEED_HOTSITE_BASE_BRANDING,
   SEED_HOTSITE_BRANDING_OVERRIDES,
@@ -153,6 +154,7 @@ async function seed(): Promise<void> {
       // instead of silently staying without them forever (CodeRabbit finding, PR #458).
       await seedResources(q);
       await seedTeamTenant(q);
+      await seedExemptSubscriptions(q);
       await q.commitTransaction();
       process.stdout.write('✓ Database already seeded — backfilled any missing resources.\n');
       return;
@@ -167,6 +169,7 @@ async function seed(): Promise<void> {
     await seedBookings(q);
     await seedNotificationTemplates(q);
     await seedTeamTenant(q);
+    await seedExemptSubscriptions(q);
 
     await q.commitTransaction();
     printSummary();
@@ -450,6 +453,15 @@ async function seedTeamTenant(q: ReturnType<DataSource['createQueryRunner']>): P
      ON CONFLICT DO NOTHING`,
     [IDS.tenantTeam],
   );
+}
+
+// Seeded tenants are inserted after the migrations ran, so the billing backfill (M25-S05) never saw
+// them. Run it once after every tenant insert: it gives each tenant that has no subscription an
+// exempt ACTIVE one with its items and billing account, and is a no-op on a re-seed.
+async function seedExemptSubscriptions(
+  q: ReturnType<DataSource['createQueryRunner']>,
+): Promise<void> {
+  await new BackfillExemptSubscriptions1748500000041().up(q);
 }
 
 // ── Summary ──────────────────────────────────────────────────────────────────

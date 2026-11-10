@@ -71,6 +71,7 @@ import { AddResourceOccupancyHoldExpiryIndex1748500000037 } from '../contexts/bo
 import { AddServicePublicPage1748500000038 } from '../contexts/booking/infrastructure/migrations/1748500000038-AddServicePublicPage';
 import { CreateBillingSchema1748500000039 } from '../contexts/billing/infrastructure/migrations/1748500000039-CreateBillingSchema';
 import { SeedFeaturePrices1748500000040 } from '../contexts/billing/infrastructure/migrations/1748500000040-SeedFeaturePrices';
+import { BackfillExemptSubscriptions1748500000041 } from '../contexts/billing/infrastructure/migrations/1748500000041-BackfillExemptSubscriptions';
 import { FeaturePriceVersionEntity } from '../contexts/billing/infrastructure/entities/feature-price-version.entity';
 import { FeaturePriceEntity } from '../contexts/billing/infrastructure/entities/feature-price.entity';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
@@ -265,6 +266,7 @@ export default async function globalSetup(): Promise<void> {
       AddServicePublicPage1748500000038,
       CreateBillingSchema1748500000039,
       SeedFeaturePrices1748500000040,
+      BackfillExemptSubscriptions1748500000041,
     ],
     synchronize: false,
     migrationsRun: false,
