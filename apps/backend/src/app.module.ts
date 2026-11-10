@@ -5,6 +5,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TerminusModule } from '@nestjs/terminus';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BillingModule } from './contexts/billing/billing.module';
+import { DevClockModule } from './contexts/billing/infrastructure/dev-clock.module';
+import { resolveAppEnv } from './shared/database/resolve-app-env';
+import { ClockModule } from './shared/infrastructure/clock/clock.module';
 import { BookingModule } from './contexts/booking/booking.module';
 import { CustomerModule } from './contexts/customer/customer.module';
 import { LoyaltyModule } from './contexts/loyalty/loyalty.module';
@@ -34,6 +37,11 @@ import {
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
+    // Evaluated after ConfigModule.forRoot() above has loaded the env file into process.env, so
+    // APP_ENV is already set by the time these two read it (an import-time read inside a context
+    // module would run before that).
+    ClockModule.register(resolveAppEnv(process.env)),
+    DevClockModule.register(resolveAppEnv(process.env)),
     CacheModule.register({
       isGlobal: true,
       ttl: 60_000,

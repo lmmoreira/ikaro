@@ -6,6 +6,9 @@ import { DataSource } from 'typeorm';
 import { FeaturePriceVersionEntity } from '../../contexts/billing/infrastructure/entities/feature-price-version.entity';
 import { FeaturePriceEntity } from '../../contexts/billing/infrastructure/entities/feature-price.entity';
 import { BillingModule } from '../../contexts/billing/billing.module';
+import { DevClockModule } from '../../contexts/billing/infrastructure/dev-clock.module';
+import { AppEnv } from '../../shared/database/resolve-app-env';
+import { ClockModule } from '../../shared/infrastructure/clock/clock.module';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
 import { testCacheModule } from './test-cache-module';
 import { testConfigModule } from './test-config-module';
@@ -13,6 +16,8 @@ import { testConfigModule } from './test-config-module';
 export interface BillingIntegrationAppOptions {
   extraProviders?: Provider[];
   overrideProviders?: Array<{ provide: symbol | string; useValue: unknown }>;
+  /** The `APP_ENV` the clock modules are registered for (default `local`). */
+  appEnv?: AppEnv;
 }
 
 /**
@@ -23,7 +28,7 @@ export interface BillingIntegrationAppOptions {
 export async function createBillingIntegrationApp(
   options: BillingIntegrationAppOptions = {},
 ): Promise<{ app: INestApplication; ds: DataSource }> {
-  const { extraProviders = [], overrideProviders = [] } = options;
+  const { extraProviders = [], overrideProviders = [], appEnv = 'local' } = options;
 
   let builder = Test.createTestingModule({
     imports: [
@@ -36,6 +41,8 @@ export async function createBillingIntegrationApp(
         synchronize: false,
       }),
       TransactionManagerModule,
+      ClockModule.register(appEnv),
+      DevClockModule.register(appEnv),
       BillingModule,
     ],
     providers: extraProviders,
