@@ -7,6 +7,7 @@ import {
   HexColorErrorCode,
   PlatformErrorCode,
   SeoErrorCode,
+  SignupErrorCode,
   SlugErrorCode,
 } from '@ikaro/types';
 import { AddressValidationError } from '../../../../shared/value-objects/address';
@@ -15,6 +16,7 @@ import { SeoTitleValidationError } from '../../../../shared/value-objects/seo-ti
 import { SeoDescriptionValidationError } from '../../../../shared/value-objects/seo-description.vo';
 import { SlugValidationError } from '../../../../shared/value-objects/slug.vo';
 import { HexColorValidationError } from '../../../../shared/value-objects/hex-color.vo';
+import { TaxIdValidationError } from '../../../../shared/value-objects/tax-id.vo';
 import {
   HotsiteBrandingColorInvalidError,
   HotsiteConfigConcurrentModificationError,
@@ -192,6 +194,15 @@ describe('mapPlatformError', () => {
     expect(err.getStatus()).toBe(HttpStatus.BAD_REQUEST);
     expect(err.getResponse()).toMatchObject({ code: SlugErrorCode.FORMAT_INVALID });
   });
+
+  it.each([SignupErrorCode.TAX_ID_INVALID, SignupErrorCode.TAX_ID_REQUIRED])(
+    'maps TaxIdValidationError %s to 422 with code (provisioning validates the tax id through the shared VO branch)',
+    (code) => {
+      const err = call(new TaxIdValidationError('bad tax id', code));
+      expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+      expect(err.getResponse()).toMatchObject({ code });
+    },
+  );
 
   it('maps HexColorValidationError to 400 with code (defensive — unreachable via the validated request path today)', () => {
     const err = call(new HexColorValidationError('bad color', HexColorErrorCode.FORMAT_INVALID));
