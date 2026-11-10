@@ -176,7 +176,7 @@ Add a required `appointmentEndsAt` to every availability slot, computed in the d
 - [ ] Coverage ≥80% on changed code.
 - [ ] `tsc --noEmit` clean, lint clean.
 
-### Story 2 — Show month context in the booking date carousel and selected-date label
+### Story 2 — Show month context in the booking date carousel and selected-date label ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** M
