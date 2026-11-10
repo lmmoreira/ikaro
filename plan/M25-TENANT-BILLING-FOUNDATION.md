@@ -473,7 +473,7 @@ Create the platform-wide `FeaturePrice` aggregate (root; **no `tenant_id`**, the
 
 ---
 
-### M25-S06 — `TaxId` VO, `CountrySpec` tax-ID entry, `BillingErrorCode` / `SignupErrorCode` plumbing
+### M25-S06 — `TaxId` VO, `CountrySpec` tax-ID entry, `BillingErrorCode` / `SignupErrorCode` plumbing ✅ Done
 
 **Agent:** `fullstack-ts`
 **Complexity:** M
