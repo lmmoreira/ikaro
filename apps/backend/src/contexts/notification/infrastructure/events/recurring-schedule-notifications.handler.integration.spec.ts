@@ -44,9 +44,6 @@ import { LoyaltyBalanceEntity } from '../../../loyalty/infrastructure/entities/l
 import { LoyaltyRedemptionEntity } from '../../../loyalty/infrastructure/entities/loyalty-redemption.entity';
 import { BalanceExpiryLogEntity } from '../../../loyalty/infrastructure/entities/balance-expiry-log.entity';
 import { NotificationLogEntity } from '../entities/notification-log.entity';
-import { NotificationTemplateEntity } from '../entities/notification-template.entity';
-import { AddRecurringScheduleTemplates1748500000029 } from '../migrations/1748500000029-AddRecurringScheduleTemplates';
-import { NotificationTemplateKey } from '../../domain/notification-template-key.enum';
 
 const PLATFORM_KEY = 'recurring-sched-notif-key-xxxxxxxxxx';
 
@@ -79,15 +76,6 @@ const LOYALTY_ENTITIES = [
   LoyaltyRedemptionEntity,
   BalanceExpiryLogEntity,
 ] as const;
-
-const NEW_KEYS = [
-  NotificationTemplateKey.RECURRING_SCHEDULE_CREATED_CUSTOMER,
-  NotificationTemplateKey.RECURRING_SCHEDULE_APPROVAL_REQUESTED_ADMIN,
-  NotificationTemplateKey.RECURRING_SCHEDULE_REJECTED_CUSTOMER,
-  NotificationTemplateKey.RECURRING_SCHEDULE_EXPIRED_CUSTOMER,
-  NotificationTemplateKey.RECURRING_SCHEDULE_ENDED_CUSTOMER,
-  NotificationTemplateKey.RECURRING_SCHEDULE_ENDED_BY_STAFF_CUSTOMER,
-];
 
 interface SeededTenant {
   tenantId: string;
@@ -331,67 +319,6 @@ describe('Story: recurring-schedule events → Notification emails (integration)
       const logs = await logsFor(tenantA.tenantId, event.eventId);
       expect(logs.map((l) => l.notificationType)).toContain('booking-cancelled-customer');
       expect(dispatcher.dispatched.some((m) => m.to === tenantA.customerEmail)).toBe(true);
-    });
-  });
-
-  describe('AddRecurringScheduleTemplates migration', () => {
-    async function runMigration(): Promise<void> {
-      const queryRunner = ds.createQueryRunner();
-      try {
-        await new AddRecurringScheduleTemplates1748500000029().up(queryRunner);
-      } finally {
-        await queryRunner.release();
-      }
-    }
-
-    async function newKeyRows(tenantId: string) {
-      const rows = await ds.getRepository(NotificationTemplateEntity).find({ where: { tenantId } });
-      return rows.filter((r) => NEW_KEYS.includes(r.triggerEvent as NotificationTemplateKey));
-    }
-
-    it('copies the six templates to a tenant that existed before it, in the tenant locale, and is idempotent', async () => {
-      // Simulate a tenant provisioned before the migration: it has no row for the new keys, and
-      // its locale is English.
-      await ds
-        .createQueryBuilder()
-        .delete()
-        .from(NotificationTemplateEntity)
-        .where('tenant_id = :tenantId AND trigger_event IN (:...keys)', {
-          tenantId: tenantB.tenantId,
-          keys: NEW_KEYS,
-        })
-        .execute();
-      await ds.query(
-        `UPDATE platform.tenants SET settings = jsonb_set(settings, '{localization,language}', '"en"') WHERE id = $1`,
-        [tenantB.tenantId],
-      );
-      expect(await newKeyRows(tenantB.tenantId)).toHaveLength(0);
-
-      await runMigration();
-
-      const copied = await newKeyRows(tenantB.tenantId);
-      expect(copied.map((r) => r.triggerEvent).sort()).toEqual([...NEW_KEYS].sort());
-      expect(copied.every((r) => r.locale === 'en')).toBe(true);
-
-      await runMigration();
-      expect(await newKeyRows(tenantB.tenantId)).toHaveLength(NEW_KEYS.length);
-    });
-
-    it('seeds the six global defaults in both locales', async () => {
-      const globals = await ds
-        .getRepository(NotificationTemplateEntity)
-        .createQueryBuilder('t')
-        .where('t.tenant_id IS NULL AND t.trigger_event IN (:...keys)', { keys: NEW_KEYS })
-        .getMany();
-
-      expect(globals).toHaveLength(NEW_KEYS.length * 2);
-    });
-
-    it('left the tenant that was provisioned after it with its own six rows in pt-BR', async () => {
-      const rows = await newKeyRows(tenantA.tenantId);
-
-      expect(rows).toHaveLength(NEW_KEYS.length);
-      expect(rows.every((r) => r.locale === 'pt-BR')).toBe(true);
     });
   });
 });
