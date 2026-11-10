@@ -10,9 +10,9 @@ export class SubscriptionEntityBuilder {
   private suspensionReason: string | null = null;
   private countryCode = 'BR';
   private currency = 'BRL';
-  private timezone = 'America/Sao_Paulo';
-  private merchantProfileKey = 'BRL_FAKE';
-  private anchorDay = 15;
+  private readonly timezone = 'America/Sao_Paulo';
+  private readonly merchantProfileKey = 'BRL_FAKE';
+  private readonly anchorDay = 15;
   private trialEndsAt: Date | null = new Date(Date.now() + 7 * DAY_MS);
   private currentPeriodStart: Date | null = null;
   private currentPeriodEnd: Date | null = null;

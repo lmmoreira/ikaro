@@ -8,7 +8,7 @@ import {
 import {
   defaultSelection,
   defaultTierFor,
-  isValidTierFor,
+  isTierSoldFor,
   type SelectionEntry,
   validateSelection,
 } from './plan-selection';
@@ -45,13 +45,13 @@ describe('plan-selection', () => {
     });
   });
 
-  describe('isValidTierFor', () => {
+  describe('isTierSoldFor', () => {
     it('accepts BASIC and PLUS for the chatbot only, and STANDARD for everything else', () => {
-      expect(isValidTierFor('CHATBOT', 'BASIC')).toBe(true);
-      expect(isValidTierFor('CHATBOT', 'PLUS')).toBe(true);
-      expect(isValidTierFor('CHATBOT', 'STANDARD')).toBe(false);
-      expect(isValidTierFor('BOOKING', 'STANDARD')).toBe(true);
-      expect(isValidTierFor('BOOKING', 'PLUS')).toBe(false);
+      expect(isTierSoldFor('CHATBOT', 'BASIC')).toBe(true);
+      expect(isTierSoldFor('CHATBOT', 'PLUS')).toBe(true);
+      expect(isTierSoldFor('CHATBOT', 'STANDARD')).toBe(false);
+      expect(isTierSoldFor('BOOKING', 'STANDARD')).toBe(true);
+      expect(isTierSoldFor('BOOKING', 'PLUS')).toBe(false);
     });
   });
 

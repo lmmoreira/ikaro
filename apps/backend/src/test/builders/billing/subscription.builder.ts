@@ -69,8 +69,8 @@ export class SubscriptionBuilder {
   private countryCode = 'BR';
   private currency: string | null = null;
   private timezone = 'America/Sao_Paulo';
-  private merchantProfileKey = 'BRL_FAKE';
-  private anchorDay = 15;
+  private readonly merchantProfileKey = 'BRL_FAKE';
+  private readonly anchorDay = 15;
   private trialEndsAt: Date | null = new Date(Date.now() + 7 * DAY_MS);
   private currentPeriodStart: Date | null = null;
   private currentPeriodEnd: Date | null = null;

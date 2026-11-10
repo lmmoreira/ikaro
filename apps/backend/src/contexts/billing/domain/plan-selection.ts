@@ -32,14 +32,14 @@ export function defaultTierFor(featureKey: FeatureKey): FeatureTier {
   return featureKey === 'CHATBOT' ? 'BASIC' : 'STANDARD';
 }
 
-export function isValidTierFor(featureKey: FeatureKey, tier: FeatureTier): boolean {
+export function isTierSoldFor(featureKey: FeatureKey, tier: FeatureTier): boolean {
   return featureKey === 'CHATBOT'
     ? (CHATBOT_TIERS as readonly string[]).includes(tier)
     : tier === 'STANDARD';
 }
 
 export function assertValidTier(entry: SelectionEntry): void {
-  if (!isValidTierFor(entry.featureKey, entry.tier)) {
+  if (!isTierSoldFor(entry.featureKey, entry.tier)) {
     throw new SubscriptionInvariantError(
       `Tier ${entry.tier} is not sold for feature ${entry.featureKey}`,
     );
