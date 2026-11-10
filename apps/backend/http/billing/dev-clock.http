@@ -1,0 +1,41 @@
+# Billing — Dev clock (non-production only)
+# UC-138: move the clock Billing date rules read. Registered only when APP_ENV is local or staging
+# (404 in production). The offset lives in the process: on staging hold the backend to ONE instance
+# while the clock is in use (docs/RUNBOOKS.md § Billing). Compare `instanceId` across calls.
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run dev
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@baseUrl     = {{backendUrl}}
+@internalKey = {{$dotenv INTERNAL_API_KEY}}
+
+### Current offset and the instance that answered
+GET {{baseUrl}}/internal/dev/clock
+X-Internal-Key: {{internalKey}}
+
+###
+
+### Move the clock forward 1 day + 2 hours (26 h). Non-negative integers, total > 0.
+POST {{baseUrl}}/internal/dev/clock/advance
+X-Internal-Key: {{internalKey}}
+Content-Type: application/json
+
+{ "days": 1, "hours": 2 }
+
+###
+
+### Invalid: fractional / negative / empty → 400 GENERIC_VALUE_OUT_OF_RANGE
+POST {{baseUrl}}/internal/dev/clock/advance
+X-Internal-Key: {{internalKey}}
+Content-Type: application/json
+
+{ "days": 1.5 }
+
+###
+
+### Back to real time (idempotent)
+POST {{baseUrl}}/internal/dev/clock/reset
+X-Internal-Key: {{internalKey}}
