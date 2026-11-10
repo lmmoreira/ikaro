@@ -331,6 +331,19 @@ export const EmailErrorCode = {
 } as const;
 export type EmailErrorCode = (typeof EmailErrorCode)[keyof typeof EmailErrorCode];
 
+// Billing release origins (M25-S06). SignupErrorCode holds the codes thrown so far (the shared
+// TaxId VO — every provisioning-time path); BillingErrorCode starts empty and each story adds its
+// members when it first throws them, with their locale entries (docs/ERROR_CATALOG.md § Planned
+// origins). A member needs a translation in both errors.json files the moment it is added.
+export const SignupErrorCode = {
+  TAX_ID_INVALID: 'SIGNUP_TAX_ID_INVALID',
+  TAX_ID_REQUIRED: 'SIGNUP_TAX_ID_REQUIRED',
+} as const;
+export type SignupErrorCode = (typeof SignupErrorCode)[keyof typeof SignupErrorCode];
+
+export const BillingErrorCode = {} as const;
+export type BillingErrorCode = (typeof BillingErrorCode)[keyof typeof BillingErrorCode];
+
 // Genuinely BFF-feature-originated conditions (TD23 Story 11) — guest-token/guard/tenant-lookup
 // failures with no backend equivalent. Framework-level guard rejections (JWT/role/tenant-header
 // mismatch, unhandled exceptions) live in AuthErrorCode instead — see its own comment below.
@@ -412,6 +425,8 @@ export type AnyErrorCode =
   | TimeOfDayErrorCode
   | CalendarDateErrorCode
   | EmailErrorCode
+  | SignupErrorCode
+  | BillingErrorCode
   | BffErrorCode
   | AuthErrorCode
   | GenericErrorCode;

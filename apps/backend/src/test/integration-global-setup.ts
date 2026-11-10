@@ -72,6 +72,7 @@ import { AddServicePublicPage1748500000038 } from '../contexts/booking/infrastru
 import { CreateBillingSchema1748500000039 } from '../contexts/billing/infrastructure/migrations/1748500000039-CreateBillingSchema';
 import { SeedFeaturePrices1748500000040 } from '../contexts/billing/infrastructure/migrations/1748500000040-SeedFeaturePrices';
 import { BackfillExemptSubscriptions1748500000041 } from '../contexts/billing/infrastructure/migrations/1748500000041-BackfillExemptSubscriptions';
+import { AllowEinTaxIdType1748500000042 } from '../contexts/billing/infrastructure/migrations/1748500000042-AllowEinTaxIdType';
 import { FeaturePriceVersionEntity } from '../contexts/billing/infrastructure/entities/feature-price-version.entity';
 import { FeaturePriceEntity } from '../contexts/billing/infrastructure/entities/feature-price.entity';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
@@ -267,6 +268,7 @@ export default async function globalSetup(): Promise<void> {
       CreateBillingSchema1748500000039,
       SeedFeaturePrices1748500000040,
       BackfillExemptSubscriptions1748500000041,
+      AllowEinTaxIdType1748500000042,
     ],
     synchronize: false,
     migrationsRun: false,
