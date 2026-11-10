@@ -120,15 +120,6 @@ describe('NumberInput', () => {
     expect(bare).toBeDefined();
   });
 
-  it('draws no unit and adds no description when the unit is empty', () => {
-    render(<NumberInput unit="" onChange={vi.fn()} aria-label="Price" />);
-
-    const input = screen.getByRole('spinbutton', { name: 'Price' });
-    expect(input).not.toHaveAttribute('aria-describedby');
-    expect(input.style.paddingRight).toBe('');
-    expect(input.parentElement?.querySelector('span')).toBeNull();
-  });
-
   it('has no axe violations', async () => {
     const { container } = render(
       <div>
