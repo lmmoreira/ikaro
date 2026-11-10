@@ -358,6 +358,123 @@ Not numeric-quantity inputs, so out of scope: phone fields (`type="tel"`, `input
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean (including `NUMBER_INPUT_SELECTOR` over the whole of `apps/web`, proving no bare numeric `Input` remains)
 
+---
+
+### Story 4 — Number the booking-detail itinerary by leg, not by resource row 🔴
+
+**Agent:** frontend-ts
+**Complexity:** S
+**Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md` § UI layer model; `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys; `docs/TESTING_STRATEGY.md` § apps/web Testing Infrastructure and § Layer 5 (before touching an E2E test); `docs/CODE_STANDARDS.md`
+**Dependencies:** none (Stories 0–3 are unrelated)
+**Pattern:** plain composition — no named pattern applies. A pure grouping helper (`groupItineraryByLeg`) in the booking slice, consumed by the existing card; no API or contract change.
+**Discovered:** 2026-11-10, user report on the production booking detail page (`/dashboard/bookings/01a1c78c-43ec-7edf-90f0-ddd62ac6526f`): a service with 3 legs shows a "Trajeto" list numbered 1 to 6.
+**Root cause:** `BookingItineraryCard.tsx:28-34` renders one `<li>` per `BookingItineraryLeg` and numbers it `index + 1`. Despite its name, a `BookingItineraryLeg` is one *resource reservation*, not one leg: `buildItinerary()` in `booking-detail-resources.helpers.ts:135-172` emits one entry per (line, legIndex, resource assignment), sorted by `legIndex` then `resourceType`. A leg that needs a room and a professional therefore appears twice, with the same `legIndex`, `legName` and time range. In the reported booking: Massagem (Sala Fogo, Leonardo Moreira) = rows 1–2, Pedras Aromatizantes (Sala Fogo) = row 3, Ventosas (Ventosas, Sala Agua, Leonardo Moreira) = rows 4–6.
+
+**Description:**
+The itinerary card shows one numbered step per leg, in order, with the leg's name and time range once and the leg's resources listed beneath it. The badge counts legs (1, 2, 3), not resource rows.
+
+1. **Grouping.** A pure helper `groupItineraryByLeg(itinerary)` (in `apps/web/features/booking/utils/`, next to its spec) folds the flat `BookingItineraryLeg[]` into `{ key, lineId, serviceName, legIndex, legName, startsAt, endsAt, resourceNames[] }[]`. The group key is `lineId + legIndex`, so two lines of the same service, or two lines whose legs share an index, never merge. Order is the input order of first appearance (the backend already sorts by line, then `legIndex`, so rows of one leg are adjacent); the helper never re-sorts. The group's time range is the earliest `startsAt` and the latest `endsAt` among its rows, and null when no row has times (cancelled, rejected or purged booking); a group whose rows disagree on whether times exist uses the ones that exist. Resource names keep the input order and are de-duplicated.
+2. **Card.** `BookingItineraryCard` maps the groups: the badge shows the group's position (`index + 1`), the first line is the leg name (falling back to the new key `itineraryLegFallback`, "Etapa {number}" / "Step {number}", when `legName` is null), with the time range after ` · ` as today; the second line lists the resource names joined with ", ". When the itinerary spans more than one distinct `serviceName`, the leg line is prefixed with the line's service name; a single-service booking shows no prefix. `data-testid="booking-itinerary-card"` is unchanged; each `<li>` gets `data-testid="booking-itinerary-leg"`.
+3. **Copy.** `itineraryNote` ("The legs, in order, with each leg's resource…") is reworded to match: each step lists the resources it uses. Both locales in the same change.
+4. **No contract change.** `BookingItineraryLeg` in `@ikaro/types`, the BFF mapper (`bookings-detail.mapper.ts`) and the backend helper are untouched. The type name stays; the doc comment on the interface in `booking.dto.ts` is corrected to say each entry is one resource of a leg, so the next reader is not misled the same way.
+
+**Backend HTTP surface:** none — reuses the existing booking detail endpoints.
+**BFF endpoint spec:** none — the detail payload is unchanged.
+**Prototype references:** check `journeys/**/prototypes/` for a booking-detail prototype that shows the itinerary; if it numbers by row, correct it in the same change (doc gate applies).
+**New migration / i18n keys / env vars / feature flags:** i18n keys `booking.detailCards.itineraryLegFallback` (new) and `itineraryNote` (reworded), in `packages/i18n/locales/pt-BR/web.json` and `.../en/web.json`; no migration, env var or flag.
+
+**Files to create/modify:**
+- `apps/web/features/booking/components/booking-detail/BookingItineraryCard.tsx` (modify; exists)
+- `apps/web/features/booking/components/booking-detail/BookingItineraryCard.spec.tsx` (modify; exists)
+- `apps/web/features/booking/utils/group-itinerary-by-leg.ts` + `group-itinerary-by-leg.spec.ts` (new; check a sibling file in `features/booking/utils/` for the exact naming)
+- `packages/i18n/locales/pt-BR/web.json`, `packages/i18n/locales/en/web.json` (modify; `booking.detailCards.*` near line 404)
+- `packages/types/src/booking.dto.ts` (modify the comment on `BookingItineraryLeg` only, line ~245)
+- `apps/web/e2e/booking-detail.spec.ts` (modify; the existing itinerary scenario at line ~146)
+
+**Acceptance criteria — product:**
+- [ ] A service with 3 legs shows steps numbered 1, 2, 3, never more than the number of legs, however many resources each leg needs.
+- [ ] Each step shows the leg name and its time range once, with every resource of that leg listed beneath it.
+- [ ] A cancelled, rejected or purged booking shows the same steps and resources without times.
+- [ ] A leg without a name shows "Etapa N" (pt-BR) / "Step N" (en) instead of a blank line.
+- [ ] A basket with more than one service keeps its steps distinguishable by service name; a single-service booking shows no service prefix.
+- [ ] The visual style of the card (badge, divider, note) is unchanged.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] `group-itinerary-by-leg.spec.ts`: the reported case (6 rows: 2 + 1 + 3) groups into 3 legs with resources `[Sala Fogo, Leonardo Moreira]`, `[Sala Fogo]`, `[Ventosas, Sala Agua, Leonardo Moreira]`; empty input gives an empty list; a leg with one row stays one group.
+  - [ ] `group-itinerary-by-leg.spec.ts`: two lines with the same `legIndex` do not merge (key is `lineId + legIndex`); a duplicate resource name within a leg is listed once; the time range is min start / max end; all-null times give null.
+  - [ ] `group-itinerary-by-leg.spec.ts` (negative guarantee, own test): the helper never re-sorts — rows given in a non-ascending `legIndex` order come out in the same order.
+  - [ ] `BookingItineraryCard.spec.tsx`: the existing "lists the legs in the given order" test is rewritten for grouping — 6 rows of 3 legs render exactly 3 `listitem`s numbered 1–3 (negative guarantee: no badge reads 4, 5 or 6); resources appear under their leg; the time range renders once per leg; a null `legName` renders the fallback in both locales; the service-name prefix appears only when the itinerary has more than one `serviceName`; the existing no-times and empty-list tests stay green.
+  - [ ] Locale parity: the i18n exhaustiveness/parity tests stay green with the new key in both locales.
+- Integration: none (frontend-ts, no integration tier).
+- Tenant isolation: none — pure presentation of data already scoped by the existing endpoint; no tenant data read or written.
+- E2E:
+  - [ ] `booking-detail.spec.ts`: extend the existing journey scenario so the itinerary card shows exactly as many `booking-itinerary-leg` items as the service has legs, numbered from 1, for a service whose leg needs more than one resource (the seeded Sauna / Massagem / Relaxamento journey; if no seeded leg has two resources, assert the count equals the leg count and cover the multi-resource case at unit tier only, stating the reason in the PR).
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
+
+---
+
+### Story 5 — Give branded tenant surfaces one readable pattern: `BrandedPanel` + branded field style, and lint the raw secondary background 🔴
+
+**Agent:** frontend-ts
+**Complexity:** M
+**Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md` § The `--ba-*` exception and § Reuse the repo's UI primitives; `docs/ENGINEERING_RULES_SHARED.md` § `no-restricted-syntax` selectors must be checked against the 3 already-documented bypass classes and § Authoring new i18n UI copy keys; `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § the section on branding tokens (`grep -n '^## ' docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`; the paragraph on `--ba-secondary-text`/`--ba-secondary-accent`); `docs/TESTING_STRATEGY.md` § apps/web Testing Infrastructure; `docs/CODE_STANDARDS.md`
+**Dependencies:** none (Stories 0–4 are unrelated)
+**Pattern:** Design-system atom with a lint-enforced entry point, mirroring TD57's `BrandedFeedbackMessage` (`shared/components/hotsite/branded-feedback-message.tsx` + `branded-feedback-palette.ts` + `branded-feedback-contrast.spec.ts` + the `FEEDBACK_ROLE_SELECTOR` ban). Plain composition otherwise.
+**Discovered:** 2026-11-10, user report on the public "submit info" page (`/bookings/<id>/submit-info?token=…`) of the `smassagem` tenant: the "Mensagem da equipe" box is unreadable, its text the same colour as its background.
+**Root cause:** `SubmitInfoForm.tsx:146-164` paints `backgroundColor: 'var(--ba-secondary)'` and sets no text colour, so the message `<p>` inherits the page's `--ba-text`; the label above it uses `--ba-primary`. When a tenant's `textColor` is close to its `secondaryColor`, the text vanishes. `applyBranding()` already derives `--ba-secondary-text` (text readable on the secondary colour, ≥4.5:1) and `--ba-secondary-accent` (primary if it reads on secondary, else the text) at `apply-branding.ts:246-248`, but only the hotsite shell (`HotsiteAuthBar*`, `HotsiteNavigation`, `Footer`, `ServiceDetailPage`) consumes them. About 20 sites in the public booking, customer and lead-form trees paint the secondary colour as a surface and rely on inheritance or on `--ba-primary`. Nothing enforces the tokens, so each new panel or field is a fresh chance for the bug.
+
+**Description:**
+A branded tenant gets one pattern for every surface painted with its secondary colour, so the text on it is always readable and the look stays natural and comfortable: the tenant's own palette, with text and accent colours chosen to read on it, never a new fixed colour.
+
+1. **`BrandedPanel` (new, `apps/web/shared/components/hotsite/branded-panel.tsx`).** A bordered, rounded panel on `--ba-secondary` with `color: var(--ba-secondary-text, var(--ba-text))` and `borderRadius: var(--ba-radius)`. An optional `label` prop renders the small uppercase heading in `var(--ba-secondary-accent, var(--ba-primary))`, so a caller never chooses a colour for text inside the panel. It forwards `className`, `data-testid` and `children`. It replaces the hand-built box in `SubmitInfoForm` (the reported bug) and the other panel sites (list below).
+2. **Branded field style (new, `apps/web/shared/components/hotsite/branded-field-style.ts`).** One function `brandedFieldStyle({ invalid })` returning the shared input look: secondary background, `--ba-secondary-text` colour, secondary border (or the branded error border from `BRANDED_FEEDBACK_PALETTE` when invalid), `--ba-radius`. Today seven files each keep their own copy of the same style object and none sets a text colour, so what a visitor types inherits `--ba-text` and has the same bug (`AddressTextField`, `IntakeQuestionField`, `IntakeAnswersStep`, `ContactInfoFields` ×3, `InformationCompletionPhoneField` ×2, `IntakeAttendeesList`, `LeadFormFields`). They all call the helper instead. Placeholder colour is decided in discovery (a mix of the text colour must still meet AA, or placeholder keeps the browser default).
+3. **Token completeness check.** If discovery finds a case the two existing tokens cannot express (for example a muted secondary line, or a border), the new token is derived in `applyBranding()` from the same `pickReadableColor`/`mixHex` helpers, with a contrast test; no hardcoded hex and no fixed neutral grey.
+4. **Lint ban.** A `no-restricted-syntax` selector (`SECONDARY_SURFACE_SELECTOR`) flags the literal `backgroundColor: 'var(--ba-secondary)'` (property `backgroundColor`, string value `var(--ba-secondary)`), with a message pointing to `BrandedPanel` / `brandedFieldStyle`. Exempt: the two new files and the reviewed shell files that already pair the colour with `--ba-secondary-text` (`shells/hotsite/**`, verified in discovery one by one). It must be checked against the 3 documented bypass classes, and the flat-config replace-not-merge trap (a later block listing `no-restricted-syntax` for the same files discards this selector, as `ui/**` and the branded trees share `rawFormControlExemptPaths`). Indirect forms that the AST cannot see (a Tailwind `bg-[var(--ba-secondary)]` class, a shared constant) are named in the rule's comment as the known limit, not silently ignored; `AvailabilityCarousel.tsx:224` (`border-[var(--ba-secondary)]`, a border) is not a surface and stays.
+5. **Contrast test across tenants.** `branded-panel-contrast.spec.ts` (same shape as `branded-feedback-contrast.spec.ts` and `template-palette-contrast.spec.ts`) asserts that for every catalogue template, plus a fixture where `textColor` equals `secondaryColor` (the `smassagem` case), the panel text and accent and the field text meet AA (≥4.5:1) over `secondaryColor`.
+6. **Out of scope, recorded:** `borderColor: var(--ba-secondary)` (a border is decorative; it can be faint when secondary is close to the page background but never hides content), the `--ba-primary`-on-`--ba-primary` button text (already derived by `deriveButtonTokens`), and the dashboard/account trees, which never use `--ba-*`.
+
+**Backend HTTP surface:** none.
+**BFF endpoint spec:** none.
+**Prototype references:** the validated public booking and lead-form prototypes under `journeys/customer/prototypes/` and `journeys/guest/prototypes/` (discovery names the exact slugs); the panel and field look must stay as in the prototypes with the tenant's palette applied.
+**New migration / i18n keys / env vars / feature flags:** none (no new visible copy; the existing `teamMessageLabel` key is reused).
+
+**Files to create/modify:**
+- `apps/web/shared/components/hotsite/branded-panel.tsx` + `branded-panel.spec.tsx` (new; sibling pattern: `branded-feedback-message.tsx` / `.spec.tsx`)
+- `apps/web/shared/components/hotsite/branded-field-style.ts` + `branded-field-style.spec.ts` (new)
+- `apps/web/shared/components/hotsite/branded-panel-contrast.spec.ts` (new; sibling: `branded-feedback-contrast.spec.ts`)
+- `apps/web/features/booking/components/public/SubmitInfoForm.tsx` (modify; the reported box, lines 146-164, and the response textarea style at ~201)
+- Panel sites to convert (verify each in discovery): `apps/web/features/customer/components/TenantOptionRow.tsx`, `apps/web/features/booking/components/public/AvailabilityAlertLoginGate.tsx`, `apps/web/features/platform/components/public/LeadFormLoginRequiredGate.tsx`, `apps/web/features/platform/components/public/LeadFormTerminalCard.tsx`, `apps/web/features/booking/components/public/VariableDurationStep.tsx` (~line 150)
+- Field sites to convert: `apps/web/features/booking/components/public/AddressTextField.tsx`, `IntakeQuestionField.tsx`, `IntakeAnswersStep.tsx`, `ContactInfoFields.tsx`, `IntakeAttendeesList.tsx`, `apps/web/features/customer/components/InformationCompletionPhoneField.tsx`, `apps/web/features/platform/components/public/LeadFormFields.tsx`
+- `apps/web/features/platform/components/public/LeadFormSkeleton.tsx` (a skeleton block with no text; exempt or convert, decided in discovery)
+- The matching `.spec.tsx` of every modified component (modify; each already exists beside it)
+- `apps/web/eslint.config.js` (modify; add `SECONDARY_SURFACE_SELECTOR` and its exempt paths, mind the replace-not-merge trap) + its selector spec (sibling of `raw-form-control.eslint.spec.ts` / `restricted-syntax.eslint.spec.ts`; new file, name checked in discovery)
+- `apps/web/features/platform/hotsite/apply-branding.ts` + its spec (modify only if step 3 finds a missing token)
+- `docs/ENGINEERING_RULES_FRONTEND.md` § The `--ba-*` exception (modify; one short rule: a surface painted with a branding colour takes its text and accent from the matching derived token, via `BrandedPanel` / `brandedFieldStyle`) and the `docs/ANTI_PATTERNS.md` row (doc gate: asked at that step)
+
+**Acceptance criteria — product:**
+- [ ] On the `smassagem` tenant (text colour equal to the secondary colour), the "Mensagem da equipe" message and its label are readable on the submit-info page.
+- [ ] Every panel and input on the public booking, customer and lead-form pages shows readable text and typed text, whatever the tenant's palette.
+- [ ] The look stays the tenant's own: panels and fields keep the secondary colour, radius and border of today; only the text and accent colours change, and only when the old ones did not reach 4.5:1 (a tenant whose palette already read keeps exactly the colours it had).
+- [ ] A new panel or field written with the raw secondary background fails `pnpm lint` with a message pointing to `BrandedPanel` / `brandedFieldStyle`.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] `branded-panel.spec.tsx`: renders children on the secondary background with `--ba-secondary-text` colour and `--ba-radius`; `label` renders in `--ba-secondary-accent`; without `label` no heading renders; `className` and `data-testid` forward; `axe` clean.
+  - [ ] `branded-panel.spec.tsx` (negative guarantee, own test): the panel never renders `--ba-primary` or `--ba-text` as a text colour, so no caller path can reintroduce the inherited-colour bug.
+  - [ ] `branded-field-style.spec.ts`: valid and invalid styles (the invalid border is the branded error border); text colour is `--ba-secondary-text`; background is `--ba-secondary`.
+  - [ ] `branded-panel-contrast.spec.ts`: for every catalogue template and the `textColor === secondaryColor` fixture, panel text, panel accent and field text over `secondaryColor` are ≥4.5:1 (negative guarantee: this fails against the pre-story inherited text colour for the fixture).
+  - [ ] One spec per converted component asserts the readable-colour tokens are applied (panel/field uses the helper), and `SubmitInfoForm.spec.tsx` asserts the team message sits inside `BrandedPanel` with the label.
+  - [ ] ESLint selector spec: `SECONDARY_SURFACE_SELECTOR` flags `{ backgroundColor: 'var(--ba-secondary)' }` in a public-tree file, in a branded file, and when the value is a template literal with no expression; does not flag `borderColor: 'var(--ba-secondary)'`, the helper files or an exempt shell path; existing `raw-form-control.eslint.spec.ts` and `restricted-syntax.eslint.spec.ts` stay green (replace-not-merge proven).
+  - [ ] `hotsite-token-isolation.spec.ts` stays green; `apply-branding.spec.ts` and `default-branding.spec.ts` unchanged unless step 3 adds a token.
+- Integration: none (frontend-ts, no integration tier).
+- Tenant isolation: none — pure presentation of already tenant-scoped branding tokens; no tenant data read or written.
+- E2E:
+  - [ ] none new beyond a regression net: the existing public booking, submit-info, lead-form and customer information-completion specs run unchanged (their `data-testid`s are kept). Reason for no new test: the contract is a colour contrast, proven exactly at unit tier by `branded-panel-contrast.spec.ts`; a Playwright pixel check would be flaky.
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean (including `SECONDARY_SURFACE_SELECTOR` over the whole of `apps/web`, proving no raw secondary surface remains)
+
 ## Self-dry-run findings
 
 - The two stories are sequenced because Story 1 must present the inheritance-correct effective buffer behavior from Story 0.
@@ -366,3 +483,5 @@ Not numeric-quantity inputs, so out of scope: phone fields (`type="tel"`, `input
 - Story 2 (month markers) is independent of Stories 0 and 1. `AvailabilityCarousel` is one component with a `variant` prop used by five surfaces, so one change covers the hotsite and the three dashboard callers; the calendar variant and the calendar popovers already show the month. Discovery (2026-11-09) fixed three draft errors: the dashboard callers already print a slots heading (so the date goes into those headings instead of a second label inside `SlotPicker`), `formatDateLong` already exists (no new date helper), and an `aria-label` on the pills would break label-in-name (an `sr-only` month span is used instead).
 - Story 3 (numeric-input units) is independent of Stories 0–2. Audit method: `grep type="number"` over non-spec `.tsx` in `apps/web` (26 inputs; the 27th site is `SuffixNumberField`, already counted in row 25), then each label read from `pt-BR/web.json`; all 19 files already have a `.spec.tsx`, so no spec has to be invented. Two design traps are pinned in the story: the ESLint flat-config replace-not-merge behaviour (`ui/**` shares `rawFormControlExemptPaths` with the branded trees) and the branded `IntakeAnswersStep`, where a `ui/` primitive cannot be used (`--ba-*`). The open questions (capacity unit, points-per-currency wording, prototype stylesheet) were settled in discovery, see the next note.
 - Story 3 discovery (2026-11-10) corrected the draft: the validated prototypes and the settings page overlay the unit inside the input (not a bordered segment), `SuffixNumberField` has 11 call sites (not 4), the prototype suffix styles are inline per file (no shared stylesheet), and the settings suffix keys already exist (no parallel `common.units` namespace). Decisions: capacity unit `vagas`, points unit `pts / {currency symbol}`, `h` on narrow policy cards and `horas` kept on settings.
+- Story 4 (itinerary numbering by leg) is independent of Stories 0–3. Premise verified 2026-11-10: `BookingItineraryCard.tsx:28-34` numbers by `index + 1` and `buildItinerary()` emits one entry per resource assignment, so a 3-leg service with 6 resource rows shows 1–6. Open for discovery: whether the service-name prefix is wanted in multi-service baskets, whether a `journeys/` booking-detail prototype also numbers by row, and whether the seeded E2E journey has a leg with two resources. Renaming the `BookingItineraryLeg` type was deliberately left out (churn across types, BFF and web); a possible follow-up.
+- Story 5 (branded secondary surfaces) is independent of Stories 0–4. Premise verified 2026-11-10: `SubmitInfoForm.tsx:146-164` paints `--ba-secondary` with no text colour; `apply-branding.ts:246-248` already derives `--ba-secondary-text`/`--ba-secondary-accent` but only `shells/hotsite` consumes them; ~12 content-tree sites paint it as a background (5 panels, 7 field files). Mirrors TD57's `BrandedFeedbackMessage` pattern. Open for discovery: which `shells/hotsite` files truly pair the colour with the derived tokens (lint exempt list), placeholder colour, whether a muted-text or border token is needed, the `LeadFormSkeleton` and `TestimonialCard` (`cardBg ?? secondary`) cases, and the exact prototype slugs. Borders on `--ba-secondary` are deliberately out of scope.
