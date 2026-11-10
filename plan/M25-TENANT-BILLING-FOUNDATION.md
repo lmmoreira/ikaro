@@ -511,7 +511,7 @@ Add the shared `TaxId` value object (Brazilian **CPF** and **CNPJ** with check-d
 
 ---
 
-### M25-S07 — Billing env contract — owner-tenant slug and the merchant-profile-key function (devops + backend)
+### M25-S07 — Billing env contract — owner-tenant slug and the merchant-profile-key function (devops + backend) ✅ Done
 
 **Agent:** `devops + backend-ts`
 **Complexity:** S
