@@ -9,6 +9,7 @@ interface TaxIdProps {
 }
 
 const CPF_PATTERN = /^\d{11}$/;
+const EIN_PATTERN = /^\d{9}$/;
 // An alphanumeric CNPJ (Receita Federal, since July 2026): 12 alphanumeric characters followed by
 // 2 numeric check digits. A numeric CNPJ is the special case where every character is a digit.
 const CNPJ_PATTERN = /^[0-9A-Z]{12}\d{2}$/;
@@ -76,40 +77,80 @@ function createFreeText(raw: string, spec: TaxIdSpec): TaxId {
   return TaxId.reconstitute(value, 'OTHER');
 }
 
-function createChecked(raw: string, spec: TaxIdSpec): TaxId {
+// A US EIN is 9 digits (XX-XXXXXXX); the IRS publishes no check digit, so the shape is all there is.
+const CHECKS: Readonly<Record<Exclude<TaxIdType, 'OTHER'>, (value: string) => boolean>> = {
+  CPF: isValidCpf,
+  CNPJ: isValidCnpj,
+  EIN: (value) => EIN_PATTERN.test(value),
+};
+
+function createChecked(raw: string, types: readonly TaxIdType[]): TaxId {
   const value = raw.replace(PUNCTUATION, '').toUpperCase();
-  if (spec.types.includes('CPF') && isValidCpf(value)) return TaxId.reconstitute(value, 'CPF');
-  if (spec.types.includes('CNPJ') && isValidCnpj(value)) return TaxId.reconstitute(value, 'CNPJ');
-  throw invalid('The tax id is not a valid CPF or CNPJ');
+  const type = types.find((candidate) => candidate !== 'OTHER' && CHECKS[candidate](value));
+  if (type === undefined) throw invalid(`The tax id is not a valid ${types.join(' or ')}`);
+  return TaxId.reconstitute(value, type);
+}
+
+// The types a raw value is tried against. A declared type is the only candidate. Without one, the
+// country's checked types are tried (BR: CPF then CNPJ by shape; US: EIN) — free text 'OTHER' is
+// never a silent fallback, so a mistyped EIN is refused, not stored unchecked. A country whose only
+// type is 'OTHER' (no rule of its own) takes free text.
+function candidateTypes(spec: TaxIdSpec, declaredType: TaxIdType | undefined): TaxIdType[] {
+  if (declaredType !== undefined) {
+    if (!spec.types.includes(declaredType)) {
+      throw invalid(`A ${declaredType} tax id is not accepted here`);
+    }
+    return [declaredType];
+  }
+  const checked = spec.types.filter((type) => type !== 'OTHER');
+  return checked.length > 0 ? checked : [...spec.types];
 }
 
 /**
  * A billing tax identity. The rules come from the country's `CountrySpec.taxId`
  * (`countrySpec(code).taxId`): BR accepts a CPF or CNPJ with valid check digits (CNPJ may be
- * alphanumeric), any other country takes optional free text typed `OTHER`.
+ * alphanumeric); the US an optional 9-digit EIN, or free text typed `OTHER` when the user declares
+ * that type (another US document); any other country optional free text typed `OTHER`.
  */
 export class TaxId extends ValueObject<TaxIdProps> {
   private constructor(props: TaxIdProps) {
     super(props);
   }
 
-  /** Builds a TaxId from a present value; a blank one is `SIGNUP_TAX_ID_REQUIRED`. */
-  static create(raw: string, spec: TaxIdSpec): TaxId {
+  /**
+   * Builds a TaxId from a present value; a blank one is `SIGNUP_TAX_ID_REQUIRED`. `declaredType`
+   * is the type the user picked; omit it where the shape tells (BR CPF vs CNPJ, a one-type country).
+   */
+  static create(raw: string, spec: TaxIdSpec, declaredType?: TaxIdType): TaxId {
     if (typeof raw !== 'string' || raw.trim() === '') throw required();
-    return spec.types.includes('OTHER') ? createFreeText(raw, spec) : createChecked(raw, spec);
+    const types = candidateTypes(spec, declaredType);
+    return types.includes('OTHER') ? createFreeText(raw, spec) : createChecked(raw, types);
   }
 
   /** Like create(), for an input that may be absent: null where the country does not require one. */
-  static createOptional(raw: string | null | undefined, spec: TaxIdSpec): TaxId | null {
+  static createOptional(
+    raw: string | null | undefined,
+    spec: TaxIdSpec,
+    declaredType?: TaxIdType,
+  ): TaxId | null {
     if (raw === null || raw === undefined || raw.trim() === '') {
       if (spec.required) throw required();
       return null;
     }
-    return TaxId.create(raw, spec);
+    return TaxId.create(raw, spec, declaredType);
   }
 
   static reconstitute(value: string, type: TaxIdType): TaxId {
     return new TaxId({ value, type });
+  }
+
+  /**
+   * Whether this id's type is one the country accepts (BR: CPF or CNPJ; US: EIN). `create()` can
+   * only build an accepted type, so this is for an aggregate holding an id it did not build from
+   * the country's own spec (one reconstituted from storage, one handed over by another caller).
+   */
+  isAllowedFor(spec: TaxIdSpec): boolean {
+    return spec.types.includes(this.props.type);
   }
 
   get value(): string {

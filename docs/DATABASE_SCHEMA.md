@@ -1298,8 +1298,8 @@ Versions already in effect are immutable history. Price-list changes are audited
 |--------|------|-------------|
 | id | UUID | PRIMARY KEY |
 | tenant_id | UUID | NOT NULL, UNIQUE; also UNIQUE (tenant_id, id) for composite FKs |
-| tax_id_type | VARCHAR(10) | NULLABLE — `CNPJ` \| `CPF` \| `OTHER`. **BR: required from signup** (check digits validated; the provider needs `cpfCnpj`) — enforced by the aggregate and the signup endpoint, the column stays nullable for US and exempt tenants |
-| tax_id | VARCHAR(32) | NULLABLE — normalised: CPF digits-only, CNPJ digits and uppercase letters (alphanumeric CNPJ, July 2026); which types a country accepts comes from the `taxId` entry in `CountrySpec` (BR: CNPJ or CPF; US: none, optional free text) |
+| tax_id_type | VARCHAR(10) | NULLABLE — `CNPJ` \| `CPF` \| `EIN` \| `OTHER` (`EIN` added by M25-S06's `AllowEinTaxIdType1748500000042`). **BR: required from signup** (check digits validated; the provider needs `cpfCnpj`) — enforced by the aggregate and the signup endpoint, the column stays nullable for US and exempt tenants |
+| tax_id | VARCHAR(32) | NULLABLE — normalised: CPF digits-only, CNPJ digits and uppercase letters (alphanumeric CNPJ, July 2026); which types a country accepts comes from the `taxId` entry in `CountrySpec` (BR: CNPJ or CPF; US: `EIN` (optional, digits-only) or a declared `OTHER` (free text); any other country: `OTHER`) |
 | legal_name | VARCHAR(255) | NULLABLE |
 | billing_email | VARCHAR(255) | NULLABLE — falls back to the managers' emails |
 | address | JSONB | NULLABLE — **BR and US: required before the first paid-plan selection** (BR for provider-automatic NFS-e, US for tax; not asked at signup). Shaped like the shared `Address` value object (`street`, `number`, `complement?`, `neighborhood?`, `city`, `state`, `zipCode`), validated with the billing country's `AddressSpec`; the country is `subscriptions.country_code`. A single bounded object |
@@ -1523,7 +1523,7 @@ Types are the minimum M25-S03 needs (the discovery data model lists column names
 | `charges.provider_creation_status` | `PENDING`, `READY`, `FAILED` (`READY` ⇒ `provider_charge_id` NOT NULL) |
 | `charges.period_start` / `period_end` | NOT NULL for `PERIOD`, NULL for `RECOVERY` |
 | `billing_accounts.provider`, `charges.provider`, `provider_events.provider` | `ASAAS`, `STRIPE` |
-| `billing_accounts.tax_id_type`, `signup_registrations.tax_id_type` | `CNPJ`, `CPF`, `OTHER` |
+| `billing_accounts.tax_id_type`, `signup_registrations.tax_id_type` | `CNPJ`, `CPF`, `EIN`, `OTHER` |
 | `billing_accounts.auto_billing` | `NONE`, `PIX_AUTOMATICO`, `CARD_RECURRING` |
 | `billing_accounts.auto_billing_status` | `INACTIVE`, `PENDING_AUTHORIZATION`, `ACTIVE` |
 | `signup_registrations.source` | `SELF_SIGNUP`, `OPERATOR` |

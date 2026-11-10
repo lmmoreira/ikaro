@@ -174,6 +174,7 @@ const PERSISTENCE_BYPASS_IGNORES = [
   'src/contexts/billing/infrastructure/migrations/1748500000039-CreateBillingSchema.ts',
   'src/contexts/billing/infrastructure/migrations/1748500000040-SeedFeaturePrices.ts',
   'src/contexts/billing/infrastructure/migrations/1748500000041-BackfillExemptSubscriptions.ts',
+  'src/contexts/billing/infrastructure/migrations/1748500000042-AllowEinTaxIdType.ts',
   'src/contexts/billing/infrastructure/repositories/typeorm-feature-price.repository.ts',
   'src/contexts/notification/infrastructure/repositories/typeorm-notification-log.repository.ts',
   'src/contexts/notification/infrastructure/repositories/typeorm-notification-template.repository.ts',

@@ -30,18 +30,18 @@ export interface AddressSpec {
   readonly lookupService: 'viacep' | 'none';
 }
 
-export type TaxIdType = 'CNPJ' | 'CPF' | 'OTHER';
+export type TaxIdType = 'CNPJ' | 'CPF' | 'EIN' | 'OTHER';
 
 export interface TaxIdSpec {
   /** Whether a non-exempt tenant must provide a tax id at signup (BR: the provider needs it to charge). */
   readonly required: boolean;
-  /** The id types this country accepts. 'OTHER' = free text, no format check. */
+  /** The id types this country accepts. 'OTHER' = free text, no format check: another document the user declares. */
   readonly types: readonly TaxIdType[];
-  /** Field label — e.g. 'CPF/CNPJ', 'Tax ID (EIN)'. Not translated. */
+  /** Field label — e.g. 'CPF/CNPJ', 'Tax ID'. Not translated. */
   readonly label: string;
-  /** Input placeholder example. */
-  readonly placeholder: string;
-  /** Max stored length for an 'OTHER' free-text id (the column width). null = unconstrained. */
+  /** One input example per accepted type — a field that takes a CPF or a CNPJ shows both. */
+  readonly placeholders: Readonly<Partial<Record<TaxIdType, string>>>;
+  /** Max stored length for an 'OTHER' free-text id (the column width). null = not applicable. */
   readonly maxLength: number | null;
 }
 
@@ -108,7 +108,7 @@ const REGISTRY: Readonly<Record<string, CountrySpec>> = {
       required: true,
       types: ['CNPJ', 'CPF'],
       label: 'CPF/CNPJ',
-      placeholder: '00.000.000/0000-00',
+      placeholders: { CNPJ: '00.000.000/0000-00', CPF: '000.000.000-00' },
       maxLength: null,
     },
   },
@@ -147,9 +147,9 @@ const REGISTRY: Readonly<Record<string, CountrySpec>> = {
     },
     taxId: {
       required: false,
-      types: ['OTHER'],
-      label: 'Tax ID (EIN)',
-      placeholder: '12-3456789',
+      types: ['EIN', 'OTHER'],
+      label: 'Tax ID',
+      placeholders: { EIN: '12-3456789', OTHER: '' },
       maxLength: 32,
     },
   },
@@ -184,7 +184,7 @@ const FALLBACK: CountrySpec = {
     required: false,
     types: ['OTHER'],
     label: 'Tax ID',
-    placeholder: '',
+    placeholders: { OTHER: '' },
     maxLength: 32,
   },
 };
