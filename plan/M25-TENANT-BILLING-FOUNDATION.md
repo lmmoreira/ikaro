@@ -818,7 +818,7 @@ No new principal and no binding targets a resource this story's own Terraform ca
 
 ---
 
-### M25-S12 — `IClock` port, system clock, dev clock-advance (UC-138)
+### M25-S12 — `IClock` port, system clock, dev clock-advance (UC-138) ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** S
