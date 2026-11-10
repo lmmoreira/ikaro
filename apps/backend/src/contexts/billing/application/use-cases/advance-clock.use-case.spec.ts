@@ -11,22 +11,24 @@ describe('AdvanceClockUseCase', () => {
     useCase = new AdvanceClockUseCase(clock);
   });
 
-  it('treats { days: 1, hours: 2 } as a 26 hour step', async () => {
-    const result = await useCase.execute({ days: 1, hours: 2 });
+  it('treats { days: 1, hours: 2 } as a 26 hour step', () => {
+    const result = useCase.execute({ days: 1, hours: 2 });
 
     expect(result.offsetMs).toBe(26 * 60 * 60 * 1000);
     expect(result.instanceId).toBe(clock.instanceId);
   });
 
-  it('accepts days alone and hours alone, accumulating the offset', async () => {
-    expect((await useCase.execute({ days: 2 })).offsetMs).toBe(48 * 60 * 60 * 1000);
-    expect((await useCase.execute({ hours: 1 })).offsetMs).toBe(49 * 60 * 60 * 1000);
+  it('accepts days alone and hours alone, accumulating the offset', () => {
+    expect(useCase.execute({ days: 2 }).offsetMs).toBe(48 * 60 * 60 * 1000);
+    expect(useCase.execute({ hours: 1 }).offsetMs).toBe(49 * 60 * 60 * 1000);
   });
 
-  it('rejects an advance that would push the cumulative offset past the cap and keeps the offset', async () => {
-    await useCase.execute({ days: 36_500 });
+  it('rejects an advance that would push the cumulative offset past the cap and keeps the offset', () => {
+    useCase.execute({ days: 36_500 });
+    const before = clock.offsetMs;
 
-    await expect(useCase.execute({ hours: 1 })).rejects.toBeInstanceOf(ClockOffsetLimitError);
-    expect(clock.now().getTime()).not.toBeNaN();
+    expect(() => useCase.execute({ hours: 1 })).toThrow(ClockOffsetLimitError);
+    expect(clock.offsetMs).toBe(before);
+    expect(Number.isNaN(clock.now().getTime())).toBe(false);
   });
 });

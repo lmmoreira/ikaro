@@ -37,8 +37,13 @@ export class InternalDevClockController {
   @HttpCode(HttpStatus.OK)
   advance(
     @Body(new ZodValidationPipe(AdvanceClockSchema)) dto: AdvanceClockDto,
-  ): Promise<AdvanceClockUseCaseResult> {
-    return this.advanceClock.execute({ days: dto.days, hours: dto.hours }).catch(mapClockError);
+  ): AdvanceClockUseCaseResult {
+    try {
+      return this.advanceClock.execute({ days: dto.days, hours: dto.hours });
+    } catch (err) {
+      // Synchronous use case: the mapper turns the domain error into the 400 (it always throws).
+      return mapClockError(err);
+    }
   }
 
   @Post('reset')
