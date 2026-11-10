@@ -151,6 +151,13 @@ describe('TaxId — OTHER document (US)', () => {
     );
   });
 
+  it('counts characters, not UTF-16 code units: 32 emoji fit, 33 do not', () => {
+    expect([...TaxId.create('😀'.repeat(32), US, 'OTHER').value]).toHaveLength(32);
+    expect(codeOf(() => TaxId.create('😀'.repeat(33), US, 'OTHER'))).toBe(
+      SignupErrorCode.TAX_ID_INVALID,
+    );
+  });
+
   it('checks a declared EIN as an EIN even when the value would pass as OTHER', () => {
     expect(codeOf(() => TaxId.create('abc', US, 'EIN'))).toBe(SignupErrorCode.TAX_ID_INVALID);
   });

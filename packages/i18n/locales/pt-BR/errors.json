@@ -250,6 +250,6 @@
   "AUTH_INTERNAL_ERROR": "Ocorreu um erro inesperado. Tente novamente.",
   "AUTH_RATE_LIMITED": "Muitas requisições. Tente novamente em instantes.",
   "AUTH_TRANSACTION_CONTENTION": "O sistema está ocupado com outra operação. Tente novamente em instantes.",
-  "SIGNUP_TAX_ID_INVALID": "O CPF ou CNPJ informado é inválido.",
-  "SIGNUP_TAX_ID_REQUIRED": "Informe o CPF ou CNPJ."
+  "SIGNUP_TAX_ID_INVALID": "O documento fiscal informado é inválido.",
+  "SIGNUP_TAX_ID_REQUIRED": "Informe o documento fiscal."
 }

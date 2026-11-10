@@ -71,7 +71,8 @@ function required(): TaxIdValidationError {
 
 function createFreeText(raw: string, spec: TaxIdSpec): TaxId {
   const value = raw.trim();
-  if (spec.maxLength !== null && value.length > spec.maxLength) {
+  // Counted in characters (code points), as the VARCHAR column counts them, not UTF-16 code units.
+  if (spec.maxLength !== null && [...value].length > spec.maxLength) {
     throw invalid(`The tax id must have at most ${spec.maxLength} characters`);
   }
   return TaxId.reconstitute(value, 'OTHER');
