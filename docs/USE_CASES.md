@@ -2461,7 +2461,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
    - **A6: Unsupported `country_code`** → `400` Problem Detail: country is not supported by the platform
    - **A7: Invalid IANA timezone** → `400` Problem Detail
    - **A8: Non-exempt BR tenant without a tax id** *(planned with Billing)* → `422` `SIGNUP_TAX_ID_REQUIRED`; nothing is created.
-   - **A9: Tax id with invalid check digits** *(planned with Billing)* → `422` `SIGNUP_TAX_ID_INVALID`; nothing is created.
+   - **A9: Tax id that fails the billing country's rule** (BR: invalid CPF / CNPJ check digits; a country with an EIN: not 9 digits) *(planned with Billing)* → `422` `SIGNUP_TAX_ID_INVALID`; nothing is created.
 
 - **Postconditions:** `platform.tenants` + `platform.hotsite_configs` rows created. `TenantProvisioned` event published. First MANAGER staff and invitation email handled asynchronously by M04-S06 and M11.
 - **Events Triggered:** `TenantProvisioned` (synchronous) → triggers `StaffInvited` (asynchronous, via M04-S06)
@@ -2884,9 +2884,9 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 - **Trigger:** The manager edits the "Dados de cobrança" tab.
 - **Main Flow:** Fields: tax-id type (`CNPJ` / `CPF` / `EIN` / `OTHER`) and number (**BR: always present from signup, editable but never blankable**, because the provider needs it; US: optional), legal name, billing email and address. **BR and US: the full address is required before the first paid plan selection** (NFS-e for BR, sales tax for US). The form is rendered from the billing country's `CountrySpec` — labels, placeholders, formats and fields follow the country in the tenant's language (BR: Logradouro, Número, Complemento, Bairro, Cidade, UF, CEP with ViaCEP autofill; US: Street, Number, Apt/Suite, City, State, ZIP Code, no neighbourhood). The system validates by country (shared `Address` value object and `AddressSpec`) and saves; the identity is synced to the provider customer the next time a charge is issued. `GET` / `PUT /v1/billing/identity`.
 - **Alternative Flows:**
-   - **A1: Invalid CNPJ / CPF check digits** → field error (`BILLING_IDENTITY_TAX_ID_INVALID`).
+   - **A1: Invalid tax id for the billing country** (BR: bad CPF / CNPJ check digits; US: an `EIN` that is not 9 digits, or an `OTHER` document over 32 characters) → field error (`BILLING_IDENTITY_TAX_ID_INVALID`).
    - **A2: Invalid email** → field error (`BILLING_IDENTITY_EMAIL_INVALID`).
-   - **A3: US tenant** → no CNPJ / CPF type offered; address labels and formats in English.
+   - **A3: US tenant** → no CNPJ / CPF type offered: the tax id is optional and its type is `EIN` (9 digits, `12-3456789`) or `OTHER` (another document, free text up to 32 characters), declared by the user; address labels and formats in English.
    - **A4: Save fails** → error message, form kept.
    - **A5: Postal code or state in the wrong format for the country** → field error from the country's rule (for example CEP `00000-000`, US ZIP `90210`).
    - **A6: Address still missing** → the page, the plan tab and the dashboard banner warn (`summary.addressRequired`); `PUT /v1/billing/plan` is rejected with `BILLING_ADDRESS_REQUIRED` until it is saved, and issuing resumes automatically afterwards (UC-113 A7–A9).

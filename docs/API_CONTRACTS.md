@@ -1475,7 +1475,7 @@ Content-Type: application/json
 | `exempt` | boolean | — | *(Planned with Billing.)* Default `false`. `true` provisions an `ACTIVE`, exempt subscription (no trial, no registration); UC-110, UC-137 |
 | `features` | string[] | — | *(Planned with Billing.)* Feature-key subset; absent = every feature. Becomes the default paid items (exempt: the open-ended items); `HOTSITE` is the root dependency |
 | `registrationId` | string (UUID) | — | *(Planned with Billing.)* The OPERATOR registration reserved first through `POST /internal/billing/registrations`; Platform validates its shape only, and Billing's UC-110 use case refuses an unknown or `COMPLETED` one. Not sent with `exempt: true` |
-| `taxId` | string | ✓ for non-exempt BR | *(Planned with Billing.)* CPF or CNPJ (check digits validated, `422 SIGNUP_TAX_ID_INVALID` / `SIGNUP_TAX_ID_REQUIRED`); validated here only and never persisted or forwarded (the registration holds the tax id; Platform cannot read it, so no comparison) |
+| `taxId` | string | ✓ for non-exempt BR | *(Planned with Billing.)* CPF or CNPJ (check digits validated, `422 SIGNUP_TAX_ID_INVALID` / `SIGNUP_TAX_ID_REQUIRED`; a US id, not offered before M28, is an optional 9-digit EIN); validated here only and never persisted or forwarded (the registration holds the tax id; Platform cannot read it, so no comparison) |
 
 **Response `201 Created`:**
 ```json
@@ -1493,7 +1493,7 @@ Content-Type: application/json
 | `401` | Missing or invalid Cloud Run IAM identity token in `Authorization`, invalid `X-Internal-Key`, or invalid `X-Platform-Admin-Key` |
 | `400` | Validation failure (invalid slug format, invalid email, invalid or unsupported `country_code`, invalid timezone) |
 | `409` | Slug already in use |
-| `422` | *(Planned with Billing.)* `SIGNUP_TAX_ID_REQUIRED` (non-exempt BR tenant without a `taxId`), `SIGNUP_TAX_ID_INVALID` (check digits fail) |
+| `422` | *(Planned with Billing.)* `SIGNUP_TAX_ID_REQUIRED` (non-exempt BR tenant without a `taxId`), `SIGNUP_TAX_ID_INVALID` (the value fails the billing country's rule: CPF / CNPJ check digits for BR, a 9-digit EIN for the US) |
 
 ---
 
