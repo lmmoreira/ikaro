@@ -111,7 +111,7 @@ describe('TypeOrmFeaturePriceRepository (integration)', () => {
       }
     });
 
-    it('seeds the US list outside production (APP_ENV unset resolves to local)', async () => {
+    it('seeds the US list', async () => {
       const price = await repo.findByNaturalKey('HOTSITE', US, 'STANDARD', 'MONTHLY');
 
       expect(price).not.toBeNull();
@@ -190,7 +190,7 @@ describe('TypeOrmFeaturePriceRepository (integration)', () => {
       }
     });
 
-    it('seeds no US row when APP_ENV=production, and the BR list is still complete', async () => {
+    it('seeds the complete BR and US lists on an empty catalog, whatever APP_ENV says', async () => {
       const queryRunner = dataSource.createQueryRunner();
       await queryRunner.startTransaction();
       const previous = process.env['APP_ENV'];
@@ -201,10 +201,7 @@ describe('TypeOrmFeaturePriceRepository (integration)', () => {
         process.env['APP_ENV'] = 'production';
         await new SeedFeaturePrices1748500000040().up(queryRunner);
 
-        const counts = await countRows(queryRunner);
-        expect(counts.us).toBe(0);
-        expect(counts.prices).toBe(6);
-        expect(counts.versions).toBe(6);
+        expect(await countRows(queryRunner)).toEqual({ prices: 12, versions: 12, us: 6 });
       } finally {
         if (previous === undefined) {
           delete process.env['APP_ENV'];
@@ -212,25 +209,6 @@ describe('TypeOrmFeaturePriceRepository (integration)', () => {
           process.env['APP_ENV'] = previous;
         }
         await queryRunner.rollbackTransaction();
-        await queryRunner.release();
-      }
-    });
-
-    it('refuses an unknown APP_ENV rather than taking the production-or-not branch by accident', async () => {
-      const queryRunner = dataSource.createQueryRunner();
-      const previous = process.env['APP_ENV'];
-      try {
-        process.env['APP_ENV'] = 'prod';
-
-        await expect(new SeedFeaturePrices1748500000040().up(queryRunner)).rejects.toThrow(
-          'Unknown APP_ENV',
-        );
-      } finally {
-        if (previous === undefined) {
-          delete process.env['APP_ENV'];
-        } else {
-          process.env['APP_ENV'] = previous;
-        }
         await queryRunner.release();
       }
     });

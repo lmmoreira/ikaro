@@ -1,5 +1,4 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
-import { resolveAppEnv } from '../../../../shared/database/resolve-app-env';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 
 // Seeds the launch price list (M25-S04) — docs/DATABASE_SCHEMA.md § `billing.feature_prices` /
@@ -33,9 +32,9 @@ const BR_PRICES: SeedPrice[] = [
   { featureKey: 'LEAD_FORM', tier: 'STANDARD', amountMinor: 1900 },
 ];
 
-// NON-PRODUCTION test values: the BR list plus 40% (the owner's call, 2026-11-10), exact and
-// unrounded. The US list stays staging-only until Stripe's real fees are confirmed (UC-112, M28),
-// so these are never a commercial decision.
+// US list: the BR list plus 40% (the owner's call, 2026-11-10), exact and unrounded, seeded in
+// every environment like the BR list. Operators change it later through UC-112's price endpoints
+// (M26), as dated versions.
 const US_PRICES: SeedPrice[] = [
   { featureKey: 'HOTSITE', tier: 'STANDARD', amountMinor: 6860 },
   { featureKey: 'BOOKING', tier: 'STANDARD', amountMinor: 15260 },
@@ -47,14 +46,9 @@ const US_PRICES: SeedPrice[] = [
 
 export class SeedFeaturePrices1748500000040 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // The migration reads process.env directly (no Nest config); unset means `local`, an unknown
-    // value throws, so a typo can never take the production branch.
-    const includeUs = resolveAppEnv(process.env) !== 'production';
-
+    // Every environment gets both lists; the migration reads no environment variable.
     await this.seedCountry(queryRunner, 'BR', 'BRL', BR_PRICES);
-    if (includeUs) {
-      await this.seedCountry(queryRunner, 'US', 'USD', US_PRICES);
-    }
+    await this.seedCountry(queryRunner, 'US', 'USD', US_PRICES);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

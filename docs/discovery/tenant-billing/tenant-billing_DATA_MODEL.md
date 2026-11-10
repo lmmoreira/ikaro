@@ -402,7 +402,7 @@ One row per `merchant_profile_key`: `last_reconcile_ok_at`, `webhook_status` (`O
 ## 4. Migration ordering
 
 1. Create schema `billing`, `CREATE EXTENSION IF NOT EXISTS btree_gist` (needed by the items exclusion constraint) and the tables, including `signup_registrations` and `provider_health` (expand only, no existing table touched).
-2. Seed `feature_prices` and one `feature_price_versions` row each, `effective_from` = release date, from the **catalog approved in story A1** (BR launch list per decisions 77; US list only for non-production until decision 78 is closed).
+2. Seed `feature_prices` and one `feature_price_versions` row each, `effective_from` = release date, from the **catalog approved in story A1** (BR launch list per decisions 77; US list = BR + 40%, seeded in every environment, decision 78 superseded at M25-S04).
 3. Backfill existing tenants (CAND-21): `ACTIVE`, all features, `exempt = true` (real tenants created later start as `TRIALING` through CAND-01; Ikaro's own tenant is `exempt = true` too). Idempotent; per the migration-backfill rule the endpoints are not live traffic yet, but the backfill runs in the same release anyway so no tenant is ever without a row.
 4. Add the Billing notification templates.
 5. Deploy code with transient-lookup fail-open only; the publisher and the Billing handler ship in the same release. The bus does not version-route (see §3), so the handler itself tolerates a legacy payload without `countryCode` (skip + self-heal, decision 119). A successful read with no subscription is an alertable provisioning integrity failure and must not grant all features.
