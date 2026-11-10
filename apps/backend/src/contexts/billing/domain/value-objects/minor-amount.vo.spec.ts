@@ -9,6 +9,10 @@ describe('MinorAmount', () => {
     expect(amount.currency).toBe('BRL');
   });
 
+  it.each(['BRL', 'USD', 'EUR'])('accepts the real ISO currency %s', (currency) => {
+    expect(MinorAmount.create(100, currency).currency).toBe(currency);
+  });
+
   it('accepts zero', () => {
     expect(MinorAmount.create(0, 'BRL').amountMinor).toBe(0);
   });
@@ -24,9 +28,12 @@ describe('MinorAmount', () => {
     expect(() => MinorAmount.create(-1, 'BRL')).toThrow(MinorAmountValidationError);
   });
 
-  it.each(['', 'br', 'BRLL', 'B1L', 'R$'])('rejects a non-ISO currency (%s)', (currency) => {
-    expect(() => MinorAmount.create(100, currency)).toThrow(MinorAmountValidationError);
-  });
+  it.each(['', 'br', 'BRLL', 'B1L', 'R$', 'ZZZ', 'QQQ'])(
+    'rejects a non-ISO currency (%s)',
+    (currency) => {
+      expect(() => MinorAmount.create(100, currency)).toThrow(MinorAmountValidationError);
+    },
+  );
 
   it('reconstitute skips validation', () => {
     expect(MinorAmount.reconstitute(-5, 'x').amountMinor).toBe(-5);

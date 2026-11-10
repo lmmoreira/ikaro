@@ -6,7 +6,9 @@ interface MinorAmountProps {
   currency: string;
 }
 
-const ISO_CURRENCY_PATTERN = /^[A-Z]{3}$/;
+// The runtime's own ISO 4217 list (ICU), not just the three-letter shape: "ZZZ" is well-formed but
+// not a currency.
+const ISO_4217_CODES: ReadonlySet<string> = new Set(Intl.supportedValuesOf('currency'));
 
 /**
  * A Billing amount: a non-negative integer in minor units (centavos / cents) plus an ISO 4217
@@ -27,9 +29,9 @@ export class MinorAmount extends ValueObject<MinorAmountProps> {
     if (amountMinor < 0) {
       throw new MinorAmountValidationError(`amountMinor must not be negative: ${amountMinor}`);
     }
-    if (!ISO_CURRENCY_PATTERN.test(currency)) {
+    if (!ISO_4217_CODES.has(currency)) {
       throw new MinorAmountValidationError(
-        `currency must be a 3-letter uppercase ISO 4217 code: ${currency}`,
+        `currency must be an uppercase ISO 4217 code: ${currency}`,
       );
     }
     return new MinorAmount({ amountMinor, currency });

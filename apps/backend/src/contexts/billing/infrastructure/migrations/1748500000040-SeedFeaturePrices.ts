@@ -33,9 +33,17 @@ const BR_PRICES: SeedPrice[] = [
   { featureKey: 'LEAD_FORM', tier: 'STANDARD', amountMinor: 1900 },
 ];
 
-// NON-PRODUCTION placeholder: the US list stays staging-only until Stripe's real fees are
-// confirmed (UC-112, M28), so these amounts are test values, never a commercial decision.
-const US_PRICES: SeedPrice[] = BR_PRICES.map((price) => ({ ...price }));
+// NON-PRODUCTION test values: the BR list plus 40% (the owner's call, 2026-11-10), exact and
+// unrounded. The US list stays staging-only until Stripe's real fees are confirmed (UC-112, M28),
+// so these are never a commercial decision.
+const US_PRICES: SeedPrice[] = [
+  { featureKey: 'HOTSITE', tier: 'STANDARD', amountMinor: 6860 },
+  { featureKey: 'BOOKING', tier: 'STANDARD', amountMinor: 15260 },
+  { featureKey: 'LOYALTY', tier: 'STANDARD', amountMinor: 4060 },
+  { featureKey: 'CHATBOT', tier: 'BASIC', amountMinor: 5460 },
+  { featureKey: 'CHATBOT', tier: 'PLUS', amountMinor: 11060 },
+  { featureKey: 'LEAD_FORM', tier: 'STANDARD', amountMinor: 2660 },
+];
 
 export class SeedFeaturePrices1748500000040 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {

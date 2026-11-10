@@ -15,7 +15,7 @@ Single PostgreSQL instance
 ├── staff      (Staff Context)
 ├── loyalty    (Loyalty Context)
 ├── notification (Notification Context)
-└── billing    (Billing Context — schema built, domain code planned; M25-S03)
+└── billing    (Billing Context — schema built (M25-S03); price-list domain code built (M25-S04), the rest planned)
 ```
 
 Plus a `shared` schema (not a bounded context) holding the transactional outbox/inbox transport tables (see **Schema: `shared`** below).
@@ -1289,7 +1289,7 @@ The amount lives in `feature_price_versions`, so a price change is a new dated r
 | **UNIQUE** | (feature_price_id, effective_from) WHERE superseded_at IS NULL | |
 | **INDEX** | (feature_price_id, effective_from DESC) WHERE superseded_at IS NULL | the amount in force: `effective_from <= :periodStart` ordered DESC |
 
-**Seed (M25-S04, `SeedFeaturePrices`):** the BR launch list (`BRL`, monthly, tax-inclusive: HOTSITE 4900, BOOKING 10900, LOYALTY 2900, CHATBOT `BASIC` 3900 / `PLUS` 7900, LEAD_FORM 1900 minor units) is inserted with one version each, `effective_from = 2026-01-01` (a fixed constant, identical in every environment, not the run date), `created_by = 'SYSTEM'`, `reason = 'Initial catalog (M25-S02)'`, `announced_at` / `batch_id` NULL. A `USD` placeholder list is inserted **only when `APP_ENV` is not `production`** (unset means `local`). The migration is idempotent: the price is upserted on its natural key and a version is inserted only for a price that has none.
+**Seed (M25-S04, `SeedFeaturePrices`):** the BR launch list (`BRL`, monthly, tax-inclusive: HOTSITE 4900, BOOKING 10900, LOYALTY 2900, CHATBOT `BASIC` 3900 / `PLUS` 7900, LEAD_FORM 1900 minor units) is inserted with one version each, `effective_from = 2026-01-01` (a fixed constant, identical in every environment, not the run date), `created_by = 'SYSTEM'`, `reason = 'Initial catalog (M25-S02)'`, `announced_at` / `batch_id` NULL. A `USD` test list (the BR amounts plus 40%, unrounded: 6860 / 15260 / 4060 / 5460 / 11060 / 2660 in the same order) is inserted **only when `APP_ENV` is not `production`** (unset means `local`); it is not a commercial price. The migration is idempotent: the price is upserted on its natural key and a version is inserted only for a price that has none.
 
 Versions already in effect are immutable history. Price-list changes are audited **here** (`created_by`, `reason`, `batch_id`, `created_at`, `superseded_at`) — they have no tenant, so they are not in `operator_audit`. Growth: one row per price change.
 

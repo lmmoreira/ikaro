@@ -118,6 +118,27 @@ describe('TypeOrmFeaturePriceRepository (integration)', () => {
       expect(price!.currency).toBe('USD');
     });
 
+    it.each([
+      ['HOTSITE', 'STANDARD', 6860],
+      ['BOOKING', 'STANDARD', 15260],
+      ['LOYALTY', 'STANDARD', 4060],
+      ['CHATBOT', 'BASIC', 5460],
+      ['CHATBOT', 'PLUS', 11060],
+      ['LEAD_FORM', 'STANDARD', 2660],
+    ])(
+      'seeds the US test value for %s/%s (BR + 40%%) at %i',
+      async (featureKey, tier, amountMinor) => {
+        const price = await repo.findByNaturalKey(
+          featureKey as 'HOTSITE',
+          US,
+          tier as 'STANDARD',
+          'MONTHLY',
+        );
+
+        expect(price!.versionInForceAt(dateOf('2026-01-01'))?.amount.amountMinor).toBe(amountMinor);
+      },
+    );
+
     it('rejects a negative amount at the database (CHECK amount_minor >= 0)', async () => {
       const [{ id }] = await dataSource.query(
         `SELECT "id" FROM "billing"."feature_prices" WHERE "feature_key" = 'HOTSITE' AND "country_code" = 'BR'`,
