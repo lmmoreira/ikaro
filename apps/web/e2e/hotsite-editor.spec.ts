@@ -588,9 +588,10 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     // justify-content lives on the stage div (max-w-7xl mx-auto), not the section itself — see
     // the "Fix: left/right anchor..." follow-up in this same story.
     const heroStage = heroSection.locator('> div').first();
-    await expect(heroStage).toHaveCSS('justify-content', 'flex-end');
+    // Chromium 158+ (Playwright 1.65) reports computed flex-end/flex-start as flow-end/flow-start.
+    await expect(heroStage).toHaveCSS('justify-content', 'flow-end');
     await expect(heroStage).toHaveCSS('max-width', '1280px');
-    await expect(heroSection).toHaveCSS('align-items', 'flex-start');
+    await expect(heroSection).toHaveCSS('align-items', 'flow-start');
   });
 
   test('Booking CTA panel: setting contentPositionX/contentPositionY on the centered variant persists after Publish and reload, and the live page applies the expected alignment (M18-S05)', async ({
@@ -631,9 +632,10 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     // justify-content lives on the stage div (max-w-7xl mx-auto), not the section itself — same
     // structure as HeroModule, see the "Fix: left/right anchor..." follow-up in this same story.
     const bookingCtaStage = bookingCtaSection.locator('> div').first();
-    await expect(bookingCtaStage).toHaveCSS('justify-content', 'flex-end');
+    // Chromium 158+ (Playwright 1.65) reports computed flex-end/flex-start as flow-end/flow-start.
+    await expect(bookingCtaStage).toHaveCSS('justify-content', 'flow-end');
     await expect(bookingCtaStage).toHaveCSS('max-width', '1280px');
-    await expect(bookingCtaSection).toHaveCSS('align-items', 'flex-start');
+    await expect(bookingCtaSection).toHaveCSS('align-items', 'flow-start');
   });
 
   test('Booking CTA panel: uploading a background image and setting the focal point persist after Publish and reload, and the live page applies the object-position (M18-S05)', async ({
