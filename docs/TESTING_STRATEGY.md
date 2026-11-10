@@ -8,7 +8,7 @@
 Tests in Ikaro are **executable specifications**. Each test proves that a specific piece of behaviour from `docs/USE_CASES.md` works — not just that code runs. An AI agent implementing any UC must write tests first (TDD) and must be able to run them locally before pushing.
 
 **Three non-negotiable rules:**
-1. Every UC must have a unit test, an integration test, and a tenant-isolation test.
+1. Every UC must have a unit test, an integration test, and a tenant-isolation test. A data-only migration is the one exception: it gets no integration spec; verify it against real data in a real environment and record the result in the story (`docs/ENGINEERING_RULES_TESTING.md` § Migration specs).
 2. Tests are co-located with source: `booking.spec.ts` lives next to `booking.aggregate.ts`.
 3. No `.skip()`, `.only()`, or `setTimeout()` in any test file — CI blocks the merge. `.skip()`/`.only()` are CI-enforced via ESLint (`jest/no-disabled-tests`/`jest/no-focused-tests`, `vitest/no-disabled-tests`/`vitest/no-focused-tests`, TD37-S15); `setTimeout` in a test body has no dedicated detector yet.
 4. **A new or changed Playwright spec must actually be run** (`npx playwright test`) against the real dev stack before it's considered done. Inspecting rendered HTML with `curl` or reasoning from the source code is not a substitute — it cannot catch wrong-page selectors, timezone-parsing mismatches, or formatting differences (e.g. capitalization) that only show up when the real browser renders the real app. TD02-S09's `localization.spec.ts` shipped with 3 such bugs that only surfaced once the suite was actually executed.

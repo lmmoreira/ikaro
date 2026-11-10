@@ -6,7 +6,7 @@
 Checked at the end of every story or TD, before `/pre-pr` runs (CLAUDE.md §9 Steps 3–9). Referenced by `/mark-done` and CLAUDE.md §7 (Definition of Done) and §10.
 
 - [ ] Matches cited UC's main + alt flows; CI passes (`pnpm lint`, `pnpm test`, `pnpm type-check`; full per-PR gate list in `.copilot/context.md` §7 — Snyk is a weekly scan, not a per-PR gate)
-- [ ] Coverage delta ≥ 80%; unit + integration + tenant-isolation tests pass
+- [ ] Coverage delta ≥ 80%; unit + integration + tenant-isolation tests pass (a data-only migration is the exception: verified against real data, result recorded in the story — `docs/ENGINEERING_RULES_TESTING.md` § Migration specs)
 - [ ] All queries filter `tenant_id`; all events include `tenantId`/`eventId`/`correlationId`
 - [ ] Migration is backward-compatible (expand/contract) — see "Migration history" below for the pre-production exception
 - [ ] New/modified migration → `docs/DATABASE_SCHEMA.md`'s matching table updated in the same commit (columns, defaults, constraints, indexes) — same discipline as the `integration-global-setup.ts` registration requirement, same silent-drift risk if skipped
