@@ -143,6 +143,9 @@ describe('RescheduleBookingPage', () => {
     expect(screen.getAllByText('Cliente')).toHaveLength(2);
     await user.type(screen.getByRole('textbox'), 'Deixar carro na parte da frente');
     await user.click(screen.getByRole('button', { name: 'choose date' }));
+    expect(
+      screen.getByText('Horários disponíveis — Quarta-feira, 17 de junho'),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'choose slot' }));
 
     const desktopAside = container.querySelector('aside.hidden');

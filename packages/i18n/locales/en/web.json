@@ -99,6 +99,7 @@
       "nextDays": "Next days",
       "noSlots": "No time slots available in the coming days",
       "today": "Today",
+      "slotsHeading": "Available times — {date}",
       "previousMonth": "Previous month",
       "nextMonth": "Next month",
       "outOfRangeMessage": "This date is beyond the {days}-day booking limit."
@@ -777,7 +778,7 @@
       "keptPickLabel": "{name} · {type}",
       "keptNote": "To change the professional or equipment, cancel this booking and make a new reservation. Rooms assigned automatically may change.",
       "dateSectionLabel": "Choose the new date",
-      "slotsSectionLabel": "Available times",
+      "slotsSectionLabel": "Available times — {date}",
       "sameDurationNote": "Your service keeps the same duration and price.",
       "serviceLabel": "Service",
       "whenLabel": "Date and time",
@@ -2426,7 +2427,7 @@
       "rescheduleSheetDescription": "{name} • {date} at {time}",
       "currentSlotLabel": "Current slot",
       "chooseNewDateLabel": "Choose a new day",
-      "availableSlotsLabel": "Available slots",
+      "availableSlotsLabel": "Available slots — {date}",
       "rescheduleNotesPlaceholder": "Optional reschedule notes",
       "summaryCurrent": "Current: {time}",
       "summaryNew": "New: {time}",
@@ -2934,7 +2935,7 @@
       "steps": {
         "servicesHint": "Only appointment services are listed (classes have their own flow). When a service needs a resource to be chosen, one more step appears here.",
         "retry": "Try again",
-        "slotsLabel": "Available times",
+        "slotsLabel": "Available times — {date}",
         "noticeLegend": "• Inside the business's minimum notice ({hours} h). Only staff can book these times; a customer does not see them.",
         "intakeOptional": "Everything is optional for staff: continue with what the customer told you."
       },

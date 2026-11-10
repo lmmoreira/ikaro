@@ -1,6 +1,8 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { useFormatting } from '@/shared/lib/formatting/use-formatting';
+import { utcDateFromISO } from '@/shared/lib/formatting/calendar-day';
 import type { AvailableSlot, ResourceSelectionItem } from '@ikaro/types';
 import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feedback-message';
 import type { StepError } from '@/features/booking/hooks/useBookingFlow';
@@ -53,6 +55,7 @@ export function AvailabilityStep({
 }: AvailabilityStepProps): React.JSX.Element {
   const t = useTranslations('booking');
   const tc = useTranslations('common');
+  const { formatDateLong } = useFormatting();
 
   return (
     <div>
@@ -89,6 +92,15 @@ export function AvailabilityStep({
 
       {selectedDate && (
         <div className="mt-4">
+          <p
+            className="mb-3 text-sm font-semibold"
+            style={{ color: 'var(--ba-text)' }}
+            data-testid="slots-heading"
+          >
+            {t('availability.slotsHeading', {
+              date: formatDateLong(utcDateFromISO(selectedDate)),
+            })}
+          </p>
           <SlotPicker
             slug={slug}
             serviceIds={selectedServiceIds}
