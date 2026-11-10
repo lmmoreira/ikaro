@@ -257,9 +257,111 @@ Add month context to the date carousel in two places. The approved prototype is 
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean (including the `LOCALE_LITERAL_SELECTOR` ESLint rule)
 
+---
+
+### Story 3 — Show the unit of every numeric input through one shared `NumberInput` primitive, and lint raw `<Input type="number">`
+
+**Agent:** frontend-ts
+**Complexity:** L
+**Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md` § UI layer model and § Reuse the repo's UI primitives (and § The `--ba-*` exception); `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys and § `no-restricted-syntax` selectors must be checked against the 3 already-documented bypass classes; `docs/TESTING_STRATEGY.md` § apps/web Testing Infrastructure and § Layer 5 (before touching an E2E test); `docs/CODE_STANDARDS.md`; `journeys/README.md` (prototype updates)
+**Dependencies:** none (Stories 0–2 are unrelated)
+**Pattern:** Atomic design — one new atom, `ui/number-input.tsx` (an `Input` plus a unit addon in one frame, `unit` a required prop so a missing unit is a type error), consumed by every feature form; plus a lint-enforced ban (a `no-restricted-syntax` selector) so the next form cannot regrow the gap. Plain composition otherwise.
+**Discovered:** 2026-11-10, user report on the production service edit page (`/dashboard/services/<id>/edit`): the buffer field ("Tempo de preparo após o serviço (buffer)") and the leg fields give no hint whether the number is minutes, hours or days, while the same concept on the settings page ("Buffer entre agendamentos") shows a "min" suffix.
+**Root cause:** the unit-aware field exists only as `SuffixNumberField` inside `features/platform/components/settings/SettingsFormFields.tsx:65`, local to the settings feature and typed to `SettingsFieldName`, so no other form could reuse it. Every other form draws a bare `<Input type="number">` (27 call sites, listed below). Nothing enforces a unit: the existing raw-control rule (`RAW_INPUT_SELECTOR`) only forbids a raw `<input>`, and `ui/input` with `type="number"` passes. The policy cards instead hand-write the unit into the label ("Duração mínima (minutos)"), and `ServicePriceDurationFields.tsx` hardcodes the literal `min` (not translated).
+
+**Description:**
+Every numeric input in `apps/web` states its unit next to the value, through one primitive, and the repo fails lint when a new one does not.
+
+1. **New atom `apps/web/shared/components/ui/number-input.tsx` (`NumberInput`) + `number-input.spec.tsx`.** It renders `ui/input` with `type="number"` next to a unit addon as one visual frame (the addon pattern `SettingsFormAdvancedFields` already uses for the phone prefix: input and a bordered segment, so the unit never overlaps the digits or the browser's spinner). Props: everything `Input` takes, minus `type`, plus a required `unit: string` (already translated by the caller; the primitive imports no i18n, per the layer table) and `unitPosition?: 'suffix' | 'prefix'` (default `'suffix'`; `'prefix'` is for money: the currency symbol). The unit span gets an `id` and is appended to the input's `aria-describedby` (merged with the caller's own value, never replacing it) so a screen reader announces "Tempo de virada, 10, min". It uses semantic tokens only (`bg-muted`, `text-muted-foreground`, `border-input`), never `gray-*` or `--ba-*`. It forwards the ref and keeps `aria-invalid` styling working on the input; the addon sits inside the same frame so the invalid border is not split.
+2. **Convert every call site below to `NumberInput`.** The label text stays as it is except where the unit moves out of it (policy cards). Every `data-testid`, `id`, `name` and `aria-*` stays identical so no E2E selector changes. Unit text comes from locale keys in `pt-BR` and `en` (never a literal in JSX).
+3. **Migrate `SuffixNumberField` onto `NumberInput`** (it keeps its label, hint, feedback wiring and `SettingsFieldName` typing; only the input-plus-span markup it draws by hand goes) so there is one implementation, not two.
+4. **New lint rule `NUMBER_INPUT_SELECTOR`** in `apps/web/eslint.config.js`, added to `NON_FETCH_SELECTORS`: a JSX `<Input>` carrying a `type` attribute that resolves to `"number"` is an error: *"A bare <Input type=\"number\"> shows no unit. Use ui/number-input with a unit (docs/ENGINEERING_RULES_FRONTEND.md § Reuse the repo's UI primitives; TD51-S3)."* It must cover the three documented bypass classes (`docs/ENGINEERING_RULES_SHARED.md` § `no-restricted-syntax` selectors): the value as `type={'number'}` (expression container), as a no-substitution template literal `` type={`number`} ``, and as a conditional/logical expression containing the literal (`type={cond ? 'number' : 'text'}`). A `type` held in a variable or spread (`{...props}`) is the one shape a syntax selector cannot follow; the story documents that limit in the config comment, as `RAW_CONTROL_TAG` does. `shared/components/ui/**` is exempt (it contains `NumberInput` itself and `Input`'s own spec). **ESLint flat-config trap:** a later block REPLACES an earlier block's `no-restricted-syntax` list for the files it matches. `rawFormControlExemptPaths` (which includes `shared/components/ui/**` together with the branded public trees) filters out `RAW_FORM_CONTROL_SELECTORS` only, so the new selector would also be dropped for the branded trees by accident, or kept for `ui/**` by accident. Give `ui/**` its own exemption by exact filter, and add a spec proving the selector fires in a feature file, in a branded public-tree file that uses `ui/Input`, and not in `ui/**`. A genuinely unit-less numeric input (none is expected: a count carries "unid." or "pessoas") is listed by exact path in a new `numberInputExemptPaths` array with a reason, never a wildcard, mirroring `rawButtonExemptPaths`.
+5. **Docs and prototypes in the same PR.** `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives and its "What the repo enforces" table gain a row for the new selector and the `NumberInput` rule. The prototypes below show the unit on the same fields, so the validated UX matches what ships.
+
+**Audit — every numeric input in `apps/web` (grep `type="number"` over non-spec `.tsx`, 2026-11-10), with the unit it gets:**
+
+| # | File:line | Field (pt-BR label today) | Unit pt-BR / en | Position | Notes |
+|---|---|---|---|---|---|
+| 1 | `features/booking/components/dashboard/services/ServiceBufferAfterMinutesField.tsx:49` | Tempo de preparo após o serviço (buffer) | `min` / `min` | suffix | The reported bug. The `w-48` and disabled styling move to `NumberInput`'s frame. The blank-means-inherit placeholder stays. |
+| 2 | `.../services/ServiceLegsPanel.tsx:136` | Duração (etapa) | `min` / `min` | suffix | |
+| 3 | `.../services/ServiceLegsPanel.tsx:154` | Transição até a próxima etapa | `min` / `min` | suffix | |
+| 4 | `.../services/ServiceResourceTypeFields.tsx:158` | Quantidade necessária | `unid.` / `units` | suffix | Used in the main requirements panel and in every leg (`scope`). |
+| 5 | `.../services/ServiceFormFields.tsx:110` | Pontos de fidelidade | `pts` / `pts` | suffix | |
+| 6 | `.../services/ServicePriceDurationFields.tsx:55` | Preço | currency symbol | prefix | Replaces the hand-built `relative` + absolute span; the symbol already comes from the tenant. |
+| 7 | `.../services/ServicePriceDurationFields.tsx:88` | Duração | `min` / `min` | suffix | Replaces the hardcoded, untranslated `min` span. |
+| 8 | `.../services/PolicyNumberField.tsx:46` | feeds 8 fields: `PolicyDurationPricingCard` (duração mínima, máxima, intervalo de escolha, incremento de cobrança → `min`; valor por incremento, cobrança mínima → currency prefix) and `PolicyConfirmationAndWindowCards` (aviso mínimo → `horas`; antecedência máxima → `dias`) | per field | per field | `PolicyNumberField` takes `unit` (+ `unitPosition`) as a required prop and passes it through. The labels drop their parentheses: "Duração mínima (minutos)" → "Duração mínima", "Valor por incremento (R$)" → "Valor por incremento", "Cobrança mínima (R$, opcional)" → "Cobrança mínima (opcional)". |
+| 9 | `.../services/PolicyConfirmationAndWindowCards.tsx:41` | Segurar horário por (min) | `min` / `min` | suffix | Label → "Segurar horário por". |
+| 10 | `.../services/PolicyConfirmationAndWindowCards.tsx:68` | Cancelar até (horas antes) | `h antes` / `h before` | suffix | Label → "Cancelar até". |
+| 11 | `.../services/PolicyConfirmationAndWindowCards.tsx:85` | Reagendar até (horas antes) | `h antes` / `h before` | suffix | Label → "Reagendar até". |
+| 12 | `.../services/PolicyWhoHowCard.tsx:67` | Duração máxima de uma reserva recorrente (dias) | `dias` / `days` | suffix | Label drops "(dias)". |
+| 13 | `.../resources/ResourceCreateForm.tsx:113` | Tempo de virada (turnover) | `min` / `min` | suffix | |
+| 14 | `.../resources/ResourceCreateForm.tsx:127` | Capacidade máxima | `pessoas` / `people` | suffix | Discovery confirms the unit with the user (a resource can be a room, a staff member or equipment). |
+| 15 | `.../resources/ResourceEditFormFields.tsx:124` | Tempo de virada (turnover) | `min` / `min` | suffix | Same copy as 13. |
+| 16 | `.../resources/ResourceEditFormFields.tsx:138` | Capacidade máxima | `pessoas` / `people` | suffix | Same copy as 14. |
+| 17 | `.../bookings/mark-complete/MarkCompleteLineFields.tsx:53` | Cobrado | currency symbol | prefix | The quoted price line above it already prints the money format. |
+| 18 | `.../bookings/mark-complete/MarkCompleteLoyaltyPanel.tsx:60` | Pontos a usar | `pts` / `pts` | suffix | |
+| 19 | `.../bookings/new-booking/NewBookingIntakeStep.tsx:192` | Quantidade de participantes | `pessoas` / `people` | suffix | Dashboard counterpart of row 22. |
+| 20 | `features/platform/components/settings/SettingsLoyaltySection.tsx:64` | Pontos por unidade monetária | `pts por {currency}` / `pts per {currency}` | suffix | The key takes a `{currency}` parameter, the tenant's symbol. |
+| 21 | `features/platform/components/settings/SettingsLoyaltySection.tsx:106` | Saldo mínimo para notificar | `pts` / `pts` | suffix | |
+| 22 | `features/platform/components/hotsite/modules/BookingCtaConfigPanel.tsx:174` | Número de dias exibidos | `dias` / `days` | suffix | |
+| 23 | `.../hotsite/modules/GalleryConfigPanel.tsx:89` | Máximo de imagens visíveis | `imagens` / `images` | suffix | |
+| 24 | `.../hotsite/modules/presentation-field-parts.tsx:44` (`OpacityField`) | Opacidade (%), Opacidade inicial (%), Opacidade final (%) | `%` | suffix | The three labels (`overlayOpacityLabel`, `overlayFromOpacityLabel`, `overlayToOpacityLabel`) drop "(%)". |
+| 25 | `features/platform/components/settings/SettingsFormFields.tsx:84` (`SuffixNumberField`) | all 4 settings fields (cancelamento, buffer, antecedência mínima/máxima) | already `horas`/`min`/`dias` | suffix | Migrated onto `NumberInput`, no visible change. |
+| 26 | `features/booking/components/public/IntakeAnswersStep.tsx:98` | Quantidade de participantes (guest booking) | `pessoas` / `people` | suffix | **Out of lint scope**: a raw `<input>` in `features/booking/components/public/**`, a tenant-branded tree (`--ba-*`) listed in `rawFormControlExemptPaths`, where a `ui/` primitive cannot be used. It gets a local branded unit span built from `--ba-text` (decision pre-made: no second primitive, no `--ba-*` in `ui/`). |
+
+Not numeric-quantity inputs, so out of scope: phone fields (`type="tel"`, `inputMode="numeric"`), the postal code (`type="text"`), `AddressTextField`, and every `datetime`/time picker.
+
+**Prototype references:** `journeys/staff/prototypes/servicos/` (`02-service-create`, `02b`, `02c`, `03-service-edit`, `03c`, `03d-service-edit-policy-error`, `03f-service-edit-recurrence-hint`, and `03e/03g/03h/03i` where they carry the buffer, legs or policy block; discovery greps each for the changed fields), `journeys/manager/prototypes/resources/02-criar-recurso.html` and `02b`, `journeys/manager/prototypes/configuracoes/01*.html` (loyalty and notify-minimum fields only; the four fields that already have a suffix are the visual reference), `journeys/manager/prototypes/hotsite/01f-module-config.html` (carousel days, gallery max, opacity), `journeys/guest/prototypes/book-a-service/13*.html` and `journeys/customer/prototypes/book-a-service/03b/03c/03e` (participants unit). `journeys/manager/prototypes/turmas/06-matriculas.html` is a different, unbuilt journey and out of scope. The unit addon is one `.unit-addon` class in the shared stylesheet, never inline per file (same rule as Story 2's `.month-marker`).
+**Backend HTTP surface:** none.
+**BFF endpoint spec:** none.
+**New migration / i18n keys / env vars / feature flags:** no migration, env var or flag. New unit keys in `packages/i18n/locales/pt-BR/web.json` and `.../en/web.json` (same change, both locales): shared unit words under one namespace (`common.units.minutes`, `hours`, `days`, `points`, `people`, `images`, `percent`, `quantity`, `hoursBefore`, `pointsPerCurrency` with `{currency}`), reused everywhere so a unit is spelled once; plus the changed labels in rows 8–12 and 24 (parenthesised unit removed). `dashboard.settings.minutesSuffix`, `hoursSuffix`, `daysSuffix` are re-pointed to the shared keys or removed if nothing else reads them (discovery greps). The hardcoded `min` literal in `ServicePriceDurationFields.tsx` is removed.
+
+**Files to create/modify:**
+- `apps/web/shared/components/ui/number-input.tsx` and `number-input.spec.tsx` (create)
+- `apps/web/eslint.config.js` (modify: `NUMBER_INPUT_SELECTOR`, `numberInputExemptPaths`, the `ui/**` exemption block)
+- `apps/web/shared/lib/eslint/number-input.eslint.spec.ts` (create, next to `raw-form-control.eslint.spec.ts` and `restricted-syntax.eslint.spec.ts`)
+- `apps/web/features/booking/components/dashboard/services/`: `ServiceBufferAfterMinutesField.tsx`, `ServiceLegsPanel.tsx`, `ServiceResourceTypeFields.tsx`, `ServiceFormFields.tsx`, `ServicePriceDurationFields.tsx`, `PolicyNumberField.tsx`, `PolicyDurationPricingCard.tsx`, `PolicyConfirmationAndWindowCards.tsx`, `PolicyWhoHowCard.tsx` and each one's existing `.spec.tsx` (modify)
+- `apps/web/features/booking/components/dashboard/resources/ResourceCreateForm.tsx`, `ResourceEditFormFields.tsx` and their `.spec.tsx` (modify)
+- `apps/web/features/booking/components/dashboard/bookings/mark-complete/MarkCompleteLineFields.tsx`, `MarkCompleteLoyaltyPanel.tsx` and their `.spec.tsx` (modify)
+- `apps/web/features/booking/components/dashboard/bookings/new-booking/NewBookingIntakeStep.tsx` and `.spec.tsx` (modify)
+- `apps/web/features/booking/components/public/IntakeAnswersStep.tsx` and `.spec.tsx` (modify: branded unit span only)
+- `apps/web/features/platform/components/settings/SettingsFormFields.tsx`, `SettingsLoyaltySection.tsx` and their `.spec.tsx` (modify)
+- `apps/web/features/platform/components/hotsite/modules/BookingCtaConfigPanel.tsx`, `GalleryConfigPanel.tsx`, `presentation-field-parts.tsx` and their `.spec.tsx` (modify)
+- `packages/i18n/locales/pt-BR/web.json`, `packages/i18n/locales/en/web.json` (modify)
+- `docs/ENGINEERING_RULES_FRONTEND.md` (modify: § Reuse the repo's UI primitives, "What the repo enforces" table)
+- `journeys/shared/` stylesheet carrying the unit addon (modify, discovery picks `tokens.css` vs `reschedule-picker.css` after reading both), the prototype files listed under Prototype references, and the `dev-notes.md` of `staff/prototypes/servicos`, `manager/prototypes/resources`, `manager/prototypes/configuracoes`, `manager/prototypes/hotsite` (modify)
+- E2E specs only if a selector changes (none should): `apps/web/e2e/services-manage.spec.ts`, `services-resource-config.spec.ts`, `services-create.spec.ts`, `booking-intake.spec.ts`, `hotsite-editor.spec.ts` reference these `data-testid`s and are run, not edited
+
+**Acceptance criteria — product:**
+- [ ] On the service edit page, the buffer, each leg's duration and transition, and the required quantity show their unit (`min`, `min`, `min`, `unid.`) next to the number, in pt-BR and en.
+- [ ] Every numeric field listed in the audit table shows its unit; money fields show the tenant's currency symbol before the number; no label keeps its unit in parentheses.
+- [ ] The settings page looks and behaves the same as today (same units, same hints and errors), now drawn by the shared primitive.
+- [ ] A field in an error state still shows its invalid border and message, and the unit addon does not break the frame.
+- [ ] A screen reader announces the unit with the field (label, then value, then unit).
+- [ ] The guest booking participants field shows "pessoas" in the tenant's branded colours, and the tenant hotsite is otherwise visually unchanged.
+- [ ] Adding a new `<Input type="number">` anywhere in `apps/web` fails `pnpm lint` with a message pointing to `NumberInput`.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] `number-input.spec.tsx`: renders the input with the unit after it (suffix) and before it (prefix); forwards `value`, `onChange`, `min`, `max`, `step`, `id`, `data-testid`, `disabled` and the ref; `type` is `number` and cannot be overridden; the unit span's id is merged into `aria-describedby` alongside a caller-supplied value (negative guarantee: a caller `aria-describedby` is never replaced); `aria-invalid` still styles the input; `axe` clean (same `axe-helper` as `input.spec.tsx`).
+  - [ ] `number-input.spec.tsx` (type-level): `unit` is required (`// @ts-expect-error` on a render without it).
+  - [ ] One spec per converted component asserts the unit text is rendered for its field, in both locales where the spec already switches locale (`ServiceBufferAfterMinutesField`, `ServiceLegsPanel` ×2, `ServiceResourceTypeFields` incl. a leg `scope`, `ServiceFormFields`, `ServicePriceDurationFields` ×2, `PolicyNumberField` for a suffix and a prefix, the 4 policy-card inputs, `PolicyWhoHowCard`, `ResourceCreateForm` ×2, `ResourceEditFormFields` ×2, `MarkCompleteLineFields`, `MarkCompleteLoyaltyPanel`, `NewBookingIntakeStep`, `IntakeAnswersStep`, `SettingsLoyaltySection` ×2, `BookingCtaConfigPanel`, `GalleryConfigPanel`, `OpacityField` ×3, `SuffixNumberField`).
+  - [ ] Negative guarantee, own test: every existing `data-testid`/`id`/`name` on a converted input is unchanged (assert by the same `getByTestId` the E2E specs use).
+  - [ ] Negative guarantee, own test: a label that lost its parenthesised unit no longer contains it (policy cards and opacity), and the unit is read from the shared locale key, not a literal.
+  - [ ] `number-input.eslint.spec.ts`: the selector flags `<Input type="number">`, `type={'number'}`, ``type={`number`}`` and `type={cond ? 'number' : 'text'}`; it does not flag `<Input type="text">`, `<Input>` with no type, `<NumberInput>`, or a number input inside `shared/components/ui/**`; it still flags `<Input type="number">` in a branded public-tree file (the replace-not-merge trap); a path in `numberInputExemptPaths` is exempt. Existing `raw-form-control.eslint.spec.ts` and `restricted-syntax.eslint.spec.ts` stay green.
+  - [ ] Locale parity: the i18n exhaustiveness/parity tests stay green with the new keys in both locales; no `LOCALE_LITERAL_SELECTOR` violation.
+  - [ ] Regression: `hotsite-token-isolation.spec.ts` stays green (the primitive uses only semantic tokens).
+- Integration: none (frontend-ts, no integration tier).
+- Tenant isolation: none — pure presentation, no tenant data read or written.
+- E2E:
+  - [ ] none new: the touched fields keep their `data-testid`s and the existing specs (`services-manage`, `services-resource-config`, `services-create`, `booking-intake`, `hotsite-editor`) run unchanged as the regression net; if any of them fails on a changed selector, that is a Story 3 bug. Reason for no new test: every assertion is a unit-level render check, and the flows are identical.
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean (including `NUMBER_INPUT_SELECTOR` over the whole of `apps/web`, proving no bare numeric `Input` remains)
+
 ## Self-dry-run findings
 
 - The two stories are sequenced because Story 1 must present the inheritance-correct effective buffer behavior from Story 0.
 - No database migration is appropriate: the column is already nullable, and historical numeric values are ambiguous. Preserving them avoids silently changing a manager’s intentional configuration.
 - Story discovery must confirm the applicable validated journey/prototype paths and the full customer-confirmation component set before implementation.
 - Story 2 (month markers) is independent of Stories 0 and 1. `AvailabilityCarousel` is one component with a `variant` prop used by five surfaces, so one change covers the hotsite and the three dashboard callers; the calendar variant and the calendar popovers already show the month. Discovery (2026-11-09) fixed three draft errors: the dashboard callers already print a slots heading (so the date goes into those headings instead of a second label inside `SlotPicker`), `formatDateLong` already exists (no new date helper), and an `aria-label` on the pills would break label-in-name (an `sr-only` month span is used instead).
+- Story 3 (numeric-input units) is independent of Stories 0–2. Audit method: `grep type="number"` over non-spec `.tsx` in `apps/web` (26 inputs; the 27th site is `SuffixNumberField`, already counted in row 25), then each label read from `pt-BR/web.json`; all 19 files already have a `.spec.tsx`, so no spec has to be invented. Two design traps are pinned in the story: the ESLint flat-config replace-not-merge behaviour (`ui/**` shares `rawFormControlExemptPaths` with the branded trees) and the branded `IntakeAnswersStep`, where a `ui/` primitive cannot be used (`--ba-*`). Open for discovery: the unit for `Capacidade máxima` (`pessoas`), the `{currency}` wording of the points-per-currency unit, and which shared stylesheet carries `.unit-addon` in the prototypes.
