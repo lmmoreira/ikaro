@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, In, QueryFailedError, Repository } from 'typeorm';
-import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { runInNewTransaction } from '../../../../shared/infrastructure/run-in-new-transaction';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
+import { mapSequentially } from '../../../../shared/utils/sequential';
 import { ISubscriptionRepository } from '../../application/ports/subscription-repository.port';
 import {
   SubscriptionAlreadyExistsError,
@@ -87,7 +87,7 @@ export class TypeOrmSubscriptionRepository implements ISubscriptionRepository {
       const result = await manager
         .createQueryBuilder()
         .update(SubscriptionEntity)
-        .set(subscriptionUpdateSet(entity) as QueryDeepPartialEntity<SubscriptionEntity>)
+        .set(subscriptionUpdateSet(entity))
         .where('id = :id', { id: subscription.id })
         .andWhere('tenant_id = :tenantId', { tenantId: subscription.tenantId })
         .andWhere('version = :version', { version: subscription.version })
@@ -102,10 +102,7 @@ export class TypeOrmSubscriptionRepository implements ISubscriptionRepository {
 
   private async insert(manager: EntityManager, entity: SubscriptionEntity): Promise<void> {
     try {
-      await manager.insert(
-        SubscriptionEntity,
-        entity as QueryDeepPartialEntity<SubscriptionEntity>,
-      );
+      await manager.insert(SubscriptionEntity, entity);
     } catch (err) {
       const driverError = err instanceof QueryFailedError ? err.driverError : undefined;
       if (
@@ -138,16 +135,18 @@ export class TypeOrmSubscriptionRepository implements ISubscriptionRepository {
         id: In(removedIds),
       });
     }
-    for (const row of desired) {
+    const changed = desired.filter((row) => {
       const existing = storedById.get(row.id);
-      if (existing && !sameWindow(existing, row)) {
-        await manager.update(
-          SubscriptionItemEntity,
-          { id: row.id, tenantId },
-          { tier: row.tier, startsAt: row.startsAt, endsAt: row.endsAt },
-        );
-      }
-    }
+      return existing !== undefined && !sameWindow(existing, row);
+    });
+    // One after another on this transaction's single connection, in the aggregate's item order.
+    await mapSequentially(changed, (row) =>
+      manager.update(
+        SubscriptionItemEntity,
+        { id: row.id, tenantId },
+        { tier: row.tier, startsAt: row.startsAt, endsAt: row.endsAt },
+      ),
+    );
     const added = desired.filter((row) => !storedById.has(row.id));
     if (added.length > 0) await manager.insert(SubscriptionItemEntity, added);
   }

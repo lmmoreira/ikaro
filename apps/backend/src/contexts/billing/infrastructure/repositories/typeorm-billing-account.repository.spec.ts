@@ -1,8 +1,11 @@
-import { EntityManager, Repository } from 'typeorm';
+import { EntityManager, QueryFailedError, Repository } from 'typeorm';
 import { Email } from '../../../../shared/value-objects/email.vo';
 import { TaxId } from '../../../../shared/value-objects/tax-id.vo';
 import { BillingAccount } from '../../domain/billing-account.aggregate';
-import { BillingAccountSubscriptionMissingError } from '../../domain/errors/billing-domain.error';
+import {
+  BillingAccountAlreadyExistsError,
+  BillingAccountSubscriptionMissingError,
+} from '../../domain/errors/billing-domain.error';
 import {
   BillingAccountBuilder,
   BillingAccountEntityBuilder,
@@ -16,22 +19,13 @@ const TENANT = '0197a2b0-0000-7000-8000-0000000000bb';
 
 describe('TypeOrmBillingAccountRepository', () => {
   let manager: jest.Mocked<EntityManager>;
-  let execute: jest.Mock;
-  let builderCalls: Record<string, jest.Mock>;
   let repo: TypeOrmBillingAccountRepository;
 
   beforeEach(() => {
-    execute = jest.fn().mockResolvedValue(undefined);
-    builderCalls = {
-      insert: jest.fn().mockReturnThis(),
-      into: jest.fn().mockReturnThis(),
-      values: jest.fn().mockReturnThis(),
-      orUpdate: jest.fn().mockReturnThis(),
-      execute,
-    };
     manager = {
       findOne: jest.fn(),
-      createQueryBuilder: jest.fn().mockReturnValue(builderCalls),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
+      insert: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<EntityManager>;
     repo = new TypeOrmBillingAccountRepository({
       manager,
@@ -128,7 +122,7 @@ describe('TypeOrmBillingAccountRepository', () => {
   });
 
   describe('save', () => {
-    it('upserts by id, writing the identity columns but never the country or the tenant', async () => {
+    it("updates the tenant's own row by (id, tenant_id) and writes neither the country nor the identity", async () => {
       const account = new BillingAccountBuilder()
         .withTenantId(TENANT)
         .withCountryCode('US')
@@ -138,42 +132,101 @@ describe('TypeOrmBillingAccountRepository', () => {
 
       await repo.save(account);
 
-      const entity = builderCalls['values']!.mock.calls[0]![0] as BillingAccountEntity;
-      expect(entity).toMatchObject({
-        id: account.id,
-        tenantId: TENANT,
+      const [target, criteria, changes] = manager.update.mock.calls[0]!;
+      expect(target).toBe(BillingAccountEntity);
+      expect(criteria).toEqual({ id: account.id, tenantId: TENANT });
+      expect(changes).toMatchObject({
         taxIdType: 'CPF',
         taxId: '52998224725',
         billingEmail: 'financeiro@example.com',
         autoBilling: 'NONE',
         autoBillingStatus: 'INACTIVE',
       });
+      for (const fixed of ['id', 'tenantId', 'countryCode', 'createdAt']) {
+        expect(changes).not.toHaveProperty(fixed);
+      }
+      expect(manager.insert).not.toHaveBeenCalled();
+    });
+
+    it('inserts when no row of that tenant matched, without the country', async () => {
+      manager.update.mockResolvedValueOnce({ affected: 0, raw: [], generatedMaps: [] });
+      const account = new BillingAccountBuilder()
+        .withTenantId(TENANT)
+        .withCountryCode('US')
+        .build();
+
+      await repo.save(account);
+
+      const [target, entity] = manager.insert.mock.calls[0]!;
+      expect(target).toBe(BillingAccountEntity);
+      expect(entity).toMatchObject({
+        id: account.id,
+        tenantId: TENANT,
+        taxId: null,
+        taxIdType: null,
+      });
       expect(entity).not.toHaveProperty('countryCode');
-      const [columns, conflict] = builderCalls['orUpdate']!.mock.calls[0]! as [string[], string[]];
-      expect(conflict).toEqual(['id']);
-      expect(columns).toEqual(
-        expect.arrayContaining(['tax_id_type', 'tax_id', 'legal_name', 'updated_at']),
+    });
+
+    it('never touches another tenant: an id that belongs elsewhere finds no row to update and fails the insert', async () => {
+      manager.update.mockResolvedValueOnce({ affected: 0, raw: [], generatedMaps: [] });
+      const primaryKeyViolation = new QueryFailedError(
+        'INSERT',
+        [],
+        Object.assign(new Error('duplicate key'), {
+          code: '23505',
+          constraint: 'PK_billing_billing_accounts',
+        }),
       );
-      expect(columns).not.toContain('tenant_id');
-      expect(columns).not.toContain('country_code');
-      expect(execute).toHaveBeenCalledTimes(1);
+      manager.insert.mockRejectedValueOnce(primaryKeyViolation);
+
+      await expect(
+        repo.save(new BillingAccountBuilder().withTenantId(TENANT).build()),
+      ).rejects.toBe(primaryKeyViolation);
+    });
+
+    it('turns a second account for one tenant (UNIQUE(tenant_id)) into BillingAccountAlreadyExistsError', async () => {
+      manager.update.mockResolvedValueOnce({ affected: 0, raw: [], generatedMaps: [] });
+      manager.insert.mockRejectedValueOnce(
+        new QueryFailedError(
+          'INSERT',
+          [],
+          Object.assign(new Error('duplicate key'), {
+            code: '23505',
+            constraint: 'UQ_billing_billing_accounts_tenant',
+          }),
+        ),
+      );
+
+      await expect(
+        repo.save(new BillingAccountBuilder().withTenantId(TENANT).build()),
+      ).rejects.toThrow(BillingAccountAlreadyExistsError);
+    });
+
+    it('rethrows any other insert failure unchanged', async () => {
+      manager.update.mockResolvedValueOnce({ affected: 0, raw: [], generatedMaps: [] });
+      const boom = new Error('connection lost');
+      manager.insert.mockRejectedValueOnce(boom);
+
+      await expect(
+        repo.save(new BillingAccountBuilder().withTenantId(TENANT).build()),
+      ).rejects.toBe(boom);
     });
 
     it('writes null columns for an account with no tax id, address or terms', async () => {
       await repo.save(new BillingAccountBuilder().withTenantId(TENANT).build());
 
-      const entity = builderCalls['values']!.mock.calls[0]![0] as BillingAccountEntity;
-      expect(entity.taxId).toBeNull();
-      expect(entity.taxIdType).toBeNull();
-      expect(entity.address).toBeNull();
-      expect(entity.termsVersion).toBeNull();
+      const [, , changes] = manager.update.mock.calls[0]!;
+      expect(changes).toMatchObject({
+        taxId: null,
+        taxIdType: null,
+        address: null,
+        termsVersion: null,
+      });
     });
 
-    it('round-trips an address and a tax id through the entity shape', async () => {
-      const account = new BillingAccountBuilder()
-        .withTenantId(TENANT)
-        .withBillingEmail('a@b.co')
-        .build();
+    it('round-trips a tax id, provider and auto-billing fields through the entity shape', async () => {
+      const account = new BillingAccountBuilder().withTenantId(TENANT).build();
       const withExtras = BillingAccount.reconstitute({
         id: account.id,
         tenantId: account.tenantId,
@@ -192,8 +245,8 @@ describe('TypeOrmBillingAccountRepository', () => {
 
       await repo.save(withExtras);
 
-      const entity = builderCalls['values']!.mock.calls[0]![0] as BillingAccountEntity;
-      expect(entity).toMatchObject({
+      const [, , changes] = manager.update.mock.calls[0]!;
+      expect(changes).toMatchObject({
         taxIdType: 'CNPJ',
         taxId: '11222333000181',
         provider: 'STRIPE',

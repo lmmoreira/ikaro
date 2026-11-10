@@ -23,9 +23,9 @@ export class BillingAccountBuilder {
   private address: Address | null = null;
   private provider: BillingProvider | null = null;
   private providerCustomerId: string | null = null;
-  private autoBilling: AutoBilling = 'NONE';
-  private autoBillingStatus: AutoBillingStatus = 'INACTIVE';
-  private autoBillingLabel: string | null = null;
+  private readonly autoBilling: AutoBilling = 'NONE';
+  private readonly autoBillingStatus: AutoBillingStatus = 'INACTIVE';
+  private readonly autoBillingLabel: string | null = null;
   private acceptedTerms: AcceptedTerms | null = null;
 
   withId(id: string): this {

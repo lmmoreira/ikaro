@@ -7,7 +7,10 @@ import { Email } from '../../../../shared/value-objects/email.vo';
 import { BillingAccountBuilder } from '../../../../test/builders/billing';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { BillingAccount } from '../../domain/billing-account.aggregate';
-import { BillingAccountSubscriptionMissingError } from '../../domain/errors/billing-domain.error';
+import {
+  BillingAccountAlreadyExistsError,
+  BillingAccountSubscriptionMissingError,
+} from '../../domain/errors/billing-domain.error';
 import { Subscription } from '../../domain/subscription.aggregate';
 import { BillingAccountEntity } from '../entities/billing-account.entity';
 import { SubscriptionEntity } from '../entities/subscription.entity';
@@ -173,9 +176,34 @@ describe('TypeOrmBillingAccountRepository (integration)', () => {
     await startSubscription(tenantId, 'BR');
     await save(new BillingAccountBuilder().withTenantId(tenantId).build());
 
-    await expect(
-      save(new BillingAccountBuilder().withTenantId(tenantId).build()),
-    ).rejects.toBeInstanceOf(QueryFailedError);
+    await expect(save(new BillingAccountBuilder().withTenantId(tenantId).build())).rejects.toThrow(
+      BillingAccountAlreadyExistsError,
+    );
+  });
+
+  it("never lets a save for one tenant touch another tenant's account, even with that account's id", async () => {
+    const tenantA = newTenant();
+    const tenantB = newTenant();
+    await startSubscription(tenantA, 'BR');
+    await startSubscription(tenantB, 'BR');
+    const accountA = new BillingAccountBuilder()
+      .withTenantId(tenantA)
+      .withLegalName('Empresa A')
+      .build();
+    await save(accountA);
+
+    // Tenant B's aggregate carrying tenant A's account id: the tenant predicate on the write finds
+    // no row to update, and the insert then fails on the primary key.
+    const forgery = new BillingAccountBuilder()
+      .withId(accountA.id)
+      .withTenantId(tenantB)
+      .withLegalName('Invasor')
+      .build();
+    await expect(save(forgery)).rejects.toBeInstanceOf(QueryFailedError);
+
+    const found = await accounts.findByTenantId(tenantA);
+    expect(found?.legalName).toBe('Empresa A');
+    expect(await accounts.findByTenantId(tenantB)).toBeNull();
   });
 
   it('fails loudly when the tenant has an account but no subscription', async () => {

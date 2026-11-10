@@ -14,7 +14,7 @@ export class BillingAccountEntityBuilder {
   private providerCustomerId: string | null = null;
   private readonly autoBilling = 'NONE';
   private readonly autoBillingStatus = 'INACTIVE';
-  private autoBillingLabel: string | null = null;
+  private readonly autoBillingLabel: string | null = null;
   private termsVersion: string | null = null;
   private termsAcceptedAt: Date | null = null;
   private termsAcceptedBy: string | null = null;

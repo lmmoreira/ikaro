@@ -77,8 +77,8 @@ export class SubscriptionBuilder {
   private nextDueDate: CalendarDate | null = null;
   private pastDueSince: Date | null = null;
   private graceUntil: Date | null = null;
-  private cancelAt: Date | null = null;
-  private planConfirmedAt: Date | null = null;
+  private readonly cancelAt: Date | null = null;
+  private readonly planConfirmedAt: Date | null = null;
   private suspendedAt: Date | null = null;
   private purgeWarning30SentAt: Date | null = null;
   private purgeWarning7SentAt: Date | null = null;

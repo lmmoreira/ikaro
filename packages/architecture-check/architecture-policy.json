@@ -942,6 +942,14 @@
     },
     {
       "rule": "error-mapper-coverage",
+      "class": "BillingAccountAlreadyExistsError",
+      "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
+      "rationale": "Same as FeatureDependencyUnmetError above: raised only to the TenantProvisioned handler (M25-S11), which creates the account in the same transaction as the subscription and swallows a redelivery as idempotent; if a route can ever surface it, that story maps it and removes this entry.",
+      "owner": "billing",
+      "reviewBy": "2026-12-31"
+    },
+    {
+      "rule": "error-mapper-coverage",
       "class": "BillingAccountTaxIdNotAllowedError",
       "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
       "rationale": "Same as FeatureDependencyUnmetError above: a guard against a ready-made TaxId of a type the billing country does not accept, raised to callers that already validated it with the country's TaxIdSpec (M25-S09/S11); the first route that accepts a tax id for an existing account (M26 identity edit) maps it and removes this entry.",

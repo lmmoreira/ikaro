@@ -32,7 +32,7 @@ export class MinorAmountValidationError extends BillingDomainError {
   }
 }
 
-// Subscription / BillingAccount invariant errors (M25-S08). Domain-only: no endpoint can throw them
+// Subscription / BillingAccount invariant errors. Domain-only: no endpoint can throw them
 // yet, so none is mapped to HTTP and none has a BillingErrorCode (a wire code is additive-only once
 // shipped). S15b (operator refusals) and M26-S17/S19 (plan refusals) add the code, status and
 // locale entries and remove the matching error-mapper-coverage exception.
@@ -120,6 +120,14 @@ export class BillingAccountTaxIdNotAllowedError extends BillingDomainError {
   constructor(message: string) {
     super(message);
     this.name = 'BillingAccountTaxIdNotAllowedError';
+  }
+}
+
+/** `UNIQUE(tenant_id)`: a second billing account for one tenant. */
+export class BillingAccountAlreadyExistsError extends BillingDomainError {
+  constructor() {
+    super('The tenant already has a billing account');
+    this.name = 'BillingAccountAlreadyExistsError';
   }
 }
 

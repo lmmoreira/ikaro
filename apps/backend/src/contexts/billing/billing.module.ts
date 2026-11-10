@@ -16,7 +16,7 @@ import { TypeOrmSubscriptionRepository } from './infrastructure/repositories/typ
 
 // Billing context (Ikaro charging its tenants). Each aggregate story registers its own
 // repositories, use cases and controllers here. M25-S04: the platform-wide price list (read side).
-// M25-S08: the Subscription and BillingAccount aggregates' repositories (consumed by S11/S13/S15b).
+// The Subscription and BillingAccount repositories are consumed by M25-S11/S13/S15b.
 @Module({
   imports: [
     TypeOrmModule.forFeature([

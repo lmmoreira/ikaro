@@ -63,3 +63,25 @@ export function billingAccountToEntity(account: BillingAccount): BillingAccountE
   entity.updatedAt = new Date();
   return entity;
 }
+
+/** The columns an UPDATE may change: never the id, the tenant or the creation time. */
+export function billingAccountUpdateSet(
+  entity: BillingAccountEntity,
+): Partial<BillingAccountEntity> {
+  return {
+    taxIdType: entity.taxIdType,
+    taxId: entity.taxId,
+    legalName: entity.legalName,
+    billingEmail: entity.billingEmail,
+    address: entity.address,
+    provider: entity.provider,
+    providerCustomerId: entity.providerCustomerId,
+    autoBilling: entity.autoBilling,
+    autoBillingStatus: entity.autoBillingStatus,
+    autoBillingLabel: entity.autoBillingLabel,
+    termsVersion: entity.termsVersion,
+    termsAcceptedAt: entity.termsAcceptedAt,
+    termsAcceptedBy: entity.termsAcceptedBy,
+    updatedAt: entity.updatedAt,
+  };
+}
