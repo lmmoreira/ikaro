@@ -52,18 +52,39 @@ export class SeedFeaturePrices1748500000040 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    // Only what this migration inserted: SYSTEM-created versions with the seed reason, then any
-    // price left without a version. An operator-created price or version is never touched.
-    await queryRunner.query(
-      `DELETE FROM "billing"."feature_price_versions" WHERE "created_by" = 'SYSTEM' AND "reason" = $1`,
-      [SEED_REASON],
-    );
-    await queryRunner.query(`
-      DELETE FROM "billing"."feature_prices" fp
-      WHERE NOT EXISTS (
-        SELECT 1 FROM "billing"."feature_price_versions" v WHERE v."feature_price_id" = fp."id"
-      )
-    `);
+    // Only what this migration seeded: for each of its own natural keys, the SYSTEM version with
+    // the seed reason, then that price row if no version is left on it. Any other price (one an
+    // operator created, with or without versions) and any other version is never touched.
+    await this.unseedCountry(queryRunner, 'BR', BR_PRICES);
+    await this.unseedCountry(queryRunner, 'US', US_PRICES);
+  }
+
+  private async unseedCountry(
+    queryRunner: QueryRunner,
+    countryCode: string,
+    prices: SeedPrice[],
+  ): Promise<void> {
+    for (const price of prices) {
+      const key = [price.featureKey, countryCode, price.tier];
+      await queryRunner.query(
+        `DELETE FROM "billing"."feature_price_versions" v
+         USING "billing"."feature_prices" fp
+         WHERE v."feature_price_id" = fp."id"
+           AND fp."feature_key" = $1 AND fp."country_code" = $2 AND fp."tier" = $3
+           AND fp."cycle" = 'MONTHLY'
+           AND v."created_by" = 'SYSTEM' AND v."reason" = $4`,
+        [...key, SEED_REASON],
+      );
+      await queryRunner.query(
+        `DELETE FROM "billing"."feature_prices" fp
+         WHERE fp."feature_key" = $1 AND fp."country_code" = $2 AND fp."tier" = $3
+           AND fp."cycle" = 'MONTHLY'
+           AND NOT EXISTS (
+             SELECT 1 FROM "billing"."feature_price_versions" v WHERE v."feature_price_id" = fp."id"
+           )`,
+        key,
+      );
+    }
   }
 
   private async seedCountry(

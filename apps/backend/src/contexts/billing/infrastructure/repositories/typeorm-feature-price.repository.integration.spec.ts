@@ -190,6 +190,34 @@ describe('TypeOrmFeaturePriceRepository (integration)', () => {
       }
     });
 
+    it('rolls back only what it seeded: an operator version and an unrelated versionless price survive', async () => {
+      const queryRunner = dataSource.createQueryRunner();
+      await queryRunner.startTransaction();
+      try {
+        await queryRunner.query(
+          `INSERT INTO "billing"."feature_price_versions"
+             ("id","feature_price_id","amount_minor","effective_from","created_by","reason")
+           SELECT gen_random_uuid(), fp."id", 9999, '2099-01-01', 'operator-1', 'price change'
+           FROM "billing"."feature_prices" fp
+           WHERE fp."feature_key" = 'HOTSITE' AND fp."country_code" = 'BR' AND fp."tier" = 'STANDARD'`,
+        );
+        await queryRunner.query(
+          `INSERT INTO "billing"."feature_prices"
+             ("id","feature_key","country_code","tier","cycle","currency","selectable")
+           VALUES (gen_random_uuid(), 'HOTSITE', 'BR', 'PLUS', 'MONTHLY', 'BRL', true)`,
+        );
+
+        await new SeedFeaturePrices1748500000040().down(queryRunner);
+
+        // Kept: the seeded BR HOTSITE price (it still has the operator's version) and the
+        // unrelated versionless one. Everything else the migration seeded is gone.
+        expect(await countRows(queryRunner)).toEqual({ prices: 2, versions: 1, us: 0 });
+      } finally {
+        await queryRunner.rollbackTransaction();
+        await queryRunner.release();
+      }
+    });
+
     it('seeds the complete BR and US lists on an empty catalog, whatever APP_ENV says', async () => {
       const queryRunner = dataSource.createQueryRunner();
       await queryRunner.startTransaction();

@@ -1551,7 +1551,7 @@ Types are the minimum M25-S03 needs (the discovery data model lists column names
 
 ### Billing migration ordering
 1. (M25-S03) Create schema `billing`, `CREATE EXTENSION IF NOT EXISTS btree_gist`, and all first-schema tables (including `signup_registrations`, `provider_health`) — expand only, no existing table touched.
-2. (M25-S04) Seed `feature_prices` and one `feature_price_versions` row each (`effective_from` = release date) from the catalog approved in the commercial-catalog story; the US list (the BR amounts plus 40%) is seeded in every environment.
+2. (M25-S04) Seed `feature_prices` and one `feature_price_versions` row each (`effective_from` = the fixed constant `2026-01-01`) from the catalog approved in the commercial-catalog story; the US list (the BR amounts plus 40%) is seeded in every environment.
 3. (M25-S05) Backfill every tenant without a subscription as `ACTIVE`, all features, `exempt = true` (idempotent; there is no production yet, so this covers local/staging tenants). Tenants created later start `TRIALING` through `TenantProvisioned`; Ikaro's own tenant (`PLATFORM_OWNER_TENANT_SLUG`) is exempt.
 4. Widen `notification_logs.status` (M25-S23; the one existing-table change); the Billing platform notification templates are M26. M25 also adds the Notification tenant-unavailable template migration (M25-S28, `AddTenantUnavailableTemplate`: global default rows plus per-tenant rows) and the Loyalty `loyalty.tenant_expiry_pauses` migration (M25-S27).
 5. Deploy code with transient-lookup fail-open only; the publisher and the Billing handler ship in the same release (the bus does not version-route; the handler tolerates a legacy payload without `countryCode`).
