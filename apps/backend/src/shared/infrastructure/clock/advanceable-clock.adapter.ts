@@ -1,5 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { ClockOffsetLimitError, MAX_CLOCK_OFFSET_MS } from '../../domain/clock-offset-limit.error';
+import {
+  ClockAdvanceOutOfRangeError,
+  MAX_CLOCK_OFFSET_MS,
+} from '../../domain/clock-advance-out-of-range.error';
 import { IClock } from '../../ports/clock.port';
 import { IDevClockControl } from '../../ports/dev-clock-control.port';
 
@@ -22,7 +25,7 @@ export class AdvanceableClock implements IClock, IDevClockControl {
     }
     // Rejected, never clamped: an offset past the cap would make `now()` an invalid Date.
     if (this.offset + ms > MAX_CLOCK_OFFSET_MS) {
-      throw new ClockOffsetLimitError(
+      throw new ClockAdvanceOutOfRangeError(
         `The clock can run at most ${MAX_CLOCK_OFFSET_MS} ms ahead of real time; reset it first`,
       );
     }

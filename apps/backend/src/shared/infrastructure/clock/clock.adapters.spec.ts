@@ -1,5 +1,8 @@
 import { Test } from '@nestjs/testing';
-import { ClockOffsetLimitError, MAX_CLOCK_OFFSET_MS } from '../../domain/clock-offset-limit.error';
+import {
+  ClockAdvanceOutOfRangeError,
+  MAX_CLOCK_OFFSET_MS,
+} from '../../domain/clock-advance-out-of-range.error';
 import { CLOCK, IClock } from '../../ports/clock.port';
 import { AdvanceableClock } from './advanceable-clock.adapter';
 import { ClockModule } from './clock.module';
@@ -39,7 +42,7 @@ describe('AdvanceableClock', () => {
     clock.advanceBy(MAX_CLOCK_OFFSET_MS);
 
     expect(Number.isNaN(clock.now().getTime())).toBe(false);
-    expect(() => clock.advanceBy(1)).toThrow(ClockOffsetLimitError);
+    expect(() => clock.advanceBy(1)).toThrow(ClockAdvanceOutOfRangeError);
     expect(clock.offsetMs).toBe(MAX_CLOCK_OFFSET_MS);
     expect(Number.isNaN(clock.now().getTime())).toBe(false);
   });

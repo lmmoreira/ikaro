@@ -1,4 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { ClockAdvanceOutOfRangeError } from '../../../../shared/domain/clock-advance-out-of-range.error';
+import { AdvanceClockSchema } from '../dtos/advance-clock.dto';
 import {
   DEV_CLOCK_CONTROL,
   IDevClockControl,
@@ -22,9 +24,19 @@ export type AdvanceClockUseCaseResult = {
 export class AdvanceClockUseCase {
   constructor(@Inject(DEV_CLOCK_CONTROL) private readonly clock: IDevClockControl) {}
 
-  /** @throws ClockOffsetLimitError when the cumulative offset would pass the clock's cap. */
+  /**
+   * @throws ClockAdvanceOutOfRangeError for a negative, fractional, zero, empty or oversized step,
+   * or when the cumulative offset would pass the clock's cap. The step rules are the HTTP schema's
+   * own (`AdvanceClockSchema`), so a direct caller and a request are held to one definition.
+   */
   execute(input: AdvanceClockUseCaseInput): AdvanceClockUseCaseResult {
-    this.clock.advanceBy((input.days ?? 0) * MS_PER_DAY + (input.hours ?? 0) * MS_PER_HOUR);
+    const step = AdvanceClockSchema.safeParse(input);
+    if (!step.success) {
+      throw new ClockAdvanceOutOfRangeError(
+        'days and hours must be whole numbers within bounds and add up to more than zero',
+      );
+    }
+    this.clock.advanceBy((step.data.days ?? 0) * MS_PER_DAY + (step.data.hours ?? 0) * MS_PER_HOUR);
     return { offsetMs: this.clock.offsetMs, instanceId: this.clock.instanceId };
   }
 }
