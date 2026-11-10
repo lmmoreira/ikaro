@@ -5,6 +5,7 @@ import { openFirstDayWithSlots } from './helpers/booking-form';
 import {
   enterDetailedEditor,
   expectContentAnchoredRight,
+  expectContentAnchoredTop,
   getHotsiteConfig,
   getPublicManifest,
   openDetailedEditor,
@@ -591,7 +592,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     const heroStage = heroSection.locator('> div').first();
     await expectContentAnchoredRight(heroStage);
     await expect(heroStage).toHaveCSS('max-width', '1280px');
-    await expect(heroSection).toHaveCSS('align-items', 'flex-start');
+    await expectContentAnchoredTop(heroSection, heroStage);
   });
 
   test('Booking CTA panel: setting contentPositionX/contentPositionY on the centered variant persists after Publish and reload, and the live page applies the expected alignment (M18-S05)', async ({
@@ -634,7 +635,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     const bookingCtaStage = bookingCtaSection.locator('> div').first();
     await expectContentAnchoredRight(bookingCtaStage);
     await expect(bookingCtaStage).toHaveCSS('max-width', '1280px');
-    await expect(bookingCtaSection).toHaveCSS('align-items', 'flex-start');
+    await expectContentAnchoredTop(bookingCtaSection, bookingCtaStage);
   });
 
   test('Booking CTA panel: uploading a background image and setting the focal point persist after Publish and reload, and the live page applies the object-position (M18-S05)', async ({

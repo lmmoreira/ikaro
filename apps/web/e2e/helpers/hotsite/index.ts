@@ -17,7 +17,7 @@ export {
   applyHotsiteTemplateRequest,
   listHotsiteTemplates,
 } from './hotsite-templates-api';
-export { expectContentAnchoredRight } from './content-anchor';
+export { expectContentAnchoredRight, expectContentAnchoredTop } from './content-anchor';
 export { makeSolidPng } from './test-png';
 export { TEMPLATE_NAMES, applyTemplateFixture, loadTemplateFixture } from './template-fixtures';
 export type { TemplateName } from './template-fixtures';

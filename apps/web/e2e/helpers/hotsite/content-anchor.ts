@@ -22,3 +22,20 @@ export async function expectContentAnchoredRight(stage: Locator): Promise<void> 
     })
     .toEqual({ flushRight: true, hasRoomOnLeft: true });
 }
+
+// Asserts the stage sits at the top of its section's content box (`align-items: flex-start`).
+// Layout-based for the same reason as expectContentAnchoredRight: Chromium 158 reports
+// `flex-start` as `flow-start`. The section's padding-top is numeric, so it is read as a number.
+export async function expectContentAnchoredTop(section: Locator, stage: Locator): Promise<void> {
+  await expect
+    .poll(async () => {
+      const [sectionBox, stageBox, paddingTop] = await Promise.all([
+        section.boundingBox(),
+        stage.boundingBox(),
+        section.evaluate((el) => Number.parseFloat(getComputedStyle(el).paddingTop)),
+      ]);
+      if (!sectionBox || !stageBox) return null;
+      return Math.abs(stageBox.y - (sectionBox.y + paddingTop)) <= EDGE_TOLERANCE_PX;
+    })
+    .toBe(true);
+}
