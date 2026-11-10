@@ -427,7 +427,7 @@ Create the platform-wide `FeaturePrice` aggregate (root; **no `tenant_id`**, the
 
 ---
 
-### M25-S05 — Backfill existing tenants as `exempt` (UC-126)
+### M25-S05 — Backfill existing tenants as `exempt` (UC-126) ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** S
@@ -614,7 +614,7 @@ Create the two Billing roots exactly as `docs/DOMAIN_MODEL.md` specifies. **`Sub
   - [ ] `SubscriptionItem.createdBy` is NOT NULL (operator id | manager actor id | `'SYSTEM'`); `validateSelection` and `previewSelection` are pure (no clock, no persistence)
   - [ ] Timezone snapshot is immutable; `trialEndsAt` is the local midnight closing day 14 across a DST-observing zone
   - [ ] `anchorDay` is derived from the trial-end day and clamped to 1–28 (start on the 15th → 29th clamps to 28; start on the 20th of a 31-day month → 3rd); `startExempt` sets the same `anchorDay` rule and leaves every trial/period/due field NULL
-  - [ ] **Parity with S05's backfill:** for a tenant created on the 31st and on the 15th, `startExempt(start = tenants.created_at)` yields the same `anchorDay` as `backfillExemptSubscriptions` (S05) computes in SQL (the same cases S05 tests, run through the aggregate).
+  - [ ] **Parity with S05's backfill:** for a tenant created on the 31st and on the 15th, `startExempt(start = tenants.created_at)` yields the same `anchorDay` as S05's backfill computed in SQL (the cases recorded in S05's real-environment verification, run through the aggregate: created Jan 31 → 14, Jan 15 → 28, Jan 20 → 3, and 02:00 UTC on Feb 1 in `America/Sao_Paulo` → 14).
 - Integration:
   - [ ] Overlapping items for one feature are rejected by the GIST exclusion; touching periods are accepted
   - [ ] **Concurrency (B-R1):** two concurrent transactions each calling `findByIdForUpdate(tenantId, id)` on one subscription serialise — the second sees the first's committed state, no lost update
