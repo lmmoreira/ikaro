@@ -102,3 +102,11 @@ describe('NewBookingIntakeStep', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Resposta inválida');
   });
 });
+
+describe('NewBookingIntakeStep unit', () => {
+  it('shows people as the unit of the participant count', () => {
+    renderStep();
+
+    expect(screen.getByTestId('intake-participants').parentElement).toHaveTextContent('pessoas');
+  });
+});

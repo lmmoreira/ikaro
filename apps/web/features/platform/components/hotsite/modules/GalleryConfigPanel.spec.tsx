@@ -257,3 +257,13 @@ describe('GalleryConfigPanel', () => {
     });
   });
 });
+
+describe('GalleryConfigPanel unit', () => {
+  it('shows images as the unit of the maximum visible', () => {
+    renderWithIntl(<GalleryConfigPanel data={writeModuleData(GALLERY)} onChange={vi.fn()} />);
+
+    expect(screen.getByLabelText(/Máximo de imagens visíveis/).parentElement).toHaveTextContent(
+      'imagens',
+    );
+  });
+});

@@ -37,7 +37,7 @@
         <label style="display:inline-flex;gap:.375rem;align-items:center;font-size:.875rem"><input type="radio" name="q-equipment" value="false" required> Não</label>
         <p class="hint">Pergunta obrigatória do tipo sim/não: "Não" também é uma resposta válida.</p>
       </fieldset>
-      <div class="field"><label for="participants">Quantidade de participantes <span aria-hidden="true">*</span></label><input id="participants" class="form-input" type="number" min="1" required style="max-width:8rem"></div>
+      <div class="field"><label for="participants">Quantidade de participantes <span aria-hidden="true">*</span></label><div style="position:relative;max-width:9rem;"><input id="participants" class="form-input" type="number" min="1" required style="padding-right:4.5rem"><span style="position:absolute;right:.875rem;top:50%;transform:translateY(-50%);font-size:.8125rem;opacity:.55;color:var(--ba-text);pointer-events:none;">pessoas</span></div></div>
       <fieldset class="field" style="border:0;padding:0;margin:1rem 0" data-testid="intake-attendees">
         <legend style="font-size:.75rem;font-weight:700;margin-bottom:.375rem;text-transform:uppercase;letter-spacing:.05em">Participantes nomeados</legend>
         <div id="attendee-list">

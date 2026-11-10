@@ -178,7 +178,7 @@
             </div>
             <div class="form-group" style="margin-bottom:0;">
               <label class="form-label" for="pointsPerUnit">Pontos por unidade monetária</label>
-              <input id="pointsPerUnit" type="number" min="0" max="10000" class="form-input" value="10">
+              <div class="input-suffix-group"><input style="padding-right:5.25rem;" id="pointsPerUnit" type="number" min="0" max="10000" class="form-input input-with-suffix" value="10"><span class="input-suffix">pts / R$</span></div>
               <p class="form-hint">0 = conversão em R$ desativada.</p>
             </div>
           </div>
@@ -196,7 +196,7 @@
             </div>
             <div class="form-group" style="margin-bottom:0;">
               <label class="form-label" for="notificationMinPoints">Pontos mínimos para avisar</label>
-              <input id="notificationMinPoints" type="number" min="0" class="form-input" value="50">
+              <div class="input-suffix-group"><input id="notificationMinPoints" type="number" min="0" class="form-input input-with-suffix" value="50"><span class="input-suffix">pts</span></div>
             </div>
           </div>
         </div>

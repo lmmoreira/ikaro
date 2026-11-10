@@ -1,6 +1,7 @@
 'use client';
 
 import { Input } from '@/shared/components/ui/input';
+import { NumberInput } from '@/shared/components/ui/number-input';
 import { Label } from '@/shared/components/ui/label';
 import { useTranslations } from 'next-intl';
 import type {
@@ -47,6 +48,7 @@ export function ServiceLegsPanel({
   onChange,
 }: ServiceLegsPanelProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
+  const tUnits = useTranslations('common.units');
   const totalSpanMinutes = legsSpanMinutes(legs);
   // The "Add leg" button is the control that fixes this, so it is the one the message describes.
   const minLegsMissing = legs.length > 0 && legs.length < 2;
@@ -131,9 +133,9 @@ export function ServiceLegsPanel({
                 <Label htmlFor={`leg-${leg.legIndex}-duration`} className="mb-1">
                   {t('legDurationLabel')}
                 </Label>
-                <Input
+                <NumberInput
                   id={`leg-${leg.legIndex}-duration`}
-                  type="number"
+                  unit={tUnits('minutes')}
                   min={1}
                   data-testid="leg-duration"
                   data-leg-index={leg.legIndex}
@@ -149,9 +151,9 @@ export function ServiceLegsPanel({
                 <Label htmlFor={`leg-${leg.legIndex}-transition-gap`} className="mb-1">
                   {t('legTransitionGapLabel')}
                 </Label>
-                <Input
+                <NumberInput
                   id={`leg-${leg.legIndex}-transition-gap`}
-                  type="number"
+                  unit={tUnits('minutes')}
                   min={0}
                   data-testid="leg-transition-gap"
                   data-leg-index={leg.legIndex}

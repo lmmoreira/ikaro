@@ -1,7 +1,7 @@
 'use client';
 
 import { Checkbox } from '@/shared/components/ui/checkbox';
-import { Input } from '@/shared/components/ui/input';
+import { NumberInput } from '@/shared/components/ui/number-input';
 import { Label } from '@/shared/components/ui/label';
 import { useTranslations } from 'next-intl';
 import { MAX_RECURRING_HORIZON_DAYS, MIN_RECURRING_HORIZON_DAYS } from '@ikaro/types';
@@ -31,6 +31,7 @@ export function PolicyWhoHowCard({
   recurrenceBlockers = [],
 }: PolicyWhoHowCardProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
+  const tUnits = useTranslations('common.units');
   const horizonValid = isValidRecurringHorizonDays(policy.recurringHorizonDays);
 
   return (
@@ -62,9 +63,9 @@ export function PolicyWhoHowCard({
           <Label htmlFor="policy-recurring-horizon" className="mb-1 text-xs text-gray-500">
             {t('politicasHorizonLabel')}
           </Label>
-          <Input
+          <NumberInput
             id="policy-recurring-horizon"
-            type="number"
+            unit={tUnits('days')}
             min={MIN_RECURRING_HORIZON_DAYS}
             max={MAX_RECURRING_HORIZON_DAYS}
             step={1}

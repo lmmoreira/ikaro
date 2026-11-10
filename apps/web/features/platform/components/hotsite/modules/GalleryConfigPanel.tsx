@@ -15,10 +15,12 @@ import {
   type ModuleConfigPanelProps,
 } from './module-config-panel.types';
 import { Input } from '@/shared/components/ui/input';
+import { NumberInput } from '@/shared/components/ui/number-input';
 import { Label } from '@/shared/components/ui/label';
 
 export function GalleryConfigPanel({ data, onChange }: ModuleConfigPanelProps): React.JSX.Element {
   const t = useTranslations('dashboard.hotsitePage.layout.panels.gallery');
+  const tUnits = useTranslations('common.units');
   const gallery = readModuleData<GalleryModuleData>(data);
 
   function update(patch: Partial<GalleryModuleData>): void {
@@ -84,13 +86,13 @@ export function GalleryConfigPanel({ data, onChange }: ModuleConfigPanelProps): 
 
       <div>
         <Label htmlFor="gallery-max-visible">{t('maxVisibleLabel')}</Label>
-        <Input
+        <NumberInput
           id="gallery-max-visible"
-          type="number"
+          unit={tUnits('images')}
           min={1}
           value={gallery.maxVisible}
           onChange={(event) => update({ maxVisible: Number(event.target.value) || 1 })}
-          className="w-32"
+          wrapperClassName="w-40"
         />
       </div>
 

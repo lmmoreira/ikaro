@@ -192,6 +192,24 @@ const RAW_BUTTON_SELECTOR = {
   message:
     "A raw <button> bypasses the shared primitives. Use ui/button (variants link, link-destructive, link-muted, ghost-muted, outline; sizes inline, icon, icon-sm), ui/filter-chip, ui/choice-card, ui/drag-handle, ui/switch-field or ui/tabs; a genuinely bespoke control goes in rawButtonExemptPaths with a reason (docs/ENGINEERING_RULES_FRONTEND.md § Reuse the repo's UI primitives; TD58).",
 };
+// A bare `<Input type="number">` shows no unit, so the user cannot tell minutes from hours. A numeric
+// input goes through ui/number-input, whose `unit` prop is required. The literal is matched anywhere
+// under the `type` attribute (a descendant, so `type="number"`, `type={'number'}`, a template literal,
+// a conditional or logical expression at any depth are all followed: the three bypass shapes of
+// docs/ENGINEERING_RULES_SHARED.md § `no-restricted-syntax` selectors), except where it sits in a
+// conditional's `test` (`x === 'number' ? 'text' : 'tel'` renders no number input). A `type` held in a
+// variable or a spread (`{...props}`) is the one shape a syntax selector cannot follow. The primitive
+// itself is exempt by exact path in numberInputExemptPaths below.
+const NUMBER_INPUT_SELECTOR = {
+  // Descendant (the space) of the `type` attribute; the two `:not` clauses belong to the literal, so
+  // they follow it without a space.
+  selector:
+    "JSXOpeningElement[name.name='Input'] > JSXAttribute[name.name='type'] " +
+    ":matches(Literal[value='number'], TemplateElement[value.cooked='number'])" +
+    ':not(.test):not(.test *)',
+  message:
+    'A bare <Input type="number"> shows no unit, so the user cannot tell minutes from hours. Use ui/number-input with a unit (docs/ENGINEERING_RULES_FRONTEND.md § Reuse the repo\'s UI primitives).',
+};
 const RAW_FORM_CONTROL_SELECTORS = [
   RAW_BUTTON_SELECTOR,
   RAW_INPUT_SELECTOR,
@@ -211,6 +229,9 @@ const rawFormControlExemptPaths = [
   'shells/hotsite/**',
   'features/customer/components/InformationCompletionPhoneField.tsx',
 ];
+// The files that may draw a numeric `<Input>` without a unit, by exact path (never a
+// folder). Only ui/number-input.tsx: it is the primitive that adds the unit.
+const numberInputExemptPaths = ['shared/components/ui/number-input.tsx'];
 // TD58-S13: the files whose raw <button>s are bespoke, listed by exact path (never a folder) so a
 // new raw button elsewhere still fails. Each holds a control no primitive reproduces: a full-width
 // option row, a week or timeline cell, a nav item or back link, a thumbnail, a hotsite preview
@@ -315,6 +336,7 @@ const NON_FETCH_SELECTORS = [
   FEEDBACK_ROLE_SELECTOR,
   FEEDBACK_FIELD_MESSAGE_SELECTOR,
   ...RAW_FORM_CONTROL_SELECTORS,
+  NUMBER_INPUT_SELECTOR,
 ];
 
 module.exports = [
@@ -470,6 +492,22 @@ module.exports = [
         'error',
         RAW_FETCH_SELECTOR,
         ...NON_FETCH_SELECTORS.filter((entry) => entry !== RAW_BUTTON_SELECTOR),
+      ],
+    },
+  },
+  // The number-input primitive loses the numeric-Input ban only. It sits in
+  // shared/components/ui/**, so it also keeps the raw-control exemption: a later block replaces the
+  // earlier one's selector list, so this one restates the list minus both.
+  {
+    files: numberInputExemptPaths,
+    ignores: ['**/*.spec.ts', '**/*.spec.tsx'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        RAW_FETCH_SELECTOR,
+        ...NON_FETCH_SELECTORS.filter(
+          (entry) => entry !== NUMBER_INPUT_SELECTOR && !RAW_FORM_CONTROL_SELECTORS.includes(entry),
+        ),
       ],
     },
   },

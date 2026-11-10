@@ -49,7 +49,7 @@ describe('SuffixNumberField', () => {
 
     const input = screen.getByTestId('field-a');
     expect(input).toHaveAttribute('aria-invalid', 'true');
-    expect(input).toHaveAttribute('aria-describedby', 'cancellationWindowHours-error');
+    expect(input.getAttribute('aria-describedby')).toMatch(/^cancellationWindowHours-error( |$)/);
     expect(screen.getByText('Valor inválido')).toHaveAttribute(
       'id',
       'cancellationWindowHours-error',
@@ -164,7 +164,9 @@ describe('SuffixNumberField hint association', () => {
     );
 
     expect(screen.getByText('Dica')).toHaveAttribute('id', 'field-n-hint');
-    expect(screen.getByTestId('field-n')).toHaveAttribute('aria-describedby', 'field-n-hint');
+    expect(screen.getByTestId('field-n').getAttribute('aria-describedby')).toMatch(
+      /^field-n-hint( |$)/,
+    );
   });
 });
 

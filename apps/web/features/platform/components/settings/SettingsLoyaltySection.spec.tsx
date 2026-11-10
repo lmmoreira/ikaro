@@ -96,3 +96,22 @@ describe('SettingsLoyaltySection', () => {
     expect(screen.getByText('Inválido')).toBeInTheDocument();
   });
 });
+
+describe('SettingsLoyaltySection units', () => {
+  it('shows points per currency symbol and points on the notification minimum', () => {
+    renderWithIntl(
+      <SettingsLoyaltySection
+        values={buildValues()}
+        feedback={settingsFeedback()}
+        onFieldChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('settings-points-per-unit-input').parentElement).toHaveTextContent(
+      'pts / R$',
+    );
+    expect(
+      screen.getByTestId('settings-loyalty-notification-min-points-input').parentElement,
+    ).toHaveTextContent('pts');
+  });
+});

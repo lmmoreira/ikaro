@@ -1,6 +1,6 @@
 'use client';
 
-import { Input } from '@/shared/components/ui/input';
+import { NumberInput } from '@/shared/components/ui/number-input';
 import { Label } from '@/shared/components/ui/label';
 import { useState, type SubmitEvent } from 'react';
 import { useRouter } from 'next/navigation';
@@ -24,6 +24,7 @@ export function ResourceEditFormFields({
   resource,
 }: ResourceEditFormFieldsProps): React.JSX.Element {
   const t = useTranslations('dashboard.resourcesPage');
+  const tUnits = useTranslations('common.units');
   const locale = useResolvedLocale();
   const router = useRouter();
   const updateResourceMutation = useUpdateResource();
@@ -119,9 +120,9 @@ export function ResourceEditFormFields({
 
             <div>
               <Label htmlFor="resource-turnover-minutes">{t('turnoverLabel')}</Label>
-              <Input
+              <NumberInput
                 id="resource-turnover-minutes"
-                type="number"
+                unit={tUnits('minutes')}
                 min={0}
                 value={turnoverMinutes}
                 onChange={(event) => edit(setTurnoverMinutes)(event.target.value)}
@@ -132,10 +133,10 @@ export function ResourceEditFormFields({
             {(isLocation || type !== 'STAFF') && (
               <div>
                 <Label htmlFor="resource-max-capacity">{t('maxCapacityLabel')}</Label>
-                <Input
+                <NumberInput
                   id="resource-max-capacity"
                   data-testid="resource-max-capacity-input"
-                  type="number"
+                  unit={tUnits('spots')}
                   min={1}
                   value={maxCapacity}
                   onChange={(event) => edit(setMaxCapacity)(event.target.value)}

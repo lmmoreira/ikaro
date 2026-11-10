@@ -1,6 +1,7 @@
 'use client';
 
-import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
+import { NumberInput } from '@/shared/components/ui/number-input';
 import { useTranslations } from 'next-intl';
 import type { StaffBookingDetailResponse } from '@ikaro/types';
 import { Card, CardContent } from '@/shared/components/ui/card';
@@ -21,7 +22,7 @@ export function MarkCompleteLineFields({
   onLinePriceChange,
 }: MarkCompleteLineFieldsProps): React.JSX.Element {
   const t = useTranslations('dashboard.bookingDetail');
-  const { formatMoney } = useFormatting();
+  const { formatMoney, currencySymbol } = useFormatting();
 
   return (
     <LabeledSection title={t('completeLinesSection')}>
@@ -45,19 +46,24 @@ export function MarkCompleteLineFields({
                   })}
                 </p>
               </div>
-              <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.07em] text-gray-400">
+              <div>
+                <Label
+                  htmlFor={`complete-line-price-${line.lineId}`}
+                  className="mb-2 text-xs uppercase tracking-[0.07em] text-gray-400"
+                >
                   {t('chargedPriceLabel')}
-                </span>
-                <Input
-                  type="number"
+                </Label>
+                <NumberInput
+                  id={`complete-line-price-${line.lineId}`}
+                  unit={currencySymbol}
+                  unitPosition="prefix"
                   min="0"
                   step="0.01"
                   value={linePrices[line.lineId] ?? ''}
                   onChange={(event) => onLinePriceChange(line.lineId, event.target.value)}
                   className="font-semibold"
                 />
-              </label>
+              </div>
             </div>
           ))}
         </CardContent>

@@ -3,6 +3,7 @@
 import { Label } from '@/shared/components/ui/label';
 import { NativeSelect } from '@/shared/components/ui/native-select';
 import { useTranslations } from 'next-intl';
+import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import type { ServiceBookingPolicyItem } from '@ikaro/types';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { PolicyDurationPolicyField } from './PolicyDurationPolicyField';
@@ -27,6 +28,8 @@ export function PolicyDurationPricingCard({
   intro,
 }: PolicyDurationPricingCardProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
+  const tUnits = useTranslations('common.units');
+  const { currencySymbol } = useFormatting();
   const isVariableDuration = policy.durationPolicy === 'CUSTOMER_SELECTED';
   const isPerIncrementPricing = policy.pricingPolicy === 'PER_TIME_INCREMENT';
 
@@ -52,6 +55,7 @@ export function PolicyDurationPricingCard({
                 name="durationMinMinutes"
                 id="policy-duration-min"
                 testId="policy-duration-min"
+                unit={tUnits('minutes')}
                 label={t('politicasDurationMinLabel')}
                 value={policy.durationMinMinutes}
                 min={1}
@@ -62,6 +66,7 @@ export function PolicyDurationPricingCard({
                 name="durationMaxMinutes"
                 id="policy-duration-max"
                 testId="policy-duration-max"
+                unit={tUnits('minutes')}
                 label={t('politicasDurationMaxLabel')}
                 value={policy.durationMaxMinutes}
                 min={1}
@@ -72,6 +77,7 @@ export function PolicyDurationPricingCard({
                 name="durationIncrementMinutes"
                 id="policy-duration-increment"
                 testId="policy-duration-increment"
+                unit={tUnits('minutes')}
                 label={t('politicasDurationIncrementLabel')}
                 value={policy.durationIncrementMinutes}
                 min={1}
@@ -111,6 +117,7 @@ export function PolicyDurationPricingCard({
                 name="pricingIncrementMinutes"
                 id="policy-pricing-increment"
                 testId="policy-pricing-increment"
+                unit={tUnits('minutes')}
                 label={t('politicasPricingIncrementLabel')}
                 value={policy.pricingIncrementMinutes}
                 min={1}
@@ -121,6 +128,8 @@ export function PolicyDurationPricingCard({
                 name="pricePerIncrementAmount"
                 id="policy-price-per-increment"
                 testId="policy-price-per-increment"
+                unit={currencySymbol}
+                unitPosition="prefix"
                 label={t('politicasPricePerIncrementLabel')}
                 value={policy.pricePerIncrementAmount}
                 min={0}
@@ -132,6 +141,8 @@ export function PolicyDurationPricingCard({
                 name="minimumChargeAmount"
                 id="policy-min-charge"
                 testId="policy-min-charge"
+                unit={currencySymbol}
+                unitPosition="prefix"
                 label={t('politicasMinChargeLabel')}
                 value={policy.minimumChargeAmount}
                 min={0}

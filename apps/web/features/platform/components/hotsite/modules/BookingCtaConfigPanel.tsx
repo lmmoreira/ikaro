@@ -1,6 +1,6 @@
 'use client';
 
-import { Input } from '@/shared/components/ui/input';
+import { NumberInput } from '@/shared/components/ui/number-input';
 import { Label } from '@/shared/components/ui/label';
 import { useTranslations } from 'next-intl';
 import type { BookingCtaModuleData } from '@ikaro/types';
@@ -23,6 +23,7 @@ export function BookingCtaConfigPanel({
   onChange,
 }: ModuleConfigPanelProps): React.JSX.Element {
   const t = useTranslations('dashboard.hotsitePage.layout.panels.bookingCta');
+  const tUnits = useTranslations('common.units');
   const bookingCta = readModuleData<BookingCtaModuleData>(data);
 
   function update(patch: Partial<BookingCtaModuleData>): void {
@@ -169,9 +170,9 @@ export function BookingCtaConfigPanel({
         {(bookingCta.datePickerType ?? 'carousel') === 'carousel' && (
           <div>
             <Label htmlFor="booking-cta-carousel-days">{t('carouselDaysLabel')}</Label>
-            <Input
+            <NumberInput
               id="booking-cta-carousel-days"
-              type="number"
+              unit={tUnits('days')}
               min={1}
               max={90}
               step={1}
@@ -184,7 +185,7 @@ export function BookingCtaConfigPanel({
                 const clamped = Number.isFinite(parsed) ? Math.min(90, Math.max(1, parsed)) : 1;
                 update({ carouselDays: clamped });
               }}
-              className="w-32"
+              wrapperClassName="w-40"
             />
           </div>
         )}

@@ -1,6 +1,6 @@
 'use client';
 
-import { Input } from '@/shared/components/ui/input';
+import { NumberInput } from '@/shared/components/ui/number-input';
 import { Label } from '@/shared/components/ui/label';
 import { Radio } from '@/shared/components/ui/radio';
 import { useTranslations } from 'next-intl';
@@ -15,6 +15,7 @@ import {
 
 export function PolicyConfirmationCard({ policy, onPatch }: PolicyCardProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
+  const tUnits = useTranslations('common.units');
 
   return (
     <Card>
@@ -36,9 +37,9 @@ export function PolicyConfirmationCard({ policy, onPatch }: PolicyCardProps): Re
             <Label htmlFor="policy-hold-minutes" className="mb-1 text-xs text-gray-500">
               {t('politicasHoldMinutesLabel')}
             </Label>
-            <Input
+            <NumberInput
               id="policy-hold-minutes"
-              type="number"
+              unit={tUnits('minutes')}
               min={1}
               data-testid="policy-hold-minutes"
               value={toNumberInput(policy.manualHoldMinutes)}
@@ -63,9 +64,9 @@ export function PolicyConfirmationCard({ policy, onPatch }: PolicyCardProps): Re
             <Label htmlFor="policy-cancellation-window" className="mb-1 text-xs text-gray-500">
               {t('politicasCancellationWindowLabel')}
             </Label>
-            <Input
+            <NumberInput
               id="policy-cancellation-window"
-              type="number"
+              unit={tUnits('hoursBefore')}
               min={0}
               data-testid="policy-cancellation-window"
               value={toNumberInput(policy.cancellationWindowHoursOverride)}
@@ -80,9 +81,9 @@ export function PolicyConfirmationCard({ policy, onPatch }: PolicyCardProps): Re
             <Label htmlFor="policy-reschedule-window" className="mb-1 text-xs text-gray-500">
               {t('politicasRescheduleWindowLabel')}
             </Label>
-            <Input
+            <NumberInput
               id="policy-reschedule-window"
-              type="number"
+              unit={tUnits('hoursBefore')}
               min={0}
               data-testid="policy-reschedule-window"
               value={toNumberInput(policy.rescheduleWindowHoursOverride)}
@@ -103,6 +104,7 @@ export function PolicyBookingWindowCard({
   onPatch,
 }: PolicyFieldCardProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
+  const tUnits = useTranslations('common.units');
 
   return (
     <Card>
@@ -115,6 +117,7 @@ export function PolicyBookingWindowCard({
             name="minBookingAdvanceHoursOverride"
             id="policy-min-advance"
             testId="policy-min-advance"
+            unit={tUnits('hours')}
             label={t('politicasMinAdvanceLabel')}
             value={policy.minBookingAdvanceHoursOverride}
             min={0}
@@ -125,6 +128,7 @@ export function PolicyBookingWindowCard({
             name="maxBookingAdvanceDaysOverride"
             id="policy-max-advance"
             testId="policy-max-advance"
+            unit={tUnits('days')}
             label={t('politicasMaxAdvanceLabel')}
             value={policy.maxBookingAdvanceDaysOverride}
             min={1}

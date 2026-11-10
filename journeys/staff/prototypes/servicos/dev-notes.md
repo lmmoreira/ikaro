@@ -404,3 +404,7 @@ The failure and success states of these screens use the shared feedback pattern 
 **Copy:** the screens draw the shipped strings: `02c` shows `dashboard.servicesPage.createdSuccessTitle` / `createdSuccessBody`, and `03j` shows the backend-resolved message (the generic "Algo deu errado. Tente novamente." when the response carries no code).
 
 **data-testid:** `form-feedback` (`form-feedback-mobile` inside the mobile bar), `page-feedback`. The ids `service-submit-error` and `service-created-banner` go away.
+
+## TD51-S3 — every numeric field shows its unit
+
+Every number field on these screens draws its unit inside the input, on its right edge (`.input-suffix-group` + `.input-suffix`, a currency symbol on the left for money): `min` for the duration, buffer, leg duration and transition, hold time and the three duration-policy fields; `h` and `dias` for the notice and advance windows; `h antes` for "Cancelar até" and "Reagendar até" (drawn as number fields now, not as text reading "24 horas antes"); `pts` for the loyalty points; `unid.` for "Quantidade necessária". The built component is `ui/number-input` (`NumberInput`), whose `unit` prop is required, and a bare `<Input type="number">` fails lint. The labels no longer carry the unit in parentheses.

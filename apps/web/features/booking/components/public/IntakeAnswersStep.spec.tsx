@@ -201,3 +201,14 @@ describe('IntakeAnswersStep', () => {
     expect(screen.getByTestId('intake-consent-error')).toContainElement(message);
   });
 });
+
+describe('IntakeAnswersStep unit', () => {
+  it('shows people as the unit of the participant count, in the tenant text colour', () => {
+    renderWithIntl(<Harness onNext={vi.fn()} />);
+
+    const input = screen.getByTestId('intake-participants');
+    expect(input.parentElement).toHaveTextContent('pessoas');
+    expect(input.parentElement?.querySelector('span')).toHaveStyle({ color: 'var(--ba-text)' });
+    expect(input).toHaveAccessibleDescription('pessoas');
+  });
+});

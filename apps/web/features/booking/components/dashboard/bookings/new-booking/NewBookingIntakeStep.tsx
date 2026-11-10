@@ -2,6 +2,7 @@
 
 import { Checkbox } from '@/shared/components/ui/checkbox';
 import { Input } from '@/shared/components/ui/input';
+import { NumberInput } from '@/shared/components/ui/number-input';
 import { Label } from '@/shared/components/ui/label';
 import { Radio } from '@/shared/components/ui/radio';
 import { Textarea } from '@/shared/components/ui/textarea';
@@ -163,6 +164,7 @@ export function NewBookingIntakeStep({
 }: NewBookingIntakeStepProps): React.JSX.Element {
   const t = useTranslations('booking.intake');
   const tn = useTranslations('dashboard.newBooking.steps');
+  const tUnits = useTranslations('common.units');
 
   return (
     <NewBookingStepLayout summary={summary} onBack={onBack} onNext={onNext}>
@@ -187,12 +189,12 @@ export function NewBookingIntakeStep({
       {schema.participantCountRequired && (
         <div>
           <Label htmlFor="intake-participants">{t('participantsLabel')}</Label>
-          <Input
+          <NumberInput
             id="intake-participants"
-            type="number"
+            unit={tUnits('people')}
             min={1}
             data-testid="intake-participants"
-            className={`w-32`}
+            wrapperClassName="w-40"
             value={value.participantCount}
             onChange={(event) => onChange({ ...value, participantCount: event.target.value })}
           />

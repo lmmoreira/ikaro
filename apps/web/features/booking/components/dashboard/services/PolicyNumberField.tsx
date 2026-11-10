@@ -1,6 +1,6 @@
 'use client';
 
-import { Input } from '@/shared/components/ui/input';
+import { NumberInput } from '@/shared/components/ui/number-input';
 import { Label } from '@/shared/components/ui/label';
 import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
 import { cn } from '@/shared/utils/cn';
@@ -16,6 +16,9 @@ interface PolicyNumberFieldProps {
   readonly id: string;
   readonly testId: string;
   readonly label: string;
+  // The unit shown inside the field (already translated); money is a currency-symbol prefix.
+  readonly unit: string;
+  readonly unitPosition?: 'prefix' | 'suffix';
   readonly value: number | null;
   readonly min: number;
   readonly step?: string;
@@ -28,6 +31,8 @@ export function PolicyNumberField({
   id,
   testId,
   label,
+  unit,
+  unitPosition,
   value,
   min,
   step,
@@ -41,9 +46,10 @@ export function PolicyNumberField({
       <Label htmlFor={id} className="mb-1 text-xs text-gray-500">
         {label}
       </Label>
-      <Input
+      <NumberInput
         id={id}
-        type="number"
+        unit={unit}
+        unitPosition={unitPosition}
         min={min}
         step={step}
         data-testid={testId}

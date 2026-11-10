@@ -131,3 +131,29 @@ describe('SettingsBookingSection', () => {
     expect(screen.getByText('Valor inválido')).toBeInTheDocument();
   });
 });
+
+describe('SettingsBookingSection units', () => {
+  it('shows the unit of each of its six numeric fields', () => {
+    renderWithIntl(
+      <SettingsBookingSection
+        values={buildValues()}
+        feedback={settingsFeedback()}
+        onFieldChange={vi.fn()}
+      />,
+    );
+
+    const units: Record<string, string> = {
+      'settings-cancellation-window': 'horas',
+      'settings-service-buffer': 'min',
+      'settings-min-advance-hours': 'horas',
+      'settings-max-advance-days': 'dias',
+      'settings-welcome-staff-screen-days': 'dias',
+      'settings-recurring-renewal-reminder-days': 'dias',
+    };
+    for (const [testId, unit] of Object.entries(units)) {
+      const input = screen.getByTestId(testId);
+      expect(input.parentElement).toHaveTextContent(unit);
+      expect(input).toHaveAccessibleDescription(new RegExp(unit));
+    }
+  });
+});

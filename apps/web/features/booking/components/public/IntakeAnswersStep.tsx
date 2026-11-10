@@ -92,20 +92,36 @@ export function IntakeAnswersStep({
           >
             {t('participantsLabel')} <span aria-hidden="true">*</span>
           </label>
-          <input
-            id="intake-participants"
-            data-testid="intake-participants"
-            type="number"
-            min={1}
-            className={intakeInputClass(
-              'w-32 border px-3 py-2',
-              showFieldErrors && validation.participants,
-            )}
-            style={fieldBorder(showFieldErrors && validation.participants)}
-            value={value.participantCount}
-            onChange={(e) => onChange({ ...value, participantCount: e.target.value })}
-            aria-invalid={showFieldErrors && validation.participants ? true : undefined}
-          />
+          {/* Tenant-branded tree: a raw input is allowed here and the unit uses --ba-text, so it
+              cannot be the ui/ NumberInput (docs/ENGINEERING_RULES_FRONTEND.md § The --ba-* exception). */}
+          <div className="relative w-40">
+            <input
+              id="intake-participants"
+              data-testid="intake-participants"
+              type="number"
+              min={1}
+              className={intakeInputClass(
+                'w-full border py-2 pl-3 pr-16 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
+                showFieldErrors && validation.participants,
+              )}
+              style={fieldBorder(showFieldErrors && validation.participants)}
+              value={value.participantCount}
+              onChange={(e) => onChange({ ...value, participantCount: e.target.value })}
+              aria-invalid={showFieldErrors && validation.participants ? true : undefined}
+              aria-describedby={
+                showFieldErrors && validation.participants
+                  ? 'intake-participants-unit intake-participants-error'
+                  : 'intake-participants-unit'
+              }
+            />
+            <span
+              id="intake-participants-unit"
+              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm"
+              style={{ color: 'var(--ba-text)' }}
+            >
+              {tc('units.people')}
+            </span>
+          </div>
           {showFieldErrors && validation.participants && (
             <IntakeFieldMessage
               id="intake-participants-error"

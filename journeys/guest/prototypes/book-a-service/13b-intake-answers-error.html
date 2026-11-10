@@ -37,7 +37,7 @@
         <p class="hint">Pergunta obrigatória do tipo sim/não: "Não" também é uma resposta válida.</p>
         <p id="err-equipment" class="fb-field-msg" data-testid="intake-field-error-equipment">Este campo é obrigatório.</p>
       </fieldset>
-      <div class="field"><label for="participants">Quantidade de participantes <span aria-hidden="true">*</span></label><input id="participants" class="form-input fb-field-invalid" type="number" min="1" required style="max-width:8rem" aria-invalid="true" aria-describedby="err-participants"><p id="err-participants" class="fb-field-msg" data-testid="intake-field-error-participants">Informe a quantidade de participantes.</p></div>
+      <div class="field"><label for="participants">Quantidade de participantes <span aria-hidden="true">*</span></label><div style="position:relative;max-width:9rem;"><input id="participants" class="form-input fb-field-invalid" type="number" min="1" required style="padding-right:4.5rem" aria-invalid="true" aria-describedby="err-participants"><span style="position:absolute;right:.875rem;top:50%;transform:translateY(-50%);font-size:.8125rem;opacity:.55;color:var(--ba-text);pointer-events:none;">pessoas</span></div><p id="err-participants" class="fb-field-msg" data-testid="intake-field-error-participants">Informe a quantidade de participantes.</p></div>
       <fieldset class="field" style="border:0;padding:0;margin:1rem 0" data-testid="intake-attendees">
         <legend style="font-size:.75rem;font-weight:700;margin-bottom:.375rem;text-transform:uppercase;letter-spacing:.05em">Participantes nomeados</legend>
         <div id="attendee-list">

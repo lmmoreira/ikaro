@@ -59,3 +59,21 @@ describe('MarkCompleteLineFields', () => {
     expect(onLinePriceChange).toHaveBeenCalledWith('l-1', '75');
   });
 });
+
+describe('MarkCompleteLineFields unit', () => {
+  it('puts the currency symbol before each charged price', () => {
+    renderWithIntl(
+      <MarkCompleteLineFields
+        lines={LINES}
+        linePrices={{ 'l-1': '60', 'l-2': '40' }}
+        onLinePriceChange={vi.fn()}
+      />,
+    );
+
+    for (const input of screen.getAllByRole('spinbutton', { name: 'Cobrado' })) {
+      expect(input).toHaveAccessibleDescription('R$');
+      expect(input.parentElement).toHaveTextContent('R$');
+      expect(input.parentElement?.querySelector('span')).toHaveClass('left-3');
+    }
+  });
+});

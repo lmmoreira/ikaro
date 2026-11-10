@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { ColorPicker } from '@/shared/components/ui/color-picker';
 import { HEX_COLOR_REGEX } from '@/shared/utils/hex-color';
-import { Input } from '@/shared/components/ui/input';
+import { useTranslations } from 'next-intl';
+import { NumberInput } from '@/shared/components/ui/number-input';
 import { Label } from '@/shared/components/ui/label';
 
 // A field left on its default is simply absent from the stored presentation, so a module the
@@ -35,13 +36,15 @@ interface OpacityFieldProps {
 
 // There is no slider primitive in the repo, so opacity is a 0–100 % number input stored as 0–1.
 export function OpacityField({ id, label, value, onChange }: OpacityFieldProps): React.JSX.Element {
+  const tUnits = useTranslations('common.units');
+
   return (
     <div>
       <Label htmlFor={id}>{label}</Label>
-      <Input
+      <NumberInput
         id={id}
         data-testid={id}
-        type="number"
+        unit={tUnits('percent')}
         min={0}
         max={100}
         step={1}

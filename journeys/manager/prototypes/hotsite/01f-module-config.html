@@ -20,6 +20,8 @@
     label { display:block; margin-bottom:.4rem; font-size:.875rem; font-weight:700; }
     input, textarea, select { box-sizing:border-box; width:100%; border:1px solid #cbd5e1; border-radius:6px; padding:.7rem .75rem; font:inherit; background:#fff; }
     textarea { min-height:6rem; resize:vertical; }
+    .input-suffix-group { position: relative; }
+    .input-suffix { position: absolute; right: 0.875rem; top: 50%; transform: translateY(-50%); font-size: 0.8125rem; color: #64748b; pointer-events: none; }
     .hint { margin:.35rem 0 0; color:#64748b; font-size:.8rem; line-height:1.4; }
     .choices { display:flex; flex-wrap:wrap; gap:.5rem; }
     .choice { border:1px solid #cbd5e1; background:#fff; border-radius:999px; padding:.5rem .75rem; font:inherit; font-size:.85rem; }
@@ -99,11 +101,11 @@
       },
       GALLERY: {
         title: 'Configurar: Galeria',
-        fields: () => `<div class="card">${input('Título (opcional)', 'Nosso trabalho')}${input('Texto de destaque (opcional)', 'Antes e depois')}${choices('Layout', ['Grade', 'Mosaico', 'Destaque'])}<p class="hint">O layout Destaque exige pelo menos 5 imagens.</p>${field('Máximo de imagens visíveis', '<input type="number" min="1" value="6">')}</div><div class="card"><strong>Imagens</strong><p class="hint">Nenhuma imagem adicionada ainda.</p><div class="choices"><button class="button" type="button">Adicionar imagem</button><button class="button" type="button">Usar foto de um agendamento</button></div></div>`
+        fields: () => `<div class="card">${input('Título (opcional)', 'Nosso trabalho')}${input('Texto de destaque (opcional)', 'Antes e depois')}${choices('Layout', ['Grade', 'Mosaico', 'Destaque'])}<p class="hint">O layout Destaque exige pelo menos 5 imagens.</p>${field('Máximo de imagens visíveis', '<div class="input-suffix-group"><input type="number" min="1" value="6" style="padding-right:5rem;"><span class="input-suffix">imagens</span></div>')}</div><div class="card"><strong>Imagens</strong><p class="hint">Nenhuma imagem adicionada ainda.</p><div class="choices"><button class="button" type="button">Adicionar imagem</button><button class="button" type="button">Usar foto de um agendamento</button></div></div>`
       },
       BOOKING_CTA: {
         title: 'Configurar: Chamada para agendamento',
-        fields: () => `<div class="card">${input('Título *', 'Pronto para agendar?')}${input('Subtítulo (opcional)', 'Reserve seu horário em poucos cliques')}${input('Texto de destaque (opcional)', 'Vagas limitadas')}${choices('Layout', ['Centralizado', 'Alinhado à esquerda'])}${choices('Posição vertical do conteúdo', ['Topo', 'Centro', 'Base'])}${choices('Posição horizontal do conteúdo', ['Esquerda', 'Centro', 'Direita'])}${input('Texto do botão *', 'Agendar agora')}${choices('Estilo de fundo', ['Cor primária', 'Cor de fundo'])}${choices('Painel lateral', ['Nenhum', 'Cartão da marca'])}${upload('Imagem de fundo (opcional)', 'Sem imagem → fundo sólido')}<div style="border-top:1px solid #e5e7eb;padding-top:1.25rem;margin-top:1.25rem"><strong>Calendário</strong>${choices('Seletor de data', ['Carrossel', 'Calendário'])}${field('Número de dias exibidos', '<input type="number" min="1" max="90" value="14">')}</div></div>`
+        fields: () => `<div class="card">${input('Título *', 'Pronto para agendar?')}${input('Subtítulo (opcional)', 'Reserve seu horário em poucos cliques')}${input('Texto de destaque (opcional)', 'Vagas limitadas')}${choices('Layout', ['Centralizado', 'Alinhado à esquerda'])}${choices('Posição vertical do conteúdo', ['Topo', 'Centro', 'Base'])}${choices('Posição horizontal do conteúdo', ['Esquerda', 'Centro', 'Direita'])}${input('Texto do botão *', 'Agendar agora')}${choices('Estilo de fundo', ['Cor primária', 'Cor de fundo'])}${choices('Painel lateral', ['Nenhum', 'Cartão da marca'])}${upload('Imagem de fundo (opcional)', 'Sem imagem → fundo sólido')}<div style="border-top:1px solid #e5e7eb;padding-top:1.25rem;margin-top:1.25rem"><strong>Calendário</strong>${choices('Seletor de data', ['Carrossel', 'Calendário'])}${field('Número de dias exibidos', '<div class="input-suffix-group"><input type="number" min="1" max="90" value="14" style="padding-right:3.75rem;"><span class="input-suffix">dias</span></div>')}</div></div>`
       },
       TESTIMONIALS: {
         title: 'Configurar: Depoimentos',

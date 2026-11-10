@@ -116,3 +116,11 @@ describe('TouchedColorPicker', () => {
     expect(screen.queryByTestId('c-error')).not.toBeInTheDocument();
   });
 });
+
+describe('OpacityField unit', () => {
+  it('shows a percent sign and no longer needs it in the label', () => {
+    renderWithIntl(<OpacityField id="op" label="Opacidade" value={0.4} onChange={vi.fn()} />);
+
+    expect(screen.getByLabelText('Opacidade').parentElement).toHaveTextContent('%');
+  });
+});

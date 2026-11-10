@@ -130,3 +130,26 @@ describe('SettingsLeadFormSection', () => {
     );
   });
 });
+
+describe('SettingsLeadFormSection units', () => {
+  it('shows the unit of each of its three numeric fields', () => {
+    renderWithIntl(
+      <SettingsLeadFormSection
+        values={buildValues()}
+        feedback={settingsFeedback()}
+        onFieldChange={vi.fn()}
+      />,
+    );
+
+    const units: Record<string, string> = {
+      'settings-lead-form-retention-months': 'meses',
+      'settings-lead-form-max-submissions-per-day': '/ dia',
+      'settings-lead-form-max-submissions-per-ip-per-day': '/ dia',
+    };
+    for (const [testId, unit] of Object.entries(units)) {
+      const input = screen.getByTestId(testId);
+      expect(input.parentElement).toHaveTextContent(unit);
+      expect(input).toHaveAccessibleDescription(new RegExp(unit));
+    }
+  });
+});

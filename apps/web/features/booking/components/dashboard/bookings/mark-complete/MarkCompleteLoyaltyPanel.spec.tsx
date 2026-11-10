@@ -108,3 +108,24 @@ describe('MarkCompleteLoyaltyPanel', () => {
     expect(screen.getByText('Desconto fidelidade: -R$ 24,00')).toBeInTheDocument();
   });
 });
+
+describe('MarkCompleteLoyaltyPanel unit', () => {
+  it('shows points as the unit of the points to use', () => {
+    renderWithIntl(
+      <MarkCompleteLoyaltyPanel
+        loyaltyBalance={240}
+        loyaltyPointsPerCurrencyUnit={10}
+        maxRedeemablePoints={240}
+        pointsUsed={0}
+        discountAmount={0}
+        onPointsChange={vi.fn()}
+        onUseAllPoints={vi.fn()}
+      />,
+    );
+
+    const input = screen.getByRole('spinbutton', { name: 'Pontos a usar' });
+    expect(input.parentElement).toHaveTextContent('pts');
+    // The unit is announced after the value, as the description, and is not part of the name.
+    expect(input).toHaveAccessibleDescription('pts');
+  });
+});

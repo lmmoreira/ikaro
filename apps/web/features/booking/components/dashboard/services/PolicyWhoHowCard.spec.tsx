@@ -127,7 +127,7 @@ describe('PolicyWhoHowCard', () => {
 
       const input = screen.getByTestId('policy-recurring-horizon');
       expect(input).not.toHaveAttribute('aria-errormessage');
-      expect(input).toHaveAttribute('aria-describedby', 'policy-recurring-horizon-hint');
+      expect(input.getAttribute('aria-describedby')).toMatch(/^policy-recurring-horizon-hint( |$)/);
     });
   });
 
@@ -152,5 +152,15 @@ describe('PolicyWhoHowCard', () => {
       expect(hint).toHaveTextContent('ele tem etapas; ele exige endereço de coleta');
       expect(hint).toHaveAttribute('role', 'note');
     });
+  });
+});
+
+describe('PolicyWhoHowCard unit', () => {
+  it('shows days on the recurring horizon', () => {
+    renderWithIntl(
+      <PolicyWhoHowCard policy={{ ...BASE_POLICY, recurrenceEligible: true }} onPatch={vi.fn()} />,
+    );
+
+    expect(screen.getByTestId('policy-recurring-horizon').parentElement).toHaveTextContent('dias');
   });
 });

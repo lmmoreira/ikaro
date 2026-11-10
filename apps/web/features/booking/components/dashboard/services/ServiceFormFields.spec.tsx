@@ -90,7 +90,7 @@ describe('ServiceFormFields', () => {
       expect(input).toHaveAttribute('aria-invalid', 'true');
       expect(input).toHaveClass('ring-red-600');
       expect(
-        document.getElementById(input.getAttribute('aria-describedby') ?? ''),
+        document.getElementById((input.getAttribute('aria-describedby') ?? '').split(' ')[0]),
       ).toHaveTextContent(message);
     }
   });
@@ -99,10 +99,19 @@ describe('ServiceFormFields', () => {
     renderWithIntl(<Fields {...baseProps} />);
 
     expect(screen.getByTestId('service-name-input')).not.toHaveAttribute('aria-invalid');
-    expect(screen.getByTestId('service-points-input')).toHaveAttribute(
-      'aria-describedby',
-      'service-points-hint',
+    expect(screen.getByTestId('service-points-input').getAttribute('aria-describedby')).toMatch(
+      /^service-points-hint( |$)/,
     );
     expect(screen.queryByTestId('service-submit-error')).not.toBeInTheDocument();
+  });
+});
+
+describe('ServiceFormFields units', () => {
+  it('shows the unit of the duration and of the loyalty points', () => {
+    renderWithIntl(<Fields {...baseProps} />);
+
+    expect(screen.getByTestId('service-duration-input').parentElement).toHaveTextContent('min');
+    expect(screen.getByTestId('service-points-input').parentElement).toHaveTextContent('pts');
+    expect(screen.getByTestId('service-points-input')).toHaveAccessibleDescription(/pts/);
   });
 });
