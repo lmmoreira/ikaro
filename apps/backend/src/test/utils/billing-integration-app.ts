@@ -5,6 +5,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { FeaturePriceVersionEntity } from '../../contexts/billing/infrastructure/entities/feature-price-version.entity';
 import { FeaturePriceEntity } from '../../contexts/billing/infrastructure/entities/feature-price.entity';
+import { BillingAccountEntity } from '../../contexts/billing/infrastructure/entities/billing-account.entity';
+import { SubscriptionItemEntity } from '../../contexts/billing/infrastructure/entities/subscription-item.entity';
+import { SubscriptionEntity } from '../../contexts/billing/infrastructure/entities/subscription.entity';
 import { BillingModule } from '../../contexts/billing/billing.module';
 import { DevClockModule } from '../../contexts/billing/infrastructure/dev-clock.module';
 import { AppEnv } from '../../shared/database/resolve-app-env';
@@ -37,7 +40,13 @@ export async function createBillingIntegrationApp(
       TypeOrmModule.forRoot({
         type: 'postgres',
         url: process.env['TEST_DATABASE_URL'],
-        entities: [FeaturePriceEntity, FeaturePriceVersionEntity],
+        entities: [
+          FeaturePriceEntity,
+          FeaturePriceVersionEntity,
+          SubscriptionEntity,
+          SubscriptionItemEntity,
+          BillingAccountEntity,
+        ],
         synchronize: false,
       }),
       TransactionManagerModule,

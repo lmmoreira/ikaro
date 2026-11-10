@@ -1715,7 +1715,7 @@ LeadFormAnswer {
 ---
 
 ### **Context 7: Billing Context**
-> **PARTLY BUILT** (Billing milestone): the `billing` schema exists (`docs/DATABASE_SCHEMA.md` § Schema: `billing`, M25-S03); aggregates, repositories and use cases are rules and design only until their stories land.
+> **PARTLY BUILT** (Billing milestone): the `billing` schema exists (`docs/DATABASE_SCHEMA.md` § Schema: `billing`, M25-S03); the `Subscription` and `BillingAccount` aggregates and their repositories are built (M25-S08: `contexts/billing/domain/subscription.aggregate.ts`, `billing-account.aggregate.ts`, `plan-selection.ts`; the state-changing methods M25 needs, with the payment-driven transitions added by M26); `Charge` and the use cases are rules and design only until their stories land.
 
 **Slice-to-milestone mapping:** the deferred slices are the follow-up milestones M27 = slice G (tenant purge and deactivation), M28 = slice E (Stripe/US tax), M29 = slice F (automatic collection, incl. F2 recurring card) and M30 = slice H (annual billing); M25 and M26 deliver the first (BR-only) release.
 
@@ -1807,6 +1807,8 @@ Items hold only the *selected plan*. There are **no trial rows** (trial access c
 | any → `SUSPENDED` (`OPERATOR`) | operator suspend | operator |
 | `SUSPENDED` → `ACTIVE` | recovery charge `PAID` (not for `OPERATOR`); `exempt` set; `unsuspend` (`OPERATOR` only) | payment / operator |
 | `SUSPENDED` → (erased) | purge or self-service discard | purge coordinator (slice G) |
+
+**Operator edge cases settled in M25-S08** (the transition table above does not say): an operator `suspend` of a subscription already `SUSPENDED` with another reason turns the reason into `OPERATOR` and keeps `suspendedAt` (the clean-up clock does not restart; payment no longer lifts it), and is a no-op when it is already `OPERATOR`. An `unsuspend` returns the subscription to `TRIALING` when its `trialEndsAt` is still in the future (the trial was never consumed, so `ACTIVE` with items that only start at `trialEndsAt` would entitle nothing), otherwise to `ACTIVE`; either way the reason, `suspendedAt` and both purge-warning marks are cleared.
 
 **Settlement margin (trial end):** the sweep waits `PAYMENT_SETTLEMENT_MARGIN_HOURS` (24), or `PAYMENT_PENDING_MARGIN_BUSINESS_DAYS` (3 business days, tenant-local calendar) when the manager already returned from the payment page and the charge is still open, before suspending; the rule and its flow are in `docs/USE_CASES.md` UC-115 step 2, and the constants are below.
 

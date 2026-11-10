@@ -606,6 +606,9 @@ Create the two Billing roots exactly as `docs/DOMAIN_MODEL.md` specifies. **`Sub
 **Files to create/modify:**
 - `apps/backend/src/contexts/billing/domain/subscription.aggregate.ts` (+ `.spec.ts`) (new)
 - `apps/backend/src/contexts/billing/domain/subscription-item.ts` (+ `.spec.ts`) (new)
+- `apps/backend/src/contexts/billing/domain/plan-selection.ts` (+ `.spec.ts`) (new — the dependency graph, `defaultSelection`, `validateSelection`), `subscription.types.ts` and `subscription-trial-window.ts` (new — the props/input/preview types and the trial-window maths moved out of the aggregate, as `booking.types.ts` did)
+- `apps/backend/src/contexts/billing/infrastructure/repositories/typeorm-subscription.mapper.ts`, `typeorm-billing-account.mapper.ts` (new — covered through the repository specs)
+- `apps/backend/eslint.config.js` (modify — the two new repository adapters on the reviewed `PERSISTENCE_BYPASS_IGNORES` list, as `typeorm-feature-price.repository.ts` is) and `apps/backend/src/test/utils/billing-integration-app.ts` (modify — the Billing integration app's entity list, plus its `testDataHarnessRegistrations` entry in `architecture-policy.json`)
 - `apps/backend/src/contexts/billing/domain/billing-account.aggregate.ts` (+ `.spec.ts`) (new)
 - `apps/backend/src/contexts/billing/domain/errors/*.error.ts` (new — one per new invariant error)
 - `apps/backend/src/contexts/billing/application/ports/subscription-repository.port.ts` + `billing-account-repository.port.ts` (new)
