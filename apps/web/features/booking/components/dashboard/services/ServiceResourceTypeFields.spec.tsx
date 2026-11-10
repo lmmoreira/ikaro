@@ -355,7 +355,7 @@ describe('ServiceResourceTypeFields', () => {
   });
 });
 
-describe('ServiceResourceTypeFields unit (TD51-S3)', () => {
+describe('ServiceResourceTypeFields unit', () => {
   it('shows the unit of the required quantity', () => {
     renderWithIntl(
       <ServiceResourceTypeFields

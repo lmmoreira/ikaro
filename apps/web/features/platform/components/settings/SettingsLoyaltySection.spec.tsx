@@ -97,7 +97,7 @@ describe('SettingsLoyaltySection', () => {
   });
 });
 
-describe('SettingsLoyaltySection units (TD51-S3)', () => {
+describe('SettingsLoyaltySection units', () => {
   it('shows points per currency symbol and points on the notification minimum', () => {
     renderWithIntl(
       <SettingsLoyaltySection

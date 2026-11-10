@@ -202,7 +202,7 @@ describe('IntakeAnswersStep', () => {
   });
 });
 
-describe('IntakeAnswersStep unit (TD51-S3)', () => {
+describe('IntakeAnswersStep unit', () => {
   it('shows people as the unit of the participant count, in the tenant text colour', () => {
     renderWithIntl(<Harness onNext={vi.fn()} />);
 

@@ -118,7 +118,7 @@ describe('ServiceBufferAfterMinutesField', () => {
   });
 });
 
-describe('ServiceBufferAfterMinutesField unit (TD51-S3)', () => {
+describe('ServiceBufferAfterMinutesField unit', () => {
   it('shows the unit inside the field, so the buffer is not read as hours or days', () => {
     renderWithIntl(
       <ServiceBufferAfterMinutesField

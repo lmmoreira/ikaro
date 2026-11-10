@@ -60,7 +60,7 @@ describe('MarkCompleteLineFields', () => {
   });
 });
 
-describe('MarkCompleteLineFields unit (TD51-S3)', () => {
+describe('MarkCompleteLineFields unit', () => {
   it('puts the currency symbol before each charged price', () => {
     renderWithIntl(
       <MarkCompleteLineFields

@@ -161,7 +161,7 @@ describe('ServiceLegsPanel', () => {
   });
 });
 
-describe('ServiceLegsPanel units (TD51-S3)', () => {
+describe('ServiceLegsPanel units', () => {
   it('shows minutes on every leg duration and transition field', () => {
     renderWithIntl(
       <ServiceLegsPanel legs={LEGS} availableResourcesByType={() => []} onChange={vi.fn()} />,

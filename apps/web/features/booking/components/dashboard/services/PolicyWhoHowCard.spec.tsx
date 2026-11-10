@@ -155,7 +155,7 @@ describe('PolicyWhoHowCard', () => {
   });
 });
 
-describe('PolicyWhoHowCard unit (TD51-S3)', () => {
+describe('PolicyWhoHowCard unit', () => {
   it('shows days on the recurring horizon', () => {
     renderWithIntl(
       <PolicyWhoHowCard policy={{ ...BASE_POLICY, recurrenceEligible: true }} onPatch={vi.fn()} />,

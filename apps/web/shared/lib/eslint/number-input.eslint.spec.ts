@@ -12,7 +12,7 @@ const DASHBOARD_PATH = 'features/booking/components/dashboard/example.tsx';
 const BRANDED_PATH = 'features/booking/components/public/example.tsx';
 const PRIMITIVE_PATH = 'shared/components/ui/number-input.tsx';
 
-describe('bare numeric <Input> ban (TD51-S3)', () => {
+describe('bare numeric <Input> ban', () => {
   const eslint = new Linter({ configType: 'flat' });
 
   // Only this rule's own message: the fixtures are not full components, so unrelated rules stay out.
@@ -21,7 +21,7 @@ describe('bare numeric <Input> ban (TD51-S3)', () => {
       .verify(source, productionConfig, filePath)
       .filter(
         (message) =>
-          message.ruleId === 'no-restricted-syntax' && message.message.includes('TD51-S3'),
+          message.ruleId === 'no-restricted-syntax' && message.message.includes('ui/number-input'),
       );
   }
 
@@ -36,6 +36,10 @@ describe('bare numeric <Input> ban (TD51-S3)', () => {
       ['type={`number`}', '<Input type={`number`} />'],
       ['a conditional type', "<Input type={flag ? 'number' : 'text'} />"],
       ['a logical type', "<Input type={flag && 'number'} />"],
+      ['a nested conditional', "<Input type={flag ? (nested ? 'number' : 'text') : 'tel'} />"],
+      ['a number on the left of a logical', "<Input type={'number' || 'text'} />"],
+      ['a number in a nested template', '<Input type={flag ? (n ? `number` : `text`) : `tel`} />'],
+      ['a number in a nested logical result', "<Input type={a ? (b && 'number') : 'text'} />"],
       ['a number input with other props', '<Input id="a" type="number" min={0} value={1} />'],
     ])('%s', (_name, jsx) => {
       for (const path of [DASHBOARD_PATH, BRANDED_PATH]) {

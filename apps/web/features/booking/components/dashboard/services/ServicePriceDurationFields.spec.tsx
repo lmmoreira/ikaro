@@ -105,7 +105,7 @@ describe('ServicePriceDurationFields', () => {
   });
 });
 
-describe('ServicePriceDurationFields units (TD51-S3)', () => {
+describe('ServicePriceDurationFields units', () => {
   it('puts the currency symbol before the price and the minutes unit after the duration', () => {
     renderWithIntl(<Fields {...baseProps} />);
 

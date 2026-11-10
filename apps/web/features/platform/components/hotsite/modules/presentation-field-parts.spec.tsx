@@ -117,7 +117,7 @@ describe('TouchedColorPicker', () => {
   });
 });
 
-describe('OpacityField unit (TD51-S3)', () => {
+describe('OpacityField unit', () => {
   it('shows a percent sign and no longer needs it in the label', () => {
     renderWithIntl(<OpacityField id="op" label="Opacidade" value={0.4} onChange={vi.fn()} />);
 

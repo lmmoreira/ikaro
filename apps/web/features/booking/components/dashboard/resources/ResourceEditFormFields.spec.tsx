@@ -321,7 +321,7 @@ describe('ResourceEditFormFields', () => {
   });
 });
 
-describe('ResourceEditFormFields units (TD51-S3)', () => {
+describe('ResourceEditFormFields units', () => {
   it('shows minutes on the turnover and spots on the capacity', () => {
     renderWithIntl(<ResourceEditFormFields resourceId="r-1" resource={ROOM_RESOURCE} />);
 

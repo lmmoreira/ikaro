@@ -116,7 +116,7 @@ describe('PolicyDurationPricingCard', () => {
       />,
     );
 
-    // The unit is drawn inside the field (TD51-S3), no longer written into the label.
+    // The unit is drawn inside the field no longer written into the label.
     expect(screen.getByLabelText('Duração mínima')).toHaveAccessibleDescription(/min/);
     expect(screen.getByLabelText('Duração máxima')).toHaveAccessibleDescription(/min/);
     expect(screen.getByLabelText('Intervalo de escolha')).toHaveAccessibleDescription(/min/);

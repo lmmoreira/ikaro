@@ -103,7 +103,7 @@ describe('NewBookingIntakeStep', () => {
   });
 });
 
-describe('NewBookingIntakeStep unit (TD51-S3)', () => {
+describe('NewBookingIntakeStep unit', () => {
   it('shows people as the unit of the participant count', () => {
     renderStep();
 

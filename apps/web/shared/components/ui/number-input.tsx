@@ -14,7 +14,7 @@ export interface NumberInputProps extends Omit<InputProps, 'type'> {
 }
 
 // A number input that shows its unit inside the field, so the user never has to guess whether a
-// value is minutes, hours or days (TD51-S3). The unit is overlaid on the input's edge and the
+// value is minutes, hours or days. The unit is overlaid on the input's edge and the
 // input's padding grows with it, so the digits never run under the unit. Same look the settings
 // page used before it moved here. A primitive imports no i18n: the caller passes the translated
 // unit. Browser spin buttons are hidden because they would sit under the unit.

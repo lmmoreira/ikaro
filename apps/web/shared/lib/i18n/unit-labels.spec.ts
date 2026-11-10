@@ -1,7 +1,7 @@
 import enMessages from '@ikaro/i18n/locales/en/web.json';
 import ptBRMessages from '@ikaro/i18n/locales/pt-BR/web.json';
 
-// TD51-S3: a numeric field draws its unit inside the field (ui/number-input), so a label must not
+// A numeric field draws its unit inside the field (ui/number-input), so a label must not
 // also carry it in parentheses, and a unit is spelled once, in `common.units`, in both locales.
 const LOCALES = { 'pt-BR': ptBRMessages, en: enMessages } as const;
 

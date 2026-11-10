@@ -79,7 +79,7 @@ describe('PolicyBookingWindowCard', () => {
   });
 });
 
-describe('policy cards units (TD51-S3)', () => {
+describe('policy cards units', () => {
   it('shows the unit of the hold time, the cancel and reschedule windows', () => {
     renderWithIntl(
       <PolicyConfirmationCard

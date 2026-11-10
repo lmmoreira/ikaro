@@ -301,7 +301,7 @@ describe('ResourceCreateForm', () => {
   });
 });
 
-describe('ResourceCreateForm units (TD51-S3)', () => {
+describe('ResourceCreateForm units', () => {
   it('shows minutes on the turnover and spots on the capacity', async () => {
     const user = userEvent.setup();
     renderWithIntl(<ResourceCreateForm />);

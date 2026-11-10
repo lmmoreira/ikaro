@@ -303,7 +303,7 @@ describe('BookingCtaConfigPanel', () => {
   });
 });
 
-describe('BookingCtaConfigPanel unit (TD51-S3)', () => {
+describe('BookingCtaConfigPanel unit', () => {
   it('shows days as the unit of the carousel length', () => {
     renderWithIntl(
       <BookingCtaConfigPanel data={writeModuleData(BOOKING_CTA)} onChange={vi.fn()} />,

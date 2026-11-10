@@ -258,7 +258,7 @@ describe('GalleryConfigPanel', () => {
   });
 });
 
-describe('GalleryConfigPanel unit (TD51-S3)', () => {
+describe('GalleryConfigPanel unit', () => {
   it('shows images as the unit of the maximum visible', () => {
     renderWithIntl(<GalleryConfigPanel data={writeModuleData(GALLERY)} onChange={vi.fn()} />);
 

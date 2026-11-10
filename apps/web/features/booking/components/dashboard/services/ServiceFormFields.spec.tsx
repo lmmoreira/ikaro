@@ -106,7 +106,7 @@ describe('ServiceFormFields', () => {
   });
 });
 
-describe('ServiceFormFields units (TD51-S3)', () => {
+describe('ServiceFormFields units', () => {
   it('shows the unit of the duration and of the loyalty points', () => {
     renderWithIntl(<Fields {...baseProps} />);
 

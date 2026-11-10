@@ -109,7 +109,7 @@ describe('MarkCompleteLoyaltyPanel', () => {
   });
 });
 
-describe('MarkCompleteLoyaltyPanel unit (TD51-S3)', () => {
+describe('MarkCompleteLoyaltyPanel unit', () => {
   it('shows points as the unit of the points to use', () => {
     renderWithIntl(
       <MarkCompleteLoyaltyPanel
