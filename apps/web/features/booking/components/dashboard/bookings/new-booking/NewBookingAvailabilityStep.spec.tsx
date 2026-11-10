@@ -88,6 +88,13 @@ describe('NewBookingAvailabilityStep', () => {
     expect(screen.queryByTestId('slot-picker')).not.toBeInTheDocument();
   });
 
+  it('names the chosen date in the slots heading', () => {
+    renderStep({ selectedDate: '2026-06-15' });
+    expect(
+      screen.getByText('Horários disponíveis — Segunda-feira, 15 de junho'),
+    ).toBeInTheDocument();
+  });
+
   it('explains the notice dot only when the business has a minimum notice', () => {
     renderStep({ selectedDate: '2026-06-15', minBookingAdvanceHours: 2 });
     expect(screen.getByTestId('notice-legend')).toHaveTextContent('2 h');

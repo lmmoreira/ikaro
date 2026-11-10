@@ -362,6 +362,8 @@ Not copied here, so they cannot drift: read the real definitions.
 - `MarkCompleteBookingPage` and `RescheduleBookingPage` are dedicated nested routes (`/dashboard/bookings/[id]/complete`, `/dashboard/bookings/[id]/reschedule`), not modals/sheets over `[id]`.
 - The reschedule flow reuses the UC-011 `AvailabilityCarousel` + `SlotPicker` (`variant="dashboard"`) with duration frozen at the existing booking's `totalDurationMins` (no basket/duration recompute).
 
+- **Month context (TD51-S2):** `05` and `05d` draw the dashboard strip with a month marker (`.month-marker` under `.avc-scroll`, `shared/reschedule-picker.css`) and the slots heading carries the chosen date (`dashboard.bookingDetail.availableSlotsLabel` = `Horários disponíveis — {date}`). The staff new-booking step uses the same strip and its `dashboard.newBooking.steps.slotsLabel` carries the date too.
+
 ---
 
 ## M23 Cluster 3 extension (UC-071 approval ✅ shipped by M23-S13; UC-074 no-show ✅ shipped by M23-S27; UC-070 staff variant ✅ shipped by M23-S19)

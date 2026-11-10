@@ -5,6 +5,7 @@ import {
   dayNumber,
   inWindow,
   isSameDay,
+  monthMarkerLabel,
   toISODate,
   toISODateInTimezone,
 } from './date-utils';
@@ -109,5 +110,17 @@ describe('dayCarouselLabel', () => {
   it('returns a short weekday in en for subsequent days', () => {
     const label = dayCarouselLabel('2026-06-16', 1, 'en', 'Today');
     expect(label).toMatch(/Tue/i);
+  });
+});
+
+describe('monthMarkerLabel', () => {
+  it('returns the short month name without a year', () => {
+    expect(monthMarkerLabel('2026-06-15', 'pt-BR', false)).toBe('jun.');
+    expect(monthMarkerLabel('2026-07-01', 'en', false)).toBe('Jul');
+  });
+
+  it('adds the year when asked', () => {
+    expect(monthMarkerLabel('2027-01-01', 'pt-BR', true)).toMatch(/^jan\.? (de )?2027$/);
+    expect(monthMarkerLabel('2027-01-01', 'en', true)).toBe('Jan 2027');
   });
 });

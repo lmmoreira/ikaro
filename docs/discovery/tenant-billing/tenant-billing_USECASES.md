@@ -39,7 +39,7 @@ Review 3 (2026-10-28) added CAND-36 (self-service discard), CAND-37 (tenant deac
   - **A1: Subscription already exists** (event redelivered) → no-op; idempotent on `UNIQUE(tenant_id)`.
   - **A2: No `FeaturePrice` rows for the country** → the use case fails loudly (error logged, event retried); the missing row is a provisioning/data-integrity incident, access is denied rather than granted (after the provisioning window), the self-heal job retries it (CAND-35), and an alert fires only if that fails; a missing price set for an enabled country is also caught at deploy time.
   - **A3: Provisioning passes an explicit feature subset** (event hint) → the subset defines the **default paid items**; the trial still grants every feature because it is computed from the status, so the trial is always complete (an exempt tenant gets only the subset, open-ended).
-  - **A4: Non-exempt US tenant while `FEATURE_FLAG_SIGNUP_US` is off** → the use case fails loudly and alerts; provisioning paths also reject it up front (main doc §5.2). Exempt US tenants are allowed.
+  - **A4: Non-exempt US tenant before M28** → no special rule: no US price rows in production, so A2 applies (fails loudly and alerts); no up-front rejection. Exempt US tenants are allowed.
   - **A5: A legacy `TenantProvisioned` payload** (outbox row written before the deploy, no `countryCode`; the bus does not version-route, verified) → the handler skips it and logs; the self-heal job (CAND-35) creates the trial through the narrow read-only tenant-info port (decision 119). Publisher and handler ship in the same release.
   - **A6: Access is read before this handler has run** → the tenant is younger than `PROVISIONING_GRACE_MINUTES`, so the access port treats it as a pending trial (allowed); if the window expires without a subscription, the self-heal job (CAND-35) runs this same use case.
   - **A7: Event without a `registrationId`** for a non-exempt tenant (an old script call) → the handler creates the subscription without tax id and flags the BR charge hold (CAND-08 A8); the manager supplies it in the dashboard.
@@ -106,7 +106,7 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
   - **A1: `APP_ENV=production`** → the routes do not exist (404); a live adapter also refuses to start outside production, and a fake/sandbox profile key is rejected at provisioning in production.
   - **A2: Subscription uses a sandbox or live key** → `simulate` is refused; staging sandboxes are driven through the provider's own sandbox actions.
   - **A3: Missing or wrong operator keys** → `401` like every operator route.
-- **Postconditions:** Billing state changed exactly as the real event would have changed it; nothing was charged and no real communication was sent (Mailhog locally; staging email allowlist).
+- **Postconditions:** Billing state changed exactly as the real event would have changed it; nothing was charged and no real communication was sent (Mailhog locally).
 - **Events Triggered:** whatever the simulated flow triggers (`ChargePaid`, `SubscriptionPastDue`, …).
 
 ---
@@ -221,7 +221,7 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
 - **Trigger:** Manager clicks **Pagar agora**.
 - **Main Flow:** The BFF returns the provider's hosted payment URL; the manager pays by card, Pix or boleto on the provider's page; the webhook (CAND-09) confirms and the status updates.
 - **Alternative Flows:**
-  - **A1: Link expired** → `POST .../payment-link` asks the provider (port) for a usable link: Stripe hosted invoice URLs expire 30 days after the due date and a fresh one is issued; Asaas's `invoiceUrl` has no documented expiry (the Pix QR stays valid 12 months after due, a boleto may be auto-cancelled after due), so the adapter re-reads the charge and returns the current URL — behaviour after due date is a launch gate (`tenant-billing_PROVIDERS.md` §5).
+  - **A1: Link expired** → `POST .../payment-link` asks the provider (port) for a usable link: Stripe hosted invoice URLs expire 30 days after the due date and a fresh one is issued; Asaas's `invoiceUrl` has no documented expiry (the Pix QR stays valid 12 months after due, a boleto may be auto-cancelled after due), so the adapter re-reads the charge and returns the current URL — behaviour after due date is a launch gate (G1 in `docs/ASAAS_PROVIDER.md`; the sandbox could not reproduce it).
   - **A2: Payment pending** (Pix/boleto compensation) → page shows "pagamento em processamento".
   - **A3: Payment fails** → charge stays open; page explains and offers retry.
   - **A4: Charge already paid** → the page refreshes to the paid state.
@@ -278,7 +278,6 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
 - **Alternative Flows:**
   - **A1: Billing email but the manager has no address** → logged, ops alert.
   - **A2: Access lookup error** → fail open (send).
-  - **A3: `APP_ENV=staging` and the recipient is not in `EMAIL_RECIPIENT_ALLOWLIST`** → the send is dropped and logged `SKIPPED_NOT_ALLOWLISTED`, for every template including Billing's (decision 69). Ignored in `production` and `local` (Mailhog).
 - **Postconditions:** No tenant/customer/staff messages while suspended.
 - **Events Triggered:** None.
 
@@ -340,7 +339,7 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
   - **A5: Terms not accepted** → blocked.
   - **A9: BR tax ID missing or with invalid check digits** → `SIGNUP_TAX_ID_REQUIRED` / `SIGNUP_TAX_ID_INVALID`, field error; nothing is created.
   - **A6: Tenant creation transaction fails** → nothing is created and retry is offered. If a post-commit `TenantProvisioned` consumer is delayed or fails, its durable event retry completes the first-manager and Billing setup; the account-created page still directs the visitor to email rather than implying that dashboard access is already ready.
-  - **A7: Country without prices, or US while `FEATURE_FLAG_SIGNUP_US` is off (no Stripe adapter yet)** → not offered.
+  - **A7: Country without prices (the US in production, until M28)** → not offered.
   - **A10: Confirmation email not received** → the account-created page offers a rate-limited resend and, once the first manager exists, a one-click Google sign-in to the existing staff login.
   - **A8: Google account already manages other tenants** → allowed (multi-tenant staff and owners); trial rule A3 still applies. An owner who pays can create as many tenants as they want.
 - **Postconditions:** Tenant creation committed; the first manager and trial subscription are created asynchronously from `TenantProvisioned`. The visitor sees the account-created/check-email page and signs in through the first-manager invitation/login email after setup completes.
@@ -461,7 +460,7 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
 
 ### **CAND-30: Manager Enables or Disables Automatic Charging (Pix Automático only)** — *DEFERRED RELEASE GATE*
 - **Actor:** Staff (MANAGER).
-- **Preconditions:** BRL tenant on Asaas, Ikaro's Asaas account is a PJ with a CNPJ active 6+ months **and** the Pix Automático flow is verified end-to-end in the sandbox and production (`tenant-billing_PROVIDERS.md` §5). Until that gate passes, this UI and endpoint are not released. Card auto-billing through the provider's *API tokenization* is not offered (it passes card data through Ikaro's server, decision 58); the hosted recurring-card checkout is the separate optional slice F2 (CAND-38, decision 114).
+- **Preconditions:** BRL tenant on Asaas, Ikaro's Asaas account is a PJ with a CNPJ active 6+ months **and** the Pix Automático flow is verified end-to-end in the sandbox and production (G6 in `docs/ASAAS_PROVIDER.md`). Until that gate passes, this UI and endpoint are not released. Card auto-billing through the provider's *API tokenization* is not offered (it passes card data through Ikaro's server, decision 58); the hosted recurring-card checkout is the separate optional slice F2 (CAND-38, decision 114).
 - **Trigger:** Manager clicks "Ativar cobrança automática" / "Desativar".
 - **Main Flow:** BFF asks the provider (port) for a hosted authorization URL (Pix Automático: the first payment's QR code carries the authorization, approved in the bank app); the manager completes it on the provider's page; the webhook marks automatic charging active once the bank confirms; the page shows "Pix Automático ativo". Ikaro keeps creating each charge itself (`paymentCreationMode = MANUAL`) referencing the authorization. Disabling asks the provider to revoke it. The hosted payment link keeps working in every case.
 - **Alternative Flows:**
@@ -489,11 +488,11 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
 - **Trigger:** Hourly.
 - **Main Flow:**
   1. **Provisioning repair:** tenants older than `PROVISIONING_GRACE_MINUTES` with no subscription get their trial created through the CAND-01 use case (idempotent), using the stored `TenantProvisioned` data.
-  2. **Provider health:** checks each provider's webhook state through its API; a paused or disabled webhook is re-enabled where the API allows (launch-gate check), otherwise an alert is raised. Records `billing.provider_health`.
+  2. **Provider health:** checks each provider's webhook state through its API; a paused or disabled webhook raises the alert and is re-enabled once through the API; the alert is closed only after a delivery succeeds after the call (`docs/ASAAS_PROVIDER.md` § 4). Records `billing.provider_health`.
   3. **Suspension freeze:** if reconcile has not succeeded for 24 hours, or the provider is unreachable, `freeze_active` is set and the status sweep suspends nobody; it clears itself after the next successful reconcile. Tenants are never locked out because Ikaro or the provider was down, and no operator grace is needed.
 - **Alternative Flows:**
   - **A1: Repair fails repeatedly** → alert after N attempts (OPERATIONS O8).
-  - **A2: Provider API cannot re-enable the webhook** → alert with the runbook; reconcile keeps money correct meanwhile.
+  - **A2: The re-enable call fails, or no delivery succeeds after it** → the alert stays raised with the runbook; reconcile keeps money correct meanwhile.
 - **Postconditions:** The common failure modes resolve without an operator.
 - **Events Triggered:** None (a repaired trial raises nothing new; `SubscriptionSuspended` is simply delayed during a freeze).
 
@@ -542,7 +541,7 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
 
 ### **CAND-38: Manager Enables Automatic Card Collection (Provider-Hosted Recurring Checkout)** — *slice F2, decision 114, gated*
 - **Actor:** Staff (MANAGER).
-- **Preconditions:** BRL tenant on Asaas; the F2 launch gates of `tenant-billing_PROVIDERS.md` §5 are verified in the sandbox and production (card data never touches Ikaro, account enablement, terminal behaviour after refused attempts). Until then the UI and endpoints are not released.
+- **Preconditions:** BRL tenant on Asaas; the F2 launch gates (G10–G13 in `docs/ASAAS_PROVIDER.md`) are verified in production (card data never touches Ikaro, account enablement, terminal behaviour after refused attempts). Until then the UI and endpoints are not released.
 - **Trigger:** Manager clicks "Pagar automaticamente no cartão".
 - **Main Flow:** Billing asks the provider (port) to create a hosted recurring checkout whose first due date is the next unissued `next_due_date` and whose value is the current plan total; the manager enters the card on the provider's page; `CHECKOUT_PAID`/subscription-created webhooks mark automatic collection active. From then on the provider generates each period charge; Billing mirrors it from the webhook as a `PERIOD` charge with `origin = PROVIDER_SUBSCRIPTION` (lines from the current items) and does not issue its own; plan/price changes `PUT` the subscription value at the period boundary. A refused charge follows the normal ladder (reminders, `PAST_DUE`, 14 days) and the hosted link remains available.
 - **Alternative Flows:**

@@ -110,6 +110,8 @@ Slot button label = `startsAt–appointmentEndsAt` (start + the service duration
 
 **Loading states:** `AvailabilityCarousel` renders skeleton placeholders while fetching (already implemented).
 
+**Month context (TD51-S2):** the day strip opens with a month marker (`.month-marker`, `shared/tokens.css`: tenant `--ba-text`, no opacity, no new colour) and adds one before every month boundary (`.month-marker.boundary` draws the divider); a marker carries the year only when it differs from the first day's year. Markers scroll with the pills and are `aria-hidden`; the real component adds a visually-hidden month to each pill so its accessible name keeps the visible text. The line above the slots names the chosen date (`booking.availability.slotsHeading`, `Horários disponíveis — Quinta-feira, 2 de julho`), for the carousel and the calendar. `02` draws a strip crossing June→July; `02d`–`02f`, `09b`, `10b` and `customer/prototypes/book-a-service/02` draw the single-month case.
+
 ---
 
 ## Step 3 — Personal Info (`PersonalInfoStep`)

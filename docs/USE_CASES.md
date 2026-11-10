@@ -2441,7 +2441,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
       ```
       *(Planned with Billing, UC-110 / UC-137: the body also accepts an optional `exempt: boolean`, an optional `features` subset (feature keys) and `registrationId`, and a non-exempt BR tenant requires a valid `taxId` (CPF or CNPJ; `422 SIGNUP_TAX_ID_REQUIRED` / `SIGNUP_TAX_ID_INVALID`). The `taxId` is **validated only on this route and never persisted or forwarded**: the event carries no tax id, and the tax id is held on the OPERATOR registration the script reserves first via `POST /internal/billing/registrations` (`registrationId` links it to the tenant). Platform cannot read the registration, so it does not compare the two values; the script sends one value to both calls, which is the supported path. Platform validates only the *shape* of `registrationId`; refusing an unknown or already `COMPLETED` registration is the Billing use case's job (UC-110), and Platform does not pre-check that the country has prices (`BILLING_NO_PRICE_FOR_COUNTRY` surfaces from UC-110 A2). `scripts/provision-tenant.sh` gains the same inputs as flags (`--exempt`, `--features`, `--registration-id`, `--tax-id`; planned), keeping the four existing positionals (`<name> <slug> <adminEmail> <country_code> [timezone]`) working, with flags accepted after them. Unless `--exempt` is given, the script first calls `POST /internal/billing/registrations` (`source = OPERATOR`, the `--tax-id` value as `taxId`), then passes the returned `registrationId` and the same `taxId` to `POST /internal/tenants`; `--exempt` skips the registrations call, because an exempt tenant has no registration. Contract: `docs/API_CONTRACTS.md` § Billing — Provider Webhooks and Internal API.)*
    2. `InternalApiGuard` validates `X-Internal-Key`; then `PlatformAdminGuard` validates `X-Platform-Admin-Key` using `crypto.timingSafeEqual` → rejects with `401` if either key is invalid.
-   3. System validates inputs: slug format (`/^[a-z0-9-]+$/`), slug uniqueness, email format, supported two-letter ISO `country_code`, and IANA timezone. *(Planned with Billing: for a non-exempt BR tenant also the tax id check digits; a non-exempt US tenant is rejected while `FEATURE_FLAG_SIGNUP_US` is off.)*
+   3. System validates inputs: slug format (`/^[a-z0-9-]+$/`), slug uniqueness, email format, supported two-letter ISO `country_code`, and IANA timezone. *(Planned with Billing: for a non-exempt BR tenant also the tax id check digits.)*
    4. System creates `platform.tenants` row with default settings.
    5. System creates `platform.hotsite_configs` row (`is_published = false`).
    6. System publishes `TenantProvisioned` event. *(Planned with Billing: it carries `countryCode`, `timezone` and an optional `billingHint` with `exempt`, the feature subset and the `registrationId`; the Billing context creates the trial subscription from it, UC-110.)*
@@ -2450,7 +2450,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
       { "tenantId": "uuid-v7", "name": "AutoWash Pro", "slug": "autowash-pro" }
       ```
    8. **Asynchronously** — Staff context (M04-S06) handles `TenantProvisioned` → creates first MANAGER `Staff` row (always `is_active = true`; there is no inactive-until-accepted state) → publishes `StaffInvited`.
-   9. **Asynchronously** — Notification context (M11) handles `StaffInvited` → sends invitation email to `adminEmail` in the tenant's locale (`tenant.locale`, falling back to the default locale: BR tenants get pt-BR; *planned with Billing: a US tenant gets en, once the US path ships behind `FEATURE_FLAG_SIGNUP_US`*).
+   9. **Asynchronously** — Notification context (M11) handles `StaffInvited` → sends invitation email to `adminEmail` in the tenant's locale (`tenant.locale`, falling back to the default locale: BR tenants get pt-BR; *planned with Billing: a US tenant gets en, once the US path ships (M28)*).
 
 - **Alternative Flows:**
    - **A1: Missing or invalid `X-Internal-Key` or `X-Platform-Admin-Key` header** → `401` Problem Detail
@@ -2462,7 +2462,6 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
    - **A7: Invalid IANA timezone** → `400` Problem Detail
    - **A8: Non-exempt BR tenant without a tax id** *(planned with Billing)* → `422` `SIGNUP_TAX_ID_REQUIRED`; nothing is created.
    - **A9: Tax id with invalid check digits** *(planned with Billing)* → `422` `SIGNUP_TAX_ID_INVALID`; nothing is created.
-   - **A10: Non-exempt US tenant while `FEATURE_FLAG_SIGNUP_US` is off** *(planned with Billing)* → `422` `BILLING_US_NOT_AVAILABLE`.
 
 - **Postconditions:** `platform.tenants` + `platform.hotsite_configs` rows created. `TenantProvisioned` event published. First MANAGER staff and invitation email handled asynchronously by M04-S06 and M11.
 - **Events Triggered:** `TenantProvisioned` (synchronous) → triggers `StaffInvited` (asynchronous, via M04-S06)
@@ -2723,7 +2722,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
    - **A1: Subscription already exists** (event redelivered) → no-op; idempotent on `UNIQUE(tenant_id)`.
    - **A2: No `FeaturePrice` rows for the country** → the use case fails loudly (logged, event retried); a missing price set is a provisioning/data-integrity incident — access is denied rather than granted (after the provisioning window), the self-heal job (UC-140) retries it, and an alert fires only if that fails. A missing price set for an enabled country is also caught at deploy time.
    - **A3: Provisioning passes an explicit feature subset** → the subset defines the **default paid items**; the trial still grants every feature (it is computed from the status), so the trial is always complete. An exempt tenant gets only the subset, open-ended.
-   - **A4: Non-exempt US tenant while `FEATURE_FLAG_SIGNUP_US` is off** → the use case fails loudly and alerts; the provisioning paths also reject it up front (`BILLING_US_NOT_AVAILABLE`). Exempt US tenants (test tenants) are allowed.
+   - **A4: Non-exempt US tenant before M28** → no special rule: production has no US price rows, so A2 applies (fails loudly, access denied after the provisioning window, self-heal retries, alert if that fails) and the provisioning paths do not reject it up front. Where US rows exist (local / staging seeds) the trial is created like any other.
    - **A5: A legacy `TenantProvisioned` payload** (an outbox row written before the Billing release, no `countryCode`) → the handler skips it and logs; the self-heal job creates the trial through the narrow read-only tenant-info port. Publisher and handler ship in the same release.
    - **A6: Access is read before this handler has run** → the tenant is younger than `PROVISIONING_GRACE_MINUTES` (15), so the access port treats it as a pending trial (allowed); if the window expires without a subscription, the self-heal job runs this same use case.
    - **A7: Event without a `registrationId` for a non-exempt tenant** (an old script call) → the subscription is created without a tax id and the BR charge hold applies (UC-113 A8); the manager supplies the id in the dashboard.
@@ -2808,7 +2807,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
    2. The backend resolves the tenant from the provider customer id, normalizes the event, and in **one transaction** inserts `provider_events(provider, event_id)` (a duplicate → `200`), applies the local charge / subscription transition and writes the email outbox rows.
    3. A normalizing adapter maps the provider event to `PaymentConfirmed` / `PaymentOverdue` / `PaymentRefunded` / `PaymentChargeback` / auto-billing authorized / revoked. **The paid signal is method-dependent:** Asaas Pix emits only `PAYMENT_RECEIVED`, boleto `CONFIRMED` then `RECEIVED`, card `CONFIRMED` then `RECEIVED` about 32 days later — whichever of `CONFIRMED` / `RECEIVED` arrives first for a charge yields the single `PaymentConfirmed`; the later one is a no-op. For Stripe the paid signal is `invoice.paid`, re-read from the API because events can arrive out of order. A partial refund and an opened dispute change no access. **For Asaas, a state-changing event is applied only after `fetchChargeStatus` confirms it and the amount matches**, so a leaked webhook token cannot forge a payment.
    4. `PaymentConfirmed` marks the charge paid, sets `has_ever_paid`, and reactivates `PAST_DUE` / `SUSPENDED` subscriptions under a row lock (UC-134 describes the recovery charge, which also writes the period and anchor). A `TRIALING` subscription stays `TRIALING` after its first charge is paid until the status sweep turns it `ACTIVE` at trial end (UC-115). If the provider could not cancel a stale charge because it was already paid, **that charge is the payment** and the recovery charge is cancelled; if both are ever paid, the second is refunded in the provider console and recorded `REFUNDED`. The local due-date sweep owns `PENDING` → `OVERDUE` / `PAST_DUE`, so an overdue webhook only confirms that result.
-   5. Respond **exactly `200`** only after the transaction commits (Asaas counts 201 / 204 / 3xx as failures and pauses its queue after 15 consecutive failures); email delivery is asynchronous from the outbox.
+   5. Respond **exactly `200`** only after the transaction commits (Asaas counts 201 / 204 / 3xx as failures and documents a pause of its queue after 15 consecutive failures, not reproduced in the sandbox, `docs/ASAAS_PROVIDER.md` G3); email delivery is asynchronous from the outbox.
 - **Alternative Flows:**
    - **A1: Wrong or missing token / signature** → `401`, nothing stored.
    - **A2: Unknown provider customer** → `200`, logged, no state change.
@@ -2903,7 +2902,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 - **Trigger:** The manager clicks **Pagar agora**.
 - **Main Flow:** The web calls `POST /v1/billing/charges/{chargeId}/payment-link`; the BFF returns the provider's hosted payment URL; the manager pays by card, Pix or boleto on the provider's page and returns to Ikaro. On the return the web calls `POST /v1/billing/charges/{chargeId}/payment-return`, which records `payment_return_seen_at` (it lengthens the settlement margin of UC-115 for a boleto that has not compensated yet) and triggers an on-demand single-charge refresh from the provider (UC-116). The webhook (UC-114) confirms the payment and the status updates; until then the page shows "pagamento recebido, reativando…" (UC-117 A3).
 - **Alternative Flows:**
-   - **A1: Link expired** → `payment-link` asks the provider port for a usable link. Stripe hosted invoice URLs expire 30 days after the due date and a fresh one is issued; Asaas's `invoiceUrl` has no documented expiry (the Pix QR stays valid 12 months after due, a boleto may be auto-cancelled after due), so the adapter re-reads the charge and returns the current URL — behaviour after the due date is a launch gate (`docs/discovery/tenant-billing/tenant-billing_PROVIDERS.md`).
+   - **A1: Link expired** → `payment-link` asks the provider port for a usable link. Stripe hosted invoice URLs expire 30 days after the due date and a fresh one is issued; Asaas's `invoiceUrl` has no documented expiry (the Pix QR stays valid 12 months after due, a boleto may be auto-cancelled after due), so the adapter re-reads the charge and returns the current URL — the page was observed to keep loading after the charge is paid and after it is cancelled, but behaviour after the due date could not be reproduced in the sandbox and is launch gate G1 (`docs/ASAAS_PROVIDER.md`).
    - **A2: Payment pending** (Pix / boleto compensation) → "pagamento em processamento".
    - **A3: Payment fails** → the charge stays open; the page explains and offers "Tentar pagar novamente".
    - **A4: Charge already paid** → the page refreshes to the paid state.
@@ -2918,7 +2917,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 - **Actor:** Any request, job or handler (system)
 - **Preconditions:** None.
 - **Trigger:** A guard, use case, handler or cron needs "is this tenant operational, and is feature X entitled?".
-- **Main Flow:** The caller passes an explicit `tenantId` to the shared `TenantAccessPort`; Billing's cached adapter returns `{ status, suspensionReason, operational, features: [{ key, tier }] }`. `operational` is `status != SUSPENDED`; a feature is entitled when the tenant is operational and the feature is in `features`. The contract, the asymmetric cache TTLs, the fail-open rule and the kill switch are in `docs/DOMAIN_MODEL.md` § Entry point: `TenantAccessPort`. The web reads a role-reduced answer through `GET /v1/billing/access` (`docs/API_CONTRACTS.md` § Billing — Access Resolution and Suspended-State Effects); the BFF guard reads the backend's internal access endpoint instead.
+- **Main Flow:** The caller passes an explicit `tenantId` to the shared `TenantAccessPort`; Billing's cached adapter returns `{ status, suspensionReason, operational, features: [{ key, tier }] }`. `operational` is `status != SUSPENDED`; a feature is entitled when the tenant is operational and the feature is in `features`. The contract, the asymmetric cache TTLs and the fail-open rule are in `docs/DOMAIN_MODEL.md` § Entry point: `TenantAccessPort`. The web reads a role-reduced answer through `GET /v1/billing/access` (`docs/API_CONTRACTS.md` § Billing — Access Resolution and Suspended-State Effects); the BFF guard reads the backend's internal access endpoint instead.
 - **Alternative Flows:**
    - **A1: No subscription row after a successful lookup** → a provisioning / data-integrity incident, distinct from a lookup error. Inside the `PROVISIONING_GRACE_MINUTES` window the tenant is treated as a pending trial; after it, tenant operations are denied, a metric / log is emitted and the self-heal job (UC-140) repairs the row. An alert fires only if self-heal fails.
    - **A2: Lookup error** → fail open and log.
@@ -2976,7 +2975,6 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 - **Alternative Flows:**
    - **A1: A Billing email but the manager has no address** → logged, with an ops alert.
    - **A2: Access lookup error** → fail open (send).
-   - **A3: `APP_ENV=staging` and the recipient is not in `EMAIL_RECIPIENT_ALLOWLIST`** → dropped and logged `SKIPPED_NOT_ALLOWLISTED` for every template, Billing's included. The rule is in `docs/ENGINEERING_RULES_INFRA.md` § Billing configuration (planned).
 - **Postconditions:** No tenant, customer or staff messages while suspended.
 - **Events Triggered:** None.
 
@@ -3047,7 +3045,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
    - **A4: Rate limit exceeded** (5 per IP per day, best-effort; 3 per Google account per day) → friendly "tente mais tarde" (`SIGNUP_RATE_LIMITED`, with `Retry-After`).
    - **A5: Terms not accepted** → blocked (`SIGNUP_TERMS_NOT_ACCEPTED`).
    - **A6: Tenant creation transaction fails** → nothing is created and a retry is offered. If a post-commit `TenantProvisioned` consumer is delayed or fails, its durable event retry completes the first-manager and Billing setup (UC-140 repairs a missing trial); the account-created page still directs the visitor to email and never implies that dashboard access is already ready.
-   - **A7: Country without prices, or US while `FEATURE_FLAG_SIGNUP_US` is off** (no Stripe adapter yet) → the option is not offered.
+   - **A7: Country without prices** (the US in production: no Stripe adapter or price list until M28) → the option is not offered.
    - **A11: Signup closed** (`FEATURE_FLAG_SIGNUP_ENABLED` off — the production default until launch readiness) → the session-start, signup and resend routes answer `503 SIGNUP_CLOSED` and `/ikaro-trial` shows a "cadastro indisponível" notice; prices and slug availability stay readable. This flag is the signup kill switch (disabling the `TRIAL_SIGNUP_CTA` module is not).
    - **A8: Google account already manages other tenants** → allowed (multi-tenant staff and owners); trial rule A3 still applies. An owner who pays can create as many tenants as they want.
    - **A9: BR tax id missing or with invalid check digits** → `SIGNUP_TAX_ID_REQUIRED` / `SIGNUP_TAX_ID_INVALID`, field error; nothing is created.
@@ -3179,7 +3177,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 ### **UC-135: Manager Enables or Disables Automatic Charging (Pix Automático)** — *deferred release gate*
 
 - **Actor:** Staff (`MANAGER`)
-- **Preconditions:** BRL tenant on Asaas; Ikaro's Asaas account is a legal entity (PJ) with a CNPJ active for 6+ months; the Pix Automático flow is verified end to end in the sandbox and in production (launch gates: `docs/discovery/tenant-billing/tenant-billing_PROVIDERS.md`). Until that gate passes the tab stays "Em breve" and the endpoints are not released. Card auto-billing through the provider's *API tokenization* is never offered (it passes card data through Ikaro's server); the hosted recurring-card checkout is the separate optional slice F2 (UC-143).
+- **Preconditions:** BRL tenant on Asaas; Ikaro's Asaas account is a legal entity (PJ) with a CNPJ active for 6+ months; the Pix Automático flow is verified end to end in the sandbox and in production (launch gate G6: `docs/ASAAS_PROVIDER.md`). Until that gate passes the tab stays "Em breve" and the endpoints are not released. Card auto-billing through the provider's *API tokenization* is never offered (it passes card data through Ikaro's server); the hosted recurring-card checkout is the separate optional slice F2 (UC-143).
 - **Trigger:** The manager clicks "Ativar cobrança automática" / "Desativar".
 - **Main Flow:** `POST /v1/billing/auto-billing { mode: "PIX_AUTOMATICO" }` asks the provider port for a hosted authorization URL (the first payment's QR code carries the authorization, approved in the bank app); the manager completes it on the provider's page; the webhook marks automatic charging active once the bank confirms and the page shows "Pix Automático ativo". Ikaro keeps creating each charge itself (the provider-side creation mode stays manual; it is a provider parameter, not a stored field) referencing the authorization. `DELETE /v1/billing/auto-billing` asks the provider to revoke it. The hosted payment link keeps working in every case.
 - **Alternative Flows:**
@@ -3226,9 +3224,9 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 ### **UC-143: Manager Enables Automatic Card Collection (Provider-Hosted Recurring Checkout)** — *slice F2, gated*
 
 - **Actor:** Staff (`MANAGER`)
-- **Preconditions:** BRL tenant on Asaas; the F2 launch gates (`docs/discovery/tenant-billing/tenant-billing_PROVIDERS.md`) are verified in the sandbox and in production (card data never touches Ikaro, account enablement, terminal behaviour after refused attempts). Until then the UI and endpoints are not released.
+- **Preconditions:** BRL tenant on Asaas; the F2 launch gates (G10–G13 in `docs/ASAAS_PROVIDER.md`) are verified in production (account enablement, behaviour on the due date and after refused attempts, a first charge beyond 40 days, a yearly cycle); the sandbox run already showed that the card is typed only on Asaas's page. Until then the UI and endpoints are not released.
 - **Trigger:** The manager clicks "Pagar automaticamente no cartão".
-- **Main Flow:** `POST /v1/billing/auto-billing { mode: "CARD_RECURRING" }` asks the provider port to create a hosted recurring checkout whose first due date is the next unissued `next_due_date` and whose value is the current plan total; the manager enters the card on the provider's page; the `CHECKOUT_PAID` / subscription-created webhooks mark automatic collection active. From then on the provider generates each period charge; Billing mirrors it from the webhook as a `PERIOD` charge with `origin = PROVIDER_SUBSCRIPTION` (lines from the current items) and does not issue its own; plan and price changes `PUT` the provider subscription value at the period boundary. A refused charge follows the normal ladder (reminders, `PAST_DUE`, 14 days) and the hosted link remains available.
+- **Main Flow:** `POST /v1/billing/auto-billing { mode: "CARD_RECURRING" }` asks the provider port to create a hosted recurring checkout whose first due date is the next unissued `next_due_date` and whose value is the current plan total; the manager enters the card on the provider's page; the `CHECKOUT_PAID` / subscription-created webhooks mark automatic collection active (the sandbox run did not observe those two events delivered, gate G11 in `docs/ASAAS_PROVIDER.md`; it did observe the first provider-generated charge arriving as `PAYMENT_CREATED` with a `subscription` field as soon as its due date was inside the 40-day window). From then on the provider generates each period charge; Billing mirrors it from the webhook as a `PERIOD` charge with `origin = PROVIDER_SUBSCRIPTION` (lines from the current items) and does not issue its own; plan and price changes `PUT` the provider subscription value at the period boundary, with `updatePendingPayments: true` when a charge is already pending (without it the pending charge keeps the old value, `docs/ASAAS_PROVIDER.md` § 2.1). A refused charge follows the normal ladder (reminders, `PAST_DUE`, 14 days) and the hosted link remains available.
 - **Alternative Flows:**
    - **A1: Checkout abandoned or expired** → the status stays manual; restart offered.
    - **A2: Card replaced or expired** → provider webhook; the manager is emailed and falls back to the hosted link.
@@ -3285,7 +3283,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
    - **A1: Tenant is Ikaro's own** (`PLATFORM_OWNER_TENANT_SLUG`) → clearing is rejected (`403 BILLING_EXEMPT_PROTECTED`).
    - **A2: Already in the requested state** → no-op, no audit row.
    - **A3: Tenant `SUSPENDED`** → setting `exempt` reactivates it without payment (the only operator route back to access, and only by making the tenant free); `SubscriptionReactivated` is raised.
-- **Postconditions:** The tenant is free (or back on the paid ladder), audited. `exempt` is a flag, not a price of zero and not the global kill switch.
+- **Postconditions:** The tenant is free (or back on the paid ladder), audited. `exempt` is a flag, not a price of zero.
 - **Events Triggered:** `SubscriptionReactivated` (A3 only)
 
 ---
@@ -3304,7 +3302,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
    - **A1: `APP_ENV` is neither `local` nor `staging`** (production included) → the routes do not exist (404); the live-adapter and profile-key startup rules are in `docs/ENGINEERING_RULES_INFRA.md` § Billing configuration (planned).
    - **A2: The subscription uses a sandbox or live key** → `simulate` is refused; staging sandboxes are driven through the provider's own sandbox actions.
    - **A3: Missing or wrong operator keys** → `401`, like every operator route.
-- **Postconditions:** Billing state changed exactly as the real event would have changed it; nothing was charged and no real communication was sent (Mailhog locally; the staging email recipient allowlist).
+- **Postconditions:** Billing state changed exactly as the real event would have changed it; nothing was charged and no real communication was sent (Mailhog locally).
 - **Events Triggered:** Whatever the simulated flow triggers (`ChargePaid`, `SubscriptionPastDue`, …).
 
 ---
@@ -3330,11 +3328,11 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 - **Trigger:** The hourly trigger.
 - **Main Flow:**
    1. **Provisioning repair:** tenants older than `PROVISIONING_GRACE_MINUTES` with no subscription get their trial created through the UC-110 use case (idempotent), reading `country_code`, `timezone`, `slug` and `created_at` through the narrow read-only tenant-info port.
-   2. **Provider health:** check each provider's webhook state through its API; a paused or disabled webhook is re-enabled where the API allows (a launch-gate check), otherwise an alert is raised. Record the result in `billing.provider_health`.
+   2. **Provider health:** check each provider's webhook state through its API; a paused or disabled webhook raises the billing alert and is re-enabled once through the API (`PUT interrupted: false`); the alert is closed only after a webhook delivery succeeds after the call, never because the flag was cleared (`docs/ASAAS_PROVIDER.md` § 4). Record the result in `billing.provider_health`.
    3. **Suspension freeze:** if reconcile has not succeeded for 24 hours, or the provider is unreachable, `freeze_active` is set and the status sweep (UC-115) suspends nobody; it clears itself after the next successful reconcile. Tenants are never locked out because Ikaro or the provider was down, so no operator grace is needed.
 - **Alternative Flows:**
    - **A1: Repair fails repeatedly** → an alert fires after N attempts.
-   - **A2: The provider API cannot re-enable the webhook** → an alert with the runbook; reconcile (UC-116) keeps the money correct meanwhile.
+   - **A2: The re-enable call fails, or no delivery succeeds after it** (a wrong token keeps answering `401`, so the queue pauses again) → the alert stays raised with the runbook; reconcile (UC-116) keeps the money correct meanwhile.
 - **Postconditions:** The common failure modes resolve without an operator.
 - **Events Triggered:** None (a repaired trial raises nothing new; `SubscriptionSuspended` is simply delayed during a freeze).
 
@@ -3524,7 +3522,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 | UC-137 | Operator sets or clears a tenant's `exempt` flag *(planned, not built)* | Operator | Free access on/off; items replaced; audited |
 | UC-138 | Developer or operator simulates billing in non-production *(planned, not built)* | Developer \| Operator | Clock advance, simulated provider webhook, per-state seed; never in production |
 | UC-139 | System sends dunning reminders *(planned, not built)* | System | `BillingReminderDue` per milestone (plan confirmation, trial ending, due soon, overdue), deduplicated |
-| UC-140 | System heals itself (provisioning repair, provider health, suspension freeze) *(planned, not built)* | System | Missing trial created; webhook re-enabled or alerted; sweep frozen while the provider is unhealthy |
+| UC-140 | System heals itself (provisioning repair, provider health, suspension freeze) *(planned, not built)* | System | Missing trial created; webhook re-enabled, with the alert kept until a delivery succeeds; sweep frozen while the provider is unhealthy |
 | UC-141 | Manager discards a never-paid tenant *(planned, slice G, deferred)* | Manager | Type-the-slug confirmation; immediate purge (`SELF_SERVICE_DISCARD`); slug and trial eligibility freed |
 | UC-142 | A deactivated tenant stops being billed *(planned, slice G, deferred)* | System | Open charges cancelled, subscription `SUSPENDED`/`CANCELED`; the issue job skips inactive tenants |
 

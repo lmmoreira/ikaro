@@ -87,14 +87,16 @@ describe('ReschedulePicker', () => {
 
     expect(screen.getByTestId('carousel')).toBeInTheDocument();
     expect(screen.queryByTestId('slot-picker')).not.toBeInTheDocument();
-    expect(screen.queryByText('Horários disponíveis')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Horários disponíveis/)).not.toBeInTheDocument();
   });
 
   it('labels the date and slot sections and notes the duration and price are unchanged', () => {
     renderPicker();
 
     expect(screen.getByText('Escolha a nova data')).toBeInTheDocument();
-    expect(screen.getByText('Horários disponíveis')).toBeInTheDocument();
+    expect(
+      screen.getByText('Horários disponíveis — Quinta-feira, 20 de junho'),
+    ).toBeInTheDocument();
     expect(
       screen.getByText('Seu serviço continua com a mesma duração e o mesmo valor.'),
     ).toBeInTheDocument();

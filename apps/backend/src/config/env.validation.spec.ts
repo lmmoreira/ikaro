@@ -308,4 +308,22 @@ describe('validateEnv()', () => {
       'INBOX_RETENTION_DAYS must be >= 8',
     );
   });
+
+  describe('PLATFORM_OWNER_TENANT_SLUG (M25-S07)', () => {
+    it('is optional: unset resolves to undefined', () => {
+      expect(validateEnv(valid).PLATFORM_OWNER_TENANT_SLUG).toBeUndefined();
+    });
+
+    it('accepts a valid tenant slug', () => {
+      expect(
+        validateEnv({ ...valid, PLATFORM_OWNER_TENANT_SLUG: 'ikaro' }).PLATFORM_OWNER_TENANT_SLUG,
+      ).toBe('ikaro');
+    });
+
+    it.each(['Ikaro', 'ikaro_x', 'ikaro online', ''])('rejects the malformed slug "%s"', (slug) => {
+      expect(() => validateEnv({ ...valid, PLATFORM_OWNER_TENANT_SLUG: slug })).toThrow(
+        'PLATFORM_OWNER_TENANT_SLUG must match',
+      );
+    });
+  });
 });

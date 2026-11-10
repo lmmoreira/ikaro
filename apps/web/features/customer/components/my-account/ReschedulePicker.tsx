@@ -7,6 +7,7 @@ import { SlotPicker } from '@/features/booking/components/public/SlotPicker';
 import { Card } from '@/shared/components/ui/card';
 import { RESCHEDULE_CAROUSEL_DAYS } from '@/features/booking/model/reschedule-date';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
+import { utcDateFromISO } from '@/shared/lib/formatting/calendar-day';
 
 interface ReschedulePickerProps {
   readonly tenantSlug: string;
@@ -26,7 +27,7 @@ export function ReschedulePicker({
   onSelectSlot,
 }: ReschedulePickerProps): React.JSX.Element {
   const t = useTranslations('customer.reschedule');
-  const { timezone } = useFormatting();
+  const { timezone, formatDateLong } = useFormatting();
   const resourceSelections =
     reschedule.resourceSelections.length > 0 ? reschedule.resourceSelections : undefined;
   const durationMinutes = reschedule.durationMinutes ?? undefined;
@@ -52,7 +53,9 @@ export function ReschedulePicker({
 
       {selectedDate !== null && (
         <Card className="rounded-xl border-gray-100 p-4 shadow-none">
-          <p className="mb-2.5 text-sm font-semibold text-gray-900">{t('slotsSectionLabel')}</p>
+          <p className="mb-2.5 text-sm font-semibold text-gray-900">
+            {t('slotsSectionLabel', { date: formatDateLong(utcDateFromISO(selectedDate)) })}
+          </p>
           <SlotPicker
             slug={tenantSlug}
             serviceIds={reschedule.serviceIds}
