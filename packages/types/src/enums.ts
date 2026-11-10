@@ -25,6 +25,12 @@ export type ClosureReason = 'STAFF_DAY_OFF' | 'MAINTENANCE' | 'HOLIDAY';
 
 export type ResourceType = 'LOCATION' | 'STAFF' | 'ROOM' | 'EQUIPMENT';
 
+// Mirror of FEATURE_KEYS / CHATBOT_TIERS in packages/validation/src/billing.ts (the canonical,
+// backend/BFF-importable constant arrays); the closedEnumRegistry entries keep them identical.
+export type FeatureKey = 'HOTSITE' | 'BOOKING' | 'LOYALTY' | 'CHATBOT' | 'LEAD_FORM';
+
+export type ChatbotTier = 'BASIC' | 'PLUS';
+
 export type HotsiteModuleType =
   | 'NAVIGATION'
   | 'HERO'

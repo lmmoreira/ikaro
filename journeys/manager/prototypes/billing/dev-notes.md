@@ -45,7 +45,7 @@ Screens `03`/`03b` map to `FeatureGate` / `LockedFeaturePage`; the public signup
 ## What is real vs invented
 
 - **Real:** `--ba-*` tokens (`journeys/shared/tokens.css`), the dashboard shell, `FeedbackMessage`, status badge and detail-layout patterns.
-- **Invented:** tenants "Lavacar BeloAuto" and "Sunrise Auto Spa"; the example selection and dates (BR catalog: HOTSITE R$ 49, BOOKING R$ 109 (includes recurring reservations and availability alerts), LOYALTY R$ 29, CHATBOT BASIC R$ 39 / PLUS R$ 79, LEAD_FORM R$ 19; default total R$ 245. US: HOTSITE US$ 12, BOOKING US$ 26, LOYALTY US$ 7, CHATBOT US$ 9 / 19, LEAD_FORM US$ 5; total US$ 59).
+- **Invented:** tenants "Lavacar BeloAuto" and "Sunrise Auto Spa"; the example selection and dates (BR catalog: HOTSITE R$ 49, BOOKING R$ 109 (includes recurring reservations and availability alerts), LOYALTY R$ 29, CHATBOT BASIC R$ 39 / PLUS R$ 79, LEAD_FORM R$ 19; default total R$ 245. US: the seeded list, which is the BR list plus 40% (M25-S04, every environment): HOTSITE US$ 68.60, BOOKING US$ 152.60, LOYALTY US$ 40.60, CHATBOT US$ 54.60 / 110.60, LEAD_FORM US$ 26.60; default total US$ 343.00). The US screens (`02c`, `02e`) draw exactly these figures.
 - **New nav item, not in today's IA:** "Assinatura" under "Somente Gerente" (also in the mobile "Mais" sheet).
 
 ## Suspension routing (what the manager screens assume)
@@ -243,7 +243,7 @@ After payment the banner disappears immediately; a short "pagamento recebido, re
 - **`01h` is now "TRIALING with the first invoice issued"** (badge "Em teste", due = trial end 04/11, history of paid charges empty). It is the state a trial tenant is in from day 4 to day 0. `01b` stays the state before the invoice exists.
 - **`01d` (SUSPENDED / NON_PAYMENT)** now shows the **recovery charge**: "Cobrança de reativação (um mês) · vence em 02/11/2026", says the previous open charge was cancelled and replaced, and shows the 90/180-day clean-up policy. The overdue variant (recovery due date passed) is the same screen with an "Vencida" badge and unchanged "Pagar agora" (the provider link keeps working). `PAYMENT_REVERSED` is now drawn in `01m` ("Conta suspensa: o pagamento foi estornado ou contestado", recovery charge with "Pagar agora", purge date) and `OPERATOR` in `01n` ("Conta suspensa pela Ikaro", reason-neutral, no charge, no pay button, only "Falar com a gente").
 - **New `06d-cancel-immediate`** (UC-133 A3): cancel for TRIALING or PAST_DUE takes effect now, no refund because nothing was paid; leads to `01e` (suspended by cancellation; `01d` is the non-payment suspension).
-- **US screens (`02c`, `02e`)**: card only (no ACH or bank debit), no Automatic billing tab or row (Pix Automático is BRL-only; four tabs: Summary, Plan, Charges, Billing details), Chatbot Plus US$ 19, "+ tax calculated when each invoice is issued" under totals, all plan changes at the next paid period. `02e` is now a consistent TRIALING summary (no open charge yet, history empty).
+- **US screens (`02c`, `02e`)**: card only (no ACH or bank debit), no Automatic billing tab or row (Pix Automático is BRL-only; four tabs: Summary, Plan, Charges, Billing details), Chatbot Plus US$ 110.60, "+ tax calculated when each invoice is issued" under totals, all plan changes at the next paid period. `02e` is now a consistent TRIALING summary (no open charge yet, history empty).
 - **`07d`** shows the real Pix Automático authorization error with the method card kept and "Tentar novamente".
 - **Illustrative dates:** each screen uses its own illustrative "today" and charge dates; the trial screens (01b, 01h, 04, 09) follow the confirm-plan flow (invoice issued on confirmation, or automatically 3 days before the trial end); the former fixed 10-day invoice lead no longer applies to the trial. Other screens are not meant to be read as one continuous timeline.
 
@@ -267,7 +267,7 @@ After payment the banner disappears immediately; a short "pagamento recebido, re
 
 The HTML screens were redrawn in the 2026-10-27 follow-up (script-assisted, then reviewed). Where a screen and the docs still differ, **the docs win**.
 
-- **Features merged — applied.** The Recorrência and Alertas de disponibilidade rows/cards and their plan-state entries were removed from every billing screen and from the public price tables (BR and US). BOOKING is **R$ 109,00 / US$ 26.00** and its description says it includes recurring reservations and availability alerts. The example selection total is now **R$ 245,00** (US: **US$ 59.00**); the price-change example is R$ 255,00; the staged-plan example (Chatbot Plus, without Formulário de contato) is R$ 266,00.
+- **Features merged — applied.** The Recorrência and Alertas de disponibilidade rows/cards and their plan-state entries were removed from every billing screen and from the public price tables (BR and US). BOOKING is **R$ 109,00 / US$ 152.60** and its description says it includes recurring reservations and availability alerts. The example selection total is now **R$ 245,00** (US: **US$ 343.00**); the price-change example is R$ 255,00; the staged-plan example (Chatbot Plus, without Formulário de contato) is R$ 266,00.
 - **Remove-BOOKING block — new screen** `08i-plan-booking-in-use.html` (`BILLING_FEATURE_IN_USE`).
 - **Trial with a paid first invoice — new screen** `06e-cancel-trial-paid.html` (cancel scheduled at trial end, nothing lost). `06d` stays the immediate-cancel case for a trial with nothing paid or a `PAST_DUE` account.
 - **BR billing address — new screen** `02f-billing-identity-br-address-required.html`; the BR Dados tab text now says CPF/CNPJ and the full address are required before the first charge. Error `BILLING_ADDRESS_REQUIRED`, summary field `addressRequired`.
@@ -295,13 +295,13 @@ New screens: `11-billing-active-annual`, `12-addon-midyear-confirm`, `13-cancel-
 
 ## Illustrative prices
 
-| Feature | BR monthly | BR annual (10x monthly, 2 months free) | US annual (illustrative) |
+| Feature | BR monthly | BR annual (10x monthly, 2 months free) | US annual (10x the seeded monthly, BR + 40%) |
 |---|---|---|---|
-| HOTSITE | R$ 49 | R$ 490 | US$ 120 |
-| BOOKING | R$ 109 | R$ 1.090 | US$ 260 |
-| LOYALTY | R$ 29 | R$ 290 | US$ 70 |
-| CHATBOT Basic / Plus | R$ 39 / 79 | R$ 390 / 790 | US$ 90 / 190 |
-| LEAD_FORM | R$ 19 | R$ 190 | US$ 50 |
+| HOTSITE | R$ 49 | R$ 490 | US$ 686 |
+| BOOKING | R$ 109 | R$ 1.090 | US$ 1,526 |
+| LOYALTY | R$ 29 | R$ 290 | US$ 406 |
+| CHATBOT Basic / Plus | R$ 39 / 79 | R$ 390 / 790 | US$ 546 / 1,106 |
+| LEAD_FORM | R$ 19 | R$ 190 | US$ 266 |
 | Full BR set | R$ 245,00/mês | R$ 2.450,00/ano | |
 
 ## Decided rules
@@ -328,8 +328,8 @@ New screens: `11-billing-active-annual`, `12-addon-midyear-confirm`, `13-cancel-
 
 ## Addendum 6 — US tax lines on charges
 
-- **What changed (`02c`, US/English only).** Every issued US charge now shows Subtotal, tax as separate lines per jurisdiction, and Total. In Charge history each row's amount column is the total, and a "Tax details" disclosure under the reference expands to the three-part breakdown. The Open charge card on the Summary tab shows the big amount as the total (US$ 62.69), then Subtotal, tax line and Total, and the "Pay now" button carries the total.
-- **Illustrative numbers (Texas address).** Subtotal US$ 59.00; "Texas state sales tax (6.25%)" US$ 3.69; total US$ 62.69. One history row (March 2026) shows the zero-tax variant: "Tax: US$ 0.00 (none applicable)", total US$ 59.00 (no registration at that time).
+- **What changed (`02c`, US/English only).** Every issued US charge now shows Subtotal, tax as separate lines per jurisdiction, and Total. In Charge history each row's amount column is the total, and a "Tax details" disclosure under the reference expands to the three-part breakdown. The Open charge card on the Summary tab shows the big amount as the total (US$ 364.44), then Subtotal, tax line and Total, and the "Pay now" button carries the total.
+- **Illustrative numbers (Texas address).** Subtotal US$ 343.00; "Texas state sales tax (6.25%)" US$ 21.44; total US$ 364.44. One history row (March 2026) shows the zero-tax variant: "Tax: US$ 0.00 (none applicable)", total US$ 343.00 (no registration at that time).
 - **Unchanged.** Open amounts on the Summary ("Monthly amount") and Plan tabs stay net with "+ tax calculated when each invoice is issued". `02e` (not issued yet) is untouched. BR screens are unchanged: prices are tax-inclusive, no tax lines.
 
 

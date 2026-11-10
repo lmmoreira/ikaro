@@ -15,7 +15,7 @@
 ## What is real vs invented
 
 - **Real:** `--ba-*` tokens (`journeys/shared/tokens.css`), the dashboard shell, hotsite and customer-dashboard pages, `FeedbackMessage`, status badge and detail-layout patterns.
-- **Invented:** tenants "Lavacar BeloAuto" and "Ikaro"; the example selection and dates (the BR catalog prices are the decided ones: HOTSITE R$ 49, BOOKING R$ 109 (includes recurring reservations and availability alerts), LOYALTY R$ 29, CHATBOT BASIC R$ 39 / PLUS R$ 79, LEAD_FORM R$ 19; default total R$ 245. US: HOTSITE US$ 12, BOOKING US$ 26, LOYALTY US$ 7, CHATBOT US$ 9 / 19, LEAD_FORM US$ 5; total US$ 59). Only five features exist: HOTSITE, BOOKING, LOYALTY, CHATBOT, LEAD_FORM, dates, the `ikaro.app/` URL prefix, tier names.
+- **Invented:** tenants "Lavacar BeloAuto" and "Ikaro"; the example selection and dates (the BR catalog prices are the decided ones: HOTSITE R$ 49, BOOKING R$ 109 (includes recurring reservations and availability alerts), LOYALTY R$ 29, CHATBOT BASIC R$ 39 / PLUS R$ 79, LEAD_FORM R$ 19; default total R$ 245. US: HOTSITE US$ 68.60, BOOKING US$ 152.60, LOYALTY US$ 40.60, CHATBOT US$ 54.60 / 110.60, LEAD_FORM US$ 26.60; total US$ 343.00). Only five features exist: HOTSITE, BOOKING, LOYALTY, CHATBOT, LEAD_FORM, dates, the `ikaro.app/` URL prefix, tier names.
 - **New nav item, not in today's IA:** "Assinatura" under "Somente Gerente" (also in the mobile "Mais" sheet).
 
 ## Suspension routing (what the screens assume)
@@ -305,7 +305,7 @@ GET /v1/public/billing/prices?country=BR|US   (@Public)
 **States:** loading (03c, skeleton rows) -> ok (03/03b) / error (03d).
 **Decision (03d):** prices are informational, so a load failure does NOT block signup. The warning explains this and offers retry; "Começar teste grátis" stays enabled.
 **Error copy:** "Não foi possível carregar os preços agora." / "Tentar novamente".
-**Notes:** CHATBOT shows BASIC and PLUS prices (PLUS is a real catalog price: R$ 79,00 / US$ 19.00; the default total is R$ 245,00 / US$ 59.00 and the page lists only the five features). Dependency hints ("Requer Agendamento") come from the closed dependency map. Annual billing and coupons are out of scope. Money: `R$ 49,00` (pt-BR) / `US$ 12.00`. Mobile: table stays a single column of rows, switch above it.
+**Notes:** CHATBOT shows BASIC and PLUS prices (PLUS is a real catalog price: R$ 79,00 / US$ 110.60; the default total is R$ 245,00 / US$ 343.00 and the page lists only the five features). Dependency hints ("Requer Agendamento") come from the closed dependency map. Annual billing and coupons are out of scope. Money: `R$ 49,00` (pt-BR) / `US$ 68.60`. Mobile: table stays a single column of rows, switch above it.
 
 ## Screen public-04 / 04b / 04c — Turnstile + Google step (`SignupGoogleStep`)
 
@@ -393,7 +393,7 @@ POST /v1/public/signup/tenant
 - **`manager-01d` (SUSPENDED / NON_PAYMENT)** now shows the **recovery charge**: "Cobrança de reativação (um mês) · vence em 02/11/2026", says the previous open charge was cancelled and replaced, and shows the 90/180-day clean-up policy. The overdue variant (recovery due date passed) is the same screen with an "Vencida" badge and unchanged "Pagar agora" (the provider link keeps working). `PAYMENT_REVERSED` is now drawn in `manager-01m` ("Conta suspensa: o pagamento foi estornado ou contestado", recovery charge with "Pagar agora", purge date) and `OPERATOR` in `manager-01n` ("Conta suspensa pela Ikaro", reason-neutral, no charge, no pay button, only "Falar com a gente").
 - **New `manager-06d-cancel-immediate`** (CAND-28 A3): cancel for TRIALING or PAST_DUE takes effect now, no refund because nothing was paid; leads to `manager-01d`.
 - **New `public-05g-signup-us-selected`** (CAND-22 A7): US selected, CPF/CNPJ hidden, note that the full address is collected in the dashboard before the first charge; only reachable where the US has a price list.
-- **US screens (`manager-02c`, `02e`)**: card only (no ACH or bank debit), no Automatic billing tab or row (Pix Automático is BRL-only; four tabs: Summary, Plan, Charges, Billing details), Chatbot Plus US$ 19, "+ tax calculated when each invoice is issued" under totals, all plan changes at the next paid period. `02e` is now a consistent TRIALING summary (no open charge yet, history empty).
+- **US screens (`manager-02c`, `02e`)**: card only (no ACH or bank debit), no Automatic billing tab or row (Pix Automático is BRL-only; four tabs: Summary, Plan, Charges, Billing details), Chatbot Plus US$ 110.60, "+ tax calculated when each invoice is issued" under totals, all plan changes at the next paid period. `02e` is now a consistent TRIALING summary (no open charge yet, history empty).
 - **`manager-07d`** shows the real Pix Automático authorization error with the method card kept and "Tentar novamente".
 - **Public price tables**: BR "impostos incluídos", US "before tax; sales tax calculated when each invoice is issued".
 - **Illustrative dates:** each screen uses its own illustrative "today" and charge dates; the trial screens (01b, 01h, 04, 09) follow the confirm-plan flow (invoice issued on confirmation, or automatically 3 days before the trial end); the former fixed 10-day invoice lead no longer applies to the trial. Other screens are not meant to be read as one continuous timeline.
@@ -420,7 +420,7 @@ POST /v1/public/signup/tenant
 
 The HTML screens were redrawn in the 2026-10-27 follow-up (script-assisted, then reviewed). Where a screen and the docs still differ, **the docs win**.
 
-- **Features merged (decision 80) — applied.** The Recorrência and Alertas de disponibilidade rows/cards and their plan-state entries were removed from every billing screen and from the public price tables (BR and US). BOOKING is **R$ 109,00 / US$ 26.00** and its description says it includes recurring reservations and availability alerts. The example selection total is now **R$ 245,00** (US: **US$ 59.00**); the price-change example is R$ 255,00; the staged-plan example (Chatbot Plus, without Formulário de contato) is R$ 266,00.
+- **Features merged (decision 80) — applied.** The Recorrência and Alertas de disponibilidade rows/cards and their plan-state entries were removed from every billing screen and from the public price tables (BR and US). BOOKING is **R$ 109,00 / US$ 152.60** and its description says it includes recurring reservations and availability alerts. The example selection total is now **R$ 245,00** (US: **US$ 343.00**); the price-change example is R$ 255,00; the staged-plan example (Chatbot Plus, without Formulário de contato) is R$ 266,00.
 - **Remove-BOOKING block (decision 81) — new screen** `manager-08i-plan-booking-in-use.html` (`BILLING_FEATURE_IN_USE`).
 - **Trial with a paid first invoice (decision 89) — new screen** `manager-06e-cancel-trial-paid.html` (cancel scheduled at trial end, nothing lost). `manager-06d` stays the immediate-cancel case for a trial with nothing paid or a `PAST_DUE` account.
 - **BR billing address (decision 109) — new screen** `manager-02f-billing-identity-br-address-required.html`; the BR Dados tab text now says CPF/CNPJ and the full address are required before the first charge. Error `BILLING_ADDRESS_REQUIRED`, summary field `addressRequired`.
@@ -455,11 +455,11 @@ New screens: `manager-11-billing-active-annual`, `manager-12-addon-midyear-confi
 
 | Feature | BR monthly | BR annual (10x monthly, 2 months free) | US annual (illustrative) |
 |---|---|---|---|
-| HOTSITE | R$ 49 | R$ 490 | US$ 120 |
-| BOOKING | R$ 109 | R$ 1.090 | US$ 260 |
-| LOYALTY | R$ 29 | R$ 290 | US$ 70 |
-| CHATBOT Basic / Plus | R$ 39 / 79 | R$ 390 / 790 | US$ 90 / 190 |
-| LEAD_FORM | R$ 19 | R$ 190 | US$ 50 |
+| HOTSITE | R$ 49 | R$ 490 | US$ 686 |
+| BOOKING | R$ 109 | R$ 1.090 | US$ 1,526 |
+| LOYALTY | R$ 29 | R$ 290 | US$ 406 |
+| CHATBOT Basic / Plus | R$ 39 / 79 | R$ 390 / 790 | US$ 546 / 1,106 |
+| LEAD_FORM | R$ 19 | R$ 190 | US$ 266 |
 | Full BR set | R$ 245,00/mês | R$ 2.450,00/ano | |
 
 ## Decided rules
@@ -486,7 +486,7 @@ New screens: `manager-11-billing-active-annual`, `manager-12-addon-midyear-confi
 
 ## Addendum 6 — US tax lines on charges
 
-- **What changed (`manager-02c`, US/English only).** Every issued US charge now shows Subtotal, tax as separate lines per jurisdiction, and Total. In Charge history each row's amount column is the total, and a "Tax details" disclosure under the reference expands to the three-part breakdown. The Open charge card on the Summary tab shows the big amount as the total (US$ 62.69), then Subtotal, tax line and Total, and the "Pay now" button carries the total.
-- **Illustrative numbers (Texas address).** Subtotal US$ 59.00; "Texas state sales tax (6.25%)" US$ 3.69; total US$ 62.69. One history row (March 2026) shows the zero-tax variant: "Tax: US$ 0.00 (none applicable)", total US$ 59.00 (no registration at that time).
+- **What changed (`manager-02c`, US/English only).** Every issued US charge now shows Subtotal, tax as separate lines per jurisdiction, and Total. In Charge history each row's amount column is the total, and a "Tax details" disclosure under the reference expands to the three-part breakdown. The Open charge card on the Summary tab shows the big amount as the total (US$ 364.44), then Subtotal, tax line and Total, and the "Pay now" button carries the total.
+- **Illustrative numbers (Texas address).** Subtotal US$ 343.00; "Texas state sales tax (6.25%)" US$ 21.44; total US$ 364.44. One history row (March 2026) shows the zero-tax variant: "Tax: US$ 0.00 (none applicable)", total US$ 343.00 (no registration at that time).
 - **Unchanged.** Open amounts on the Summary ("Monthly amount") and Plan tabs stay net with "+ tax calculated when each invoice is issued". `manager-02e` (not issued yet) is untouched. BR screens are unchanged: prices are tax-inclusive, no tax lines.
 - **Source of the real lines.** The real tax lines come from Stripe Tax, computed from the tenant's billing address when the invoice is finalized, and exist only in slice E. The numbers above are invented for the prototype.

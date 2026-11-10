@@ -32,6 +32,8 @@ import { LoyaltyBalanceEntity } from '../contexts/loyalty/infrastructure/entitie
 import { LoyaltyEntryEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-entry.entity';
 import { LoyaltyRedemptionEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-redemption.entity';
 import { NotificationLogEntity } from '../contexts/notification/infrastructure/entities/notification-log.entity';
+import { FeaturePriceVersionEntity } from '../contexts/billing/infrastructure/entities/feature-price-version.entity';
+import { FeaturePriceEntity } from '../contexts/billing/infrastructure/entities/feature-price.entity';
 import { ChatbotMessageEntity } from '../contexts/platform/infrastructure/entities/chatbot-message.entity';
 import { ChatbotProviderBalanceEntity } from '../contexts/platform/infrastructure/entities/chatbot-provider-balance.entity';
 import { ChatbotSessionEntity } from '../contexts/platform/infrastructure/entities/chatbot-session.entity';
@@ -98,6 +100,8 @@ export async function createTestDataSource(): Promise<DataSource> {
       ChatbotSessionEntity,
       ChatbotMessageEntity,
       ChatbotProviderBalanceEntity,
+      FeaturePriceEntity,
+      FeaturePriceVersionEntity,
       LeadFormSubmissionEntity,
       LeadFormAnswerEntity,
     ],

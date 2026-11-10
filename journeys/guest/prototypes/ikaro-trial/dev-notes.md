@@ -53,7 +53,7 @@ GET /v1/public/billing/prices?country=BR|US   (@Public)
 **States:** loading (02c, skeleton rows) -> ok (02/02b) / error (02d).
 **Decision (02d):** prices are informational, so a load failure does NOT block signup. The warning explains this and offers retry; "Começar teste grátis" stays enabled.
 **Error copy:** "Não foi possível carregar os preços agora." / "Tentar novamente".
-**Notes:** CHATBOT shows BASIC and PLUS prices (PLUS is a real catalog price: R$ 79,00 / US$ 19.00; the default total is R$ 245,00 / US$ 59.00 and the page lists only the five features). Dependency hints ("Requer Agendamento") come from the closed dependency map. The annual toggle drawn in `02`/`02b` is slice H / post-launch (M26-S33 is BR monthly only, no toggle); coupons are out of scope. Money: `R$ 49,00` (pt-BR) / `US$ 12.00`. Mobile: table stays a single column of rows, switch above it.
+**Notes:** CHATBOT shows BASIC and PLUS prices (PLUS is a real catalog price: R$ 79,00 / US$ 110.60, the seeded US list being the BR list plus 40% (M25-S04); the default total is R$ 245,00 / US$ 343.00 and the page lists only the five features). `02b` draws exactly these US prices, with the annual column at ten times the monthly price. Dependency hints ("Requer Agendamento") come from the closed dependency map. The annual toggle drawn in `02`/`02b` is slice H / post-launch (M26-S33 is BR monthly only, no toggle); coupons are out of scope. Money: `R$ 49,00` (pt-BR) / `US$ 68.60`. Mobile: table stays a single column of rows, switch above it.
 
 ## Screen 3 (`03` / `03b` / `03c`) — Google step (`TrialGoogleStep`, `TrialAlreadyUsedNotice`)
 
@@ -102,7 +102,7 @@ POST /v1/public/signup/tenant
 
 ## Conventions and decisions added in the review pass
 
-- **Currency display:** the public price page keeps the `US$` prefix (`US$ 12.00`, period as decimal separator, as in the BRL page's `R$`) on the United States table, including the pt-BR text around it; `02b` and `04g` stay `lang="pt-BR"` because the page is Portuguese until the visitor chooses the country (the page's own note says so), only the price strings are USD. The real implementation formats with `Intl.NumberFormat` for the page locale and the price list's currency.
+- **Currency display:** the public price page keeps the `US$` prefix (`US$ 68.60`, period as decimal separator, as in the BRL page's `R$`) on the United States table, including the pt-BR text around it; `02b` and `04g` stay `lang="pt-BR"` because the page is Portuguese until the visitor chooses the country (the page's own note says so), only the price strings are USD. The real implementation formats with `Intl.NumberFormat` for the page locale and the price list's currency.
 - **US gate:** the US switch/option (`02b`, `04g`) is shown only where the US has a price list; otherwise a US request fails in the Billing handler with `BILLING_NO_PRICE_FOR_COUNTRY` (UC-110 A2).
 - **Slug-taken suggestions (`04b`)** are generated client-side (typed slug plus a suffix) and each is checked with `GET /v1/public/signup/slug-availability`; the endpoint returns no suggestions.
 - **Placeholder links:** "Termos de Uso" and "Política de Privacidade" are `href="#"` in the signup form screens `04`–`04g` (prototype placeholders; `03` and `03b` only mention them as plain text). They are wired to `/ikaro-trial/termos` and `/ikaro-trial/privacidade` by M26-S33.

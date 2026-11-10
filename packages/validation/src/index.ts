@@ -1,4 +1,5 @@
 export * from './address';
+export * from './billing';
 export * from './booking';
 export * from './chatbot';
 export * from './country-code';

@@ -172,6 +172,8 @@ const PERSISTENCE_BYPASS_IGNORES = [
   'src/contexts/booking/infrastructure/migrations/1748500000037-AddResourceOccupancyHoldExpiryIndex.ts',
   'src/contexts/booking/infrastructure/migrations/1748500000038-AddServicePublicPage.ts',
   'src/contexts/billing/infrastructure/migrations/1748500000039-CreateBillingSchema.ts',
+  'src/contexts/billing/infrastructure/migrations/1748500000040-SeedFeaturePrices.ts',
+  'src/contexts/billing/infrastructure/repositories/typeorm-feature-price.repository.ts',
   'src/contexts/notification/infrastructure/repositories/typeorm-notification-log.repository.ts',
   'src/contexts/notification/infrastructure/repositories/typeorm-notification-template.repository.ts',
   'src/contexts/platform/infrastructure/migrations/1700000000000-BootstrapSchemas.ts',

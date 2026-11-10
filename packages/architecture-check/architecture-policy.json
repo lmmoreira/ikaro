@@ -620,6 +620,38 @@
       "rationale": "packages/types/src/enums.ts must always exactly mirror packages/validation's canonical, backend/BFF-only HOTSITE_MODULE_TYPES -- no permitted lag in either direction. It historically lagged behind during LEAD_FORM's staged rollout (M20-S01 -> M20-S07); this entry closes that exact gap going forward -- a new module type must land in both files in the same change.",
       "owner": "platform",
       "reviewBy": "2027-03-01"
+    },
+    {
+      "name": "FeatureKey",
+      "canonical": {
+        "path": "packages/validation/src/billing.ts",
+        "kind": "constArray",
+        "exportName": "FEATURE_KEYS"
+      },
+      "mirror": {
+        "path": "packages/types/src/enums.ts",
+        "kind": "union",
+        "exportName": "FeatureKey"
+      },
+      "rationale": "packages/types/src/enums.ts must always exactly mirror packages/validation's canonical, backend/BFF-only FEATURE_KEYS -- the web imports the mirror union, the backend imports the constant array. A new sellable feature must land in both files in the same change (it also needs the billing.feature_prices CHECK widened by its own expand migration).",
+      "owner": "billing",
+      "reviewBy": "2027-05-01"
+    },
+    {
+      "name": "ChatbotTier",
+      "canonical": {
+        "path": "packages/validation/src/billing.ts",
+        "kind": "constArray",
+        "exportName": "CHATBOT_TIERS"
+      },
+      "mirror": {
+        "path": "packages/types/src/enums.ts",
+        "kind": "union",
+        "exportName": "ChatbotTier"
+      },
+      "rationale": "packages/types/src/enums.ts must always exactly mirror packages/validation's canonical, backend/BFF-only CHATBOT_TIERS -- the web imports the mirror union, the backend imports the constant array. A new chatbot tier must land in both files in the same change.",
+      "owner": "billing",
+      "reviewBy": "2027-05-01"
     }
   ],
   "testDataHarnessRegistrations": [
@@ -671,9 +703,17 @@
         "LeadFormSubmissionEntity",
         "LeadFormAnswerEntity",
         "BookingLineResourceAssignmentEntity",
-        "ResourceOccupancyEntity"
+        "ResourceOccupancyEntity",
+        "FeaturePriceEntity",
+        "FeaturePriceVersionEntity"
       ],
       "rationale": "General-purpose raw DataSource for integration specs that assert directly against tables. Intentionally omits NotificationTemplateEntity: every spec using this helper reads notification templates through InMemoryNotificationTemplateRepository, never this DataSource. ResourceEntity and the M22-S01 Service child-table entities were added so TypeOrmServiceRepository's own repository-level integration spec can round-trip resourceRequirements/legs/classResourceSlots without the DataSource lacking their metadata. ServiceBookingIntakeSchemaEntity and BookingAttendeeEntity (M22-S02) were added for the same reason, covering the booking-policy/intake-schema tables. BookingLineResourceAssignmentEntity and ResourceOccupancyEntity (M22-S03) were added so the resource-occupancy repository's own integration spec can round-trip the exclusivity-lock tables. RecurringBookingScheduleEntity and its 2 child entities (M23-S04) were added so TypeOrmRecurringBookingScheduleRepository's own repository-level integration spec can round-trip the optimistic-concurrency version column."
+    },
+    {
+      "file": "apps/backend/src/test/utils/billing-integration-app.ts",
+      "completeness": "partial",
+      "entities": ["FeaturePriceEntity", "FeaturePriceVersionEntity"],
+      "rationale": "Per-context integration app for the Billing context (M25-S04, the first Billing story with entities): it boots only BillingModule and the entities its repositories read. Every later Billing entity story adds its entities here (M25-D7)."
     },
     {
       "file": "apps/backend/src/test/utils/booking-integration-app.ts",
@@ -794,6 +834,38 @@
       "rationale": "notification is fully event-driven and has no contexts/notification/infrastructure/http/notification-error.mapper.ts at all — same reasoning as the EmailDeliveryException error-mapper-coverage exception above: notification-log.aggregate.ts (this path) constructs Email, but any validation failure there is handled by the async event-handler flow, never an HTTP transport mapper.",
       "owner": "notification",
       "reviewBy": "2026-09-30"
+    },
+    {
+      "rule": "error-mapper-coverage",
+      "class": "FeaturePriceNotFoundError",
+      "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
+      "rationale": "M25-S04 builds the platform-wide price list's read side only: its two use cases are consumed in-process by M26 and no billing HTTP surface exists yet. M25-S06 creates contexts/billing/infrastructure/http/billing-error.mapper.ts and maps this error; remove this entry then.",
+      "owner": "billing",
+      "reviewBy": "2026-12-31"
+    },
+    {
+      "rule": "error-mapper-coverage",
+      "class": "FeaturePriceInvariantError",
+      "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
+      "rationale": "Same as FeaturePriceNotFoundError above: no billing HTTP surface until M25-S06 creates billing-error.mapper.ts; remove this entry when it maps this error.",
+      "owner": "billing",
+      "reviewBy": "2026-12-31"
+    },
+    {
+      "rule": "error-mapper-coverage",
+      "class": "MinorAmountValidationError",
+      "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
+      "rationale": "Same as FeaturePriceNotFoundError above: no billing HTTP surface until M25-S06 creates billing-error.mapper.ts; remove this entry when it maps this error.",
+      "owner": "billing",
+      "reviewBy": "2026-12-31"
+    },
+    {
+      "rule": "shared-vo-error-mapper-coverage",
+      "context": "billing",
+      "path": "apps/backend/src/contexts/billing/domain/feature-price.aggregate.ts",
+      "rationale": "M25-S04 has no billing HTTP surface: feature-price.aggregate.ts and the price use cases construct the shared CountryCode and CalendarDate VOs, but their only callers are in-process (M26). M25-S06 creates contexts/billing/infrastructure/http/billing-error.mapper.ts; remove this entry then.",
+      "owner": "billing",
+      "reviewBy": "2026-12-31"
     },
     {
       "rule": "raw-persistence-api",
