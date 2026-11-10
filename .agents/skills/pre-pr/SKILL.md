@@ -187,10 +187,11 @@ Wait for all invocations to complete before continuing. Any FAIL from bad-smell-
 ## Step 4 — Integration tests (autonomous)
 
 ```bash
-{ pnpm --filter @ikaro/backend test:integration && pnpm --filter @ikaro/bff test:component; } 2>&1 | tail -50
+pnpm --filter @ikaro/backend test:integration > <scratchpad>/be-integration.log 2>&1
+pnpm --filter @ikaro/bff test:component > <scratchpad>/bff-component.log 2>&1
 ```
 
-Use a 600 000 ms timeout (10 min).
+Run each as its own command with `run_in_background: true` and wait for its completion notice, never in the foreground. The backend suite takes about 10 minutes (about 600 s for 102 suites), which is the foreground timeout ceiling: a foreground run that reaches it is killed and takes its test containers with it, and the failures printed at the end (`terminating connection due to administrator command`, `the database system is shutting down`) are that teardown, not a test failure. Read the `Test Suites:` and `Tests:` lines of each log and `grep '^FAIL'` it.
 
 ```
 ### Step 4 — Integration tests
