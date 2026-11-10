@@ -7,7 +7,7 @@
 
 > Note: the lifecycle screens referenced here were later implemented in M13-S19 and M13-S20; this document remains the prototype and journey reference.
 >
-> Validation note (2026-06-29): `apps/web/e2e/staff-booking-lifecycle.spec.ts` now covers the queue card detail shortcut, quick approve, reject, request info, complete success, reschedule success, cancel success and a loyalty flow (8 tests); there is no e2e for no-show, slot conflict, new booking or recurring.
+> Validation note (2026-06-29, corrected 2026-11-10): `apps/web/e2e/staff-booking-lifecycle.spec.ts` covers quick approve from the queue, reject, request info, complete success, the loyalty earn-and-redeem flow, reschedule success and cancel success (7 tests). No-show, new booking and recurring each have their own spec (`staff-no-show`, `staff-new-booking`, `staff-recurring-approval`, `dashboard-recurring-schedule-create`); the slot-conflict flow is not in this file.
 
 ## Flow
 
@@ -165,7 +165,7 @@ When this audit was written the staff detail (`BookingDetailMain.tsx`) rendered 
 | Card (screen) | Fields | Where the data comes from |
 |---|---|---|
 | Recursos reservados (`?forma=recurso\|pacote`) | One row per requirement, labelled by resource type; name when there is a resource (tag "escolhido pelo cliente" / "atribuído pelo sistema"), "Do conjunto" for a fungible pool | `resources` (`BookingLineResourceEntry[]`) in `StaffBookingDetailResponse`; the list card has `assignedResources`. Source for every status, a cancelled or rejected booking included: the latest `booking_line_resource_assignments` row per slot (the audit table a cancel does not delete), through a query beside `LATEST_RESOURCE_ASSIGNMENTS_SQL` that also returns line, leg and quantity position (M23-S47 decision 2) |
-| Trajeto (`?forma=trajeto`) | Per leg: resource, start–end | `itinerary` (`BookingItineraryLeg[]`) in `StaffBookingDetailResponse`. Leg order and resource come from the assignments; the leg times come from `resource_occupancy` and exist only while those rows do (never after a cancel or reject, and not after the 90-day purge): such a leg is drawn without a time (`03i`) |
+| Trajeto (`?forma=trajeto`) | One numbered step per leg: leg name, start–end, and every resource of the leg beneath it | `itinerary` (`BookingItineraryLeg[]`, one entry per resource of a leg) in `StaffBookingDetailResponse`; the web groups the entries by `lineId` + `legIndex` into one step per leg (`groupItineraryByLeg`, TD51-S04). Leg order and resources come from the assignments; the leg times come from `resource_occupancy` and exist only while those rows do (never after a cancel or reject, and not after the 90-day purge): such a leg is drawn without a time (`03i`) |
 | Participantes (`?forma=formulario`) | `participantCount`, `attendees` (name, minor) | `participantCount` and `attendees` in `StaffBookingDetailResponse` |
 | Formulário de entrada (`?forma=formulario\|equipe`) | Answers by question, schema version, consent date; "não coletado" for a staff-created booking | `intake` (`StaffBookingDetailIntake`, with the consent data) in `StaffBookingDetailResponse` |
 | Observações do cliente | `notes` | `notes` in `StaffBookingDetailResponse` |

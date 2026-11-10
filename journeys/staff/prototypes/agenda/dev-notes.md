@@ -5,7 +5,7 @@
 > **Prototype:** `journeys/staff/prototypes/agenda/`
 > **Production:** `apps/web/features/booking/components/dashboard/bookings/**` — Next.js 16 + React 19 + shadcn/ui + Tailwind
 >
-> Validation note (2026-06-29): `apps/web/e2e/staff-booking-lifecycle.spec.ts` covers queue detail, quick approve, reject, request info, complete success, reschedule success, cancel success and a loyalty flow (8 tests). There is no e2e for no-show, slot conflict, new booking or recurring.
+> Validation note (2026-06-29, corrected 2026-11-10): `apps/web/e2e/staff-booking-lifecycle.spec.ts` covers quick approve from the queue, reject, request info, complete success, the loyalty earn-and-redeem flow, reschedule success and cancel success (7 tests). No-show, new booking and recurring each have their own spec (`staff-no-show`, `staff-new-booking`, `staff-recurring-approval`, `dashboard-recurring-schedule-create`); the slot-conflict flow is not in this file.
 
 ---
 
@@ -35,7 +35,7 @@ The prototype uses plain HTML + `tokens.css`. Production uses shadcn/ui componen
 | Prototype pattern | shadcn/ui component | Notes |
 |---|---|---|
 | Bottom sheet (rejeitar / pedir info) | `Sheet` with `side="bottom"` | Use `side="right"` on desktop (`md:` breakpoint) |
-| Status badge (`.status-badge.status-approved`) | `Badge` with custom `variant` | Map: `PENDING` → yellow, `APPROVED` → green, `REJECTED` → red, `INFO_REQUESTED` → blue, `CANCELLED` → gray |
+| Status badge (`.status-badge.status-approved`) | `Badge` with custom `variant` | Map: `PENDING` → yellow, `APPROVED` → green, `REJECTED` → red, `INFO_REQUESTED` → blue, `CANCELLED` → gray, `COMPLETED` → slate, `NO_SHOW` → violet (`BOOKING_STATUS_CLASSES`, `booking-status.ts`) |
 | Card sections (`.card`) | `Card`, `CardContent` | |
 | Primary/secondary buttons (`.btn-primary`, `.btn-secondary`) | `Button variant="default"` / `variant="outline"` | |
 | Sidebar nav items (`.sidebar-nav-item`) | custom — no direct shadcn equivalent | Use `cn()` for active state |
