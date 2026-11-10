@@ -359,7 +359,7 @@ Create the 7th backend context's persistence foundation: the `billing` schema, `
 
 ---
 
-### M25-S04 — `FeaturePrice` aggregate, `FeatureKey` / `ChatbotTier`, BR catalog seed
+### M25-S04 — `FeaturePrice` aggregate, `FeatureKey` / `ChatbotTier`, BR catalog seed ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** M
