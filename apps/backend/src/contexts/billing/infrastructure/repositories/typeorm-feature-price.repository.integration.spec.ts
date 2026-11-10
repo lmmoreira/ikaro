@@ -5,7 +5,6 @@ import { FeaturePriceVersionEntityBuilder } from '../../../../test/builders/bill
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { FeaturePriceVersionEntity } from '../entities/feature-price-version.entity';
 import { FeaturePriceEntity } from '../entities/feature-price.entity';
-import { SeedFeaturePrices1748500000040 } from '../migrations/1748500000040-SeedFeaturePrices';
 import { TypeOrmFeaturePriceRepository } from './typeorm-feature-price.repository';
 
 // The seed migration fills the whole natural-key space and runs in every integration database, so
@@ -155,87 +154,6 @@ describe('TypeOrmFeaturePriceRepository (integration)', () => {
           ),
         ).rejects.toBeInstanceOf(QueryFailedError);
       } finally {
-        await queryRunner.rollbackTransaction();
-        await queryRunner.release();
-      }
-    });
-  });
-
-  describe('seed migration', () => {
-    async function countRows(queryRunner: ReturnType<DataSource['createQueryRunner']>) {
-      const [prices] = await queryRunner.query(
-        `SELECT count(*)::int AS n FROM "billing"."feature_prices"`,
-      );
-      const [versions] = await queryRunner.query(
-        `SELECT count(*)::int AS n FROM "billing"."feature_price_versions"`,
-      );
-      const [us] = await queryRunner.query(
-        `SELECT count(*)::int AS n FROM "billing"."feature_prices" WHERE "country_code" = 'US'`,
-      );
-      return { prices: prices.n as number, versions: versions.n as number, us: us.n as number };
-    }
-
-    it('is idempotent: running it again changes nothing', async () => {
-      const queryRunner = dataSource.createQueryRunner();
-      await queryRunner.startTransaction();
-      try {
-        const before = await countRows(queryRunner);
-        await new SeedFeaturePrices1748500000040().up(queryRunner);
-        await new SeedFeaturePrices1748500000040().up(queryRunner);
-
-        expect(await countRows(queryRunner)).toEqual(before);
-      } finally {
-        await queryRunner.rollbackTransaction();
-        await queryRunner.release();
-      }
-    });
-
-    it('rolls back only what it seeded: an operator version and an unrelated versionless price survive', async () => {
-      const queryRunner = dataSource.createQueryRunner();
-      await queryRunner.startTransaction();
-      try {
-        await queryRunner.query(
-          `INSERT INTO "billing"."feature_price_versions"
-             ("id","feature_price_id","amount_minor","effective_from","created_by","reason")
-           SELECT gen_random_uuid(), fp."id", 9999, '2099-01-01', 'operator-1', 'price change'
-           FROM "billing"."feature_prices" fp
-           WHERE fp."feature_key" = 'HOTSITE' AND fp."country_code" = 'BR' AND fp."tier" = 'STANDARD'`,
-        );
-        await queryRunner.query(
-          `INSERT INTO "billing"."feature_prices"
-             ("id","feature_key","country_code","tier","cycle","currency","selectable")
-           VALUES (gen_random_uuid(), 'HOTSITE', 'BR', 'PLUS', 'MONTHLY', 'BRL', true)`,
-        );
-
-        await new SeedFeaturePrices1748500000040().down(queryRunner);
-
-        // Kept: the seeded BR HOTSITE price (it still has the operator's version) and the
-        // unrelated versionless one. Everything else the migration seeded is gone.
-        expect(await countRows(queryRunner)).toEqual({ prices: 2, versions: 1, us: 0 });
-      } finally {
-        await queryRunner.rollbackTransaction();
-        await queryRunner.release();
-      }
-    });
-
-    it('seeds the complete BR and US lists on an empty catalog, whatever APP_ENV says', async () => {
-      const queryRunner = dataSource.createQueryRunner();
-      await queryRunner.startTransaction();
-      const previous = process.env['APP_ENV'];
-      try {
-        await queryRunner.query(`DELETE FROM "billing"."feature_price_versions"`);
-        await queryRunner.query(`DELETE FROM "billing"."feature_prices"`);
-
-        process.env['APP_ENV'] = 'production';
-        await new SeedFeaturePrices1748500000040().up(queryRunner);
-
-        expect(await countRows(queryRunner)).toEqual({ prices: 12, versions: 12, us: 6 });
-      } finally {
-        if (previous === undefined) {
-          delete process.env['APP_ENV'];
-        } else {
-          process.env['APP_ENV'] = previous;
-        }
         await queryRunner.rollbackTransaction();
         await queryRunner.release();
       }

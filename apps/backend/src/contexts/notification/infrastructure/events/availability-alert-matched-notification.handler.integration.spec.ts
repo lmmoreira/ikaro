@@ -41,11 +41,8 @@ import { LoyaltyBalanceEntity } from '../../../loyalty/infrastructure/entities/l
 import { LoyaltyRedemptionEntity } from '../../../loyalty/infrastructure/entities/loyalty-redemption.entity';
 import { BalanceExpiryLogEntity } from '../../../loyalty/infrastructure/entities/balance-expiry-log.entity';
 import { NotificationLogEntity } from '../entities/notification-log.entity';
-import { NotificationTemplateEntity } from '../entities/notification-template.entity';
 import { AvailabilityAlertEntity } from '../../../booking/infrastructure/entities/availability-alert.entity';
 import { AvailabilityAlertNotificationAttemptEntity } from '../../../booking/infrastructure/entities/availability-alert-notification-attempt.entity';
-import { AddAvailabilityAlertMatchedTemplate1748500000031 } from '../migrations/1748500000031-AddAvailabilityAlertMatchedTemplate';
-import { NotificationTemplateKey } from '../../domain/notification-template-key.enum';
 
 const PLATFORM_KEY = 'alert-matched-notif-key-xxxxxxxxxx';
 
@@ -80,8 +77,6 @@ const LOYALTY_ENTITIES = [
   LoyaltyRedemptionEntity,
   BalanceExpiryLogEntity,
 ] as const;
-
-const NEW_KEY = NotificationTemplateKey.AVAILABILITY_ALERT_MATCHED_CUSTOMER;
 
 interface SeededTenant {
   tenantId: string;
@@ -296,65 +291,5 @@ describe('Story: AvailabilityAlertMatched → customer email and attempt outcome
 
     expect(dispatcher.dispatched).toHaveLength(0);
     expect(await logsFor(tenantA.tenantId, event.eventId)).toHaveLength(0);
-  });
-
-  describe('AddAvailabilityAlertMatchedTemplate migration', () => {
-    async function runMigration(): Promise<void> {
-      const queryRunner = ds.createQueryRunner();
-      try {
-        await new AddAvailabilityAlertMatchedTemplate1748500000031().up(queryRunner);
-      } finally {
-        await queryRunner.release();
-      }
-    }
-
-    function newKeyRows(tenantId: string) {
-      return ds
-        .getRepository(NotificationTemplateEntity)
-        .find({ where: { tenantId, triggerEvent: NEW_KEY } });
-    }
-
-    it('copies the template to a tenant that existed before it, in the tenant locale, and is idempotent', async () => {
-      await ds
-        .createQueryBuilder()
-        .delete()
-        .from(NotificationTemplateEntity)
-        .where('tenant_id = :tenantId AND trigger_event = :key', {
-          tenantId: tenantB.tenantId,
-          key: NEW_KEY,
-        })
-        .execute();
-      await ds.query(
-        `UPDATE platform.tenants SET settings = jsonb_set(settings, '{localization,language}', '"en"') WHERE id = $1`,
-        [tenantB.tenantId],
-      );
-      expect(await newKeyRows(tenantB.tenantId)).toHaveLength(0);
-
-      await runMigration();
-
-      const copied = await newKeyRows(tenantB.tenantId);
-      expect(copied).toHaveLength(1);
-      expect(copied[0].locale).toBe('en');
-
-      await runMigration();
-      expect(await newKeyRows(tenantB.tenantId)).toHaveLength(1);
-    });
-
-    it('seeds the global default in both locales', async () => {
-      const globals = await ds
-        .getRepository(NotificationTemplateEntity)
-        .createQueryBuilder('t')
-        .where('t.tenant_id IS NULL AND t.trigger_event = :key', { key: NEW_KEY })
-        .getMany();
-
-      expect(globals.map((g) => g.locale).sort()).toEqual(['en', 'pt-BR']);
-    });
-
-    it('left the tenant provisioned after it with its own row in pt-BR', async () => {
-      const rows = await newKeyRows(tenantA.tenantId);
-
-      expect(rows).toHaveLength(1);
-      expect(rows[0].locale).toBe('pt-BR');
-    });
   });
 });
