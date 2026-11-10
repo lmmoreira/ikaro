@@ -64,6 +64,8 @@ describe('FeaturePrice', () => {
     });
 
     it('rejects a cycle other than MONTHLY', () => {
+      // Deliberately outside the type: the point of the test is a runtime value the compiler would
+      // reject (annual billing is slice H), as a caller bypassing types could still send it.
       const props = { ...createProps(), cycle: 'ANNUAL' as unknown as 'MONTHLY' };
 
       expect(() => FeaturePrice.create(props)).toThrow(FeaturePriceInvariantError);

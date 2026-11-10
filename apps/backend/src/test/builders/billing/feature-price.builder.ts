@@ -62,7 +62,7 @@ export class FeaturePriceBuilder {
   private featureKey: FeatureKey = 'HOTSITE';
   private countryCode = 'BR';
   private tier: FeatureTier = 'STANDARD';
-  private cycle: FeaturePriceCycle = 'MONTHLY';
+  private readonly cycle: FeaturePriceCycle = 'MONTHLY';
   private currency: string | null = null;
   private selectable = true;
   private versions: FeaturePriceVersion[] = [];

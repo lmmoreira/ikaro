@@ -1249,7 +1249,7 @@ Replaced by `shared.inbox` (see **Schema: `shared`** below). Pre-production, so 
 
 ## Schema: `billing`
 
-> **Schema built (M25-S03); no domain code yet.** The first migration (`CreateBillingSchema`, `apps/backend/src/contexts/billing/infrastructure/migrations/`) creates every table below except the ones marked *slice E/F2/H*. Entities, aggregates, repositories and use cases arrive with their own M25 stories, so a table described here may not yet have code reading or writing it.
+> **Schema built (M25-S03); domain code only for the price list so far (M25-S04).** The first migration (`CreateBillingSchema`, `apps/backend/src/contexts/billing/infrastructure/migrations/`) creates every table below except the ones marked *slice E/F2/H*. Entities, aggregates, repositories and use cases arrive with their own M25 stories, so a table described here may not yet have code reading or writing it; today only `feature_prices` and `feature_price_versions` have an entity and a (read-only) repository.
 
 Owned by: **Billing Context** (`src/contexts/billing/`) — Ikaro charging its tenants (`docs/DOMAIN_MODEL.md` § Billing Context, `docs/USE_CASES.md` UC-110–UC-145). A new schema; the first migration touches no existing table (**expand only**). `tenant_id` is a plain NOT NULL UUID with **no** FK to `platform.tenants` (§2), which is also what lets the billing history outlive a purged tenant. Every composite FK is `(tenant_id, id)`.
 
@@ -1288,6 +1288,8 @@ The amount lives in `feature_price_versions`, so a price change is a new dated r
 | created_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
 | **UNIQUE** | (feature_price_id, effective_from) WHERE superseded_at IS NULL | |
 | **INDEX** | (feature_price_id, effective_from DESC) WHERE superseded_at IS NULL | the amount in force: `effective_from <= :periodStart` ordered DESC |
+
+**Seed (M25-S04, `SeedFeaturePrices`):** the BR launch list (`BRL`, monthly, tax-inclusive: HOTSITE 4900, BOOKING 10900, LOYALTY 2900, CHATBOT `BASIC` 3900 / `PLUS` 7900, LEAD_FORM 1900 minor units) is inserted with one version each, `effective_from = 2026-01-01` (a fixed constant, identical in every environment, not the run date), `created_by = 'SYSTEM'`, `reason = 'Initial catalog (M25-S02)'`, `announced_at` / `batch_id` NULL. A `USD` placeholder list is inserted **only when `APP_ENV` is not `production`** (unset means `local`). The migration is idempotent: the price is upserted on its natural key and a version is inserted only for a price that has none.
 
 Versions already in effect are immutable history. Price-list changes are audited **here** (`created_by`, `reason`, `batch_id`, `created_at`, `superseded_at`) — they have no tenant, so they are not in `operator_audit`. Growth: one row per price change.
 

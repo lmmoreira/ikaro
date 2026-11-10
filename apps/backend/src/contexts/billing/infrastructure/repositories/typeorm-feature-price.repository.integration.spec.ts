@@ -280,8 +280,8 @@ describe('TypeOrmFeaturePriceRepository (integration)', () => {
 
       expect(columns).toHaveLength(0);
       // findByNaturalKey(featureKey, countryCode, tier, cycle) / listSelectableByCountry(countryCode)
-      expect(repo.findByNaturalKey.length).toBe(4);
-      expect(repo.listSelectableByCountry.length).toBe(1);
+      expect(repo.findByNaturalKey).toHaveLength(4);
+      expect(repo.listSelectableByCountry).toHaveLength(1);
     });
   });
 });

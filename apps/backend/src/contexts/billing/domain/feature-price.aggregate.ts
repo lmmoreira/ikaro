@@ -53,7 +53,7 @@ export class FeaturePrice extends AggregateRoot {
   readonly cycle: FeaturePriceCycle;
   readonly currency: string;
   readonly selectable: boolean;
-  private _versions: FeaturePriceVersion[];
+  private readonly _versions: FeaturePriceVersion[];
 
   private constructor(props: FeaturePriceProps) {
     super();
