@@ -1,5 +1,6 @@
 'use client';
 
+import { Label } from '@/shared/components/ui/label';
 import { NumberInput } from '@/shared/components/ui/number-input';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/shared/components/ui/button';
@@ -53,11 +54,15 @@ export function MarkCompleteLoyaltyPanel({
           </div>
 
           <div className="flex flex-wrap items-end gap-3">
-            <label className="block min-w-0 flex-1">
-              <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.07em] text-gray-400">
+            <div className="min-w-0 flex-1">
+              <Label
+                htmlFor="complete-points-used"
+                className="mb-2 text-xs uppercase tracking-[0.07em] text-gray-400"
+              >
                 {t('loyaltyPointsLabel')}
-              </span>
+              </Label>
               <NumberInput
+                id="complete-points-used"
                 unit={tUnits('points')}
                 min="0"
                 max={maxRedeemablePoints}
@@ -66,7 +71,7 @@ export function MarkCompleteLoyaltyPanel({
                 onChange={(event) => onPointsChange(event.target.value)}
                 className="font-semibold"
               />
-            </label>
+            </div>
             <Button
               type="button"
               variant="outline"

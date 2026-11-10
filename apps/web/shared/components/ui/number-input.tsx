@@ -33,30 +33,37 @@ export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
   ) => {
     const unitId = React.useId();
     const isPrefix = unitPosition === 'prefix';
-    const padding = `calc(${unit.length}ch + 1.75rem)`;
+    const hasUnit = unit !== '';
+    const padding = hasUnit ? `calc(${unit.length}ch + 1.75rem)` : undefined;
 
     return (
       <div className={cn('relative w-full', wrapperClassName)}>
         <Input
           ref={ref}
           type="number"
-          aria-describedby={[describedBy, unitId].filter(Boolean).join(' ')}
-          style={{ ...style, [isPrefix ? 'paddingLeft' : 'paddingRight']: padding }}
+          aria-describedby={
+            [describedBy, hasUnit ? unitId : undefined].filter(Boolean).join(' ') || undefined
+          }
+          style={
+            padding ? { ...style, [isPrefix ? 'paddingLeft' : 'paddingRight']: padding } : style
+          }
           className={cn(
             '[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
             className,
           )}
           {...props}
         />
-        <span
-          id={unitId}
-          className={cn(
-            'pointer-events-none absolute top-1/2 -translate-y-1/2 text-sm text-muted-foreground',
-            isPrefix ? 'left-3' : 'right-3',
-          )}
-        >
-          {unit}
-        </span>
+        {hasUnit && (
+          <span
+            id={unitId}
+            className={cn(
+              'pointer-events-none absolute top-1/2 -translate-y-1/2 text-sm text-muted-foreground',
+              isPrefix ? 'left-3' : 'right-3',
+            )}
+          >
+            {unit}
+          </span>
+        )}
       </div>
     );
   },

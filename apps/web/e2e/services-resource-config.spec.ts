@@ -225,9 +225,11 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     await expect(pane.getByTestId('form-feedback')).toBeInViewport();
     await expect(page.getByTestId('policy-duration-min')).toBeFocused();
     await expect(page.getByTestId('policy-duration-min')).toHaveAttribute('aria-invalid', 'true');
-    const messageId = await page
+    // The message id comes first; the unit's id is appended after it.
+    const describedBy = await page
       .getByTestId('policy-duration-min')
       .getAttribute('aria-describedby');
+    const messageId = describedBy?.split(' ')[0];
     await expect(page.locator(`[id="${messageId}"]`)).toHaveText('Informe a duração mínima.');
 
     await page.getByTestId('policy-duration-min').fill('30');

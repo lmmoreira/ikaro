@@ -101,14 +101,18 @@ export function IntakeAnswersStep({
               type="number"
               min={1}
               className={intakeInputClass(
-                'w-full border py-2 pl-3 pr-16',
+                'w-full border py-2 pl-3 pr-16 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
                 showFieldErrors && validation.participants,
               )}
               style={fieldBorder(showFieldErrors && validation.participants)}
               value={value.participantCount}
               onChange={(e) => onChange({ ...value, participantCount: e.target.value })}
               aria-invalid={showFieldErrors && validation.participants ? true : undefined}
-              aria-describedby="intake-participants-unit"
+              aria-describedby={
+                showFieldErrors && validation.participants
+                  ? 'intake-participants-unit intake-participants-error'
+                  : 'intake-participants-unit'
+              }
             />
             <span
               id="intake-participants-unit"

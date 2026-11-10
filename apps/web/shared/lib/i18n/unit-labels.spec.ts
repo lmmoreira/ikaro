@@ -46,7 +46,9 @@ describe.each(Object.entries(LOCALES))('unit labels (%s)', (_locale, messages) =
     (key) => {
       const label = messages.dashboard.servicesPage[key];
 
-      expect(label).not.toMatch(/\((minut|min\b|hours?|horas?|days?|dias?|R\$)/i);
+      expect(label).not.toMatch(
+        /\((minut|min\b|hours?|horas?|days?|dias?|R\$|pts|unid|pessoas|vagas|imagens|%)/i,
+      );
     },
   );
 

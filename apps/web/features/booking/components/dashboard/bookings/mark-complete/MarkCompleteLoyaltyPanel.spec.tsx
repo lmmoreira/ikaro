@@ -73,7 +73,7 @@ describe('MarkCompleteLoyaltyPanel', () => {
       />,
     );
 
-    await user.type(screen.getByRole('spinbutton', { name: /^Pontos a usar/ }), '5');
+    await user.type(screen.getByRole('spinbutton', { name: 'Pontos a usar' }), '5');
 
     expect(onPointsChange).toHaveBeenCalled();
   });
@@ -123,8 +123,9 @@ describe('MarkCompleteLoyaltyPanel unit (TD51-S3)', () => {
       />,
     );
 
-    expect(
-      screen.getByRole('spinbutton', { name: /^Pontos a usar/ }).parentElement,
-    ).toHaveTextContent('pts');
+    const input = screen.getByRole('spinbutton', { name: 'Pontos a usar' });
+    expect(input.parentElement).toHaveTextContent('pts');
+    // The unit is announced after the value, as the description, and is not part of the name.
+    expect(input).toHaveAccessibleDescription('pts');
   });
 });

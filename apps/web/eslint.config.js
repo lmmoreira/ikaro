@@ -202,8 +202,16 @@ const RAW_BUTTON_SELECTOR = {
 // one shape a syntax selector cannot follow. The primitive itself is exempt by exact path in
 // numberInputExemptPaths below.
 const NUMBER_INPUT_SELECTOR = {
-  selector:
-    "JSXOpeningElement[name.name='Input'] > JSXAttribute[name.name='type']:has(:matches(Literal[value='number'], TemplateElement[value.cooked='number']))",
+  selector: [
+    "JSXOpeningElement[name.name='Input'] > JSXAttribute[name.name='type']:matches(",
+    "[value.value='number'],",
+    "[value.expression.value='number'],",
+    "[value.expression.quasis.0.value.cooked='number'],",
+    "[value.expression.consequent.value='number'],",
+    "[value.expression.alternate.value='number'],",
+    "[value.expression.right.value='number']",
+    ')',
+  ].join(' '),
   message:
     'A bare <Input type="number"> shows no unit, so the user cannot tell minutes from hours. Use ui/number-input with a unit (docs/ENGINEERING_RULES_FRONTEND.md § Reuse the repo\'s UI primitives; TD51-S3).',
 };

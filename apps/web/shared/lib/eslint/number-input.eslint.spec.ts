@@ -73,6 +73,10 @@ describe('bare numeric <Input> ban (TD51-S3)', () => {
       ['<NumberInput>', '<NumberInput unit="min" />'],
       ['a different attribute named number', '<Input inputMode="number" />'],
       ['a number type on another element', '<Foo type="number" />'],
+      [
+        'a conditional that only tests for number',
+        "<Input type={x === 'number' ? 'text' : 'tel'} />",
+      ],
     ])('%s', (_name, jsx) => {
       expect(numberInputMessages(component(jsx), DASHBOARD_PATH)).toEqual([]);
     });

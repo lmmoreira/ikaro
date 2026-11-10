@@ -1,5 +1,6 @@
 'use client';
 
+import { Label } from '@/shared/components/ui/label';
 import { NumberInput } from '@/shared/components/ui/number-input';
 import { useTranslations } from 'next-intl';
 import type { StaffBookingDetailResponse } from '@ikaro/types';
@@ -45,11 +46,15 @@ export function MarkCompleteLineFields({
                   })}
                 </p>
               </div>
-              <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.07em] text-gray-400">
+              <div>
+                <Label
+                  htmlFor={`complete-line-price-${line.lineId}`}
+                  className="mb-2 text-xs uppercase tracking-[0.07em] text-gray-400"
+                >
                   {t('chargedPriceLabel')}
-                </span>
+                </Label>
                 <NumberInput
+                  id={`complete-line-price-${line.lineId}`}
                   unit={currencySymbol}
                   unitPosition="prefix"
                   min="0"
@@ -58,7 +63,7 @@ export function MarkCompleteLineFields({
                   onChange={(event) => onLinePriceChange(line.lineId, event.target.value)}
                   className="font-semibold"
                 />
-              </label>
+              </div>
             </div>
           ))}
         </CardContent>
