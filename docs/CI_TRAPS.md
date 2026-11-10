@@ -596,6 +596,13 @@ The gates (`pr-tests.yml`, `pr-quality.yml`) run on `pull_request` only. `main` 
 
 ---
 
+## A shared domain error needs its mapper in `shared/http/`, and a use case with no `await` must not be `async`
+
+- **A domain error that lives in `src/shared/domain/` and is raised by a route and by a direct caller** fails `shared-vo-error-mapper-coverage` if its mapper sits in a context's `http/` directory (the detector then expects that context's own mapper, such as S06's `billing-error.mapper.ts`). Put it at `src/shared/http/<name>-error.mapper.ts` (`clock-error.mapper.ts`, M25-S12).
+- **SonarCloud `typescript:S7503` flags an `async` method with no `await`.** Make the use case synchronous. The controller then wraps the call in `try/catch` and `return mapXxxError(err)`: there is no promise to `.catch`.
+
+---
+
 ## Quick pre-commit checklist
 
 Before every `git commit`, verify:

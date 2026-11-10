@@ -3295,7 +3295,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 - **Preconditions:** `APP_ENV` is `local` or `staging`; for provider events, the target subscription uses a `*_FAKE` merchant profile key (staging subscriptions on sandbox keys receive their events from the real sandbox).
 - **Trigger:** A call to one of the dev endpoints or their scripts.
 - **Main Flow:**
-   1. **Advance time:** the injectable `IClock` (a new port; none exists yet) moves forward; the next run of the sweep, issuing and purge jobs evaluates trial end, due dates, grace and purge age against it.
+   1. **Advance time:** the injectable `IClock` (`src/shared/ports/clock.port.ts`; moved only through `IDevClockControl`, M25-S12) moves forward; the next run of the sweep, issuing and purge jobs evaluates trial end, due dates, grace and purge age against it.
    2. **Simulate a provider event:** the `FakeBillingProvider` builds the signed webhook for the chosen event (using the verified per-method event sequences: Pix `RECEIVED` only; boleto `CONFIRMED` → `RECEIVED`; card `CONFIRMED`, `RECEIVED` later), optionally duplicated, delayed or out of order, or fails the next provider call (5xx, expired link, invalid location), and delivers it to the app's own webhook route. The normal webhook path (UC-114) processes it; no test-only path exists in the use cases.
    3. **Seed:** creates one tenant per billing state through the normal use cases (`TRIALING`, `ACTIVE`, `ACTIVE` with a scheduled cancel, `PAST_DUE`, `SUSPENDED` for `NON_PAYMENT` and `CANCELED`, `exempt`, a US tenant with and without address).
 - **Alternative Flows:**

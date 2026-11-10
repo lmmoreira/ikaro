@@ -345,3 +345,7 @@ A feature entitlement or the `SUSPENDED` state is checked at a few **declarative
 | Cross-cutting | the notification send path, the event dispatcher (opt-in), the tenant-scoped cron helper |
 
 **Risks to watch.** The dispatcher change touches the shared event bus and needs care; the `@Public()` slug resolution adds a (cached) tenant lookup on those routes.
+
+## A rule the story calls "rejected" is enforced by the use case itself, with the same schema the HTTP route uses
+
+An acceptance criterion such as "negative, fractional, zero and empty input are rejected" holds for a direct caller only if the **use case** checks it. A route-level Zod schema alone leaves every other caller (a job, a handler, a spec) unguarded; Codex raised exactly this as a Critical in M25-S12. Parse the input with the route's own exported schema inside `execute()` and throw a typed domain error, so one definition covers both. Use `z.number().multipleOf(1)`, not `.int()`, when a fraction must derive `VALUE_OUT_OF_RANGE`: `.int()` produces a different issue code. A domain error shared by a route and a direct caller maps in `src/shared/http/<name>-error.mapper.ts` (see `docs/CI_TRAPS.md` § A shared domain error needs its mapper in `shared/http/`).
