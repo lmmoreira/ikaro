@@ -126,9 +126,9 @@ Each entry: what is locked, who takes it, the business case, why this primitive,
 - **Level:** none of the above; it only touches `staff.staff`. The query has `ORDER BY id` since M23-S48 (H3).
 - **Only locks inside a transaction:** outside one, the repository falls back to an unlocked `repo.count`, with no error. Both callers run inside `txManager.run` today; a new caller must too.
 
-### Billing locks (planned — documented ahead of the code; not implemented yet)
+### Billing locks (B-R1 built by M25-S08; B-A1, B-P1 and B-Q1 still planned — documented ahead of the code)
 
-The Billing context (`docs/BOUNDED_CONTEXTS.md` § 7) adds three locks (B-A1, B-R1, B-P1) and one unique constraint (B-Q1). They live in the `billing` schema and **never combine with L0–L6 in one transaction** (Billing never opens a Booking transaction), so they form their own small ladder: B-A1 (advisory) is taken before any row exists and in its own transaction; inside a subscription transaction the order is B-R1 → charge rows. None is implemented yet; until the code lands this section is the design, and the `lock-catalog-coverage` check will start enforcing the names once the port methods exist.
+The Billing context (`docs/BOUNDED_CONTEXTS.md` § 7) adds three locks (B-A1, B-R1, B-P1) and one unique constraint (B-Q1). They live in the `billing` schema and **never combine with L0–L6 in one transaction** (Billing never opens a Booking transaction), so they form their own small ladder: B-A1 (advisory) is taken before any row exists and in its own transaction; inside a subscription transaction the order is B-R1 → charge rows. Only B-R1 is implemented (M25-S08, the `findByTenantIdForUpdate` port method); until the code for the others lands this section is their design, and the `lock-catalog-coverage` check enforces a name once its port method exists.
 
 #### B-A1 — signup registration, key `signup:{googleSub}`
 - **Taken by:** the Billing registration use case behind `POST /internal/billing/registrations` (the self-signup eligibility check, UC-127).
@@ -137,10 +137,11 @@ The Billing context (`docs/BOUNDED_CONTEXTS.md` § 7) adds three locks (B-A1, B-
 - **Level:** B-A1, alone in its transaction.
 - **Limit (tax-id half of the one-trial rule):** B-A1 locks only the Google `sub`, so the cross-Google-account tax-id check (the normalised CPF/CNPJ already belongs to a never-paid `billing_accounts` row) is **best-effort under concurrency**: two simultaneous signups with different Google accounts and the same tax id can both pass. Stated, not hidden (M26-S24); the hard anti-abuse controls are Turnstile, the per-`sub` rule here and the per-tax-id check on the common, non-concurrent path.
 
-#### B-R1 — subscription row, `subscriptionRepo.findByIdForUpdate`
+#### B-R1 — subscription row, `subscriptionRepo.findByTenantIdForUpdate`
 - **Taken by:** every use case that changes a subscription's status or period: payment confirmation (webhook, reconcile and on-demand refresh), the status sweep (one transaction per subscription), cancel and reactivate, plan save and confirm, and the operator suspend / unsuspend / exempt / grace actions. The `TenantProvisioned` handler does **not** take it: no subscription row exists before its first insert, so a redelivery is a no-op through `UNIQUE(tenant_id)` (`UQ_billing_subscriptions_tenant`), not through a lock.
 - **Protects:** a paid charge may move the subscription back to `ACTIVE` — two aggregates (`Charge` and `Subscription`) in one use case. A payment that arrives while the sweep is deciding to suspend must win ("the paid state wins"); two webhooks for one charge, or a webhook and a manager's cancel, must not interleave. `Subscription.version` (M6) is the second line of defence. Status is recomputable (the reconcile job re-derives it), so the invariant does not depend on this lock alone.
 - **Why a row lock:** the row exists and is read then written.
+- **Why it is taken by tenant id:** `UNIQUE(tenant_id)` makes the tenant id the row's natural key, and every taker already has it (the operator routes carry it, the webhook resolves it from the provider customer, the sweep selects `(tenant_id, id)` pairs). One locking query replaces an unlocked read followed by a lock by id, and there is no second UUID argument to swap. The method re-reads the whole aggregate under the lock (`FOR UPDATE`, items included), so a snapshot read before the lock is never reused.
 - **Level:** B-R1, then the charge rows are written through `chargeRepo.save()` (their `UNIQUE` indexes are the backstops, below). No provider I/O inside the transaction (CI-enforced `transactional-io`).
 
 #### B-P1 — price-list rows, one batched `FOR UPDATE` *(M26-S38)*
@@ -215,7 +216,7 @@ A test counts as coverage for a lock only if **removing the lock makes it fail**
 | M4 constraints | the same slot-conflict races as A3 (the exclusion constraint is what makes them safe) | outcome | Existing tests |
 | M5 idempotency | `send-booking-approved-notification` › two concurrent deliveries of the same event | outcome | Existing test |
 
-The planned Billing locks (B-A1, B-R1, B-P1, B-Q1) have no test yet; the story that implements each names its test here and runs the mutation check (§7 step 8) — for B-R1 the M25 test is two concurrent `findByIdForUpdate()` callers on one subscription serialising (the second waits for the first's commit; M25 has no payment webhook yet), and the discriminating suspend-versus-payment race (a payment webhook racing the status sweep, the paid state must win) lands in M26; for B-A1 two concurrent signups of one Google `sub`; for B-P1 two concurrent price applies on one country serialise and the second is rejected with `409 BILLING_PRICE_BATCH_CHANGED` (M26-S38).
+The planned Billing locks (B-A1, B-R1, B-P1, B-Q1) have no test yet; the story that implements each names its test here and runs the mutation check (§7 step 8) — for B-R1 the M25 test is two concurrent `findByTenantIdForUpdate()` callers on one subscription serialising (the second waits for the first's commit; M25 has no payment webhook yet), and the discriminating suspend-versus-payment race (a payment webhook racing the status sweep, the paid state must win) lands in M26; for B-A1 two concurrent signups of one Google `sub`; for B-P1 two concurrent price applies on one country serialise and the second is rejected with `409 BILLING_PRICE_BATCH_CHANGED` (M26-S38).
 
 Known gaps: R1 (no test can tell the read lock from the writer's own `UPDATE`), and the removal path of A1 (not mutation-checked). Q1, M4 and M5 rely on existing tests that were not re-checked here; the A4 and A5 race tests turned out not to prove their locks, so those three may be the same.
 

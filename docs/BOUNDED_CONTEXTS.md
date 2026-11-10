@@ -876,7 +876,7 @@ For MVP: All deployed as single service, but code organized as separate modules 
 - Every Billing table is scoped by `tenant_id` with composite `(tenant_id, id)` FKs, **except** the platform-wide `feature_prices`, `feature_price_versions` and `provider_health`, and `provider_events` whose PK is `(provider, event_id)` (the webhook dedupes before it can resolve a tenant) — listed in `docs/TENANT_ISOLATION_STRATEGY.md`. Cross-tenant jobs (issue, sweep, reminders, reconcile, self-heal, provider-events purge, tenant purge) select through their own standalone indexes because no tenant id arrives with a trigger.
 - Billing never flips `platform.tenants.is_active` (a payment problem is not an offboarding) and never mutates the manager's `isPublished`: effective published = manager's flag AND tenant operational.
 
-**Tech Stack:** repository pattern per aggregate; paying a `Charge` may move the `Subscription` back to `ACTIVE` in one transaction under `findByIdForUpdate` (`docs/LOCK_CATALOG.md`); provider I/O is never inside `txManager.run()`.
+**Tech Stack:** repository pattern per aggregate; paying a `Charge` may move the `Subscription` back to `ACTIVE` in one transaction under `findByTenantIdForUpdate` (`docs/LOCK_CATALOG.md`); provider I/O is never inside `txManager.run()`.
 
 ---
 
