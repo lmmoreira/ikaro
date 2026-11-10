@@ -10,6 +10,7 @@
 | Field | VO Class | File | Rule |
 |---|---|---|---|
 | Email address | `Email` | `email.vo.ts` | validates format; normalises to lowercase; getter: `.address` |
+| Tax id (Billing) | `TaxId` | `tax-id.vo.ts` | BR CPF (11 digits) or CNPJ (14 chars, numeric or alphanumeric) with check digits; US/other: optional free text typed `OTHER` (trim, max 32); rules come from `countrySpec(code).taxId`; normalises (strips `. / -`, uppercase); getters: `.value`, `.type`; throws `TaxIdValidationError` (`SIGNUP_TAX_ID_INVALID` / `SIGNUP_TAX_ID_REQUIRED`) |
 | Phone number | `PhoneNumber` | `phone-number.vo.ts` | strict E.164 (`+<prefix><digits>`, e.g. `+5511912345678`) via `isValidPhoneNumber` from `@ikaro/validation`; no digit-stripping or normalization — `create()` throws on anything else; getter: `.value` |
 | Physical address | `Address` | `address.ts` | structured fields; `create(props, spec: AddressSpec)` validates against a country-specific spec (postal regex, state pattern, neighborhood requirement) — takes a mandatory `spec` param, not a fixed Brazilian-CEP-length check; `reconstitute()` skips validation |
 | Money amount | `Money` | `money.ts` | currency code + decimal precision — never a plain `number`; fully implemented, used across aggregates/use cases/repositories |
@@ -100,6 +101,7 @@ toEntity(customer: Customer): CustomerEntity {
 | VO | How to extract primitive |
 |---|---|
 | `Email` | `.address` |
+| `TaxId` | `.value` and `.type` |
 | `PhoneNumber`, `Slug`, `HexColor`, `Timezone`, `TimeOfDay`, `CalendarDate`, `CountryCode`, `SeoTitle`, `SeoDescription` | `.value` |
 | `Address` | `.toJSON()` (for JSONB) |
 | `Money` | `.amount` (a `Decimal`, not a JavaScript `number`) and `.currency` (a string) |

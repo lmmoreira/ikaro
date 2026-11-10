@@ -1299,7 +1299,7 @@ Versions already in effect are immutable history. Price-list changes are audited
 | id | UUID | PRIMARY KEY |
 | tenant_id | UUID | NOT NULL, UNIQUE; also UNIQUE (tenant_id, id) for composite FKs |
 | tax_id_type | VARCHAR(10) | NULLABLE — `CNPJ` \| `CPF` \| `OTHER`. **BR: required from signup** (check digits validated; the provider needs `cpfCnpj`) — enforced by the aggregate and the signup endpoint, the column stays nullable for US and exempt tenants |
-| tax_id | VARCHAR(32) | NULLABLE — digits only for BR; which types a country accepts comes from the `taxId` entry in `CountrySpec` (BR: CNPJ or CPF; US: none, optional free text) |
+| tax_id | VARCHAR(32) | NULLABLE — normalised: CPF digits-only, CNPJ digits and uppercase letters (alphanumeric CNPJ, July 2026); which types a country accepts comes from the `taxId` entry in `CountrySpec` (BR: CNPJ or CPF; US: none, optional free text) |
 | legal_name | VARCHAR(255) | NULLABLE |
 | billing_email | VARCHAR(255) | NULLABLE — falls back to the managers' emails |
 | address | JSONB | NULLABLE — **BR and US: required before the first paid-plan selection** (BR for provider-automatic NFS-e, US for tax; not asked at signup). Shaped like the shared `Address` value object (`street`, `number`, `complement?`, `neighborhood?`, `city`, `state`, `zipCode`), validated with the billing country's `AddressSpec`; the country is `subscriptions.country_code`. A single bounded object |
@@ -1314,7 +1314,7 @@ Versions already in effect are immutable history. Price-list changes are audited
 | created_at / updated_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
 | **UNIQUE** | (provider, provider_customer_id) WHERE provider_customer_id IS NOT NULL — `UQ_billing_billing_accounts_provider_customer` | **standalone** — the webhook resolves the tenant from the provider customer id before any tenant context exists |
 
-| **INDEX** (standalone) | (tax_id) WHERE tax_id IS NOT NULL — `IDX_billing_billing_accounts_tax_id` | **standalone** (the documented exception to tenant-first indexes): the trial-farming rule (UC-127 A3) asks "does this normalised CPF/CNPJ already belong to a billing account whose subscription never paid?" before any tenant context exists. `tax_id` is stored digits-only, so the lookup is a direct equality (joined to `subscriptions.has_ever_paid = false`); no extra lookup column, hash or secret is needed |
+| **INDEX** (standalone) | (tax_id) WHERE tax_id IS NOT NULL — `IDX_billing_billing_accounts_tax_id` | **standalone** (the documented exception to tenant-first indexes): the trial-farming rule (UC-127 A3) asks "does this normalised CPF/CNPJ already belong to a billing account whose subscription never paid?" before any tenant context exists. `tax_id` is stored normalised (no punctuation, uppercase), so the lookup is a direct equality (joined to `subscriptions.has_ever_paid = false`); no extra lookup column, hash or secret is needed |
 
 A separate aggregate from `subscriptions` (different actor, different reasons to change; a shared row would create write conflicts). Tax identity is financial data: never in `tenants.settings`.
 
