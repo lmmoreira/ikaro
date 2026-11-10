@@ -261,7 +261,7 @@ Codes are additive-only once shipped — never renamed or repurposed (a released
 1. Add the code to the relevant literal union in `packages/types/src/error-codes.ts` — the compiler rejects step 3 until this is done.
 2. Add a translation entry to **both** `packages/i18n/locales/pt-BR/errors.json` and `.../en/errors.json` — the exhaustiveness test (`apps/web/shared/lib/i18n/error-codes-exhaustiveness.spec.ts`) rejects a missing one.
 3. Construct/throw the error with the typed constructor from step 1's origin — `throwProblemDetail(status, BookingErrorCode.XXX, detail, field?)` for a raw throw, or a named domain error class implementing `DomainErrorShape` for a VO/aggregate error.
-4. **A brand-new origin** (a new `<ORIGIN>_*` prefix such as the planned `BILLING_*` / `SIGNUP_*`) also needs, in the same change or CI fails: the new `<Origin>ErrorCode` added to the `AnyErrorCode` union; to the hard-coded `CATALOGS` map in `apps/web/shared/lib/i18n/error-codes-exhaustiveness.spec.ts`; the origin row in `docs/ERROR_CATALOG.md` § Code Origins; and, for a code the BFF itself throws, to the `BffThrowableCode` union used by `throwProblemDetail`.
+4. **A brand-new origin** (a new `<ORIGIN>_*` prefix such as `BILLING_*` / `SIGNUP_*`, added in M25-S06) also needs, in the same change or CI fails: the new `<Origin>ErrorCode` added to the `AnyErrorCode` union; to the hard-coded `CATALOGS` map in `apps/web/shared/lib/i18n/error-codes-exhaustiveness.spec.ts`; the origin row in `docs/ERROR_CATALOG.md` § Code Origins; and, for a code the BFF itself throws, to the `BffThrowableCode` union used by `throwProblemDetail`.
 
 ### Security-sensitive errors: specificity is a per-case decision
 
