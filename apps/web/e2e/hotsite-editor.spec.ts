@@ -4,6 +4,7 @@ import { loginAsStaff } from './helpers/auth';
 import { openFirstDayWithSlots } from './helpers/booking-form';
 import {
   enterDetailedEditor,
+  expectContentAnchoredRight,
   getHotsiteConfig,
   getPublicManifest,
   openDetailedEditor,
@@ -585,10 +586,10 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
 
     await page.goto(`/${MANAGER_TENANT_SLUG}`);
     const heroSection = page.locator('[data-variant="centered"]');
-    // justify-content lives on the stage div (max-w-7xl mx-auto), not the section itself — see
+    // the content is anchored by the stage div (max-w-7xl mx-auto), not the section itself — see
     // the "Fix: left/right anchor..." follow-up in this same story.
     const heroStage = heroSection.locator('> div').first();
-    await expect(heroStage).toHaveCSS('justify-content', 'flex-end');
+    await expectContentAnchoredRight(heroStage);
     await expect(heroStage).toHaveCSS('max-width', '1280px');
     await expect(heroSection).toHaveCSS('align-items', 'flex-start');
   });
@@ -628,10 +629,10 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
 
     await page.goto(`/${MANAGER_TENANT_SLUG}`);
     const bookingCtaSection = page.locator('section#booking-form');
-    // justify-content lives on the stage div (max-w-7xl mx-auto), not the section itself — same
+    // the content is anchored by the stage div (max-w-7xl mx-auto), not the section itself — same
     // structure as HeroModule, see the "Fix: left/right anchor..." follow-up in this same story.
     const bookingCtaStage = bookingCtaSection.locator('> div').first();
-    await expect(bookingCtaStage).toHaveCSS('justify-content', 'flex-end');
+    await expectContentAnchoredRight(bookingCtaStage);
     await expect(bookingCtaStage).toHaveCSS('max-width', '1280px');
     await expect(bookingCtaSection).toHaveCSS('align-items', 'flex-start');
   });
