@@ -6,7 +6,7 @@ export class FeaturePriceEntityBuilder {
   private featureKey = 'HOTSITE';
   private countryCode = 'BR';
   private tier = 'STANDARD';
-  private cycle = 'MONTHLY';
+  private readonly cycle = 'MONTHLY';
   private currency = 'BRL';
   private selectable = true;
 

@@ -13,15 +13,15 @@ import { MinorAmount } from '../../../contexts/billing/domain/value-objects/mino
 const DEFAULT_CURRENCY_BY_COUNTRY: Record<string, string> = { BR: 'BRL', US: 'USD' };
 
 export class FeaturePriceVersionBuilder {
-  private id = uuidv7();
+  private readonly id = uuidv7();
   private amountMinor = 4900;
   private currency = 'BRL';
   private effectiveFrom = '2026-01-01';
-  private announcedAt: Date | null = null;
-  private createdBy = 'SYSTEM';
-  private reason = 'Initial catalog (M25-S02)';
+  private readonly announcedAt: Date | null = null;
+  private readonly createdBy = 'SYSTEM';
+  private readonly reason = 'Initial catalog (M25-S02)';
   private supersededAt: Date | null = null;
-  private batchId: string | null = null;
+  private readonly batchId: string | null = null;
 
   withAmountMinor(amountMinor: number): this {
     this.amountMinor = amountMinor;

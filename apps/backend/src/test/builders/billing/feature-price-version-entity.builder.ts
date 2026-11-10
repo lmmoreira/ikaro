@@ -6,11 +6,11 @@ export class FeaturePriceVersionEntityBuilder {
   private featurePriceId = uuidv7();
   private amountMinor = 4900;
   private effectiveFrom = '2026-01-01';
-  private announcedAt: Date | null = null;
-  private createdBy = 'SYSTEM';
+  private readonly announcedAt: Date | null = null;
+  private readonly createdBy = 'SYSTEM';
   private reason = 'Initial catalog (M25-S02)';
   private supersededAt: Date | null = null;
-  private batchId: string | null = null;
+  private readonly batchId: string | null = null;
 
   withId(id: string): this {
     this.id = id;
