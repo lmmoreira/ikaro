@@ -1249,7 +1249,7 @@ Replaced by `shared.inbox` (see **Schema: `shared`** below). Pre-production, so 
 
 ## Schema: `billing`
 
-> **Schema built (M25-S03); domain code only for the price list so far (M25-S04).** The first migration (`CreateBillingSchema`, `apps/backend/src/contexts/billing/infrastructure/migrations/`) creates every table below except the ones marked *slice E/F2/H*. Entities, aggregates, repositories and use cases arrive with their own M25 stories, so a table described here may not yet have code reading or writing it; today only `feature_prices` and `feature_price_versions` have an entity and a (read-only) repository.
+> **Schema built (M25-S03); domain code for the price list (M25-S04) and for subscriptions and billing accounts (M25-S08).** The first migration (`CreateBillingSchema`, `apps/backend/src/contexts/billing/infrastructure/migrations/`) creates every table below except the ones marked *slice E/F2/H*. Entities, aggregates, repositories and use cases arrive with their own M25 stories, so a table described here may not yet have code reading or writing it; today `feature_prices` and `feature_price_versions` have an entity and a read-only repository, and `subscriptions`, `subscription_items` and `billing_accounts` have an entity and a read-write repository.
 
 Owned by: **Billing Context** (`src/contexts/billing/`) — Ikaro charging its tenants (`docs/DOMAIN_MODEL.md` § Billing Context, `docs/USE_CASES.md` UC-110–UC-145). A new schema; the first migration touches no existing table (**expand only**). `tenant_id` is a plain NOT NULL UUID with **no** FK to `platform.tenants` (§2), which is also what lets the billing history outlive a purged tenant. Every composite FK is `(tenant_id, id)`.
 
@@ -1313,7 +1313,6 @@ Versions already in effect are immutable history. Price-list changes are audited
 | terms_accepted_by | VARCHAR(255) | NULLABLE — Google email of the signing user |
 | created_at / updated_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
 | **UNIQUE** | (provider, provider_customer_id) WHERE provider_customer_id IS NOT NULL — `UQ_billing_billing_accounts_provider_customer` | **standalone** — the webhook resolves the tenant from the provider customer id before any tenant context exists |
-
 | **INDEX** (standalone) | (tax_id) WHERE tax_id IS NOT NULL — `IDX_billing_billing_accounts_tax_id` | **standalone** (the documented exception to tenant-first indexes): the trial-farming rule (UC-127 A3) asks "does this normalised CPF/CNPJ already belong to a billing account whose subscription never paid?" before any tenant context exists. `tax_id` is stored normalised (no punctuation, uppercase), so the lookup is a direct equality (joined to `subscriptions.has_ever_paid = false`); no extra lookup column, hash or secret is needed |
 
 A separate aggregate from `subscriptions` (different actor, different reasons to change; a shared row would create write conflicts). Tax identity is financial data: never in `tenants.settings`.
@@ -1368,7 +1367,7 @@ The cross-tenant jobs cannot seek a `tenant_id`-leading index, so each has its o
 | **EXCLUDE USING gist** — `EX_billing_subscription_items_window` | (tenant_id WITH =, subscription_id WITH =, feature_key WITH =, tstzrange(starts_at, coalesce(ends_at,'infinity'), '[)') WITH &&) | no overlapping entitlement windows per feature; the current row may end exactly when its replacement starts. Needs `CREATE EXTENSION IF NOT EXISTS btree_gist` (migration step 1) |
 | **INDEX** | (tenant_id, subscription_id) | access read (≤ ~20 live rows per tenant) |
 
-Items carry **no price** and there are **no trial rows**: at trial start one default paid row per feature `[trial_ends_at, ∞)` is created and trial access is computed from `status = TRIALING`. Suspension does not touch the rows. Saving a plan replaces the still-future rows (`starts_at > now`) in one transaction. Clearing `exempt` replaces the open-ended exempt rows first, otherwise the exclusion constraint rejects the insert. Feature dependencies are an aggregate rule, not SQL.
+Items carry **no price** and there are **no trial rows**: at trial start one default paid row per feature `[trial_ends_at, ∞)` is created and trial access is computed from `status = TRIALING`. Suspension does not touch the rows. A plan change is saved by id-diff, only when the aggregate's `itemsDirty` flag is set (a status-only save writes no item row): rows that were removed before they started are deleted, changed rows are end-dated, new rows are inserted, in that order so the exclusion constraint never sees an overlap. Setting or clearing `exempt` goes through the same path: not-yet-started rows are deleted, running rows are end-dated at `now`, and the replacement rows start at `now` (touching windows are accepted). Feature dependencies are an aggregate rule, not SQL.
 
 ### `billing.charges` — one bill per period (own aggregate)
 | Column | Type | Constraints |

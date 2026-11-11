@@ -74,7 +74,7 @@ Raise a doc bug if a UC appears to violate these — do not "make it work."
 | **Loyalty** | Supporting | `LoyaltyEntry` (append-only), `LoyaltyBalance`, `LoyaltyRedemption` (append-only) |
 | **Notification** | Supporting | `NotificationTemplate`, `NotificationLog` |
 | **Platform** | Foundational | `Tenant`, `HotsiteConfig`, lead-form, chatbot |
-| **Billing** (planned) | Supporting | `Subscription`, `Charge`, `FeaturePrice`, account |
+| **Billing** (partly built) | Supporting | `Subscription`, `Charge`, `FeaturePrice`, account |
 
 All but Notification + `auth` = BFF/web `features/` slices (§11).
 
@@ -195,7 +195,7 @@ If a design keeps needing new safeguards or caveats as it's developed (e.g. "thi
 - **A repository that wholesale-replaces a child collection on every `save()` needs a dirty flag on the aggregate** so an untouched save skips the expensive delete+reinsert. → `docs/ENGINEERING_RULES_BACKEND.md` § A wholesale-replaced child collection
 - **A child table keyed only by a composite PK cannot represent "declared but empty"** — reject an empty grouping at the aggregate boundary. → `docs/ENGINEERING_RULES_BACKEND.md` § A child table with only a composite PK
 - **A bot review's "doc update missing from this PR" claim only checked this PR's diff, not whether the doc is already correct on `main`.** Verify with `gh api repos/<org>/<repo>/compare/main...<sha>`. → `docs/CI_TRAPS.md` (bot doc-update-diff-scoping entry)
-- **A Jest OOM kill on a host with plenty of free RAM is V8's default ~2.2GB heap ceiling, not a leak** — set `--max-old-space-size` explicitly on every entry point that can run a large suite. → `docs/ENGINEERING_RULES_TESTING.md` § Node's default V8 heap limit
+- **A Jest or `architecture-check` OOM kill on a host with plenty of free RAM is V8's default ~2.2GB heap ceiling, not a leak** — set `--max-old-space-size` explicitly on every entry point that can run a large suite. → `docs/ENGINEERING_RULES_TESTING.md` § Node's default V8 heap limit
 - **An integration test seeding fixtures under fixed/hardcoded tenant UUIDs needs symmetric, complete setup/teardown** — CI's `TESTCONTAINERS_REUSE_ENABLE` reuses the same Postgres container across unrelated runs; an incomplete `afterAll` corrupts a later run. → `docs/ENGINEERING_RULES_TESTING.md` § An integration test seeding fixtures
 - **SonarCloud's `sonar.tests`/`sonar.test.inclusions` is a separate analysis path from `sonar.sources`/`sonar.exclusions`** — excluding a directory from one doesn't exclude it from the other. → `docs/CI_TRAPS.md` § SonarCloud's `sonar.tests`/`sonar.test.inclusions`
 - **An E2E test computing "today" itself must match the app's own tenant-timezone computation, not the runner's clock** — they diverge for hours daily. → `docs/ENGINEERING_RULES_TESTING.md` § An E2E test that computes "today"
@@ -384,7 +384,7 @@ A doc with a `§` or "only" is read at that section (`grep -n '^## ' <doc>` for 
 Full trees: `docs/REPOSITORY_STRUCTURE.md` · Rationale: `docs/ARCHITECTURE.md` · BFF detail: `docs/BFF_ARCHITECTURE.md`. This is the live architecture, not a future plan.
 
 Three slice types, consistent across all three apps:
-- **Domain slices** (business capability, mirrors backend bounded contexts): `booking`, `customer`, `staff`, `loyalty`, `platform`, `billing` (planned)
+- **Domain slices** (business capability, mirrors backend bounded contexts): `booking`, `customer`, `staff`, `loyalty`, `platform`, `billing` (partly built)
 - **Shell slices** (web only — route composition, zero business policy; `app/` holds Next.js routes/layouts only, kept thin): `dashboard`, `hotsite`
 - **Technical slices** (not bounded contexts — never treat as domains): `auth`, `uploads`
 

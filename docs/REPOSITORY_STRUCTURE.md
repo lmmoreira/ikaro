@@ -11,7 +11,7 @@
 .
 ├── apps/
 │   ├── backend/          # NestJS modular monolith
-│   │   └── src/contexts/ # booking/ customer/ staff/ loyalty/ notification/ platform/ billing/ (schema + empty module; domain code planned)
+│   │   └── src/contexts/ # booking/ customer/ staff/ loyalty/ notification/ platform/ billing/ (schema, price-list, subscription and billing-account aggregates and repositories; charges and use cases planned)
 │   ├── bff/              # NestJS BFF (feature slices under src/features/)
 │   └── web/              # Next.js 16 (domain features + shell slices + shared/)
 ├── packages/
@@ -50,7 +50,7 @@ Backend is already in the canonical shape and should stay close to this layout:
 apps/backend/src/
 ├── config/
 ├── contexts/
-│   ├── billing/       # schema + empty BillingModule (M25-S03); aggregates land story by story: Subscription, Charge, FeaturePrice, BillingAccount
+│   ├── billing/       # schema (M25-S03); aggregates land story by story: FeaturePrice (M25-S04), Subscription and BillingAccount (M25-S08) are built, Charge is not
 │   ├── booking/
 │   │   ├── domain/
 │   │   ├── application/

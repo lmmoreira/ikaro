@@ -408,6 +408,8 @@ Track a private dirty flag on the aggregate: `true` after `create()` (any initia
 
 **M22-S01 precedent, PR #479, 2026-09-15:** `TypeOrmServiceRepository.save()` unconditionally wholesale-replaced `resourceRequirements`/`legs`/`classResourceSlots` child tables on every save, including plain `update()`/`activate()`/`deactivate()` calls that touch none of them — up to ~20,000 rows rewritten for a service at the story's own 20-leg/20-requirement/50-pool-ID maximum, on a save that only changed the price. Fixed with a `childrenDirty` flag set by `setResourceRequirements()`/`setLegs()`/`changeBookingModel()` (the only methods that touch those collections), left `false` by `reconstitute()` and every other setter.
 
+**Variant: an id-diff save, when the child table has a database exclusion constraint.** If a replace would briefly violate a `GIST` exclusion (rows of one parent that must never overlap), wholesale delete-then-insert is not the right shape: save by id-diff behind the same dirty flag, in an order the constraint accepts, **delete removed rows, end-date changed ones, then insert new ones**, so a running row is shortened before its replacement starts. `markPersisted()` clears the flag after the save. **M25-S08 precedent:** `Subscription` raises `itemsDirty` only in the methods that touch its `subscription_items` (`startTrial`, `startExempt`, `setExempt`/`clearExempt`); a status-only save (a sweep, a payment) writes no item row and runs no item query (`TypeOrmSubscriptionRepository.save()`).
+
 
 ## A child table with only a composite PK cannot represent "declared but empty" — reject that state at the aggregate boundary, don't rely on storage to preserve it
 

@@ -119,7 +119,7 @@ Notification Context subscribes:
 │                                                      └───────────────┘ │
 │                                                                          │
 │  ┌───────────────────────────────────────────────────────────────────┐ │
-│  │          BILLING CONTEXT  (Supporting, 7th; planned)               │ │
+│  │          BILLING CONTEXT  (Supporting, 7th; partly built)          │ │
 │  │  Aggregates: Subscription (+ items), BillingAccount, Charge        │ │
 │  │             (+ lines), FeaturePrice (+ versions, platform-wide)    │ │
 │  │  Published: ChargeIssued, ChargePaid, Subscription*, PlanChanged,  │ │
@@ -136,7 +136,7 @@ Notification Context subscribes:
 
 ## Context Descriptions
 
-> The Billing context drawn in the diagram above is **only partly built** (§ 7): its `billing` schema and an empty `BillingModule` exist (M25-S03); aggregates, use cases and endpoints are still planned. Contexts **1–5** are described below. **§ 6. Platform Context (Foundational Domain)** is further down, after *Deployment & CI/CD Implications* — it was added later and was not moved here. Use the heading `6. Platform Context` to find it. **§ 7. Billing Context (Supporting Domain)** follows Platform, directly before *Future Scaling*.
+> The Billing context drawn in the diagram above is **only partly built** (§ 7): its `billing` schema, the `FeaturePrice`, `Subscription` and `BillingAccount` aggregates with their repositories, and the price-list read use cases exist (M25-S03, S04, S08); `Charge`, the remaining use cases, events and endpoints are still planned. Contexts **1–5** are described below. **§ 6. Platform Context (Foundational Domain)** is further down, after *Deployment & CI/CD Implications* — it was added later and was not moved here. Use the heading `6. Platform Context` to find it. **§ 7. Billing Context (Supporting Domain)** follows Platform, directly before *Future Scaling*.
 
 ### **1. Booking Context (Core Domain, Tenant-Scoped)**
 
@@ -845,7 +845,7 @@ For MVP: All deployed as single service, but code organized as separate modules 
 
 ### **7. Billing Context (Supporting Domain, Tenant-Scoped)**
 
-> **PARTLY BUILT** (Billing milestone): the `billing` schema and an empty `BillingModule` exist (M25-S03); aggregates, use cases and endpoints are rules and design only until their stories land.
+> **PARTLY BUILT** (Billing milestone): the `billing` schema (M25-S03), the `FeaturePrice` aggregate and its read use cases (M25-S04), and the `Subscription` and `BillingAccount` aggregates with their repositories (M25-S08) exist. `Charge`, the payment-driven use cases, the events and the endpoints are rules and design only until their stories land.
 
 **Purpose:** Ikaro charging its tenants — price list, subscription, charges, payment-provider integration, the access ladder (`TRIALING → ACTIVE → PAST_DUE → SUSPENDED`) and the entitlement set. The payment provider owns the money; Billing owns only three policies: the access ladder, the entitlement set and the clean-up (`docs/DOMAIN_MODEL.md` § Context 7: Billing Context).
 
@@ -875,6 +875,8 @@ For MVP: All deployed as single service, but code organized as separate modules 
 **Tenant Isolation:**
 - Every Billing table is scoped by `tenant_id` with composite `(tenant_id, id)` FKs, **except** the platform-wide `feature_prices`, `feature_price_versions` and `provider_health`, and `provider_events` whose PK is `(provider, event_id)` (the webhook dedupes before it can resolve a tenant) — listed in `docs/TENANT_ISOLATION_STRATEGY.md`. Cross-tenant jobs (issue, sweep, reminders, reconcile, self-heal, provider-events purge, tenant purge) select through their own standalone indexes because no tenant id arrives with a trigger.
 - Billing never flips `platform.tenants.is_active` (a payment problem is not an offboarding) and never mutates the manager's `isPublished`: effective published = manager's flag AND tenant operational.
+
+**Built ports (M25-S08):** `ISubscriptionRepository` (`findByTenantId`, `findByTenantIdForUpdate` = lock B-R1, `save` with an optimistic `version` check, items written only when the aggregate's `itemsDirty` flag is set) and `IBillingAccountRepository` (`findByTenantId` hydrates `countryCode` from the tenant's subscription row; `save` never writes it). Neither aggregate raises events yet; the domain errors they throw have no wire code until S15b and M26-S17/S19 (`docs/ERROR_CATALOG.md` § Code Origins).
 
 **Tech Stack:** repository pattern per aggregate; paying a `Charge` may move the `Subscription` back to `ACTIVE` in one transaction under `findByTenantIdForUpdate` (`docs/LOCK_CATALOG.md`); provider I/O is never inside `txManager.run()`.
 

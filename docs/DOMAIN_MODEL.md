@@ -1771,8 +1771,9 @@ Subscription {
   version:           int               -- optimistic lock
 }
 
-SubscriptionItem {   -- the SELECTED PLAN: what is paid for, from which period. No price.
-  featureKey: FeatureKey,  tier: 'STANDARD' | 'BASIC' | 'PLUS',  startsAt: DateTime,  endsAt: DateTime | null (open-ended)
+SubscriptionItem {   -- the SELECTED PLAN: what is paid for, from which period. No price. Immutable: ending an item returns a new one, so a save can tell a changed row from an untouched one by id.
+  id: String,  featureKey: FeatureKey,  tier: 'STANDARD' | 'BASIC' | 'PLUS',  startsAt: DateTime,  endsAt: DateTime | null (open-ended),
+  createdBy: String   -- NOT NULL, never empty: the operator id, the manager's actor id, or 'SYSTEM'
 }
 ```
 
@@ -1818,30 +1819,36 @@ Items hold only the *selected plan*. There are **no trial rows** (trial access c
 - Items of one feature never overlap in time (DB GIST exclusion); feature dependencies are enforced in the aggregate: adding a feature whose dependency is not active, or removing one another active feature depends on, is rejected; the proposed final selection is validated as one dependency graph; a plan always keeps at least one feature.
 - Removing `BOOKING` is rejected while any `PENDING`/`INFO_REQUESTED`/`APPROVED` booking, recurring schedule (`PENDING_APPROVAL` or `ACTIVE`) or `ACTIVE` availability alert extends on or after the removal's effective date (`BILLING_FEATURE_IN_USE`); once a removal is saved, the bookable window is capped at that date (a `bookableUntil` input honoured by every window consumer).
 - All plan changes (additions, removals, tier changes) become effective at the **next paid service-period start**; they never change current-period entitlements and need no proration. `PAST_DUE` and `SUSPENDED` plans are read-only. (The one proration, slice H: an annual subscriber adding a feature mid-year pays a co-terminus `ADDON` charge.)
-- `exempt` is reversible, except for the tenant whose slug is `PLATFORM_OWNER_TENANT_SLUG`; an exempt subscription is never charged, suspended (including by the operator: `suspend` is rejected with `BILLING_EXEMPT_PROTECTED`), purged or emailed about billing. Setting it end-dates the existing default paid items and inserts open-ended ones. Clearing it starts a fresh 14-day first-selection window (`TRIALING`) and replaces the open-ended items with default paid items.
+- `exempt` is reversible, except for the tenant whose slug is `PLATFORM_OWNER_TENANT_SLUG`; an exempt subscription is never charged, suspended (including by the operator: `suspend` is rejected with `BILLING_EXEMPT_PROTECTED`; until S15b maps that wire code the aggregate throws the domain error `ExemptProtectedError`), purged or emailed about billing. Setting it removes the default paid items that have not started yet, end-dates (`endsAt = now`) the ones already running, and inserts open-ended items from `now` (touching windows are allowed; the aggregate checks that no two windows of one feature overlap, and the database exclusion constraint is the backstop). The aggregate receives an `isPlatformOwner` flag on `clearExempt`, resolved by the caller from `PLATFORM_OWNER_TENANT_SLUG`; it never reads config. Clearing it starts a fresh 14-day first-selection window (`TRIALING`) and replaces the open-ended items with default paid items.
 - `has_ever_paid` alone selects the clean-up delay: **90 days** suspended if the subscription never paid, **180 days** if it paid at least once, regardless of the suspension reason, with warnings at 30 and 7 days (`purge_warning_30/7_sent_at`, cleared on reactivation).
 - Cancel: an `ACTIVE` subscription cancels at the end of its last paid period (`cancelAt`); `PAST_DUE` cancels immediately (`SUSPENDED/CANCELED`); `TRIALING` cancels at the end of its first paid period when the first invoice is already paid (`cancelAt` = end of the last paid period = the latest `period_end` of a `PAID` `PERIOD` charge), else immediately. Nothing is refunded.
 - **Reactivation never edits or re-dates the old open charge:** when the sweep suspends for `NON_PAYMENT` (or the webhook for `PAYMENT_REVERSED`) it cancels the stale open charge (locally and at the provider) and issues one **recovery charge** (one month, amount fixed at issue from the versions in force on the issue date, lines = the current items). If the provider refuses to cancel because that charge was just paid, the stale charge is the payment and the recovery charge is cancelled. When the recovery charge is paid the subscription becomes `ACTIVE`, `currentPeriodStart` = the payment moment, `anchorDay` = the payment's tenant-local day clamped to 28; the recovery charge keeps its own period NULL.
 
 **Boundary note:** paying a `Charge` may move the `Subscription` back to `ACTIVE` — two aggregates in one use case, in one transaction, with a row lock on the subscription (`findByTenantIdForUpdate`, `docs/LOCK_CATALOG.md`). Status is recomputable (the reconcile job re-derives it), so the invariant does not depend on the transaction alone.
 
+**Repository contract (M25-S08):** `ISubscriptionRepository` has `findByTenantId`, `findByTenantIdForUpdate` (lock B-R1: `FOR UPDATE` on the subscription row, items loaded afterwards in the same transaction, must run inside `ITransactionManager.run()`) and `save()`, which checks the optimistic `version` (`SubscriptionConcurrentModificationError` when the row moved), refuses a second subscription for a tenant (`SubscriptionAlreadyExistsError`) and writes item rows only when the aggregate's `itemsDirty` flag is set, by id-diff (`docs/ENGINEERING_RULES_BACKEND.md` § A wholesale-replaced child collection).
+
 ---
 
 #### **Aggregate: BillingAccount** (Root Entity)
 ```
 BillingAccount {
+  id:               String
   tenantId:         TenantId            -- exactly one per tenant (UNIQUE)
-  taxId:            TaxId | null        -- BR: required from signup; US: optional; its type must be one the billing country accepts (BR: CPF | CNPJ; US: EIN | OTHER; other: OTHER)
+  countryCode:      CountryCode         -- the billing country: taken from the tenant's subscription row (immutable there); the repository hydrates it and never writes it, `billing_accounts` has no such column
+  taxId:            TaxId | null        -- BR: required from signup for a non-exempt tenant (the caller passes `requireTaxId = !exempt`; an exempt BR tenant's shell holds none, and `reconstitute()` never validates); US: optional; its type must be one the billing country accepts (BR: CPF | CNPJ; US: EIN | OTHER; other: OTHER)
   legalName:        String | null
   billingEmail:     Email | null        -- falls back to the tenant's managers
-  address:          Address | null      -- shared Address VO; required before the first paid selection for BR and US; validated by the billing country's AddressSpec
+  address:          Address | null      -- shared Address VO; required before the first paid selection for BR and US; validated by the billing country's AddressSpec — rule only: M25-S08 builds no address setter (the aggregate is created with none), the M26 billing-identity edit story adds it
   provider:         'ASAAS' | 'STRIPE' | null
   providerCustomerId: String | null
   autoBilling:      'NONE' | 'PIX_AUTOMATICO' | 'CARD_RECURRING'   -- CARD_RECURRING only in slice F2
   autoBillingStatus: 'INACTIVE' | 'PENDING_AUTHORIZATION' | 'ACTIVE'
-  acceptedTerms:    { version, acceptedAt, acceptedBy }
+  autoBillingLabel: String | null       -- display label supplied by the provider; never a PAN or any card data
+  acceptedTerms:    { version, acceptedAt, acceptedBy: String | null } | null   -- acceptedBy is the signing user's Google email, NULL for an operator registration
 }
 ```
+Repository contract (M25-S08): `IBillingAccountRepository.findByTenantId` hydrates `countryCode` from the subscription row and throws `BillingAccountSubscriptionMissingError` when the account has none; `save()` updates by `(id, tenant_id)` then inserts, and a duplicate tenant is `BillingAccountAlreadyExistsError`.
 A separate aggregate from `Subscription` (edited by a different actor for different reasons). Tax identity is financial data: never in `tenants.settings`. R5: **nothing fiscal is required to use the product; the minimum billing identity is required to charge it** (BR = CPF or CNPJ at signup plus the full address before the first paid selection; US = the full address). Ikaro never issues nota fiscal itself; the provider emits NFS-e automatically. The billing email falls back to the managers' emails.
 
 ---
