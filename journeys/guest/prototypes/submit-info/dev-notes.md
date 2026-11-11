@@ -40,6 +40,8 @@ GET /v1/bookings/:id/guest?token=<JWT>
   (shipped in M13-S39 — `bookings-guest.controller.ts`; fetched by `fetchGuestBookingSummary()` in `features/booking/api/public.server.ts`)
 ```
 
+**"Mensagem da equipe" box (shipped, TD51-S05):** `SubmitInfoForm` draws it as a `BrandedPanel` on the tenant's secondary colour, with the message in the derived `--ba-secondary-text` and its label in `--ba-secondary-accent`, so it stays readable whatever the tenant's text colour. `01-submit-form.html` draws the same box in a fixed light blue (`#eff6ff`) as a stand-in for the tenant palette; the shipped colours come from the tenant, not from the prototype.
+
 **Form component props:**
 ```ts
 interface SubmitInfoFormProps {
