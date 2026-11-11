@@ -148,6 +148,15 @@ test.describe('full booking detail (staff and customer)', () => {
       await expect(itinerary).toContainText('Massagem');
       await expect(itinerary).toContainText('Relaxamento');
       await expect(itinerary).toContainText(TIME_RANGE);
+      // One numbered step per leg, however many resources a leg needs: Massagem takes a
+      // professional and a room, yet the three legs are steps 1 to 3.
+      const steps = itinerary.getByTestId('booking-itinerary-leg');
+      await expect(steps).toHaveCount(3);
+      await expect(steps.nth(0)).toContainText(/^1\s*Sauna/);
+      await expect(steps.nth(1)).toContainText(/^2\s*Massagem/);
+      await expect(steps.nth(1)).toContainText(journey.staffs[0]!.name);
+      await expect(steps.nth(1)).toContainText(journey.poolRoom.name);
+      await expect(steps.nth(2)).toContainText(/^3\s*Relaxamento/);
 
       await cancelBookingInDashboard(page, customer.bookingId, 'Imprevisto');
 
@@ -157,6 +166,7 @@ test.describe('full booking detail (staff and customer)', () => {
       await expect(cancelled).toContainText('Massagem');
       await expect(cancelled).toContainText('Relaxamento');
       await expect(cancelled).not.toContainText(TIME_RANGE);
+      await expect(cancelled.getByTestId('booking-itinerary-leg')).toHaveCount(3);
     } finally {
       await customer.close();
     }

@@ -242,8 +242,10 @@ export interface BookingLineResourceEntry {
   quantity: number | null;
 }
 
-// One leg of a legged booking line, in leg order. The times exist only while the occupancy row does
-// (never after a cancel or reject, nor after the 90-day purge): null then.
+// One resource of one leg of a legged booking line, in leg order: a leg that needs a room and a
+// professional is two entries with the same `lineId` and `legIndex` (group them to get the legs).
+// The times exist only while the occupancy row does (never after a cancel or reject, nor after the
+// 90-day purge): null then.
 export interface BookingItineraryLeg {
   lineId: string;
   serviceName: string;
