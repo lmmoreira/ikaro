@@ -338,6 +338,7 @@ export type EmailErrorCode = (typeof EmailErrorCode)[keyof typeof EmailErrorCode
 export const SignupErrorCode = {
   TAX_ID_INVALID: 'SIGNUP_TAX_ID_INVALID',
   TAX_ID_REQUIRED: 'SIGNUP_TAX_ID_REQUIRED',
+  TERMS_NOT_ACCEPTED: 'SIGNUP_TERMS_NOT_ACCEPTED',
 } as const;
 export type SignupErrorCode = (typeof SignupErrorCode)[keyof typeof SignupErrorCode];
 

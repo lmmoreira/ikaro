@@ -2,7 +2,10 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 import { CountryCodeErrorCode, SignupErrorCode } from '@ikaro/types';
 import { CountryCodeValidationError } from '../../../../shared/value-objects/country-code.vo';
 import { TaxIdValidationError } from '../../../../shared/value-objects/tax-id.vo';
-import { FeaturePriceNotFoundError } from '../../domain/errors/billing-domain.error';
+import {
+  FeaturePriceNotFoundError,
+  SignupTermsNotAcceptedError,
+} from '../../domain/errors/billing-domain.error';
 import { mapBillingError } from './billing-error.mapper';
 
 function call(err: unknown): unknown {
@@ -21,6 +24,12 @@ describe('mapBillingError', () => {
     ) as HttpException;
     expect(thrown.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
     expect(thrown.getResponse()).toMatchObject({ code: SignupErrorCode.TAX_ID_INVALID });
+  });
+
+  it('maps SignupTermsNotAcceptedError to 422 SIGNUP_TERMS_NOT_ACCEPTED', () => {
+    const thrown = call(new SignupTermsNotAcceptedError()) as HttpException;
+    expect(thrown.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+    expect(thrown.getResponse()).toMatchObject({ code: SignupErrorCode.TERMS_NOT_ACCEPTED });
   });
 
   it('maps a CountryCodeValidationError to 400 (shared address branch)', () => {

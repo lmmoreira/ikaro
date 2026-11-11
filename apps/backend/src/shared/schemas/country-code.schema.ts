@@ -1,10 +1,10 @@
 import { z } from 'zod';
 import { CountryCodeErrorCode } from '@ikaro/types/protocol/errors';
 import { COUNTRY_CODE_FORMAT_PATTERN } from '@ikaro/validation';
-import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
+import { CountryCode } from '../value-objects/country-code.vo';
 
 /**
- * Shared by every DTO in this context that accepts a country code: format check first
+ * Shared by every DTO, in any context, that accepts a country code: format check first
  * (generic FORMAT_INVALID, native Zod issue), then the full semantic check via the
  * `CountryCode` VO (CountryCodeErrorCode.UNSUPPORTED). Two stages instead of one
  * `.refine(CountryCode.isValid)` call so a malformed code and a well-formed-but-unsupported

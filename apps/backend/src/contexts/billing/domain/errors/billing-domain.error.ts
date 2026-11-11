@@ -1,3 +1,6 @@
+import { SignupErrorCode } from '@ikaro/types/protocol/errors';
+import type { DomainErrorShape } from '../../../../shared/domain/domain-error-shape';
+
 // Billing domain errors (M25-S04). Plain typed classes: the Billing HTTP error mapper and the
 // BillingErrorCode catalog arrive with M25-S06 (which maps these), so nothing here reaches HTTP yet.
 export class BillingDomainError extends Error {
@@ -136,5 +139,15 @@ export class BillingAccountSubscriptionMissingError extends BillingDomainError {
   constructor() {
     super('The billing account has no subscription to take its country from');
     this.name = 'BillingAccountSubscriptionMissingError';
+  }
+}
+
+/** A `SELF_SIGNUP` registration was reserved without the accepted terms (`422`, M25-S09). */
+export class SignupTermsNotAcceptedError extends BillingDomainError implements DomainErrorShape {
+  readonly code = SignupErrorCode.TERMS_NOT_ACCEPTED;
+
+  constructor() {
+    super('The Terms of Use must be accepted to sign up');
+    this.name = 'SignupTermsNotAcceptedError';
   }
 }
