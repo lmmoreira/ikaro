@@ -1337,7 +1337,7 @@ Every event below also has an `audit-log` consumer (one thin `<Context>AuditLogH
 | `TenantDeactivated` *(slice G, not implemented)* | A tenant is deactivated (emitter decided at story discovery, sequenced with M17-S51; UC-142) | **Billing Context** (cancels the subscription), `audit-log` |
 
 ### **Billing Context Events**
-> **PARTLY BUILT** (Billing milestone): the `billing` schema exists (`docs/DATABASE_SCHEMA.md` § Schema: `billing`, M25-S03); aggregates, repositories and use cases are rules and design only until their stories land.
+> **PARTLY BUILT** (Billing milestone): the `billing` schema exists (`docs/DATABASE_SCHEMA.md` § Schema: `billing`, M25-S03); the `Subscription` and `BillingAccount` aggregates and their repositories are built (M25-S08) but raise no events yet; the events below and the use cases are rules and design only until their stories land.
 
 
 Payloads and consumers: `docs/DOMAIN_EVENTS.md` § Billing Context Events. Every event also has an `audit-log` consumer (`BillingAuditLogHandler`).
