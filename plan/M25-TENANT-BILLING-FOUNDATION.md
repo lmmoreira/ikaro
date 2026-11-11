@@ -764,7 +764,7 @@ Extend the existing operator provisioning path so every non-exempt tenant is bor
 - Unit:
   - [ ] Validation matrix: BR non-exempt requires `taxId`; BR exempt does not; US non-exempt is not rejected by the route
   - [ ] `features` reaches the event: `billingHint.features` carries the requested subset (UC-110 A3) and is absent when not requested; an unknown `FeatureKey` or a subset that breaks the dependency graph is rejected before the tenant exists
-  - [ ] A malformed `registrationId` (not a UUID) is refused with `422`; a `registrationId` that is unknown or `COMPLETED` is **not** refused here (S11's use case does it) — a test pins that Platform makes no Billing read; `taxId` is validated and never reaches the event
+  - [ ] A malformed `registrationId` (not a UUID) is refused with `400` (a request-boundary validation error, not a tax-id `422`); a `registrationId` that is unknown or `COMPLETED` is **not** refused here (S11's use case does it) — a test pins that Platform makes no Billing read; `taxId` is validated and never reaches the event
   - [ ] Event payload contains `countryCode`, `timezone`, `billingHint`, plus every pre-existing field unchanged
   - [ ] Invitation locale pin (in `send-staff-invitation.use-case.spec.ts`, the use case `StaffInvitedHandler` drives): a tenant with locale `en` is invited in English, a `pt-BR` tenant in Portuguese (a pinning test of today's behaviour, not new logic)
   - [ ] Shared graph helper (`packages/validation/src/billing.spec.ts`): `findUnmetFeatureRequirement` returns `null` for every valid subset (each of `HOTSITE`; `HOTSITE+BOOKING`; `+LOYALTY`; `+CHATBOT`; `+LEAD_FORM`; all five) and `{ feature, required }` for `BOOKING` alone, `LOYALTY` without `BOOKING`, `CHATBOT` without `HOTSITE`

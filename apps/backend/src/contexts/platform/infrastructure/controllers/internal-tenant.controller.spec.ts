@@ -42,6 +42,7 @@ describe('InternalTenantController', () => {
       slug: 'lavacar-belo',
       adminEmail: 'admin@lavacar.com.br',
       country_code: 'BR',
+      taxId: '529.982.247-25',
     });
 
     expect(result.slug).toBe('lavacar-belo');
@@ -57,6 +58,7 @@ describe('InternalTenantController', () => {
       slug: 'taken',
       adminEmail: 'a@a.com',
       country_code: 'BR',
+      taxId: '529.982.247-25',
     });
 
     expect.assertions(2);
@@ -66,6 +68,7 @@ describe('InternalTenantController', () => {
         slug: 'taken',
         adminEmail: 'b@b.com',
         country_code: 'BR',
+        taxId: '529.982.247-25',
       });
     } catch (err) {
       expect(err).toBeInstanceOf(HttpException);
@@ -81,10 +84,49 @@ describe('InternalTenantController', () => {
         slug: 'valid',
         adminEmail: 'a@a.com',
         country_code: 'BR',
+        taxId: '529.982.247-25',
       });
     } catch (err) {
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
     }
+  });
+
+  it.each([
+    ['a missing tax id', undefined, 'SIGNUP_TAX_ID_REQUIRED'],
+    ['an invalid tax id', '529.982.247-26', 'SIGNUP_TAX_ID_INVALID'],
+  ])(
+    'maps %s on a non-exempt BR tenant to 422 and creates nothing',
+    async (_label, taxId, code) => {
+      expect.assertions(4);
+      try {
+        await controller.provision({
+          name: 'Fiscal',
+          slug: 'fiscal',
+          adminEmail: 'a@a.com',
+          country_code: 'BR',
+          taxId,
+        });
+      } catch (err) {
+        expect(err).toBeInstanceOf(HttpException);
+        expect((err as HttpException).getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+        expect(JSON.stringify((err as HttpException).getResponse())).toContain(code);
+      }
+      expect(eventBus.published).toHaveLength(0);
+    },
+  );
+
+  it('passes exempt, features and registrationId through to the published hint', async () => {
+    await controller.provision({
+      name: 'Parceiro',
+      slug: 'parceiro',
+      adminEmail: 'p@p.com',
+      country_code: 'BR',
+      exempt: true,
+      features: ['HOTSITE', 'BOOKING'],
+    });
+
+    const event = eventBus.published[0] as unknown as { data: Record<string, unknown> };
+    expect(event.data['billingHint']).toEqual({ exempt: true, features: ['HOTSITE', 'BOOKING'] });
   });
 });

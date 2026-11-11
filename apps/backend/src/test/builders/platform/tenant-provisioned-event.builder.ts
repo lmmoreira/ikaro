@@ -1,4 +1,7 @@
-import { TenantProvisioned } from '../../../contexts/platform/domain/events/tenant-provisioned.event';
+import {
+  TenantBillingHint,
+  TenantProvisioned,
+} from '../../../contexts/platform/domain/events/tenant-provisioned.event';
 
 export class TenantProvisionedEventBuilder {
   private tenantId = 'aaaaaaaa-0000-4000-8000-000000000001';
@@ -7,6 +10,8 @@ export class TenantProvisionedEventBuilder {
   private slug = 'lavacar';
   private adminEmail = 'admin@lavacar.com.br';
   private timezone = 'America/Sao_Paulo';
+  private countryCode = 'BR';
+  private billingHint: TenantBillingHint | undefined;
 
   withTenantId(tenantId: string): this {
     this.tenantId = tenantId;
@@ -38,12 +43,24 @@ export class TenantProvisionedEventBuilder {
     return this;
   }
 
+  withCountryCode(countryCode: string): this {
+    this.countryCode = countryCode;
+    return this;
+  }
+
+  withBillingHint(billingHint: TenantBillingHint): this {
+    this.billingHint = billingHint;
+    return this;
+  }
+
   build(): TenantProvisioned {
     return new TenantProvisioned(this.tenantId, this.correlationId, {
       name: this.name,
       slug: this.slug,
       adminEmail: this.adminEmail,
       timezone: this.timezone,
+      countryCode: this.countryCode,
+      ...(this.billingHint ? { billingHint: this.billingHint } : {}),
     });
   }
 }

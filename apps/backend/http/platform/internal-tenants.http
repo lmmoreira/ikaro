@@ -17,7 +17,7 @@
 # HAPPY PATH
 # ─────────────────────────────────────────────────────────────────────────────
 
-### Provision a new tenant (minimal — timezone defaults to America/Sao_Paulo)
+### Provision a new tenant (minimal — timezone defaults to the country's; a non-exempt BR tenant needs a tax id)
 # @name provisionTenant
 POST {{baseUrl}}/internal/tenants
 X-Platform-Admin-Key: {{adminKey}}
@@ -27,7 +27,9 @@ Content-Type: application/json
 {
   "name": "Lavacar Belo Horizonte",
   "slug": "lavacar-bh",
-  "adminEmail": "admin@lavacar-bh.com.br"
+  "adminEmail": "admin@lavacar-bh.com.br",
+  "country_code": "BR",
+  "taxId": "529.982.247-25"
 }
 
 ###
@@ -42,7 +44,43 @@ Content-Type: application/json
   "name": "Lavacar Manaus",
   "slug": "lavacar-manaus",
   "adminEmail": "admin@lavacar-manaus.com.br",
-  "timezone": "America/Manaus"
+  "country_code": "BR",
+  "timezone": "America/Manaus",
+  "taxId": "11.222.333/0001-81"
+}
+
+###
+
+### Provision an exempt tenant (free access, no tax id, no registration) with a feature subset
+POST {{baseUrl}}/internal/tenants
+X-Platform-Admin-Key: {{adminKey}}
+X-Internal-Key: {{internalKey}}
+Content-Type: application/json
+
+{
+  "name": "Parceiro Exempt",
+  "slug": "parceiro-exempt",
+  "adminEmail": "admin@parceiro.com.br",
+  "country_code": "BR",
+  "exempt": true,
+  "features": ["HOTSITE", "BOOKING"]
+}
+
+###
+
+### Provision with a reserved registration (reserve it first: POST /internal/billing/registrations)
+POST {{baseUrl}}/internal/tenants
+X-Platform-Admin-Key: {{adminKey}}
+X-Internal-Key: {{internalKey}}
+Content-Type: application/json
+
+{
+  "name": "Lavacar Registrado",
+  "slug": "lavacar-registrado",
+  "adminEmail": "admin@registrado.com.br",
+  "country_code": "BR",
+  "taxId": "529.982.247-25",
+  "registrationId": "00000000-0000-4000-8000-000000000001"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -91,6 +129,38 @@ Content-Type: application/json
   "name": "Test",
   "slug": "Invalid Slug!",
   "adminEmail": "test@test.com"
+}
+
+###
+
+### 422 — Non-exempt BR tenant without a tax id (SIGNUP_TAX_ID_REQUIRED)
+POST {{baseUrl}}/internal/tenants
+X-Platform-Admin-Key: {{adminKey}}
+X-Internal-Key: {{internalKey}}
+Content-Type: application/json
+
+{
+  "name": "Test",
+  "slug": "no-tax-id",
+  "adminEmail": "test@test.com",
+  "country_code": "BR"
+}
+
+###
+
+### 400 — features that break the dependency graph (LOYALTY needs BOOKING)
+POST {{baseUrl}}/internal/tenants
+X-Platform-Admin-Key: {{adminKey}}
+X-Internal-Key: {{internalKey}}
+Content-Type: application/json
+
+{
+  "name": "Test",
+  "slug": "bad-features",
+  "adminEmail": "test@test.com",
+  "country_code": "BR",
+  "exempt": true,
+  "features": ["HOTSITE", "LOYALTY"]
 }
 
 ###
