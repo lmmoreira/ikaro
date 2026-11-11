@@ -27,6 +27,8 @@ Content-Type: application/json
 ###
 
 ### Operator (scripts/provision-tenant.sh): no lock, no eligibility check, always a fresh row.
+### First step of provisioning a paid tenant: take the returned registrationId and send it, with the same
+### tax id, to POST /internal/tenants (../platform/internal-tenants.http).
 POST {{baseUrl}}/internal/billing/registrations
 X-Internal-Key: {{internalKey}}
 Content-Type: application/json

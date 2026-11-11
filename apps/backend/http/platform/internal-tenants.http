@@ -17,21 +17,10 @@
 # HAPPY PATH
 # ─────────────────────────────────────────────────────────────────────────────
 
-### Step 1 of the paid path — reserve the OPERATOR registration (it holds the tax id; scripts/provision-tenant.sh does this)
-# @name reserveRegistration
-POST {{baseUrl}}/internal/billing/registrations
-X-Internal-Key: {{internalKey}}
-Content-Type: application/json
-
-{
-  "source": "OPERATOR",
-  "taxId": "529.982.247-25",
-  "countryCode": "BR"
-}
-
-###
-
-### Step 2 — provision a non-exempt BR tenant with the reserved registration (timezone defaults to the country's)
+### Provision a non-exempt BR tenant with a reserved registration (timezone defaults to the country's).
+### Reserve it first with the OPERATOR request in ../billing/registrations.http, using the same taxId
+### as below, and paste the returned registrationId into the variable.
+@registrationId = 00000000-0000-4000-8000-000000000001
 # @name provisionTenant
 POST {{baseUrl}}/internal/tenants
 X-Platform-Admin-Key: {{adminKey}}
@@ -44,7 +33,7 @@ Content-Type: application/json
   "adminEmail": "admin@lavacar-bh.com.br",
   "country_code": "BR",
   "taxId": "529.982.247-25",
-  "registrationId": "{{reserveRegistration.response.body.registrationId}}"
+  "registrationId": "{{registrationId}}"
 }
 
 ###
