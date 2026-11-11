@@ -1753,11 +1753,16 @@ interface BillingProviderPort {
   // Provider health (UC-140): the account-health read and the webhook-queue re-enable.
   readAccountHealth(merchantProfileKey): Promise<{ webhookStatus: 'OK' | 'PAUSED' | 'UNKNOWN', queuePaused: boolean }>;
   reenableWebhookQueue(merchantProfileKey): Promise<void>;   // Asaas: PUT /v3/webhooks/{id} {interrupted: false} is the documented reactivation (docs/ASAAS_PROVIDER.md § 4, launch gate G3). The health job raises the alert when the queue is PAUSED and closes it only after a webhook delivery succeeds after the call, never because the flag was cleared
+  // Inbound, local, no network, stateless: the same body always yields the same event and providerEventId (de-duplication is the M26 inbox's). It normalises only: the Asaas token check is the BFF's, Stripe's signature check is the adapter's (slice E). A body it cannot read throws InvalidProviderWebhookError.
+  parseWebhook(rawBody, headers): NormalizedProviderEvent;
 }
-// Inbound: adapter.parseWebhook(rawBody, headers) -> NormalizedProviderEvent   (normalises only; the Asaas token check is the BFF's, Stripe's signature check is the adapter's, slice E)
-// cancelCharge throws the typed ChargeAlreadyPaidError when the provider refuses because the charge was just paid (not a new method); fetchChargeStatus returns NormalizedChargeStatus incl. receiptUrl
-//   PaymentConfirmed | PaymentOverdue | PaymentRefunded | PaymentChargeback | AutoBillingAuthorized | AutoBillingRevoked
+// cancelCharge throws the typed ChargeAlreadyPaidError when the provider refuses because the charge was just paid (not a new method); fetchChargeStatus returns NormalizedChargeStatus incl. receiptUrl (set when paid)
+// NormalizedProviderEvent.type (every event carries providerEventId and occurredAt; a charge event also providerChargeId, providerCustomerId, chargeReference = our charge id, amountMinor):
+//   PaymentConfirmed (the first of the provider's CONFIRMED / RECEIVED, idempotent) | PaymentOverdue | PaymentCancelled | PaymentRefunded | PaymentPartiallyRefunded | PaymentChargeback (opened only)
+//   | AutoBillingAuthorized | AutoBillingRevoked | Ignored (any event the normaliser does not handle)
 ```
+
+`BillingProviderRegistry.resolve(merchantProfileKey)` returns the adapter of a subscription's key and is what every use case injects; today only the fake serves `BRL_FAKE`, and every other key (`USD_FAKE`, the sandbox and live keys) throws `ProviderNotSupportedError` until its adapter exists. A fake or sandbox key is rejected when `APP_ENV=production` and a live key anywhere else (`MerchantProfileKeyNotAllowedError`).
 
 There is no separate tax port (Stripe returns the breakdown when it finalizes the invoice) and no manual provider or manual mark-paid route.
 
