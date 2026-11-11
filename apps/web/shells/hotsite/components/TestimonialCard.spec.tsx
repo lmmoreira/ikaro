@@ -82,9 +82,12 @@ describe('TestimonialCard readable colours (TD51-S05)', () => {
     expect(screen.getByText(/Atendimento excelente/).className).not.toMatch(/opacity/);
   });
 
-  it('never paints --ba-text or --ba-primary as the author or quote colour', () => {
-    const { container } = renderWithIntl(<TestimonialCard testimonial={makeTestimonial()} />);
+  it('never paints --ba-text or --ba-primary as the author, quote or star colour', () => {
+    const { container } = renderWithIntl(
+      <TestimonialCard testimonial={makeTestimonial({ rating: 4 })} />,
+    );
 
+    expect(screen.getAllByTestId('star-filled')).toHaveLength(4);
     expect(container.innerHTML).not.toMatch(/color: var\(--ba-(text|primary)\)/);
   });
 });

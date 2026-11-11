@@ -22,7 +22,6 @@ function StarRating({ rating }: StarRatingProps): React.JSX.Element {
       role="img"
       aria-label={t('testimonials.ratingAriaLabel', { rating })}
       className="flex gap-1 text-lg"
-      style={{ color: 'var(--ba-primary)' }}
     >
       {Array.from({ length: 5 }, (_, index) => (
         <span

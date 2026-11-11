@@ -89,7 +89,7 @@ export function TenantOptionRow({
     return (
       <div
         data-testid="switch-tenant-current"
-        className="flex items-center gap-4 border-2 px-5 py-4 opacity-70"
+        className="flex items-center gap-4 border-2 px-5 py-4"
         style={{
           ...brandedSurfaceStyle,
           borderColor: 'var(--ba-primary)',

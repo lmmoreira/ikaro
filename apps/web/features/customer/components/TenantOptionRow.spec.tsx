@@ -117,4 +117,19 @@ describe('TenantOptionRow readable colours (TD51-S05)', () => {
       'var(--ba-secondary-muted, var(--ba-secondary-text))',
     );
   });
+
+  it('does not dim the static current row, which would composite its text below AA', () => {
+    render(
+      <TenantOptionRow
+        tenant={makeTenant()}
+        isCurrent
+        disabled={false}
+        currentBadgeLabel="Atual"
+        loyaltyPointsLabel="120 pontos"
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('switch-tenant-current').className).not.toMatch(/opacity/);
+  });
 });
