@@ -155,6 +155,7 @@ test.describe('full booking detail (staff and customer)', () => {
       await expect(steps.nth(0)).toContainText(/^1\s*Sauna/);
       await expect(steps.nth(1)).toContainText(/^2\s*Massagem/);
       await expect(steps.nth(1)).toContainText(journey.staffs[0]!.name);
+      await expect(steps.nth(1)).toContainText(journey.poolRoom.name);
       await expect(steps.nth(2)).toContainText(/^3\s*Relaxamento/);
 
       await cancelBookingInDashboard(page, customer.bookingId, 'Imprevisto');

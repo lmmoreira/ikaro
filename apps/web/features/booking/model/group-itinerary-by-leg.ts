@@ -48,8 +48,9 @@ function withRow(step: ItineraryStep, row: BookingItineraryLeg): ItineraryStep {
 
 /**
  * Folds the flat itinerary (one entry per resource of a leg) into one step per leg. Order is the
- * input order of first appearance: the backend already sorts by line, then leg, then resource
- * type, so the rows of one leg are adjacent and this never re-sorts.
+ * input order of first appearance: the backend emits the lines in their stored order and sorts each
+ * line's legs by leg index, then resource type, so the rows of one leg are adjacent and this never
+ * re-sorts.
  */
 export function groupItineraryByLeg(itinerary: readonly BookingItineraryLeg[]): ItineraryStep[] {
   const steps = new Map<string, ItineraryStep>();
