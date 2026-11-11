@@ -1,9 +1,7 @@
 import type React from 'react';
 import type { TenantOption } from '@ikaro/types';
-import {
-  BRANDED_MUTED_TEXT,
-  brandedSurfaceStyle,
-} from '@/shared/components/hotsite/branded-surface-style';
+import { BrandedMutedText } from '@/shared/components/hotsite/branded-muted-text';
+import { brandedSurfaceStyle } from '@/shared/components/hotsite/branded-surface-style';
 
 function TenantAvatar({
   name,
@@ -68,9 +66,7 @@ export function TenantOptionRow({
         <p className="text-[0.9375rem] font-semibold" style={{ color: 'var(--ba-secondary-text)' }}>
           {tenant.name}
         </p>
-        <p className="text-[0.8125rem]" style={{ color: BRANDED_MUTED_TEXT }}>
-          {loyaltyPointsLabel}
-        </p>
+        <BrandedMutedText className="text-[0.8125rem]">{loyaltyPointsLabel}</BrandedMutedText>
       </div>
       {isCurrent ? (
         <span

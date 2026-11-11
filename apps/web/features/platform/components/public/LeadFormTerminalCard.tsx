@@ -1,6 +1,6 @@
 import { useTranslations } from 'next-intl';
+import { BrandedMutedText } from '@/shared/components/hotsite/branded-muted-text';
 import { BrandedPanel } from '@/shared/components/hotsite/branded-panel';
-import { BRANDED_MUTED_TEXT } from '@/shared/components/hotsite/branded-surface-style';
 
 const btnStyle: React.CSSProperties = {
   backgroundColor: 'var(--ba-btn-bg)',
@@ -44,12 +44,9 @@ export function LeadFormTerminalCard({
             {icon}
           </div>
           <h1 className="mb-2 text-xl font-bold">{title}</h1>
-          <p
-            className="mx-auto mb-6 max-w-md leading-relaxed"
-            style={{ color: BRANDED_MUTED_TEXT }}
-          >
+          <BrandedMutedText className="mx-auto mb-6 max-w-md leading-relaxed">
             {body}
-          </p>
+          </BrandedMutedText>
           <div className="flex flex-wrap justify-center gap-3">
             {onRetry && retryLabel && (
               <button
