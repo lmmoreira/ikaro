@@ -16,7 +16,8 @@ interface TenantProvisionedData extends Record<string, unknown> {
   slug: string;
   adminEmail: string;
   timezone: string;
-  countryCode: string;
+  /** Absent on a row written before the Billing release (redelivered from the outbox). */
+  countryCode?: string;
   billingHint?: TenantBillingHint;
 }
 

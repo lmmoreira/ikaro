@@ -182,10 +182,20 @@ fi
 BODY="${BODY}}"
 
 echo "Provisioning tenant..." >&2
-curl -sS --fail-with-body -X POST "$BACKEND_URL/internal/tenants" \
+if ! curl -sS --fail-with-body -X POST "$BACKEND_URL/internal/tenants" \
   -H "Authorization: Bearer $ID_TOKEN" \
   -H "X-Platform-Admin-Key: $PLATFORM_ADMIN_KEY" \
   -H "X-Internal-Key: $INTERNAL_KEY" \
   -H "Content-Type: application/json" \
-  -d "$BODY"
+  -d "$BODY"; then
+  echo >&2
+  echo "ERROR: the tenant was not created." >&2
+  # The endpoint is the one place the feature subset and the tax id are fully checked. A reserved
+  # registration is reusable: fix the input and run again with --registration-id instead of
+  # reserving (and leaving behind) a second one.
+  if [ -n "$REGISTRATION_ID" ] && [ "$EXEMPT" != true ]; then
+    echo "Registration $REGISTRATION_ID stays reserved: re-run with --registration-id $REGISTRATION_ID" >&2
+  fi
+  exit 1
+fi
 echo

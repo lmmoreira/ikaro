@@ -2424,7 +2424,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
   4. **`PLATFORM_ADMIN_KEY`** — `PlatformAdminGuard` validates `X-Platform-Admin-Key`.
 
 - **Main Flow:**
-   1. Operator calls:
+   1. For a non-exempt tenant the operator first reserves the OPERATOR registration with `POST /internal/billing/registrations` (`scripts/provision-tenant.sh` does this), then calls:
       ```http
       POST /internal/tenants
       X-Platform-Admin-Key: <PLATFORM_ADMIN_KEY>
@@ -2436,7 +2436,9 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
         "slug": "autowash-pro",
         "adminEmail": "owner@autowashpro.com.br",
         "country_code": "BR",
-        "timezone": "America/Sao_Paulo"
+        "timezone": "America/Sao_Paulo",
+        "taxId": "529.982.247-25",
+        "registrationId": "uuid-v7 returned by the registration call"
       }
       ```
       *(With Billing, UC-110 / UC-137: the body also accepts an optional `exempt: boolean`, an optional `features` subset (feature keys) and `registrationId`, and a non-exempt BR tenant requires a valid `taxId` (CPF or CNPJ; `422 SIGNUP_TAX_ID_REQUIRED` / `SIGNUP_TAX_ID_INVALID`). The `taxId` is **validated only on this route and never persisted or forwarded**: the event carries no tax id, and the tax id is held on the OPERATOR registration the script reserves first via `POST /internal/billing/registrations` (`registrationId` links it to the tenant). Platform cannot read the registration, so it does not compare the two values; the script sends one value to both calls, which is the supported path. Platform validates only the *shape* of `registrationId`; refusing an unknown or already `COMPLETED` registration is the Billing use case's job (UC-110), and Platform does not pre-check that the country has prices (`BILLING_NO_PRICE_FOR_COUNTRY` surfaces from UC-110 A2). `scripts/provision-tenant.sh` gains the same inputs as flags (`--exempt`, `--features`, `--registration-id`, `--tax-id`), keeping the four existing positionals (`<name> <slug> <adminEmail> <country_code> [timezone]`) working, with flags accepted after them. Unless `--exempt` is given, the script first calls `POST /internal/billing/registrations` (`source = OPERATOR`, the `--tax-id` value as `taxId`), then passes the returned `registrationId` and the same `taxId` to `POST /internal/tenants`; `--exempt` skips the registrations call, because an exempt tenant has no registration. Contract: `docs/API_CONTRACTS.md` § Billing — Provider Webhooks and Internal API.)*

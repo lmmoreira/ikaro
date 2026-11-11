@@ -774,7 +774,7 @@ Extend the existing operator provisioning path so every non-exempt tenant is bor
 - Integration:
   - [ ] `POST /internal/tenants` with `exempt: true` publishes the event with `billingHint.exempt = true`; with `features: [...]` it publishes `billingHint.features`
   - [ ] `POST /internal/tenants` without the admin key is `401` (the operator-only guard is unchanged)
-  - [ ] A tenant provisioned **without** the new fields (legacy caller) still succeeds and publishes `countryCode` with no `billingHint` (the Billing handler's tolerance of an event lacking `countryCode` is tested in S11 A5)
+  - [ ] A tenant provisioned **without** the new fields (a legacy body: no `exempt`, `features` or `registrationId`) still succeeds where no tax id is required (a US tenant) and publishes `countryCode` with no `billingHint`; a BR tenant without a `taxId` is `422 SIGNUP_TAX_ID_REQUIRED` by the tax-id rule above, which takes precedence (the Billing handler's tolerance of an event lacking `countryCode` is tested in S11 A5)
   - [ ] The Booking and Staff `TenantProvisioned` handlers still pass their existing integration specs unchanged
 - Tenant isolation: [ ] provisioning creates exactly one tenant and one event with that tenant's id; the event carries no tax id, Google `sub` or terms
 - E2E: none — covered by unit/integration; the script is exercised by a documented manual run

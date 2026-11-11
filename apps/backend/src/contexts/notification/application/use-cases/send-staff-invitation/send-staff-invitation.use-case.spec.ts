@@ -116,6 +116,7 @@ describe('SendStaffInvitationUseCase', () => {
     const msg = dispatcher.dispatched[0];
     expect(msg.subject).toBe('Invitation to join Ikaro');
     expect(msg.body).toContain('Lava Car US');
+    expect(msg.body).toContain('You have been invited to join the');
     expect(msg.body).not.toContain('Convite');
     expect(msg.body).not.toContain('{{');
   });

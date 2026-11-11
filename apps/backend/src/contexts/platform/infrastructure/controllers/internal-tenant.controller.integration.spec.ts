@@ -252,8 +252,12 @@ describe('InternalTenantController (integration)', () => {
       expect(await ds.getRepository(TenantEntity).findOne({ where: { slug } })).toBeNull();
     });
 
-    it('a non-exempt US tenant is not rejected up front', async () => {
-      await provision({ slug: 'billing-hint-us', country_code: 'US' }).expect(201);
+    it('a non-exempt US tenant with the legacy body is not rejected up front: countryCode, no billingHint', async () => {
+      const { body } = await provision({ slug: 'billing-hint-us', country_code: 'US' }).expect(201);
+
+      const data = publishedData(body.tenantId);
+      expect(data['countryCode']).toBe('US');
+      expect(data).not.toHaveProperty('billingHint');
     });
 
     it.each([

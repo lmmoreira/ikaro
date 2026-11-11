@@ -1461,9 +1461,13 @@ Content-Type: application/json
   "slug":        "autowash-pro",
   "adminEmail":  "owner@autowashpro.com.br",
   "country_code": "BR",
-  "timezone":    "America/Sao_Paulo"
+  "timezone":    "America/Sao_Paulo",
+  "taxId":       "529.982.247-25",
+  "registrationId": "uuid-v7 returned by POST /internal/billing/registrations"
 }
 ```
+
+A non-exempt BR tenant sends a valid `taxId`; the operator reserves the registration first (`scripts/provision-tenant.sh` does it) and passes its `registrationId`. An exempt tenant sends `"exempt": true` and neither.
 
 | Field | Type | Required | Rules |
 |---|---|---|---|
@@ -1472,7 +1476,7 @@ Content-Type: application/json
 | `adminEmail` | string | ✓ | Valid email format |
 | `country_code` | string | ✓ | Exactly two letters in ISO format and supported by the platform; `BR` for the current Brazil deployment |
 | `timezone` | string | — | Valid IANA timezone (default: `America/Sao_Paulo`) |
-| `exempt` | boolean | — | Default `false`. `true` provisions an `ACTIVE`, exempt subscription (no trial, no registration); UC-110, UC-137 |
+| `exempt` | boolean | — | Default `false`. `true` puts `billingHint.exempt = true` on `TenantProvisioned`; the Billing handler (M25-S11, planned) then creates an `ACTIVE`, exempt subscription (no trial, no registration); UC-110, UC-137 |
 | `features` | string[] | — | Feature-key subset; absent = every feature. Becomes the default paid items (exempt: the open-ended items). Non-empty, no repeated key and closed under the feature-dependency graph (`HOTSITE` is the root; `FEATURE_REQUIREMENTS` in `@ikaro/validation`, the one copy Billing's `Subscription` also uses), else `400` before the tenant exists |
 | `registrationId` | string (UUID) | — | The OPERATOR registration reserved first through `POST /internal/billing/registrations`; Platform validates its shape only (`400` if not a UUID), and Billing's UC-110 use case refuses an unknown or `COMPLETED` one. Sent with `exempt: true` it is `400` |
 | `taxId` | string | ✓ for non-exempt BR | CPF or CNPJ (check digits validated, `422 SIGNUP_TAX_ID_INVALID` / `SIGNUP_TAX_ID_REQUIRED`; a US id, not offered before M28, is an optional 9-digit EIN); validated here only and never persisted or forwarded (the registration holds the tax id; Platform cannot read it, so no comparison). An exempt tenant needs none, but a value it sends is still checked |
