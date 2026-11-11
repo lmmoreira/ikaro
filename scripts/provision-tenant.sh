@@ -65,6 +65,16 @@ ADMIN_EMAIL="${POSITIONAL[2]}"
 COUNTRY_CODE="${POSITIONAL[3]}"
 TIMEZONE="${POSITIONAL[4]:-}"
 
+# The four required positionals must carry a value: an empty one would pass the count check above
+# and only fail at the tenant endpoint, after the registration was already reserved.
+for required in "$TENANT_NAME" "$TENANT_SLUG" "$ADMIN_EMAIL" "$COUNTRY_CODE"; do
+  if [ -z "$required" ]; then
+    echo "ERROR: name, slug, adminEmail and country_code must not be empty." >&2
+    echo "$USAGE" >&2
+    exit 1
+  fi
+done
+
 meta() {
   curl -sS --fail-with-body -H "Metadata-Flavor: Google" \
     "http://metadata.google.internal/computeMetadata/v1/$1"
