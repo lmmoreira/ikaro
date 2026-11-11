@@ -59,8 +59,6 @@ export interface StartSubscriptionInput {
   timezone: string;
   merchantProfileKey: string;
   start: Date;
-  // An explicit feature subset (UC-110 A3); every sellable feature when omitted.
-  features?: readonly FeatureKey[];
 }
 
 export type SelectionChangeKind = 'ADD' | 'REMOVE' | 'TIER_CHANGE';

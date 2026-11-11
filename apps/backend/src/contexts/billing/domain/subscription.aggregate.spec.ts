@@ -90,28 +90,6 @@ describe('Subscription', () => {
       expect(subscription.itemsDirty).toBe(true);
     });
 
-    it('creates items only for a valid feature subset', () => {
-      const subscription = Subscription.startTrial(
-        startInput({ features: ['HOTSITE', 'BOOKING'] }),
-      );
-
-      expect(subscription.items.map((item) => item.featureKey)).toEqual(['HOTSITE', 'BOOKING']);
-    });
-
-    it.each<[string, StartSubscriptionInput['features']]>([
-      ['BOOKING alone', ['BOOKING']],
-      ['a subset without HOTSITE', ['CHATBOT', 'LEAD_FORM']],
-      ['LOYALTY without BOOKING', ['HOTSITE', 'LOYALTY']],
-    ])('refuses %s through the dependency graph', (_name, features) => {
-      expect(() => Subscription.startTrial(startInput({ features }))).toThrow(
-        FeatureDependencyUnmetError,
-      );
-    });
-
-    it('refuses an empty feature subset', () => {
-      expect(() => Subscription.startTrial(startInput({ features: [] }))).toThrow(PlanEmptyError);
-    });
-
     it('refuses a currency that is not the billing currency of the country', () => {
       expect(() => Subscription.startTrial(startInput({ currency: 'USD' }))).toThrow(
         SubscriptionInvariantError,

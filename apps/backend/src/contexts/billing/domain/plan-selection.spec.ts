@@ -36,13 +36,6 @@ describe('plan-selection', () => {
         { featureKey: 'LEAD_FORM', tier: 'STANDARD' },
       ]);
     });
-
-    it('keeps only the given subset, in catalogue order', () => {
-      expect(defaultSelection(['CHATBOT', 'HOTSITE']).map((entry) => entry.featureKey)).toEqual([
-        'HOTSITE',
-        'CHATBOT',
-      ]);
-    });
   });
 
   describe('isTierSoldFor', () => {
