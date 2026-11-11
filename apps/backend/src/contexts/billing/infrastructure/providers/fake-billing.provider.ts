@@ -1,4 +1,6 @@
+import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
+import { todayInTimezone } from '../../../../shared/utils/calendar-date';
 import { CLOCK, type IClock } from '../../../../shared/ports/clock.port';
 import type {
   BillingProviderPort,
@@ -20,7 +22,7 @@ import type {
   PaymentMethod,
   ProviderAccountHealth,
 } from '../../domain/provider-events';
-import { normalizeAsaasWebhook } from './asaas-event-normalizer';
+import { ASAAS_ZONE, normalizeAsaasWebhook } from './asaas-event-normalizer';
 import { FakeAsaasWebhookEmitter } from './fake-asaas-webhook.emitter';
 import {
   applyDeliveryOptions,
@@ -43,37 +45,34 @@ const MINIMUM_CHARGE_MINOR = 500;
 @Injectable()
 export class FakeBillingProvider implements BillingProviderPort {
   private readonly customerByTenant = new Map<string, string>();
-  private readonly customerIds = new Set<string>();
+  private readonly identityByCustomer = new Map<string, ProviderCustomerIdentity>();
   private readonly charges = new Map<string, FakeCharge>();
   private readonly autoBillingCustomers = new Set<string>();
   private readonly emitter: FakeAsaasWebhookEmitter;
   private pending: FakeWebhookDelivery[] = [];
   private nextFailure: ProviderRequestFailure | null = null;
   private queuePaused = false;
-  private counter = 0;
 
   constructor(@Inject(CLOCK) private readonly clock: IClock) {
     this.emitter = new FakeAsaasWebhookEmitter(clock);
   }
 
+  /** Creates the provider customer, or updates the identity of the one this tenant already has. */
   async ensureCustomer(
     tenantId: string,
-    _identity: ProviderCustomerIdentity,
+    identity: ProviderCustomerIdentity,
   ): Promise<{ providerCustomerId: string }> {
     this.consumeFailure();
-    const existing = this.customerByTenant.get(tenantId);
-    if (existing) return { providerCustomerId: existing };
-    const providerCustomerId = this.nextId('cus');
+    const providerCustomerId = this.customerByTenant.get(tenantId) ?? this.newId('cus');
     this.customerByTenant.set(tenantId, providerCustomerId);
-    this.customerIds.add(providerCustomerId);
+    this.identityByCustomer.set(providerCustomerId, identity);
     return { providerCustomerId };
   }
 
   async createCharge(input: CreateProviderChargeInput): Promise<CreatedProviderCharge> {
     this.consumeFailure();
-    this.assertValidCharge(input);
-    const existing = this.findByReference(input.externalReference);
-    const charge = existing ?? this.insertCharge(input);
+    this.assertCustomer(input.providerCustomerId);
+    const charge = this.findByReference(input.externalReference) ?? this.insertNewCharge(input);
     return {
       ...this.linkOf(charge),
       providerChargeId: charge.id,
@@ -163,7 +162,7 @@ export class FakeBillingProvider implements BillingProviderPort {
     charge.paymentMethod = method;
     charge.paidAt = this.clock.now();
     if (method !== 'PIX') this.enqueue('PAYMENT_CONFIRMED', charge, 'CONFIRMED');
-    if (method !== 'CREDIT_CARD') this.enqueue('PAYMENT_RECEIVED', charge, 'RECEIVED');
+    if (method !== 'CARD') this.enqueue('PAYMENT_RECEIVED', charge, 'RECEIVED');
   }
 
   /** The `RECEIVED` that follows a card's `CONFIRMED` about 32 days later. */
@@ -199,8 +198,13 @@ export class FakeBillingProvider implements BillingProviderPort {
     this.enqueue('PAYMENT_CHARGEBACK_REQUESTED', charge, 'CHARGEBACK_REQUESTED');
   }
 
-  /** Hands out and clears the queued webhooks, misbehaving as `options` says. */
+  /**
+   * Hands out and clears the queued webhooks, misbehaving as `options` says. While the queue is
+   * paused nothing is handed out and nothing is lost: the events are kept and arrive after the
+   * queue is re-enabled, as Asaas stores them (docs/ASAAS_PROVIDER.md § 4).
+   */
   drainDeliveries(options: DeliveryOptions = {}): FakeWebhookDelivery[] {
+    if (this.queuePaused) return [];
     const drained = applyDeliveryOptions(this.pending, options);
     this.pending = [];
     return drained;
@@ -215,9 +219,10 @@ export class FakeBillingProvider implements BillingProviderPort {
     throw new ProviderRequestError(reason);
   }
 
-  private nextId(prefix: string): string {
-    this.counter += 1;
-    return `${prefix}_fake_${String(this.counter).padStart(6, '0')}`;
+  // Random, not a counter: a restarted process must never reissue an id an earlier run already
+  // persisted for another tenant (the provider ids are unique across the Billing tables).
+  private newId(prefix: string): string {
+    return `${prefix}_fake_${randomUUID().replaceAll('-', '').slice(0, 20)}`;
   }
 
   private enqueue(eventName: string, charge: FakeCharge, asaasStatus: string): void {
@@ -244,11 +249,17 @@ export class FakeBillingProvider implements BillingProviderPort {
   }
 
   private assertCustomer(providerCustomerId: string): void {
-    if (!this.customerIds.has(providerCustomerId)) throw new ProviderRequestError('NOT_FOUND');
+    if (!this.identityByCustomer.has(providerCustomerId)) {
+      throw new ProviderRequestError('NOT_FOUND');
+    }
   }
 
-  private assertValidCharge(input: CreateProviderChargeInput): void {
-    this.assertCustomer(input.providerCustomerId);
+  // The checks Asaas makes when a charge is created (docs/ASAAS_PROVIDER.md § 2). They apply to a
+  // new charge only: a retry of an existing reference is returned as it is.
+  private assertValidNewCharge(input: CreateProviderChargeInput): void {
+    if (!this.identityByCustomer.get(input.providerCustomerId)?.taxId) {
+      throw new ProviderRequestError('TAX_ID_REQUIRED');
+    }
     if (!/^[A-Z]{2}$/.test(input.customerLocation.countryCode)) {
       throw new ProviderRequestError('INVALID_LOCATION');
     }
@@ -256,10 +267,14 @@ export class FakeBillingProvider implements BillingProviderPort {
     if (!Number.isInteger(total) || total < MINIMUM_CHARGE_MINOR) {
       throw new ProviderRequestError('INVALID_AMOUNT');
     }
+    if (input.dueDate < todayInTimezone(ASAAS_ZONE, this.clock.now())) {
+      throw new ProviderRequestError('INVALID_DUE_DATE');
+    }
   }
 
-  private insertCharge(input: CreateProviderChargeInput): FakeCharge {
-    const id = this.nextId('pay');
+  private insertNewCharge(input: CreateProviderChargeInput): FakeCharge {
+    this.assertValidNewCharge(input);
+    const id = this.newId('pay');
     const charge: FakeCharge = {
       id,
       customerId: input.providerCustomerId,

@@ -1,8 +1,10 @@
-export const PAYMENT_METHODS = ['PIX', 'BOLETO', 'CREDIT_CARD'] as const;
-export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+import type { AutoBilling } from './billing-account.aggregate';
 
-export const AUTO_BILLING_MODES = ['PIX_AUTOMATICO', 'CARD_RECURRING'] as const;
-export type AutoBillingMode = (typeof AUTO_BILLING_MODES)[number];
+/** The value set of `billing.charges.method` (docs/DATABASE_SCHEMA.md); a provider's own name for a method is translated by its adapter. */
+export type PaymentMethod = 'PIX' | 'BOLETO' | 'CARD';
+
+/** What `startAutoBilling` can switch on: every `billing_accounts.auto_billing` value except `NONE`. */
+export type AutoBillingMode = Exclude<AutoBilling, 'NONE'>;
 
 interface ProviderEventBase {
   /** The provider's own event id: the dedupe key of the M26 inbox. The same raw body always yields the same one. */

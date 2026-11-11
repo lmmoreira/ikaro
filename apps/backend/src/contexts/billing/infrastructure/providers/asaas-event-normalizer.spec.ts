@@ -71,6 +71,16 @@ describe('normalizeAsaasWebhook', () => {
     });
   });
 
+  it.each([
+    ['PIX', 'PIX'],
+    ['BOLETO', 'BOLETO'],
+    ['CREDIT_CARD', 'CARD'],
+  ])('translates the Asaas billing type %s to the Ikaro method %s', (billingType, method) => {
+    const result = normalizeAsaasWebhook(body('PAYMENT_CONFIRMED', { billingType }));
+
+    expect(result).toMatchObject({ type: 'PaymentConfirmed', paymentMethod: method });
+  });
+
   it('reports no payment method for the UNDEFINED billing type', () => {
     const result = normalizeAsaasWebhook(body('PAYMENT_CONFIRMED', { billingType: 'UNDEFINED' }));
 

@@ -1639,7 +1639,7 @@ These backend routes are consumed by the BFF (or operator tooling) and have no `
 
 ## Billing — Provider Webhooks and Internal API
 
-> **PLANNED, NOT YET BUILT** (Billing milestone), except `POST /internal/billing/registrations` (M25-S09, live) and the non-production dev-clock routes (M25-S12, live in `local` and `staging`). Ikaro charging its tenants: rules and aggregates in `docs/DOMAIN_MODEL.md` § Context 7: Billing Context, tables in `docs/DATABASE_SCHEMA.md` § Schema: `billing`, use cases UC-110–UC-145 in `docs/USE_CASES.md`. This section covers the provider webhooks, the operator / internal backend routes, the cron triggers, the non-production routes and the provider port. The manager-facing billing routes are in the next section, `## Billing — Manager API (BFF, role MANAGER)`; the access route and the effects of a suspension on existing routes are in `## Billing — Access Resolution and Suspended-State Effects`; the public price and signup routes are in `## Billing — Public Signup API (BFF, no JWT)` (UC-127, UC-128). Money is **integer minor units + ISO currency** (a convention introduced by this section: Base Standards above define no money format); dates are ISO-8601 UTC (`due_date`: `YYYY-MM-DD`). Error codes: `docs/ERROR_CATALOG.md` § Planned origins: `BILLING_*` and `SIGNUP_*`.
+> **PLANNED, NOT YET BUILT** (Billing milestone), except `POST /internal/billing/registrations` (M25-S09, live) the non-production dev-clock routes (M25-S12, live in `local` and `staging`), and the provider port below with its fake and contract suite (M25-S14, built; the Asaas and Stripe adapters are M26 and M28). Ikaro charging its tenants: rules and aggregates in `docs/DOMAIN_MODEL.md` § Context 7: Billing Context, tables in `docs/DATABASE_SCHEMA.md` § Schema: `billing`, use cases UC-110–UC-145 in `docs/USE_CASES.md`. This section covers the provider webhooks, the operator / internal backend routes, the cron triggers, the non-production routes and the provider port. The manager-facing billing routes are in the next section, `## Billing — Manager API (BFF, role MANAGER)`; the access route and the effects of a suspension on existing routes are in `## Billing — Access Resolution and Suspended-State Effects`; the public price and signup routes are in `## Billing — Public Signup API (BFF, no JWT)` (UC-127, UC-128). Money is **integer minor units + ISO currency** (a convention introduced by this section: Base Standards above define no money format); dates are ISO-8601 UTC (`due_date`: `YYYY-MM-DD`). Error codes: `docs/ERROR_CATALOG.md` § Planned origins: `BILLING_*` and `SIGNUP_*`.
 
 ### `POST /v1/public/billing/webhooks/asaas` and `POST /v1/public/billing/webhooks/stripe` — Provider webhooks (UC-114)
 
@@ -1743,12 +1743,12 @@ Body: { "tenantId" | "chargeId": "…",
 interface BillingProviderPort {
   ensureCustomer(tenantId, identity): Promise<{ providerCustomerId: string }>;   // Asaas: name + cpfCnpj (Asaas enforces cpfCnpj when the charge is created, not the customer: docs/ASAAS_PROVIDER.md § 1), notificationDisabled=true; Stripe: location for tax
   // Asaas: billingType UNDEFINED, our charge id as externalReference (Asaas allows at most 100 characters, docs/ASAAS_PROVIDER.md § 1). Stripe: one finalized invoice (send_invoice) with automatic_tax.
-  createCharge(input: { merchantProfileKey, customerId, dueDate, lines, currency, taxBehavior, customerLocation, description, externalReference, returnUrl }):
+  createCharge(input: { merchantProfileKey, providerCustomerId, dueDate, lines, currency, taxBehavior, customerLocation, description, externalReference, returnUrl }):
     Promise<{ providerChargeId, paymentUrl, expiresAt, totalMinor, tax: { totalTaxMinor, lines, providerCalculationId? } }>;   // tax is empty while every price is tax-inclusive (BR); the Stripe adapter fills it (slice E)
   regeneratePaymentLink(providerChargeId): Promise<{ paymentUrl, expiresAt }>;
   cancelCharge(providerChargeId): Promise<void>;
-  startAutoBilling(customerId, mode): Promise<{ authorizationUrl }>;   // slice F: Pix Automático / hosted recurring card checkout
-  revokeAutoBilling(customerId): Promise<void>;
+  startAutoBilling(providerCustomerId, mode): Promise<{ authorizationUrl }>;   // slice F: Pix Automático / hosted recurring card checkout
+  revokeAutoBilling(providerCustomerId): Promise<void>;
   fetchChargeStatus(providerChargeId): Promise<NormalizedChargeStatus>;
   // Provider health (UC-140): the account-health read and the webhook-queue re-enable.
   readAccountHealth(merchantProfileKey): Promise<{ webhookStatus: 'OK' | 'PAUSED' | 'UNKNOWN', queuePaused: boolean }>;

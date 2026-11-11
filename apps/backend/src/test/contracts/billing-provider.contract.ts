@@ -1,3 +1,4 @@
+import { addDaysUTC, todayInTimezone } from '../../shared/utils/calendar-date';
 import type {
   BillingProviderPort,
   CreateProviderChargeInput,
@@ -64,9 +65,15 @@ const IDENTITY = {
   taxId: '11222333000181',
   countryCode: 'BR',
 };
-const METHODS: readonly PaymentMethod[] = ['PIX', 'BOLETO', 'CREDIT_CARD'];
+const METHODS: readonly PaymentMethod[] = ['PIX', 'BOLETO', 'CARD'];
+const BRAZIL_ZONE = 'America/Sao_Paulo';
 
 let referenceCounter = 0;
+
+/** A Brazilian calendar day relative to the harness clock: a provider refuses a due date in the past, so a fixed date would start failing on the day it passes. */
+function dueDateIn(harness: BillingProviderContractHarness, days: number): string {
+  return addDaysUTC(todayInTimezone(BRAZIL_ZONE, harness.now()), days);
+}
 
 function chargeInput(
   harness: BillingProviderContractHarness,
@@ -77,7 +84,7 @@ function chargeInput(
   return {
     merchantProfileKey: harness.merchantProfileKey,
     providerCustomerId,
-    dueDate: '2026-12-10',
+    dueDate: dueDateIn(harness, 30),
     lines: [{ description: 'Hotsite', amountMinor: 4900 }],
     currency: 'BRL',
     taxBehavior: 'INCLUSIVE',
@@ -171,6 +178,33 @@ function registerCoreCases(
     );
 
     await expect(attempt).rejects.toMatchObject({ reason: 'INVALID_LOCATION' });
+  });
+
+  it('rejects a new charge due before today and accepts one due today', async () => {
+    const harness = await create();
+    const { providerCustomerId } = await harness.provider.ensureCustomer(TENANT_ID, IDENTITY);
+
+    const yesterday = harness.provider.createCharge(
+      chargeInput(harness, providerCustomerId, { dueDate: dueDateIn(harness, -1) }),
+    );
+    const today = harness.provider.createCharge(
+      chargeInput(harness, providerCustomerId, { dueDate: dueDateIn(harness, 0) }),
+    );
+
+    await expect(yesterday).rejects.toMatchObject({ reason: 'INVALID_DUE_DATE' });
+    await expect(today).resolves.toBeDefined();
+  });
+
+  it('rejects a charge for a customer that has no tax id', async () => {
+    const harness = await create();
+    const { providerCustomerId } = await harness.provider.ensureCustomer(
+      '10000000-0000-4000-8000-000000000003',
+      { ...IDENTITY, taxId: null },
+    );
+
+    const attempt = harness.provider.createCharge(chargeInput(harness, providerCustomerId));
+
+    await expect(attempt).rejects.toMatchObject({ reason: 'TAX_ID_REQUIRED' });
   });
 
   it('regenerates the payment link', async () => {
@@ -277,7 +311,7 @@ function registerSequenceCases(
   it('emits CONFIRMED for a card now and RECEIVED only when it settles', async () => {
     const harness = await create();
     const { providerChargeId } = await newCharge(harness);
-    await scenario(harness, 'pay')(providerChargeId, 'CREDIT_CARD');
+    await scenario(harness, 'pay')(providerChargeId, 'CARD');
     const atPayment = await drainEvents(harness);
 
     await scenario(harness, 'settleCard')(providerChargeId);
@@ -310,7 +344,7 @@ function registerLifecycleCases(
     ] as const)('refunds a paid charge (%s)', async (kind, state, eventType) => {
       const harness = await create();
       const { providerChargeId } = await newCharge(harness);
-      await scenario(harness, 'pay')(providerChargeId, 'CREDIT_CARD');
+      await scenario(harness, 'pay')(providerChargeId, 'CARD');
       await drainEvents(harness);
 
       await scenario(harness, 'refund')(providerChargeId, kind);
@@ -323,7 +357,7 @@ function registerLifecycleCases(
     it('opens a chargeback on a paid charge', async () => {
       const harness = await create();
       const { providerChargeId } = await newCharge(harness);
-      await scenario(harness, 'pay')(providerChargeId, 'CREDIT_CARD');
+      await scenario(harness, 'pay')(providerChargeId, 'CARD');
       await drainEvents(harness);
 
       await scenario(harness, 'chargeback')(providerChargeId);

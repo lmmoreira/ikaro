@@ -36,9 +36,15 @@ export class MerchantProfileKeyNotAllowedError extends BillingDomainError {
 }
 
 export type ProviderRequestFailure =
-  'UNAVAILABLE' | 'LINK_EXPIRED' | 'INVALID_LOCATION' | 'INVALID_AMOUNT' | 'NOT_FOUND';
+  | 'UNAVAILABLE'
+  | 'LINK_EXPIRED'
+  | 'INVALID_LOCATION'
+  | 'INVALID_AMOUNT'
+  | 'INVALID_DUE_DATE'
+  | 'TAX_ID_REQUIRED'
+  | 'NOT_FOUND';
 
-/** A call to the provider failed: it was unreachable (5xx), the link expired, the location or amount is invalid, or the id is unknown. */
+/** A call to the provider failed: it was unreachable (5xx), the link expired, the location, amount, due date or customer tax id is invalid, or the id is unknown. */
 export class ProviderRequestError extends BillingDomainError {
   constructor(readonly reason: ProviderRequestFailure) {
     super(`The billing provider request failed: ${reason}`);

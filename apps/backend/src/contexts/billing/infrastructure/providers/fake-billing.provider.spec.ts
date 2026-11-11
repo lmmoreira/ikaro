@@ -1,3 +1,5 @@
+import { AdvanceableClock } from '../../../../shared/infrastructure/clock/advanceable-clock.adapter';
+import { addDaysUTC, todayInTimezone } from '../../../../shared/utils/calendar-date';
 import { FixedClock } from '../../../../test/infrastructure/fixed-clock';
 import type { CreateProviderChargeInput } from '../../application/ports/billing-provider.port';
 import {
@@ -9,7 +11,12 @@ import { FakeBillingProvider } from './fake-billing.provider';
 import { applyDeliveryOptions, type FakeWebhookDelivery } from './fake-billing.types';
 
 const NOW = new Date('2026-11-11T12:00:00.000Z');
-const IDENTITY = { name: 'Lava Rápido', email: 'a@example.com', taxId: null, countryCode: 'BR' };
+const IDENTITY = {
+  name: 'Lava Rápido',
+  email: 'a@example.com',
+  taxId: '11222333000181',
+  countryCode: 'BR',
+};
 
 function setup(): { fake: FakeBillingProvider; clock: FixedClock } {
   const clock = new FixedClock(NOW);
@@ -40,7 +47,87 @@ async function charge(fake: FakeBillingProvider): Promise<string> {
   return (await fake.createCharge(input(providerCustomerId))).providerChargeId;
 }
 
+async function ids(
+  fake: FakeBillingProvider,
+): Promise<{ customerId: string; chargeId: string; eventId: string }> {
+  const { providerCustomerId } = await fake.ensureCustomer('tenant-1', IDENTITY);
+  const created = await fake.createCharge(input(providerCustomerId));
+  const [delivery] = fake.drainDeliveries();
+  return {
+    customerId: providerCustomerId,
+    chargeId: created.providerChargeId,
+    eventId: JSON.parse(delivery.body).id as string,
+  };
+}
+
 describe('FakeBillingProvider', () => {
+  describe('charge creation rules', () => {
+    it('refuses a charge for a customer with no tax id, until the identity is updated', async () => {
+      const { fake } = setup();
+      const { providerCustomerId } = await fake.ensureCustomer('tenant-1', {
+        ...IDENTITY,
+        taxId: null,
+      });
+
+      await expect(fake.createCharge(input(providerCustomerId))).rejects.toMatchObject({
+        reason: 'TAX_ID_REQUIRED',
+      });
+      await fake.ensureCustomer('tenant-1', IDENTITY);
+      await expect(fake.createCharge(input(providerCustomerId))).resolves.toBeDefined();
+    });
+
+    it('keeps one provider customer per tenant when the identity is updated', async () => {
+      const { fake } = setup();
+
+      const first = await fake.ensureCustomer('tenant-1', IDENTITY);
+      const updated = await fake.ensureCustomer('tenant-1', { ...IDENTITY, name: 'Novo Nome' });
+
+      expect(updated.providerCustomerId).toBe(first.providerCustomerId);
+    });
+
+    it('refuses a new charge due before today in São Paulo, and accepts one due today', async () => {
+      const { fake } = setup();
+      const { providerCustomerId } = await fake.ensureCustomer('tenant-1', IDENTITY);
+
+      const yesterday = fake.createCharge(input(providerCustomerId, { dueDate: '2026-11-10' }));
+      const today = fake.createCharge(
+        input(providerCustomerId, { dueDate: '2026-11-11', externalReference: 'ref-today' }),
+      );
+
+      await expect(yesterday).rejects.toMatchObject({ reason: 'INVALID_DUE_DATE' });
+      await expect(today).resolves.toBeDefined();
+    });
+
+    it('reads "today" in São Paulo, not in UTC', async () => {
+      const clock = new FixedClock(new Date('2026-11-12T01:30:00.000Z'));
+      const fake = new FakeBillingProvider(clock);
+      const { providerCustomerId } = await fake.ensureCustomer('tenant-1', IDENTITY);
+
+      const due = fake.createCharge(input(providerCustomerId, { dueDate: '2026-11-11' }));
+
+      await expect(due).resolves.toBeDefined();
+    });
+
+    it('returns an existing charge on a retry after its due date has passed', async () => {
+      const clock = new AdvanceableClock();
+      const fake = new FakeBillingProvider(clock);
+      const { providerCustomerId } = await fake.ensureCustomer('tenant-1', IDENTITY);
+      const dueDate = addDaysUTC(todayInTimezone('America/Sao_Paulo', clock.now()), 1);
+      const created = await fake.createCharge(input(providerCustomerId, { dueDate }));
+
+      clock.advanceBy(3 * 24 * 60 * 60 * 1000);
+
+      await expect(
+        fake.createCharge(input(providerCustomerId, { dueDate })),
+      ).resolves.toMatchObject({
+        providerChargeId: created.providerChargeId,
+      });
+      await expect(
+        fake.createCharge(input(providerCustomerId, { dueDate, externalReference: 'ref-new' })),
+      ).rejects.toMatchObject({ reason: 'INVALID_DUE_DATE' });
+    });
+  });
+
   describe('charge creation', () => {
     it.each([
       [499, false],
@@ -157,6 +244,21 @@ describe('FakeBillingProvider', () => {
       expect(ids[2].split('&')[0]).not.toBe(ids[0].split('&')[0]);
     });
 
+    it("writes Asaas's CREDIT_CARD on the wire for a card payment and reads it back as CARD", async () => {
+      const { fake } = setup();
+      const id = await charge(fake);
+      fake.drainDeliveries();
+
+      fake.simulatePayment(id, 'CARD');
+
+      const [delivery] = fake.drainDeliveries();
+      expect(JSON.parse(delivery.body).payment.billingType).toBe('CREDIT_CARD');
+      expect(fake.parseWebhook(delivery.body, delivery.headers)).toMatchObject({
+        type: 'PaymentConfirmed',
+        paymentMethod: 'CARD',
+      });
+    });
+
     it('queues PAYMENT_DELETED when a charge is cancelled', async () => {
       const { fake } = setup();
       const id = await charge(fake);
@@ -178,6 +280,33 @@ describe('FakeBillingProvider', () => {
 
       expect(fake.drainDeliveries()).toEqual([]);
     });
+
+    it('keeps queued webhooks while the queue is paused and hands them out once it is re-enabled', async () => {
+      const { fake } = setup();
+      await charge(fake);
+      fake.pauseWebhookQueue();
+
+      expect(fake.drainDeliveries()).toEqual([]);
+
+      await fake.reenableWebhookQueue('BRL_FAKE');
+      const afterReenable = fake.drainDeliveries();
+      expect(afterReenable).toHaveLength(1);
+      expect(fake.parseWebhook(afterReenable[0].body, afterReenable[0].headers).type).toBe(
+        'Ignored',
+      );
+    });
+
+    it('never reissues a provider or event id across instances, as after a restart', async () => {
+      const first = setup().fake;
+      const second = setup().fake;
+
+      const firstIds = await ids(first);
+      const secondIds = await ids(second);
+
+      expect(firstIds.customerId).not.toBe(secondIds.customerId);
+      expect(firstIds.chargeId).not.toBe(secondIds.chargeId);
+      expect(firstIds.eventId).not.toBe(secondIds.eventId);
+    });
   });
 
   describe('cancelling', () => {
@@ -186,7 +315,7 @@ describe('FakeBillingProvider', () => {
       async (action) => {
         const { fake } = setup();
         const id = await charge(fake);
-        fake.simulatePayment(id, 'CREDIT_CARD');
+        fake.simulatePayment(id, 'CARD');
         if (action === 'refund') fake.simulateRefund(id, 'FULL');
         else fake.simulateChargeback(id);
 

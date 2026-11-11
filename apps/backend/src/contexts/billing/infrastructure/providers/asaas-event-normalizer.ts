@@ -1,13 +1,22 @@
 import { DateTime } from 'luxon';
 import { InvalidProviderWebhookError } from '../../domain/errors/billing-provider.errors';
-import {
-  PAYMENT_METHODS,
-  type NormalizedProviderEvent,
-  type PaymentMethod,
-} from '../../domain/provider-events';
+import type { NormalizedProviderEvent, PaymentMethod } from '../../domain/provider-events';
 
 export const ASAAS_ZONE = 'America/Sao_Paulo';
 export const ASAAS_DATE_FORMAT = 'yyyy-MM-dd HH:mm:ss';
+
+// Asaas names a card payment CREDIT_CARD; Ikaro's `charges.method` calls it CARD. UNDEFINED (a charge
+// nobody has paid yet) has no method.
+const METHOD_BY_ASAAS_BILLING_TYPE: Readonly<Record<string, PaymentMethod>> = {
+  PIX: 'PIX',
+  BOLETO: 'BOLETO',
+  CREDIT_CARD: 'CARD',
+};
+
+export function asaasBillingTypeOf(method: PaymentMethod | null): string {
+  const entry = Object.entries(METHOD_BY_ASAAS_BILLING_TYPE).find(([, value]) => value === method);
+  return entry?.[0] ?? 'UNDEFINED';
+}
 
 type ChargeEventType = Exclude<
   NormalizedProviderEvent['type'],
@@ -73,7 +82,9 @@ export function parseAsaasDateTime(value: string): Date {
 }
 
 function paymentMethodOf(billingType: unknown): PaymentMethod | null {
-  return PAYMENT_METHODS.find((method) => method === billingType) ?? null;
+  return typeof billingType === 'string' && Object.hasOwn(METHOD_BY_ASAAS_BILLING_TYPE, billingType)
+    ? METHOD_BY_ASAAS_BILLING_TYPE[billingType]
+    : null;
 }
 
 function buildChargeEvent(
