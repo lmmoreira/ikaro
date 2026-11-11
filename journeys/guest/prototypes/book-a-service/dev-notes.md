@@ -407,3 +407,8 @@ The public hotsite uses the branded feedback pattern (`manager/prototypes/feedba
 | `13b`, `13c` | Intake answers | Field messages `.fb-field-msg` (`intake-field-error-*`, `intake-consent-error`); summary `intake-error-summary` under the buttons. |
 
 Destination pages (`04`, `04e`–`04i`, the saved/success views) are page content and are unchanged. **Not drawn separately:** the out-of-range notice (`AvailabilityCalendar`, `calendar-out-of-range-message`) is the same branded error as `02d`; `AvailabilityCarousel`'s `variant="dashboard"` (used by the staff New-booking flow) renders the SaaS `FeedbackMessage`, drawn in `manager/prototypes/feedback-pane/`.
+
+
+## Branded field edge (TD51-S06)
+
+Every branded input, textarea and select draws its border from `--ba-field-border` (`shared/tokens.css`), not from the faint `--ba-secondary`. The token is derived in `applyBranding()`: the first of 21 steps from the page colour towards the text colour that reaches 3:1 against both the page and the secondary colour (WCAG 1.4.11), so the edge is visible on any tenant palette. Screens opt in with `<body class="branded-fields">`; the phone-prefix spans use the token directly. Fill, radius and text colours are unchanged, the invalid state keeps the fixed red outline, and the focus ring still wins. The lead-form fields and the availability-alert page (`16*`) keep their own look (out of scope).

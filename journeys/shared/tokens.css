@@ -21,6 +21,10 @@
   --ba-btn-border:    #2563eb;
   --ba-btn-hover-bg:  #2563eb;
   --ba-hero-text:     #ffffff;
+  /* Derived (apply-branding.ts, TD51-S06): the first of 21 steps from --ba-background towards
+     --ba-text that reaches 3:1 against both --ba-background and --ba-secondary, so a branded
+     form control always has a visible edge (WCAG 1.4.11). Default palette: step 10 of 20. */
+  --ba-field-border:  #888c93;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -120,6 +124,9 @@ h1, h2, h3 { font-family: var(--ba-heading-font); }
   font-family: var(--ba-body-font);
   color: var(--ba-text);
 }
+/* Branded public screens (body.branded-fields) draw the field edge from --ba-field-border, not the
+   faint --ba-secondary. :where() keeps specificity at .form-input's so :focus and .fb-field-invalid win. */
+:where(.branded-fields) .form-input { border-color: var(--ba-field-border); }
 .form-input:focus {
   outline: 2px solid var(--ba-primary);
   outline-offset: 1px;

@@ -83,3 +83,8 @@ The public hotsite uses the branded feedback pattern (`manager/prototypes/feedba
 | `02`–`02d` | Phone completion | Already branded. |
 
 `01b` (auth error) is a page, unchanged.
+
+
+## Branded field edge (TD51-S06)
+
+Every branded input, textarea and select draws its border from `--ba-field-border` (`shared/tokens.css`), not from the faint `--ba-secondary`. The token is derived in `applyBranding()`: the first of 21 steps from the page colour towards the text colour that reaches 3:1 against both the page and the secondary colour (WCAG 1.4.11), so the edge is visible on any tenant palette. Screens opt in with `<body class="branded-fields">`; the phone-prefix spans use the token directly. Fill, radius and text colours are unchanged, the invalid state keeps the fixed red outline, and the focus ring still wins. The lead-form fields and the availability-alert page (`16*`) keep their own look (out of scope).
