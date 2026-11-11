@@ -65,4 +65,13 @@ describe('brandedFieldProps', () => {
     expect(props.style.borderRadius).toBe('0 8px 8px 0');
     expect(props.style.backgroundColor).toBe('var(--ba-secondary)');
   });
+
+  it('ignores any other key a structurally wider style object carries', () => {
+    const wider = { borderRadius: '4px', borderColor: 'red', backgroundColor: 'red' };
+    const props = brandedFieldProps({ style: wider });
+
+    expect(props.style.borderRadius).toBe('4px');
+    expect(props.style.borderColor).toBe('var(--ba-field-border)');
+    expect(props.style.backgroundColor).toBe('var(--ba-secondary)');
+  });
 });

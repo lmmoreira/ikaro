@@ -528,3 +528,22 @@ describe('--ba-field-border', () => {
     );
   });
 });
+
+describe('dark palette used by the e2e helper (e2e/helpers/booking-form/theme.ts)', () => {
+  it('derives the secondary-surface and field tokens the helper sets by hand', () => {
+    const tokens = applyBranding(
+      makeBranding({
+        primaryColor: '#93c5fd',
+        secondaryColor: '#475569',
+        backgroundColor: '#0f172a',
+        textColor: '#f1f5f9',
+      }),
+    ) as CSSTokens;
+
+    expect(tokens['--ba-secondary-text']).toBe('#f1f5f9');
+    expect(tokens['--ba-secondary-muted']).toBe('#f1f5f9');
+    expect(tokens['--ba-secondary-accent']).toBe('#f1f5f9');
+    expect(tokens['--ba-secondary-divider']).toBe('#727D8D');
+    expect(tokens['--ba-field-border']).toBe('#A2A7B1');
+  });
+});

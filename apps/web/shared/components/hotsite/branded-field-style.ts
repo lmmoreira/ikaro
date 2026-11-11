@@ -52,7 +52,12 @@ export function brandedFieldProps({ invalid = false, className, style }: Branded
       invalid && BRANDED_FIELD_INVALID_CLASS,
       className,
     ),
-    style: { ...brandedFieldStyle({ invalid }), ...style },
+    // Only the radius is taken from the caller: the type is structural, so an object that carries
+    // other keys (a `borderColor` held in a variable) would otherwise reach the spread.
+    style: {
+      ...brandedFieldStyle({ invalid }),
+      ...(style?.borderRadius === undefined ? {} : { borderRadius: style.borderRadius }),
+    },
     ...(invalid ? { 'aria-invalid': true as const } : {}),
   };
 }

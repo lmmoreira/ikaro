@@ -12,6 +12,16 @@ const DARK_PALETTE: Readonly<Record<string, string>> = {
   '--ba-btn-bg': '#93c5fd',
   '--ba-btn-text': '#0f172a',
   '--ba-btn-border': '#93c5fd',
+  // The tokens `applyBranding()` derives from the colours above (readable text, accent and
+  // placeholder over the secondary colour, its divider, and the field edge). The page was rendered
+  // with a light tenant's derived values, so overriding only the base colours would leave dark text
+  // on the dark fill, which no real dark tenant has. The values are pinned by the "dark palette used
+  // by the e2e helper" test in apply-branding.spec.ts.
+  '--ba-secondary-text': '#f1f5f9',
+  '--ba-secondary-muted': '#f1f5f9',
+  '--ba-secondary-accent': '#f1f5f9',
+  '--ba-secondary-divider': '#727D8D',
+  '--ba-field-border': '#A2A7B1',
 };
 
 // The booking buttons and cards animate colour/opacity changes (`transition-all`): axe reads the
