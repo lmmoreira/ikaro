@@ -421,7 +421,7 @@ The itinerary card shows one numbered step per leg, in order, with the leg's nam
 
 ---
 
-### Story 5 — Give branded tenant surfaces one readable pattern: `BrandedPanel` + branded field style, and lint the raw secondary background 🔴
+### Story 5 — Give branded tenant surfaces one readable pattern: `BrandedPanel` + branded field style, and lint the raw secondary background 🔴 ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** M
