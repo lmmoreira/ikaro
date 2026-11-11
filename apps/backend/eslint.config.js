@@ -178,6 +178,7 @@ const PERSISTENCE_BYPASS_IGNORES = [
   'src/contexts/billing/infrastructure/repositories/typeorm-feature-price.repository.ts',
   'src/contexts/billing/infrastructure/repositories/typeorm-subscription.repository.ts',
   'src/contexts/billing/infrastructure/repositories/typeorm-billing-account.repository.ts',
+  'src/contexts/billing/infrastructure/repositories/typeorm-signup-registration.repository.ts',
   'src/contexts/notification/infrastructure/repositories/typeorm-notification-log.repository.ts',
   'src/contexts/notification/infrastructure/repositories/typeorm-notification-template.repository.ts',
   'src/contexts/platform/infrastructure/migrations/1700000000000-BootstrapSchemas.ts',

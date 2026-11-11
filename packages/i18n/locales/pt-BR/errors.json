@@ -251,5 +251,6 @@
   "AUTH_RATE_LIMITED": "Muitas requisições. Tente novamente em instantes.",
   "AUTH_TRANSACTION_CONTENTION": "O sistema está ocupado com outra operação. Tente novamente em instantes.",
   "SIGNUP_TAX_ID_INVALID": "O documento fiscal informado é inválido.",
-  "SIGNUP_TAX_ID_REQUIRED": "Informe o documento fiscal."
+  "SIGNUP_TAX_ID_REQUIRED": "Informe o documento fiscal.",
+  "SIGNUP_TERMS_NOT_ACCEPTED": "É necessário aceitar os Termos de Uso e a Política de Privacidade para continuar."
 }

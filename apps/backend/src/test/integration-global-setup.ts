@@ -76,6 +76,7 @@ import { AllowEinTaxIdType1748500000042 } from '../contexts/billing/infrastructu
 import { FeaturePriceVersionEntity } from '../contexts/billing/infrastructure/entities/feature-price-version.entity';
 import { FeaturePriceEntity } from '../contexts/billing/infrastructure/entities/feature-price.entity';
 import { BillingAccountEntity } from '../contexts/billing/infrastructure/entities/billing-account.entity';
+import { SignupRegistrationEntity } from '../contexts/billing/infrastructure/entities/signup-registration.entity';
 import { SubscriptionItemEntity } from '../contexts/billing/infrastructure/entities/subscription-item.entity';
 import { SubscriptionEntity } from '../contexts/billing/infrastructure/entities/subscription.entity';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
@@ -180,6 +181,7 @@ export default async function globalSetup(): Promise<void> {
       SubscriptionEntity,
       SubscriptionItemEntity,
       BillingAccountEntity,
+      SignupRegistrationEntity,
       LeadFormSubmissionEntity,
       LeadFormAnswerEntity,
       ResourceEntity,

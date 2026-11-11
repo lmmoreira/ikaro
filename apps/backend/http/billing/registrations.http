@@ -1,0 +1,56 @@
+# Billing — Signup registrations (UC-110, UC-127)
+# Reserved before the tenant exists, so the Google sub, tax id and terms never travel through
+# Pub/Sub or the audit log. Tenant-less route under /internal/*, InternalApiGuard only.
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run dev
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@baseUrl     = {{backendUrl}}
+@internalKey = {{$dotenv INTERNAL_API_KEY}}
+
+### Self-signup (BFF). trialAvailable false => no row was inserted and registrationId is null.
+POST {{baseUrl}}/internal/billing/registrations
+X-Internal-Key: {{internalKey}}
+Content-Type: application/json
+
+{
+  "source": "SELF_SIGNUP",
+  "googleSub": "112233445566778899001",
+  "taxId": "529.982.247-25",
+  "countryCode": "BR",
+  "terms": { "version": "2026-11-01" }
+}
+
+###
+
+### Operator (scripts/provision-tenant.sh): no lock, no eligibility check, always a fresh row.
+POST {{baseUrl}}/internal/billing/registrations
+X-Internal-Key: {{internalKey}}
+Content-Type: application/json
+
+{
+  "source": "OPERATOR",
+  "taxId": "11.222.333/0001-81",
+  "countryCode": "BR"
+}
+
+###
+
+### Invalid: a self-signup without terms → 422 SIGNUP_TERMS_NOT_ACCEPTED
+POST {{baseUrl}}/internal/billing/registrations
+X-Internal-Key: {{internalKey}}
+Content-Type: application/json
+
+{ "source": "SELF_SIGNUP", "googleSub": "112233445566778899001" }
+
+###
+
+### Invalid: a taxId without countryCode → 400
+POST {{baseUrl}}/internal/billing/registrations
+X-Internal-Key: {{internalKey}}
+Content-Type: application/json
+
+{ "source": "OPERATOR", "taxId": "529.982.247-25" }

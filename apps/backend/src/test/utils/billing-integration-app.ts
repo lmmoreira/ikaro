@@ -6,6 +6,7 @@ import { DataSource } from 'typeorm';
 import { FeaturePriceVersionEntity } from '../../contexts/billing/infrastructure/entities/feature-price-version.entity';
 import { FeaturePriceEntity } from '../../contexts/billing/infrastructure/entities/feature-price.entity';
 import { BillingAccountEntity } from '../../contexts/billing/infrastructure/entities/billing-account.entity';
+import { SignupRegistrationEntity } from '../../contexts/billing/infrastructure/entities/signup-registration.entity';
 import { SubscriptionItemEntity } from '../../contexts/billing/infrastructure/entities/subscription-item.entity';
 import { SubscriptionEntity } from '../../contexts/billing/infrastructure/entities/subscription.entity';
 import { BillingModule } from '../../contexts/billing/billing.module';
@@ -46,6 +47,7 @@ export async function createBillingIntegrationApp(
           SubscriptionEntity,
           SubscriptionItemEntity,
           BillingAccountEntity,
+          SignupRegistrationEntity,
         ],
         synchronize: false,
       }),
