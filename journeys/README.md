@@ -707,6 +707,14 @@ Sidebar, bottom-nav, and bottom-sheet items that point to another journey (e.g. 
 
 ---
 
+### ❌ A branded public screen drawing its fields with the faint `--ba-secondary` edge
+
+The field border in the real app is `--ba-field-border`, derived by `applyBranding()` to reach 3:1 against the page and the fill; the secondary colour is almost the page colour on most tenants, so a `--ba-secondary` border makes the field invisible.
+
+**Fix:** a screen of the branded public booking, submit-info or phone-completion flows opts in with `<body class="branded-fields">`, and `shared/tokens.css` draws `.form-input` with `--ba-field-border` (focus and the red invalid outline still win). A hand-written prefix box (the `+55` span) uses `border: 1px solid var(--ba-field-border)` directly. Dashboard and account prototypes never use it, and the lead-form and availability-alert screens keep their own look.
+
+---
+
 ## Relationship to other docs
 
 - `docs/USE_CASES.md` — source of UCs (link UC numbers, don't restate UC text)

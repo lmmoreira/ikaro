@@ -104,7 +104,9 @@ A change to the file also ratchets the budgets in `packages/architecture-check/a
 
 **Pass/fail:** fail if the generated component renders its own calendar/time markup, or never opens `shared/components/ui/` before writing it.
 
-**Exercises:** `context.md` §7's "Before writing a UI control (calendar, picker, select, dialog, switch)" bullet (under "Web styling boundary") → `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives; `docs/ANTI_PATTERNS.md` (the "hand-built from scratch" row).
+A variant: asked to add a text field to the public booking form, the agent uses `BrandedInput` (not `ui/input`, which reads no `--ba-*` tokens) and never a raw `<input>`.
+
+**Exercises:** `context.md` §7's "Before writing a UI control (calendar, picker, select, dialog, switch)" bullet and its branded-tree bullet (under "Web styling boundary") → `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives; `docs/ANTI_PATTERNS.md` (the "hand-built from scratch" row).
 
 ### 8. Gate scenario — story-discovery first
 

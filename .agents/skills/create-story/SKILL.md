@@ -42,6 +42,7 @@ Also check whether this is already tracked: grep the target file itself, `td/*.m
 
 **Load `docs/STORY_SCHEMA.md` now and draft the story to its skeleton exactly** — don't restate the field list here.
 
+- **Files to create/modify** — for every **new** file, `ls` its parent folder and name a sibling of the same kind that already lives there; never write a folder the slice does not have (TD51-S04 named `features/booking/utils/`, which does not exist, and discovery had to correct it).
 - **Dependencies** — checked against this container's own existing stories only (e.g. `M20-S15` depending on `M20-S05`/`M20-S09`), not a fresh wave-sequencing exercise across the whole container.
 - **Discovered / Root cause** — very likely applicable here, since this skill's typical trigger is a live bug or a freshly spotted gap rather than greenfield scope; still conditional per the schema, not mandatory.
 - **Confidence marker** — TD-only convention (per the schema), omit entirely for a milestone target.

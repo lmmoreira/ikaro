@@ -225,11 +225,11 @@ If a design keeps needing new safeguards or caveats as it's developed (e.g. "thi
 
 ### Web styling boundary
 
-*(`--ba-*` dashboard/hotsite boundary already covered in §8's anti-patterns excerpt below — not restated here.)*
+*(`--ba-*` dashboard/hotsite boundary: see §8 below.)*
 - If a new component needs both SaaS and hotsite variants, build separate implementations rather than one component reading both branding systems.
-- **Before writing a UI control (calendar, picker, select, dialog), `ls apps/web/shared/components/ui/` and reuse it — never hand-roll.** → `docs/ENGINEERING_RULES_FRONTEND.md` § UI layer model
+- **Before writing a UI control (calendar, picker, select, dialog), `ls apps/web/shared/components/ui/` and reuse it — never hand-roll.** In a branded tree use `BrandedInput`/`BrandedTextarea`/`BrandedSelect`, never `ui/input` (no `--ba-*`). → `docs/ENGINEERING_RULES_FRONTEND.md` § UI layer model
 - Route-scoped chrome state visible in a shell header/topbar lives in a provider above both shell and page — never shell-local state or effect-based sync (`docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`).
-- If Sonar flags a UI smell that seems to change behavior, reproduce it in the browser before applying the suggested refactor — static analysis identifies a smell, not the runtime cause.
+- Reproduce a Sonar UI smell in the browser before applying its refactor — static analysis names a smell, not the runtime cause.
 
 ### Testing
 
