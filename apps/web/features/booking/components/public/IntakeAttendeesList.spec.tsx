@@ -108,4 +108,18 @@ describe('IntakeAttendeesList readable colours (TD51-S05)', () => {
     expect(input.style.color).toBe('var(--ba-secondary-text)');
     expect(input.className).toContain('--ba-secondary-muted');
   });
+
+  it('draws the attendee name input with the derived field edge', () => {
+    renderWithIntl(
+      <IntakeAttendeesList
+        attendees={[{ id: 'r1', name: 'Ana', isMinor: false }]}
+        hasError={false}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText('Nome do participante 1').style.borderColor).toBe(
+      'var(--ba-field-border)',
+    );
+  });
 });

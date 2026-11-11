@@ -151,4 +151,12 @@ describe('ChatbotPanel', () => {
     expect(rows[0]).toHaveAttribute('data-role', 'assistant');
     expect(rows[1]).toHaveAttribute('data-role', 'user');
   });
+
+  it('draws the message input with the derived field edge', () => {
+    renderWithIntl(<ChatbotPanel {...baseProps()} />);
+
+    expect(screen.getByTestId('chatbot-message-input').style.borderColor).toBe(
+      'var(--ba-field-border)',
+    );
+  });
 });

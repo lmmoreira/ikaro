@@ -76,3 +76,46 @@ describe('text, accent and placeholder on the secondary surface', () => {
     expect(applyBranding(readable)['--ba-secondary-text']).toBe('#FFFFFF');
   });
 });
+
+// TD51-S06: the edge of a branded form control must reach 3:1 (WCAG 1.4.11) against the page and
+// against its own fill, on every catalogue template and on the palettes where it is hardest.
+const BOUNDARY = 3;
+const FIELD_ADVERSARIAL: readonly HotsiteBrandingResponse[] = [
+  ...ADVERSARIAL,
+  { ...SAME_COLOUR, secondaryColor: SAME_COLOUR.backgroundColor },
+  { ...SAME_COLOUR, secondaryColor: '#FFFFFF', textColor: '#FFFFFF', backgroundColor: '#FFFFFF' },
+  { ...SAME_COLOUR, secondaryColor: '#000000', textColor: '#000000', backgroundColor: '#000000' },
+];
+
+function expectVisibleEdge(branding: HotsiteBrandingResponse): void {
+  const border = applyBranding(branding)['--ba-field-border'];
+
+  expect(contrastRatio(border, branding.backgroundColor)).toBeGreaterThanOrEqual(BOUNDARY);
+  expect(contrastRatio(border, branding.secondaryColor)).toBeGreaterThanOrEqual(BOUNDARY);
+}
+
+describe('field border on the page and on the fill (TD51-S06)', () => {
+  it.each(TEMPLATE_BRANDINGS)(
+    '$id: the edge reaches 3:1 over the page and the fill',
+    ({ branding }) => {
+      expectVisibleEdge(branding);
+    },
+  );
+
+  it('the reported textColor === secondaryColor tenant has a visible edge', () => {
+    expectVisibleEdge(SAME_COLOUR);
+  });
+
+  it.each(FIELD_ADVERSARIAL)('adversarial palette %# has a visible edge', (branding) => {
+    expectVisibleEdge(branding);
+  });
+
+  it('negative guarantee: the secondary colour used as the border before this story fails 3:1 on a catalogue template', () => {
+    const failing = TEMPLATE_BRANDINGS.filter(
+      ({ branding }) => contrastRatio(branding.secondaryColor, branding.backgroundColor) < BOUNDARY,
+    );
+
+    expect(failing.length).toBeGreaterThanOrEqual(5);
+    expect(failing.map(({ id }) => id)).toContain('mimo-pet');
+  });
+});

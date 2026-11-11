@@ -91,12 +91,11 @@ describe('raw form control ban (TD58-S10)', () => {
     });
 
     it.each([
-      'features/booking/components/public/AddressTextField.tsx',
       'features/platform/components/public/ContactField.tsx',
-      'shared/components/hotsite/example.tsx',
       'shells/hotsite/components/ChatbotPanel.tsx',
-      'features/customer/components/InformationCompletionPhoneField.tsx',
-    ])('the branded file %s', (path) => {
+      'shared/components/hotsite/branded-input.tsx',
+      'features/booking/components/public/PhotoUpload.tsx',
+    ])('the exact-path branded file %s keeps a native control', (path) => {
       const jsx = '<label htmlFor="x"><input /><textarea /><select /></label>';
 
       expect(rawControlMessages(component(jsx), path)).toEqual([]);
@@ -147,13 +146,23 @@ describe('raw form control ban (TD58-S10)', () => {
       );
     });
 
-    it('keeps a reviewed raw-fetch exception that sits in a branded tree exempt from both bans', () => {
-      const source = `export async function load() { await fetch('/x'); return (<input />); }`;
+    it('keeps a reviewed raw-fetch exception that sits in a branded tree exempt from the fetch ban and the tree lifts', () => {
+      const source = `export async function load() { await fetch('/x'); return (<button type="button">x</button>); }`;
       const messages = lint(source, 'shells/hotsite/components/HotsiteAuthBar.tsx').filter(
         (message) => message.ruleId === 'no-restricted-syntax',
       );
 
       expect(messages).toEqual([]);
+    });
+
+    it('still bans a raw text input in that same reviewed file', () => {
+      const messages = lint(component('<input />'), 'shells/hotsite/components/HotsiteAuthBar.tsx');
+
+      expect(messages).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ message: expect.stringContaining('BrandedInput') }),
+        ]),
+      );
     });
 
     it('still lets the two feedback components write the role', () => {
@@ -241,8 +250,8 @@ describe('raw form control ban (TD58-S10)', () => {
       expect([...declared].sort()).toEqual([...BESPOKE_BUTTON_FILES].sort());
     });
 
-    it('no bespoke button file also sits in the raw-form-control exemption, whose later block would restore those bans', () => {
-      const formControlExempt = declaredFiles('shared/components/ui/**', 'shells/hotsite/**');
+    it('no bespoke button file also sits in the raw-form-control exemption', () => {
+      const formControlExempt = declaredFiles('shared/components/ui/**');
       const overlaps = declaredFiles('shells/dashboard/components/WeekNav.tsx').filter((path) =>
         formControlExempt.some((entry) =>
           entry.endsWith('/**') ? path.startsWith(entry.slice(0, -2)) : path === entry,
@@ -331,6 +340,105 @@ describe('raw form control ban (TD58-S10)', () => {
           }),
         ]),
       );
+    });
+  });
+
+  describe('branded text controls (TD51-S06)', () => {
+    // Only the TD51-S06 selectors: they carry that tag and name the branded atom.
+    function brandedMessages(source: string, filePath: string) {
+      return lint(source, filePath).filter(
+        (message) =>
+          message.ruleId === 'no-restricted-syntax' && message.message.includes('TD51-S06'),
+      );
+    }
+    const BRANDED_TREES = [
+      'features/booking/components/public/Example.tsx',
+      'features/platform/components/public/Example.tsx',
+      'features/customer/components/InformationCompletionPhoneField.tsx',
+      'shells/hotsite/components/Example.tsx',
+      'shared/components/hotsite/example.tsx',
+    ];
+
+    it.each([
+      ['<input>', '<input type="text" />', 'BrandedInput'],
+      ['<textarea>', '<textarea />', 'BrandedTextarea'],
+      ['<select>', '<select />', 'BrandedSelect'],
+    ])('flags a raw %s in every branded tree and names its atom', (_name, jsx, atom) => {
+      for (const path of BRANDED_TREES) {
+        const messages = brandedMessages(component(jsx), path);
+
+        expect(messages).toHaveLength(1);
+        expect(messages[0].message).toContain(atom);
+      }
+    });
+
+    it('flags createElement and a conditional createElement in a branded tree', () => {
+      for (const source of [
+        "export const a = React.createElement('input', null);",
+        "export const a = React.createElement(flag ? 'select' : 'span', null);",
+      ]) {
+        expect(rawControlMessages(source, 'shells/hotsite/components/Example.tsx')).toHaveLength(1);
+      }
+    });
+
+    it('still lifts the button and label-for bans across the branded trees', () => {
+      const jsx = '<label htmlFor="x"><button type="button">x</button></label>';
+
+      for (const path of BRANDED_TREES) {
+        expect(rawControlMessages(component(jsx), path)).toEqual([]);
+      }
+    });
+
+    it.each([
+      'shared/components/hotsite/branded-input.tsx',
+      'shared/components/hotsite/branded-textarea.tsx',
+      'shared/components/hotsite/branded-select.tsx',
+      'features/booking/components/public/AvailabilityAlertFields.tsx',
+      'features/booking/components/public/PhotoUpload.tsx',
+      'features/booking/components/public/ResourcePicker.tsx',
+      'features/booking/components/public/ServiceCard.tsx',
+      'features/platform/components/public/ContactField.tsx',
+      'features/platform/components/public/LeadFormPhoneField.tsx',
+      'features/platform/components/public/LeadFormQuestionField.tsx',
+      'shells/hotsite/components/ChatbotPanel.tsx',
+    ])('allows a native control in the exact-path file %s', (path) => {
+      expect(brandedMessages(component('<input /><textarea /><select />'), path)).toEqual([]);
+    });
+
+    describe('the checkbox / radio files', () => {
+      const MIXED = 'features/booking/components/public/IntakeQuestionField.tsx';
+
+      it.each([
+        ['checkbox', '<input type="checkbox" />'],
+        ['radio', '<input type="radio" />'],
+        ['file', '<input type="file" />'],
+        ['hidden', '<input type="hidden" />'],
+        ['a braced literal', "<input type={'checkbox'} />"],
+        ['a template literal', '<input type={`radio`} />'],
+      ])('allow a static %s input', (_name, jsx) => {
+        for (const path of [
+          MIXED,
+          'features/booking/components/public/IntakeAnswersStep.tsx',
+          'features/booking/components/public/IntakeAttendeesList.tsx',
+        ]) {
+          expect(brandedMessages(component(jsx), path)).toEqual([]);
+        }
+      });
+
+      it.each([
+        ['a text input', '<input type="text" />', 'BrandedInput'],
+        ['an input with no type', '<input />', 'BrandedInput'],
+        ['a number input', '<input type="number" />', 'BrandedInput'],
+        ['a type held in a variable', '<input type={kind} />', 'BrandedInput'],
+        ['a conditional type', "<input type={flag ? 'checkbox' : 'text'} />", 'BrandedInput'],
+        ['a textarea', '<textarea />', 'BrandedTextarea'],
+        ['a select', '<select />', 'BrandedSelect'],
+      ])('still flag %s', (_name, jsx, atom) => {
+        const messages = brandedMessages(component(jsx), MIXED);
+
+        expect(messages).toHaveLength(1);
+        expect(messages[0].message).toContain(atom);
+      });
     });
   });
 

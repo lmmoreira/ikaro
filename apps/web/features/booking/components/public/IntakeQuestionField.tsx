@@ -1,22 +1,10 @@
 'use client';
 
 import type React from 'react';
-import {
-  BRANDED_FIELD_PLACEHOLDER_CLASS,
-  brandedFieldStyle,
-} from '@/shared/components/hotsite/branded-field-style';
+import { BrandedTextarea } from '@/shared/components/hotsite/branded-textarea';
 import { useTranslations } from 'next-intl';
 import type { ServiceIntakeQuestionItem } from '@ikaro/types';
-import {
-  BRANDED_FIELD_INVALID_CLASS,
-  BrandedFieldFeedback,
-} from '@/shared/components/hotsite/branded-field-feedback';
-
-/** The classes of an intake control, with the branded outline when it is invalid. */
-export function intakeInputClass(base: string, hasError: boolean): string {
-  const withPlaceholder = `${base} ${BRANDED_FIELD_PLACEHOLDER_CLASS}`;
-  return hasError ? `${withPlaceholder} ${BRANDED_FIELD_INVALID_CLASS}` : withPlaceholder;
-}
+import { BrandedFieldFeedback } from '@/shared/components/hotsite/branded-field-feedback';
 
 interface IntakeFieldMessageProps {
   readonly id: string;
@@ -150,16 +138,15 @@ export function IntakeQuestionField(props: IntakeQuestionFieldProps): React.JSX.
   return (
     <div className="mb-4">
       <QuestionLabel question={question} htmlFor={id} />
-      <textarea
+      <BrandedTextarea
         id={id}
         data-testid="intake-input"
         data-field-key={question.fieldKey}
         rows={2}
-        className={intakeInputClass('w-full border px-3 py-2', hasError)}
-        style={brandedFieldStyle({ invalid: hasError })}
+        className="w-full px-3 py-2"
+        invalid={hasError}
         value={typeof value === 'string' ? value : ''}
         onChange={(e) => onChange(e.target.value)}
-        aria-invalid={hasError ? true : undefined}
         aria-describedby={hasError ? `intake-error-${question.fieldKey}` : undefined}
       />
       {hasError && <FieldError fieldKey={question.fieldKey} />}

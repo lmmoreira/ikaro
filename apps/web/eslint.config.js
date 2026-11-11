@@ -235,16 +235,64 @@ const RAW_FORM_CONTROL_SELECTORS = [
   RAW_LABEL_FOR_SELECTOR,
   RAW_CREATE_ELEMENT_SELECTOR,
 ];
-// Where raw controls are legitimate: the primitives themselves, and the branded trees that draw
-// their own controls from the tenant's --ba-* tokens (docs/ENGINEERING_RULES_FRONTEND.md § The
-// `--ba-*` exception). Anything else, including a folder added later, is covered by default.
+// Where a raw control is legitimate: the primitives (`shared/components/ui/**`), and by exact path
+// (never a folder) the few branded files that must keep a native control no atom reproduces: the
+// three atoms themselves, a visually hidden file input, a radio or checkbox group, a pill-shaped
+// chat input, and the lead-form controls, which are deliberately left unbranded (TD51-S06). A raw
+// `<input>`, `<textarea>` or `<select>` anywhere else, including a folder added later, is covered by
+// default and points to BrandedInput / BrandedTextarea / BrandedSelect (or the ui/ primitive).
 const rawFormControlExemptPaths = [
   'shared/components/ui/**',
+  'shared/components/hotsite/branded-input.tsx',
+  'shared/components/hotsite/branded-textarea.tsx',
+  'shared/components/hotsite/branded-select.tsx',
+  'features/booking/components/public/AvailabilityAlertFields.tsx',
+  'features/booking/components/public/PhotoUpload.tsx',
+  'features/booking/components/public/ResourcePicker.tsx',
+  'features/booking/components/public/ServiceCard.tsx',
+  'features/platform/components/public/ContactField.tsx',
+  'features/platform/components/public/LeadFormPhoneField.tsx',
+  'features/platform/components/public/LeadFormQuestionField.tsx',
+  'shells/hotsite/components/ChatbotPanel.tsx',
+];
+// The tenant-branded trees draw their own buttons (--ba-btn-* tokens, no ui/button) and their own
+// `<label htmlFor>`, so only those two bans are lifted across them (docs/ENGINEERING_RULES_FRONTEND.md
+// § The `--ba-*` exception). The text-control bans are not: they apply here as everywhere.
+const brandedTreePaths = [
   'features/booking/components/public/**',
   'features/platform/components/public/**',
   'shared/components/hotsite/**',
   'shells/hotsite/**',
   'features/customer/components/InformationCompletionPhoneField.tsx',
+];
+// Inside the branded trees a raw text control is flagged with a message that names the branded
+// atom, not the dashboard primitive: the same selectors as the generic bans, a different pointer.
+const brandedTreeMessage = (tag, atom) =>
+  `A raw <${tag}> in a tenant-branded file bypasses ${atom}. Use ${atom} (the field edge, text and placeholder colours are derived from the tenant palette); docs/ENGINEERING_RULES_FRONTEND.md § The \`--ba-*\` exception; TD51-S06.`;
+const BRANDED_RAW_INPUT_SELECTOR = {
+  selector: RAW_INPUT_SELECTOR.selector,
+  message: brandedTreeMessage('input', 'BrandedInput'),
+};
+const BRANDED_RAW_TEXTAREA_SELECTOR = {
+  selector: RAW_TEXTAREA_SELECTOR.selector,
+  message: brandedTreeMessage('textarea', 'BrandedTextarea'),
+};
+const BRANDED_RAW_SELECT_SELECTOR = {
+  selector: RAW_SELECT_SELECTOR.selector,
+  message: brandedTreeMessage('select', 'BrandedSelect'),
+};
+// A file that mixes native choice controls with branded text controls: the checkbox, radio and file
+// inputs may stay raw (the browser draws them), while a raw text `<input>`, `<textarea>` and
+// `<select>` still fail. The static `type` must be a literal: a conditional or a variable is flagged.
+const BRANDED_CHOICE_TYPE = '/^(checkbox|radio|file|hidden)$/';
+const BRANDED_TEXT_INPUT_SELECTOR = {
+  selector: `JSXOpeningElement[name.name='input']:not(:has(JSXAttribute[name.name='type']:matches([value.value=${BRANDED_CHOICE_TYPE}], [value.expression.value=${BRANDED_CHOICE_TYPE}], [value.expression.quasis.0.value.cooked=${BRANDED_CHOICE_TYPE}])))`,
+  message: brandedTreeMessage('text <input>', 'BrandedInput'),
+};
+const brandedChoiceControlPaths = [
+  'features/booking/components/public/IntakeAnswersStep.tsx',
+  'features/booking/components/public/IntakeAttendeesList.tsx',
+  'features/booking/components/public/IntakeQuestionField.tsx',
 ];
 // The files that may draw a numeric `<Input>` without a unit, by exact path (never a
 // folder). Only ui/number-input.tsx: it is the primitive that adds the unit.
@@ -286,12 +334,6 @@ const rawButtonExemptPaths = [
   'shells/dashboard/components/Topbar.tsx',
   'shells/dashboard/components/WeekNav.tsx',
 ];
-// Whether a file path (relative to apps/web) falls under rawFormControlExemptPaths. The list holds
-// `dir/**` prefixes and exact files; used to give a file that two tiers both name the right list.
-const isRawFormControlExempt = (path) =>
-  rawFormControlExemptPaths.some((entry) =>
-    entry.endsWith('/**') ? path.startsWith(entry.slice(0, -2)) : path === entry,
-  );
 // The only files that may write the role: the two shared message components.
 const feedbackRoleAllowedPaths = [
   'shared/components/ui/feedback-message.tsx',
@@ -374,6 +416,70 @@ const NON_FETCH_SELECTORS = [
   SECONDARY_SURFACE_SELECTOR,
 ];
 
+// The reviewed exceptions, by list. Each lifts exactly the bans named here and nothing else.
+const EXCEPTION_LISTS = [
+  {
+    paths: [...reviewedRawFetchPaths, 'shared/lib/api/bff-server.ts'],
+    lifts: [RAW_FETCH_SELECTOR],
+  },
+  { paths: imageBaseUrlAllowedPaths, lifts: [IMAGE_BASE_URL_SELECTOR] },
+  { paths: feedbackRoleAllowedPaths, lifts: [FEEDBACK_ROLE_SELECTOR] },
+  { paths: rawFormControlExemptPaths, lifts: RAW_FORM_CONTROL_SELECTORS },
+  {
+    paths: brandedTreePaths,
+    lifts: [RAW_BUTTON_SELECTOR, RAW_LABEL_FOR_SELECTOR],
+    swaps: [
+      [RAW_INPUT_SELECTOR, BRANDED_RAW_INPUT_SELECTOR],
+      [RAW_TEXTAREA_SELECTOR, BRANDED_RAW_TEXTAREA_SELECTOR],
+      [RAW_SELECT_SELECTOR, BRANDED_RAW_SELECT_SELECTOR],
+    ],
+  },
+  { paths: rawButtonExemptPaths, lifts: [RAW_BUTTON_SELECTOR] },
+  { paths: numberInputExemptPaths, lifts: [NUMBER_INPUT_SELECTOR] },
+  { paths: secondarySurfaceExemptPaths, lifts: [SECONDARY_SURFACE_SELECTOR] },
+  {
+    paths: brandedChoiceControlPaths,
+    lifts: [],
+    swaps: [[BRANDED_RAW_INPUT_SELECTOR, BRANDED_TEXT_INPUT_SELECTOR]],
+  },
+];
+const isGlobEntry = (entry) => entry.endsWith('/**');
+// Whether `entry` (an exact path or a `dir/**` glob) is named by a list, directly or under one of
+// its `dir/**` globs.
+const listCovers = (list, entry) =>
+  list.some((item) => item === entry || (isGlobEntry(item) && entry.startsWith(item.slice(0, -2))));
+// The complete selector list of one path: every ban, minus what each list covering the path lifts,
+// with what a list swaps (same selector, a message that names the atom).
+function selectorsFor(entry) {
+  const covering = EXCEPTION_LISTS.filter((list) => listCovers(list.paths, entry));
+  const lifted = new Set(covering.flatMap((list) => list.lifts));
+  const kept = [RAW_FETCH_SELECTOR, ...NON_FETCH_SELECTORS].filter((entry) => !lifted.has(entry));
+  // Applied in list order, so a later list may swap what an earlier one already swapped in.
+  return covering
+    .flatMap((list) => list.swaps ?? [])
+    .reduce((acc, [from, to]) => acc.map((sel) => (sel === from ? to : sel)), kept);
+}
+// One block per distinct selector list. Blocks for `dir/**` globs come first, so an exact file
+// inside such a folder (which gets its own, narrower list) is matched by a later block and wins.
+function exceptionBlocks() {
+  const entries = [...new Set(EXCEPTION_LISTS.flatMap((list) => list.paths))];
+  const groups = new Map();
+  for (const entry of entries) {
+    const selectors = selectorsFor(entry);
+    const key = `${isGlobEntry(entry) ? 'a' : 'b'}:${selectors.map((s) => s.message).join('|')}`;
+    const group = groups.get(key) ?? { selectors, files: [] };
+    group.files.push(entry);
+    groups.set(key, group);
+  }
+  return [...groups.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([, { selectors, files }]) => ({
+      files,
+      ignores: ['**/*.spec.ts', '**/*.spec.tsx'],
+      rules: { 'no-restricted-syntax': ['error', ...selectors] },
+    }));
+}
+
 module.exports = [
   ...baseConfig,
   {
@@ -419,190 +525,20 @@ module.exports = [
     files: ['global.d.ts'],
     rules: { '@typescript-eslint/no-empty-object-type': 'off' },
   },
-  // Six rules share one block because ESLint flat config REPLACES (not merges) a
-  // rule's options when two config objects both set it for the same file — a later block here
-  // would silently discard an earlier block's no-restricted-syntax selectors for any file both
-  // blocks match (see apps/backend/eslint.config.js's TD24-S03 comment for the same trap).
+  // One `no-restricted-syntax` block for every file, then one generated block per distinct set of
+  // reviewed exceptions (`exceptionBlocks()` below). ESLint flat config REPLACES (not merges) a rule's
+  // options when two config objects both set it for the same file, so an exempt file needs its own
+  // complete selector list; the helper computes that list from the file's flags instead of one
+  // hand-written block per combination (see apps/backend/eslint.config.js's TD24-S03 comment for
+  // the same trap).
   {
     files: ['**/*.ts', '**/*.tsx'],
-    ignores: [
-      '**/*.spec.ts',
-      '**/*.spec.tsx',
-      'shared/lib/api/bff-server.ts',
-      ...reviewedRawFetchPaths,
-    ],
+    ignores: ['**/*.spec.ts', '**/*.spec.tsx'],
     rules: {
       'no-restricted-syntax': ['error', RAW_FETCH_SELECTOR, ...NON_FETCH_SELECTORS],
     },
   },
-  // A reviewed raw-fetch-web exception exempts a file from the fetch ban ONLY — `ignores` above
-  // applies to the whole block above, not to a single selector, so without this second block the
-  // 10 reviewed files (including app/v1/[...path]/route.ts and features/booking/api/public.ts)
-  // would also silently lose the locale/CSSProperties/Zod bans, which nobody reviewed an
-  // exception for (CodeRabbit review, PR #375). Self-sufficient tier, same pattern as above.
-  {
-    files: reviewedRawFetchPaths.filter((path) => !isRawFormControlExempt(path)),
-    ignores: ['**/*.spec.ts', '**/*.spec.tsx'],
-    rules: {
-      'no-restricted-syntax': ['error', ...NON_FETCH_SELECTORS],
-    },
-  },
-  // A reviewed raw-fetch file that is also a raw-control-exempt path (a branded hotsite file) needs
-  // both tiers' omissions at once: the same list minus the raw-control selectors (TD58-S10).
-  {
-    files: reviewedRawFetchPaths.filter(isRawFormControlExempt),
-    ignores: ['**/*.spec.ts', '**/*.spec.tsx'],
-    rules: {
-      'no-restricted-syntax': [
-        'error',
-        ...NON_FETCH_SELECTORS.filter((entry) => !RAW_FORM_CONTROL_SELECTORS.includes(entry)),
-      ],
-    },
-  },
-  // The files allowed to name the image-host variable keep every other ban: a later block REPLACES
-  // the earlier one's selector list for the files it matches, so this one restates the list minus
-  // IMAGE_BASE_URL_SELECTOR (and keeps the raw-fetch ban, which none of these files is reviewed to
-  // skip).
-  {
-    files: imageBaseUrlAllowedPaths,
-    ignores: ['**/*.spec.ts', '**/*.spec.tsx'],
-    rules: {
-      'no-restricted-syntax': [
-        'error',
-        RAW_FETCH_SELECTOR,
-        ...NON_FETCH_SELECTORS.filter((entry) => entry !== IMAGE_BASE_URL_SELECTOR),
-      ],
-    },
-  },
-  // The two shared message components write the role; every other ban still applies to them, so
-  // this block restates the list minus FEEDBACK_ROLE_SELECTOR (a later block REPLACES the earlier
-  // one's selector list for the files it matches).
-  {
-    files: feedbackRoleAllowedPaths,
-    ignores: ['**/*.spec.ts', '**/*.spec.tsx'],
-    rules: {
-      'no-restricted-syntax': [
-        'error',
-        RAW_FETCH_SELECTOR,
-        ...NON_FETCH_SELECTORS.filter(
-          (entry) =>
-            entry !== FEEDBACK_ROLE_SELECTOR && !RAW_FORM_CONTROL_SELECTORS.includes(entry),
-        ),
-      ],
-    },
-  },
-  // TD58-S10: the primitives and the branded trees draw raw controls by design. Same replace-not-
-  // merge rule as the blocks above, so this one restates the list minus the raw-control selectors.
-  // The two feedback components and the reviewed raw-fetch files keep their own blocks above, each
-  // of which already omits the raw-control selectors where this block would.
-  {
-    files: rawFormControlExemptPaths,
-    ignores: [
-      '**/*.spec.ts',
-      '**/*.spec.tsx',
-      ...feedbackRoleAllowedPaths,
-      ...reviewedRawFetchPaths,
-    ],
-    rules: {
-      'no-restricted-syntax': [
-        'error',
-        RAW_FETCH_SELECTOR,
-        ...NON_FETCH_SELECTORS.filter((entry) => !RAW_FORM_CONTROL_SELECTORS.includes(entry)),
-      ],
-    },
-  },
-  // TD58-S13: the bespoke raw-button files lose the button ban only. A later block replaces the
-  // earlier one's selector list for the files it matches, so this one restates the list minus
-  // RAW_BUTTON_SELECTOR and keeps the other raw-control bans (and the raw-fetch ban).
-  {
-    files: rawButtonExemptPaths,
-    ignores: [
-      '**/*.spec.ts',
-      '**/*.spec.tsx',
-      ...feedbackRoleAllowedPaths,
-      ...reviewedRawFetchPaths,
-    ],
-    rules: {
-      'no-restricted-syntax': [
-        'error',
-        RAW_FETCH_SELECTOR,
-        ...NON_FETCH_SELECTORS.filter((entry) => entry !== RAW_BUTTON_SELECTOR),
-      ],
-    },
-  },
-  // The number-input primitive loses the numeric-Input ban only. It sits in
-  // shared/components/ui/**, so it also keeps the raw-control exemption: a later block replaces the
-  // earlier one's selector list, so this one restates the list minus both.
-  {
-    files: numberInputExemptPaths,
-    ignores: ['**/*.spec.ts', '**/*.spec.tsx'],
-    rules: {
-      'no-restricted-syntax': [
-        'error',
-        RAW_FETCH_SELECTOR,
-        ...NON_FETCH_SELECTORS.filter(
-          (entry) => entry !== NUMBER_INPUT_SELECTOR && !RAW_FORM_CONTROL_SELECTORS.includes(entry),
-        ),
-      ],
-    },
-  },
-  // TD51-S05: the reviewed secondary-surface files lose that ban only. A later block replaces the
-  // earlier one's selector list, so each restates the list minus SECONDARY_SURFACE_SELECTOR. The
-  // files under a raw-control-exempt folder (shells/hotsite/**, shared/components/hotsite/**) also
-  // lose the raw-control selectors, as their folder's block does; the rest keep them.
-  {
-    files: secondarySurfaceExemptPaths.filter(isRawFormControlExempt),
-    ignores: [
-      '**/*.spec.ts',
-      '**/*.spec.tsx',
-      ...feedbackRoleAllowedPaths,
-      ...reviewedRawFetchPaths,
-    ],
-    rules: {
-      'no-restricted-syntax': [
-        'error',
-        RAW_FETCH_SELECTOR,
-        ...NON_FETCH_SELECTORS.filter(
-          (entry) =>
-            entry !== SECONDARY_SURFACE_SELECTOR && !RAW_FORM_CONTROL_SELECTORS.includes(entry),
-        ),
-      ],
-    },
-  },
-  {
-    files: secondarySurfaceExemptPaths.filter((path) => !isRawFormControlExempt(path)),
-    ignores: [
-      '**/*.spec.ts',
-      '**/*.spec.tsx',
-      ...feedbackRoleAllowedPaths,
-      ...reviewedRawFetchPaths,
-    ],
-    rules: {
-      'no-restricted-syntax': [
-        'error',
-        RAW_FETCH_SELECTOR,
-        ...NON_FETCH_SELECTORS.filter((entry) => entry !== SECONDARY_SURFACE_SELECTOR),
-      ],
-    },
-  },
-  // A secondary-surface file that is also a reviewed raw-fetch file and a raw-control-exempt path
-  // (HotsiteAuthBar.tsx) needs all three omissions at once: no fetch ban, no raw-control bans and
-  // no secondary-surface ban.
-  {
-    files: secondarySurfaceExemptPaths.filter(
-      (path) => reviewedRawFetchPaths.includes(path) && isRawFormControlExempt(path),
-    ),
-    ignores: ['**/*.spec.ts', '**/*.spec.tsx', ...feedbackRoleAllowedPaths],
-    rules: {
-      'no-restricted-syntax': [
-        'error',
-        ...NON_FETCH_SELECTORS.filter(
-          (entry) =>
-            entry !== SECONDARY_SURFACE_SELECTOR && !RAW_FORM_CONTROL_SELECTORS.includes(entry),
-        ),
-      ],
-    },
-  },
+  ...exceptionBlocks(),
   // TD58-S14: a hooks/ or model/ file is a logic layer and does not import from any components/
   // directory (a type or helper both sides need lives in model/; a provider value is passed in by
   // the component). `no-restricted-imports` is its own rule key, so unlike the no-restricted-syntax

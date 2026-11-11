@@ -134,4 +134,14 @@ describe('IntakeQuestionField readable colours (TD51-S05)', () => {
     expect(input.style.color).toBe('var(--ba-secondary-text)');
     expect(input.className).toContain('--ba-secondary-muted');
   });
+
+  it('draws the free-text textarea with the derived field edge', () => {
+    renderWithIntl(
+      <IntakeQuestionField question={text(true)} value="" hasError={false} onChange={vi.fn()} />,
+    );
+
+    expect(screen.getByRole('textbox', { name: /Objetivo/ }).style.borderColor).toBe(
+      'var(--ba-field-border)',
+    );
+  });
 });

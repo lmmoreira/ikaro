@@ -1,11 +1,8 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { BRANDED_FIELD_INVALID_CLASS } from '@/shared/components/hotsite/branded-field-feedback';
-import {
-  BRANDED_FIELD_PLACEHOLDER_CLASS,
-  brandedFieldStyle,
-} from '@/shared/components/hotsite/branded-field-style';
+import { brandedFieldStyle } from '@/shared/components/hotsite/branded-field-style';
+import { BrandedInput } from '@/shared/components/hotsite/branded-input';
 import { buildContactPhone } from '@/shared/utils/contact-phone';
 import {
   formatPhoneForDisplay,
@@ -17,11 +14,6 @@ export type ErrorField = 'name' | 'email' | 'phone';
 export interface FieldError {
   readonly field: ErrorField;
   readonly message: string;
-}
-
-function inputClass(base: string, isInvalid: boolean): string {
-  const withPlaceholder = `${base} ${BRANDED_FIELD_PLACEHOLDER_CLASS}`;
-  return isInvalid ? `${withPlaceholder} ${BRANDED_FIELD_INVALID_CLASS}` : withPlaceholder;
 }
 
 interface ContactInfoFieldsProps {
@@ -66,7 +58,7 @@ export function ContactInfoFields({
         >
           {t('personalInfo.nameLabel')}
         </label>
-        <input
+        <BrandedInput
           id="contact-name"
           type="text"
           required
@@ -74,9 +66,8 @@ export function ContactInfoFields({
           value={contactName}
           onChange={(e) => onContactNameChange(e.target.value)}
           ref={registerField?.('name')}
-          className={inputClass('w-full border px-3 py-2', fieldError?.field === 'name')}
-          style={brandedFieldStyle({ invalid: fieldError?.field === 'name' })}
-          aria-invalid={fieldError?.field === 'name' ? true : undefined}
+          className="w-full px-3 py-2"
+          invalid={fieldError?.field === 'name'}
           aria-describedby={fieldError?.field === 'name' ? describedBy : undefined}
         />
       </div>
@@ -89,7 +80,7 @@ export function ContactInfoFields({
         >
           {t('personalInfo.emailLabel')}
         </label>
-        <input
+        <BrandedInput
           id="contact-email"
           type="email"
           required
@@ -97,9 +88,8 @@ export function ContactInfoFields({
           value={contactEmail}
           onChange={(e) => onContactEmailChange(e.target.value)}
           ref={registerField?.('email')}
-          className={inputClass('w-full border px-3 py-2', fieldError?.field === 'email')}
-          style={brandedFieldStyle({ invalid: fieldError?.field === 'email' })}
-          aria-invalid={fieldError?.field === 'email' ? true : undefined}
+          className="w-full px-3 py-2"
+          invalid={fieldError?.field === 'email'}
           aria-describedby={fieldError?.field === 'email' ? describedBy : undefined}
         />
       </div>
@@ -123,7 +113,7 @@ export function ContactInfoFields({
           >
             {phonePrefix}
           </span>
-          <input
+          <BrandedInput
             id="contact-phone"
             type="tel"
             inputMode="numeric"
@@ -141,12 +131,9 @@ export function ContactInfoFields({
               onContactPhoneChange(buildContactPhone(input, phonePrefix));
             }}
             ref={registerField?.('phone')}
-            className={inputClass('min-w-0 flex-1 border px-3 py-2', fieldError?.field === 'phone')}
-            style={{
-              ...brandedFieldStyle({ invalid: fieldError?.field === 'phone' }),
-              borderRadius: '0 var(--ba-radius) var(--ba-radius) 0',
-            }}
-            aria-invalid={fieldError?.field === 'phone' ? true : undefined}
+            className="min-w-0 flex-1 px-3 py-2"
+            style={{ borderRadius: '0 var(--ba-radius) var(--ba-radius) 0' }}
+            invalid={fieldError?.field === 'phone'}
             aria-describedby={fieldError?.field === 'phone' ? describedBy : undefined}
           />
         </div>

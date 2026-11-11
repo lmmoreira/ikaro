@@ -156,6 +156,10 @@ export function applyBranding(branding: HotsiteBrandingResponse): React.CSSPrope
 }
 ```
 
+### Derived secondary-surface and field tokens
+
+`applyBranding()` also derives the tokens a surface painted with `--ba-secondary` and the form controls on the page need, so no component chooses a colour for them: `--ba-secondary-text` (text readable on the secondary colour), `--ba-secondary-accent` (a label or accent), `--ba-secondary-muted` (a placeholder or secondary line, 4.5:1) and, from TD51-S06, `--ba-field-border`. `--ba-field-border` is the border of a branded input, textarea or select: `deriveFieldBorder(backgroundColor, secondaryColor, textColor)` walks 21 steps from the page colour towards the text colour and keeps the first step that reaches 3:1 against both the page and the field's fill (WCAG 1.4.11); when the text colour cannot do it (text close to the page, or equal to the secondary colour) it also tries black and white and keeps the best, so a normal palette gets a tinted edge and only a broken one gets a plain grey. All four are derived: no editor field, stored value, schema or API change, and the editor preview gets them through `applyBranding()`. `BrandedInput`, `BrandedTextarea` and `BrandedSelect` (`shared/components/hotsite/`) consume them (`docs/ENGINEERING_RULES_FRONTEND.md` § The `--ba-*` exception).
+
 ### Button Color Tokens
 
 `applyBranding()` also derives four button tokens — `--ba-btn-bg`, `--ba-btn-text`, `--ba-btn-border`, `--ba-btn-hover-bg` — from `buttonStyle`, plus two **optional** overrides, `buttonBackgroundColor` and `buttonTextColor` (both hex). When both are unset, the output is exactly the `buttonStyle`-only derivation below.

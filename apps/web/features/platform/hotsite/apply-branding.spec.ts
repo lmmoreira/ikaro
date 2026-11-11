@@ -9,6 +9,7 @@ import {
   deriveSecondaryMuted,
   deriveSectionTokens,
 } from './apply-branding';
+import { deriveFieldBorder } from './field-border';
 
 type CSSTokens = Record<string, string>;
 
@@ -504,5 +505,26 @@ describe('--ba-secondary-muted', () => {
       makeBranding({ secondaryColor: '#26372F', textColor: '#26372F' }),
     ) as CSSTokens;
     expect(contrastRatio('#26372F', tokens['--ba-secondary-muted'])).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+describe('--ba-field-border', () => {
+  it('is derived from the page, secondary and text colours and reaches 3:1 over both surfaces', () => {
+    const branding = makeBranding({ backgroundColor: '#FFFFFF', secondaryColor: '#EFF6FF' });
+    const tokens = applyBranding(branding) as CSSTokens;
+
+    expect(tokens['--ba-field-border']).toBe(
+      deriveFieldBorder(branding.backgroundColor, branding.secondaryColor, branding.textColor),
+    );
+    expect(contrastRatio(tokens['--ba-field-border'], '#FFFFFF')).toBeGreaterThanOrEqual(3);
+    expect(contrastRatio(tokens['--ba-field-border'], '#EFF6FF')).toBeGreaterThanOrEqual(3);
+  });
+
+  it('is derived only: the same palette always gives the same value', () => {
+    const branding = makeBranding();
+
+    expect((applyBranding(branding) as CSSTokens)['--ba-field-border']).toBe(
+      (applyBranding(branding) as CSSTokens)['--ba-field-border'],
+    );
   });
 });

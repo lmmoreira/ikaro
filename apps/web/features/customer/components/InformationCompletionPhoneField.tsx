@@ -1,15 +1,8 @@
 import type React from 'react';
 import { buildContactPhone } from '@/shared/utils/contact-phone';
-import {
-  BRANDED_FIELD_INVALID_CLASS,
-  BrandedFieldFeedback,
-} from '@/shared/components/hotsite/branded-field-feedback';
-import { BRANDED_FEEDBACK_PALETTE } from '@/shared/components/hotsite/branded-feedback-palette';
-import {
-  BRANDED_FIELD_PLACEHOLDER_CLASS,
-  brandedFieldStyle,
-} from '@/shared/components/hotsite/branded-field-style';
-import { cn } from '@/shared/utils/cn';
+import { BrandedFieldFeedback } from '@/shared/components/hotsite/branded-field-feedback';
+import { brandedFieldStyle } from '@/shared/components/hotsite/branded-field-style';
+import { BrandedInput } from '@/shared/components/hotsite/branded-input';
 import {
   formatPhoneForDisplay,
   phonePlaceholder,
@@ -53,7 +46,7 @@ export function InformationCompletionPhoneField({
         >
           {phonePrefix}
         </span>
-        <input
+        <BrandedInput
           id="information-completion-phone"
           type="tel"
           inputMode="numeric"
@@ -65,17 +58,10 @@ export function InformationCompletionPhoneField({
             const input = sanitizePhoneInput(e.target.value, phonePrefix);
             onChangeLocalDigits(buildContactPhone(input, phonePrefix));
           }}
-          className={cn(
-            'min-w-0 flex-1 border px-3 py-2',
-            BRANDED_FIELD_PLACEHOLDER_CLASS,
-            error && BRANDED_FIELD_INVALID_CLASS,
-          )}
+          className="min-w-0 flex-1 px-3 py-2"
           {...inputProps}
-          style={{
-            ...brandedFieldStyle(),
-            borderRadius: '0 var(--ba-radius) var(--ba-radius) 0',
-            borderColor: error ? BRANDED_FEEDBACK_PALETTE.error.border : 'var(--ba-secondary)',
-          }}
+          style={{ borderRadius: '0 var(--ba-radius) var(--ba-radius) 0' }}
+          invalid={!!error}
         />
       </div>
       {error && (

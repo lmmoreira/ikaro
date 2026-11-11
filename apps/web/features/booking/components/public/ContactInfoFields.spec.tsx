@@ -137,4 +137,23 @@ describe('ContactInfoFields readable colours (TD51-S05)', () => {
       expect(screen.getByTestId(testId).className).toContain('--ba-secondary-muted');
     }
   });
+
+  it('draws the name, email and phone inputs and the prefix with the derived field edge', () => {
+    renderWithIntl(
+      <ContactInfoFields
+        contactName=""
+        contactEmail=""
+        contactPhone=""
+        phonePrefix="+55"
+        fieldError={null}
+        onContactNameChange={vi.fn()}
+        onContactEmailChange={vi.fn()}
+        onContactPhoneChange={vi.fn()}
+      />,
+    );
+
+    for (const testId of ['input-name', 'input-email', 'input-phone', 'phone-prefix']) {
+      expect(screen.getByTestId(testId).style.borderColor).toBe('var(--ba-field-border)');
+    }
+  });
 });

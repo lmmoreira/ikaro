@@ -9,6 +9,7 @@ import { useVariableDurationStep } from '@/features/booking/hooks/useVariableDur
 import type { StepError } from '@/features/booking/hooks/useBookingFlow';
 import type { ChosenDuration } from '@/features/booking/model/basket-lines';
 import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feedback-message';
+import { BrandedSelect } from '@/shared/components/hotsite/branded-select';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 
@@ -104,17 +105,12 @@ export function VariableDurationStep({
           >
             {t('duration.label')}
           </label>
-          <select
+          <BrandedSelect
             id="booking-duration"
             data-testid="duration-select"
             value={duration?.minutes ?? ''}
             onChange={(event) => onChooseDuration(Number(event.target.value))}
-            className="w-full border px-3 py-2.5"
-            style={{
-              ...cardStyle,
-              backgroundColor: 'var(--ba-background)',
-              color: 'var(--ba-text)',
-            }}
+            className="w-full px-3 py-2.5"
           >
             {duration === null && (
               <option value="" disabled>
@@ -126,7 +122,7 @@ export function VariableDurationStep({
                 {formatDuration(minutes)}
               </option>
             ))}
-          </select>
+          </BrandedSelect>
           {min !== null && max !== null && step !== null && (
             <p className="mt-2 text-sm opacity-75" style={{ color: 'var(--ba-text)' }}>
               {t('duration.rangeHint', {
