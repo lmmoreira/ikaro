@@ -656,7 +656,7 @@ Create the two Billing roots exactly as `docs/DOMAIN_MODEL.md` specifies. **`Sub
 
 ---
 
-### M25-S09 — Provisioning registrations — `POST /internal/billing/registrations` (UC-110)
+### M25-S09 — Provisioning registrations — `POST /internal/billing/registrations` (UC-110) ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** M
