@@ -39,7 +39,7 @@ export interface ReserveSignupRegistrationUseCaseResult {
 /**
  * Reserves the provisioning registration (UC-110, UC-127). `SELF_SIGNUP` runs the trial-eligibility
  * check under lock B-A1 and inserts nothing when it fails; `OPERATOR` skips both the lock and the
- * check (a trusted, exception path with no Google `sub` to protect) and always gets a fresh row.
+ * check (a trusted caller with no Google `sub` to protect) and always gets a fresh row.
  * Nothing here publishes an event: the Google `sub`, tax id and terms stay in the registration.
  */
 @Injectable()

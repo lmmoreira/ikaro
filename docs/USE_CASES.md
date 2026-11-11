@@ -3327,7 +3327,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 - **Preconditions:** None.
 - **Trigger:** The hourly trigger.
 - **Main Flow:**
-   1. **Provisioning repair:** tenants older than `PROVISIONING_GRACE_MINUTES` with no subscription get their trial created through the UC-110 use case (idempotent), reading `country_code`, `timezone`, `slug` and `created_at` through the narrow read-only tenant-info port.
+   1. **Provisioning repair:** tenants older than `PROVISIONING_GRACE_MINUTES` with no subscription get their trial created through the UC-110 use case (idempotent), reading `country_code`, `timezone`, `slug` and `created_at` through the narrow read-only tenant-info port. The repaired trial has no registration, so it is a default trial: no tax id and not exempt (the exempt intent lives on the registration, which the repair cannot locate from the tenant alone); a tenant that was meant to be exempt is fixed with UC-137.
    2. **Provider health:** check each provider's webhook state through its API; a paused or disabled webhook raises the billing alert and is re-enabled once through the API (`PUT interrupted: false`); the alert is closed only after a webhook delivery succeeds after the call, never because the flag was cleared (`docs/ASAAS_PROVIDER.md` § 4). Record the result in `billing.provider_health`.
    3. **Suspension freeze:** if reconcile has not succeeded for 24 hours, or the provider is unreachable, `freeze_active` is set and the status sweep (UC-115) suspends nobody; it clears itself after the next successful reconcile. Tenants are never locked out because Ikaro or the provider was down, so no operator grace is needed.
 - **Alternative Flows:**

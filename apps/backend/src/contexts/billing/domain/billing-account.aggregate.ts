@@ -44,9 +44,11 @@ export interface CreateBillingAccountInput {
   tenantId: string;
   countryCode: CountryCode;
   taxId: TaxIdInput;
-  // Whether a missing tax id is refused where the country requires one (BR). The caller sets it to
-  // `!exempt`: an exempt tenant is never charged, so it holds none. The aggregate does not know
-  // the subscription's `exempt` flag.
+  // Whether a missing tax id is refused where the country requires one (BR). The caller sets it
+  // `true` only where an earlier step already enforced one (a SELF_SIGNUP registration): an
+  // operator's registration may carry none (the operator is trusted, UC-110 A7) and an exempt
+  // tenant is never charged, so both hold none. The aggregate does not know the subscription's
+  // `exempt` flag or the registration's source.
   requireTaxId: boolean;
   legalName?: string | null;
   billingEmail?: Email | null;
