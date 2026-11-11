@@ -41,7 +41,7 @@ flowchart TD
 
     CancelPage -->|"Confirma"| CancelCall(("PATCH /v1/bookings/:id/cancel"))
     CancelCall -->|"200 → status CANCELLED"| Inicio
-    CancelCall -->|"422 fora da janela (APPROVED)"| CancelError["Página de erro dedicada (.../cancel/error):<br/>'Cancelamento fora do prazo'"]
+    CancelCall -->|"422 CANCELLATION_WINDOW_EXPIRED (APPROVED)"| CancelError["Página de erro dedicada (.../cancel/error):<br/>'Cancelamento fora do prazo'"]
 
     class Hotsite,BookingConfirm,Inicio,MinhaConta,Detail,CancelPage,LoyaltyFull,SwitchTenant,NewTenant existing
 ```

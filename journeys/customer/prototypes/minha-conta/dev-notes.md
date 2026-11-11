@@ -30,7 +30,7 @@ On 401 → redirect to `/{slug}/login`.
 | Minha Conta (list) | `GET /v1/bookings` | booking context | The web passes every status explicitly (`ALL_BOOKING_STATUSES`) with `limit=50`, because the BFF default is `PENDING,INFO_REQUESTED` / `limit=20` — split client-side into 3 sections (`customer.server.ts`) |
 | Minha Conta (list) | `GET /v1/loyalty/balance` | loyalty context | **No longer called by the list (2026-10-09):** the compact points strip was removed from Agendamentos — points show on Início and Fidelidade only. The list's page drops this read. |
 | Detail | `GET /v1/bookings/:id` | booking context | Ownership check: backend returns 404 if `customerId ≠ JWT.sub` (deliberate — doesn't reveal booking existence to a non-owner) |
-| Cancel | `PATCH /v1/bookings/:id/cancel` | BFF routes to `/cancel-customer` | 422 if outside the cancellation window (`cancellableUntil`) |
+| Cancel | `PATCH /v1/bookings/:id/cancel` | BFF routes to `/cancel-customer` | 422 `CANCELLATION_WINDOW_EXPIRED` if outside the cancellation window (`cancellableUntil`); other refusals show inline on the confirm page |
 | Info submit (UC-005 A2) | `PATCH /v1/bookings/:id/submit-info` | booking context | Body: `{ response: string (trim, min 1), photoUrls?: string[] }` |
 
 ## Client-side section logic
@@ -60,14 +60,14 @@ const canCancel =
       booking.cancellableUntil !== null &&
       new Date() < new Date(booking.cancellableUntil);
 ```
-When `canCancel === false`: hide button, show note "Prazo encerrado" (i18n key `windowClosed`, pt-BR `web.json`).
+When `canCancel === false`: hide button, show note "Prazo encerrado" (i18n key `customer.bookingItem.windowClosed`, pt-BR `web.json`).
 
 ## Cancel flow (UC-007)
 
 1. Customer clicks "Cancelar" → navigates to the dedicated page `apps/web/app/[slug]/my-account/bookings/[id]/cancel/page.tsx` (`CancelConfirmPage`) — not a bottom sheet (`CancelSheet` is a staff scheduling-exceptions component)
 2. Customer confirms → `PATCH /v1/bookings/:id/cancel`
 3. On 200 → `router.push(returnTo ?? /{slug}/my-account)`: Início by default, which previews only upcoming and pending bookings; the cancelled booking is listed under Histórico on Agendamentos
-4. On 422 → the dedicated error page `.../cancel/error` (`CancelErrorPage`; `03b-cancel-error` prototype)
+4. On `422` `CANCELLATION_WINDOW_EXPIRED` → the dedicated error page `.../cancel/error` (`CancelErrorPage`; `03b-cancel-error` prototype). Any other failure (for example the booking already reached a terminal status) stays on the confirm page with the catalogue message in the action pane, because the deadline page would state a deadline that is not the reason (`CancelConfirmPage.handleConfirm`)
 
 ## Info-submit flow (UC-005 A2)
 
