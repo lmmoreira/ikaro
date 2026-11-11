@@ -41,7 +41,7 @@ A deadlock needs a cycle, so every transaction must take locks in the same order
 | L5 | Booking row | Taken implicitly by the `UPDATE` in `bookingRepo.save()`; no explicit lock exists |
 | L6 | Occupancy rows | `release`, `assign`, `move`; the exclusion constraint M4 waits on a conflicting uncommitted row |
 
-The planned Billing locks (B-A1 → B-R1 → charge rows) form their own ladder and never share a transaction with L0–L6; see "Billing locks" below.
+The Billing locks (B-A1 → B-R1 → charge rows) form their own ladder and never share a transaction with L0–L6; see "Billing locks" below.
 
 **Rules that follow from the order**
 - Several locks of one kind are taken in **one** call with a deterministic order, never one at a time in a loop.
@@ -219,7 +219,7 @@ A test counts as coverage for a lock only if **removing the lock makes it fail**
 | B-R1 subscription row | `typeorm-subscription.repository.integration` › `findByTenantIdForUpdate` serialises two concurrent lockers: the second parks on the row lock until the first commits, then sees its committed state (M25-S08) | contract | Yes (mutation-checked in M25-S08: reading the row without `FOR UPDATE` fails it with "no transaction ever blocked on the row lock") |
 | B-A1 signup registration | `internal-billing-registration.controller.integration` › lock B-A1: two concurrent self-signups of one Google account (the history read slowed so that both would pass without the lock) yield exactly one `trialAvailable: true`; and a reservation parks on the advisory lock behind a holder of the same key until it commits (M25-S09) | contract | Yes (mutation-checked in M25-S09: removing the `lockSignupRegistration` call fails both with two winners and with "no session ever blocked on a advisory lock") |
 
-B-R1 is tested by the row above (two concurrent `findByTenantIdForUpdate()` callers on one subscription serialising; M25 has no payment webhook yet), and B-A1 by the row below it. The other planned Billing locks (B-P1, B-Q1) have no test yet; the story that implements each names its test here and runs the mutation check (§7 step 8) — for B-R1 the discriminating suspend-versus-payment race (a payment webhook racing the status sweep, the paid state must win) lands in M26; for B-A1 two concurrent signups of one Google `sub`; for B-P1 two concurrent price applies on one country serialise and the second is rejected with `409 BILLING_PRICE_BATCH_CHANGED` (M26-S38).
+B-R1 is tested by the row above (two concurrent `findByTenantIdForUpdate()` callers on one subscription serialising; M25 has no payment webhook yet), and B-A1 by the row below it. The other planned Billing locks (B-P1, B-Q1) have no test yet; the story that implements each names its test here and runs the mutation check (§7 step 8) — for B-R1 the discriminating suspend-versus-payment race (a payment webhook racing the status sweep, the paid state must win) lands in M26; for B-P1 two concurrent price applies on one country serialise and the second is rejected with `409 BILLING_PRICE_BATCH_CHANGED` (M26-S38).
 
 Known gaps: R1 (no test can tell the read lock from the writer's own `UPDATE`), and the removal path of A1 (not mutation-checked). Q1, M4 and M5 rely on existing tests that were not re-checked here; the A4 and A5 race tests turned out not to prove their locks, so those three may be the same.
 

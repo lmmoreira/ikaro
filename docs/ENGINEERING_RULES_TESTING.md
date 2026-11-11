@@ -154,6 +154,8 @@ Extract one cleanup helper covering every fixture tenant in FK-safe order; call 
 
 **TD08 AUD-045 precedent, PR #484, 2026-09-16:** a 3-tenant fixture's `afterAll` only cleaned 2 tenants' child rows; the third's FK violation aborted cleanup, and the reused CI container carried that into a later run, which failed a content assertion instead. Passed 3/3 locally; failed 2/2 on CI before the fix.
 
+**The mirror case: a table with no tenant to scope by (`billing.signup_registrations`, whose `tenant_id` is NULL until completion) must be cleaned by the spec's own rows only.** A teardown that deletes by a value other specs also use (a shared tax id, every row of a `source`, "rows created in the last N minutes") deletes another suite's rows when suites share a container or run in parallel. Track the ids the spec was handed back, or give each test a freshly generated unique key (a random Google `sub`, a generated tax id), and delete exactly those; assert on those ids, never on a table-wide count. M25-S09, PR #765 round 1: Codex raised the shared-CPF and recent-OPERATOR-row teardown as Important, and the repository spec had the same flaw.
+
 
 ## An E2E helper that picks a date N days ahead must navigate months until the day cell is visible
 
