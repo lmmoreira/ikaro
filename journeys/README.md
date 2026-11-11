@@ -504,7 +504,7 @@ It must also include a "what this prototype validates" block — 4–6 specific 
 
 ## Part 3 — Workflow (end to end)
 
-1. Run `/docs-audit` on the relevant UCs.
+1. Run `/docs-audit` on the relevant UCs. When a story edits specific existing journeys, the clean baseline is `/docs-audit` scoped to those journey paths (for example `staff/agenda,customer/minha-conta`), which already pulls in `journeys/shared/`. It is not the whole actor folder, which holds 100+ files and would bury the journeys the story touches (TD51-S04).
 2. Write the journey `.md` file — mermaid flow, pages table, gaps.
 3. Update `use-cases.md` — set "Journey file" column.
 4. Update `README.md` Index table.

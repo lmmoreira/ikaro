@@ -364,6 +364,7 @@ Runs automatically on `git push`. Fix these before re-pushing.
 | Jest `Cannot find module` | Wrong relative path depth | Count the `../` levels from the spec file location |
 | `[doc-link-integrity] § heading does not resolve` on a **source file** (not a doc) | A `§ Heading` citation of a doc, inside a string or comment, must match the heading text exactly; the check also scans string literals, and a heading containing backticks cannot be written inside a template literal (it ends the string and the file stops parsing) | Cite the exact heading in a comment above the code, and keep the runtime message to the plain file path |
 | Type error on `complement` field | VO expects `string \| undefined`, DTO has `string \| null \| undefined` | Normalise with `?? undefined` at the VO call site |
+| `Test Suites: N failed` while every executed test passed, with `A jest worker process was terminated by another process: signal=SIGTERM` | Two heavy pre-push hooks ran at once on the same host (two agent sessions pushing together): `earlyoom` sees the memory spike and SIGTERMs the Jest workers. `/tmp` is a tmpfs here, so the Jest cache (`/tmp/jest_rs`) counts as RAM too. It is not a test failure | `pgrep -af ci:fast` to see the other hook, wait on that PID (never a `pgrep -f` loop), `rm -rf /tmp/jest_rs`, then push again on its own. Kill only a hook tree you started, by PID. Never `--no-verify` |
 
 ---
 
