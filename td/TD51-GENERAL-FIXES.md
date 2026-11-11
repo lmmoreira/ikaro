@@ -490,6 +490,68 @@ A branded tenant gets one pattern for every surface painted with its secondary c
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean (including `SECONDARY_SURFACE_SELECTOR` over the whole of `apps/web`, proving no raw secondary surface remains)
 
+### Story 6 — Give branded form controls an edge that never disappears: a derived field border and BrandedInput / BrandedTextarea / BrandedSelect 🔴
+
+**Agent:** frontend-ts
+**Complexity:** L
+**Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md` § The `--ba-*` exception, § Reuse the repo's UI primitives and § UI layer model; `docs/ENGINEERING_RULES_SHARED.md` § `no-restricted-syntax` selectors must be checked against the 3 already-documented bypass classes; `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § Branding & Design Token System; `docs/TESTING_STRATEGY.md` § apps/web Testing Infrastructure; `docs/CODE_STANDARDS.md`
+**Dependencies:** Story 5 (✅ Done: `brandedFieldStyle`, `BRANDED_FIELD_PLACEHOLDER_CLASS`, `BrandedMutedText`, `secondarySurfaceExemptPaths`, the derived `--ba-secondary-*` tokens)
+**Pattern:** Design-system atoms over one derived token, with a lint-enforced entry point: the same shape as Story 5's `BrandedPanel` + `SECONDARY_SURFACE_SELECTOR` and TD57's `BrandedFeedbackMessage`. Plain composition otherwise.
+**Discovered:** 2026-11-11, measuring the real catalogue palettes while reviewing Story 5.
+**Root cause:** every branded field is drawn with `--ba-secondary` as fill and `--ba-secondary` as border (`brandedFieldStyle`), on a page painted `--ba-background`. The secondary colour is almost the page colour: `beloauto` 1.12:1, `casa47` 1.17:1, `mimo-pet` 1.10:1, `clinica-lume` 1.07:1, `lume-studio` 1.09:1 (only `origem` reaches 9.83:1). So on five of six catalogue templates the field's edge is practically invisible (WCAG 1.4.11 asks 3:1 for a control's boundary), and the same defect holds for any tenant whose secondary colour sits near its background. Story 5 fixed the text inside the box; nothing guarantees the box. Each field also re-assembles `className` + `style` by hand in 7 files (the placeholder class, the invalid class, the style), so the next field is another chance to get it wrong.
+
+**Description:**
+A branded form control always has a visible edge and readable text, on any tenant palette.
+
+1. **New derived token `--ba-field-border`.** Computed in `applyBranding()` with the existing `mixHex`/`contrastRatio`: the first of 21 steps from `backgroundColor` towards `textColor` whose colour reaches 3:1 against both `backgroundColor` and `secondaryColor`; if no step reaches both, the step with the greater lower ratio. Derived only: no editor field, no stored value, no schema or API change (the editor preview gets it through `applyBranding()`). No hardcoded hex.
+2. **`brandedFieldStyle`.** The valid-state `borderColor` becomes `var(--ba-field-border)`; the invalid state still drops it so `BRANDED_FIELD_INVALID_CLASS` paints the error border. The phone-prefix spans keep calling `brandedFieldStyle`, so they get the edge too.
+3. **Three atoms in `apps/web/shared/components/hotsite/`:** `BrandedInput`, `BrandedTextarea`, `BrandedSelect` (native `<select>`). Each takes `invalid?`, forwards every other prop and the `ref` (React 19 ref prop), applies `brandedFieldStyle({ invalid })`, merges `BRANDED_FIELD_PLACEHOLDER_CLASS` and, when invalid, `BRANDED_FIELD_INVALID_CLASS` into the caller's `className`, and lets a caller override only `borderRadius` through `style` (the prefix/input pairs). A caller writes `<BrandedInput invalid={…} … />` and no colour or class.
+4. **Convert, in `apps/web`:** `ContactInfoFields.tsx` (3 inputs), `AddressTextField.tsx`, `IntakeAttendeesList.tsx` (name input), `IntakeAnswersStep.tsx` (participant count), `IntakeQuestionField.tsx` (the textarea), `features/customer/components/InformationCompletionPhoneField.tsx`, `SubmitInfoForm.tsx` (the response textarea, today a browser-white box with a faint border), `VariableDurationStep.tsx` (the duration `<select>`, today page-coloured with a faint border). The chatbot input (`shells/hotsite/components/ChatbotPanel.tsx`) only takes `borderColor: var(--ba-field-border)`.
+5. **Lint.** Remove the folder entries `features/booking/components/public/**`, `features/platform/components/public/**`, `shared/components/hotsite/**`, `shells/hotsite/**` and the `InformationCompletionPhoneField.tsx` entry from `rawFormControlExemptPaths` (`apps/web/eslint.config.js`), keep `shared/components/ui/**`, and list by exact path only the files that must keep a native control: the three atoms, `AvailabilityAlertFields.tsx`, `IntakeQuestionField.tsx`, `IntakeAnswersStep.tsx`, `IntakeAttendeesList.tsx` (radios and checkboxes), `PhotoUpload.tsx` (file input), `ResourcePicker.tsx`, `ServiceCard.tsx`, `ContactField.tsx`, `LeadFormPhoneField.tsx`, `LeadFormQuestionField.tsx`, `ChatbotPanel.tsx`. A raw `<input>`, `<textarea>` or `<select>` anywhere else in the branded trees then fails `pnpm lint` and points to the atoms. **Mind the Story 5 blocks:** the `secondarySurfaceExemptPaths` blocks are selected by `isRawFormControlExempt(path)`, and `HotsiteAuthBar.tsx` is in the reviewed-raw-fetch intersection block; removing the `shells/hotsite/**` folder entry changes which block each shell file lands in, so re-derive those blocks and keep `secondary-surface.eslint.spec.ts` green. Same replace-not-merge trap as every earlier selector.
+6. **Out of scope, recorded:**
+   - the lead-form controls (`ContactField`, `LeadFormPhoneField`, `LeadFormQuestionField`): white browser fields with dark text, readable on any palette; making them branded changes how the lead form looks and is a design decision (it needs the validated lead-form prototype updated first);
+   - native checkboxes and radios (the browser draws them with its own colours; an `accent-color` of the tenant primary would add a vanish risk when primary equals the page);
+   - the file input (`PhotoUpload`, visually hidden) and the shared `ui/` Select, Calendar and TimePicker on the availability-alert page (white SaaS widgets, readable, not branded);
+   - the faint secondary borders of option cards and the photo drop zone (decorative; their label identifies them);
+   - an editor warning when a manager picks a text colour equal to the secondary colour.
+
+**Backend HTTP surface:** none.
+**BFF endpoint spec:** none.
+**Prototype references:** discovery names the exact slugs; the screens that draw a branded field are under `journeys/guest/prototypes/{book-a-service,submit-info}/` and `journeys/customer/prototypes/book-a-service/`. The prototypes' field borders must show the new visible edge in the same story (a validated screen cannot keep drawing the invisible one).
+**New migration / i18n keys / env vars / feature flags:** none (no new visible copy).
+
+**Files to create/modify:**
+- `apps/web/shared/components/hotsite/branded-input.tsx` + `.spec.tsx`, `branded-textarea.tsx` + `.spec.tsx`, `branded-select.tsx` + `.spec.tsx` (new; siblings: `branded-panel.tsx` / `branded-muted-text.tsx`)
+- `apps/web/shared/components/hotsite/branded-field-style.ts` + `.spec.ts` (modify)
+- `apps/web/shared/components/hotsite/branded-panel-contrast.spec.ts` (modify; the field-border ratios)
+- `apps/web/features/platform/hotsite/apply-branding.ts` + `.spec.ts` (modify; `--ba-field-border`)
+- The 8 conversions and the chatbot input above + their existing `.spec.tsx` (modify)
+- `apps/web/eslint.config.js` (modify; `rawFormControlExemptPaths` and the Story 5 exempt blocks) + `apps/web/shared/lib/eslint/raw-form-control.eslint.spec.ts` (modify)
+- `journeys/**` prototype fields and `dev-notes.md` for the screens above (modify; slugs fixed in discovery)
+- `docs/ENGINEERING_RULES_FRONTEND.md` § The `--ba-*` exception and its enforcement table, `docs/ANTI_PATTERNS.md` (the raw-control row), `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § Branding & Design Token System, `docs/REPOSITORY_STRUCTURE.md` (the `shared/components/hotsite/` line) (modify; doc gate asked at that step)
+
+**Acceptance criteria — product:**
+- [ ] On every catalogue template (including `beloauto`, `mimo-pet`, `clinica-lume`) and on a palette whose secondary colour equals its background, every branded input, textarea and select shows a visible outline against the page and against its own fill.
+- [ ] Typed text, the placeholder and the unit/prefix stay readable as in Story 5; an invalid field still shows the fixed red outline.
+- [ ] The look stays the tenant's own: fill, radius and text colours are unchanged; the only visible change is the field edge, and it is tenant-derived.
+- [ ] A new branded field written as a raw `<input>`, `<textarea>` or `<select>` fails `pnpm lint` with a message pointing to the atoms.
+- [ ] The manager's editor gains no new field.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] `apply-branding.spec.ts`: `--ba-field-border` reaches 3:1 against the page and the secondary colour for a normal palette, picks the greater lower ratio when no step reaches both, and is deterministic.
+  - [ ] `branded-panel-contrast.spec.ts`: for every catalogue template and the adversarial palettes (secondary equal to the background, equal to the text, white/white, black/black), the border is at least 3:1 against the page and the fill (negative guarantee, own test: the Story 5 secondary border fails 3:1 against the page on `mimo-pet`).
+  - [ ] `branded-input.spec.tsx`, `branded-textarea.spec.tsx`, `branded-select.spec.tsx`: style, merged `className`, forwarded `ref` and `aria-*`, invalid state (no `borderColor`, invalid class), the placeholder class, a caller `style` override of `borderRadius` only, axe clean; negative guarantee, own test: none paints `--ba-text` or `--ba-primary` as a colour.
+  - [ ] One assertion per converted component that it renders the atom and carries the field border; the chatbot input carries `var(--ba-field-border)`.
+  - [ ] ESLint spec: a raw `<input>`, `<textarea>` and `<select>` are flagged in `features/booking/components/public`, `features/platform/components/public`, `features/customer/components` and `shells/hotsite` (including `createElement` and conditional forms), not in the three atoms or the exact-path files; every other ban stays on those files; `secondary-surface.eslint.spec.ts` stays green (the replace-not-merge proof).
+  - [ ] `hotsite-token-isolation.spec.ts` and `default-branding.spec.ts` stay green.
+- Integration: none (frontend-ts, no integration tier).
+- Tenant isolation: none; pure presentation of already tenant-scoped branding tokens.
+- E2E:
+  - [ ] none new, beyond a regression net: the existing `guest-booking.spec.ts`, `booking-intake.spec.ts`, `guest-submit-info.spec.ts` and the customer information-completion flow run unchanged (their `data-testid`s are kept). Reason for no new test: the contract is a colour ratio, proven exactly at unit tier.
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean (including the tightened `rawFormControlExemptPaths` over the whole of `apps/web`, proving no raw branded control remains outside the exact-path files)
+
 ## Self-dry-run findings
 
 - The two stories are sequenced because Story 1 must present the inheritance-correct effective buffer behavior from Story 0.
@@ -501,3 +563,4 @@ A branded tenant gets one pattern for every surface painted with its secondary c
 - Story 4 (itinerary numbering by leg) is independent of Stories 0–3. Premise verified 2026-11-10: `BookingItineraryCard.tsx:28-34` numbers by `index + 1` and `buildItinerary()` emits one entry per resource assignment, so a 3-leg service with 6 resource rows shows 1–6. Open for discovery: whether the service-name prefix is wanted in multi-service baskets, whether a `journeys/` booking-detail prototype also numbers by row, and whether the seeded E2E journey has a leg with two resources. Renaming the `BookingItineraryLeg` type was deliberately left out (churn across types, BFF and web); a possible follow-up.
 - Story 5 (branded secondary surfaces) is independent of Stories 0–4. Premise verified 2026-11-10: `SubmitInfoForm.tsx:146-164` paints `--ba-secondary` with no text colour; `apply-branding.ts:246-248` already derives `--ba-secondary-text`/`--ba-secondary-accent` but only `shells/hotsite` consumes them; ~12 content-tree sites paint it as a background (5 panels, 7 field files). Mirrors TD57's `BrandedFeedbackMessage` pattern. Open for discovery: which `shells/hotsite` files truly pair the colour with the derived tokens (lint exempt list), placeholder colour, whether a muted-text or border token is needed, the `LeadFormSkeleton` and `TestimonialCard` (`cardBg ?? secondary`) cases, and the exact prototype slugs. Borders on `--ba-secondary` are deliberately out of scope.
 - Story 5 discovery (2026-11-11) corrected the draft: `shells/hotsite` is not wholly safe (`BrandCard` and `TestimonialCard` have the same bug and are converted; the lint exemption is a list of exact paths, not the folder); `TenantOptionRow` has two surfaces, `ContactInfoFields` three, `InformationCompletionPhoneField` two; `module-styles.ts` returns the colour as a bare string the rule cannot see (known limit). Decisions: the placeholder is fixed in this story through a new derived token `--ba-secondary-muted` plus `BRANDED_FIELD_PLACEHOLDER_CLASS`, applied to every tenant; no new editor field. Recorded follow-up, not in this story: the dashboard editor does not warn a manager who picks a text colour equal to the secondary colour.
+- Story 6 (branded form controls) is independent of Stories 0–4 and builds on Story 5. Premise measured 2026-11-11 over the six catalogue templates: the secondary colour is 1.07 to 1.17:1 against the page in five of them (`origem` is 9.83:1), so a field drawn with a secondary fill and border has a near-invisible edge; the lead-form controls are unstyled browser fields and are deliberately left out. Open for discovery: the exact prototype slugs to redraw, whether `BrandedSelect` should wrap the native `<select>` or only style it, and how the Story 5 `secondarySurfaceExemptPaths` blocks re-derive once the `shells/hotsite/**` raw-control folder entry goes.
