@@ -1,11 +1,7 @@
 import { APP_ENVS, type AppEnv } from '../../../../shared/database/resolve-app-env';
 import { MerchantProfileKeyNotAllowedError } from '../../domain/errors/billing-provider.errors';
 import { MERCHANT_PROFILE_KEYS } from '../../domain/merchant-profile-key';
-import {
-  assertAdapterMayStart,
-  assertMerchantProfileKeyAllowed,
-  providerKeyKind,
-} from './provider-config.guard';
+import { assertMerchantProfileKeyAllowed, providerKeyKind } from './provider-config.guard';
 
 const NON_LIVE = [
   MERCHANT_PROFILE_KEYS.BRL_FAKE,
@@ -65,24 +61,5 @@ describe('assertMerchantProfileKeyAllowed', () => {
     expect(() => assertMerchantProfileKeyAllowed('production', 'BRL_FAKE')).toThrow(
       /BRL_FAKE.*production/,
     );
-  });
-});
-
-describe('assertAdapterMayStart', () => {
-  it.each(NON_PRODUCTION.flatMap((env) => LIVE.map((key) => [env, key] as const)))(
-    'refuses a live adapter outside production (%s, %s)',
-    (env, key) => {
-      expect(() => assertAdapterMayStart(env, key)).toThrow(MerchantProfileKeyNotAllowedError);
-    },
-  );
-
-  it.each(LIVE)('lets a live adapter start in production (%s)', (key) => {
-    expect(() => assertAdapterMayStart('production', key)).not.toThrow();
-  });
-
-  it.each(NON_LIVE)('does not restrict where a fake or sandbox adapter starts (%s)', (key) => {
-    for (const env of APP_ENVS) {
-      expect(() => assertAdapterMayStart(env, key)).not.toThrow();
-    }
   });
 });

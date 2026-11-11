@@ -7,7 +7,7 @@ import type {
 import { ProviderNotSupportedError } from '../../domain/errors/billing-provider.errors';
 import { MERCHANT_PROFILE_KEYS } from '../../domain/merchant-profile-key';
 import { FakeBillingProvider } from './fake-billing.provider';
-import { assertAdapterMayStart, assertMerchantProfileKeyAllowed } from './provider-config.guard';
+import { assertMerchantProfileKeyAllowed } from './provider-config.guard';
 
 export const BILLING_APP_ENV = Symbol('BillingAppEnv');
 
@@ -15,6 +15,9 @@ export const BILLING_APP_ENV = Symbol('BillingAppEnv');
  * Resolves the adapter of a subscription's `merchantProfileKey`. Today only the fake serves
  * `BRL_FAKE`; the Asaas keys arrive with M26 and the Stripe keys, `USD_FAKE` included, with M28.
  * Every other key has no adapter and is refused, never silently served by the fake.
+ *
+ * Every adapter is registered in every environment, so the app always boots. The environment rule
+ * is enforced when a key is looked up, never when the registry is built.
  */
 @Injectable()
 export class BillingProviderRegistry implements BillingProviderRegistryPort {
@@ -25,7 +28,6 @@ export class BillingProviderRegistry implements BillingProviderRegistryPort {
     fake: FakeBillingProvider,
   ) {
     this.adapters = new Map<string, BillingProviderPort>([[MERCHANT_PROFILE_KEYS.BRL_FAKE, fake]]);
-    for (const key of this.adapters.keys()) assertAdapterMayStart(appEnv, key);
   }
 
   resolve(merchantProfileKey: string): BillingProviderPort {

@@ -32,10 +32,3 @@ export function assertMerchantProfileKeyAllowed(appEnv: AppEnv, merchantProfileK
     throw new MerchantProfileKeyNotAllowedError(merchantProfileKey, appEnv);
   }
 }
-
-/** A live adapter refuses to start unless `APP_ENV=production`. */
-export function assertAdapterMayStart(appEnv: AppEnv, merchantProfileKey: string): void {
-  if (providerKeyKind(merchantProfileKey) === 'LIVE' && appEnv !== 'production') {
-    throw new MerchantProfileKeyNotAllowedError(merchantProfileKey, appEnv);
-  }
-}

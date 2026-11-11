@@ -16,6 +16,13 @@ function registryFor(appEnv: 'local' | 'staging' | 'production'): {
 }
 
 describe('BillingProviderRegistry', () => {
+  it.each(['local', 'staging', 'production'] as const)(
+    'is built in %s: the environment rule is enforced on lookup, never at startup',
+    (appEnv) => {
+      expect(() => registryFor(appEnv)).not.toThrow();
+    },
+  );
+
   it.each(['local', 'staging'] as const)('resolves BRL_FAKE to the fake in %s', (appEnv) => {
     const { registry, fake } = registryFor(appEnv);
 
