@@ -1432,7 +1432,7 @@ Immutable tax snapshot, zero or more per US charge: `tenant_id`, `charge_id` (co
 | **INDEX** (standalone) | (received_at) | retention purge (rows older than 30 days) |
 
 ### `billing.signup_registrations` — the provisioning registration
-Created **before** the tenant exists, by every provisioning path (self-signup through BFF orchestration, the operator script through `POST /internal/billing/registrations`, with `source = OPERATOR`); `TenantProvisioned` carries only its `registrationId`, so the Google `sub`, the tax id and the terms never travel through Pub/Sub or the audit log.
+Created **before** the tenant exists, by every provisioning path (self-signup through BFF orchestration, the operator script through `POST /internal/billing/registrations`, with `source = OPERATOR`); `TenantProvisioned` carries only its `registrationId` as the billing reference (it also carries `adminEmail`, the tenant's first manager, as it always did), so the Google `sub`, the tax id and the terms never travel through Pub/Sub or the audit log.
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | UUID | PRIMARY KEY — the reservation id |

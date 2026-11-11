@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Usage: ./provision-tenant.sh <name> <slug> <adminEmail> <country_code> [timezone]
-#          [--exempt] [--tax-id <cpf|cnpj|ein>] [--registration-id <uuid>]
+#          [--exempt] [--tax-id <cpf|cnpj|ein>]
 #
 # Every tenant is provisioned through one pattern: the script first reserves an OPERATOR Billing
 # registration (POST /internal/billing/registrations), which holds the billing intent of the new
@@ -12,9 +12,10 @@ set -euo pipefail
 #   --tax-id           The tenant's tax id (CPF/CNPJ for BR, EIN for the US), validated and held by
 #                      the registration. Optional: the operator is trusted, and a tenant without one
 #                      has the manager type it in the billing page.
-#   --registration-id  Use an already reserved registration instead of reserving a new one (for
-#                      example to retry after a failed tenant call). Not combinable with the two
-#                      flags above: they belong to the registration, which already exists.
+#
+# The registration id always comes from the registrations call's response, so it is valid by
+# construction. If the tenant call fails after the reservation, run the script again: the abandoned
+# RESERVED registration is harmless and is released by the one-hour sweep.
 #
 # Must run from inside the relay VM's own SSH shell (metadata server + ingress:internal).
 # The relay VM service account discovers its project/backend and reads both required secrets
@@ -23,18 +24,17 @@ set -euo pipefail
 
 REGION="${REGION:-southamerica-east1}"
 
-USAGE="Usage: $0 <name> <slug> <adminEmail> <country_code> [timezone] [--exempt] [--tax-id <id>] [--registration-id <uuid>]"
+USAGE="Usage: $0 <name> <slug> <adminEmail> <country_code> [timezone] [--exempt] [--tax-id <id>]"
 
 # Flags may appear anywhere after the four required positionals; the optional fifth positional is
 # the timezone. Everything is validated here, before any network call.
 POSITIONAL=()
 EXEMPT=false
 TAX_ID=""
-REGISTRATION_ID=""
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --exempt) EXEMPT=true; shift ;;
-    --tax-id | --registration-id)
+    --tax-id)
       if [ "$#" -lt 2 ] || [ -z "$2" ]; then
         echo "ERROR: $1 needs a value." >&2
         echo "$USAGE" >&2
@@ -42,7 +42,6 @@ while [ "$#" -gt 0 ]; do
       fi
       case "$1" in
         --tax-id) TAX_ID="$2" ;;
-        --registration-id) REGISTRATION_ID="$2" ;;
       esac
       shift 2
       ;;
@@ -65,13 +64,6 @@ TENANT_SLUG="${POSITIONAL[1]}"
 ADMIN_EMAIL="${POSITIONAL[2]}"
 COUNTRY_CODE="${POSITIONAL[3]}"
 TIMEZONE="${POSITIONAL[4]:-}"
-
-# An existing registration already holds its exempt flag and tax id; passing them again would be
-# silently ignored, so refuse the combination before any call is made.
-if [ -n "$REGISTRATION_ID" ] && { [ "$EXEMPT" = true ] || [ -n "$TAX_ID" ]; }; then
-  echo "ERROR: --registration-id reuses a reserved registration; --exempt and --tax-id belong to the registration, not to this call." >&2
-  exit 1
-fi
 
 meta() {
   curl -sS --fail-with-body -H "Metadata-Flavor: Google" \
@@ -126,8 +118,8 @@ case "$HEALTH" in
 esac
 
 # Every tenant reserves its Billing registration first (it holds the exempt flag and the tax id until
-# the Billing handler builds the account from it). --registration-id reuses an existing one.
-if [ -z "$REGISTRATION_ID" ]; then
+# the Billing handler builds the account from it).
+{
   REG_BODY='{"source":"OPERATOR"'
   if [ "$EXEMPT" = true ]; then
     REG_BODY="${REG_BODY},\"exempt\":true"
@@ -151,7 +143,7 @@ if [ -z "$REGISTRATION_ID" ]; then
     exit 1
   fi
   echo "Registration reserved: $REGISTRATION_ID" >&2
-fi
+}
 
 BODY=$(printf '{"name":"%s","slug":"%s","adminEmail":"%s","country_code":"%s"' \
   "$TENANT_NAME" "$TENANT_SLUG" "$ADMIN_EMAIL" "$COUNTRY_CODE")
@@ -169,10 +161,7 @@ if ! curl -sS --fail-with-body -X POST "$BACKEND_URL/internal/tenants" \
   -H "Content-Type: application/json" \
   -d "$BODY"; then
   echo >&2
-  echo "ERROR: the tenant was not created." >&2
-  # A reserved registration is reusable: fix the input and run again with --registration-id instead
-  # of reserving (and leaving behind) a second one.
-  echo "Registration $REGISTRATION_ID stays reserved: re-run with --registration-id $REGISTRATION_ID" >&2
+  echo "ERROR: the tenant was not created. The registration $REGISTRATION_ID stays RESERVED (released by the one-hour sweep); run the script again." >&2
   exit 1
 fi
 echo

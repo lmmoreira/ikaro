@@ -225,10 +225,14 @@ describe('InternalTenantController (integration)', () => {
     });
 
     it('does not read Billing: an id no registration has is still accepted by this route', async () => {
-      await provision({
+      const unknownId = '00000000-0000-4000-8000-0000000000ff';
+
+      const { body } = await provision({
         slug: 'registered-unknown',
-        registrationId: '00000000-0000-4000-8000-0000000000ff',
+        registrationId: unknownId,
       }).expect(201);
+
+      expect(publishedData(body.tenantId)['registrationId']).toBe(unknownId);
     });
 
     it.each([
