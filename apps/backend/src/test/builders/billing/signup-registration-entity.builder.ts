@@ -24,9 +24,19 @@ export class SignupRegistrationEntityBuilder {
     return this;
   }
 
+  withSource(source: string): this {
+    this.source = source;
+    return this;
+  }
+
+  withStatus(status: string): this {
+    this.status = status;
+    return this;
+  }
+
   /** An `OPERATOR` row has no Google `sub` and no terms. */
   asOperator(): this {
-    this.source = 'OPERATOR';
+    this.withSource('OPERATOR');
     this.googleSub = null;
     this.termsVersion = null;
     this.termsAcceptedAt = null;
@@ -41,7 +51,7 @@ export class SignupRegistrationEntityBuilder {
 
   /** `COMPLETED` rows belong to a tenant and no longer hold the tax id (S11 clears it). */
   completedFor(tenantId: string): this {
-    this.status = 'COMPLETED';
+    this.withStatus('COMPLETED');
     this.tenantId = tenantId;
     this.taxIdType = null;
     this.taxId = null;

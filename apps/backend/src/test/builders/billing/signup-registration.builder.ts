@@ -19,7 +19,7 @@ export class SignupRegistrationBuilder {
     version: '2026-11-01',
     acceptedAt: new Date(Date.now() - 60_000),
   };
-  private createdAt = new Date(Date.now() - 60_000);
+  private readonly createdAt = new Date(Date.now() - 60_000);
 
   withId(id: string): this {
     this.id = id;
