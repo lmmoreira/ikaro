@@ -360,7 +360,7 @@ Not numeric-quantity inputs, so out of scope: phone fields (`type="tel"`, `input
 
 ---
 
-### Story 4 — Number the booking-detail itinerary by leg, not by resource row 🔴
+### Story 4 — Number the booking-detail itinerary by leg, not by resource row 🔴 ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** M
