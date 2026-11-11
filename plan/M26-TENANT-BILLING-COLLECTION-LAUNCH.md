@@ -2062,7 +2062,7 @@ Alert policies (thresholds are module variables, with these defaults, all **coun
 - **Dispute opened:** S04 logs a structured `billing_dispute_opened` line for a chargeback request / dispute (no access change, no new table); one occurrence fires, so an operator can upload evidence in the provider console before its deadline.
 - **Billing job did not run:** for the issue, sweep, reminders and reconcile jobs (all six jobs are created paused in production until S39), a log-absence condition on each job's per-run log line (sweep: 2 h, the daily jobs: 26 h).
 
-The *purge step stuck* policy is M27. A missing price row and a live-adapter misconfiguration have **no alert policy** by design (CI / seed-consistency test and startup catch them).
+The *purge step stuck* policy is M27. A missing price row and a live-adapter misconfiguration have **no alert policy** by design (CI / seed-consistency test and startup catch a missing price row; a wrong merchant profile key throws on lookup and surfaces as an ordinary backend error).
 
 **Weekly KPIs, defined (numbers on the dashboard, never a worklist).** The reconcile **daily pass** (S07) emits one structured line `billing_kpi_daily` with counts; the dashboard widgets read it with log-based metrics, and the one KPI that does not come from it comes from `billing.operator_audit`:
 - *share of charges paid with no manual action* = charges that became `PAID` in the period via webhook / reconcile ÷ charges that became `PAID` (an operator never marks a charge paid, so this is a drift indicator: PAID-by-reconcile ÷ PAID);

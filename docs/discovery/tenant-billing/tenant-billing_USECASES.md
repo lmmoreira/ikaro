@@ -103,7 +103,7 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
   2. **Simulate a provider event:** the fake provider builds the signed webhook for the chosen event (using the verified per-method sequences) and delivers it to the app's own webhook route, optionally duplicated, delayed or out of order, or fails the next provider call (5xx, expired link, invalid location). The normal CAND-09 path processes it; no test-only code path exists in the use cases.
   3. **Seed:** creates one tenant per billing state through the normal use cases.
 - **Alternative Flows:**
-  - **A1: `APP_ENV=production`** → the routes do not exist (404); a live adapter also refuses to start outside production, and a fake/sandbox profile key is rejected at provisioning in production.
+  - **A1: `APP_ENV=production`** → the routes do not exist (404); a live adapter also refuses to start outside production, and a fake/sandbox profile key is rejected at provisioning in production. **[Superseded by M25-S14, 2026-11-11 — no check runs at startup: `BillingProviderRegistry.resolve()` rejects a live key outside production and a fake or sandbox key in production when it is looked up. See `docs/ENGINEERING_RULES_INFRA.md` § Billing configuration (planned).]**
   - **A2: Subscription uses a sandbox or live key** → `simulate` is refused; staging sandboxes are driven through the provider's own sandbox actions.
   - **A3: Missing or wrong operator keys** → `401` like every operator route.
 - **Postconditions:** Billing state changed exactly as the real event would have changed it; nothing was charged and no real communication was sent (Mailhog locally).
