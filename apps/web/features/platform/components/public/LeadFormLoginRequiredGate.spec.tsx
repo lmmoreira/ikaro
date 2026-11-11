@@ -39,5 +39,8 @@ describe('LeadFormLoginRequiredGate readable colours (TD51-S05)', () => {
     const panel = screen.getByText('Entre para responder este formulário').parentElement;
     expect(panel?.style.backgroundColor).toBe('var(--ba-secondary)');
     expect(panel?.style.color).toBe('var(--ba-secondary-text)');
+    const body = screen.getByText(/formulário/, { selector: 'p.leading-relaxed' });
+    expect(body.className).not.toMatch(/opacity/);
+    expect(body.style.color).toBe('var(--ba-secondary-muted, var(--ba-secondary-text))');
   });
 });

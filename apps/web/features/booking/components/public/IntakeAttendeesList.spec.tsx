@@ -106,6 +106,6 @@ describe('IntakeAttendeesList readable colours (TD51-S05)', () => {
 
     const input = screen.getByTestId('intake-attendee-name');
     expect(input.style.color).toBe('var(--ba-secondary-text)');
-    expect(input.className).toContain('--ba-secondary-placeholder');
+    expect(input.className).toContain('--ba-secondary-muted');
   });
 });

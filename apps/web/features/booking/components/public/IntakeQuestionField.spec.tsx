@@ -132,6 +132,6 @@ describe('IntakeQuestionField readable colours (TD51-S05)', () => {
 
     const input = screen.getByRole('textbox', { name: /Objetivo/ });
     expect(input.style.color).toBe('var(--ba-secondary-text)');
-    expect(input.className).toContain('--ba-secondary-placeholder');
+    expect(input.className).toContain('--ba-secondary-muted');
   });
 });

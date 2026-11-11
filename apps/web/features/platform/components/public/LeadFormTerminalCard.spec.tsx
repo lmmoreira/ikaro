@@ -64,5 +64,9 @@ describe('LeadFormTerminalCard readable colours (TD51-S05)', () => {
     const card = screen.getByTestId('lead-form-terminal-card');
     expect(card.style.backgroundColor).toBe('var(--ba-secondary)');
     expect(card.style.color).toBe('var(--ba-secondary-text)');
+    expect(screen.getByText('Corpo').style.color).toBe(
+      'var(--ba-secondary-muted, var(--ba-secondary-text))',
+    );
+    expect(screen.getByText('Corpo').className).not.toMatch(/opacity/);
   });
 });

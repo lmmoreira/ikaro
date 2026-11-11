@@ -36,17 +36,13 @@ const TEMPLATE_BRANDINGS = [...CATALOGUE_TEMPLATE_IDS].map((id) => ({
   branding: buildTemplateManifest(id, 'pt-BR', IDENTITY).branding as HotsiteBrandingResponse,
 }));
 
-function tokens(branding: HotsiteBrandingResponse): Record<string, string> {
-  return applyBranding(branding) as unknown as Record<string, string>;
-}
-
 function expectReadable(branding: HotsiteBrandingResponse): void {
-  const derived = tokens(branding);
+  const derived = applyBranding(branding);
   const surface = branding.secondaryColor;
 
   expect(contrastRatio(surface, derived['--ba-secondary-text'])).toBeGreaterThanOrEqual(AA);
   expect(contrastRatio(surface, derived['--ba-secondary-accent'])).toBeGreaterThanOrEqual(AA);
-  expect(contrastRatio(surface, derived['--ba-secondary-placeholder'])).toBeGreaterThanOrEqual(AA);
+  expect(contrastRatio(surface, derived['--ba-secondary-muted'])).toBeGreaterThanOrEqual(AA);
 }
 
 describe('text, accent and placeholder on the secondary surface', () => {
@@ -70,13 +66,13 @@ describe('text, accent and placeholder on the secondary surface', () => {
     // page `--ba-text` on the secondary colour, and for this tenant that is unreadable.
     expect(contrastRatio(SAME_COLOUR.secondaryColor, SAME_COLOUR.textColor)).toBeLessThan(AA);
     expect(
-      contrastRatio(SAME_COLOUR.secondaryColor, tokens(SAME_COLOUR)['--ba-secondary-text']),
+      contrastRatio(SAME_COLOUR.secondaryColor, applyBranding(SAME_COLOUR)['--ba-secondary-text']),
     ).toBeGreaterThanOrEqual(AA);
   });
 
   it('a palette whose text colour already reads keeps that exact colour', () => {
     const readable = { ...SAME_COLOUR, textColor: '#FFFFFF' };
 
-    expect(tokens(readable)['--ba-secondary-text']).toBe('#FFFFFF');
+    expect(applyBranding(readable)['--ba-secondary-text']).toBe('#FFFFFF');
   });
 });

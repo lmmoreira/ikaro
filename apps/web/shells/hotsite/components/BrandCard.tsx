@@ -1,5 +1,8 @@
 import type React from 'react';
-import { brandedSurfaceStyle } from '@/shared/components/hotsite/branded-surface-style';
+import {
+  BRANDED_MUTED_TEXT,
+  brandedSurfaceStyle,
+} from '@/shared/components/hotsite/branded-surface-style';
 
 interface BrandCardProps {
   readonly name: string;
@@ -31,7 +34,7 @@ export function BrandCard({
       {tagline && (
         <div
           className="mt-2 text-xs uppercase tracking-widest"
-          style={{ opacity: 0.85 }}
+          style={{ color: BRANDED_MUTED_TEXT }}
           data-testid={taglineTestId}
         >
           {tagline}

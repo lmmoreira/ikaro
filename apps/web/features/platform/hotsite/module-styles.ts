@@ -23,15 +23,18 @@ export const sectionHeadingStyle600: React.CSSProperties = {
   fontWeight: 'var(--ba-heading-weight, 600)',
 };
 
+// The `bgVariant` of a flow section: the default surface, or the alternate (secondary) one.
+export type SectionBgVariant = 'default' | 'alt' | undefined;
+
 // The section's own background while `presentation.surface` is unset: the default tenant
 // background, or the secondary one on an alternate section.
-export function legacySectionBackground(bgVariant: 'default' | 'alt' | undefined): string {
+export function legacySectionBackground(bgVariant: SectionBgVariant): string {
   return bgVariant === 'alt' ? 'var(--ba-secondary)' : 'var(--ba-background)';
 }
 
 // Card surface that contrasts with the section: the derived card token when a surface is set,
 // otherwise the opposite tenant surface.
-export function sectionCardBackground(bgVariant: 'default' | 'alt' | undefined): string {
+export function sectionCardBackground(bgVariant: SectionBgVariant): string {
   const legacy = bgVariant === 'alt' ? 'var(--ba-background)' : 'var(--ba-secondary)';
   return `var(--ba-section-card-bg, ${legacy})`;
 }
@@ -40,7 +43,7 @@ export function sectionCardBackground(bgVariant: 'default' | 'alt' | undefined):
 // scoped section text, otherwise the colour that reads on the card's own legacy surface. A default
 // section's card sits on the secondary colour, where the page `--ba-text` can vanish (TD51-S05);
 // an alternate section's card sits on the page background, where `--ba-text` is right.
-export function sectionCardTextColor(bgVariant: 'default' | 'alt' | undefined): string {
+export function sectionCardTextColor(bgVariant: SectionBgVariant): string {
   return bgVariant === 'alt'
     ? sectionTextColor
     : 'var(--ba-section-text, var(--ba-secondary-text))';

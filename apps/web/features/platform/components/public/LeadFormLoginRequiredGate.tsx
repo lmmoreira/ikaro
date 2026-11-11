@@ -1,6 +1,7 @@
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { BrandedPanel } from '@/shared/components/hotsite/branded-panel';
+import { BRANDED_MUTED_TEXT } from '@/shared/components/hotsite/branded-surface-style';
 
 interface LeadFormLoginRequiredGateProps {
   readonly slug: string;
@@ -31,7 +32,9 @@ export function LeadFormLoginRequiredGate({
       <div className="mx-auto max-w-lg px-6 py-12" data-testid="lead-form-login-required">
         <BrandedPanel className="p-6">
           <h1 className="text-xl font-bold">{t('leadForm.loginRequiredTitle')}</h1>
-          <p className="mt-3 leading-relaxed opacity-70">{t('leadForm.loginRequiredBody')}</p>
+          <p className="mt-3 leading-relaxed" style={{ color: BRANDED_MUTED_TEXT }}>
+            {t('leadForm.loginRequiredBody')}
+          </p>
         </BrandedPanel>
         {/* Fixed light-blue callout (matches the prototype's own hardcoded #eff6ff) — its text
             must be a fixed dark color too, not the tenant's --ba-text: a dark-themed tenant's

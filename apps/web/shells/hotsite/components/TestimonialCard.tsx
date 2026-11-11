@@ -60,7 +60,7 @@ export function TestimonialCard({
         />
       )}
       {testimonial.rating && <StarRating rating={testimonial.rating} />}
-      <p className="text-sm italic opacity-90">&ldquo;{testimonial.text}&rdquo;</p>
+      <p className="text-sm italic">&ldquo;{testimonial.text}&rdquo;</p>
       <span className="text-sm font-semibold">{testimonial.authorName}</span>
     </div>
   );

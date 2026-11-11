@@ -111,7 +111,7 @@ export function IntakeAnswersStep({
             <span
               id="intake-participants-unit"
               className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm"
-              style={{ color: 'var(--ba-text)' }}
+              style={{ color: 'var(--ba-secondary-text)' }}
             >
               {tc('units.people')}
             </span>

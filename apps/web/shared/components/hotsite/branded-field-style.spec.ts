@@ -29,7 +29,7 @@ describe('brandedFieldStyle', () => {
   });
 
   it('exports a placeholder class bound to the derived placeholder token', () => {
-    expect(BRANDED_FIELD_PLACEHOLDER_CLASS).toContain('--ba-secondary-placeholder');
+    expect(BRANDED_FIELD_PLACEHOLDER_CLASS).toContain('--ba-secondary-muted');
     expect(BRANDED_FIELD_PLACEHOLDER_CLASS.startsWith('placeholder:')).toBe(true);
     expect(BRANDED_FIELD_PLACEHOLDER_CLASS).not.toContain('--ba-text');
   });

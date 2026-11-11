@@ -21,4 +21,4 @@ export function brandedFieldStyle({
  * softened tint of the readable text colour that still meets AA over the secondary colour.
  */
 export const BRANDED_FIELD_PLACEHOLDER_CLASS =
-  'placeholder:[color:var(--ba-secondary-placeholder,var(--ba-secondary-text))]';
+  'placeholder:[color:var(--ba-secondary-muted,var(--ba-secondary-text))]';

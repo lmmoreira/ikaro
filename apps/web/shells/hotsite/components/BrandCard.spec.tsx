@@ -48,6 +48,11 @@ describe('BrandCard readable colours (TD51-S05)', () => {
     );
 
     expect(container.innerHTML).not.toMatch(/color: var\(--ba-(text|primary)\)/);
-    expect(screen.getByTestId('t').style.color).toBe('');
+    // The tagline uses the derived muted colour, never an opacity on the text colour, which would
+    // push a colour derived to 4.5:1 below it.
+    expect(screen.getByTestId('t').style.color).toBe(
+      'var(--ba-secondary-muted, var(--ba-secondary-text))',
+    );
+    expect(screen.getByTestId('t').style.opacity).toBe('');
   });
 });

@@ -134,7 +134,7 @@ describe('ContactInfoFields readable colours (TD51-S05)', () => {
       expect(screen.getByTestId(testId).style.color).toBe('var(--ba-secondary-text)');
     }
     for (const testId of ['input-name', 'input-email', 'input-phone']) {
-      expect(screen.getByTestId(testId).className).toContain('--ba-secondary-placeholder');
+      expect(screen.getByTestId(testId).className).toContain('--ba-secondary-muted');
     }
   });
 });

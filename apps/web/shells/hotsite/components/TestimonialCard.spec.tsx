@@ -76,6 +76,12 @@ describe('TestimonialCard readable colours (TD51-S05)', () => {
     expect(card.style.color).toBe('var(--ba-section-text, var(--ba-secondary-text))');
   });
 
+  it('draws the quote at full strength, with no opacity that would lower its contrast', () => {
+    renderWithIntl(<TestimonialCard testimonial={makeTestimonial()} />);
+
+    expect(screen.getByText(/Atendimento excelente/).className).not.toMatch(/opacity/);
+  });
+
   it('never paints --ba-text or --ba-primary as the author or quote colour', () => {
     const { container } = renderWithIntl(<TestimonialCard testimonial={makeTestimonial()} />);
 

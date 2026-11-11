@@ -113,6 +113,8 @@ describe('TenantOptionRow readable colours (TD51-S05)', () => {
     expect(row.style.backgroundColor).toBe('var(--ba-secondary)');
     expect(row.style.color).toBe('var(--ba-secondary-text)');
     expect(screen.getByText('Lava Rápido BH').style.color).toBe('var(--ba-secondary-text)');
-    expect(screen.getByText('120 pontos').style.color).toBe('var(--ba-secondary-text)');
+    expect(screen.getByText('120 pontos').style.color).toBe(
+      'var(--ba-secondary-muted, var(--ba-secondary-text))',
+    );
   });
 });

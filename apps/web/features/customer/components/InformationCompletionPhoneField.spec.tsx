@@ -118,7 +118,7 @@ describe('InformationCompletionPhoneField readable colours (TD51-S05)', () => {
 
     const input = screen.getByTestId('information-completion-phone-input');
     expect(input.style.color).toBe('var(--ba-secondary-text)');
-    expect(input.className).toContain('--ba-secondary-placeholder');
+    expect(input.className).toContain('--ba-secondary-muted');
     expect(screen.getByTestId('information-completion-phone-prefix').style.color).toBe(
       'var(--ba-secondary-text)',
     );

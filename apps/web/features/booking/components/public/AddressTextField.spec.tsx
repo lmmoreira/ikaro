@@ -114,6 +114,6 @@ describe('AddressTextField readable colours (TD51-S05)', () => {
     const input = screen.getByLabelText('Rua');
     expect(input.style.color).toBe('var(--ba-secondary-text)');
     expect(input.style.backgroundColor).toBe('var(--ba-secondary)');
-    expect(input.className).toContain('--ba-secondary-placeholder');
+    expect(input.className).toContain('--ba-secondary-muted');
   });
 });
