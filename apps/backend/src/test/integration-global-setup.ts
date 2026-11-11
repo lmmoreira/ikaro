@@ -75,6 +75,9 @@ import { BackfillExemptSubscriptions1748500000041 } from '../contexts/billing/in
 import { AllowEinTaxIdType1748500000042 } from '../contexts/billing/infrastructure/migrations/1748500000042-AllowEinTaxIdType';
 import { FeaturePriceVersionEntity } from '../contexts/billing/infrastructure/entities/feature-price-version.entity';
 import { FeaturePriceEntity } from '../contexts/billing/infrastructure/entities/feature-price.entity';
+import { BillingAccountEntity } from '../contexts/billing/infrastructure/entities/billing-account.entity';
+import { SubscriptionItemEntity } from '../contexts/billing/infrastructure/entities/subscription-item.entity';
+import { SubscriptionEntity } from '../contexts/billing/infrastructure/entities/subscription.entity';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
 import { CreateCustomerCustomers1716600000001 } from '../contexts/customer/infrastructure/migrations/1716600000001-CreateCustomerCustomers';
 import { AddCustomerTenantOAuthUniqueConstraint1748000000002 } from '../contexts/customer/infrastructure/migrations/1748000000002-AddCustomerTenantOAuthUniqueConstraint';
@@ -174,6 +177,9 @@ export default async function globalSetup(): Promise<void> {
       ChatbotProviderBalanceEntity,
       FeaturePriceEntity,
       FeaturePriceVersionEntity,
+      SubscriptionEntity,
+      SubscriptionItemEntity,
+      BillingAccountEntity,
       LeadFormSubmissionEntity,
       LeadFormAnswerEntity,
       ResourceEntity,

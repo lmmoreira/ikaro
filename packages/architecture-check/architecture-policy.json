@@ -705,14 +705,23 @@
         "BookingLineResourceAssignmentEntity",
         "ResourceOccupancyEntity",
         "FeaturePriceEntity",
-        "FeaturePriceVersionEntity"
+        "FeaturePriceVersionEntity",
+        "SubscriptionEntity",
+        "SubscriptionItemEntity",
+        "BillingAccountEntity"
       ],
       "rationale": "General-purpose raw DataSource for integration specs that assert directly against tables. Intentionally omits NotificationTemplateEntity: every spec using this helper reads notification templates through InMemoryNotificationTemplateRepository, never this DataSource. ResourceEntity and the M22-S01 Service child-table entities were added so TypeOrmServiceRepository's own repository-level integration spec can round-trip resourceRequirements/legs/classResourceSlots without the DataSource lacking their metadata. ServiceBookingIntakeSchemaEntity and BookingAttendeeEntity (M22-S02) were added for the same reason, covering the booking-policy/intake-schema tables. BookingLineResourceAssignmentEntity and ResourceOccupancyEntity (M22-S03) were added so the resource-occupancy repository's own integration spec can round-trip the exclusivity-lock tables. RecurringBookingScheduleEntity and its 2 child entities (M23-S04) were added so TypeOrmRecurringBookingScheduleRepository's own repository-level integration spec can round-trip the optimistic-concurrency version column."
     },
     {
       "file": "apps/backend/src/test/utils/billing-integration-app.ts",
       "completeness": "partial",
-      "entities": ["FeaturePriceEntity", "FeaturePriceVersionEntity"],
+      "entities": [
+        "FeaturePriceEntity",
+        "FeaturePriceVersionEntity",
+        "SubscriptionEntity",
+        "SubscriptionItemEntity",
+        "BillingAccountEntity"
+      ],
       "rationale": "Per-context integration app for the Billing context (M25-S04, the first Billing story with entities): it boots only BillingModule and the entities its repositories read. Every later Billing entity story adds its entities here (M25-D7)."
     },
     {
@@ -860,6 +869,102 @@
       "reviewBy": "2026-12-31"
     },
     {
+      "rule": "error-mapper-coverage",
+      "class": "FeatureDependencyUnmetError",
+      "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
+      "rationale": "M25-S08 builds the Subscription and BillingAccount aggregates and their repositories with no HTTP surface, so no endpoint can throw its invariant errors yet. Mapping them now would fix a wire status and code before one exists (codes are additive-only once shipped). The first story whose route can throw this one (M26-S17 plan preview / M26-S19 plan save, BILLING_FEATURE_DEPENDENCY_UNMET) maps it in billing-error.mapper.ts, adds the BillingErrorCode member and both locale entries, and removes this entry.",
+      "owner": "billing",
+      "reviewBy": "2026-12-31"
+    },
+    {
+      "rule": "error-mapper-coverage",
+      "class": "FeatureHasDependentsError",
+      "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
+      "rationale": "Same as FeatureDependencyUnmetError above: no billing HTTP surface can throw it yet; M26-S17/S19 map it (BILLING_FEATURE_HAS_DEPENDENTS) and remove this entry.",
+      "owner": "billing",
+      "reviewBy": "2026-12-31"
+    },
+    {
+      "rule": "error-mapper-coverage",
+      "class": "PlanEmptyError",
+      "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
+      "rationale": "Same as FeatureDependencyUnmetError above: no billing HTTP surface can throw it yet; M26-S17/S19 map it (BILLING_PLAN_EMPTY) and remove this entry.",
+      "owner": "billing",
+      "reviewBy": "2026-12-31"
+    },
+    {
+      "rule": "error-mapper-coverage",
+      "class": "ExemptProtectedError",
+      "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
+      "rationale": "Same as FeatureDependencyUnmetError above: no billing HTTP surface can throw it yet; M25-S15b's operator routes map it (BILLING_EXEMPT_PROTECTED, 403 per UC-111 A3) and remove this entry.",
+      "owner": "billing",
+      "reviewBy": "2026-12-31"
+    },
+    {
+      "rule": "error-mapper-coverage",
+      "class": "GraceNotAllowedError",
+      "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
+      "rationale": "Same as FeatureDependencyUnmetError above: no billing HTTP surface can throw it yet; M25-S15b's operator grace route maps it (BILLING_GRACE_NOT_ALLOWED, 409 per UC-111 A1) and removes this entry.",
+      "owner": "billing",
+      "reviewBy": "2026-12-31"
+    },
+    {
+      "rule": "error-mapper-coverage",
+      "class": "UnsuspendNotAllowedError",
+      "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
+      "rationale": "Same as FeatureDependencyUnmetError above: no billing HTTP surface can throw it yet; M25-S15b's operator unsuspend route maps it (BILLING_UNSUSPEND_NOT_ALLOWED, 409 per UC-111 A2) and removes this entry.",
+      "owner": "billing",
+      "reviewBy": "2026-12-31"
+    },
+    {
+      "rule": "error-mapper-coverage",
+      "class": "SubscriptionInvariantError",
+      "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
+      "rationale": "Same as FeatureDependencyUnmetError above: a programming-contract guard (tier/feature mismatch, overlapping item windows, a malformed item) that no endpoint input can reach once its caller validates the selection; the first story that exposes one of these to user input maps it with its own code and removes this entry.",
+      "owner": "billing",
+      "reviewBy": "2026-12-31"
+    },
+    {
+      "rule": "error-mapper-coverage",
+      "class": "SubscriptionConcurrentModificationError",
+      "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
+      "rationale": "Same as FeatureDependencyUnmetError above: no billing HTTP surface can throw it yet; the first use case behind a route (M25-S15b) decides its wire status and code (a 409 retry) and removes this entry.",
+      "owner": "billing",
+      "reviewBy": "2026-12-31"
+    },
+    {
+      "rule": "error-mapper-coverage",
+      "class": "SubscriptionAlreadyExistsError",
+      "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
+      "rationale": "Same as FeatureDependencyUnmetError above: raised only to the TenantProvisioned handler (M25-S11), which swallows it as an idempotent redelivery and never reaches HTTP; if a route can ever surface it, that story maps it and removes this entry.",
+      "owner": "billing",
+      "reviewBy": "2026-12-31"
+    },
+    {
+      "rule": "error-mapper-coverage",
+      "class": "BillingAccountAlreadyExistsError",
+      "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
+      "rationale": "Same as FeatureDependencyUnmetError above: raised only to the TenantProvisioned handler (M25-S11), which creates the account in the same transaction as the subscription and swallows a redelivery as idempotent; if a route can ever surface it, that story maps it and removes this entry.",
+      "owner": "billing",
+      "reviewBy": "2026-12-31"
+    },
+    {
+      "rule": "error-mapper-coverage",
+      "class": "BillingAccountTaxIdNotAllowedError",
+      "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
+      "rationale": "Same as FeatureDependencyUnmetError above: a guard against a ready-made TaxId of a type the billing country does not accept, raised to callers that already validated it with the country's TaxIdSpec (M25-S09/S11); the first route that accepts a tax id for an existing account (M26 identity edit) maps it and removes this entry.",
+      "owner": "billing",
+      "reviewBy": "2026-12-31"
+    },
+    {
+      "rule": "error-mapper-coverage",
+      "class": "BillingAccountSubscriptionMissingError",
+      "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
+      "rationale": "Same as FeatureDependencyUnmetError above: a data-integrity failure (an account whose tenant has no subscription, which S05's backfill and S11's single transaction make impossible), never a user-facing refusal; it surfaces as a 500 by design, so it stays an exception rather than a mapped code.",
+      "owner": "billing",
+      "reviewBy": "2026-12-31"
+    },
+    {
       "rule": "raw-persistence-api",
       "path": "apps/backend/src/contexts/booking/infrastructure/cross-context/typeorm-booking-availability.adapter.ts",
       "rationale": "Legacy availability adapter requires a repository-port follow-up before Story 2 enforcement.",
@@ -949,6 +1054,13 @@
       "rationale": "TD37-S05: a domain aggregate with many small, cohesive methods naturally exceeds the 250-line file cap even after extracting every type/mapper that could safely move out (booking.types.ts) — splitting Booking's remaining methods across files to satisfy the metric would fragment one cohesive domain concept, not reduce real complexity (max-lines-per-function still applies and is enforced/fixed on this file).",
       "owner": "booking",
       "reviewBy": "2026-11-30"
+    },
+    {
+      "rule": "max-lines-aggregate",
+      "path": "apps/backend/src/contexts/billing/domain/subscription.aggregate.ts",
+      "rationale": "M25-S08: same shape as booking.aggregate.ts's own exception — Subscription's props, inputs and preview types moved out to subscription.types.ts and the trial-window maths to subscription-trial-window.ts, and the dependency graph and selection rules to plan-selection.ts; the remaining overage is the aggregate's cohesive state-machine method set plus one getter per persisted field, and M26 adds its payment-driven transitions (markPeriodPaid, reactivateOnPayment, suspend, markPastDue, activateAfterTrial, scheduleItems, confirmPlan, scheduleCancel, clearCancel) to this same class. Splitting them across files would fragment one cohesive domain concept (max-lines-per-function still applies and is enforced on this file).",
+      "owner": "billing",
+      "reviewBy": "2026-12-31"
     },
     {
       "rule": "max-lines-aggregate",
