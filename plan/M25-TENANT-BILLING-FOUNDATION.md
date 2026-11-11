@@ -579,7 +579,7 @@ The one shared env/config story for M25 (per-story devops halves cover pub/sub o
 
 ## Wave 1 — Backend / BFF core
 
-### M25-S08 — `Subscription` and `BillingAccount` aggregates and repositories
+### M25-S08 — `Subscription` and `BillingAccount` aggregates and repositories ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** L
