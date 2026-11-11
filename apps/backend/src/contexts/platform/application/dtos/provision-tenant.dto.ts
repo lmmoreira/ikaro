@@ -3,7 +3,7 @@ import { EmailErrorCode, SlugErrorCode, TimezoneErrorCode } from '@ikaro/types/p
 import { Email } from '../../../../shared/value-objects/email.vo';
 import { Slug } from '../../../../shared/value-objects/slug.vo';
 import { Timezone } from '../../../../shared/value-objects/timezone.vo';
-import { CountryCodeSchema } from './country-code.schema';
+import { CountryCodeSchema } from '../../../../shared/schemas/country-code.schema';
 
 export const ProvisionTenantSchema = z.object({
   name: z.string().min(1, { message: 'name must not be empty' }),

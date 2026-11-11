@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus, Logger } from '@nestjs/common';
-import { SignupErrorCode } from '@ikaro/types';
+import { CountryCodeErrorCode, SignupErrorCode } from '@ikaro/types';
 import { FixedClock } from '../../../../test/infrastructure/fixed-clock';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemorySignupRegistrationLock } from '../../../../test/repositories/billing/in-memory-signup-registration-lock';
@@ -41,6 +41,18 @@ describe('ReserveSignupRegistrationSchema', () => {
     ],
   ])('rejects %s', (_name, body) => {
     expect(parse(body).success).toBe(false);
+  });
+
+  it('reports a malformed countryCode as a format error and an unknown one as unsupported', () => {
+    const codeOf = (countryCode: string): unknown => {
+      const result = parse({ source: 'OPERATOR', countryCode });
+      return result.success
+        ? undefined
+        : (result.error.issues[0] as { params?: { code?: string } }).params?.code;
+    };
+
+    expect(codeOf('brazil')).toBeUndefined();
+    expect(codeOf('ZZ')).toBe(CountryCodeErrorCode.UNSUPPORTED);
   });
 
   it('normalises the countryCode to upper case', () => {

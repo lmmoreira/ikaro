@@ -48,6 +48,32 @@ Content-Type: application/json
 
 ###
 
+### Invalid: a self-signup without googleSub → 400
+POST {{baseUrl}}/internal/billing/registrations
+X-Internal-Key: {{internalKey}}
+Content-Type: application/json
+
+{ "source": "SELF_SIGNUP", "terms": { "version": "2026-11-01" } }
+
+###
+
+### Invalid: a CPF with bad check digits → 422 SIGNUP_TAX_ID_INVALID
+POST {{baseUrl}}/internal/billing/registrations
+X-Internal-Key: {{internalKey}}
+Content-Type: application/json
+
+{ "source": "OPERATOR", "taxId": "111.111.111-11", "countryCode": "BR" }
+
+###
+
+### Missing internal key → 401
+POST {{baseUrl}}/internal/billing/registrations
+Content-Type: application/json
+
+{ "source": "OPERATOR" }
+
+###
+
 ### Invalid: a taxId without countryCode → 400
 POST {{baseUrl}}/internal/billing/registrations
 X-Internal-Key: {{internalKey}}

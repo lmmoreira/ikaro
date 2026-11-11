@@ -13,7 +13,8 @@ import { SignupRegistrationEntity } from '../entities/signup-registration.entity
 import { SubscriptionEntity } from '../entities/subscription.entity';
 import { TypeOrmSignupRegistrationRepository } from './typeorm-signup-registration.repository';
 
-const CPF = '52998224725';
+// A fresh 11-digit tax id per test, so a run overlapping this one can never hold the same value.
+const newTaxId = (): string => uuidv7().replace(/\D/g, '').padEnd(11, '0').slice(0, 11);
 
 describe('TypeOrmSignupRegistrationRepository (integration)', () => {
   let dataSource: DataSource;
@@ -22,6 +23,7 @@ describe('TypeOrmSignupRegistrationRepository (integration)', () => {
   const tenants: string[] = [];
   const subs: string[] = [];
   const registrationIds: string[] = [];
+  let cpf = newTaxId();
 
   const newTenant = (): string => {
     const tenantId = uuidv7();
@@ -61,10 +63,14 @@ describe('TypeOrmSignupRegistrationRepository (integration)', () => {
     );
   });
 
+  beforeEach(() => {
+    cpf = newTaxId();
+  });
+
   afterEach(async () => {
     await dataSource.query(
       `DELETE FROM "billing"."signup_registrations" WHERE "id" = ANY($1::uuid[]) OR "google_sub" = ANY($2::text[]) OR "tenant_id" = ANY($3::uuid[]) OR "tax_id" = $4`,
-      [registrationIds, subs, tenants, CPF],
+      [registrationIds, subs, tenants, cpf],
     );
     await dataSource.query(
       `DELETE FROM "billing"."billing_accounts" WHERE "tenant_id" = ANY($1::uuid[])`,
@@ -88,7 +94,7 @@ describe('TypeOrmSignupRegistrationRepository (integration)', () => {
       const googleSub = newSub();
       const registration = new SignupRegistrationBuilder()
         .withGoogleSub(googleSub)
-        .withTaxId(TaxId.reconstitute(CPF, 'CPF'))
+        .withTaxId(TaxId.reconstitute(cpf, 'CPF'))
         .build();
       registrationIds.push(registration.id);
 
@@ -103,7 +109,7 @@ describe('TypeOrmSignupRegistrationRepository (integration)', () => {
         tenantId: null,
         googleSub,
         taxIdType: 'CPF',
-        taxId: CPF,
+        taxId: cpf,
         termsVersion: registration.terms?.version,
       });
     });
@@ -178,7 +184,7 @@ describe('TypeOrmSignupRegistrationRepository (integration)', () => {
       await seedRegistration(
         new SignupRegistrationEntityBuilder()
           .withGoogleSub(googleSub)
-          .withTaxId('CPF', CPF)
+          .withTaxId('CPF', cpf)
           .build(),
       );
 
@@ -190,29 +196,29 @@ describe('TypeOrmSignupRegistrationRepository (integration)', () => {
 
   describe('isTaxIdHeldByUnpaid', () => {
     it('is false for a tax id nobody holds', async () => {
-      await expect(repo.isTaxIdHeldByUnpaid(CPF)).resolves.toBe(false);
+      await expect(repo.isTaxIdHeldByUnpaid(cpf)).resolves.toBe(false);
     });
 
     it('is true when a billing account whose subscription never paid holds it', async () => {
       const tenantId = newTenant();
       await seedSubscription(tenantId, false);
-      await seedAccount(tenantId, CPF);
+      await seedAccount(tenantId, cpf);
 
-      await expect(repo.isTaxIdHeldByUnpaid(CPF)).resolves.toBe(true);
+      await expect(repo.isTaxIdHeldByUnpaid(cpf)).resolves.toBe(true);
     });
 
     it('is false when the holding account paid', async () => {
       const tenantId = newTenant();
       await seedSubscription(tenantId, true);
-      await seedAccount(tenantId, CPF);
+      await seedAccount(tenantId, cpf);
 
-      await expect(repo.isTaxIdHeldByUnpaid(CPF)).resolves.toBe(false);
+      await expect(repo.isTaxIdHeldByUnpaid(cpf)).resolves.toBe(false);
     });
 
     it('is true while an in-flight RESERVED registration holds it, false once COMPLETED', async () => {
-      const registration = new SignupRegistrationEntityBuilder().withTaxId('CPF', CPF).build();
+      const registration = new SignupRegistrationEntityBuilder().withTaxId('CPF', cpf).build();
       await seedRegistration(registration);
-      await expect(repo.isTaxIdHeldByUnpaid(CPF)).resolves.toBe(true);
+      await expect(repo.isTaxIdHeldByUnpaid(cpf)).resolves.toBe(true);
 
       await dataSource
         .getRepository(SignupRegistrationEntity)
@@ -221,7 +227,7 @@ describe('TypeOrmSignupRegistrationRepository (integration)', () => {
           { status: 'COMPLETED', taxId: null, taxIdType: null, tenantId: newTenant() },
         );
 
-      await expect(repo.isTaxIdHeldByUnpaid(CPF)).resolves.toBe(false);
+      await expect(repo.isTaxIdHeldByUnpaid(cpf)).resolves.toBe(false);
     });
 
     it('reads IDX_billing_billing_accounts_tax_id for the account half', async () => {
@@ -232,7 +238,7 @@ describe('TypeOrmSignupRegistrationRepository (integration)', () => {
              FROM billing.billing_accounts a
              JOIN billing.subscriptions s ON s.tenant_id = a.tenant_id
             WHERE a.tax_id = $1 AND s.has_ever_paid = false`,
-          [CPF],
+          [cpf],
         );
       });
 

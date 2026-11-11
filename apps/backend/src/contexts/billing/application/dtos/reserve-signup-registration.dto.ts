@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { CountryCodeErrorCode, GenericErrorCode } from '@ikaro/types/protocol/errors';
-import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
+import { GenericErrorCode } from '@ikaro/types/protocol/errors';
+import { CountryCodeSchema } from '../../../../shared/schemas/country-code.schema';
 
 // `SELF_SIGNUP` without `googleSub` is a caller bug (400); a missing `terms` is a business refusal
 // the use case raises (422 SIGNUP_TERMS_NOT_ACCEPTED), so `terms` is optional here. `countryCode`
@@ -10,15 +10,7 @@ export const ReserveSignupRegistrationSchema = z
     source: z.enum(['SELF_SIGNUP', 'OPERATOR']),
     googleSub: z.string().trim().min(1).max(100).optional(),
     taxId: z.string().trim().min(1).max(32).optional(),
-    countryCode: z
-      .string()
-      .trim()
-      .toUpperCase()
-      .refine(CountryCode.isValid, {
-        error: 'countryCode must be a supported country code',
-        params: { code: CountryCodeErrorCode.UNSUPPORTED },
-      })
-      .optional(),
+    countryCode: CountryCodeSchema.optional(),
     terms: z.object({ version: z.string().trim().min(1).max(20) }).optional(),
   })
   .superRefine((value, ctx) => {

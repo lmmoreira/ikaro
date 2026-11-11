@@ -1,7 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import request from 'supertest';
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import { SignupErrorCode } from '@ikaro/types';
 import { InternalApiGuard } from '../../../../shared/guards/internal-api.guard';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
@@ -32,6 +32,7 @@ describe('InternalBillingRegistrationController (integration)', () => {
   let app: INestApplication;
   let ds: DataSource;
   const subs: string[] = [];
+  const operatorIds: string[] = [];
 
   const newSub = (): string => {
     const sub = `sub-${uuidv7()}`;
@@ -52,12 +53,15 @@ describe('InternalBillingRegistrationController (integration)', () => {
     }));
   });
 
+  // Only rows this spec created: its own Google subs (SELF_SIGNUP) and the ids it was handed back
+  // (OPERATOR rows have no sub), so an overlapping run's fixtures are never touched.
   afterEach(async () => {
     await ds.query(
-      `DELETE FROM "billing"."signup_registrations" WHERE "google_sub" = ANY($1::text[]) OR "tax_id" = $2 OR ("source" = 'OPERATOR' AND "created_at" > now() - interval '10 minutes')`,
-      [subs, CPF_NORMALISED],
+      `DELETE FROM "billing"."signup_registrations" WHERE "google_sub" = ANY($1::text[]) OR "id" = ANY($2::uuid[])`,
+      [subs, operatorIds],
     );
     subs.length = 0;
+    operatorIds.length = 0;
   });
 
   afterAll(async () => {
@@ -138,16 +142,16 @@ describe('InternalBillingRegistrationController (integration)', () => {
   });
 
   it('creates independent RESERVED rows for repeated OPERATOR reservations', async () => {
-    const before = await ds.getRepository(SignupRegistrationEntity).countBy({ source: 'OPERATOR' });
-
     const first = await post({ source: 'OPERATOR', taxId: CPF, countryCode: 'BR' }).expect(201);
     const second = await post({ source: 'OPERATOR', taxId: CPF, countryCode: 'BR' }).expect(201);
+    operatorIds.push(first.body.registrationId, second.body.registrationId);
 
     expect(first.body).toMatchObject({ trialAvailable: true });
     expect(second.body).toMatchObject({ trialAvailable: true });
     expect(first.body.registrationId).not.toBe(second.body.registrationId);
-    const after = await ds.getRepository(SignupRegistrationEntity).countBy({ source: 'OPERATOR' });
-    expect(after - before).toBe(2);
+    const rows = await ds.getRepository(SignupRegistrationEntity).findBy({ id: In(operatorIds) });
+    expect(rows).toHaveLength(2);
+    expect(rows.every((row) => row.source === 'OPERATOR' && row.status === 'RESERVED')).toBe(true);
   });
 
   it('answers 422 SIGNUP_TERMS_NOT_ACCEPTED for a SELF_SIGNUP without terms, inserting nothing', async () => {
