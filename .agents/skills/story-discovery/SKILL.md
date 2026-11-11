@@ -155,6 +155,14 @@ Run every check silently. Tag each finding as **BLOCKER**, **RISK**, or **CONFIR
 - Data from another context is accessed via events, BFF orchestration, or a named port — not direct repo injection
 - Port interfaces referenced in the story are named explicitly
 - **A story whose producer and consumer sit in different apps** (the backend builds a link or payload, the web parses it): the story names the shared builder/parser module in `@ikaro/types` and a round-trip test (`docs/ENGINEERING_RULES_SHARED.md` § A value one app produces and another parses). A builder placed in the consuming app alone leaves the contract duplicated.
+- **Data owned by another context that this story carries, validates or forwards.** A leak with no import: `dep-cruise` and the context dependency matrix see nothing, because only data crosses. *Trigger:* the story adds a field, DTO property, event field, script flag or `*Hint` to a route, event or use case of context A, where the value's meaning or validity rule belongs to context B (a tax id, a plan or feature list, an exempt flag, a price, a status). Answer each question in the discovery notes:
+  1. Who owns the rule that decides whether the value is valid and what it means?
+  2. Does context A validate, apply, store, discard or merely forward it? Any of these is a leak.
+  3. Do the story's own words say "validated here only", "never persisted or forwarded", "carried so B can read it", "B cannot read it, so we do not compare" or "a hint for B"? Each is a red flag.
+  4. Is there a reference-only alternative: A takes only the id of a record B holds (B validated it when it created it) and the caller (the BFF or a script) calls B first, then A?
+  5. Is a shared helper being moved into a shared package so both contexts apply the same rule? That is the same leak, unless the package owns a catalog fact.
+
+  Any "yes" to 2, 3 or 5 is a **RISK**: raise it in Step 6 as a `[DESIGN]` question with the reference-only alternative as the recommended option. If justifying the design takes two or more stacked safeguards, it is also the 4o signal. (M25-S10, 2026-11-11: `POST /internal/tenants` took `taxId`, `exempt` and `features`, validated them and forwarded a `billingHint`, with each safeguard written into the story as a decision; it was reworked after review into a required `registrationId` of a Billing registration, which Platform never reads.)
 
 ### 4h. API contract
 - BFF endpoint: method, path, auth requirement (role/JWT), and response body fields are all specified

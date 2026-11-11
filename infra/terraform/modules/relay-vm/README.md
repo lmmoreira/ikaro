@@ -59,10 +59,11 @@ Inside the VM, the bundled script authenticates through the metadata server as t
   "<tenant-slug>" \
   "<admin-email>" \
   "BR" \
-  "America/Sao_Paulo"
+  "America/Sao_Paulo" \
+  --tax-id "<cpf-or-cnpj>"
 ```
 
-The script posts to `POST /internal/tenants` with the required `country_code` and optional IANA `timezone`. A successful response is HTTP `201` and contains the new `tenantId`; the initial manager is created asynchronously from the `TenantProvisioned` event.
+Every tenant is provisioned through one pattern: the script first reserves an `OPERATOR` Billing registration (`POST /internal/billing/registrations`), then posts to `POST /internal/tenants` with the required `country_code`, the optional IANA `timezone` and the `registrationId` Billing returned. `--tax-id` is optional (the operator is trusted; without it the manager types the tax id in the billing page) and `--exempt` provisions a free tenant (an `ACTIVE`, exempt subscription instead of the trial); both go to the registration, not to the tenant call. If the tenant call fails after the reservation, run the script again: the abandoned `RESERVED` registration is harmless and is released by the one-hour sweep (M26-S08). The full usage is in `docs/RUNBOOKS.md`. A successful response is HTTP `201` and contains the new `tenantId`; the initial manager is created asynchronously from the `TenantProvisioned` event.
 
 ## What lands in Cloud Audit Logs (and what doesn't)
 
