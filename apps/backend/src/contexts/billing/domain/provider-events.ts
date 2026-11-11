@@ -43,8 +43,13 @@ export type NormalizedProviderEvent =
 
 export type NormalizedProviderEventType = NormalizedProviderEvent['type'];
 
+/**
+ * What the provider says about a charge. The values that exist in `billing.charges.status` use its
+ * spelling (`CANCELED`, docs/DATABASE_SCHEMA.md); `PARTIALLY_REFUNDED` is an observation only, a
+ * partial refund does not change the charge's own status.
+ */
 export type NormalizedChargeState =
-  'PENDING' | 'PAID' | 'OVERDUE' | 'CANCELLED' | 'REFUNDED' | 'PARTIALLY_REFUNDED' | 'CHARGEBACK';
+  'PENDING' | 'PAID' | 'OVERDUE' | 'CANCELED' | 'REFUNDED' | 'PARTIALLY_REFUNDED' | 'CHARGEBACK';
 
 /** The re-read of a charge: the webhook is a hint, this is the truth. */
 export interface NormalizedChargeStatus {

@@ -195,6 +195,17 @@ function registerCoreCases(
     await expect(today).resolves.toBeDefined();
   });
 
+  it('rejects an external reference longer than 100 characters', async () => {
+    const harness = await create();
+    const { providerCustomerId } = await harness.provider.ensureCustomer(TENANT_ID, IDENTITY);
+
+    const attempt = harness.provider.createCharge(
+      chargeInput(harness, providerCustomerId, { externalReference: 'r'.repeat(101) }),
+    );
+
+    await expect(attempt).rejects.toMatchObject({ reason: 'INVALID_REFERENCE' });
+  });
+
   it('rejects a charge for a customer that has no tax id', async () => {
     const harness = await create();
     const { providerCustomerId } = await harness.provider.ensureCustomer(
@@ -224,7 +235,7 @@ function registerCoreCases(
     await harness.provider.cancelCharge(providerChargeId);
     await harness.provider.cancelCharge(providerChargeId);
 
-    expect((await harness.provider.fetchChargeStatus(providerChargeId)).state).toBe('CANCELLED');
+    expect((await harness.provider.fetchChargeStatus(providerChargeId)).state).toBe('CANCELED');
   });
 
   it('refuses to cancel a paid charge with ChargeAlreadyPaidError', async () => {

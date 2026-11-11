@@ -24,6 +24,7 @@ import type {
 } from '../../domain/provider-events';
 import { ASAAS_ZONE, normalizeAsaasWebhook } from './asaas-event-normalizer';
 import { FakeAsaasWebhookEmitter } from './fake-asaas-webhook.emitter';
+import { assertValidNewCharge } from './fake-charge-rules';
 import {
   applyDeliveryOptions,
   type DeliveryOptions,
@@ -34,7 +35,7 @@ import {
 
 const FAKE_PAYMENT_URL_BASE = 'https://fake-billing.invalid/i';
 const LINK_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-const MINIMUM_CHARGE_MINOR = 500;
+const PAID_STATES: ReadonlyArray<FakeCharge['state']> = ['PAID', 'PARTIALLY_REFUNDED'];
 
 /**
  * The in-process provider behind `BRL_FAKE`. It is a real adapter, not a `jest.fn()` stub, and as
@@ -89,11 +90,14 @@ export class FakeBillingProvider implements BillingProviderPort {
   async cancelCharge(providerChargeId: string): Promise<void> {
     this.consumeFailure();
     const charge = this.chargeOrThrow(providerChargeId);
-    if (charge.state === 'CANCELLED') return;
+    if (charge.state === 'CANCELED') return;
+    // Only a charge that is paid (even partly refunded) is "the payment" a caller must honour. A
+    // refunded or charged-back one is refused too, but it must never read as a payment.
+    if (PAID_STATES.includes(charge.state)) throw new ChargeAlreadyPaidError(providerChargeId);
     if (charge.state !== 'PENDING' && charge.state !== 'OVERDUE') {
-      throw new ChargeAlreadyPaidError(providerChargeId);
+      throw new ProviderRequestError('NOT_CANCELLABLE');
     }
-    charge.state = 'CANCELLED';
+    charge.state = 'CANCELED';
     this.enqueue('PAYMENT_DELETED', charge, 'PENDING');
   }
 
@@ -254,26 +258,12 @@ export class FakeBillingProvider implements BillingProviderPort {
     }
   }
 
-  // The checks Asaas makes when a charge is created (docs/ASAAS_PROVIDER.md § 2). They apply to a
-  // new charge only: a retry of an existing reference is returned as it is.
-  private assertValidNewCharge(input: CreateProviderChargeInput): void {
-    if (!this.identityByCustomer.get(input.providerCustomerId)?.taxId) {
-      throw new ProviderRequestError('TAX_ID_REQUIRED');
-    }
-    if (!/^[A-Z]{2}$/.test(input.customerLocation.countryCode)) {
-      throw new ProviderRequestError('INVALID_LOCATION');
-    }
-    const total = input.lines.reduce((sum, line) => sum + line.amountMinor, 0);
-    if (!Number.isInteger(total) || total < MINIMUM_CHARGE_MINOR) {
-      throw new ProviderRequestError('INVALID_AMOUNT');
-    }
-    if (input.dueDate < todayInTimezone(ASAAS_ZONE, this.clock.now())) {
-      throw new ProviderRequestError('INVALID_DUE_DATE');
-    }
-  }
-
   private insertNewCharge(input: CreateProviderChargeInput): FakeCharge {
-    this.assertValidNewCharge(input);
+    assertValidNewCharge(
+      input,
+      this.identityByCustomer.get(input.providerCustomerId)?.taxId,
+      todayInTimezone(ASAAS_ZONE, this.clock.now()),
+    );
     const id = this.newId('pay');
     const charge: FakeCharge = {
       id,

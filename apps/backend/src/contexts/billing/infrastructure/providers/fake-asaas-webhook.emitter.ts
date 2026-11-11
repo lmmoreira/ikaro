@@ -56,7 +56,7 @@ export class FakeAsaasWebhookEmitter {
       dueDate: charge.dueDate,
       externalReference: charge.externalReference,
       invoiceUrl: charge.paymentUrl,
-      deleted: charge.state === 'CANCELLED',
+      deleted: charge.state === 'CANCELED',
       paymentDate: charge.paidAt?.toISOString() ?? null,
       transactionReceiptUrl: receiptUrlOf(charge),
     };

@@ -174,6 +174,61 @@ describe('FakeBillingProvider', () => {
       ).rejects.toMatchObject({ reason: 'INVALID_AMOUNT' });
     });
 
+    it('rejects a line that is zero, negative or fractional even when the total looks valid', async () => {
+      const { fake } = setup();
+      const { providerCustomerId } = await fake.ensureCustomer('tenant-1', IDENTITY);
+
+      const negativeLine = fake.createCharge(
+        input(providerCustomerId, {
+          lines: [
+            { description: 'x', amountMinor: 9000 },
+            { description: 'discount', amountMinor: -4000 },
+          ],
+        }),
+      );
+
+      await expect(negativeLine).rejects.toMatchObject({ reason: 'INVALID_AMOUNT' });
+    });
+
+    it.each(['USD', 'EUR', 'brl'])('accepts only BRL: refuses %s', async (currency) => {
+      const { fake } = setup();
+      const { providerCustomerId } = await fake.ensureCustomer('tenant-1', IDENTITY);
+
+      await expect(
+        fake.createCharge(input(providerCustomerId, { currency })),
+      ).rejects.toMatchObject({ reason: 'INVALID_CURRENCY' });
+    });
+
+    it.each([
+      ['empty', ''],
+      ['101 characters', 'r'.repeat(101)],
+    ])(
+      'refuses an external reference that is %s, and accepts 100 characters',
+      async (_label, externalReference) => {
+        const { fake } = setup();
+        const { providerCustomerId } = await fake.ensureCustomer('tenant-1', IDENTITY);
+
+        await expect(
+          fake.createCharge(input(providerCustomerId, { externalReference })),
+        ).rejects.toMatchObject({ reason: 'INVALID_REFERENCE' });
+        await expect(
+          fake.createCharge(input(providerCustomerId, { externalReference: 'r'.repeat(100) })),
+        ).resolves.toBeDefined();
+      },
+    );
+
+    it.each(['soon', '2026-12-1', '2026-13-45', '2026-02-30', '12/10/2026', ''])(
+      'refuses a due date that is not a calendar day: "%s"',
+      async (dueDate) => {
+        const { fake } = setup();
+        const { providerCustomerId } = await fake.ensureCustomer('tenant-1', IDENTITY);
+
+        await expect(
+          fake.createCharge(input(providerCustomerId, { dueDate })),
+        ).rejects.toMatchObject({ reason: 'INVALID_DUE_DATE' });
+      },
+    );
+
     it('rejects an unknown customer and an unknown charge with NOT_FOUND', async () => {
       const { fake } = setup();
 
@@ -310,8 +365,23 @@ describe('FakeBillingProvider', () => {
   });
 
   describe('cancelling', () => {
+    it.each([
+      ['paid', () => undefined],
+      [
+        'partly refunded',
+        (fake: FakeBillingProvider, id: string) => fake.simulateRefund(id, 'PARTIAL'),
+      ],
+    ])('refuses to cancel a charge that is %s with ChargeAlreadyPaidError', async (_label, act) => {
+      const { fake } = setup();
+      const id = await charge(fake);
+      fake.simulatePayment(id, 'CARD');
+      act(fake, id);
+
+      await expect(fake.cancelCharge(id)).rejects.toBeInstanceOf(ChargeAlreadyPaidError);
+    });
+
     it.each(['refund', 'chargeback'] as const)(
-      'refuses to cancel a charge that was paid then %s',
+      'refuses to cancel a charge that was paid then %s, but never as if it were the payment',
       async (action) => {
         const { fake } = setup();
         const id = await charge(fake);
@@ -319,7 +389,10 @@ describe('FakeBillingProvider', () => {
         if (action === 'refund') fake.simulateRefund(id, 'FULL');
         else fake.simulateChargeback(id);
 
-        await expect(fake.cancelCharge(id)).rejects.toBeInstanceOf(ChargeAlreadyPaidError);
+        const attempt = fake.cancelCharge(id);
+
+        await expect(attempt).rejects.toMatchObject({ reason: 'NOT_CANCELLABLE' });
+        await expect(attempt).rejects.not.toBeInstanceOf(ChargeAlreadyPaidError);
       },
     );
 
@@ -330,7 +403,7 @@ describe('FakeBillingProvider', () => {
 
       await fake.cancelCharge(id);
 
-      expect((await fake.fetchChargeStatus(id)).state).toBe('CANCELLED');
+      expect((await fake.fetchChargeStatus(id)).state).toBe('CANCELED');
     });
   });
 

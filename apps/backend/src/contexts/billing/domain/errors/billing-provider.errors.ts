@@ -40,11 +40,14 @@ export type ProviderRequestFailure =
   | 'LINK_EXPIRED'
   | 'INVALID_LOCATION'
   | 'INVALID_AMOUNT'
+  | 'INVALID_CURRENCY'
   | 'INVALID_DUE_DATE'
+  | 'INVALID_REFERENCE'
   | 'TAX_ID_REQUIRED'
+  | 'NOT_CANCELLABLE'
   | 'NOT_FOUND';
 
-/** A call to the provider failed: it was unreachable (5xx), the link expired, the location, amount, due date or customer tax id is invalid, or the id is unknown. */
+/** A call to the provider failed: it was unreachable (5xx), the link expired, the charge input (location, amount, currency, due date, reference) or the customer tax id is invalid, a refunded charge cannot be cancelled, or the id is unknown. */
 export class ProviderRequestError extends BillingDomainError {
   constructor(readonly reason: ProviderRequestFailure) {
     super(`The billing provider request failed: ${reason}`);

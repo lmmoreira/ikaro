@@ -40,8 +40,11 @@ describe('BillingProviderRegistry wiring (integration)', () => {
 
   runBillingProviderContract(
     'FakeBillingProvider resolved through the registry',
-    () => {
+    async () => {
+      // The registry hands out one shared fake, so each case starts from a clean scenario state:
+      // a case that failed while the queue was paused must not leave the next ones paused.
       const fake = registry.resolve('BRL_FAKE') as FakeBillingProvider;
+      await fake.reenableWebhookQueue('BRL_FAKE');
       fake.drainDeliveries();
       return fakeBillingHarness(fake, clock);
     },
