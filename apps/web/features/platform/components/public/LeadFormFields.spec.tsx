@@ -166,3 +166,16 @@ describe('LeadFormFields', () => {
     expect(onSubmit).toHaveBeenCalledOnce();
   });
 });
+
+describe('LeadFormFields readable colours (TD51-S05)', () => {
+  it('draws the form group on the secondary surface with the derived readable text colour', () => {
+    renderWithIntl(<LeadFormFields {...baseProps()} showPrefilledNote />);
+
+    const group = screen.getByRole('group');
+    expect(group.style.backgroundColor).toBe('var(--ba-secondary)');
+    expect(group.style.color).toBe('var(--ba-secondary-text)');
+    expect(screen.getByTestId('lead-form-prefilled-note').style.color).toBe(
+      'var(--ba-secondary-accent, var(--ba-secondary-text))',
+    );
+  });
+});

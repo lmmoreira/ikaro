@@ -36,6 +36,16 @@ export function sectionCardBackground(bgVariant: 'default' | 'alt' | undefined):
   return `var(--ba-section-card-bg, ${legacy})`;
 }
 
+// Text colour of a card drawn on `sectionCardBackground(bgVariant)`: with a section surface the
+// scoped section text, otherwise the colour that reads on the card's own legacy surface. A default
+// section's card sits on the secondary colour, where the page `--ba-text` can vanish (TD51-S05);
+// an alternate section's card sits on the page background, where `--ba-text` is right.
+export function sectionCardTextColor(bgVariant: 'default' | 'alt' | undefined): string {
+  return bgVariant === 'alt'
+    ? sectionTextColor
+    : 'var(--ba-section-text, var(--ba-secondary-text))';
+}
+
 // Padding every flow section had before it rendered through HotsiteSectionShell.
 export const LEGACY_SECTION_PADDING = 'var(--ba-section-py) 1.5rem';
 

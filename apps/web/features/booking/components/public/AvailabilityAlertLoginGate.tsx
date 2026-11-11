@@ -1,5 +1,6 @@
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
+import { BrandedPanel } from '@/shared/components/hotsite/branded-panel';
 import { AvailabilityAlertShell } from './AvailabilityAlertShell';
 import {
   alertPrimaryButtonClass,
@@ -28,13 +29,10 @@ export function AvailabilityAlertLoginGate({
   return (
     <AvailabilityAlertShell testId="availability-alert-login-gate">
       <h1 className="mb-4 text-2xl font-bold">{t('availabilityAlert.gate.title')}</h1>
-      <div
-        className="p-6"
-        style={{ backgroundColor: 'var(--ba-secondary)', borderRadius: 'var(--ba-radius)' }}
-      >
+      <BrandedPanel className="p-6">
         <p className="leading-relaxed">{t('availabilityAlert.gate.body')}</p>
         <p className="mt-3 text-sm leading-relaxed opacity-70">{t('availabilityAlert.gate.why')}</p>
-      </div>
+      </BrandedPanel>
       <div className="mt-6 flex flex-wrap gap-3">
         <Link
           href={`/${slug}/booking`}

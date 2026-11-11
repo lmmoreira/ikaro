@@ -1,6 +1,7 @@
 'use client';
 
 import type React from 'react';
+import { brandedFieldStyle } from '@/shared/components/hotsite/branded-field-style';
 import { useTranslations } from 'next-intl';
 import { newAttendeeDraft, type AttendeeDraft } from '@/features/booking/model/intake-answers';
 import { IntakeFieldMessage, intakeInputClass } from './IntakeQuestionField';
@@ -45,12 +46,7 @@ export function IntakeAttendeesList({
               'min-w-0 flex-1 border px-3 py-2',
               hasError && row.name.trim() === '',
             )}
-            style={{
-              borderRadius: 'var(--ba-radius)',
-              ...(hasError && row.name.trim() === '' ? {} : { borderColor: 'var(--ba-secondary)' }),
-              backgroundColor: 'var(--ba-secondary)',
-              color: 'var(--ba-text)',
-            }}
+            style={brandedFieldStyle({ invalid: hasError && row.name.trim() === '' })}
             aria-label={t('attendeeNameLabel', { index: index + 1 })}
             placeholder={t('attendeeNamePlaceholder')}
             value={row.name}

@@ -5,6 +5,7 @@ import {
   LEGACY_SECTION_PADDING,
   legacySectionBackground,
   sectionCardBackground,
+  sectionCardTextColor,
   sectionHeadingFont,
   sectionHeadingStyle,
   sectionTextColor,
@@ -68,6 +69,7 @@ export function TestimonialsModule({
 
   const title = data.title ?? t('testimonials.defaultTitle');
   const cardBg = sectionCardBackground(bgVariant);
+  const cardText = sectionCardTextColor(bgVariant);
 
   return (
     <HotsiteSectionShell
@@ -97,6 +99,7 @@ export function TestimonialsModule({
               key={`${item.authorName}-${index}`}
               testimonial={item}
               cardBg={cardBg}
+              cardText={cardText}
             />
           ))}
         </TestimonialsCarousel>
@@ -105,7 +108,7 @@ export function TestimonialsModule({
         <ul className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {data.items.map((item, index) => (
             <li key={`${item.authorName}-${index}`}>
-              <TestimonialCard testimonial={item} cardBg={cardBg} />
+              <TestimonialCard testimonial={item} cardBg={cardBg} cardText={cardText} />
             </li>
           ))}
         </ul>

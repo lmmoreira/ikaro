@@ -54,3 +54,15 @@ describe('LeadFormTerminalCard', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 });
+
+describe('LeadFormTerminalCard readable colours (TD51-S05)', () => {
+  it('sits in the branded panel, so its text reads on the secondary colour', () => {
+    renderWithIntl(
+      <LeadFormTerminalCard icon="⏳" title="Título" body="Corpo" slug="lavacar-beloauto" />,
+    );
+
+    const card = screen.getByTestId('lead-form-terminal-card');
+    expect(card.style.backgroundColor).toBe('var(--ba-secondary)');
+    expect(card.style.color).toBe('var(--ba-secondary-text)');
+  });
+});

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type React from 'react';
+import { brandedFieldStyle } from '@/shared/components/hotsite/branded-field-style';
 import { useTranslations } from 'next-intl';
 import type { ServiceIntakeSchemaVersion } from '@ikaro/types';
 import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feedback-message';
@@ -25,13 +26,6 @@ const btnStyle: React.CSSProperties = {
   borderColor: 'var(--ba-btn-border)',
   borderRadius: 'var(--ba-radius)',
 };
-
-const fieldBorder = (hasError: boolean): React.CSSProperties => ({
-  borderRadius: 'var(--ba-radius)',
-  ...(hasError ? {} : { borderColor: 'var(--ba-secondary)' }),
-  backgroundColor: 'var(--ba-secondary)',
-  color: 'var(--ba-text)',
-});
 
 // Schema-driven, never hard-coded. Validates against the displayed version only; the step never
 // submits — the POST stays on Confirmation. Field errors come from client validation; a
@@ -104,7 +98,7 @@ export function IntakeAnswersStep({
                 'w-full border py-2 pl-3 pr-16 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
                 showFieldErrors && validation.participants,
               )}
-              style={fieldBorder(showFieldErrors && validation.participants)}
+              style={brandedFieldStyle({ invalid: showFieldErrors && validation.participants })}
               value={value.participantCount}
               onChange={(e) => onChange({ ...value, participantCount: e.target.value })}
               aria-invalid={showFieldErrors && validation.participants ? true : undefined}

@@ -92,3 +92,27 @@ describe('TenantOptionRow', () => {
     expect(screen.getByTestId('switch-tenant-option')).toBeDisabled();
   });
 });
+
+describe('TenantOptionRow readable colours (TD51-S05)', () => {
+  it.each([
+    ['static current row', true, 'switch-tenant-current'],
+    ['selectable row', false, 'switch-tenant-option'],
+  ])('%s: name and points read on the secondary surface', (_label, isCurrent, testId) => {
+    render(
+      <TenantOptionRow
+        tenant={makeTenant()}
+        isCurrent={isCurrent}
+        disabled={false}
+        currentBadgeLabel="Atual"
+        loyaltyPointsLabel="120 pontos"
+        onSelect={vi.fn()}
+      />,
+    );
+
+    const row = screen.getByTestId(testId);
+    expect(row.style.backgroundColor).toBe('var(--ba-secondary)');
+    expect(row.style.color).toBe('var(--ba-secondary-text)');
+    expect(screen.getByText('Lava Rápido BH').style.color).toBe('var(--ba-secondary-text)');
+    expect(screen.getByText('120 pontos').style.color).toBe('var(--ba-secondary-text)');
+  });
+});

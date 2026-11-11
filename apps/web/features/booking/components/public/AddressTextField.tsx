@@ -1,5 +1,9 @@
 import type React from 'react';
 import { BRANDED_FIELD_INVALID_CLASS } from '@/shared/components/hotsite/branded-field-feedback';
+import {
+  BRANDED_FIELD_PLACEHOLDER_CLASS,
+  brandedFieldStyle,
+} from '@/shared/components/hotsite/branded-field-style';
 import { cn } from '@/shared/utils/cn';
 
 interface AddressTextFieldProps {
@@ -16,15 +20,6 @@ interface AddressTextFieldProps {
   readonly describedBy?: string;
   /** Lets a form focus this input when it is the first invalid one. */
   readonly inputRef?: React.Ref<HTMLInputElement>;
-}
-
-function fieldBorderStyle(hasError: boolean): React.CSSProperties {
-  return {
-    borderRadius: 'var(--ba-radius)',
-    ...(hasError ? {} : { borderColor: 'var(--ba-secondary)' }),
-    backgroundColor: 'var(--ba-secondary)',
-    color: 'var(--ba-text)',
-  };
 }
 
 export function AddressTextField({
@@ -59,8 +54,12 @@ export function AddressTextField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         ref={inputRef}
-        className={cn('w-full border px-3 py-2', hasError && BRANDED_FIELD_INVALID_CLASS)}
-        style={fieldBorderStyle(!!hasError)}
+        className={cn(
+          'w-full border px-3 py-2',
+          BRANDED_FIELD_PLACEHOLDER_CLASS,
+          hasError && BRANDED_FIELD_INVALID_CLASS,
+        )}
+        style={brandedFieldStyle({ invalid: !!hasError })}
         aria-invalid={hasError ? true : undefined}
         aria-describedby={hasError ? describedBy : undefined}
       />

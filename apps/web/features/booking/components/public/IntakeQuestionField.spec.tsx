@@ -123,3 +123,15 @@ describe('IntakeQuestionField', () => {
     expect(intakeFieldError('flag')).toBeInTheDocument();
   });
 });
+
+describe('IntakeQuestionField readable colours (TD51-S05)', () => {
+  it('types in the derived secondary text colour with a branded placeholder', () => {
+    renderWithIntl(
+      <IntakeQuestionField question={text(false)} value="" hasError={false} onChange={vi.fn()} />,
+    );
+
+    const input = screen.getByRole('textbox', { name: /Objetivo/ });
+    expect(input.style.color).toBe('var(--ba-secondary-text)');
+    expect(input.className).toContain('--ba-secondary-placeholder');
+  });
+});

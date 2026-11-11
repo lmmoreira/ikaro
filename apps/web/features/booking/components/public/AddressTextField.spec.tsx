@@ -106,3 +106,14 @@ describe('AddressTextField', () => {
     expect(screen.getByLabelText('Rua')).not.toHaveAttribute('aria-invalid');
   });
 });
+
+describe('AddressTextField readable colours (TD51-S05)', () => {
+  it('types in the derived secondary text colour and styles its placeholder with the derived token', () => {
+    render(<AddressTextField id="street" label="Rua" value="" onChange={vi.fn()} />);
+
+    const input = screen.getByLabelText('Rua');
+    expect(input.style.color).toBe('var(--ba-secondary-text)');
+    expect(input.style.backgroundColor).toBe('var(--ba-secondary)');
+    expect(input.className).toContain('--ba-secondary-placeholder');
+  });
+});

@@ -1,5 +1,6 @@
 'use client';
 
+import { brandedSkeletonStyle } from '@/shared/components/hotsite/branded-surface-style';
 import type React from 'react';
 import { useTranslations } from 'next-intl';
 import type { HotsiteServiceResponse } from '@ikaro/types';
@@ -147,7 +148,7 @@ export function VariableDurationStep({
               aria-label={t('duration.quoteLoading')}
               data-testid="duration-quote-loading"
               className="mt-2 block h-7 w-40 animate-pulse rounded"
-              style={{ backgroundColor: 'var(--ba-secondary)' }}
+              style={brandedSkeletonStyle}
             />
           )}
           {state.status === 'error' && (

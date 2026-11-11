@@ -10,6 +10,7 @@ import { formatDateLong, formatTime } from '@/shared/lib/formatting/format-time'
 import { resolveSupportedLocale } from '@/shared/lib/i18n/get-messages';
 import { extractProblemDetailShape } from '@/shared/lib/api/errors';
 import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feedback-message';
+import { BrandedPanel } from '@/shared/components/hotsite/branded-panel';
 import {
   BRANDED_FIELD_INVALID_CLASS,
   BrandedFieldFeedback,
@@ -145,24 +146,15 @@ export function SubmitInfoForm({
         )}
 
         {summary && (
-          <div
-            className="mb-6 rounded-md border p-4"
-            style={{
-              backgroundColor: 'var(--ba-secondary)',
-              borderColor: 'var(--ba-secondary)',
-              borderRadius: 'var(--ba-radius)',
-            }}
+          <BrandedPanel
+            label={t('teamMessageLabel')}
+            className="mb-6 rounded-md p-4"
+            testId="team-message-panel"
           >
-            <p
-              className="mb-1.5 text-[0.6875rem] font-bold uppercase tracking-wide"
-              style={{ color: 'var(--ba-primary)' }}
-            >
-              {t('teamMessageLabel')}
-            </p>
             <p className="text-[0.9375rem] leading-relaxed">
               &ldquo;{summary.infoRequestMessage}&rdquo;
             </p>
-          </div>
+          </BrandedPanel>
         )}
 
         {state.status === 'error' && state.kind === 'expired' ? (

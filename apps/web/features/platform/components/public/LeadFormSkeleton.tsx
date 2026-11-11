@@ -1,6 +1,7 @@
 import { useTranslations } from 'next-intl';
+import { brandedSkeletonStyle } from '@/shared/components/hotsite/branded-surface-style';
 
-const skeletonStyle: React.CSSProperties = { backgroundColor: 'var(--ba-secondary)' };
+const skeletonStyle = brandedSkeletonStyle;
 
 export function LeadFormSkeleton({ title }: { readonly title: string }): React.JSX.Element {
   const t = useTranslations('hotsite');

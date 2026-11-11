@@ -93,3 +93,19 @@ describe('IntakeAttendeesList', () => {
     expect(blank.className).toContain('border-red-600');
   });
 });
+
+describe('IntakeAttendeesList readable colours (TD51-S05)', () => {
+  it('types the attendee name in the derived secondary text colour with a branded placeholder', () => {
+    renderWithIntl(
+      <IntakeAttendeesList
+        attendees={[{ id: 'a1', name: '', isMinor: false }]}
+        hasError={false}
+        onChange={vi.fn()}
+      />,
+    );
+
+    const input = screen.getByTestId('intake-attendee-name');
+    expect(input.style.color).toBe('var(--ba-secondary-text)');
+    expect(input.className).toContain('--ba-secondary-placeholder');
+  });
+});

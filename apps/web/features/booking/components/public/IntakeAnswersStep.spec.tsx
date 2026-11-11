@@ -212,3 +212,13 @@ describe('IntakeAnswersStep unit', () => {
     expect(input).toHaveAccessibleDescription('pessoas');
   });
 });
+
+describe('IntakeAnswersStep readable colours (TD51-S05)', () => {
+  it('types in the derived secondary text colour with a branded placeholder', () => {
+    renderWithIntl(<Harness onNext={vi.fn()} />);
+
+    const input = screen.getByRole('textbox', { name: /Qual o objetivo da reserva/ });
+    expect(input.style.color).toBe('var(--ba-secondary-text)');
+    expect(input.className).toContain('--ba-secondary-placeholder');
+  });
+});

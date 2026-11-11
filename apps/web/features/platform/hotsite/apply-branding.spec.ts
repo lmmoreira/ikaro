@@ -6,6 +6,7 @@ import {
   applyBranding,
   contrastRatio,
   deriveOverlayTextTokens,
+  derivePlaceholder,
   deriveSectionTokens,
 } from './apply-branding';
 
@@ -478,5 +479,34 @@ describe('deriveSectionTokens', () => {
     ) as CSSTokens;
     expect(tokens['--ba-heading-font']).toBe('var(--font-manrope)');
     expect(tokens['--ba-body-font']).toBe('var(--font-dm-sans)');
+  });
+});
+
+describe('--ba-secondary-placeholder', () => {
+  it('is a softened tint of the readable text colour when that still reaches AA', () => {
+    const tokens = applyBranding(
+      makeBranding({ secondaryColor: '#FFFFFF', textColor: '#111111' }),
+    ) as CSSTokens;
+    expect(tokens['--ba-secondary-placeholder']).not.toBe(tokens['--ba-secondary-text']);
+    expect(contrastRatio('#FFFFFF', tokens['--ba-secondary-placeholder'])).toBeGreaterThanOrEqual(
+      4.5,
+    );
+    expect(contrastRatio('#FFFFFF', tokens['--ba-secondary-placeholder'])).toBeLessThan(
+      contrastRatio('#FFFFFF', tokens['--ba-secondary-text']),
+    );
+  });
+
+  it('falls back to the text colour itself when the softened blend would fall below AA', () => {
+    // Mid-tone text just above AA: any blend towards the surface drops under 4.5.
+    expect(derivePlaceholder('#FFFFFF', '#757575')).toBe('#757575');
+  });
+
+  it('reads when textColor equals secondaryColor (the derived text colour is used)', () => {
+    const tokens = applyBranding(
+      makeBranding({ secondaryColor: '#26372F', textColor: '#26372F' }),
+    ) as CSSTokens;
+    expect(contrastRatio('#26372F', tokens['--ba-secondary-placeholder'])).toBeGreaterThanOrEqual(
+      4.5,
+    );
   });
 });

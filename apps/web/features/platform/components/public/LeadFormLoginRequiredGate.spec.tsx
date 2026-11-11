@@ -31,3 +31,13 @@ describe('LeadFormLoginRequiredGate', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 });
+
+describe('LeadFormLoginRequiredGate readable colours (TD51-S05)', () => {
+  it('shows its title in the branded panel, so the text reads on the secondary colour', () => {
+    renderWithIntl(<LeadFormLoginRequiredGate slug="lavacar-beloauto" />);
+
+    const panel = screen.getByText('Entre para responder este formulário').parentElement;
+    expect(panel?.style.backgroundColor).toBe('var(--ba-secondary)');
+    expect(panel?.style.color).toBe('var(--ba-secondary-text)');
+  });
+});

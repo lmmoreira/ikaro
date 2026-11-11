@@ -104,3 +104,23 @@ describe('InformationCompletionPhoneField', () => {
     );
   });
 });
+
+describe('InformationCompletionPhoneField readable colours (TD51-S05)', () => {
+  it('types in the derived secondary text colour, with a branded placeholder, in the input and prefix', () => {
+    render(
+      <InformationCompletionPhoneField
+        phonePrefix="+55"
+        localPhoneDigits=""
+        onChangeLocalDigits={vi.fn()}
+        label="Telefone"
+      />,
+    );
+
+    const input = screen.getByTestId('information-completion-phone-input');
+    expect(input.style.color).toBe('var(--ba-secondary-text)');
+    expect(input.className).toContain('--ba-secondary-placeholder');
+    expect(screen.getByTestId('information-completion-phone-prefix').style.color).toBe(
+      'var(--ba-secondary-text)',
+    );
+  });
+});

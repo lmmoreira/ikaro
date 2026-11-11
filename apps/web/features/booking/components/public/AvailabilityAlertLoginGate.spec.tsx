@@ -57,3 +57,13 @@ describe('AvailabilityAlertLoginGate', () => {
     );
   });
 });
+
+describe('AvailabilityAlertLoginGate readable colours (TD51-S05)', () => {
+  it('shows its explanation in the branded panel, so the text reads on the secondary colour', () => {
+    renderWithIntl(<AvailabilityAlertLoginGate slug="acme" returnTo={RETURN_TO} />);
+
+    const panel = screen.getByText(/O aviso não reserva horário/).parentElement;
+    expect(panel?.style.backgroundColor).toBe('var(--ba-secondary)');
+    expect(panel?.style.color).toBe('var(--ba-secondary-text)');
+  });
+});

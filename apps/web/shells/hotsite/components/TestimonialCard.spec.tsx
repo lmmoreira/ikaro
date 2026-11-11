@@ -52,3 +52,33 @@ describe('TestimonialCard', () => {
     expect(screen.queryByAltText('Maria Silva')).not.toBeInTheDocument();
   });
 });
+
+describe('TestimonialCard readable colours (TD51-S05)', () => {
+  it('defaults to the secondary surface with the derived secondary text', () => {
+    const { container } = renderWithIntl(<TestimonialCard testimonial={makeTestimonial()} />);
+
+    const card = container.firstElementChild as HTMLElement;
+    expect(card.style.backgroundColor).toBe('var(--ba-secondary)');
+    expect(card.style.color).toBe('var(--ba-secondary-text)');
+  });
+
+  it('uses the colour the section computed for its own card background', () => {
+    const { container } = renderWithIntl(
+      <TestimonialCard
+        testimonial={makeTestimonial()}
+        cardBg="var(--ba-section-card-bg, var(--ba-secondary))"
+        cardText="var(--ba-section-text, var(--ba-secondary-text))"
+      />,
+    );
+
+    const card = container.firstElementChild as HTMLElement;
+    expect(card.style.backgroundColor).toBe('var(--ba-section-card-bg, var(--ba-secondary))');
+    expect(card.style.color).toBe('var(--ba-section-text, var(--ba-secondary-text))');
+  });
+
+  it('never paints --ba-text or --ba-primary as the author or quote colour', () => {
+    const { container } = renderWithIntl(<TestimonialCard testimonial={makeTestimonial()} />);
+
+    expect(container.innerHTML).not.toMatch(/color: var\(--ba-(text|primary)\)/);
+  });
+});

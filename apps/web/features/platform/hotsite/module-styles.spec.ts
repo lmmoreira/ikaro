@@ -3,6 +3,7 @@ import {
   LEGACY_SECTION_PADDING,
   legacySectionBackground,
   sectionCardBackground,
+  sectionCardTextColor,
   sectionHeadingStyle,
   sectionTextColor,
 } from './module-styles';
@@ -40,5 +41,20 @@ describe('flow section style helpers', () => {
 
   it('keeps the long-standing section padding', () => {
     expect(LEGACY_SECTION_PADDING).toBe('var(--ba-section-py) 1.5rem');
+  });
+});
+
+describe('sectionCardTextColor (TD51-S05)', () => {
+  it('reads on the secondary card of a default section: the section text, else the secondary text', () => {
+    expect(sectionCardTextColor('default')).toBe(
+      'var(--ba-section-text, var(--ba-secondary-text))',
+    );
+    expect(sectionCardTextColor(undefined)).toBe(
+      'var(--ba-section-text, var(--ba-secondary-text))',
+    );
+  });
+
+  it('keeps the page text colour on the page-background card of an alternate section', () => {
+    expect(sectionCardTextColor('alt')).toBe(sectionTextColor);
   });
 });
