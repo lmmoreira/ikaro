@@ -860,7 +860,7 @@ describe('RescheduleBookingUseCase', () => {
 
 ---
 
-## Testing the billing provider — fake, sandbox, contract suite and clock *(planned, Billing milestone)*
+## Testing the billing provider — fake, sandbox, contract suite and clock *(partly built, Billing milestone)*
 
 > **PARTLY BUILT.** Under `contexts/billing` the schema migration, the price-list, `Subscription` and `BillingAccount` aggregates and repositories, the injectable clock, and (M25-S14) the `BillingProviderPort`, `FakeBillingProvider`, `BillingProviderRegistry` and the contract suite exist. The sandbox leg of the suite, the simulate and seed endpoints and the Asaas adapter do not (M26); this is the strategy the Billing stories implement (use cases UC-113–UC-116 and UC-138–UC-140 in `docs/USE_CASES.md`). The writing-time traps are in `docs/ENGINEERING_RULES_TESTING.md` § Billing provider tests.
 

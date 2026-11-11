@@ -36,7 +36,12 @@ export interface CreateProviderChargeInput {
   readonly taxBehavior: 'INCLUSIVE' | 'EXCLUSIVE';
   readonly customerLocation: ProviderCustomerLocation;
   readonly description: string;
-  /** Our charge id: at most 100 characters (Asaas), echoed back in the provider's webhooks. */
+  /**
+   * Our charge id: at most 100 characters (Asaas), echoed back in the provider's webhooks. It is
+   * also the retry key: `createCharge` called again with the same value returns the charge it
+   * already created. Asaas does not enforce that on `externalReference` itself, so its adapter
+   * sends the same value as the `Idempotency-Key` header and, on the 409, looks the charge up.
+   */
   readonly externalReference: string;
   /** The web billing page the hosted payment page returns to. */
   readonly returnUrl: string;

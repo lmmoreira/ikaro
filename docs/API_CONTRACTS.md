@@ -1742,7 +1742,7 @@ Body: { "tenantId" | "chargeId": "…",
 ```ts
 interface BillingProviderPort {
   ensureCustomer(tenantId, identity): Promise<{ providerCustomerId: string }>;   // Asaas: name + cpfCnpj (Asaas enforces cpfCnpj when the charge is created, not the customer: docs/ASAAS_PROVIDER.md § 1), notificationDisabled=true; Stripe: location for tax
-  // Asaas: billingType UNDEFINED, our charge id as externalReference (Asaas allows at most 100 characters, docs/ASAAS_PROVIDER.md § 1). Stripe: one finalized invoice (send_invoice) with automatic_tax.
+  // Asaas: billingType UNDEFINED, our charge id as externalReference (Asaas allows at most 100 characters, docs/ASAAS_PROVIDER.md § 1). externalReference is also the retry key: createCharge with the same value returns the charge already created (the Asaas adapter sends it as the Idempotency-Key header and looks the charge up on the 409). Stripe: one finalized invoice (send_invoice) with automatic_tax.
   createCharge(input: { merchantProfileKey, providerCustomerId, dueDate, lines, currency, taxBehavior, customerLocation, description, externalReference, returnUrl }):
     Promise<{ providerChargeId, paymentUrl, expiresAt, totalMinor, tax: { totalTaxMinor, lines, providerCalculationId? } }>;   // tax is empty while every price is tax-inclusive (BR); the Stripe adapter fills it (slice E)
   regeneratePaymentLink(providerChargeId): Promise<{ paymentUrl, expiresAt }>;
