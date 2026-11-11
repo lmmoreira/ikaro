@@ -9,7 +9,7 @@ export type BrandedInputProps = Omit<React.ComponentPropsWithoutRef<'input'>, 's
 };
 
 /**
- * A text input drawn on the tenant's secondary colour (TD51-S06): readable text, the derived placeholder
+ * A text input drawn on the tenant's secondary colour: readable text, the derived placeholder
  * tint and a border that reaches 3:1 on any palette. A caller passes `invalid` and layout classes,
  * never a colour. ESLint sends a raw `<input>` in the branded trees here.
  */

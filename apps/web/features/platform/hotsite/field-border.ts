@@ -22,7 +22,7 @@ function walkTowards(from: string, towards: string, surfaces: readonly string[])
   return best;
 }
 
-// Border of a branded form control (TD51-S06): visible against the page and against the field's own
+// Border of a branded form control: visible against the page and against the field's own
 // fill, whatever the tenant palette. It walks from the page colour towards the text colour so the
 // edge stays a tint of the tenant's own palette; only when no step on that path reaches 3:1 against
 // both surfaces (text close to the page, or equal to the secondary colour) does it also try black
@@ -38,5 +38,5 @@ export function deriveFieldBorder(
   const fallbacks = ['#000000', '#FFFFFF'].map((end) =>
     walkTowards(backgroundColor, end, surfaces),
   );
-  return [tinted, ...fallbacks].reduce((a, b) => (b.ratio > a.ratio ? b : a)).color;
+  return fallbacks.reduce((best, next) => (next.ratio > best.ratio ? next : best), tinted).color;
 }

@@ -238,7 +238,7 @@ const RAW_FORM_CONTROL_SELECTORS = [
 // Where a raw control is legitimate: the primitives (`shared/components/ui/**`), and by exact path
 // (never a folder) the few branded files that must keep a native control no atom reproduces: the
 // three atoms themselves, a visually hidden file input, a radio or checkbox group, a pill-shaped
-// chat input, and the lead-form controls, which are deliberately left unbranded (TD51-S06). A raw
+// chat input, and the lead-form controls, which are deliberately left unbranded. A raw
 // `<input>`, `<textarea>` or `<select>` anywhere else, including a folder added later, is covered by
 // default and points to BrandedInput / BrandedTextarea / BrandedSelect (or the ui/ primitive).
 const rawFormControlExemptPaths = [

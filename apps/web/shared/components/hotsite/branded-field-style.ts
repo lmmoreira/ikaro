@@ -8,7 +8,7 @@ import { brandedSurfaceStyle } from './branded-surface-style';
  * and the typed value, take `--ba-secondary-text` through the shared surface style. An invalid
  * field drops the border colour so `BRANDED_FIELD_INVALID_CLASS` (branded-field-feedback) paints
  * the error border. The valid border is `--ba-field-border`, which `applyBranding()` derives to reach
- * 3:1 against the page and the fill, so the edge never disappears (TD51-S06).
+ * 3:1 against the page and the fill, so the edge never disappears.
  */
 export function brandedFieldStyle({
   invalid = false,
