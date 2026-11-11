@@ -6,7 +6,11 @@ import type {
 } from '@ikaro/types';
 import type React from 'react';
 
+import { contrastRatio, mixHex } from './color-math';
+import { deriveFieldBorder } from './field-border';
 import { FONT_MAP } from './font-config';
+
+export { contrastRatio };
 
 const BORDER_RADIUS = { sharp: '0px', rounded: '8px', pill: '9999px', soft: '24px' };
 const SECTION_PY = { compact: '3rem', comfortable: '5rem', spacious: '8rem' };
@@ -52,33 +56,6 @@ function deriveButtonTokens(branding: HotsiteBrandingResponse): ButtonTokens {
   return { bg, text, border, hoverBg };
 }
 
-function hexToRgb(hex: string): [number, number, number] {
-  const normalized = hex.replace('#', '');
-  return [
-    Number.parseInt(normalized.substring(0, 2), 16),
-    Number.parseInt(normalized.substring(2, 4), 16),
-    Number.parseInt(normalized.substring(4, 6), 16),
-  ];
-}
-
-function linearizeChannel(channel: number): number {
-  const value = channel / 255;
-  return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
-}
-
-// WCAG 2.1 relative luminance: https://www.w3.org/TR/WCAG21/#dfn-relative-luminance
-function relativeLuminance(hex: string): number {
-  const [r, g, b] = hexToRgb(hex);
-  return 0.2126 * linearizeChannel(r) + 0.7152 * linearizeChannel(g) + 0.0722 * linearizeChannel(b);
-}
-
-export function contrastRatio(hexA: string, hexB: string): number {
-  const [lighter, darker] = [relativeLuminance(hexA), relativeLuminance(hexB)].sort(
-    (a, b) => b - a,
-  );
-  return (lighter + 0.05) / (darker + 0.05);
-}
-
 // The effective background color of the hero section — either the primary brand color (default)
 // or the page background color when heroBgStyle === 'background'.
 function deriveHeroBg(branding: HotsiteBrandingResponse): string {
@@ -97,18 +74,6 @@ function deriveHeroTextColor(branding: HotsiteBrandingResponse): string {
 
 // WCAG AA for normal-size text.
 const MIN_TEXT_CONTRAST = 4.5;
-
-function channelToHex(channel: number): string {
-  return Math.round(channel).toString(16).padStart(2, '0');
-}
-
-// Linear blend in sRGB: `amount` of `towards` over `base` — deterministic hex, no color-mix().
-function mixHex(base: string, towards: string, amount: number): string {
-  const [br, bg, bb] = hexToRgb(base);
-  const [tr, tg, tb] = hexToRgb(towards);
-  const mix = (from: number, to: number): string => channelToHex(from + (to - from) * amount);
-  return `#${mix(br, tr)}${mix(bg, tg)}${mix(bb, tb)}`.toUpperCase();
-}
 
 // The better-contrasting of the candidates against `surfaceColor`; if none reaches AA, plain black
 // or white, whichever is better — max(contrast vs black, contrast vs white) is always >= 4.58, so
@@ -225,6 +190,29 @@ export function deriveSecondaryMuted(secondaryColor: string, secondaryText: stri
   return contrastRatio(secondaryColor, softened) >= MIN_TEXT_CONTRAST ? softened : secondaryText;
 }
 
+// The tokens a branded surface and its controls derive from the secondary colour: readable text,
+// the softened placeholder tint, the field border, the divider and the accent.
+function deriveSecondaryTokens(
+  branding: HotsiteBrandingResponse,
+  secondaryText: string,
+  divider: string,
+): Record<`--ba-${string}`, string> {
+  return {
+    '--ba-secondary-text': secondaryText,
+    '--ba-secondary-muted': deriveSecondaryMuted(branding.secondaryColor, secondaryText),
+    '--ba-field-border': deriveFieldBorder(
+      branding.backgroundColor,
+      branding.secondaryColor,
+      branding.textColor,
+    ),
+    '--ba-secondary-divider': divider,
+    '--ba-secondary-accent':
+      contrastRatio(branding.secondaryColor, branding.primaryColor) >= MIN_TEXT_CONTRAST
+        ? branding.primaryColor
+        : secondaryText,
+  };
+}
+
 export function applyBranding(
   branding: HotsiteBrandingResponse,
 ): React.CSSProperties & Record<`--ba-${string}`, string> {
@@ -255,12 +243,6 @@ export function applyBranding(
     '--ba-hero-bg': deriveHeroBg(branding),
     '--ba-hero-text': deriveHeroTextColor(branding),
     '--ba-divider': deriveDivider(branding),
-    '--ba-secondary-text': secondaryText,
-    '--ba-secondary-muted': deriveSecondaryMuted(branding.secondaryColor, secondaryText),
-    '--ba-secondary-divider': secondaryTokens['--ba-section-divider'],
-    '--ba-secondary-accent':
-      contrastRatio(branding.secondaryColor, branding.primaryColor) >= MIN_TEXT_CONTRAST
-        ? branding.primaryColor
-        : secondaryText,
+    ...deriveSecondaryTokens(branding, secondaryText, secondaryTokens['--ba-section-divider']),
   };
 }

@@ -123,4 +123,22 @@ describe('InformationCompletionPhoneField readable colours (TD51-S05)', () => {
       'var(--ba-secondary-text)',
     );
   });
+
+  it('draws the phone input and its prefix with the derived field edge', () => {
+    render(
+      <InformationCompletionPhoneField
+        phonePrefix="+55"
+        localPhoneDigits=""
+        onChangeLocalDigits={vi.fn()}
+        label="Telefone"
+      />,
+    );
+
+    expect(screen.getByTestId('information-completion-phone-input').style.borderColor).toBe(
+      'var(--ba-field-border)',
+    );
+    expect(screen.getByTestId('information-completion-phone-prefix').style.borderColor).toBe(
+      'var(--ba-field-border)',
+    );
+  });
 });

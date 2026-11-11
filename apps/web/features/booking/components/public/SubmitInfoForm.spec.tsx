@@ -349,4 +349,10 @@ describe('SubmitInfoForm', () => {
 
     fetchSpy.mockRestore();
   });
+
+  it('draws the response textarea with the derived field edge', () => {
+    renderWithIntl(<SubmitInfoForm bookingId={BOOKING_ID} token={TOKEN} summary={null} />);
+
+    expect(screen.getByTestId('response-input').style.borderColor).toBe('var(--ba-field-border)');
+  });
 });

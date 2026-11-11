@@ -116,4 +116,10 @@ describe('AddressTextField readable colours (TD51-S05)', () => {
     expect(input.style.backgroundColor).toBe('var(--ba-secondary)');
     expect(input.className).toContain('--ba-secondary-muted');
   });
+
+  it('draws the input with the derived field edge', () => {
+    render(<AddressTextField id="street" label="Rua" value="" onChange={vi.fn()} />);
+
+    expect(screen.getByLabelText('Rua').style.borderColor).toBe('var(--ba-field-border)');
+  });
 });

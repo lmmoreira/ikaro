@@ -194,4 +194,13 @@ describe('VariableDurationStep', () => {
     expect(screen.getByText('Não há durações disponíveis para este serviço.')).toBeInTheDocument();
     expect(screen.getByTestId('step-next')).toBeDisabled();
   });
+
+  it('draws the duration select with the derived field edge', () => {
+    vi.mocked(fetchServiceQuote).mockResolvedValue(quote(60, 50));
+    renderWithIntl(<Harness />);
+
+    const select = screen.getByTestId('duration-select');
+    expect(select.tagName).toBe('SELECT');
+    expect(select.style.borderColor).toBe('var(--ba-field-border)');
+  });
 });

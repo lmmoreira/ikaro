@@ -1,10 +1,10 @@
 'use client';
 
 import type React from 'react';
-import { brandedFieldStyle } from '@/shared/components/hotsite/branded-field-style';
+import { BrandedInput } from '@/shared/components/hotsite/branded-input';
 import { useTranslations } from 'next-intl';
 import { newAttendeeDraft, type AttendeeDraft } from '@/features/booking/model/intake-answers';
-import { IntakeFieldMessage, intakeInputClass } from './IntakeQuestionField';
+import { IntakeFieldMessage } from './IntakeQuestionField';
 
 interface IntakeAttendeesListProps {
   readonly attendees: readonly AttendeeDraft[];
@@ -38,15 +38,12 @@ export function IntakeAttendeesList({
       </legend>
       {attendees.map((row, index) => (
         <div key={row.id} className="mb-2 flex items-center gap-2">
-          <input
+          <BrandedInput
             type="text"
             data-testid="intake-attendee-name"
             maxLength={255}
-            className={intakeInputClass(
-              'min-w-0 flex-1 border px-3 py-2',
-              hasError && row.name.trim() === '',
-            )}
-            style={brandedFieldStyle({ invalid: hasError && row.name.trim() === '' })}
+            className="min-w-0 flex-1 px-3 py-2"
+            invalid={hasError && row.name.trim() === ''}
             aria-label={t('attendeeNameLabel', { index: index + 1 })}
             placeholder={t('attendeeNamePlaceholder')}
             value={row.name}

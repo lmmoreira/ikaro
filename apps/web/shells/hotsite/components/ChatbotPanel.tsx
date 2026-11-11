@@ -189,7 +189,7 @@ export function ChatbotPanel({
           data-testid="chatbot-message-input"
           className="flex-1 rounded-full border px-4 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
           style={{
-            borderColor: 'var(--ba-secondary)',
+            borderColor: 'var(--ba-field-border)',
             backgroundColor: 'var(--ba-background)',
             color: 'var(--ba-text)',
           }}

@@ -9,6 +9,7 @@ import {
   deriveSecondaryMuted,
   deriveSectionTokens,
 } from './apply-branding';
+import { deriveFieldBorder } from './field-border';
 
 type CSSTokens = Record<string, string>;
 
@@ -504,5 +505,45 @@ describe('--ba-secondary-muted', () => {
       makeBranding({ secondaryColor: '#26372F', textColor: '#26372F' }),
     ) as CSSTokens;
     expect(contrastRatio('#26372F', tokens['--ba-secondary-muted'])).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+describe('--ba-field-border', () => {
+  it('is derived from the page, secondary and text colours and reaches 3:1 over both surfaces', () => {
+    const branding = makeBranding({ backgroundColor: '#FFFFFF', secondaryColor: '#EFF6FF' });
+    const tokens = applyBranding(branding) as CSSTokens;
+
+    expect(tokens['--ba-field-border']).toBe(
+      deriveFieldBorder(branding.backgroundColor, branding.secondaryColor, branding.textColor),
+    );
+    expect(contrastRatio(tokens['--ba-field-border'], '#FFFFFF')).toBeGreaterThanOrEqual(3);
+    expect(contrastRatio(tokens['--ba-field-border'], '#EFF6FF')).toBeGreaterThanOrEqual(3);
+  });
+
+  it('is derived only: the same palette always gives the same value', () => {
+    const branding = makeBranding();
+
+    expect((applyBranding(branding) as CSSTokens)['--ba-field-border']).toBe(
+      (applyBranding(branding) as CSSTokens)['--ba-field-border'],
+    );
+  });
+});
+
+describe('dark palette used by the e2e helper (e2e/helpers/booking-form/theme.ts)', () => {
+  it('derives the secondary-surface and field tokens the helper sets by hand', () => {
+    const tokens = applyBranding(
+      makeBranding({
+        primaryColor: '#93c5fd',
+        secondaryColor: '#475569',
+        backgroundColor: '#0f172a',
+        textColor: '#f1f5f9',
+      }),
+    ) as CSSTokens;
+
+    expect(tokens['--ba-secondary-text']).toBe('#f1f5f9');
+    expect(tokens['--ba-secondary-muted']).toBe('#f1f5f9');
+    expect(tokens['--ba-secondary-accent']).toBe('#f1f5f9');
+    expect(tokens['--ba-secondary-divider']).toBe('#727D8D');
+    expect(tokens['--ba-field-border']).toBe('#A2A7B1');
   });
 });

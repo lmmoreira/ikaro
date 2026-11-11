@@ -11,12 +11,9 @@ import { resolveSupportedLocale } from '@/shared/lib/i18n/get-messages';
 import { extractProblemDetailShape } from '@/shared/lib/api/errors';
 import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feedback-message';
 import { BrandedPanel } from '@/shared/components/hotsite/branded-panel';
-import {
-  BRANDED_FIELD_INVALID_CLASS,
-  BrandedFieldFeedback,
-} from '@/shared/components/hotsite/branded-field-feedback';
+import { BrandedTextarea } from '@/shared/components/hotsite/branded-textarea';
+import { BrandedFieldFeedback } from '@/shared/components/hotsite/branded-field-feedback';
 import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
-import { cn } from '@/shared/utils/cn';
 import { BrandHeader } from './BrandHeader';
 import { PhotoUpload } from './PhotoUpload';
 import { SubmitInfoSuccessView, type SubmitInfoFormSummary } from './SubmitInfoSuccessView';
@@ -173,7 +170,7 @@ export function SubmitInfoForm({
                 *
               </span>
             </label>
-            <textarea
+            <BrandedTextarea
               id="response"
               data-testid="response-input"
               rows={5}
@@ -185,15 +182,8 @@ export function SubmitInfoForm({
               placeholder={t('responsePlaceholder')}
               aria-required="true"
               {...feedback.fieldProps(RESPONSE_FIELD)}
-              className={cn(
-                'mb-1.5 w-full resize-y rounded-md border p-3 text-sm',
-                responseInvalid && BRANDED_FIELD_INVALID_CLASS,
-              )}
-              style={{
-                ...(responseInvalid ? {} : { borderColor: 'var(--ba-secondary)' }),
-                borderRadius: 'var(--ba-radius)',
-                minHeight: '7rem',
-              }}
+              className="mb-1.5 min-h-28 w-full resize-y p-3 text-sm"
+              invalid={responseInvalid}
               disabled={state.status === 'submitting'}
             />
             {responseInvalid && (

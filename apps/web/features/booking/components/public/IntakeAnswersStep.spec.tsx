@@ -228,4 +228,15 @@ describe('IntakeAnswersStep readable colours (TD51-S05)', () => {
       'var(--ba-secondary-text)',
     );
   });
+
+  it('draws the participant count and the free-text answer with the derived field edge', () => {
+    renderWithIntl(<Harness onNext={vi.fn()} />);
+
+    expect(screen.getByTestId('intake-participants').style.borderColor).toBe(
+      'var(--ba-field-border)',
+    );
+    expect(screen.getByLabelText(/Qual o objetivo/).style.borderColor).toBe(
+      'var(--ba-field-border)',
+    );
+  });
 });
