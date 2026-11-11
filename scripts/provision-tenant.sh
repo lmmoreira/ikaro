@@ -75,6 +75,20 @@ for required in "$TENANT_NAME" "$TENANT_SLUG" "$ADMIN_EMAIL" "$COUNTRY_CODE"; do
   fi
 done
 
+# Values are sent as JSON text: a control character (a newline, a tab) cannot be carried in one, so
+# refuse it here, before the registration is reserved. Quotes and backslashes are escaped below.
+for value in "$TENANT_NAME" "$TENANT_SLUG" "$ADMIN_EMAIL" "$COUNTRY_CODE" "$TIMEZONE" "$TAX_ID"; do
+  if [[ "$value" =~ [[:cntrl:]] ]]; then
+    echo "ERROR: arguments must not contain control characters (newlines, tabs)." >&2
+    exit 1
+  fi
+done
+
+# Escapes a value for use inside a JSON string: backslash first, then the double quote.
+json_escape() {
+  printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'
+}
+
 meta() {
   curl -sS --fail-with-body -H "Metadata-Flavor: Google" \
     "http://metadata.google.internal/computeMetadata/v1/$1"
@@ -135,7 +149,7 @@ esac
     REG_BODY="${REG_BODY},\"exempt\":true"
   fi
   if [ -n "$TAX_ID" ]; then
-    REG_BODY="${REG_BODY},\"taxId\":\"${TAX_ID}\",\"countryCode\":\"${COUNTRY_CODE}\""
+    REG_BODY="${REG_BODY},\"taxId\":\"$(json_escape "$TAX_ID")\",\"countryCode\":\"$(json_escape "$COUNTRY_CODE")\""
   fi
   REG_BODY="${REG_BODY}}"
 
@@ -156,9 +170,10 @@ esac
 }
 
 BODY=$(printf '{"name":"%s","slug":"%s","adminEmail":"%s","country_code":"%s"' \
-  "$TENANT_NAME" "$TENANT_SLUG" "$ADMIN_EMAIL" "$COUNTRY_CODE")
+  "$(json_escape "$TENANT_NAME")" "$(json_escape "$TENANT_SLUG")" \
+  "$(json_escape "$ADMIN_EMAIL")" "$(json_escape "$COUNTRY_CODE")")
 if [ -n "$TIMEZONE" ]; then
-  BODY="${BODY},\"timezone\":\"${TIMEZONE}\""
+  BODY="${BODY},\"timezone\":\"$(json_escape "$TIMEZONE")\""
 fi
 BODY="${BODY},\"registrationId\":\"${REGISTRATION_ID}\""
 BODY="${BODY}}"
