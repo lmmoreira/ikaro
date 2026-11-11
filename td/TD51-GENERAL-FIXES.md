@@ -490,7 +490,7 @@ A branded tenant gets one pattern for every surface painted with its secondary c
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean (including `SECONDARY_SURFACE_SELECTOR` over the whole of `apps/web`, proving no raw secondary surface remains)
 
-### Story 6 — Give branded form controls an edge that never disappears: a derived field border and BrandedInput / BrandedTextarea / BrandedSelect 🔴
+### Story 6 — Give branded form controls an edge that never disappears: a derived field border and BrandedInput / BrandedTextarea / BrandedSelect 🔴 ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** L
