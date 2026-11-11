@@ -40,6 +40,7 @@ import { ResourceOccupancyEntity } from '../entities/resource-occupancy.entity';
 import { ScheduleClosureEntity } from '../entities/schedule-closure.entity';
 import { ScheduleOpeningEntity } from '../entities/schedule-opening.entity';
 import { ResourceType } from '../../domain/resource.types';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 const TEST_KEY = 'recur-integ-test-key-booking-xxx'; // 36 chars
 const CUSTOMER_ID = '20000000-0000-4000-8000-000000000601';
@@ -63,6 +64,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
         slug: 'recurring-tenant-a',
         adminEmail: 'a@recurring.test',
         country_code: 'BR',
+        registrationId: TEST_REGISTRATION_ID,
       })
       .expect(201);
     tenantId = tenant.tenantId as string;
@@ -811,6 +813,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
             slug: `recurring-ineligible-${uuidv7().slice(-8)}`,
             adminEmail: 'b@recurring.test',
             country_code: 'BR',
+            registrationId: TEST_REGISTRATION_ID,
           })
           .expect(201);
         const otherTenantId = other.tenantId as string;
@@ -1814,6 +1817,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
             slug: 'recurring-tenant-b',
             adminEmail: 'b@recurring.test',
             country_code: 'BR',
+            registrationId: TEST_REGISTRATION_ID,
           })
           .expect(201);
         const otherTenantId = otherTenant.tenantId as string;
@@ -2004,6 +2008,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
           slug: 'recurring-tenant-c',
           adminEmail: 'c@recurring.test',
           country_code: 'BR',
+          registrationId: TEST_REGISTRATION_ID,
         })
         .expect(201);
       const otherTenantId = otherTenant.tenantId as string;

@@ -25,6 +25,7 @@ import { ResourceEntity } from '../entities/resource.entity';
 import { ServiceEntity } from '../entities/service.entity';
 import { ServiceResourceRequirementEntity } from '../entities/service-resource-requirement.entity';
 import { ResourceType } from '../../domain/resource.types';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 const TEST_KEY = 'alert-integ-test-key-booking-xxx'; // 33 chars, same shape as sibling specs
 const CUSTOMER_A = '20000000-0000-4000-8000-000000000701';
@@ -52,6 +53,7 @@ describe('AvailabilityAlertController (integration)', () => {
         slug,
         adminEmail: `admin@${slug}.test`,
         country_code: 'BR',
+        registrationId: TEST_REGISTRATION_ID,
       })
       .expect(201);
     return body.tenantId as string;

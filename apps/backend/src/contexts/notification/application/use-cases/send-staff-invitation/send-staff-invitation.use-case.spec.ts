@@ -99,6 +99,28 @@ describe('SendStaffInvitationUseCase', () => {
     expect(logs[0].channel).toBe('EMAIL');
   });
 
+  // M25-S10 pin: provisioning a US tenant (locale `en`, from CountrySpec.language) must invite its
+  // first manager in English; a pt-BR tenant stays in Portuguese (the test above).
+  it('invites the first manager in English when the tenant locale is en', async () => {
+    tenantPort.setTenantInfo(TENANT_ID, {
+      id: TENANT_ID,
+      name: 'Lava Car US',
+      slug: 'lavacar-us',
+      timezone: 'America/New_York',
+      locale: 'en',
+      replyToEmail: null,
+    });
+
+    await useCase.execute(dto);
+
+    const msg = dispatcher.dispatched[0];
+    expect(msg.subject).toBe('Invitation to join Ikaro');
+    expect(msg.body).toContain('Lava Car US');
+    expect(msg.body).toContain('You have been invited to join the');
+    expect(msg.body).not.toContain('Convite');
+    expect(msg.body).not.toContain('{{');
+  });
+
   it('is idempotent: second call with same eventId returns sent=false without dispatching', async () => {
     await useCase.execute(dto);
     const result = await useCase.execute(dto);

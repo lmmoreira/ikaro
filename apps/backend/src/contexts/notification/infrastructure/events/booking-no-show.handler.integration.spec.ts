@@ -8,6 +8,7 @@ import { BookingCompletedEventBuilder } from '../../../../test/builders/booking/
 import { BookingNoShowEventBuilder } from '../../../../test/builders/booking/booking-no-show-event.builder';
 import { NotificationTemplateKey } from '../../domain/notification-template-key.enum';
 import { NotificationLogEntity } from '../entities/notification-log.entity';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 const PLATFORM_KEY = 'booking-no-show-key-xxxxxxxxxxxxxxxxx';
 const KEY = NotificationTemplateKey.BOOKING_NO_SHOW_CUSTOMER;
@@ -36,6 +37,7 @@ describe('Story: BookingNoShow → customer email (integration)', () => {
         slug: `ns-${stamp}`,
         adminEmail,
         country_code: 'BR',
+        registrationId: TEST_REGISTRATION_ID,
         timezone: 'America/Sao_Paulo',
       })
       .expect(201);

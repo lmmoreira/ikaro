@@ -26,6 +26,8 @@ export interface ReserveSignupRegistrationUseCaseInput {
   taxId?: { raw: string; countryCode: string };
   /** Required for `SELF_SIGNUP`; ignored (never stored) for `OPERATOR`. */
   termsVersion?: string;
+  /** `OPERATOR` only: the tenant to be is provisioned free of charge. */
+  exempt?: boolean;
 }
 
 export interface ReserveSignupRegistrationUseCaseResult {
@@ -64,6 +66,7 @@ export class ReserveSignupRegistrationUseCase {
       googleSub: input.googleSub,
       taxId,
       termsVersion: input.termsVersion,
+      exempt: input.exempt,
       now: this.clock.now(),
     });
 

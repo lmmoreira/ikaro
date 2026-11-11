@@ -67,8 +67,10 @@ Staging must contain synthetic/test data only. Never provision real customer dat
 5. Inside the VM, run the bundled script:
    ```bash
    /usr/local/bin/provision-tenant.sh \
-     "<tenant-name>" "<slug>" "<admin-email>" "BR" "America/Sao_Paulo"
+     "<tenant-name>" "<slug>" "<admin-email>" "BR" "America/Sao_Paulo" \
+     --tax-id "<cpf-or-cnpj>"
    ```
+   The script first reserves an `OPERATOR` Billing registration (`POST /internal/billing/registrations`) and passes the returned `registrationId` to the tenant call. Optional flags, after the positionals: `--tax-id <cpf|cnpj>` (the operator is trusted, so it is never required; without it the manager types the tax id in the billing page and the Brazilian charge is held until then) and `--exempt` (free access: an `ACTIVE`, exempt subscription instead of the trial). The script checks its own arguments before any call. Every run reserves its own registration, taken from Billing's response, so the id is valid by construction; if the tenant call fails after the reservation, run the script again: the abandoned `RESERVED` registration is harmless and is released by the one-hour sweep (M26-S08).
    The script is designed to obtain the Cloud Run identity token and read both `platform-admin-key` and `internal-api-key` from Secret Manager. Until the TD32 live self-fetch check is completed, treat successful reads as a preflight requirement and stop if either lookup fails; no manual secret export should be needed for the supported flow.
 6. Confirm the command returns HTTP `201` with a `tenantId`. The initial manager staff row, default templates, and invitation email are asynchronous; verify them from the application and logs after the request succeeds.
 7. When the operation is complete, run `bash scripts/relay-vm-down.sh staging`, merge the generated PR, and apply Foundation again. Verify that the relay instance is absent.

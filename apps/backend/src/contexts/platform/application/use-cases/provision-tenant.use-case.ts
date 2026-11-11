@@ -20,6 +20,12 @@ export interface ProvisionTenantUseCaseInput {
   adminEmail: string;
   country_code: string;
   timezone?: string;
+  /**
+   * The Billing registration reserved before the tenant (UC-024, UC-127). Required: every
+   * provisioning goes through one pattern. Only its shape is checked at the boundary; Platform never
+   * reads Billing, and the Billing handler refuses an unknown or already completed one (UC-110 A8).
+   */
+  registrationId: string;
 }
 
 export interface ProvisionTenantUseCaseResult {
@@ -53,6 +59,7 @@ export class ProvisionTenantUseCase {
       correlationId,
       timezone,
       countryCode.value,
+      input.registrationId,
     );
     const config = HotsiteConfig.create(tenant.id);
 

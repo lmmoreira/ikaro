@@ -2415,7 +2415,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 ### **UC-024: Platform Operator Provisions New Tenant (REST API)**
 
 - **Actor:** Ikaro platform operator (developer / internal ops)
-- **Preconditions:** Operator can open an IAP SSH session to the on-demand relay VM; the relay service account has backend `roles/run.invoker` and Secret Manager access to `PLATFORM_ADMIN_KEY` plus `INTERNAL_API_KEY`. Self-service signup (UC-127) is the default way to create a tenant; this operator route is the exception path for exempt and partner tenants. Self-signup does **not** call it: it provisions through the signup-only `POST /internal/signup/tenant`, which calls the same `ProvisionTenantUseCase` (*planned with Billing: this route gains `exempt`, `features`, `registrationId` and `taxId`, below*).
+- **Preconditions:** Operator can open an IAP SSH session to the on-demand relay VM; the relay service account has backend `roles/run.invoker` and Secret Manager access to `PLATFORM_ADMIN_KEY` plus `INTERNAL_API_KEY`. Self-service signup (UC-127) is the default way to create a tenant; this operator route is the exception path for exempt and partner tenants. Self-signup does **not** call it: it provisions through the signup-only `POST /internal/signup/tenant`, which calls the same `ProvisionTenantUseCase` (this route also requires a `registrationId`, below).
 - **Trigger:** A new car-wash company is signed up and needs a tenant provisioned on the platform.
 - **Security:** Four independent layers (M17):
   1. **Cloud Run internal ingress** — the backend is not publicly reachable.
@@ -2424,7 +2424,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
   4. **`PLATFORM_ADMIN_KEY`** — `PlatformAdminGuard` validates `X-Platform-Admin-Key`.
 
 - **Main Flow:**
-   1. Operator calls:
+   1. The operator first reserves an `OPERATOR` registration with `POST /internal/billing/registrations` (optionally `exempt: true` and a `taxId`; `scripts/provision-tenant.sh` does this), then calls:
       ```http
       POST /internal/tenants
       X-Platform-Admin-Key: <PLATFORM_ADMIN_KEY>
@@ -2436,15 +2436,16 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
         "slug": "autowash-pro",
         "adminEmail": "owner@autowashpro.com.br",
         "country_code": "BR",
-        "timezone": "America/Sao_Paulo"
+        "timezone": "America/Sao_Paulo",
+        "registrationId": "uuid-v7 returned by the registration call"
       }
       ```
-      *(Planned with Billing, UC-110 / UC-137: the body also accepts an optional `exempt: boolean`, an optional `features` subset (feature keys) and `registrationId`, and a non-exempt BR tenant requires a valid `taxId` (CPF or CNPJ; `422 SIGNUP_TAX_ID_REQUIRED` / `SIGNUP_TAX_ID_INVALID`). The `taxId` is **validated only on this route and never persisted or forwarded**: the event carries no tax id, and the tax id is held on the OPERATOR registration the script reserves first via `POST /internal/billing/registrations` (`registrationId` links it to the tenant). Platform cannot read the registration, so it does not compare the two values; the script sends one value to both calls, which is the supported path. Platform validates only the *shape* of `registrationId`; refusing an unknown or already `COMPLETED` registration is the Billing use case's job (UC-110), and Platform does not pre-check that the country has prices (`BILLING_NO_PRICE_FOR_COUNTRY` surfaces from UC-110 A2). `scripts/provision-tenant.sh` gains the same inputs as flags (`--exempt`, `--features`, `--registration-id`, `--tax-id`; planned), keeping the four existing positionals (`<name> <slug> <adminEmail> <country_code> [timezone]`) working, with flags accepted after them. Unless `--exempt` is given, the script first calls `POST /internal/billing/registrations` (`source = OPERATOR`, the `--tax-id` value as `taxId`), then passes the returned `registrationId` and the same `taxId` to `POST /internal/tenants`; `--exempt` skips the registrations call, because an exempt tenant has no registration. Contract: `docs/API_CONTRACTS.md` § Billing — Provider Webhooks and Internal API.)*
+      *(With Billing, UC-110 / UC-137: the body also takes a **required** `registrationId` (a UUID). Every provisioning, operator or self-signup, goes through one pattern: a Billing registration reserved first is the single place that holds the billing intent of the new tenant: the optional `exempt` flag (operator source only), the tax identity and, for self-signup, the Google `sub` and the accepted terms. This route carries no tax id, no `exempt` and no feature list: Platform validates only the *shape* of `registrationId`, never reads Billing, and puts it on the event. Refusing an unknown or already `COMPLETED` registration is the Billing handler's job (UC-110 A8), and Platform does not pre-check that the country has prices (`BILLING_NO_PRICE_FOR_COUNTRY` surfaces from UC-110 A2). A trial always grants every feature, so there is no feature subset at provisioning. `scripts/provision-tenant.sh` reserves the registration for you: it keeps the four existing positionals (`<name> <slug> <adminEmail> <country_code> [timezone]`) and accepts, after them, `--exempt` and `--tax-id <id>` (both sent to the registrations call: the tax id is optional because the operator is trusted, and an operator tenant without one simply has the manager type it in the billing page, UC-110 A7). The registration id always comes from the registrations call's response (there is no way to pass one by hand), so it is valid by construction; if the tenant call then fails, running the script again reserves a new registration and the abandoned `RESERVED` one is released by the one-hour sweep. Contract: `docs/API_CONTRACTS.md` § Billing — Provider Webhooks and Internal API.)*
    2. `InternalApiGuard` validates `X-Internal-Key`; then `PlatformAdminGuard` validates `X-Platform-Admin-Key` using `crypto.timingSafeEqual` → rejects with `401` if either key is invalid.
-   3. System validates inputs: slug format (`/^[a-z0-9-]+$/`), slug uniqueness, email format, supported two-letter ISO `country_code`, and IANA timezone. *(Planned with Billing: for a non-exempt BR tenant also the tax id check digits.)*
+   3. System validates inputs: slug format (`/^[a-z0-9-]+$/`), slug uniqueness, email format, supported two-letter ISO `country_code`, IANA timezone and the `registrationId` shape (a UUID, `400` otherwise). Platform validates nothing billing-related beyond that: the tax id, the exempt flag and the registration's contents belong to Billing.
    4. System creates `platform.tenants` row with default settings.
    5. System creates `platform.hotsite_configs` row (`is_published = false`).
-   6. System publishes `TenantProvisioned` event. *(Planned with Billing: it carries `countryCode`, `timezone` and an optional `billingHint` with `exempt`, the feature subset and the `registrationId`; the Billing context creates the trial subscription from it, UC-110.)*
+   6. System publishes `TenantProvisioned` event. *(It carries `countryCode`, `timezone` and the `registrationId`; the Billing context creates the subscription from that registration, UC-110.)*
    7. Returns `201`:
       ```json
       { "tenantId": "uuid-v7", "name": "AutoWash Pro", "slug": "autowash-pro" }
@@ -2460,8 +2461,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
    - **A5: Invalid `country_code` format** → `400` Problem Detail: country code must be exactly two letters
    - **A6: Unsupported `country_code`** → `400` Problem Detail: country is not supported by the platform
    - **A7: Invalid IANA timezone** → `400` Problem Detail
-   - **A8: Non-exempt BR tenant without a tax id** *(planned with Billing)* → `422` `SIGNUP_TAX_ID_REQUIRED`; nothing is created.
-   - **A9: Tax id that fails the billing country's rule** (BR: invalid CPF / CNPJ check digits; a country with an EIN: not 9 digits) *(planned with Billing)* → `422` `SIGNUP_TAX_ID_INVALID`; nothing is created.
+   - **A8: Missing or malformed `registrationId`** → `400` Problem Detail; nothing is created.
 
 - **Postconditions:** `platform.tenants` + `platform.hotsite_configs` rows created. `TenantProvisioned` event published. First MANAGER staff and invitation email handled asynchronously by M04-S06 and M11.
 - **Events Triggered:** `TenantProvisioned` (synchronous) → triggers `StaffInvited` (asynchronous, via M04-S06)
@@ -2712,20 +2712,20 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 
 - **Actor:** System (reacting to `TenantProvisioned`)
 - **Preconditions:** The tenant exists. `FeaturePrice` rows exist for the tenant's country.
-- **Trigger:** `TenantProvisioned` (from UC-024 operator provisioning or from self-signup, UC-127). It carries `countryCode`, `timezone` and a `billingHint` (`exempt`, optional feature subset, `registrationId`). The new fields are additive, so no new version is needed (`eventVersion` stays 1); the bus routes by `eventName` and never reads it.
+- **Trigger:** `TenantProvisioned` (from UC-024 operator provisioning or from self-signup, UC-127). It carries `countryCode`, `timezone` and the `registrationId` of the Billing registration reserved before the tenant (the operator's, UC-024, or the self-signup's, UC-127); the registration holds the billing intent (`exempt`, tax identity, terms). The new fields are additive, so no new version is needed (`eventVersion` stays 1); the bus routes by `eventName` and never reads it.
 - **Main Flow:**
-   1. The handler (`create-trial-subscription` consumer) calls exactly one use case with `tenantId`, `countryCode`, `timezone`, the hint and `correlationId`.
+   1. The handler (`create-trial-subscription` consumer) calls exactly one use case with `tenantId`, `countryCode`, `timezone`, the `registrationId` and `correlationId`.
    2. The use case creates the `Subscription`: `TRIALING`, `trialEndsAt` = the tenant-local midnight closing day 14 (a trial lasts 13 to 14 full days depending on the creation hour), `timezone` snapshot, `nextDueDate` = the trial-end date, currency from the country's price rows, cycle `MONTHLY`, `merchantProfileKey` given by the environment (never per tenant).
-   3. For every feature it creates a **default paid item** `[trialEndsAt, ∞)` (chatbot `BASIC`); there are no trial items — trial access is computed from the status — and items carry no price. `HOTSITE` is the root dependency; a booking-only selection is invalid. Ikaro's own tenant (slug = `PLATFORM_OWNER_TENANT_SLUG`, a new env var) and any tenant provisioned with the `exempt` hint get `status ACTIVE`, `exempt = true` and open-ended items.
-   4. It creates the `BillingAccount` from the registration named by `registrationId` (BR tax id and accepted terms — none of it is in the event; the Google `sub` stays on the registration for the trial-eligibility rule and is not copied to the account), completes the registration (`tenant_id` set, tax id cleared) and creates the items, all in the same transaction, then invalidates the access cache after commit.
+   3. For every feature it creates a **default paid item** `[trialEndsAt, ∞)` (chatbot `BASIC`); there are no trial items — trial access is computed from the status — and items carry no price. `HOTSITE` is the root dependency; a booking-only selection is invalid. Ikaro's own tenant (slug = `PLATFORM_OWNER_TENANT_SLUG`, a new env var) and any tenant whose registration has `exempt = true` get `status ACTIVE`, `exempt = true` and open-ended items.
+   4. It reads the registration named by `registrationId` (the `exempt` flag included) and creates the `BillingAccount` from it (the tax id, when one was given, and the accepted terms — none of it is in the event; the Google `sub` stays on the registration for the trial-eligibility rule and is not copied to the account), completes the registration (`tenant_id` set, tax id cleared) and creates the items, all in the same transaction, then invalidates the access cache after commit.
 - **Alternative Flows:**
    - **A1: Subscription already exists** (event redelivered) → no-op; idempotent on `UNIQUE(tenant_id)`.
    - **A2: No `FeaturePrice` rows for the country** → the use case fails loudly (logged, event retried); a missing price set is a provisioning/data-integrity incident — access is denied rather than granted (after the provisioning window), the self-heal job (UC-140) retries it, and an alert fires only if that fails. A missing price set for an enabled country is also caught at deploy time.
-   - **A3: Provisioning passes an explicit feature subset** → the subset defines the **default paid items**; the trial still grants every feature (it is computed from the status), so the trial is always complete. An exempt tenant gets only the subset, open-ended.
+   - **A3: No feature subset at provisioning** → every tenant starts with every feature: the trial grants all (it is computed from the status) and the default paid items cover all of them (chatbot `BASIC`); the manager chooses the plan afterwards (UC-136). An exempt tenant gets every feature, open-ended.
    - **A4: Non-exempt US tenant before M28** → no special rule: the US price rows are seeded in every environment (M25-S04), so the trial is created like any other and the provisioning paths do not reject it up front. There is no US payment provider before M28, so collecting from a US tenant is not possible until then.
-   - **A5: A legacy `TenantProvisioned` payload** (an outbox row written before the Billing release, no `countryCode`) → the handler skips it and logs; the self-heal job creates the trial through the narrow read-only tenant-info port. Publisher and handler ship in the same release.
+   - **A5: A legacy `TenantProvisioned` payload** (an outbox row written before the Billing release, no `countryCode` or `registrationId`) → the handler skips it and logs; the self-heal job creates the trial through the narrow read-only tenant-info port. Publisher and handler ship in the same release.
    - **A6: Access is read before this handler has run** → the tenant is younger than `PROVISIONING_GRACE_MINUTES` (15), so the access port treats it as a pending trial (allowed); if the window expires without a subscription, the self-heal job runs this same use case.
-   - **A7: Event without a `registrationId` for a non-exempt tenant** (an old script call) → the subscription is created without a tax id and the BR charge hold applies (UC-113 A8); the manager supplies the id in the dashboard.
+   - **A7: A registration without a tax id** (an operator reserved it without `--tax-id`, or the tenant is exempt) → the account is created without a tax id and, for a non-exempt BR tenant, the charge hold applies (UC-113 A8); the manager supplies the id in the dashboard.
    - **A8: `registrationId` names an unknown or `COMPLETED` registration** → the use case refuses (no subscription is created, no registration is re-attached to a second tenant), the handler rethrows, and after the retries the message dead-letters. The tenant is then *provisioned but without a subscription*: access is denied once the 15-minute window passes. The operator follows `docs/RUNBOOKS.md` § Billing ("A tenant was provisioned but has no subscription"): fix the registration or provision again, then replay the dead-lettered message; the handler is idempotent.
 - **Postconditions:** The tenant has a `TRIALING` subscription with all default items (or an `ACTIVE`, exempt one).
 - **Events Triggered:** None (the audit log is the `TenantProvisioned` consumer itself).
@@ -3051,7 +3051,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
    - **A9: BR tax id missing or with invalid check digits** → `SIGNUP_TAX_ID_REQUIRED` / `SIGNUP_TAX_ID_INVALID`, field error; nothing is created.
    - **A10: Confirmation email not received** → the account-created page offers a rate-limited resend (`POST /v1/public/signup/resend`, authenticated by the resend credential cookie issued at the `201`, answering `{ sent, ready }`) and, once the first manager exists, a one-click Google sign-in to the existing staff login.
 - **Postconditions:** Tenant creation committed; the first manager and the trial subscription are created asynchronously from `TenantProvisioned`. The visitor sees the account-created / check-email page and signs in through the first-manager invitation / login email after setup completes.
-- **Events Triggered:** `TenantProvisioned` (existing; it carries `countryCode`, `timezone` and `billingHint` with the `registrationId` — `docs/DOMAIN_EVENTS.md`)
+- **Events Triggered:** `TenantProvisioned` (existing; it carries `countryCode`, `timezone` and the `registrationId` — `docs/DOMAIN_EVENTS.md`)
 - **Contracts:** routes, statuses and the session cookie in `docs/API_CONTRACTS.md` § Billing — Public Signup API (BFF, no JWT); `signup_registrations` in `docs/DATABASE_SCHEMA.md` § Schema: `billing`; the lock in `docs/LOCK_CATALOG.md` § Billing locks. Journey: `journeys/guest/ikaro-trial.md`.
 
 ---
@@ -3272,8 +3272,8 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 ### **UC-137: Operator Sets or Clears a Tenant's `exempt` Flag**
 
 - **Actor:** Operator
-- **Endpoint:** `PUT /internal/tenants/{tenantId}/billing/exempt` with `{ exempt, reason }` (`InternalApiGuard` + `PlatformAdminGuard`); or provisioning with `exempt = true` (`POST /internal/tenants`, `scripts/provision-tenant.sh`)
-- **Preconditions:** The subscription exists (or the tenant is being provisioned with the `exempt` hint).
+- **Endpoint:** `PUT /internal/tenants/{tenantId}/billing/exempt` with `{ exempt, reason }` (`InternalApiGuard` + `PlatformAdminGuard`); or provisioning from an `exempt` operator registration (`POST /internal/billing/registrations` with `exempt: true`, `scripts/provision-tenant.sh --exempt`)
+- **Preconditions:** The subscription exists (or the tenant is being provisioned from an `exempt` registration).
 - **Trigger:** The operator marks a tenant as free (partner, internal, test-that-must-never-be-charged) or puts it back on the paid ladder.
 - **Main Flow:**
    1. **Set:** the subscription becomes `ACTIVE`, `exempt = true`, every feature entitled with open-ended items (items that have already started are end-dated at the moment of the change; items that have not started yet, such as a trial's default paid items `[trial_ends_at, ∞)`, are replaced outright because an end date before their start would be an empty range; either way the exclusion constraint never sees an overlap); any open charge is cancelled locally and at the provider; billing emails stop; the tenant is excluded from charge issuing, the sweep and purge.
@@ -3489,7 +3489,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 | UC-107 | Staff records a manually reported charge at session close-out *(planned, not built)* | STAFF \| MANAGER | `class_session_payments` row created |
 | UC-108 | Staff creates a one-off booking on a customer's behalf | STAFF \| MANAGER | `Booking` created directly `APPROVED`, `type = CUSTOMER` or `GUEST` |
 | UC-109 | Visitor opens a service page | GUEST \| CUSTOMER | Branded read-only page; booking starts with the service preselected |
-| UC-110 | Billing starts a trial subscription when a tenant is provisioned *(planned, not built)* | System | `TRIALING` `Subscription` + default items + `BillingAccount` from `TenantProvisioned` (or `ACTIVE`/exempt) |
+| UC-110 | Billing starts a trial subscription when a tenant is provisioned *(planned, not built)* | System | `TRIALING` `Subscription` + default items + `BillingAccount` built from the registration named in `TenantProvisioned` (or `ACTIVE`/exempt when the registration says so) |
 | UC-111 | Operator extends grace or suspends a tenant *(planned, not built)* | Operator | `graceUntil` set, or `SUSPENDED` (`OPERATOR`) / `unsuspend`; audited |
 | UC-112 | Operator maintains the list prices *(planned, not built)* | Operator | Dated `feature_price_versions` (exact or percentage adjustment); `SubscriptionPriceChangeAnnounced` per affected tenant |
 | UC-113 | System issues the next charge *(planned, not built)* | System | `PERIOD` `Charge` + lines + provider payment link; `ChargeIssued` after `READY` |

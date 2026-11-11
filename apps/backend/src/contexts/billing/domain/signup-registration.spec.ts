@@ -65,6 +65,56 @@ describe('SignupRegistration.reserve', () => {
     expect(registration.taxId).toBe(CPF);
   });
 
+  describe('exempt', () => {
+    it('is false unless asked for', () => {
+      const registration = SignupRegistration.reserve({
+        source: 'OPERATOR',
+        taxId: null,
+        now: NOW,
+      });
+
+      expect(registration.exempt).toBe(false);
+    });
+
+    it('is kept for an OPERATOR registration, which then needs no tax id', () => {
+      const registration = SignupRegistration.reserve({
+        source: 'OPERATOR',
+        taxId: null,
+        exempt: true,
+        now: NOW,
+      });
+
+      expect(registration.exempt).toBe(true);
+      expect(registration.taxId).toBeNull();
+    });
+
+    it('is refused for a SELF_SIGNUP: a self-signup is never free of charge', () => {
+      expect(() =>
+        SignupRegistration.reserve({
+          source: 'SELF_SIGNUP',
+          googleSub: 'sub-1',
+          taxId: null,
+          termsVersion: '2026-11-01',
+          exempt: true,
+          now: NOW,
+        }),
+      ).toThrow(TypeError);
+    });
+
+    it('is false for a SELF_SIGNUP that says exempt: false', () => {
+      const registration = SignupRegistration.reserve({
+        source: 'SELF_SIGNUP',
+        googleSub: 'sub-1',
+        taxId: null,
+        termsVersion: '2026-11-01',
+        exempt: false,
+        now: NOW,
+      });
+
+      expect(registration.exempt).toBe(false);
+    });
+  });
+
   it('gives each reservation its own id', () => {
     const input = { source: 'OPERATOR' as const, taxId: null, now: NOW };
 

@@ -40,6 +40,7 @@ import { LoyaltyBalanceEntity } from '../../../loyalty/infrastructure/entities/l
 import { LoyaltyRedemptionEntity } from '../../../loyalty/infrastructure/entities/loyalty-redemption.entity';
 import { BalanceExpiryLogEntity } from '../../../loyalty/infrastructure/entities/balance-expiry-log.entity';
 import { ServicePointsEarned } from '../../../loyalty/domain/events/service-points-earned.event';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 const PLATFORM_KEY = 'full-workflow-notif-key-xxxxxxxxxx';
 
@@ -112,6 +113,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
         slug,
         adminEmail,
         country_code: 'BR',
+        registrationId: TEST_REGISTRATION_ID,
         timezone: 'America/Sao_Paulo',
       })
       .expect(201);

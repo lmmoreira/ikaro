@@ -14,6 +14,7 @@ import {
   LoyaltyEntryEntityBuilder,
   LoyaltyRedemptionEntityBuilder,
 } from '../../../../test/builders/loyalty/index';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 const TEST_KEY = 'loyalty-integ-test-key-loyalty-xxxx';
 const CUSTOMER_ID = 'aaaaaaaa-0000-7000-8000-000000000001';
@@ -38,6 +39,7 @@ describe('LoyaltyController (integration)', () => {
         slug: 'loyalty-test-tenant',
         adminEmail: 'admin@loyalty.test',
         country_code: 'BR',
+        registrationId: TEST_REGISTRATION_ID,
       })
       .expect(201);
     tenantId = body.tenantId as string;
@@ -137,6 +139,7 @@ describe('LoyaltyController (integration)', () => {
           slug: 'loyalty-tenant-b',
           adminEmail: 'b@loyalty.test',
           country_code: 'BR',
+          registrationId: TEST_REGISTRATION_ID,
         })
         .expect(201);
       const tenantBId = b.tenantId as string;
@@ -174,6 +177,7 @@ describe('LoyaltyController (integration)', () => {
           slug: 'loyalty-switch-tenant',
           adminEmail: 'switch@loyalty.test',
           country_code: 'BR',
+          registrationId: TEST_REGISTRATION_ID,
         })
         .expect(201);
       const otherTenantId = t2.tenantId as string;
@@ -229,6 +233,7 @@ describe('LoyaltyController (integration)', () => {
           slug: 'loyalty-unlinked-tenant',
           adminEmail: 'unlinked@loyalty.test',
           country_code: 'BR',
+          registrationId: TEST_REGISTRATION_ID,
         })
         .expect(201);
       const unlinkedTenantId = t3.tenantId as string;
@@ -268,6 +273,7 @@ describe('LoyaltyController (integration)', () => {
           slug: 'loyalty-own-balances-tenant',
           adminEmail: 'own-balances@loyalty.test',
           country_code: 'BR',
+          registrationId: TEST_REGISTRATION_ID,
         })
         .expect(201);
       const otherTenantId = t2.tenantId as string;
@@ -337,6 +343,7 @@ describe('LoyaltyController (integration)', () => {
           slug: 'loyalty-own-balances-unlinked-tenant',
           adminEmail: 'own-balances-unlinked@loyalty.test',
           country_code: 'BR',
+          registrationId: TEST_REGISTRATION_ID,
         })
         .expect(201);
       const unlinkedTenantId = t4.tenantId as string;
@@ -529,6 +536,7 @@ describe('LoyaltyController (integration)', () => {
           slug: 'loyalty-tenant-c',
           adminEmail: 'c@loyalty.test',
           country_code: 'BR',
+          registrationId: TEST_REGISTRATION_ID,
         })
         .expect(201);
       const tenantCId = b.tenantId as string;
@@ -609,6 +617,7 @@ describe('LoyaltyController (integration)', () => {
           slug: 'loyalty-tenant-d',
           adminEmail: 'd@loyalty.test',
           country_code: 'BR',
+          registrationId: TEST_REGISTRATION_ID,
         })
         .expect(201);
       const tenantDId = b.tenantId as string;
@@ -686,6 +695,7 @@ describe('LoyaltyController (integration)', () => {
           slug: 'redeem-test-tenant',
           adminEmail: 'redeem@test.example',
           country_code: 'BR',
+          registrationId: TEST_REGISTRATION_ID,
         })
         .expect(201);
       const redeemTenantId = tb.tenantId as string;
@@ -748,6 +758,7 @@ describe('LoyaltyController (integration)', () => {
           slug: 'low-balance-tenant',
           adminEmail: 'low@test.example',
           country_code: 'BR',
+          registrationId: TEST_REGISTRATION_ID,
         })
         .expect(201);
       const lowTenantId = tb2.tenantId as string;
@@ -788,6 +799,7 @@ describe('LoyaltyController (integration)', () => {
           slug: 'isolation-tenant-d',
           adminEmail: 'd@isolation.test',
           country_code: 'BR',
+          registrationId: TEST_REGISTRATION_ID,
         })
         .expect(201);
       const tenantDId = iso.tenantId as string;

@@ -108,7 +108,7 @@ export class Subscription extends AggregateRoot {
   static startTrial(input: StartSubscriptionInput): Subscription {
     const timezone = Timezone.create(input.timezone);
     assertCurrencyMatchesCountry(input.countryCode, input.currency);
-    const selection = defaultSelection(input.features);
+    const selection = defaultSelection();
     validateSelection([], selection);
     const window = trialWindow(input.start, timezone);
     return new Subscription(
@@ -125,13 +125,13 @@ export class Subscription extends AggregateRoot {
 
   /**
    * A new free subscription: `ACTIVE`, `exempt`, open-ended items from the start instant (every
-   * feature, or the given subset), and every trial / period / due field left NULL — it is never
+   * feature), and every trial / period / due field left NULL — it is never
    * charged. `anchorDay` follows the same rule as a trial so a later `clearExempt` is consistent.
    */
   static startExempt(input: StartSubscriptionInput): Subscription {
     const timezone = Timezone.create(input.timezone);
     assertCurrencyMatchesCountry(input.countryCode, input.currency);
-    const selection = defaultSelection(input.features);
+    const selection = defaultSelection();
     validateSelection([], selection);
     const { anchorDay } = trialWindow(input.start, timezone);
     return new Subscription(

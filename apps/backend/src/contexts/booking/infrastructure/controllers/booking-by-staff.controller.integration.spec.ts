@@ -11,6 +11,7 @@ import { CustomerEntity } from '../../../customer/infrastructure/entities/custom
 import { ServiceEntity } from '../entities/service.entity';
 import { BookingEntity } from '../entities/booking.entity';
 import { BookingStatusTransitionEntity } from '../entities/booking-status-transition.entity';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 // M23-S39 (UC-108) — POST /bookings/staff against a real database: the booking is created
 // APPROVED with COMMITTED occupancy, for a customer or a guest, and the same slot cannot be taken
@@ -46,6 +47,7 @@ describe('POST /bookings/staff (integration, M23-S39)', () => {
           slug,
           adminEmail: `admin@${slug}.test`,
           country_code: 'BR',
+          registrationId: TEST_REGISTRATION_ID,
         })
         .expect(201);
       return body.tenantId as string;

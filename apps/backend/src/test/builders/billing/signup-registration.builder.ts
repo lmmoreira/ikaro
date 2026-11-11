@@ -19,6 +19,7 @@ export class SignupRegistrationBuilder {
     version: '2026-11-01',
     acceptedAt: new Date(Date.now() - 60_000),
   };
+  private exempt = false;
   private readonly createdAt = new Date(Date.now() - 60_000);
 
   withId(id: string): this {
@@ -33,6 +34,12 @@ export class SignupRegistrationBuilder {
 
   withTaxId(taxId: TaxId | null): this {
     this.taxId = taxId;
+    return this;
+  }
+
+  /** An exempt registration is an operator one (it has no Google `sub` and no terms). */
+  withExempt(exempt = true): this {
+    this.exempt = exempt;
     return this;
   }
 
@@ -59,6 +66,7 @@ export class SignupRegistrationBuilder {
       googleSub: this.googleSub,
       taxId: this.taxId,
       terms: this.terms,
+      exempt: this.exempt,
       createdAt: this.createdAt,
     });
   }

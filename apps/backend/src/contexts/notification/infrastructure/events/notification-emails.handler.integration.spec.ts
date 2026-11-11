@@ -40,6 +40,7 @@ import { LoyaltyBalanceEntity } from '../../../loyalty/infrastructure/entities/l
 import { LoyaltyRedemptionEntity } from '../../../loyalty/infrastructure/entities/loyalty-redemption.entity';
 import { BalanceExpiryLogEntity } from '../../../loyalty/infrastructure/entities/balance-expiry-log.entity';
 import { NotificationLogEntity } from '../entities/notification-log.entity';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 const PLATFORM_KEY = 'notification-emails-key-xxxxxxxxxxxxxx';
 
@@ -101,6 +102,7 @@ describe('Story: booking emails render their shipped copy end to end (integratio
         slug,
         adminEmail,
         country_code: 'BR',
+        registrationId: TEST_REGISTRATION_ID,
         timezone: 'America/Sao_Paulo',
       })
       .expect(201);

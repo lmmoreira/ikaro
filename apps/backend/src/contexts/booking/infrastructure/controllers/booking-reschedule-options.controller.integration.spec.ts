@@ -9,6 +9,7 @@ import { openSlotAt } from '../../../../test/utils/date-helpers';
 import { CustomerEntity } from '../../../customer/infrastructure/entities/customer.entity';
 import { PlatformModule } from '../../../platform/platform.module';
 import { StaffEntity } from '../../../staff/infrastructure/entities/staff.entity';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 const TEST_KEY = 'booking-integ-test-key-reschedule-xx'; // 36 chars
 const MANAGER_ID = '20000000-0000-4000-8000-000000000a01';
@@ -34,6 +35,7 @@ describe('GET /bookings/:id — reschedule block (integration)', () => {
         slug,
         adminEmail: `admin@${slug}.test`,
         country_code: 'BR',
+        registrationId: TEST_REGISTRATION_ID,
       })
       .expect(201);
     return body.tenantId as string;

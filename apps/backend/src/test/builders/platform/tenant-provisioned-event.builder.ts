@@ -7,6 +7,8 @@ export class TenantProvisionedEventBuilder {
   private slug = 'lavacar';
   private adminEmail = 'admin@lavacar.com.br';
   private timezone = 'America/Sao_Paulo';
+  private countryCode = 'BR';
+  private registrationId: string | undefined;
 
   withTenantId(tenantId: string): this {
     this.tenantId = tenantId;
@@ -38,12 +40,24 @@ export class TenantProvisionedEventBuilder {
     return this;
   }
 
+  withCountryCode(countryCode: string): this {
+    this.countryCode = countryCode;
+    return this;
+  }
+
+  withRegistrationId(registrationId: string): this {
+    this.registrationId = registrationId;
+    return this;
+  }
+
   build(): TenantProvisioned {
     return new TenantProvisioned(this.tenantId, this.correlationId, {
       name: this.name,
       slug: this.slug,
       adminEmail: this.adminEmail,
       timezone: this.timezone,
+      countryCode: this.countryCode,
+      ...(this.registrationId ? { registrationId: this.registrationId } : {}),
     });
   }
 }

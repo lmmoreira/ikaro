@@ -22,6 +22,8 @@ export interface SignupRegistrationProps {
   taxId: TaxId | null;
   /** Present for `SELF_SIGNUP` only. */
   terms: SignupTerms | null;
+  /** The tenant to be is provisioned free (an `ACTIVE`, exempt subscription). `OPERATOR` only. */
+  exempt: boolean;
   createdAt: Date;
 }
 
@@ -30,6 +32,8 @@ export interface ReserveSignupRegistrationInput {
   googleSub?: string | null;
   taxId: TaxId | null;
   termsVersion?: string | null;
+  /** Operator-only: a self-signup is never free of charge. */
+  exempt?: boolean;
   now: Date;
 }
 
@@ -46,6 +50,7 @@ export class SignupRegistration {
   readonly googleSub: string | null;
   readonly taxId: TaxId | null;
   readonly terms: SignupTerms | null;
+  readonly exempt: boolean;
   readonly createdAt: Date;
 
   private constructor(props: SignupRegistrationProps) {
@@ -56,13 +61,15 @@ export class SignupRegistration {
     this.googleSub = props.googleSub;
     this.taxId = props.taxId;
     this.terms = props.terms;
+    this.exempt = props.exempt;
     this.createdAt = props.createdAt;
   }
 
   /**
    * A new `RESERVED` registration. `SELF_SIGNUP` keeps its Google `sub` and the accepted terms (a
-   * missing version is `SIGNUP_TERMS_NOT_ACCEPTED`); `OPERATOR` has neither, so both are dropped
-   * even when passed: eligibility history is `SELF_SIGNUP` rows only.
+   * missing version is `SIGNUP_TERMS_NOT_ACCEPTED`) and can never be exempt; `OPERATOR` has neither
+   * the `sub` nor the terms, so both are dropped even when passed (eligibility history is
+   * `SELF_SIGNUP` rows only), and it alone may carry the `exempt` flag.
    */
   static reserve(input: ReserveSignupRegistrationInput): SignupRegistration {
     const selfSignup = input.source === 'SELF_SIGNUP';
@@ -71,6 +78,9 @@ export class SignupRegistration {
     }
     const version = input.termsVersion?.trim();
     if (selfSignup && !version) throw new SignupTermsNotAcceptedError();
+    if (selfSignup && input.exempt) {
+      throw new TypeError('A SELF_SIGNUP registration cannot be exempt');
+    }
     return new SignupRegistration({
       id: uuidv7(),
       tenantId: null,
@@ -79,6 +89,7 @@ export class SignupRegistration {
       googleSub: selfSignup ? (input.googleSub ?? null) : null,
       taxId: input.taxId,
       terms: selfSignup && version ? { version, acceptedAt: input.now } : null,
+      exempt: input.exempt === true,
       createdAt: input.now,
     });
   }

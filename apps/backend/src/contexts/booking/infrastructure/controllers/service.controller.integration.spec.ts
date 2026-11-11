@@ -7,6 +7,7 @@ import { createBookingIntegrationApp } from '../../../../test/utils/booking-inte
 import { PlatformModule } from '../../../platform/platform.module';
 import { ServiceEntity } from '../entities/service.entity';
 import { ServiceBookingIntakeSchemaEntity } from '../entities/service-booking-intake-schema.entity';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 const TEST_KEY = 'service-integ-test-key-service-xxxx'; // 36 chars
 const MANAGER_ID = '20000000-0000-4000-8000-000000000001';
@@ -38,6 +39,7 @@ describe('ServiceController (integration)', () => {
         slug: `service-tenant-${tenantCounter}`,
         adminEmail: `tenant${tenantCounter}@service.test`,
         country_code: 'BR',
+        registrationId: TEST_REGISTRATION_ID,
       })
       .expect(201);
     return body.tenantId as string;

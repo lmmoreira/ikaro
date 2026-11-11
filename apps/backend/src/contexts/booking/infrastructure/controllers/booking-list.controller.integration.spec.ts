@@ -10,6 +10,7 @@ import { TENANT_SETTINGS_PORT } from '../../../../shared/ports/tenant-settings.p
 import { TenantSettings } from '../../../platform/domain/value-objects/tenant-settings.vo';
 import { PlatformModule } from '../../../platform/platform.module';
 import { BookingEntity } from '../entities/booking.entity';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 const TEST_KEY = 'booking-list-integ-key-booking-xxxxx'; // 36 chars
 const STAFF_ID = '20000000-0000-4000-8000-000000000031';
@@ -35,6 +36,7 @@ describe('GET /bookings date-key range (integration)', () => {
         slug,
         adminEmail: `admin@${slug}.test`,
         country_code: 'BR',
+        registrationId: TEST_REGISTRATION_ID,
         timezone,
       })
       .expect(201);

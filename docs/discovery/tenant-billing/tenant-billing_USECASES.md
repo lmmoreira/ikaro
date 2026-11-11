@@ -38,7 +38,7 @@ Review 3 (2026-10-28) added CAND-36 (self-service discard), CAND-37 (tenant deac
 - **Alternative Flows:**
   - **A1: Subscription already exists** (event redelivered) → no-op; idempotent on `UNIQUE(tenant_id)`.
   - **A2: No `FeaturePrice` rows for the country** → the use case fails loudly (error logged, event retried); the missing row is a provisioning/data-integrity incident, access is denied rather than granted (after the provisioning window), the self-heal job retries it (CAND-35), and an alert fires only if that fails; a missing price set for an enabled country is also caught at deploy time.
-  - **A3: Provisioning passes an explicit feature subset** (event hint) → the subset defines the **default paid items**; the trial still grants every feature because it is computed from the status, so the trial is always complete (an exempt tenant gets only the subset, open-ended).
+  - **Superseded 2026-11-11 (M25-S10): no feature subset at provisioning; see `docs/USE_CASES.md` UC-110 A3.** **A3: Provisioning passes an explicit feature subset** (event hint) → the subset defines the **default paid items**; the trial still grants every feature because it is computed from the status, so the trial is always complete (an exempt tenant gets only the subset, open-ended).
   - **A4: Non-exempt US tenant before M28** → no special rule: the US price rows are seeded in every environment (M25-S04), so the trial is created like any other; no up-front rejection. There is no US payment provider before M28. Exempt US tenants are allowed.
   - **A5: A legacy `TenantProvisioned` payload** (outbox row written before the deploy, no `countryCode`; the bus does not version-route, verified) → the handler skips it and logs; the self-heal job (CAND-35) creates the trial through the narrow read-only tenant-info port (decision 119). Publisher and handler ship in the same release.
   - **A6: Access is read before this handler has run** → the tenant is younger than `PROVISIONING_GRACE_MINUTES`, so the access port treats it as a pending trial (allowed); if the window expires without a subscription, the self-heal job (CAND-35) runs this same use case.
@@ -81,7 +81,7 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
 
 ### **CAND-32: Operator Sets or Clears a Tenant's `exempt` Flag**
 - **Actor:** Operator.
-- **Preconditions:** Subscription exists (or the tenant is being provisioned with the `exempt` hint).
+- **Superseded 2026-11-11 (M25-S10): an exempt tenant is provisioned from an `exempt` operator registration; see UC-137.** **Preconditions:** Subscription exists (or the tenant is being provisioned with the `exempt` hint).
 - **Trigger:** Operator calls `PUT /internal/tenants/{tenantId}/billing/exempt` with `{ exempt, reason }`, or provisions with `exempt=true`.
 - **Main Flow:**
   1. **Set:** the subscription becomes `ACTIVE`, `exempt = true`, every feature entitled with open-ended items; any open charge is cancelled locally and at the provider; billing emails stop; the tenant is excluded from charge issuing, the sweep and purge (there is no ops digest, decision 107).

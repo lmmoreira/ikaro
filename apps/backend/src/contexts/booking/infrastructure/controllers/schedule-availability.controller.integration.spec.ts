@@ -21,6 +21,7 @@ import {
   ServiceLegResourceRequirementEntity,
 } from '../entities/service-leg.entity';
 import { ServiceEntity } from '../entities/service.entity';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 const TEST_KEY = 'availability-integ-test-key-avail-xx'; // 36 chars
 
@@ -54,6 +55,7 @@ describe('ScheduleAvailabilityController (integration)', () => {
         slug: 'avail-tenant-a',
         adminEmail: 'a@avail.test',
         country_code: 'BR',
+        registrationId: TEST_REGISTRATION_ID,
       })
       .expect(201);
     tenantAId = a.tenantId as string;
@@ -66,6 +68,7 @@ describe('ScheduleAvailabilityController (integration)', () => {
         slug: 'avail-tenant-b',
         adminEmail: 'b@avail.test',
         country_code: 'BR',
+        registrationId: TEST_REGISTRATION_ID,
       })
       .expect(201);
     tenantBId = b.tenantId as string;
@@ -136,6 +139,7 @@ describe('ScheduleAvailabilityController (integration)', () => {
           slug: 'avail-closure',
           adminEmail: 'closure@avail.test',
           country_code: 'BR',
+          registrationId: TEST_REGISTRATION_ID,
         })
         .expect(201);
       const closureTenantId = tenantBody.tenantId as string;
@@ -169,6 +173,7 @@ describe('ScheduleAvailabilityController (integration)', () => {
           slug: 'avail-partial',
           adminEmail: 'partial@avail.test',
           country_code: 'BR',
+          registrationId: TEST_REGISTRATION_ID,
         })
         .expect(201);
       const partialTenantId = tenantBody.tenantId as string;
@@ -217,6 +222,7 @@ describe('ScheduleAvailabilityController (integration)', () => {
           slug: 'avail-multi',
           adminEmail: 'multi@avail.test',
           country_code: 'BR',
+          registrationId: TEST_REGISTRATION_ID,
         })
         .expect(201);
       const multiTenantId = tenantBody.tenantId as string;
@@ -276,6 +282,7 @@ describe('ScheduleAvailabilityController (integration)', () => {
           slug: 'avail-opening',
           adminEmail: 'opening@avail.test',
           country_code: 'BR',
+          registrationId: TEST_REGISTRATION_ID,
         })
         .expect(201);
       const openingTenantId = tenantBody.tenantId as string;
@@ -314,6 +321,7 @@ describe('ScheduleAvailabilityController (integration)', () => {
           slug: 'avail-override',
           adminEmail: 'override@avail.test',
           country_code: 'BR',
+          registrationId: TEST_REGISTRATION_ID,
         })
         .expect(201);
       const overrideTenantId = tenantBody.tenantId as string;
@@ -387,6 +395,7 @@ describe('ScheduleAvailabilityController (integration)', () => {
           slug: 'avail-appt-tenant',
           adminEmail: 'appt@avail.test',
           country_code: 'BR',
+          registrationId: TEST_REGISTRATION_ID,
         })
         .expect(201);
       apptTenantId = body.tenantId as string;

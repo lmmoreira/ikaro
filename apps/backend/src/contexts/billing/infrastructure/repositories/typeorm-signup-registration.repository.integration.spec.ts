@@ -12,6 +12,7 @@ import { BillingAccountEntity } from '../entities/billing-account.entity';
 import { SignupRegistrationEntity } from '../entities/signup-registration.entity';
 import { SubscriptionEntity } from '../entities/subscription.entity';
 import { TypeOrmSignupRegistrationRepository } from './typeorm-signup-registration.repository';
+import { signupRegistrationToDomain } from './typeorm-signup-registration.mapper';
 
 // A fresh 11-digit tax id per test, so a run overlapping this one can never hold the same value.
 const newTaxId = (): string => uuidv7().replace(/\D/g, '').padEnd(11, '0').slice(0, 11);
@@ -112,6 +113,19 @@ describe('TypeOrmSignupRegistrationRepository (integration)', () => {
         taxId: cpf,
         termsVersion: registration.terms?.version,
       });
+    });
+
+    it('round-trips the exempt flag of an OPERATOR registration', async () => {
+      const registration = new SignupRegistrationBuilder().asOperator().withExempt().build();
+      registrationIds.push(registration.id);
+
+      await repo.save(registration);
+
+      const row = await dataSource
+        .getRepository(SignupRegistrationEntity)
+        .findOneByOrFail({ id: registration.id });
+      expect(row.exempt).toBe(true);
+      expect(signupRegistrationToDomain(row).exempt).toBe(true);
     });
 
     it('stores an OPERATOR registration with no Google sub and no terms', async () => {

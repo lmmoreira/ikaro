@@ -17,7 +17,11 @@
 # HAPPY PATH
 # ─────────────────────────────────────────────────────────────────────────────
 
-### Provision a new tenant (minimal — timezone defaults to America/Sao_Paulo)
+### Provision a tenant from a reserved registration (timezone defaults to the country's).
+### Every provisioning reserves a Billing registration first (../billing/registrations.http, the
+### OPERATOR request: add "exempt": true there for a free partner tenant) and passes its id here.
+### Paste the returned registrationId into the variable.
+@registrationId = 00000000-0000-4000-8000-000000000001
 # @name provisionTenant
 POST {{baseUrl}}/internal/tenants
 X-Platform-Admin-Key: {{adminKey}}
@@ -27,12 +31,14 @@ Content-Type: application/json
 {
   "name": "Lavacar Belo Horizonte",
   "slug": "lavacar-bh",
-  "adminEmail": "admin@lavacar-bh.com.br"
+  "adminEmail": "admin@lavacar-bh.com.br",
+  "country_code": "BR",
+  "registrationId": "{{registrationId}}"
 }
 
 ###
 
-### Provision a new tenant (explicit timezone)
+### Provision a tenant (explicit timezone)
 POST {{baseUrl}}/internal/tenants
 X-Platform-Admin-Key: {{adminKey}}
 X-Internal-Key: {{internalKey}}
@@ -42,8 +48,12 @@ Content-Type: application/json
   "name": "Lavacar Manaus",
   "slug": "lavacar-manaus",
   "adminEmail": "admin@lavacar-manaus.com.br",
-  "timezone": "America/Manaus"
+  "country_code": "BR",
+  "timezone": "America/Manaus",
+  "registrationId": "{{registrationId}}"
 }
+
+###
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ERROR CASES — useful to verify guard + validation are working
@@ -91,6 +101,37 @@ Content-Type: application/json
   "name": "Test",
   "slug": "Invalid Slug!",
   "adminEmail": "test@test.com"
+}
+
+###
+
+### 400 — Missing registrationId (every provisioning goes through a registration)
+POST {{baseUrl}}/internal/tenants
+X-Platform-Admin-Key: {{adminKey}}
+X-Internal-Key: {{internalKey}}
+Content-Type: application/json
+
+{
+  "name": "Test",
+  "slug": "no-registration",
+  "adminEmail": "test@test.com",
+  "country_code": "BR"
+}
+
+###
+
+### 400 — registrationId is not a UUID
+POST {{baseUrl}}/internal/tenants
+X-Platform-Admin-Key: {{adminKey}}
+X-Internal-Key: {{internalKey}}
+Content-Type: application/json
+
+{
+  "name": "Test",
+  "slug": "bad-registration",
+  "adminEmail": "test@test.com",
+  "country_code": "BR",
+  "registrationId": "not-a-uuid"
 }
 
 ###

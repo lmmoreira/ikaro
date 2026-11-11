@@ -12,6 +12,7 @@ import { PlatformModule } from '../../../platform/platform.module';
 import { ScheduleClosureEntity } from '../entities/schedule-closure.entity';
 import { ScheduleOpeningEntity } from '../entities/schedule-opening.entity';
 import { ServiceEntity } from '../entities/service.entity';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 const TEST_KEY = 'summary-integ-test-key-summary-xxxxx'; // 36 chars
 
@@ -44,6 +45,7 @@ describe('ScheduleAvailabilitySummaryController (integration)', () => {
         slug: 'summary-tenant-a',
         adminEmail: 'a@summary.test',
         country_code: 'BR',
+        registrationId: TEST_REGISTRATION_ID,
       })
       .expect(201);
     tenantAId = a.tenantId as string;
@@ -56,6 +58,7 @@ describe('ScheduleAvailabilitySummaryController (integration)', () => {
         slug: 'summary-tenant-b',
         adminEmail: 'b@summary.test',
         country_code: 'BR',
+        registrationId: TEST_REGISTRATION_ID,
       })
       .expect(201);
     tenantBId = b.tenantId as string;
@@ -123,6 +126,7 @@ describe('ScheduleAvailabilitySummaryController (integration)', () => {
           slug: 'summary-closure',
           adminEmail: 'closure@summary.test',
           country_code: 'BR',
+          registrationId: TEST_REGISTRATION_ID,
         })
         .expect(201);
       const closureTenantId = tenantBody.tenantId as string;
@@ -167,6 +171,7 @@ describe('ScheduleAvailabilitySummaryController (integration)', () => {
           slug: 'summary-opening',
           adminEmail: 'opening@summary.test',
           country_code: 'BR',
+          registrationId: TEST_REGISTRATION_ID,
         })
         .expect(201);
       const openingTenantId = tenantBody.tenantId as string;

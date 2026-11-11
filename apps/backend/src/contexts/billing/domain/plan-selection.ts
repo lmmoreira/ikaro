@@ -46,10 +46,9 @@ export function assertValidTier(entry: SelectionEntry): void {
   }
 }
 
-/** The default selection: every sellable feature, or the given subset. */
-export function defaultSelection(features?: readonly FeatureKey[]): SelectionEntry[] {
-  const wanted = features ?? FEATURE_KEYS;
-  return FEATURE_KEYS.filter((key) => wanted.includes(key)).map((featureKey) => ({
+/** The default selection: every sellable feature (UC-110 A3: there is no subset at provisioning). */
+export function defaultSelection(): SelectionEntry[] {
+  return FEATURE_KEYS.map((featureKey) => ({
     featureKey,
     tier: defaultTierFor(featureKey),
   }));

@@ -12,6 +12,7 @@ import { TenantSettings } from '../../domain/value-objects/tenant-settings.vo';
 import { ChatbotSessionEntity } from '../entities/chatbot-session.entity';
 import { TenantEntity } from '../entities/tenant.entity';
 import { createPlatformIntegrationApp } from '../../../../test/utils/platform-integration-app';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 const TEST_KEY = 'settings-integ-test-key-settings-xx'; // exactly 36 chars
 
@@ -53,6 +54,7 @@ describe('TenantSettingsController (integration)', () => {
         slug: 'lavacar-settings-integ-01',
         adminEmail: 'settings@test.com.br',
         country_code: 'BR',
+        registrationId: TEST_REGISTRATION_ID,
       })
       .expect(201);
 
@@ -121,6 +123,7 @@ describe('TenantSettingsController (integration)', () => {
         slug: 'other-tenant-settings-integ-01',
         adminEmail: 'other-settings@test.com.br',
         country_code: 'BR',
+        registrationId: TEST_REGISTRATION_ID,
       })
       .expect(201);
     const otherTenantId = otherBody.tenantId as string;

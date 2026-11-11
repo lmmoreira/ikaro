@@ -1,6 +1,7 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/platform/in-memory-hotsite-config.repository';
@@ -42,6 +43,7 @@ describe('InternalTenantController', () => {
       slug: 'lavacar-belo',
       adminEmail: 'admin@lavacar.com.br',
       country_code: 'BR',
+      registrationId: TEST_REGISTRATION_ID,
     });
 
     expect(result.slug).toBe('lavacar-belo');
@@ -57,6 +59,7 @@ describe('InternalTenantController', () => {
       slug: 'taken',
       adminEmail: 'a@a.com',
       country_code: 'BR',
+      registrationId: TEST_REGISTRATION_ID,
     });
 
     expect.assertions(2);
@@ -66,6 +69,7 @@ describe('InternalTenantController', () => {
         slug: 'taken',
         adminEmail: 'b@b.com',
         country_code: 'BR',
+        registrationId: TEST_REGISTRATION_ID,
       });
     } catch (err) {
       expect(err).toBeInstanceOf(HttpException);
@@ -81,10 +85,25 @@ describe('InternalTenantController', () => {
         slug: 'valid',
         adminEmail: 'a@a.com',
         country_code: 'BR',
+        registrationId: TEST_REGISTRATION_ID,
       });
     } catch (err) {
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
     }
+  });
+
+  it('passes the registrationId through to the published event', async () => {
+    await controller.provision({
+      name: 'Parceiro',
+      slug: 'parceiro',
+      adminEmail: 'p@p.com',
+      country_code: 'BR',
+      registrationId: TEST_REGISTRATION_ID,
+    });
+
+    const event = eventBus.published[0] as unknown as { data: Record<string, unknown> };
+    expect(event.data['registrationId']).toBe(TEST_REGISTRATION_ID);
+    expect(event.data['countryCode']).toBe('BR');
   });
 });

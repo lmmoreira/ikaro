@@ -5,6 +5,7 @@ import { TenantEntityBuilder } from '../../../../test/builders/platform/index';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { TenantEntity } from '../entities/tenant.entity';
 import { createPlatformIntegrationApp } from '../../../../test/utils/platform-integration-app';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 const TEST_KEY = 'rename-integ-test-key-tenant-xxxx'; // exactly 36 chars
 
@@ -25,6 +26,7 @@ describe('TenantController (integration)', () => {
         slug: 'lavacar-rename-integ-01',
         adminEmail: 'rename@test.com.br',
         country_code: 'BR',
+        registrationId: TEST_REGISTRATION_ID,
       })
       .expect(201);
 
@@ -92,6 +94,7 @@ describe('TenantController (integration)', () => {
         slug: 'other-tenant-rename-integ-01',
         adminEmail: 'other-rename@test.com.br',
         country_code: 'BR',
+        registrationId: TEST_REGISTRATION_ID,
       })
       .expect(201);
     const otherTenantId = otherBody.tenantId as string;

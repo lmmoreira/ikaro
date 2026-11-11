@@ -1,4 +1,7 @@
 import { PlatformDomainError } from './errors/platform-domain.error';
+import { TenantProvisioned } from './events/tenant-provisioned.event';
+import { Tenant } from './tenant.aggregate';
+import { TEST_REGISTRATION_ID } from '../../../test/utils/test-registration-id';
 import { TenantSettings } from './value-objects/tenant-settings.vo';
 import { TenantBuilder } from '../../../test/builders/platform';
 
@@ -43,6 +46,35 @@ describe('Tenant', () => {
 
     it('allows slug with hyphens and numbers', () => {
       expect(() => new TenantBuilder().withSlug('lavacar-belo-01').build()).not.toThrow();
+    });
+
+    it('raises TenantProvisioned with countryCode and no registrationId when none is given', () => {
+      const tenant = Tenant.create('Lavacar', 'lavacar', 'a@a.com', 'corr-1', 'America/Sao_Paulo');
+
+      const [event] = tenant.domainEvents as TenantProvisioned[];
+      expect(event.data).toEqual({
+        name: 'Lavacar',
+        slug: 'lavacar',
+        adminEmail: 'a@a.com',
+        timezone: 'America/Sao_Paulo',
+        countryCode: 'BR',
+      });
+    });
+
+    it('puts the country and the registration id on the event', () => {
+      const tenant = Tenant.create(
+        'Lavacar US',
+        'lavacar-us',
+        'a@a.us',
+        'corr-2',
+        'America/New_York',
+        'US',
+        TEST_REGISTRATION_ID,
+      );
+
+      const [event] = tenant.domainEvents as TenantProvisioned[];
+      expect(event.data.countryCode).toBe('US');
+      expect(event.data.registrationId).toBe(TEST_REGISTRATION_ID);
     });
   });
 

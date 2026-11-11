@@ -28,6 +28,7 @@ export class InternalTenantController {
       adminEmail: dto.adminEmail,
       country_code: dto.country_code,
       timezone: dto.timezone,
+      registrationId: dto.registrationId,
     };
     return this.provisionTenant.execute(input).catch(mapPlatformError);
   }

@@ -13,6 +13,7 @@ import { InMemoryNotificationLogRepository } from '../../../../test/repositories
 import { InMemoryInboxRepository } from '../../../../test/infrastructure/in-memory-inbox.repository';
 import { InMemoryNotificationDispatcher } from '../../../../test/infrastructure/in-memory-notification-dispatcher';
 import { createNotificationIntegrationApp } from '../../../../test/utils/notification-integration-app';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 const PLATFORM_KEY = 'reminder-integration-test-key-xxxxxxxxxx';
 
@@ -56,6 +57,7 @@ describe('Reminder handlers (event bus → handler → use case) integration', (
         slug,
         adminEmail,
         country_code: 'BR',
+        registrationId: TEST_REGISTRATION_ID,
         timezone: 'America/Sao_Paulo',
       })
       .expect(201);
@@ -198,6 +200,7 @@ describe('Reminder handlers (event bus → handler → use case) integration', (
         slug: tenantBSlug,
         adminEmail: tenantBAdminEmail,
         country_code: 'BR',
+        registrationId: TEST_REGISTRATION_ID,
         timezone: 'America/Sao_Paulo',
       })
       .expect(201);

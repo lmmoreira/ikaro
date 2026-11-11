@@ -23,6 +23,9 @@ export const ProvisionTenantSchema = z.object({
       params: { code: TimezoneErrorCode.INVALID },
     })
     .optional(),
+  // The Billing registration reserved first (UC-024). Only its shape is checked here: Platform
+  // never reads Billing, and the registration holds the exempt flag and the tax identity.
+  registrationId: z.uuid({ message: 'registrationId must be a UUID' }),
 });
 
 export type ProvisionTenantDto = z.infer<typeof ProvisionTenantSchema>;
