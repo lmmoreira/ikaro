@@ -121,6 +121,23 @@ const FEEDBACK_ROLE_SELECTOR = {
   message:
     'A hand-written role="alert"/role="status" message box bypasses the feedback pattern. Use FeedbackMessage (dashboard and account) or BrandedFeedbackMessage (public hotsite); a field message takes FieldFeedback / BrandedFieldFeedback with aria-describedby and no role (docs/ENGINEERING_RULES_FRONTEND.md § A form\'s error or success message lives in the action pane; TD57).',
 };
+// TD51-S05: a surface painted with the tenant's secondary colour needs the text and accent colours
+// `applyBranding()` derives to read over it. A hand-written `backgroundColor: 'var(--ba-secondary)'`
+// leaves the text on whatever it inherits (`--ba-text`), which vanishes when the tenant's text colour
+// is close to its secondary colour, so the colour is written in one place, BrandedPanel /
+// brandedFieldStyle / brandedSurfaceStyle (shared/components/hotsite). The value test covers the
+// three documented bypass classes (docs/ENGINEERING_RULES_SHARED.md § `no-restricted-syntax`
+// selectors): a Literal nested in a conditional or `??` expression is a descendant of the Property,
+// a template literal is a TemplateElement, and a spread object, a computed `['backgroundColor']` key
+// and the `background` shorthand are Property nodes. Known limits, not silently ignored: a Tailwind
+// class (`bg-[var(--ba-secondary)]`), a colour held in a shared constant or returned by a function
+// (module-styles.ts) and a `borderColor` are not seen. A border is decorative, so it stays.
+const SECONDARY_SURFACE_VALUE = '/^var[(]--ba-secondary[)]$/';
+const SECONDARY_SURFACE_SELECTOR = {
+  selector: `:matches(Property[key.name=/^background(Color)?$/][computed=false], Property[key.value=/^background(Color)?$/]) :matches(Literal[value=${SECONDARY_SURFACE_VALUE}], TemplateElement[value.cooked=${SECONDARY_SURFACE_VALUE}])`,
+  message:
+    'A hand-written secondary-colour surface leaves its text on an inherited colour that can vanish on a branded tenant. Use BrandedPanel (a panel), brandedFieldStyle (an input) or brandedSurfaceStyle (shared/components/hotsite) so the text and accent take the derived --ba-secondary-text / --ba-secondary-accent (docs/ENGINEERING_RULES_FRONTEND.md § The `--ba-*` exception; TD51-S05).',
+};
 // A hand-drawn red field message is the role-less half of the same defect (TD57-S17): a `<p>` with
 // `text-red-*` that a manager reads as "this input is wrong" but that skips FieldFeedback (the id,
 // the shared look) and so tends to skip the `aria-describedby` link too. A red class alone is far
@@ -232,6 +249,23 @@ const rawFormControlExemptPaths = [
 // The files that may draw a numeric `<Input>` without a unit, by exact path (never a
 // folder). Only ui/number-input.tsx: it is the primitive that adds the unit.
 const numberInputExemptPaths = ['shared/components/ui/number-input.tsx'];
+// TD51-S05: the files that may write a secondary-colour surface, by exact path (never a folder).
+// branded-surface-style.ts is the one place the colour is written for everyone else; module-styles.ts
+// returns it as a bare string the sections pair with --ba-section-text; the shell files below were
+// checked one by one to pair it with --ba-secondary-text / --ba-secondary-accent (the bar, the
+// navigation, the footer, the service detail card), or to hold only bubbles that paint their own
+// surface (ChatbotPanel). BrandCard and TestimonialCard are not listed: they use the helper.
+const secondarySurfaceExemptPaths = [
+  'shared/components/hotsite/branded-surface-style.ts',
+  'features/platform/hotsite/module-styles.ts',
+  'shells/hotsite/components/ChatbotPanel.tsx',
+  'shells/hotsite/components/Footer.tsx',
+  'shells/hotsite/components/HotsiteAuthBar.tsx',
+  'shells/hotsite/components/HotsiteAuthBarDropdown.tsx',
+  'shells/hotsite/components/HotsiteAuthBarSignedOut.tsx',
+  'shells/hotsite/components/HotsiteNavigation.tsx',
+  'shells/hotsite/components/ServiceDetailPage.tsx',
+];
 // TD58-S13: the files whose raw <button>s are bespoke, listed by exact path (never a folder) so a
 // new raw button elsewhere still fails. Each holds a control no primitive reproduces: a full-width
 // option row, a week or timeline cell, a nav item or back link, a thumbnail, a hotsite preview
@@ -337,6 +371,7 @@ const NON_FETCH_SELECTORS = [
   FEEDBACK_FIELD_MESSAGE_SELECTOR,
   ...RAW_FORM_CONTROL_SELECTORS,
   NUMBER_INPUT_SELECTOR,
+  SECONDARY_SURFACE_SELECTOR,
 ];
 
 module.exports = [
@@ -507,6 +542,63 @@ module.exports = [
         RAW_FETCH_SELECTOR,
         ...NON_FETCH_SELECTORS.filter(
           (entry) => entry !== NUMBER_INPUT_SELECTOR && !RAW_FORM_CONTROL_SELECTORS.includes(entry),
+        ),
+      ],
+    },
+  },
+  // TD51-S05: the reviewed secondary-surface files lose that ban only. A later block replaces the
+  // earlier one's selector list, so each restates the list minus SECONDARY_SURFACE_SELECTOR. The
+  // files under a raw-control-exempt folder (shells/hotsite/**, shared/components/hotsite/**) also
+  // lose the raw-control selectors, as their folder's block does; the rest keep them.
+  {
+    files: secondarySurfaceExemptPaths.filter(isRawFormControlExempt),
+    ignores: [
+      '**/*.spec.ts',
+      '**/*.spec.tsx',
+      ...feedbackRoleAllowedPaths,
+      ...reviewedRawFetchPaths,
+    ],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        RAW_FETCH_SELECTOR,
+        ...NON_FETCH_SELECTORS.filter(
+          (entry) =>
+            entry !== SECONDARY_SURFACE_SELECTOR && !RAW_FORM_CONTROL_SELECTORS.includes(entry),
+        ),
+      ],
+    },
+  },
+  {
+    files: secondarySurfaceExemptPaths.filter((path) => !isRawFormControlExempt(path)),
+    ignores: [
+      '**/*.spec.ts',
+      '**/*.spec.tsx',
+      ...feedbackRoleAllowedPaths,
+      ...reviewedRawFetchPaths,
+    ],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        RAW_FETCH_SELECTOR,
+        ...NON_FETCH_SELECTORS.filter((entry) => entry !== SECONDARY_SURFACE_SELECTOR),
+      ],
+    },
+  },
+  // A secondary-surface file that is also a reviewed raw-fetch file and a raw-control-exempt path
+  // (HotsiteAuthBar.tsx) needs all three omissions at once: no fetch ban, no raw-control bans and
+  // no secondary-surface ban.
+  {
+    files: secondarySurfaceExemptPaths.filter(
+      (path) => reviewedRawFetchPaths.includes(path) && isRawFormControlExempt(path),
+    ),
+    ignores: ['**/*.spec.ts', '**/*.spec.tsx', ...feedbackRoleAllowedPaths],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...NON_FETCH_SELECTORS.filter(
+          (entry) =>
+            entry !== SECONDARY_SURFACE_SELECTOR && !RAW_FORM_CONTROL_SELECTORS.includes(entry),
         ),
       ],
     },

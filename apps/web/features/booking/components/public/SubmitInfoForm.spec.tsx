@@ -39,6 +39,23 @@ describe('SubmitInfoForm', () => {
     vi.mocked(createGuestAttachmentSignedUrl).mockReset();
   });
 
+  it('shows the team message and its label inside the branded panel, readable on the secondary colour', () => {
+    renderWithIntl(
+      <SubmitInfoForm
+        bookingId={BOOKING_ID}
+        token={TOKEN}
+        summary={summary}
+        brandName="BeloAuto"
+      />,
+    );
+
+    const panel = screen.getByTestId('team-message-panel');
+    expect(panel).toHaveTextContent('Mensagem da equipe');
+    expect(panel).toHaveTextContent(summary.infoRequestMessage);
+    expect(panel.style.color).toBe('var(--ba-secondary-text)');
+    expect(panel.style.backgroundColor).toBe('var(--ba-secondary)');
+  });
+
   it('renders the form with a summary card when summary is provided', () => {
     renderWithIntl(
       <SubmitInfoForm

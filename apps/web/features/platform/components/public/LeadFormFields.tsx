@@ -1,6 +1,7 @@
 import { useTranslations } from 'next-intl';
 import type { LeadFormQuestion } from '@ikaro/types';
 import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feedback-message';
+import { brandedSurfaceStyle } from '@/shared/components/hotsite/branded-surface-style';
 import type { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 import { ContactField } from './ContactField';
@@ -111,17 +112,13 @@ export function LeadFormFields({
           <fieldset
             disabled={isSubmitting}
             className="border-0 disabled:opacity-55"
-            style={{
-              backgroundColor: 'var(--ba-secondary)',
-              borderRadius: 'var(--ba-radius)',
-              padding: '1.5rem',
-            }}
+            style={{ ...brandedSurfaceStyle, padding: '1.5rem' }}
           >
             <h2 className="mb-4 text-base font-bold">{t('leadForm.yourInfoHeading')}</h2>
             {showPrefilledNote && (
               <p
                 className="mb-3.5 text-xs"
-                style={{ color: 'var(--ba-primary)' }}
+                style={{ color: 'var(--ba-secondary-accent, var(--ba-secondary-text))' }}
                 data-testid="lead-form-prefilled-note"
               >
                 {t('leadForm.prefilledNote')}

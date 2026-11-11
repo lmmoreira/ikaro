@@ -2,6 +2,10 @@
 
 import { useTranslations } from 'next-intl';
 import { BRANDED_FIELD_INVALID_CLASS } from '@/shared/components/hotsite/branded-field-feedback';
+import {
+  BRANDED_FIELD_PLACEHOLDER_CLASS,
+  brandedFieldStyle,
+} from '@/shared/components/hotsite/branded-field-style';
 import { buildContactPhone } from '@/shared/utils/contact-phone';
 import {
   formatPhoneForDisplay,
@@ -15,17 +19,9 @@ export interface FieldError {
   readonly message: string;
 }
 
-function errorBorderStyle(isInvalid: boolean): React.CSSProperties {
-  return {
-    borderRadius: 'var(--ba-radius)',
-    ...(isInvalid ? {} : { borderColor: 'var(--ba-secondary)' }),
-    backgroundColor: 'var(--ba-secondary)',
-    color: 'var(--ba-text)',
-  };
-}
-
 function inputClass(base: string, isInvalid: boolean): string {
-  return isInvalid ? `${base} ${BRANDED_FIELD_INVALID_CLASS}` : base;
+  const withPlaceholder = `${base} ${BRANDED_FIELD_PLACEHOLDER_CLASS}`;
+  return isInvalid ? `${withPlaceholder} ${BRANDED_FIELD_INVALID_CLASS}` : withPlaceholder;
 }
 
 interface ContactInfoFieldsProps {
@@ -79,7 +75,7 @@ export function ContactInfoFields({
           onChange={(e) => onContactNameChange(e.target.value)}
           ref={registerField?.('name')}
           className={inputClass('w-full border px-3 py-2', fieldError?.field === 'name')}
-          style={errorBorderStyle(fieldError?.field === 'name')}
+          style={brandedFieldStyle({ invalid: fieldError?.field === 'name' })}
           aria-invalid={fieldError?.field === 'name' ? true : undefined}
           aria-describedby={fieldError?.field === 'name' ? describedBy : undefined}
         />
@@ -102,7 +98,7 @@ export function ContactInfoFields({
           onChange={(e) => onContactEmailChange(e.target.value)}
           ref={registerField?.('email')}
           className={inputClass('w-full border px-3 py-2', fieldError?.field === 'email')}
-          style={errorBorderStyle(fieldError?.field === 'email')}
+          style={brandedFieldStyle({ invalid: fieldError?.field === 'email' })}
           aria-invalid={fieldError?.field === 'email' ? true : undefined}
           aria-describedby={fieldError?.field === 'email' ? describedBy : undefined}
         />
@@ -121,10 +117,8 @@ export function ContactInfoFields({
             data-testid="phone-prefix"
             className="flex items-center border border-r-0 px-3 text-sm font-medium"
             style={{
+              ...brandedFieldStyle({ invalid: fieldError?.field === 'phone' }),
               borderRadius: 'var(--ba-radius) 0 0 var(--ba-radius)',
-              ...(fieldError?.field === 'phone' ? {} : { borderColor: 'var(--ba-secondary)' }),
-              backgroundColor: 'var(--ba-secondary)',
-              color: 'var(--ba-text)',
             }}
           >
             {phonePrefix}
@@ -149,10 +143,8 @@ export function ContactInfoFields({
             ref={registerField?.('phone')}
             className={inputClass('min-w-0 flex-1 border px-3 py-2', fieldError?.field === 'phone')}
             style={{
+              ...brandedFieldStyle({ invalid: fieldError?.field === 'phone' }),
               borderRadius: '0 var(--ba-radius) var(--ba-radius) 0',
-              ...(fieldError?.field === 'phone' ? {} : { borderColor: 'var(--ba-secondary)' }),
-              backgroundColor: 'var(--ba-secondary)',
-              color: 'var(--ba-text)',
             }}
             aria-invalid={fieldError?.field === 'phone' ? true : undefined}
             aria-describedby={fieldError?.field === 'phone' ? describedBy : undefined}

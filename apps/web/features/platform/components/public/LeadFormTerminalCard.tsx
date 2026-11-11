@@ -1,4 +1,6 @@
 import { useTranslations } from 'next-intl';
+import { BrandedMutedText } from '@/shared/components/hotsite/branded-muted-text';
+import { BrandedPanel } from '@/shared/components/hotsite/branded-panel';
 
 const btnStyle: React.CSSProperties = {
   backgroundColor: 'var(--ba-btn-bg)',
@@ -34,11 +36,7 @@ export function LeadFormTerminalCard({
       style={{ backgroundColor: 'var(--ba-background)', color: 'var(--ba-text)' }}
     >
       <div className="mx-auto max-w-2xl px-6 py-12">
-        <div
-          className="p-10 text-center"
-          style={{ backgroundColor: 'var(--ba-secondary)', borderRadius: 'var(--ba-radius)' }}
-          data-testid="lead-form-terminal-card"
-        >
+        <BrandedPanel className="p-10 text-center" testId="lead-form-terminal-card">
           <div
             className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-2xl text-red-600"
             aria-hidden="true"
@@ -46,7 +44,9 @@ export function LeadFormTerminalCard({
             {icon}
           </div>
           <h1 className="mb-2 text-xl font-bold">{title}</h1>
-          <p className="mx-auto mb-6 max-w-md leading-relaxed opacity-65">{body}</p>
+          <BrandedMutedText className="mx-auto mb-6 max-w-md leading-relaxed">
+            {body}
+          </BrandedMutedText>
           <div className="flex flex-wrap justify-center gap-3">
             {onRetry && retryLabel && (
               <button
@@ -70,7 +70,7 @@ export function LeadFormTerminalCard({
               {t('leadForm.backToSiteButton')}
             </a>
           </div>
-        </div>
+        </BrandedPanel>
       </div>
     </main>
   );

@@ -203,12 +203,29 @@ describe('IntakeAnswersStep', () => {
 });
 
 describe('IntakeAnswersStep unit', () => {
-  it('shows people as the unit of the participant count, in the tenant text colour', () => {
+  it('shows people as the unit of the participant count', () => {
     renderWithIntl(<Harness onNext={vi.fn()} />);
 
     const input = screen.getByTestId('intake-participants');
     expect(input.parentElement).toHaveTextContent('pessoas');
-    expect(input.parentElement?.querySelector('span')).toHaveStyle({ color: 'var(--ba-text)' });
     expect(input).toHaveAccessibleDescription('pessoas');
+  });
+});
+
+describe('IntakeAnswersStep readable colours (TD51-S05)', () => {
+  it('types in the derived secondary text colour with a branded placeholder', () => {
+    renderWithIntl(<Harness onNext={vi.fn()} />);
+
+    const input = screen.getByRole('textbox', { name: /Qual o objetivo da reserva/ });
+    expect(input.style.color).toBe('var(--ba-secondary-text)');
+    expect(input.className).toContain('--ba-secondary-muted');
+  });
+
+  it('draws the participant-count unit over the input in the derived secondary text colour', () => {
+    renderWithIntl(<Harness onNext={vi.fn()} />);
+
+    expect(document.getElementById('intake-participants-unit')?.style.color).toBe(
+      'var(--ba-secondary-text)',
+    );
   });
 });

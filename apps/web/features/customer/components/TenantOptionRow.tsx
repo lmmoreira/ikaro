@@ -1,5 +1,7 @@
 import type React from 'react';
 import type { TenantOption } from '@ikaro/types';
+import { BrandedMutedText } from '@/shared/components/hotsite/branded-muted-text';
+import { brandedSurfaceStyle } from '@/shared/components/hotsite/branded-surface-style';
 
 function TenantAvatar({
   name,
@@ -61,12 +63,10 @@ export function TenantOptionRow({
     <>
       <TenantAvatar name={tenant.name} />
       <div className="min-w-0 flex-1">
-        <p className="text-[0.9375rem] font-semibold" style={{ color: 'var(--ba-text)' }}>
+        <p className="text-[0.9375rem] font-semibold" style={{ color: 'var(--ba-secondary-text)' }}>
           {tenant.name}
         </p>
-        <p className="text-[0.8125rem] opacity-60" style={{ color: 'var(--ba-text)' }}>
-          {loyaltyPointsLabel}
-        </p>
+        <BrandedMutedText className="text-[0.8125rem]">{loyaltyPointsLabel}</BrandedMutedText>
       </div>
       {isCurrent ? (
         <span
@@ -85,11 +85,10 @@ export function TenantOptionRow({
     return (
       <div
         data-testid="switch-tenant-current"
-        className="flex items-center gap-4 border-2 px-5 py-4 opacity-70"
+        className="flex items-center gap-4 border-2 px-5 py-4"
         style={{
+          ...brandedSurfaceStyle,
           borderColor: 'var(--ba-primary)',
-          backgroundColor: 'var(--ba-secondary)',
-          borderRadius: 'var(--ba-radius)',
           boxShadow: 'var(--ba-shadow)',
         }}
       >
@@ -105,11 +104,7 @@ export function TenantOptionRow({
       disabled={disabled}
       onClick={onSelect}
       className="flex cursor-pointer items-center gap-4 px-5 py-4 text-left transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
-      style={{
-        backgroundColor: 'var(--ba-secondary)',
-        borderRadius: 'var(--ba-radius)',
-        boxShadow: 'var(--ba-shadow)',
-      }}
+      style={{ ...brandedSurfaceStyle, boxShadow: 'var(--ba-shadow)' }}
     >
       {content}
     </button>

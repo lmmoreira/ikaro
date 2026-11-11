@@ -52,3 +52,42 @@ describe('TestimonialCard', () => {
     expect(screen.queryByAltText('Maria Silva')).not.toBeInTheDocument();
   });
 });
+
+describe('TestimonialCard readable colours (TD51-S05)', () => {
+  it('defaults to the secondary surface with the derived secondary text', () => {
+    const { container } = renderWithIntl(<TestimonialCard testimonial={makeTestimonial()} />);
+
+    const card = container.firstElementChild as HTMLElement;
+    expect(card.style.backgroundColor).toBe('var(--ba-secondary)');
+    expect(card.style.color).toBe('var(--ba-secondary-text)');
+  });
+
+  it('uses the colour the section computed for its own card background', () => {
+    const { container } = renderWithIntl(
+      <TestimonialCard
+        testimonial={makeTestimonial()}
+        cardBg="var(--ba-section-card-bg, var(--ba-secondary))"
+        cardText="var(--ba-section-text, var(--ba-secondary-text))"
+      />,
+    );
+
+    const card = container.firstElementChild as HTMLElement;
+    expect(card.style.backgroundColor).toBe('var(--ba-section-card-bg, var(--ba-secondary))');
+    expect(card.style.color).toBe('var(--ba-section-text, var(--ba-secondary-text))');
+  });
+
+  it('draws the quote at full strength, with no opacity that would lower its contrast', () => {
+    renderWithIntl(<TestimonialCard testimonial={makeTestimonial()} />);
+
+    expect(screen.getByText(/Atendimento excelente/).className).not.toMatch(/opacity/);
+  });
+
+  it('never paints --ba-text or --ba-primary as the author, quote or star colour', () => {
+    const { container } = renderWithIntl(
+      <TestimonialCard testimonial={makeTestimonial({ rating: 4 })} />,
+    );
+
+    expect(screen.getAllByTestId('star-filled')).toHaveLength(4);
+    expect(container.innerHTML).not.toMatch(/color: var\(--ba-(text|primary)\)/);
+  });
+});

@@ -2,10 +2,13 @@ import type React from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import type { Testimonial } from '@ikaro/types';
+import { brandedSurfaceStyle } from '@/shared/components/hotsite/branded-surface-style';
 
 interface TestimonialCardProps {
   readonly testimonial: Testimonial;
   readonly cardBg?: string;
+  /** Text colour readable on `cardBg`; defaults to the one readable on the secondary colour. */
+  readonly cardText?: string;
 }
 
 interface StarRatingProps {
@@ -19,7 +22,6 @@ function StarRating({ rating }: StarRatingProps): React.JSX.Element {
       role="img"
       aria-label={t('testimonials.ratingAriaLabel', { rating })}
       className="flex gap-1 text-lg"
-      style={{ color: 'var(--ba-primary)' }}
     >
       {Array.from({ length: 5 }, (_, index) => (
         <span
@@ -34,10 +36,15 @@ function StarRating({ rating }: StarRatingProps): React.JSX.Element {
   );
 }
 
-export function TestimonialCard({ testimonial, cardBg }: TestimonialCardProps): React.JSX.Element {
+export function TestimonialCard({
+  testimonial,
+  cardBg,
+  cardText,
+}: TestimonialCardProps): React.JSX.Element {
   const cardStyle: React.CSSProperties = {
-    backgroundColor: cardBg ?? 'var(--ba-secondary)',
-    borderRadius: 'var(--ba-radius)',
+    ...brandedSurfaceStyle,
+    ...(cardBg === undefined ? {} : { backgroundColor: cardBg }),
+    ...(cardText === undefined ? {} : { color: cardText }),
     boxShadow: 'var(--ba-shadow)',
   };
   return (
@@ -52,10 +59,8 @@ export function TestimonialCard({ testimonial, cardBg }: TestimonialCardProps): 
         />
       )}
       {testimonial.rating && <StarRating rating={testimonial.rating} />}
-      <p className="text-sm italic opacity-90">&ldquo;{testimonial.text}&rdquo;</p>
-      <span className="text-sm font-semibold" style={{ color: 'var(--ba-text)' }}>
-        {testimonial.authorName}
-      </span>
+      <p className="text-sm italic">&ldquo;{testimonial.text}&rdquo;</p>
+      <span className="text-sm font-semibold">{testimonial.authorName}</span>
     </div>
   );
 }

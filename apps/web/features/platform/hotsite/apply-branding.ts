@@ -213,6 +213,18 @@ function deriveDivider(branding: HotsiteBrandingResponse): string {
   return 'none';
 }
 
+// Share of the way from the secondary surface towards its readable text colour that an input
+// placeholder sits at: softer than typed text, still a tint of the tenant's own palette.
+const MUTED_MIX = 0.72;
+
+// Placeholder colour on the secondary surface (TD51-S05): the text colour softened towards the
+// surface, or the text colour itself when the softened blend would fall below AA. Derived only;
+// no editor field or stored value.
+export function deriveSecondaryMuted(secondaryColor: string, secondaryText: string): string {
+  const softened = mixHex(secondaryColor, secondaryText, MUTED_MIX);
+  return contrastRatio(secondaryColor, softened) >= MIN_TEXT_CONTRAST ? softened : secondaryText;
+}
+
 export function applyBranding(
   branding: HotsiteBrandingResponse,
 ): React.CSSProperties & Record<`--ba-${string}`, string> {
@@ -244,6 +256,7 @@ export function applyBranding(
     '--ba-hero-text': deriveHeroTextColor(branding),
     '--ba-divider': deriveDivider(branding),
     '--ba-secondary-text': secondaryText,
+    '--ba-secondary-muted': deriveSecondaryMuted(branding.secondaryColor, secondaryText),
     '--ba-secondary-divider': secondaryTokens['--ba-section-divider'],
     '--ba-secondary-accent':
       contrastRatio(branding.secondaryColor, branding.primaryColor) >= MIN_TEXT_CONTRAST

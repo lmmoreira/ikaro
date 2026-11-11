@@ -114,3 +114,27 @@ describe('ContactInfoFields', () => {
     expect(onContactPhoneChange).toHaveBeenCalledWith('+5511912345678');
   });
 });
+
+describe('ContactInfoFields readable colours (TD51-S05)', () => {
+  it('types in the derived secondary text colour, with a branded placeholder, in every input and the prefix', () => {
+    renderWithIntl(
+      <ContactInfoFields
+        contactName=""
+        contactEmail=""
+        contactPhone=""
+        phonePrefix="+55"
+        fieldError={null}
+        onContactNameChange={vi.fn()}
+        onContactEmailChange={vi.fn()}
+        onContactPhoneChange={vi.fn()}
+      />,
+    );
+
+    for (const testId of ['input-name', 'input-email', 'input-phone', 'phone-prefix']) {
+      expect(screen.getByTestId(testId).style.color).toBe('var(--ba-secondary-text)');
+    }
+    for (const testId of ['input-name', 'input-email', 'input-phone']) {
+      expect(screen.getByTestId(testId).className).toContain('--ba-secondary-muted');
+    }
+  });
+});

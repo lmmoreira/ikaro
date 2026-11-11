@@ -1,6 +1,10 @@
 'use client';
 
 import type React from 'react';
+import {
+  BRANDED_FIELD_PLACEHOLDER_CLASS,
+  brandedFieldStyle,
+} from '@/shared/components/hotsite/branded-field-style';
 import { useTranslations } from 'next-intl';
 import type { ServiceIntakeQuestionItem } from '@ikaro/types';
 import {
@@ -10,7 +14,8 @@ import {
 
 /** The classes of an intake control, with the branded outline when it is invalid. */
 export function intakeInputClass(base: string, hasError: boolean): string {
-  return hasError ? `${base} ${BRANDED_FIELD_INVALID_CLASS}` : base;
+  const withPlaceholder = `${base} ${BRANDED_FIELD_PLACEHOLDER_CLASS}`;
+  return hasError ? `${withPlaceholder} ${BRANDED_FIELD_INVALID_CLASS}` : withPlaceholder;
 }
 
 interface IntakeFieldMessageProps {
@@ -45,13 +50,6 @@ interface IntakeQuestionFieldProps {
   readonly hasError: boolean;
   readonly onChange: (value: string | boolean) => void;
 }
-
-const inputStyle = (hasError: boolean): React.CSSProperties => ({
-  borderRadius: 'var(--ba-radius)',
-  ...(hasError ? {} : { borderColor: 'var(--ba-secondary)' }),
-  backgroundColor: 'var(--ba-secondary)',
-  color: 'var(--ba-text)',
-});
 
 function FieldError({ fieldKey }: { readonly fieldKey: string }): React.JSX.Element {
   const t = useTranslations('booking.intake');
@@ -158,7 +156,7 @@ export function IntakeQuestionField(props: IntakeQuestionFieldProps): React.JSX.
         data-field-key={question.fieldKey}
         rows={2}
         className={intakeInputClass('w-full border px-3 py-2', hasError)}
-        style={inputStyle(hasError)}
+        style={brandedFieldStyle({ invalid: hasError })}
         value={typeof value === 'string' ? value : ''}
         onChange={(e) => onChange(e.target.value)}
         aria-invalid={hasError ? true : undefined}

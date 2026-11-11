@@ -19,3 +19,16 @@ describe('LeadFormSkeleton', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 });
+
+describe('LeadFormSkeleton readable colours (TD51-S05)', () => {
+  it('draws its blocks from the shared skeleton style, with no text colour', () => {
+    const { container } = renderWithIntl(<LeadFormSkeleton title="Quer um orçamento?" />);
+
+    const blocks = container.querySelectorAll<HTMLElement>('.animate-pulse');
+    expect(blocks.length).toBeGreaterThan(0);
+    for (const block of blocks) {
+      expect(block.style.backgroundColor).toBe('var(--ba-secondary)');
+      expect(block.style.color).toBe('');
+    }
+  });
+});
