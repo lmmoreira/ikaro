@@ -721,7 +721,7 @@ A non-exempt provisioning path first **reserves a registration** so that the Goo
 
 ---
 
-### M25-S10 — Provisioning side — one registration pattern: `exempt` on the registration, `registrationId` on `POST /internal/tenants`, `TenantProvisioned` fields, `provision-tenant.sh`
+### M25-S10 — Provisioning side — one registration pattern: `exempt` on the registration, `registrationId` on `POST /internal/tenants`, `TenantProvisioned` fields, `provision-tenant.sh` ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** M
