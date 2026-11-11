@@ -12,6 +12,7 @@ export class SignupRegistrationEntityBuilder {
   private taxId: string | null = null;
   private termsVersion: string | null = '2026-11-01';
   private termsAcceptedAt: Date | null = new Date(Date.now() - 60_000);
+  private exempt = false;
   private createdAt = new Date(Date.now() - 60_000);
 
   withId(id: string): this {
@@ -40,6 +41,11 @@ export class SignupRegistrationEntityBuilder {
     this.googleSub = null;
     this.termsVersion = null;
     this.termsAcceptedAt = null;
+    return this;
+  }
+
+  withExempt(exempt = true): this {
+    this.exempt = exempt;
     return this;
   }
 
@@ -74,6 +80,7 @@ export class SignupRegistrationEntityBuilder {
     e.taxId = this.taxId;
     e.termsVersion = this.termsVersion;
     e.termsAcceptedAt = this.termsAcceptedAt;
+    e.exempt = this.exempt;
     e.createdAt = this.createdAt;
     return e;
   }

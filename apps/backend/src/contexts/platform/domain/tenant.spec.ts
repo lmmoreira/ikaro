@@ -1,6 +1,7 @@
 import { PlatformDomainError } from './errors/platform-domain.error';
 import { TenantProvisioned } from './events/tenant-provisioned.event';
 import { Tenant } from './tenant.aggregate';
+import { TEST_REGISTRATION_ID } from '../../../test/utils/test-registration-id';
 import { TenantSettings } from './value-objects/tenant-settings.vo';
 import { TenantBuilder } from '../../../test/builders/platform';
 
@@ -47,7 +48,7 @@ describe('Tenant', () => {
       expect(() => new TenantBuilder().withSlug('lavacar-belo-01').build()).not.toThrow();
     });
 
-    it('raises TenantProvisioned with countryCode and no billingHint when none is given', () => {
+    it('raises TenantProvisioned with countryCode and no registrationId when none is given', () => {
       const tenant = Tenant.create('Lavacar', 'lavacar', 'a@a.com', 'corr-1', 'America/Sao_Paulo');
 
       const [event] = tenant.domainEvents as TenantProvisioned[];
@@ -60,7 +61,7 @@ describe('Tenant', () => {
       });
     });
 
-    it('puts the country and the billing hint on the event', () => {
+    it('puts the country and the registration id on the event', () => {
       const tenant = Tenant.create(
         'Lavacar US',
         'lavacar-us',
@@ -68,20 +69,12 @@ describe('Tenant', () => {
         'corr-2',
         'America/New_York',
         'US',
-        {
-          exempt: false,
-          features: ['HOTSITE'],
-          registrationId: '0198f1c2-7a3b-7c4d-8e5f-0123456789ab',
-        },
+        TEST_REGISTRATION_ID,
       );
 
       const [event] = tenant.domainEvents as TenantProvisioned[];
       expect(event.data.countryCode).toBe('US');
-      expect(event.data.billingHint).toEqual({
-        exempt: false,
-        features: ['HOTSITE'],
-        registrationId: '0198f1c2-7a3b-7c4d-8e5f-0123456789ab',
-      });
+      expect(event.data.registrationId).toBe(TEST_REGISTRATION_ID);
     });
   });
 

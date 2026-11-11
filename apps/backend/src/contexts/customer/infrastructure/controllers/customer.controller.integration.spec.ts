@@ -6,6 +6,7 @@ import { CustomerEntityBuilder } from '../../../../test/builders/customer/index'
 import { actorHeaders } from '../../../../test/utils/actor-headers';
 import { createCustomerIntegrationApp } from '../../../../test/utils/customer-integration-app';
 import { CustomerEntity } from '../entities/customer.entity';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 const TEST_KEY = 'customer-integ-test-key-customer-xxx'; // 36 chars
 
@@ -27,7 +28,7 @@ describe('CustomerController (integration)', () => {
         slug: 'cust-tenant-a',
         adminEmail: 'a@cust.test',
         country_code: 'BR',
-        exempt: true,
+        registrationId: TEST_REGISTRATION_ID,
       })
       .expect(201);
     tenantAId = a.tenantId as string;
@@ -40,7 +41,7 @@ describe('CustomerController (integration)', () => {
         slug: 'cust-tenant-b',
         adminEmail: 'b@cust.test',
         country_code: 'BR',
-        exempt: true,
+        registrationId: TEST_REGISTRATION_ID,
       })
       .expect(201);
     tenantBId = b.tenantId as string;

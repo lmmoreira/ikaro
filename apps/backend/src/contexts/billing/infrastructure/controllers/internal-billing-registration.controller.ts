@@ -34,6 +34,7 @@ export class InternalBillingRegistrationController {
           ? { raw: dto.taxId, countryCode: dto.countryCode }
           : undefined,
       termsVersion: dto.terms?.version,
+      exempt: dto.exempt,
     };
     return this.reserveRegistration.execute(input).catch(mapBillingError);
   }

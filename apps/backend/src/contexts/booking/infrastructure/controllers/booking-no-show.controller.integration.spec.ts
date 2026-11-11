@@ -15,6 +15,7 @@ import { BookingEntity } from '../entities/booking.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
 import { BookingStatusTransitionEntity } from '../entities/booking-status-transition.entity';
 import { ServiceEntity } from '../entities/service.entity';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 const TEST_KEY = 'booking-integ-test-key-no-show-xxx'; // 35 chars
 const STAFF_ID = '20000000-0000-4000-8000-0000000000a2';
@@ -35,7 +36,13 @@ describe('BookingCompletionController no-show routes (integration)', () => {
       const { body } = await request(app.getHttpServer())
         .post('/internal/tenants')
         .set('X-Platform-Admin-Key', TEST_KEY)
-        .send({ name: slug, slug, adminEmail: `a@${slug}.test`, country_code: 'BR', exempt: true })
+        .send({
+          name: slug,
+          slug,
+          adminEmail: `a@${slug}.test`,
+          country_code: 'BR',
+          registrationId: TEST_REGISTRATION_ID,
+        })
         .expect(201);
       return body.tenantId as string;
     };

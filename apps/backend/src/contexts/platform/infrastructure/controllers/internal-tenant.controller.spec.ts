@@ -1,6 +1,7 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/platform/in-memory-hotsite-config.repository';
@@ -42,7 +43,7 @@ describe('InternalTenantController', () => {
       slug: 'lavacar-belo',
       adminEmail: 'admin@lavacar.com.br',
       country_code: 'BR',
-      taxId: '529.982.247-25',
+      registrationId: TEST_REGISTRATION_ID,
     });
 
     expect(result.slug).toBe('lavacar-belo');
@@ -58,7 +59,7 @@ describe('InternalTenantController', () => {
       slug: 'taken',
       adminEmail: 'a@a.com',
       country_code: 'BR',
-      taxId: '529.982.247-25',
+      registrationId: TEST_REGISTRATION_ID,
     });
 
     expect.assertions(2);
@@ -68,7 +69,7 @@ describe('InternalTenantController', () => {
         slug: 'taken',
         adminEmail: 'b@b.com',
         country_code: 'BR',
-        taxId: '529.982.247-25',
+        registrationId: TEST_REGISTRATION_ID,
       });
     } catch (err) {
       expect(err).toBeInstanceOf(HttpException);
@@ -84,7 +85,7 @@ describe('InternalTenantController', () => {
         slug: 'valid',
         adminEmail: 'a@a.com',
         country_code: 'BR',
-        taxId: '529.982.247-25',
+        registrationId: TEST_REGISTRATION_ID,
       });
     } catch (err) {
       expect(err).toBeInstanceOf(HttpException);
@@ -92,41 +93,17 @@ describe('InternalTenantController', () => {
     }
   });
 
-  it.each([
-    ['a missing tax id', undefined, 'SIGNUP_TAX_ID_REQUIRED'],
-    ['an invalid tax id', '529.982.247-26', 'SIGNUP_TAX_ID_INVALID'],
-  ])(
-    'maps %s on a non-exempt BR tenant to 422 and creates nothing',
-    async (_label, taxId, code) => {
-      expect.assertions(4);
-      try {
-        await controller.provision({
-          name: 'Fiscal',
-          slug: 'fiscal',
-          adminEmail: 'a@a.com',
-          country_code: 'BR',
-          taxId,
-        });
-      } catch (err) {
-        expect(err).toBeInstanceOf(HttpException);
-        expect((err as HttpException).getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
-        expect(JSON.stringify((err as HttpException).getResponse())).toContain(code);
-      }
-      expect(eventBus.published).toHaveLength(0);
-    },
-  );
-
-  it('passes exempt, features and registrationId through to the published hint', async () => {
+  it('passes the registrationId through to the published event', async () => {
     await controller.provision({
       name: 'Parceiro',
       slug: 'parceiro',
       adminEmail: 'p@p.com',
       country_code: 'BR',
-      exempt: true,
-      features: ['HOTSITE', 'BOOKING'],
+      registrationId: TEST_REGISTRATION_ID,
     });
 
     const event = eventBus.published[0] as unknown as { data: Record<string, unknown> };
-    expect(event.data['billingHint']).toEqual({ exempt: true, features: ['HOTSITE', 'BOOKING'] });
+    expect(event.data['registrationId']).toBe(TEST_REGISTRATION_ID);
+    expect(event.data['countryCode']).toBe('BR');
   });
 });

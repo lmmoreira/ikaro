@@ -738,20 +738,16 @@ Customer clicks "Cancel"
     "slug":        "string",
     "adminEmail":  "string",
     "timezone":    "America/Sao_Paulo",
-    "countryCode": "BR | US",
-    "billingHint": {
-      "exempt":         "boolean (optional) — free access, never charged (Ikaro's own tenant, partner/test tenants)",
-      "features":       "FeatureKey[] (optional) — the default paid-item subset; omitted = every feature",
-      "registrationId": "uuid (optional) — the Billing provisioning registration (see below)"
-    }
+    "countryCode": "BR | US (optional in the type: absent on a legacy row)",
+    "registrationId": "uuid (optional in the type: absent on a legacy row) — the Billing provisioning registration that holds the billing intent (see below)"
   }
   ```
-  (`tenantId` is the envelope's own field — the constructor's first argument — not part of `data`.) `countryCode` and `billingHint` (and therefore `exempt`, `features`, `registrationId`) are **additive** fields added for the Billing release: `ProvisionTenantUseCaseInput` is `name`, `slug`, `adminEmail`, `country_code`, `timezone?` plus `exempt?`, `registrationId?`, `features?` and `taxId?` (the tax id is validated and never published); `billingHint` is present only when the caller sent `exempt: true`, `features` or `registrationId`, and `exempt` inside it is always a boolean; additive fields need no new version (`eventVersion` stays 1). A payload without `countryCode` (an outbox row written before the Billing release) is *legacy*: the Billing handler skips it and logs, and the self-heal job creates the trial through the narrow read-only tenant-info port (`docs/BOUNDED_CONTEXTS.md` § 7). **Billing identity data never travels in this event** (`adminEmail` is the one personal field it carries): the Google `sub`, the BR CPF/CNPJ and the accepted-terms version live in the `billing.signup_registrations` row that Billing creates *before* provisioning (self-signup through BFF orchestration, operator provisioning through `POST /internal/billing/registrations`); the event carries only its `registrationId`, so the generic audit log and Pub/Sub never see them (LGPD).
+  (`tenantId` is the envelope's own field — the constructor's first argument — not part of `data`.) `countryCode` and `registrationId` are **additive** fields added for the Billing release; additive fields need no new version (`eventVersion` stays 1). `ProvisionTenantUseCaseInput` is `name`, `slug`, `adminEmail`, `country_code`, `timezone?` plus a **required** `registrationId` (a UUID, shape-checked only: Platform never reads Billing). The registration, not the event, holds the billing intent: the `exempt` flag, the tax identity and, for self-signup, the Google `sub` and the accepted terms. A payload without `countryCode` or `registrationId` (an outbox row written before the Billing release) is *legacy*: the Billing handler skips it and logs, and the self-heal job creates the trial through the narrow read-only tenant-info port (`docs/BOUNDED_CONTEXTS.md` § 7). **Billing identity data never travels in this event** (`adminEmail` is the one personal field it carries): the Google `sub`, the BR CPF/CNPJ and the accepted-terms version live in the `billing.signup_registrations` row that Billing creates *before* provisioning (self-signup through BFF orchestration, operator provisioning through `POST /internal/billing/registrations`, the same pattern for both); the event carries only its `registrationId`, so the generic audit log and Pub/Sub never see them (LGPD).
 - **Consumers:**
   - Staff context (M04-S06) → creates first MANAGER `Staff` row (`isActive=true`, `googleOAuthId=null` until first login) + publishes `StaffInvited`
   - Booking context (`booking` consumer, `create-tenant-location-resource`) → creates the tenant's `LOCATION` resource
   - Notification context (`notification-template-seed` consumer) → seeds the tenant's default notification templates
-  - Billing context (`create-trial-subscription` consumer) → creates the `TRIALING` `Subscription`, its default paid items and the `BillingAccount` (copying tax id and terms from the registration, then clearing them from it) in one transaction; idempotent on `UNIQUE(tenant_id)`; an `exempt` hint creates an `ACTIVE`, exempt subscription instead
+  - Billing context (`create-trial-subscription` consumer) → reads the registration named by `registrationId`, then creates the `TRIALING` `Subscription` (every feature), its default paid items and the `BillingAccount` (copying the tax id, if any, and the terms from the registration, then clearing the tax id from it, and setting its `tenant_id`) in one transaction; idempotent on `UNIQUE(tenant_id)`; a registration with `exempt = true` creates an `ACTIVE`, exempt subscription instead
   - `audit-log` (`PlatformAuditLogHandler`)
 - **Design note:** `invitedBy` in the downstream `StaffInvited` event is set to `SYSTEM_ACTOR_ID = '00000000-0000-0000-0000-000000000000'` because no human actor exists yet at provisioning time.
 
@@ -870,7 +866,7 @@ Ikaro charging its tenants (`docs/DOMAIN_MODEL.md` § Billing Context, `docs/USE
 
 ## Event Versioning
 
-Add fields freely (consumers ignore unknown fields) — this is the repo practice, e.g. `TenantProvisioned` gained `countryCode` and `billingHint` for Billing without a new version. A breaking change (a renamed or removed field) bumps `eventVersion` **for documentation only**:
+Add fields freely (consumers ignore unknown fields) — this is the repo practice, e.g. `TenantProvisioned` gained `countryCode` and `registrationId` for Billing without a new version. A breaking change (a renamed or removed field) bumps `eventVersion` **for documentation only**:
 
 ```
 BookingRequested.v1 → BookingRequested.v2  (e.g. renamed or removed field)

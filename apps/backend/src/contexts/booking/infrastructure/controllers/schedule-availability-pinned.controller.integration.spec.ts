@@ -7,6 +7,7 @@ import { nextWeekday } from '../../../../test/utils/date-helpers';
 import { seedOccupiedBlock } from '../../../../test/utils/seed-resource-occupancy';
 import { PlatformModule } from '../../../platform/platform.module';
 import { ResourceType } from '../../domain/resource.types';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 const TEST_KEY = 'availability-pinned-integ-key-xxxxx'; // 36 chars
 const MANAGER_ID = '20000000-0000-4000-8000-000000000001';
@@ -38,7 +39,7 @@ describe('Availability with pinned selections and a chosen duration (integration
         slug,
         adminEmail: `${slug}@availability-pinned.test`,
         country_code: 'BR',
-        exempt: true,
+        registrationId: TEST_REGISTRATION_ID,
       })
       .expect(201);
     return body.tenantId as string;

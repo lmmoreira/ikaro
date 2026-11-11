@@ -31,6 +31,9 @@ export class SignupRegistrationEntity {
   @Column({ name: 'terms_accepted_at', type: 'timestamptz', nullable: true })
   termsAcceptedAt!: Date | null;
 
+  @Column({ type: 'boolean', default: false })
+  exempt!: boolean;
+
   @Column({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 }

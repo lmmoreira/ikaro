@@ -16,6 +16,7 @@ import { CustomerEntity } from '../../../customer/infrastructure/entities/custom
 import { BookingEntity } from '../entities/booking.entity';
 import { ScheduleClosureEntity } from '../entities/schedule-closure.entity';
 import { ServiceEntity } from '../entities/service.entity';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 // TD50 Story 1: the customer reschedule, the admin reschedule and the approval refuse a time the
 // business is closed for, against a real database. The default tenant is open Monday–Saturday
@@ -45,7 +46,7 @@ describe('reschedule and approve honour hours and closures (integration, TD50-S0
           slug,
           adminEmail: `admin@${slug}.test`,
           country_code: 'BR',
-          exempt: true,
+          registrationId: TEST_REGISTRATION_ID,
         })
         .expect(201);
       return body.tenantId as string;

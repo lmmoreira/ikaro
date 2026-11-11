@@ -27,8 +27,9 @@ Content-Type: application/json
 ###
 
 ### Operator (scripts/provision-tenant.sh): no lock, no eligibility check, always a fresh row.
-### First step of provisioning a paid tenant: take the returned registrationId and send it, with the same
-### tax id, to POST /internal/tenants (../platform/internal-tenants.http).
+### First step of every operator provisioning: take the returned registrationId and send it to
+### POST /internal/tenants (../platform/internal-tenants.http). The tax id is optional (the operator is
+### trusted); without one the manager types it in the billing page.
 POST {{baseUrl}}/internal/billing/registrations
 X-Internal-Key: {{internalKey}}
 Content-Type: application/json
@@ -37,6 +38,33 @@ Content-Type: application/json
   "source": "OPERATOR",
   "taxId": "11.222.333/0001-81",
   "countryCode": "BR"
+}
+
+###
+
+### Operator, exempt (free partner or test tenant): no tax id needed; the Billing handler creates an
+### ACTIVE, exempt subscription from this registration. Refused for SELF_SIGNUP (400).
+POST {{baseUrl}}/internal/billing/registrations
+X-Internal-Key: {{internalKey}}
+Content-Type: application/json
+
+{
+  "source": "OPERATOR",
+  "exempt": true
+}
+
+###
+
+### Invalid: exempt on a self-signup → 400
+POST {{baseUrl}}/internal/billing/registrations
+X-Internal-Key: {{internalKey}}
+Content-Type: application/json
+
+{
+  "source": "SELF_SIGNUP",
+  "googleSub": "1088000000000000001",
+  "terms": { "version": "2026-11-01" },
+  "exempt": true
 }
 
 ###

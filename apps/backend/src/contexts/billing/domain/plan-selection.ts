@@ -1,9 +1,4 @@
-import {
-  CHATBOT_TIERS,
-  FEATURE_KEYS,
-  type FeatureKey,
-  findUnmetFeatureRequirement,
-} from '@ikaro/validation';
+import { CHATBOT_TIERS, FEATURE_KEYS, type FeatureKey } from '@ikaro/validation';
 import type { FeatureTier } from './feature-price.aggregate';
 import {
   FeatureDependencyUnmetError,
@@ -17,6 +12,20 @@ export interface SelectionEntry {
   readonly featureKey: FeatureKey;
   readonly tier: FeatureTier;
 }
+
+/**
+ * The feature-dependency graph (docs/DOMAIN_MODEL.md Context 7): `HOTSITE` is the root and can
+ * never be left out of a non-empty plan, because every other feature needs it directly or through
+ * `BOOKING`. Only direct requirements are listed: a closed selection (every member's direct
+ * requirements present) is closed transitively.
+ */
+export const FEATURE_REQUIREMENTS: Readonly<Record<FeatureKey, readonly FeatureKey[]>> = {
+  HOTSITE: [],
+  BOOKING: ['HOTSITE'],
+  LOYALTY: ['BOOKING'],
+  CHATBOT: ['HOTSITE'],
+  LEAD_FORM: ['HOTSITE'],
+};
 
 /** `CHATBOT` defaults to its `BASIC` tier, every other feature has the single tier `STANDARD`. */
 export function defaultTierFor(featureKey: FeatureKey): FeatureTier {
@@ -71,11 +80,13 @@ export function validateSelection(
   }
   const currentKeys = new Set(current.map((entry) => entry.featureKey));
 
-  // The graph itself is shared with Platform (`@ikaro/validation`); only the typed errors are Billing's.
-  const unmet = findUnmetFeatureRequirement([...proposedKeys]);
-  if (unmet !== null) {
-    throw currentKeys.has(unmet.required)
-      ? new FeatureHasDependentsError(unmet.required, unmet.feature)
-      : new FeatureDependencyUnmetError(unmet.feature, unmet.required);
+  for (const featureKey of FEATURE_KEYS) {
+    if (!proposedKeys.has(featureKey)) continue;
+    for (const required of FEATURE_REQUIREMENTS[featureKey]) {
+      if (proposedKeys.has(required)) continue;
+      throw currentKeys.has(required)
+        ? new FeatureHasDependentsError(required, featureKey)
+        : new FeatureDependencyUnmetError(featureKey, required);
+    }
   }
 }

@@ -17,9 +17,10 @@
 # HAPPY PATH
 # ─────────────────────────────────────────────────────────────────────────────
 
-### Provision a non-exempt BR tenant with a reserved registration (timezone defaults to the country's).
-### Reserve it first with the OPERATOR request in ../billing/registrations.http, using the same taxId
-### as below, and paste the returned registrationId into the variable.
+### Provision a tenant from a reserved registration (timezone defaults to the country's).
+### Every provisioning reserves a Billing registration first (../billing/registrations.http, the
+### OPERATOR request: add "exempt": true there for a free partner tenant) and passes its id here.
+### Paste the returned registrationId into the variable.
 @registrationId = 00000000-0000-4000-8000-000000000001
 # @name provisionTenant
 POST {{baseUrl}}/internal/tenants
@@ -32,15 +33,12 @@ Content-Type: application/json
   "slug": "lavacar-bh",
   "adminEmail": "admin@lavacar-bh.com.br",
   "country_code": "BR",
-  "taxId": "529.982.247-25",
   "registrationId": "{{registrationId}}"
 }
 
 ###
 
-### Tax id only, no registration (explicit timezone) — the tax id is only validated here; without a
-### registration the Billing handler creates the subscription with no tax id (UC-110 A7), so this is
-### not the supported paid path
+### Provision a tenant (explicit timezone)
 POST {{baseUrl}}/internal/tenants
 X-Platform-Admin-Key: {{adminKey}}
 X-Internal-Key: {{internalKey}}
@@ -52,24 +50,7 @@ Content-Type: application/json
   "adminEmail": "admin@lavacar-manaus.com.br",
   "country_code": "BR",
   "timezone": "America/Manaus",
-  "taxId": "11.222.333/0001-81"
-}
-
-###
-
-### Provision an exempt tenant (free access, no tax id, no registration) with a feature subset
-POST {{baseUrl}}/internal/tenants
-X-Platform-Admin-Key: {{adminKey}}
-X-Internal-Key: {{internalKey}}
-Content-Type: application/json
-
-{
-  "name": "Parceiro Exempt",
-  "slug": "parceiro-exempt",
-  "adminEmail": "admin@parceiro.com.br",
-  "country_code": "BR",
-  "exempt": true,
-  "features": ["HOTSITE", "BOOKING"]
+  "registrationId": "{{registrationId}}"
 }
 
 ###
@@ -124,7 +105,7 @@ Content-Type: application/json
 
 ###
 
-### 422 — Non-exempt BR tenant without a tax id (SIGNUP_TAX_ID_REQUIRED)
+### 400 — Missing registrationId (every provisioning goes through a registration)
 POST {{baseUrl}}/internal/tenants
 X-Platform-Admin-Key: {{adminKey}}
 X-Internal-Key: {{internalKey}}
@@ -132,14 +113,14 @@ Content-Type: application/json
 
 {
   "name": "Test",
-  "slug": "no-tax-id",
+  "slug": "no-registration",
   "adminEmail": "test@test.com",
   "country_code": "BR"
 }
 
 ###
 
-### 400 — features that break the dependency graph (LOYALTY needs BOOKING)
+### 400 — registrationId is not a UUID
 POST {{baseUrl}}/internal/tenants
 X-Platform-Admin-Key: {{adminKey}}
 X-Internal-Key: {{internalKey}}
@@ -147,11 +128,10 @@ Content-Type: application/json
 
 {
   "name": "Test",
-  "slug": "bad-features",
+  "slug": "bad-registration",
   "adminEmail": "test@test.com",
   "country_code": "BR",
-  "exempt": true,
-  "features": ["HOTSITE", "LOYALTY"]
+  "registrationId": "not-a-uuid"
 }
 
 ###

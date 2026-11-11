@@ -44,6 +44,7 @@ import {
   ServiceResourceRequirementPoolEntity,
 } from '../entities/service-resource-requirement.entity';
 import { ResourceType } from '../../domain/resource.types';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 const TEST_KEY = 'recur-approval-integ-key-xxxxxx'; // 32 chars
 const CUSTOMER_ID = '20000000-0000-4000-8000-000000000701';
@@ -65,7 +66,13 @@ describe('Recurring schedule approval, materialization and expiry (integration)'
     const { body } = await request(app.getHttpServer())
       .post('/internal/tenants')
       .set('X-Platform-Admin-Key', TEST_KEY)
-      .send({ name: slug, slug, adminEmail: `a@${slug}.test`, country_code: 'BR', exempt: true })
+      .send({
+        name: slug,
+        slug,
+        adminEmail: `a@${slug}.test`,
+        country_code: 'BR',
+        registrationId: TEST_REGISTRATION_ID,
+      })
       .expect(201);
     return body.tenantId as string;
   }

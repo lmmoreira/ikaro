@@ -21,6 +21,7 @@ import { PlatformModule } from '../../../platform/platform.module';
 import { StaffModule } from '../../staff.module';
 import { StaffEntity } from '../entities/staff.entity';
 import { testConfigModule } from '../../../../test/utils/test-config-module';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 const PLATFORM_KEY = 'story-test-key-story-test-key-xx';
 
@@ -80,7 +81,7 @@ describe('Story: POST /internal/tenants → event bus → staff MANAGER created 
         slug,
         adminEmail,
         country_code: 'BR',
-        exempt: true,
+        registrationId: TEST_REGISTRATION_ID,
         timezone: 'America/Sao_Paulo',
       })
       .expect(201);
@@ -117,7 +118,7 @@ describe('Story: POST /internal/tenants → event bus → staff MANAGER created 
           slug: slugA,
           adminEmail: emailA,
           country_code: 'BR',
-          exempt: true,
+          registrationId: TEST_REGISTRATION_ID,
           timezone: 'America/Sao_Paulo',
         }),
       request(app.getHttpServer())
@@ -128,7 +129,7 @@ describe('Story: POST /internal/tenants → event bus → staff MANAGER created 
           slug: slugB,
           adminEmail: emailB,
           country_code: 'BR',
-          exempt: true,
+          registrationId: TEST_REGISTRATION_ID,
           timezone: 'America/Sao_Paulo',
         }),
     ]);

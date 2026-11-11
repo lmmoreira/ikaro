@@ -8,6 +8,7 @@ import { BookingResourceReassignedEventBuilder } from '../../../../test/builders
 import { ResourceDeactivationImpactRaisedEventBuilder } from '../../../../test/builders/booking/resource-deactivation-impact-raised-event.builder';
 import { NotificationTemplateKey } from '../../domain/notification-template-key.enum';
 import { NotificationLogEntity } from '../entities/notification-log.entity';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 const PLATFORM_KEY = 'worklist-notifications-key-xxxxxxxxxxxxx';
 
@@ -37,7 +38,7 @@ describe('Story: future-commitment worklist events → emails (integration)', ()
         slug: `wl-${stamp}`,
         adminEmail,
         country_code: 'BR',
-        exempt: true,
+        registrationId: TEST_REGISTRATION_ID,
         timezone: 'America/Sao_Paulo',
       })
       .expect(201);

@@ -45,6 +45,7 @@ import { LoyaltyRedemptionEntity } from '../entities/loyalty-redemption.entity';
 import { BalanceExpiryLogEntity } from '../entities/balance-expiry-log.entity';
 import { BookingCompleted } from '../../../booking/domain/events/booking-completed.event';
 import { openSlotAt } from '../../../../test/utils/date-helpers';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 const PLATFORM_KEY = 'discount-completion-integ-key-xxxxx';
 
@@ -114,7 +115,13 @@ describe('Story: booking completion with a loyalty points discount (integration)
     const { body } = await request(app.getHttpServer())
       .post('/internal/tenants')
       .set('X-Platform-Admin-Key', PLATFORM_KEY)
-      .send({ name: 'Discount Tenant', slug, adminEmail, country_code: 'BR', exempt: true })
+      .send({
+        name: 'Discount Tenant',
+        slug,
+        adminEmail,
+        country_code: 'BR',
+        registrationId: TEST_REGISTRATION_ID,
+      })
       .expect(201);
     const tenantId = body.tenantId as string;
 

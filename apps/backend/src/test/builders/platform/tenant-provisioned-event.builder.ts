@@ -1,7 +1,4 @@
-import {
-  TenantBillingHint,
-  TenantProvisioned,
-} from '../../../contexts/platform/domain/events/tenant-provisioned.event';
+import { TenantProvisioned } from '../../../contexts/platform/domain/events/tenant-provisioned.event';
 
 export class TenantProvisionedEventBuilder {
   private tenantId = 'aaaaaaaa-0000-4000-8000-000000000001';
@@ -11,7 +8,7 @@ export class TenantProvisionedEventBuilder {
   private adminEmail = 'admin@lavacar.com.br';
   private timezone = 'America/Sao_Paulo';
   private countryCode = 'BR';
-  private billingHint: TenantBillingHint | undefined;
+  private registrationId: string | undefined;
 
   withTenantId(tenantId: string): this {
     this.tenantId = tenantId;
@@ -48,8 +45,8 @@ export class TenantProvisionedEventBuilder {
     return this;
   }
 
-  withBillingHint(billingHint: TenantBillingHint): this {
-    this.billingHint = billingHint;
+  withRegistrationId(registrationId: string): this {
+    this.registrationId = registrationId;
     return this;
   }
 
@@ -60,7 +57,7 @@ export class TenantProvisionedEventBuilder {
       adminEmail: this.adminEmail,
       timezone: this.timezone,
       countryCode: this.countryCode,
-      ...(this.billingHint ? { billingHint: this.billingHint } : {}),
+      ...(this.registrationId ? { registrationId: this.registrationId } : {}),
     });
   }
 }

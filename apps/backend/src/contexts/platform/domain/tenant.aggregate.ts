@@ -2,7 +2,7 @@ import { AggregateRoot } from '../../../shared/domain/aggregate-root';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { Slug } from '../../../shared/value-objects/slug.vo';
 import { normalizeText } from '../../../shared/utils/text-normalization';
-import { TenantBillingHint, TenantProvisioned } from './events/tenant-provisioned.event';
+import { TenantProvisioned } from './events/tenant-provisioned.event';
 import {
   TenantInactiveError,
   TenantNameRequiredError,
@@ -63,7 +63,7 @@ export class Tenant extends AggregateRoot {
     correlationId: string,
     timezone = 'America/Sao_Paulo',
     countryCode = 'BR',
-    billingHint?: TenantBillingHint,
+    registrationId?: string,
   ): Tenant {
     const normalizedName = normalizeText(name);
     if (!normalizedName) {
@@ -90,7 +90,7 @@ export class Tenant extends AggregateRoot {
         adminEmail,
         timezone,
         countryCode,
-        ...(billingHint ? { billingHint } : {}),
+        ...(registrationId ? { registrationId } : {}),
       }),
     );
 

@@ -1,3 +1,4 @@
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 import { ProvisionTenantSchema } from './provision-tenant.dto';
 
 const BASE = {
@@ -5,70 +6,41 @@ const BASE = {
   slug: 'lavacar',
   adminEmail: 'admin@lavacar.com.br',
   country_code: 'BR',
+  registrationId: TEST_REGISTRATION_ID,
 };
-const REGISTRATION_ID = '0198f1c2-7a3b-7c4d-8e5f-0123456789ab';
 
-const parse = (extra: Record<string, unknown>) =>
-  ProvisionTenantSchema.safeParse({ ...BASE, ...extra });
+const parse = (overrides: Record<string, unknown>) =>
+  ProvisionTenantSchema.safeParse({ ...BASE, ...overrides });
 
-describe('ProvisionTenantSchema — billing inputs', () => {
-  it('accepts the legacy body without any billing field', () => {
+describe('ProvisionTenantSchema — registrationId', () => {
+  it('accepts a complete body with a UUID registrationId', () => {
     expect(parse({}).success).toBe(true);
   });
 
-  it('accepts exempt, a registrationId, a taxId and a closed feature subset', () => {
-    const result = parse({
-      registrationId: REGISTRATION_ID,
-      taxId: '529.982.247-25',
-      features: ['HOTSITE', 'BOOKING', 'LOYALTY'],
+  it('refuses a body without a registrationId', () => {
+    const result = ProvisionTenantSchema.safeParse({
+      name: BASE.name,
+      slug: BASE.slug,
+      adminEmail: BASE.adminEmail,
+      country_code: BASE.country_code,
     });
-
-    expect(result.success).toBe(true);
-  });
-
-  it('accepts an exempt tenant on its own', () => {
-    expect(parse({ exempt: true }).success).toBe(true);
-  });
-
-  it.each([
-    ['HOTSITE'],
-    ['HOTSITE', 'BOOKING'],
-    ['HOTSITE', 'CHATBOT'],
-    ['HOTSITE', 'LEAD_FORM'],
-    ['HOTSITE', 'BOOKING', 'LOYALTY', 'CHATBOT', 'LEAD_FORM'],
-    ['LEAD_FORM', 'HOTSITE'],
-  ])('accepts the closed subset %j', (...features) => {
-    expect(parse({ features }).success).toBe(true);
-  });
-
-  it.each([
-    ['an empty subset', []],
-    ['a repeated feature', ['HOTSITE', 'HOTSITE']],
-    ['an unknown feature key', ['HOTSITE', 'TELEPORT']],
-    ['BOOKING without HOTSITE', ['BOOKING']],
-    ['LOYALTY without BOOKING', ['HOTSITE', 'LOYALTY']],
-    ['CHATBOT without HOTSITE', ['CHATBOT']],
-    ['LEAD_FORM without HOTSITE', ['LEAD_FORM', 'BOOKING']],
-  ])('refuses %s', (_label, features) => {
-    expect(parse({ features }).success).toBe(false);
-  });
-
-  it('refuses a registrationId that is not a UUID', () => {
-    expect(parse({ registrationId: 'not-a-uuid' }).success).toBe(false);
-  });
-
-  it('refuses exempt together with a registrationId', () => {
-    const result = parse({ exempt: true, registrationId: REGISTRATION_ID });
 
     expect(result.success).toBe(false);
     expect(result.error?.issues[0].path).toEqual(['registrationId']);
   });
 
-  it('allows exempt: false together with a registrationId', () => {
-    expect(parse({ exempt: false, registrationId: REGISTRATION_ID }).success).toBe(true);
-  });
+  it.each([['not-a-uuid'], [''], [42], [null]])(
+    'refuses a registrationId that is not a UUID (%j)',
+    (registrationId) => {
+      expect(parse({ registrationId }).success).toBe(false);
+    },
+  );
 
-  it('does not judge the tax id (the use case validates it per country)', () => {
-    expect(parse({ taxId: 'anything' }).success).toBe(true);
+  it('does not judge billing data: a tax id, exempt flag or feature list are not part of the schema', () => {
+    const result = parse({ taxId: '529.982.247-25', exempt: true, features: ['HOTSITE'] });
+
+    expect(result.success).toBe(true);
+    // zod strips unknown keys: nothing billing-related reaches the use case
+    expect(result.data).toEqual(BASE);
   });
 });

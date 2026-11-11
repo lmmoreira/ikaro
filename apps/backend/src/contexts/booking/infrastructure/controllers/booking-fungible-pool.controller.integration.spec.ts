@@ -6,6 +6,7 @@ import { nextWeekday } from '../../../../test/utils/date-helpers';
 import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
 import { PlatformModule } from '../../../platform/platform.module';
 import { ResourceOccupancyEntity } from '../entities/resource-occupancy.entity';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 const TEST_KEY = 'booking-integ-test-key-pool-xxxxxxxx'; // 36 chars
 const ACTOR_ID = '20000000-0000-4000-8000-000000000a01';
@@ -42,7 +43,7 @@ describe('BookingController — AUTO_FUNGIBLE_POOL (integration)', () => {
     const { body } = await request(app.getHttpServer())
       .post('/internal/tenants')
       .set('X-Platform-Admin-Key', TEST_KEY)
-      .send({ name, slug, adminEmail, country_code: 'BR', exempt: true })
+      .send({ name, slug, adminEmail, country_code: 'BR', registrationId: TEST_REGISTRATION_ID })
       .expect(201);
     return body.tenantId as string;
   }

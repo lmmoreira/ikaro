@@ -8,13 +8,12 @@ import { InternalApiGuard } from '../../../../shared/guards/internal-api.guard';
 import { EVENT_BUS } from '../../../../shared/ports/event-bus.port';
 import { OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 import { createPlatformIntegrationApp } from '../../../../test/utils/platform-integration-app';
 import { TenantProvisioned } from '../../domain/events/tenant-provisioned.event';
 
 const PLATFORM_KEY = 'integ-test-key-integ-test-key-xx'; // exactly 32 chars
 const INTERNAL_KEY = 'integ-tenant-key-integ-tenant-key'; // 33 chars (≥32)
-const VALID_CPF = '529.982.247-25';
-const REGISTRATION_ID = '0198f1c2-7a3b-7c4d-8e5f-0123456789ab';
 
 describe('InternalTenantController (integration)', () => {
   let app: INestApplication;
@@ -139,7 +138,7 @@ describe('InternalTenantController (integration)', () => {
         slug,
         adminEmail: 'admin@lavacar.com.br',
         country_code: 'BR',
-        taxId: VALID_CPF,
+        registrationId: TEST_REGISTRATION_ID,
       })
       .expect(201);
 
@@ -164,7 +163,7 @@ describe('InternalTenantController (integration)', () => {
       slug,
       adminEmail: 'dup@dup.com',
       country_code: 'BR',
-      taxId: VALID_CPF,
+      registrationId: TEST_REGISTRATION_ID,
     };
 
     await request(app.getHttpServer())
@@ -185,13 +184,13 @@ describe('InternalTenantController (integration)', () => {
     expect(body.detail).toContain(slug);
   });
 
-  describe('billing inputs (UC-024 with UC-110/UC-137)', () => {
+  describe('registration reference (UC-024, UC-110)', () => {
     const provision = (body: Record<string, unknown>) =>
       request(app.getHttpServer())
         .post('/internal/tenants')
         .set('X-Internal-Key', INTERNAL_KEY)
         .set('X-Platform-Admin-Key', PLATFORM_KEY)
-        .send({ name: 'Billing Hint', adminEmail: 'b@b.com.br', country_code: 'BR', ...body });
+        .send({ name: 'Registered', adminEmail: 'b@b.com.br', country_code: 'BR', ...body });
 
     function publishedData(tenantId: string): Record<string, unknown> {
       const events = eventBus.published.filter(
@@ -201,75 +200,48 @@ describe('InternalTenantController (integration)', () => {
       return (events[0] as TenantProvisioned).data;
     }
 
-    it('an exempt tenant needs no tax id and publishes billingHint.exempt = true', async () => {
-      const { body } = await provision({ slug: 'billing-hint-exempt', exempt: true }).expect(201);
-
-      const data = publishedData(body.tenantId);
-      expect(data['billingHint']).toEqual({ exempt: true });
-      expect(data['countryCode']).toBe('BR');
-    });
-
-    it('publishes billingHint.features and registrationId when asked', async () => {
+    it('publishes TenantProvisioned with countryCode and the registrationId, and nothing billing-related', async () => {
       const { body } = await provision({
-        slug: 'billing-hint-features',
-        taxId: VALID_CPF,
-        registrationId: REGISTRATION_ID,
-        features: ['HOTSITE', 'BOOKING'],
+        slug: 'registered-tenant',
+        registrationId: TEST_REGISTRATION_ID,
       }).expect(201);
 
       const data = publishedData(body.tenantId);
-      expect(data['billingHint']).toEqual({
-        exempt: false,
-        features: ['HOTSITE', 'BOOKING'],
-        registrationId: REGISTRATION_ID,
-      });
-      expect(JSON.stringify(data)).not.toContain('52998224725');
-    });
-
-    it('a legacy caller without the new fields still succeeds: countryCode and no billingHint', async () => {
-      const { body } = await provision({ slug: 'billing-hint-legacy', taxId: VALID_CPF }).expect(
-        201,
-      );
-
-      const data = publishedData(body.tenantId);
+      expect(data['registrationId']).toBe(TEST_REGISTRATION_ID);
       expect(data['countryCode']).toBe('BR');
-      expect(data).not.toHaveProperty('billingHint');
+      for (const key of ['taxId', 'exempt', 'features', 'billingHint']) {
+        expect(data).not.toHaveProperty(key);
+      }
     });
 
-    it('a non-exempt BR tenant without a tax id is 422 SIGNUP_TAX_ID_REQUIRED and nothing is created', async () => {
-      const slug = 'billing-hint-no-tax';
-      const { body } = await provision({ slug }).expect(422);
+    it('a US tenant is provisioned and publishes its country (no price or tax id check here)', async () => {
+      const { body } = await provision({
+        slug: 'registered-us',
+        country_code: 'US',
+        registrationId: TEST_REGISTRATION_ID,
+      }).expect(201);
 
-      expect(body.code).toBe('SIGNUP_TAX_ID_REQUIRED');
-      expect(await ds.getRepository(TenantEntity).findOne({ where: { slug } })).toBeNull();
+      expect(publishedData(body.tenantId)['countryCode']).toBe('US');
     });
 
-    it('an invalid tax id is 422 SIGNUP_TAX_ID_INVALID and nothing is created', async () => {
-      const slug = 'billing-hint-bad-tax';
-      const { body } = await provision({ slug, taxId: '529.982.247-26' }).expect(422);
-
-      expect(body.code).toBe('SIGNUP_TAX_ID_INVALID');
-      expect(await ds.getRepository(TenantEntity).findOne({ where: { slug } })).toBeNull();
-    });
-
-    it('a non-exempt US tenant with the legacy body is not rejected up front: countryCode, no billingHint', async () => {
-      const { body } = await provision({ slug: 'billing-hint-us', country_code: 'US' }).expect(201);
-
-      const data = publishedData(body.tenantId);
-      expect(data['countryCode']).toBe('US');
-      expect(data).not.toHaveProperty('billingHint');
+    it('does not read Billing: an id no registration has is still accepted by this route', async () => {
+      await provision({
+        slug: 'registered-unknown',
+        registrationId: '00000000-0000-4000-8000-0000000000ff',
+      }).expect(201);
     });
 
     it.each([
-      ['a malformed registrationId', { registrationId: 'not-a-uuid', taxId: VALID_CPF }],
-      ['exempt together with a registrationId', { exempt: true, registrationId: REGISTRATION_ID }],
-      ['an unknown feature key', { exempt: true, features: ['HOTSITE', 'TELEPORT'] }],
-      ['a subset that breaks the dependency graph', { exempt: true, features: ['LOYALTY'] }],
-    ])('refuses %s with 400 before the tenant exists', async (label, extra) => {
-      const slug = `billing-hint-refused-${label.replaceAll(/[^a-z]+/g, '-')}`.slice(0, 60);
+      ['a missing registrationId', {}],
+      ['a registrationId that is not a UUID', { registrationId: 'not-a-uuid' }],
+    ])('refuses %s with 400 and creates no tenant', async (_label, extra) => {
+      const slug = `registered-refused-${Math.random().toString(36).slice(2, 8)}`;
+      const eventsBefore = eventBus.published.length;
+
       await provision({ slug, ...extra }).expect(400);
 
       expect(await ds.getRepository(TenantEntity).findOne({ where: { slug } })).toBeNull();
+      expect(eventBus.published).toHaveLength(eventsBefore);
     });
   });
 });

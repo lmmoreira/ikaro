@@ -16,6 +16,7 @@ import { BookingEntity } from '../entities/booking.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
 import { BookingLineResourceAssignmentEntity } from '../entities/booking-line-resource-assignment.entity';
 import { ResourceOccupancyEntity } from '../entities/resource-occupancy.entity';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 const TEST_KEY = 'attach-integ-test-key-booking-xxxx'; // 36 chars
 const STAFF_ID = '20000000-0000-4000-8000-000000000501';
@@ -47,7 +48,7 @@ describe('BookingAttachmentsController (integration)', () => {
         slug: 'attach-tenant-a',
         adminEmail: 'a@attach.test',
         country_code: 'BR',
-        exempt: true,
+        registrationId: TEST_REGISTRATION_ID,
       })
       .expect(201);
     tenantId = a.tenantId as string;
@@ -60,7 +61,7 @@ describe('BookingAttachmentsController (integration)', () => {
         slug: 'attach-tenant-b',
         adminEmail: 'b@attach.test',
         country_code: 'BR',
-        exempt: true,
+        registrationId: TEST_REGISTRATION_ID,
       })
       .expect(201);
     tenantBId = b.tenantId as string;

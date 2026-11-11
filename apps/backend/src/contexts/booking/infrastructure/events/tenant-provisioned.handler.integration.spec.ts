@@ -5,6 +5,7 @@ import { PlatformModule } from '../../../platform/platform.module';
 import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
 import { ResourceEntity } from '../entities/resource.entity';
 import { ResourceType } from '../../domain/resource.types';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 const PLATFORM_KEY = 'story-test-key-story-test-key-xx';
 
@@ -33,7 +34,7 @@ describe('Story: POST /internal/tenants → event bus → booking LOCATION resou
         slug,
         adminEmail: `admin-${Date.now()}@lavacar.com.br`,
         country_code: 'BR',
-        exempt: true,
+        registrationId: TEST_REGISTRATION_ID,
         timezone: 'America/Sao_Paulo',
       })
       .expect(201);
@@ -64,6 +65,7 @@ describe('Story: POST /internal/tenants → event bus → booking LOCATION resou
         adminEmail: `admin-en-${Date.now()}@ikaro.com`,
         country_code: 'US',
         timezone: 'America/New_York',
+        registrationId: TEST_REGISTRATION_ID,
       })
       .expect(201);
 
@@ -90,7 +92,7 @@ describe('Story: POST /internal/tenants → event bus → booking LOCATION resou
           slug: slugA,
           adminEmail: `iso-loc-a-${Date.now()}@lavacar.com.br`,
           country_code: 'BR',
-          exempt: true,
+          registrationId: TEST_REGISTRATION_ID,
           timezone: 'America/Sao_Paulo',
         }),
       request(app.getHttpServer())
@@ -101,7 +103,7 @@ describe('Story: POST /internal/tenants → event bus → booking LOCATION resou
           slug: slugB,
           adminEmail: `iso-loc-b-${Date.now()}@lavacar.com.br`,
           country_code: 'BR',
-          exempt: true,
+          registrationId: TEST_REGISTRATION_ID,
           timezone: 'America/Sao_Paulo',
         }),
     ]);

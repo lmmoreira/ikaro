@@ -20,6 +20,7 @@ import { ResourceOccupancyEntity } from '../entities/resource-occupancy.entity';
 import { BookingQuoteRevisionEntity } from '../entities/booking-quote-revision.entity';
 import { StaffEntityBuilder } from '../../../../test/builders/staff';
 import { StaffEntity } from '../../../staff/infrastructure/entities/staff.entity';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 const TEST_KEY = 'booking-integ-test-key-booking-xxxx'; // 36 chars
 const ACTOR_ID = '20000000-0000-4000-8000-000000000001';
@@ -56,7 +57,7 @@ describe('BookingController (integration)', () => {
         slug: 'booking-tenant-a',
         adminEmail: 'a@booking.test',
         country_code: 'BR',
-        exempt: true,
+        registrationId: TEST_REGISTRATION_ID,
       })
       .expect(201);
     tenantAId = a.tenantId as string;
@@ -69,7 +70,7 @@ describe('BookingController (integration)', () => {
         slug: 'booking-tenant-b',
         adminEmail: 'b@booking.test',
         country_code: 'BR',
-        exempt: true,
+        registrationId: TEST_REGISTRATION_ID,
       })
       .expect(201);
     tenantBId = b.tenantId as string;
@@ -1644,7 +1645,7 @@ describe('BookingController (integration)', () => {
           slug: 'list-tenant-bookings',
           adminEmail: 'list@bookings.test',
           country_code: 'BR',
-          exempt: true,
+          registrationId: TEST_REGISTRATION_ID,
         })
         .expect(201);
       listTenantId = lt.tenantId as string;
@@ -1768,7 +1769,7 @@ describe('BookingController (integration)', () => {
           slug: 'detail-tenant-bookings',
           adminEmail: 'detail@bookings.test',
           country_code: 'BR',
-          exempt: true,
+          registrationId: TEST_REGISTRATION_ID,
         })
         .expect(201);
       detailTenantId = dt.tenantId as string;
@@ -2103,7 +2104,7 @@ describe('BookingController (integration)', () => {
           slug: 'reschedule-isolation',
           adminEmail: 'reschedule@isolation.test',
           country_code: 'BR',
-          exempt: true,
+          registrationId: TEST_REGISTRATION_ID,
         })
         .expect(201);
       const isolationTenantId = tenantBody.tenantId as string;
@@ -2475,7 +2476,7 @@ describe('BookingController (integration)', () => {
           slug: 'complete-isolation',
           adminEmail: 'complete@isolation.test',
           country_code: 'BR',
-          exempt: true,
+          registrationId: TEST_REGISTRATION_ID,
         })
         .expect(201);
       const isolationTenantId = tenantBody.tenantId as string;

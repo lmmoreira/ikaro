@@ -11,6 +11,7 @@ import {
   LoyaltyBalanceEntityBuilder,
   LoyaltyEntryEntityBuilder,
 } from '../../../../test/builders/loyalty/index';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 const TEST_KEY = 'loyalty-internal-test-key-xxxxxxxx';
 
@@ -32,7 +33,7 @@ describe('CronLoyaltyController (integration)', () => {
         slug: 'expiry-test-tenant',
         adminEmail: 'expiry@test.example',
         country_code: 'BR',
-        exempt: true,
+        registrationId: TEST_REGISTRATION_ID,
       })
       .expect(201);
     tenantId = body.tenantId as string;

@@ -18,6 +18,7 @@ import { futureDate, nextWeekday, pastDate } from '../../../../test/utils/date-h
 import { PlatformModule } from '../../../platform/platform.module';
 import { ScheduleOpeningEntity } from '../entities/schedule-opening.entity';
 import { ResourceEntity } from '../entities/resource.entity';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 const TEST_KEY = 'opening-integ-test-key-opening-xxxx'; // 36 chars
 
@@ -48,7 +49,7 @@ describe('ScheduleOpeningController (integration)', () => {
         slug: 'opening-tenant-a',
         adminEmail: 'a@opening.test',
         country_code: 'BR',
-        exempt: true,
+        registrationId: TEST_REGISTRATION_ID,
       })
       .expect(201);
     tenantAId = a.tenantId as string;
@@ -61,7 +62,7 @@ describe('ScheduleOpeningController (integration)', () => {
         slug: 'opening-tenant-b',
         adminEmail: 'b@opening.test',
         country_code: 'BR',
-        exempt: true,
+        registrationId: TEST_REGISTRATION_ID,
       })
       .expect(201);
     tenantBId = b.tenantId as string;
@@ -226,7 +227,7 @@ describe('ScheduleOpeningController (integration)', () => {
           slug: 'opening-tenant-list',
           adminEmail: 'list@opening.test',
           country_code: 'BR',
-          exempt: true,
+          registrationId: TEST_REGISTRATION_ID,
         })
         .expect(201);
       listTenantId = body.tenantId as string;
@@ -459,7 +460,7 @@ describe('ScheduleOpeningController (integration)', () => {
           slug,
           adminEmail: `a@${slug}.test`,
           country_code: 'BR',
-          exempt: true,
+          registrationId: TEST_REGISTRATION_ID,
         })
         .expect(201);
       const tenantId = tenant.tenantId as string;

@@ -1,15 +1,4 @@
-import type { FeatureKey } from '@ikaro/validation';
 import { DomainEvent } from '../../../../shared/domain/domain-event';
-
-/**
- * What the provisioning caller asked of Billing (UC-110). Present on the event only when the
- * caller sent `exempt: true`, a feature subset or a registration; never carries a tax id.
- */
-export interface TenantBillingHint {
-  exempt: boolean;
-  features?: FeatureKey[];
-  registrationId?: string;
-}
 
 interface TenantProvisionedData extends Record<string, unknown> {
   name: string;
@@ -18,7 +7,12 @@ interface TenantProvisionedData extends Record<string, unknown> {
   timezone: string;
   /** Absent on a row written before the Billing release (redelivered from the outbox). */
   countryCode?: string;
-  billingHint?: TenantBillingHint;
+  /**
+   * The Billing registration reserved before the tenant (UC-024, UC-127). It holds the billing
+   * intent (exempt flag, tax identity, terms), so none of that travels in the event. Absent on a
+   * row written before the Billing release.
+   */
+  registrationId?: string;
 }
 
 export class TenantProvisioned extends DomainEvent<TenantProvisionedData> {

@@ -12,6 +12,8 @@ export const ReserveSignupRegistrationSchema = z
     taxId: z.string().trim().min(1).max(32).optional(),
     countryCode: CountryCodeSchema.optional(),
     terms: z.object({ version: z.string().trim().min(1).max(20) }).optional(),
+    // Operator-only: the tenant to be is provisioned free of charge (UC-137).
+    exempt: z.boolean().optional(),
   })
   .superRefine((value, ctx) => {
     if (value.source === 'SELF_SIGNUP' && value.googleSub === undefined) {
@@ -20,6 +22,13 @@ export const ReserveSignupRegistrationSchema = z
         path: ['googleSub'],
         message: 'googleSub is required for SELF_SIGNUP',
         params: { code: GenericErrorCode.FIELD_REQUIRED },
+      });
+    }
+    if (value.source === 'SELF_SIGNUP' && value.exempt === true) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['exempt'],
+        message: 'exempt is only allowed for OPERATOR',
       });
     }
     if (value.taxId !== undefined && value.countryCode === undefined) {

@@ -20,6 +20,7 @@ export function signupRegistrationToEntity(
   entity.taxId = registration.taxId?.value ?? null;
   entity.termsVersion = registration.terms?.version ?? null;
   entity.termsAcceptedAt = registration.terms?.acceptedAt ?? null;
+  entity.exempt = registration.exempt;
   entity.createdAt = registration.createdAt;
   return entity;
 }
@@ -39,6 +40,7 @@ export function signupRegistrationToDomain(entity: SignupRegistrationEntity): Si
       entity.termsVersion !== null && entity.termsAcceptedAt !== null
         ? { version: entity.termsVersion, acceptedAt: entity.termsAcceptedAt }
         : null,
+    exempt: entity.exempt,
     createdAt: entity.createdAt,
   });
 }

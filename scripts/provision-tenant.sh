@@ -2,17 +2,20 @@
 set -euo pipefail
 
 # Usage: ./provision-tenant.sh <name> <slug> <adminEmail> <country_code> [timezone]
-#          [--exempt] [--features <a,b,...>] [--tax-id <cpf|cnpj|ein>] [--registration-id <uuid>]
+#          [--exempt] [--tax-id <cpf|cnpj|ein>] [--registration-id <uuid>]
 #
-#   --tax-id           Required for a non-exempt BR tenant (CPF or CNPJ). Sent to the registrations
-#                      call and to POST /internal/tenants, which only validates it.
-#   --exempt           Free access, never charged. Skips the registrations call; no tax id needed.
-#   --features         Comma-separated feature subset (HOTSITE,BOOKING,LOYALTY,CHATBOT,LEAD_FORM);
-#                      omitted means every feature. Must satisfy the dependency graph.
-#   --registration-id  Use an existing RESERVED registration instead of reserving a new one.
+# Every tenant is provisioned through one pattern: the script first reserves an OPERATOR Billing
+# registration (POST /internal/billing/registrations), which holds the billing intent of the new
+# tenant, then creates the tenant (POST /internal/tenants) with the returned registrationId.
 #
-# Unless --exempt (or --registration-id), the script first reserves an OPERATOR registration with
-# POST /internal/billing/registrations, then passes the returned registrationId to the tenant call.
+#   --exempt           Free access, never charged: the registration carries exempt = true.
+#   --tax-id           The tenant's tax id (CPF/CNPJ for BR, EIN for the US), validated and held by
+#                      the registration. Optional: the operator is trusted, and a tenant without one
+#                      has the manager type it in the billing page.
+#   --registration-id  Use an already reserved registration instead of reserving a new one (for
+#                      example to retry after a failed tenant call). Not combinable with the two
+#                      flags above: they belong to the registration, which already exists.
+#
 # Must run from inside the relay VM's own SSH shell (metadata server + ingress:internal).
 # The relay VM service account discovers its project/backend and reads both required secrets
 # automatically. INTERNAL_KEY may still be exported explicitly for emergency/manual use or
@@ -20,26 +23,24 @@ set -euo pipefail
 
 REGION="${REGION:-southamerica-east1}"
 
-USAGE="Usage: $0 <name> <slug> <adminEmail> <country_code> [timezone] [--exempt] [--features <a,b,...>] [--tax-id <id>] [--registration-id <uuid>]"
+USAGE="Usage: $0 <name> <slug> <adminEmail> <country_code> [timezone] [--exempt] [--tax-id <id>] [--registration-id <uuid>]"
 
 # Flags may appear anywhere after the four required positionals; the optional fifth positional is
 # the timezone. Everything is validated here, before any network call.
 POSITIONAL=()
 EXEMPT=false
-FEATURES=""
 TAX_ID=""
 REGISTRATION_ID=""
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --exempt) EXEMPT=true; shift ;;
-    --features | --tax-id | --registration-id)
+    --tax-id | --registration-id)
       if [ "$#" -lt 2 ] || [ -z "$2" ]; then
         echo "ERROR: $1 needs a value." >&2
         echo "$USAGE" >&2
         exit 1
       fi
       case "$1" in
-        --features) FEATURES="$2" ;;
         --tax-id) TAX_ID="$2" ;;
         --registration-id) REGISTRATION_ID="$2" ;;
       esac
@@ -65,24 +66,11 @@ ADMIN_EMAIL="${POSITIONAL[2]}"
 COUNTRY_CODE="${POSITIONAL[3]}"
 TIMEZONE="${POSITIONAL[4]:-}"
 
-if [ "$EXEMPT" = true ] && [ -n "$REGISTRATION_ID" ]; then
-  echo "ERROR: an exempt tenant has no registration: use --exempt or --registration-id, not both." >&2
+# An existing registration already holds its exempt flag and tax id; passing them again would be
+# silently ignored, so refuse the combination before any call is made.
+if [ -n "$REGISTRATION_ID" ] && { [ "$EXEMPT" = true ] || [ -n "$TAX_ID" ]; }; then
+  echo "ERROR: --registration-id reuses a reserved registration; --exempt and --tax-id belong to the registration, not to this call." >&2
   exit 1
-fi
-
-# A non-exempt Brazilian tenant needs a tax id; refuse before any call is made (the endpoint would
-# answer 422 SIGNUP_TAX_ID_REQUIRED anyway).
-COUNTRY_UPPER=$(printf '%s' "$COUNTRY_CODE" | tr '[:lower:]' '[:upper:]')
-if [ "$EXEMPT" != true ] && [ "$COUNTRY_UPPER" = "BR" ] && [ -z "$TAX_ID" ]; then
-  echo "ERROR: a non-exempt BR tenant needs --tax-id <cpf|cnpj> (or use --exempt)." >&2
-  exit 1
-fi
-
-# --features a,b  ->  ["A","B"]
-FEATURES_JSON=""
-if [ -n "$FEATURES" ]; then
-  FEATURES_JSON=$(printf '%s' "$FEATURES" | tr '[:lower:]' '[:upper:]' | tr -d ' ' \
-    | sed 's/,/","/g; s/^/["/; s/$/"]/')
 fi
 
 meta() {
@@ -137,10 +125,13 @@ case "$HEALTH" in
   *) echo "ERROR: health check did not return ok — aborting before mutating anything." >&2; exit 1 ;;
 esac
 
-# A non-exempt tenant reserves its Billing registration first (it holds the tax id until the Billing
-# handler copies it to the account). --exempt has no registration; --registration-id reuses one.
-if [ "$EXEMPT" != true ] && [ -z "$REGISTRATION_ID" ]; then
+# Every tenant reserves its Billing registration first (it holds the exempt flag and the tax id until
+# the Billing handler builds the account from it). --registration-id reuses an existing one.
+if [ -z "$REGISTRATION_ID" ]; then
   REG_BODY='{"source":"OPERATOR"'
+  if [ "$EXEMPT" = true ]; then
+    REG_BODY="${REG_BODY},\"exempt\":true"
+  fi
   if [ -n "$TAX_ID" ]; then
     REG_BODY="${REG_BODY},\"taxId\":\"${TAX_ID}\",\"countryCode\":\"${COUNTRY_CODE}\""
   fi
@@ -167,18 +158,7 @@ BODY=$(printf '{"name":"%s","slug":"%s","adminEmail":"%s","country_code":"%s"' \
 if [ -n "$TIMEZONE" ]; then
   BODY="${BODY},\"timezone\":\"${TIMEZONE}\""
 fi
-if [ "$EXEMPT" = true ]; then
-  BODY="${BODY},\"exempt\":true"
-fi
-if [ -n "$FEATURES_JSON" ]; then
-  BODY="${BODY},\"features\":${FEATURES_JSON}"
-fi
-if [ -n "$TAX_ID" ]; then
-  BODY="${BODY},\"taxId\":\"${TAX_ID}\""
-fi
-if [ -n "$REGISTRATION_ID" ]; then
-  BODY="${BODY},\"registrationId\":\"${REGISTRATION_ID}\""
-fi
+BODY="${BODY},\"registrationId\":\"${REGISTRATION_ID}\""
 BODY="${BODY}}"
 
 echo "Provisioning tenant..." >&2
@@ -190,12 +170,9 @@ if ! curl -sS --fail-with-body -X POST "$BACKEND_URL/internal/tenants" \
   -d "$BODY"; then
   echo >&2
   echo "ERROR: the tenant was not created." >&2
-  # The endpoint is the one place the feature subset and the tax id are fully checked. A reserved
-  # registration is reusable: fix the input and run again with --registration-id instead of
-  # reserving (and leaving behind) a second one.
-  if [ -n "$REGISTRATION_ID" ] && [ "$EXEMPT" != true ]; then
-    echo "Registration $REGISTRATION_ID stays reserved: re-run with --registration-id $REGISTRATION_ID" >&2
-  fi
+  # A reserved registration is reusable: fix the input and run again with --registration-id instead
+  # of reserving (and leaving behind) a second one.
+  echo "Registration $REGISTRATION_ID stays reserved: re-run with --registration-id $REGISTRATION_ID" >&2
   exit 1
 fi
 echo

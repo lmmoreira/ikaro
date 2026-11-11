@@ -9,6 +9,7 @@ import { CustomerEntityBuilder } from '../../../../test/builders/customer/custom
 import { PointsExpiringSoonCommandBuilder } from '../../../../test/builders/loyalty';
 import { InMemoryNotificationDispatcher } from '../../../../test/infrastructure/in-memory-notification-dispatcher';
 import { createNotificationIntegrationApp } from '../../../../test/utils/notification-integration-app';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 const PLATFORM_KEY = 'pts-expiring-integration-test-key-xxxxxx';
 
@@ -43,7 +44,7 @@ describe('PointsExpiringSoonHandler (event bus → handler → use case → real
         slug,
         adminEmail,
         country_code: 'BR',
-        exempt: true,
+        registrationId: TEST_REGISTRATION_ID,
         timezone: 'America/Sao_Paulo',
       })
       .expect(201);
@@ -158,7 +159,7 @@ describe('PointsExpiringSoonHandler (event bus → handler → use case → real
         slug: tenantBSlug,
         adminEmail: tenantBAdminEmail,
         country_code: 'BR',
-        exempt: true,
+        registrationId: TEST_REGISTRATION_ID,
         timezone: 'America/Sao_Paulo',
       })
       .expect(201);

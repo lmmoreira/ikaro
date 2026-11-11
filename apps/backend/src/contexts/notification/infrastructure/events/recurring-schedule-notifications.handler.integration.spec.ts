@@ -44,6 +44,7 @@ import { LoyaltyBalanceEntity } from '../../../loyalty/infrastructure/entities/l
 import { LoyaltyRedemptionEntity } from '../../../loyalty/infrastructure/entities/loyalty-redemption.entity';
 import { BalanceExpiryLogEntity } from '../../../loyalty/infrastructure/entities/balance-expiry-log.entity';
 import { NotificationLogEntity } from '../entities/notification-log.entity';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 const PLATFORM_KEY = 'recurring-sched-notif-key-xxxxxxxxxx';
 
@@ -104,7 +105,7 @@ describe('Story: recurring-schedule events → Notification emails (integration)
         slug: `rs-${stamp}`,
         adminEmail,
         country_code: 'BR',
-        exempt: true,
+        registrationId: TEST_REGISTRATION_ID,
         timezone: 'America/Sao_Paulo',
       })
       .expect(201);

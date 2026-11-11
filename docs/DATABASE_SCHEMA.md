@@ -1432,7 +1432,7 @@ Immutable tax snapshot, zero or more per US charge: `tenant_id`, `charge_id` (co
 | **INDEX** (standalone) | (received_at) | retention purge (rows older than 30 days) |
 
 ### `billing.signup_registrations` — the provisioning registration
-Created **before** the tenant exists, by every non-exempt provisioning path (self-signup through BFF orchestration, the operator script through `POST /internal/billing/registrations`); `TenantProvisioned` carries only its `registrationId`, so the Google `sub`, the tax id and the terms never travel through Pub/Sub or the audit log.
+Created **before** the tenant exists, by every provisioning path (self-signup through BFF orchestration, the operator script through `POST /internal/billing/registrations`, with `source = OPERATOR`); `TenantProvisioned` carries only its `registrationId`, so the Google `sub`, the tax id and the terms never travel through Pub/Sub or the audit log.
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | UUID | PRIMARY KEY — the reservation id |
@@ -1441,6 +1441,7 @@ Created **before** the tenant exists, by every non-exempt provisioning path (sel
 | status | VARCHAR(10) | NOT NULL — `RESERVED` \| `COMPLETED`; a `RESERVED` row older than one hour is released by the sweep |
 | google_sub | VARCHAR(100) | NULLABLE — NOT NULL for `SELF_SIGNUP` |
 | tax_id_type / tax_id | VARCHAR(10) / VARCHAR(32) | NULLABLE (same types as `billing_accounts`) — copied to `billing_accounts` by the handler and **cleared from this row on completion** |
+| exempt | BOOLEAN | NOT NULL DEFAULT false — the tenant is provisioned free (`ACTIVE`, exempt subscription); only an `OPERATOR` registration may set it (the aggregate refuses it for `SELF_SIGNUP`); an exempt registration needs no tax id |
 | terms_version / terms_accepted_at | VARCHAR(20) / TIMESTAMP WITH TIME ZONE | NULLABLE — NOT NULL for `SELF_SIGNUP` |
 | created_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
 | **INDEX** (standalone) | (google_sub) | the signup eligibility check runs before any tenant context exists |

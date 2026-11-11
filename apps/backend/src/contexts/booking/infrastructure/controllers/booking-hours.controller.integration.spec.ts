@@ -20,6 +20,7 @@ import { ResourceOccupancyEntity } from '../entities/resource-occupancy.entity';
 import { ScheduleClosureEntity } from '../entities/schedule-closure.entity';
 import { ScheduleOpeningEntity } from '../entities/schedule-opening.entity';
 import { ServiceEntity } from '../entities/service.entity';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 // the three booking-creating routes refuse a start the business is closed for, against a
 // real database. The default tenant is open Monday–Friday 09:00–18:00 and Saturday 09:00–17:00 in
@@ -59,7 +60,7 @@ describe('booking creation honours hours, closures and openings (integration)', 
           slug,
           adminEmail: `admin@${slug}.test`,
           country_code: 'BR',
-          exempt: true,
+          registrationId: TEST_REGISTRATION_ID,
         })
         .expect(201);
       return body.tenantId as string;

@@ -154,6 +154,45 @@ describe('InternalBillingRegistrationController (integration)', () => {
     expect(rows.every((row) => row.source === 'OPERATOR' && row.status === 'RESERVED')).toBe(true);
   });
 
+  it('persists the exempt flag of an OPERATOR registration, which needs no tax id', async () => {
+    const { body } = await post({ source: 'OPERATOR', exempt: true }).expect(201);
+    operatorIds.push(body.registrationId);
+
+    expect(body).toMatchObject({ trialAvailable: true });
+    const row = await ds.getRepository(SignupRegistrationEntity).findOneByOrFail({
+      id: body.registrationId,
+    });
+    expect(row).toMatchObject({
+      source: 'OPERATOR',
+      status: 'RESERVED',
+      exempt: true,
+      taxId: null,
+    });
+  });
+
+  it('defaults exempt to false for an OPERATOR registration', async () => {
+    const { body } = await post({ source: 'OPERATOR', taxId: CPF, countryCode: 'BR' }).expect(201);
+    operatorIds.push(body.registrationId);
+
+    const row = await ds.getRepository(SignupRegistrationEntity).findOneByOrFail({
+      id: body.registrationId,
+    });
+    expect(row.exempt).toBe(false);
+  });
+
+  it('answers 400 for exempt on a SELF_SIGNUP, inserting nothing', async () => {
+    const googleSub = newSub();
+
+    await post({
+      source: 'SELF_SIGNUP',
+      googleSub,
+      terms: { version: 'v1' },
+      exempt: true,
+    }).expect(400);
+
+    expect(await rowsOf(googleSub)).toHaveLength(0);
+  });
+
   it('answers 422 SIGNUP_TERMS_NOT_ACCEPTED for a SELF_SIGNUP without terms, inserting nothing', async () => {
     const googleSub = newSub();
 

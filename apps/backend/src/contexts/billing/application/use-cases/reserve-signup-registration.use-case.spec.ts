@@ -141,6 +141,13 @@ describe('ReserveSignupRegistrationUseCase', () => {
 
     // Negative guarantee: the Google sub, tax id and terms never leave the registration. The use case
     // has no event bus, and its result carries only the id and the flag.
+    it('refuses exempt for a SELF_SIGNUP before taking the lock or writing anything', async () => {
+      await expect(selfSignup('sub-exempt', { exempt: true })).rejects.toBeInstanceOf(TypeError);
+
+      expect(lock.locked).toHaveLength(0);
+      expect(registrations.saved).toHaveLength(0);
+    });
+
     it('returns nothing but the registration id and the flag', async () => {
       const result = await selfSignup('sub-1', { taxId: CPF });
 
@@ -174,6 +181,32 @@ describe('ReserveSignupRegistrationUseCase', () => {
 
       expect(first.registrationId).not.toBe(second.registrationId);
       expect(registrations.saved).toHaveLength(2);
+    });
+
+    it('stores the exempt flag and needs no tax id for an exempt registration', async () => {
+      const result = await useCase.execute({ source: 'OPERATOR', exempt: true });
+
+      expect(result.trialAvailable).toBe(true);
+      const [saved] = registrations.saved;
+      expect(saved.exempt).toBe(true);
+      expect(saved.taxId).toBeNull();
+    });
+
+    it('is not exempt by default', async () => {
+      await useCase.execute({ source: 'OPERATOR', taxId: CPF });
+
+      expect(registrations.saved[0].exempt).toBe(false);
+    });
+
+    it('still validates a tax id given with exempt', async () => {
+      await expect(
+        useCase.execute({
+          source: 'OPERATOR',
+          exempt: true,
+          taxId: { raw: '123', countryCode: 'BR' },
+        }),
+      ).rejects.toBeInstanceOf(TaxIdValidationError);
+      expect(registrations.saved).toHaveLength(0);
     });
 
     it('still rejects an invalid tax id', async () => {

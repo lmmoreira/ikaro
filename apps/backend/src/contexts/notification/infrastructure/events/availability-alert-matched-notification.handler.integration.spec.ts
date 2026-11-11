@@ -43,6 +43,7 @@ import { BalanceExpiryLogEntity } from '../../../loyalty/infrastructure/entities
 import { NotificationLogEntity } from '../entities/notification-log.entity';
 import { AvailabilityAlertEntity } from '../../../booking/infrastructure/entities/availability-alert.entity';
 import { AvailabilityAlertNotificationAttemptEntity } from '../../../booking/infrastructure/entities/availability-alert-notification-attempt.entity';
+import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 
 const PLATFORM_KEY = 'alert-matched-notif-key-xxxxxxxxxx';
 
@@ -104,7 +105,7 @@ describe('Story: AvailabilityAlertMatched → customer email and attempt outcome
         slug: `aa-${stamp}`,
         adminEmail: `admin-${stamp}@lavacar.com.br`,
         country_code: 'BR',
-        exempt: true,
+        registrationId: TEST_REGISTRATION_ID,
         timezone: 'America/Sao_Paulo',
       })
       .expect(201);

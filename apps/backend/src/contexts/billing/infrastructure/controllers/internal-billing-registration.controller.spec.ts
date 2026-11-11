@@ -26,6 +26,36 @@ describe('ReserveSignupRegistrationSchema', () => {
     ).toBe(true);
   });
 
+  it('accepts an OPERATOR body with the exempt flag', () => {
+    const result = ReserveSignupRegistrationSchema.safeParse({ source: 'OPERATOR', exempt: true });
+
+    expect(result.success).toBe(true);
+    expect(result.data?.exempt).toBe(true);
+  });
+
+  it('refuses exempt for a SELF_SIGNUP, pointing at the exempt field', () => {
+    const result = ReserveSignupRegistrationSchema.safeParse({
+      source: 'SELF_SIGNUP',
+      googleSub: 'sub-1',
+      terms: { version: 'v1' },
+      exempt: true,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.map((issue) => issue.path)).toContainEqual(['exempt']);
+  });
+
+  it('accepts exempt: false for a SELF_SIGNUP', () => {
+    const result = ReserveSignupRegistrationSchema.safeParse({
+      source: 'SELF_SIGNUP',
+      googleSub: 'sub-1',
+      terms: { version: 'v1' },
+      exempt: false,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
   it('accepts an OPERATOR body with nothing else', () => {
     expect(parse({ source: 'OPERATOR' }).success).toBe(true);
   });

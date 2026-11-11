@@ -32,6 +32,7 @@ import { BookingAttendeeEntity } from '../../../contexts/booking/infrastructure/
 import { CustomerEntity } from '../../../contexts/customer/infrastructure/entities/customer.entity';
 import { NotificationLogEntity } from '../../../contexts/notification/infrastructure/entities/notification-log.entity';
 import { OutboxEventEntity } from './outbox-event.entity';
+import { TEST_REGISTRATION_ID } from '../../../test/utils/test-registration-id';
 
 const PLATFORM_KEY = 'outbox-full-topology-test-key-xxxxxx';
 
@@ -102,7 +103,7 @@ describe('Outbox full topology: booking approval → real outbox → relay → n
         slug,
         adminEmail: `admin-${Date.now()}@lavacar.com.br`,
         country_code: 'BR',
-        exempt: true,
+        registrationId: TEST_REGISTRATION_ID,
         timezone: 'America/Sao_Paulo',
       })
       .expect(201);

@@ -28,10 +28,7 @@ export class InternalTenantController {
       adminEmail: dto.adminEmail,
       country_code: dto.country_code,
       timezone: dto.timezone,
-      exempt: dto.exempt,
       registrationId: dto.registrationId,
-      features: dto.features,
-      taxId: dto.taxId,
     };
     return this.provisionTenant.execute(input).catch(mapPlatformError);
   }
