@@ -48,6 +48,7 @@ describe('ScheduleOpeningController (integration)', () => {
         slug: 'opening-tenant-a',
         adminEmail: 'a@opening.test',
         country_code: 'BR',
+        exempt: true,
       })
       .expect(201);
     tenantAId = a.tenantId as string;
@@ -60,6 +61,7 @@ describe('ScheduleOpeningController (integration)', () => {
         slug: 'opening-tenant-b',
         adminEmail: 'b@opening.test',
         country_code: 'BR',
+        exempt: true,
       })
       .expect(201);
     tenantBId = b.tenantId as string;
@@ -224,6 +226,7 @@ describe('ScheduleOpeningController (integration)', () => {
           slug: 'opening-tenant-list',
           adminEmail: 'list@opening.test',
           country_code: 'BR',
+          exempt: true,
         })
         .expect(201);
       listTenantId = body.tenantId as string;
@@ -451,7 +454,13 @@ describe('ScheduleOpeningController (integration)', () => {
       const { body: tenant } = await request(app.getHttpServer())
         .post('/internal/tenants')
         .set('X-Platform-Admin-Key', TEST_KEY)
-        .send({ name: 'Opening Row Lock', slug, adminEmail: `a@${slug}.test`, country_code: 'BR' })
+        .send({
+          name: 'Opening Row Lock',
+          slug,
+          adminEmail: `a@${slug}.test`,
+          country_code: 'BR',
+          exempt: true,
+        })
         .expect(201);
       const tenantId = tenant.tenantId as string;
 

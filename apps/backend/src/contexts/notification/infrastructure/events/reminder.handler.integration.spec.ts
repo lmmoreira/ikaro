@@ -56,6 +56,7 @@ describe('Reminder handlers (event bus → handler → use case) integration', (
         slug,
         adminEmail,
         country_code: 'BR',
+        exempt: true,
         timezone: 'America/Sao_Paulo',
       })
       .expect(201);
@@ -198,6 +199,7 @@ describe('Reminder handlers (event bus → handler → use case) integration', (
         slug: tenantBSlug,
         adminEmail: tenantBAdminEmail,
         country_code: 'BR',
+        exempt: true,
         timezone: 'America/Sao_Paulo',
       })
       .expect(201);

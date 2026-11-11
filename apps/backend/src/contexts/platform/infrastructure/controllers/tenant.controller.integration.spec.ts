@@ -25,6 +25,7 @@ describe('TenantController (integration)', () => {
         slug: 'lavacar-rename-integ-01',
         adminEmail: 'rename@test.com.br',
         country_code: 'BR',
+        exempt: true,
       })
       .expect(201);
 
@@ -92,6 +93,7 @@ describe('TenantController (integration)', () => {
         slug: 'other-tenant-rename-integ-01',
         adminEmail: 'other-rename@test.com.br',
         country_code: 'BR',
+        exempt: true,
       })
       .expect(201);
     const otherTenantId = otherBody.tenantId as string;

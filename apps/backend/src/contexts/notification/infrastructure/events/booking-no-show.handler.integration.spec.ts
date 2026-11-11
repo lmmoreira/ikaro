@@ -36,6 +36,7 @@ describe('Story: BookingNoShow → customer email (integration)', () => {
         slug: `ns-${stamp}`,
         adminEmail,
         country_code: 'BR',
+        exempt: true,
         timezone: 'America/Sao_Paulo',
       })
       .expect(201);

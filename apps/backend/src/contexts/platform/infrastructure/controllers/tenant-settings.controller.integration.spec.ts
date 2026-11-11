@@ -53,6 +53,7 @@ describe('TenantSettingsController (integration)', () => {
         slug: 'lavacar-settings-integ-01',
         adminEmail: 'settings@test.com.br',
         country_code: 'BR',
+        exempt: true,
       })
       .expect(201);
 
@@ -121,6 +122,7 @@ describe('TenantSettingsController (integration)', () => {
         slug: 'other-tenant-settings-integ-01',
         adminEmail: 'other-settings@test.com.br',
         country_code: 'BR',
+        exempt: true,
       })
       .expect(201);
     const otherTenantId = otherBody.tenantId as string;

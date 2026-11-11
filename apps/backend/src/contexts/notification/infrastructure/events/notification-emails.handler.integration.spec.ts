@@ -101,6 +101,7 @@ describe('Story: booking emails render their shipped copy end to end (integratio
         slug,
         adminEmail,
         country_code: 'BR',
+        exempt: true,
         timezone: 'America/Sao_Paulo',
       })
       .expect(201);

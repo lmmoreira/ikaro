@@ -43,6 +43,7 @@ describe('PointsExpiringSoonHandler (event bus → handler → use case → real
         slug,
         adminEmail,
         country_code: 'BR',
+        exempt: true,
         timezone: 'America/Sao_Paulo',
       })
       .expect(201);
@@ -157,6 +158,7 @@ describe('PointsExpiringSoonHandler (event bus → handler → use case → real
         slug: tenantBSlug,
         adminEmail: tenantBAdminEmail,
         country_code: 'BR',
+        exempt: true,
         timezone: 'America/Sao_Paulo',
       })
       .expect(201);

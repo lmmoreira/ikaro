@@ -38,6 +38,7 @@ describe('Availability with pinned selections and a chosen duration (integration
         slug,
         adminEmail: `${slug}@availability-pinned.test`,
         country_code: 'BR',
+        exempt: true,
       })
       .expect(201);
     return body.tenantId as string;

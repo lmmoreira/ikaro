@@ -102,6 +102,7 @@ describe('Outbox full topology: booking approval → real outbox → relay → n
         slug,
         adminEmail: `admin-${Date.now()}@lavacar.com.br`,
         country_code: 'BR',
+        exempt: true,
         timezone: 'America/Sao_Paulo',
       })
       .expect(201);

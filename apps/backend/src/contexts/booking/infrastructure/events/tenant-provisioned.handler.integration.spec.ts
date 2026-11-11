@@ -33,6 +33,7 @@ describe('Story: POST /internal/tenants → event bus → booking LOCATION resou
         slug,
         adminEmail: `admin-${Date.now()}@lavacar.com.br`,
         country_code: 'BR',
+        exempt: true,
         timezone: 'America/Sao_Paulo',
       })
       .expect(201);
@@ -89,6 +90,7 @@ describe('Story: POST /internal/tenants → event bus → booking LOCATION resou
           slug: slugA,
           adminEmail: `iso-loc-a-${Date.now()}@lavacar.com.br`,
           country_code: 'BR',
+          exempt: true,
           timezone: 'America/Sao_Paulo',
         }),
       request(app.getHttpServer())
@@ -99,6 +101,7 @@ describe('Story: POST /internal/tenants → event bus → booking LOCATION resou
           slug: slugB,
           adminEmail: `iso-loc-b-${Date.now()}@lavacar.com.br`,
           country_code: 'BR',
+          exempt: true,
           timezone: 'America/Sao_Paulo',
         }),
     ]);

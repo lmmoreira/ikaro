@@ -47,6 +47,7 @@ describe('BookingAttachmentsController (integration)', () => {
         slug: 'attach-tenant-a',
         adminEmail: 'a@attach.test',
         country_code: 'BR',
+        exempt: true,
       })
       .expect(201);
     tenantId = a.tenantId as string;
@@ -59,6 +60,7 @@ describe('BookingAttachmentsController (integration)', () => {
         slug: 'attach-tenant-b',
         adminEmail: 'b@attach.test',
         country_code: 'BR',
+        exempt: true,
       })
       .expect(201);
     tenantBId = b.tenantId as string;

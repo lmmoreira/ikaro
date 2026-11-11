@@ -63,6 +63,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
         slug: 'recurring-tenant-a',
         adminEmail: 'a@recurring.test',
         country_code: 'BR',
+        exempt: true,
       })
       .expect(201);
     tenantId = tenant.tenantId as string;
@@ -811,6 +812,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
             slug: `recurring-ineligible-${uuidv7().slice(-8)}`,
             adminEmail: 'b@recurring.test',
             country_code: 'BR',
+            exempt: true,
           })
           .expect(201);
         const otherTenantId = other.tenantId as string;
@@ -1814,6 +1816,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
             slug: 'recurring-tenant-b',
             adminEmail: 'b@recurring.test',
             country_code: 'BR',
+            exempt: true,
           })
           .expect(201);
         const otherTenantId = otherTenant.tenantId as string;
@@ -2004,6 +2007,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
           slug: 'recurring-tenant-c',
           adminEmail: 'c@recurring.test',
           country_code: 'BR',
+          exempt: true,
         })
         .expect(201);
       const otherTenantId = otherTenant.tenantId as string;

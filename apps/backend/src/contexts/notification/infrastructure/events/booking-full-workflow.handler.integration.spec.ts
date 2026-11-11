@@ -112,6 +112,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
         slug,
         adminEmail,
         country_code: 'BR',
+        exempt: true,
         timezone: 'America/Sao_Paulo',
       })
       .expect(201);

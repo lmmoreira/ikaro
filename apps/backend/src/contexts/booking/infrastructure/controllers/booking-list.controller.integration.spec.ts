@@ -35,6 +35,7 @@ describe('GET /bookings date-key range (integration)', () => {
         slug,
         adminEmail: `admin@${slug}.test`,
         country_code: 'BR',
+        exempt: true,
         timezone,
       })
       .expect(201);

@@ -104,6 +104,7 @@ describe('Story: AvailabilityAlertMatched → customer email and attempt outcome
         slug: `aa-${stamp}`,
         adminEmail: `admin-${stamp}@lavacar.com.br`,
         country_code: 'BR',
+        exempt: true,
         timezone: 'America/Sao_Paulo',
       })
       .expect(201);

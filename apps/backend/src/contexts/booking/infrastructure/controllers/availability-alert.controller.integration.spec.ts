@@ -52,6 +52,7 @@ describe('AvailabilityAlertController (integration)', () => {
         slug,
         adminEmail: `admin@${slug}.test`,
         country_code: 'BR',
+        exempt: true,
       })
       .expect(201);
     return body.tenantId as string;

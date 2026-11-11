@@ -42,7 +42,7 @@ describe('BookingController — AUTO_FUNGIBLE_POOL (integration)', () => {
     const { body } = await request(app.getHttpServer())
       .post('/internal/tenants')
       .set('X-Platform-Admin-Key', TEST_KEY)
-      .send({ name, slug, adminEmail, country_code: 'BR' })
+      .send({ name, slug, adminEmail, country_code: 'BR', exempt: true })
       .expect(201);
     return body.tenantId as string;
   }

@@ -27,6 +27,7 @@ describe('CustomerController (integration)', () => {
         slug: 'cust-tenant-a',
         adminEmail: 'a@cust.test',
         country_code: 'BR',
+        exempt: true,
       })
       .expect(201);
     tenantAId = a.tenantId as string;
@@ -39,6 +40,7 @@ describe('CustomerController (integration)', () => {
         slug: 'cust-tenant-b',
         adminEmail: 'b@cust.test',
         country_code: 'BR',
+        exempt: true,
       })
       .expect(201);
     tenantBId = b.tenantId as string;

@@ -80,6 +80,7 @@ describe('Story: POST /internal/tenants → event bus → staff MANAGER created 
         slug,
         adminEmail,
         country_code: 'BR',
+        exempt: true,
         timezone: 'America/Sao_Paulo',
       })
       .expect(201);
@@ -116,6 +117,7 @@ describe('Story: POST /internal/tenants → event bus → staff MANAGER created 
           slug: slugA,
           adminEmail: emailA,
           country_code: 'BR',
+          exempt: true,
           timezone: 'America/Sao_Paulo',
         }),
       request(app.getHttpServer())
@@ -126,6 +128,7 @@ describe('Story: POST /internal/tenants → event bus → staff MANAGER created 
           slug: slugB,
           adminEmail: emailB,
           country_code: 'BR',
+          exempt: true,
           timezone: 'America/Sao_Paulo',
         }),
     ]);

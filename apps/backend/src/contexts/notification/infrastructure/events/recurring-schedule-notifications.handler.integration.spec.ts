@@ -104,6 +104,7 @@ describe('Story: recurring-schedule events → Notification emails (integration)
         slug: `rs-${stamp}`,
         adminEmail,
         country_code: 'BR',
+        exempt: true,
         timezone: 'America/Sao_Paulo',
       })
       .expect(201);

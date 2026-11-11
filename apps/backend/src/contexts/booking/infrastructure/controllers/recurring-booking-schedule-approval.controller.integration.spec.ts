@@ -65,7 +65,7 @@ describe('Recurring schedule approval, materialization and expiry (integration)'
     const { body } = await request(app.getHttpServer())
       .post('/internal/tenants')
       .set('X-Platform-Admin-Key', TEST_KEY)
-      .send({ name: slug, slug, adminEmail: `a@${slug}.test`, country_code: 'BR' })
+      .send({ name: slug, slug, adminEmail: `a@${slug}.test`, country_code: 'BR', exempt: true })
       .expect(201);
     return body.tenantId as string;
   }
