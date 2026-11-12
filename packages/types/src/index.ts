@@ -20,4 +20,5 @@ export * from './tenant.dto';
 export * from './hotsite';
 export * from './hotsite-schemas';
 export * from './customer.dto';
+export * from './billing.dto';
 export * from './zod-violation';

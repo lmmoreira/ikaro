@@ -1,0 +1,36 @@
+# Billing — Tenant access resolution (UC-120)
+# The answer the BFF guards read, and the batch read for the rare cross-tenant scan. Tenant-less
+# routes under /internal/*, InternalApiGuard only (the tenant is the path parameter). The backend
+# answer is the full one (suspension reason and internal markers included); the BFF reduces it.
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run seed
+#   4. pnpm --filter @ikaro/backend run dev
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@baseUrl     = {{backendUrl}}
+@internalKey = {{$dotenv INTERNAL_API_KEY}}
+@tenantId    = {{$dotenv SEED_TENANT_ID}}
+
+### One tenant's access: { status, suspensionReason, operational, features }
+# Cached 60 s (operational) / 10 s (suspended). `provisional: true` for a tenant under 15 minutes old
+# with no subscription yet; `degraded: true` for the uncached fail-open answer.
+GET {{baseUrl}}/internal/billing/tenants/{{tenantId}}/access
+X-Internal-Key: {{internalKey}}
+
+### Unknown tenant: 404 TENANT_NOT_FOUND (never fail-open)
+GET {{baseUrl}}/internal/billing/tenants/00000000-0000-4000-8000-000000000000/access
+X-Internal-Key: {{internalKey}}
+
+### Missing internal key: 401
+GET {{baseUrl}}/internal/billing/tenants/{{tenantId}}/access
+
+### Suspended tenant ids without the internal key: 401
+GET {{baseUrl}}/internal/billing/suspended-tenant-ids
+
+### Suspended tenant ids: { tenantIds: [...] }, unpaginated, ids only
+GET {{baseUrl}}/internal/billing/suspended-tenant-ids
+X-Internal-Key: {{internalKey}}

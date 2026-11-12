@@ -6,6 +6,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { validateEnv } from './config/env.validation';
 import { HealthController } from './health/health.controller';
 import { AuthModule } from './features/auth/auth.module';
+import { BillingModule } from './features/billing/billing.module';
 import { BookingsModule } from './features/booking/bookings.module';
 import { CustomersModule } from './features/customer/customers.module';
 import { LoyaltyModule } from './features/loyalty/loyalty.module';
@@ -40,6 +41,7 @@ import { RequestInterceptor } from './shared/request/request.interceptor';
       },
     ]),
     AuthModule,
+    BillingModule,
     BookingsModule,
     CustomersModule,
     LoyaltyModule,

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { FEATURE_PRICE_REPOSITORY } from './application/ports/feature-price-repository.port';
@@ -26,8 +26,19 @@ import { TypeOrmSignupRegistrationLockAdapter } from './infrastructure/locks/typ
 import { TypeOrmSignupRegistrationRepository } from './infrastructure/repositories/typeorm-signup-registration.repository';
 import { TypeOrmBillingAccountRepository } from './infrastructure/repositories/typeorm-billing-account.repository';
 import { TypeOrmFeaturePriceRepository } from './infrastructure/repositories/typeorm-feature-price.repository';
+import { CachingSubscriptionRepository } from './infrastructure/repositories/caching-subscription.repository';
 import { TypeOrmSubscriptionRepository } from './infrastructure/repositories/typeorm-subscription.repository';
 import { type AppEnv, resolveAppEnv } from '../../shared/database/resolve-app-env';
+import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cache.module';
+import { TENANT_ACCESS_PORT } from '../../shared/ports/tenant-access.port';
+import { PlatformSettingsModule } from '../platform/platform-settings.module';
+import { BILLING_PLATFORM_PORT } from './application/ports/billing-platform.port';
+import { GetTenantAccessUseCase } from './application/use-cases/get-tenant-access.use-case';
+import { ListSuspendedTenantIdsUseCase } from './application/use-cases/list-suspended-tenant-ids.use-case';
+import { ListTenantIdsNotEntitledToUseCase } from './application/use-cases/list-tenant-ids-not-entitled-to.use-case';
+import { TenantAccessAdapter } from './infrastructure/adapters/tenant-access.adapter';
+import { BillingPlatformAdapter } from './infrastructure/cross-context/billing-platform.adapter';
+import { InternalBillingAccessController } from './infrastructure/controllers/internal-billing-access.controller';
 import { BILLING_PROVIDER_REGISTRY } from './application/ports/billing-provider.port';
 import {
   BILLING_APP_ENV,
@@ -38,8 +49,14 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
 // Billing context (Ikaro charging its tenants). Each aggregate story registers its own
 // repositories, use cases and controllers here. M25-S04: the platform-wide price list (read side).
 // The Subscription and BillingAccount repositories are consumed by M25-S11 (the trial handler), S13 and S15b.
+// `@Global()` so every context injects `TENANT_ACCESS_PORT` without importing Billing; `@Global()`
+// alone exports nothing, so the token is listed in `exports:` (CLAUDE.md §8). The only import edge
+// is BillingModule -> PlatformSettingsModule (the lighter Platform module Booking also imports).
+@Global()
 @Module({
   imports: [
+    PlatformSettingsModule,
+    SharedCacheModule,
     TypeOrmModule.forFeature([
       FeaturePriceEntity,
       FeaturePriceVersionEntity,
@@ -49,13 +66,17 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
       SignupRegistrationEntity,
     ]),
   ],
-  controllers: [InternalBillingRegistrationController],
+  controllers: [InternalBillingRegistrationController, InternalBillingAccessController],
   providers: [
     { provide: SIGNUP_REGISTRATION_REPOSITORY, useClass: TypeOrmSignupRegistrationRepository },
     { provide: SIGNUP_REGISTRATION_LOCK, useClass: TypeOrmSignupRegistrationLockAdapter },
     ReserveSignupRegistrationUseCase,
     { provide: FEATURE_PRICE_REPOSITORY, useClass: TypeOrmFeaturePriceRepository },
-    { provide: SUBSCRIPTION_REPOSITORY, useClass: TypeOrmSubscriptionRepository },
+    // The cached layer: every reader of the subscription (the access resolver, the shared port, any
+    // later use case) goes through the decorator; the concrete adapter is its inner repository.
+    TypeOrmSubscriptionRepository,
+    CachingSubscriptionRepository,
+    { provide: SUBSCRIPTION_REPOSITORY, useClass: CachingSubscriptionRepository },
     { provide: BILLING_ACCOUNT_REPOSITORY, useClass: TypeOrmBillingAccountRepository },
     { provide: BILLING_APP_ENV, useFactory: () => resolveAppEnv(process.env) },
     FakeBillingProvider,
@@ -72,10 +93,18 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
         platformOwnerSlug: config.get<string>('PLATFORM_OWNER_TENANT_SLUG') ?? null,
       }),
     },
+    { provide: BILLING_PLATFORM_PORT, useClass: BillingPlatformAdapter },
+    GetTenantAccessUseCase,
+    ListSuspendedTenantIdsUseCase,
+    ListTenantIdsNotEntitledToUseCase,
+    { provide: TENANT_ACCESS_PORT, useClass: TenantAccessAdapter },
     CreateTrialSubscriptionUseCase,
     TenantProvisionedBillingHandler,
   ],
-  // Consumed in-process by M26's charge issuer and price page; export them then, not before.
-  exports: [],
+  // The shared access port is consumed by every context (M25-S16 onwards). The registration use
+  // case is injected by this module's own controller, which the `global-module-export-pairing`
+  // detector counts as an external consumer once the module is @Global(). The rest are consumed
+  // in-process by M26's charge issuer and price page; export them then, not before.
+  exports: [TENANT_ACCESS_PORT, ReserveSignupRegistrationUseCase],
 })
 export class BillingModule {}

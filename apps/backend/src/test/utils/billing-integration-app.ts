@@ -10,6 +10,8 @@ import { SignupRegistrationEntity } from '../../contexts/billing/infrastructure/
 import { SubscriptionItemEntity } from '../../contexts/billing/infrastructure/entities/subscription-item.entity';
 import { SubscriptionEntity } from '../../contexts/billing/infrastructure/entities/subscription.entity';
 import { BillingModule } from '../../contexts/billing/billing.module';
+import { HotsiteConfigEntity } from '../../contexts/platform/infrastructure/entities/hotsite-config.entity';
+import { TenantEntity } from '../../contexts/platform/infrastructure/entities/tenant.entity';
 import { DevClockModule } from '../../contexts/billing/infrastructure/dev-clock.module';
 import { AppEnv } from '../../shared/database/resolve-app-env';
 import { ClockModule } from '../../shared/infrastructure/clock/clock.module';
@@ -60,6 +62,9 @@ export async function createBillingIntegrationApp(
           BillingAccountEntity,
           SignupRegistrationEntity,
           InboxRecordEntity,
+          // BillingModule imports PlatformSettingsModule (the access resolver's tenant-info read).
+          TenantEntity,
+          HotsiteConfigEntity,
         ],
         synchronize: false,
       }),

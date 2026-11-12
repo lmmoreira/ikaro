@@ -1,0 +1,44 @@
+# BFF — Billing access (M25-S13, UC-120)
+# GET /v1/billing/access: the canonical read of operational state for the web, open to every
+# authenticated role and reduced by role. A manager gets { status, operational, features }, staff
+# { operational, features }, a customer { operational }. No role ever gets the suspension reason.
+# The tenant comes from the JWT, never from a parameter.
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run seed
+#   4. pnpm --filter @ikaro/backend run dev  (port 3001)
+#   5. pnpm --filter @ikaro/bff run dev      (port 3002)
+#   6. ENABLE_DEV_AUTH=true in apps/bff/.env.local
+#
+# REST Client environment: select "local" in VS Code status bar
+
+# ── File-level response captures (updated automatically when login request runs) ──
+@managerToken = {{managerLogin.response.body.accessToken}}
+@staffToken   = {{staffLogin.response.body.accessToken}}
+
+###
+# @name managerLogin
+POST {{bffUrl}}/v1/auth/dev-login
+Content-Type: application/json
+
+{ "email": "admin@lavacar.com.br", "tenantSlug": "{{tenantSlug}}", "type": "staff" }
+
+###
+# @name staffLogin
+POST {{bffUrl}}/v1/auth/dev-login
+Content-Type: application/json
+
+{ "email": "funcionario@lavacar.com.br", "tenantSlug": "{{tenantSlug}}", "type": "staff" }
+
+### Manager: { status, operational, features }
+GET {{bffUrl}}/v1/billing/access
+Authorization: Bearer {{managerToken}}
+
+### Staff: { operational, features } (no status)
+GET {{bffUrl}}/v1/billing/access
+Authorization: Bearer {{staffToken}}
+
+### No token: 401
+GET {{bffUrl}}/v1/billing/access

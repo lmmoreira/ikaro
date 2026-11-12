@@ -1,8 +1,9 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
-import { CountryCodeErrorCode, SignupErrorCode } from '@ikaro/types';
+import { CountryCodeErrorCode, PlatformErrorCode, SignupErrorCode } from '@ikaro/types';
 import { CountryCodeValidationError } from '../../../../shared/value-objects/country-code.vo';
 import { TaxIdValidationError } from '../../../../shared/value-objects/tax-id.vo';
 import {
+  BillingTenantNotFoundError,
   FeaturePriceNotFoundError,
   SignupTermsNotAcceptedError,
 } from '../../domain/errors/billing-domain.error';
@@ -30,6 +31,12 @@ describe('mapBillingError', () => {
     const thrown = call(new SignupTermsNotAcceptedError()) as HttpException;
     expect(thrown.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
     expect(thrown.getResponse()).toMatchObject({ code: SignupErrorCode.TERMS_NOT_ACCEPTED });
+  });
+
+  it('maps BillingTenantNotFoundError to 404 with Platform TENANT_NOT_FOUND', () => {
+    const thrown = call(new BillingTenantNotFoundError('t-1')) as HttpException;
+    expect(thrown.getStatus()).toBe(HttpStatus.NOT_FOUND);
+    expect(thrown.getResponse()).toMatchObject({ code: PlatformErrorCode.TENANT_NOT_FOUND });
   });
 
   it('maps a CountryCodeValidationError to 400 (shared address branch)', () => {

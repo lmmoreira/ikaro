@@ -6,6 +6,7 @@ import { FRONTEND_REVALIDATION_PORT } from './application/ports/frontend-revalid
 import { HOTSITE_CONFIG_REPOSITORY } from './application/ports/hotsite-config-repository.port';
 import { TENANT_REPOSITORY } from './application/ports/tenant-repository.port';
 import { GetHotsiteBookingPickerUseCase } from './application/use-cases/get-hotsite-booking-picker.use-case';
+import { GetTenantBillingInfoUseCase } from './application/use-cases/get-tenant-billing-info.use-case';
 import { GetTenantByIdUseCase } from './application/use-cases/get-tenant-by-id.use-case';
 import { GetTenantsUseCase } from './application/use-cases/get-tenants.use-case';
 import { GetTenantBusinessHoursForUpdateUseCase } from './application/use-cases/get-tenant-business-hours-for-update.use-case';
@@ -31,9 +32,11 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     GetTenantsUseCase,
     GetTenantBusinessHoursForUpdateUseCase,
     GetHotsiteBookingPickerUseCase,
+    GetTenantBillingInfoUseCase,
   ],
   exports: [
     GetTenantByIdUseCase,
+    GetTenantBillingInfoUseCase,
     GetTenantsUseCase,
     GetTenantBusinessHoursForUpdateUseCase,
     GetHotsiteBookingPickerUseCase,

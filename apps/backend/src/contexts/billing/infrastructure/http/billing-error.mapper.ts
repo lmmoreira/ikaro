@@ -1,6 +1,9 @@
 import { HttpStatus } from '@nestjs/common';
 import { throwProblemDetail } from '@ikaro/nestjs-http';
-import { SignupTermsNotAcceptedError } from '../../domain/errors/billing-domain.error';
+import {
+  BillingTenantNotFoundError,
+  SignupTermsNotAcceptedError,
+} from '../../domain/errors/billing-domain.error';
 import { mapSharedAddressError } from '../../../../shared/http/address-validation-error.mapper';
 import { mapSharedVoError } from '../../../../shared/http/vo-validation-error.mapper';
 
@@ -14,6 +17,10 @@ export function mapBillingError(err: unknown): never {
   // SIGNUP_TERMS_NOT_ACCEPTED: a business refusal, 422 per docs/API_CONTRACTS.md (M25-S09).
   if (err instanceof SignupTermsNotAcceptedError) {
     throw throwProblemDetail(HttpStatus.UNPROCESSABLE_ENTITY, err.code, err.message);
+  }
+  // An unknown tenant id on the access lookup: 404 with Platform's TENANT_NOT_FOUND (M25-S13).
+  if (err instanceof BillingTenantNotFoundError) {
+    throw throwProblemDetail(HttpStatus.NOT_FOUND, err.code, err.message);
   }
   if (err instanceof Error) throw err;
   throw new Error(`Unexpected error: ${String(err)}`);
