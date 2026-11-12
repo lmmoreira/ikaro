@@ -76,7 +76,7 @@ Alerts are metric/log-based alert policies first (`docs/OBSERVABILITY_STRATEGY.m
 | Missing price row for an enabled country | caught at **deploy time** by a startup/CI check, not at runtime | — | Catalog |
 | Suspension freeze active | provider unhealthy | the freeze itself | Provider incident |
 
-Missing templates, missing price rows and a live-adapter misconfiguration are prevented by startup validation and CI, so they never become runtime operator work.
+Missing templates, missing price rows and a live-adapter misconfiguration are prevented by startup validation and CI, so they never become runtime operator work. **[Superseded by M25-S14, 2026-11-11 — a wrong merchant profile key is not caught at startup: `BillingProviderRegistry.resolve()` throws when the key is looked up, so it surfaces as an ordinary backend error, still with no billing alert policy.]**
 
 ## 6. Metrics
 

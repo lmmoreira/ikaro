@@ -1638,7 +1638,7 @@ These backend routes are consumed by the BFF (or operator tooling) and have no `
 
 ## Billing — Provider Webhooks and Internal API
 
-> **PLANNED, NOT YET BUILT** (Billing milestone), except `POST /internal/billing/registrations` (M25-S09, live) and the non-production dev-clock routes (M25-S12, live in `local` and `staging`). Ikaro charging its tenants: rules and aggregates in `docs/DOMAIN_MODEL.md` § Context 7: Billing Context, tables in `docs/DATABASE_SCHEMA.md` § Schema: `billing`, use cases UC-110–UC-145 in `docs/USE_CASES.md`. This section covers the provider webhooks, the operator / internal backend routes, the cron triggers, the non-production routes and the provider port. The manager-facing billing routes are in the next section, `## Billing — Manager API (BFF, role MANAGER)`; the access route and the effects of a suspension on existing routes are in `## Billing — Access Resolution and Suspended-State Effects`; the public price and signup routes are in `## Billing — Public Signup API (BFF, no JWT)` (UC-127, UC-128). Money is **integer minor units + ISO currency** (a convention introduced by this section: Base Standards above define no money format); dates are ISO-8601 UTC (`due_date`: `YYYY-MM-DD`). Error codes: `docs/ERROR_CATALOG.md` § Planned origins: `BILLING_*` and `SIGNUP_*`.
+> **PLANNED, NOT YET BUILT** (Billing milestone), except `POST /internal/billing/registrations` (M25-S09, live) the non-production dev-clock routes (M25-S12, live in `local` and `staging`), and the provider port below with its fake and contract suite (M25-S14, built; the Asaas and Stripe adapters are M26 and M28). Ikaro charging its tenants: rules and aggregates in `docs/DOMAIN_MODEL.md` § Context 7: Billing Context, tables in `docs/DATABASE_SCHEMA.md` § Schema: `billing`, use cases UC-110–UC-145 in `docs/USE_CASES.md`. This section covers the provider webhooks, the operator / internal backend routes, the cron triggers, the non-production routes and the provider port. The manager-facing billing routes are in the next section, `## Billing — Manager API (BFF, role MANAGER)`; the access route and the effects of a suspension on existing routes are in `## Billing — Access Resolution and Suspended-State Effects`; the public price and signup routes are in `## Billing — Public Signup API (BFF, no JWT)` (UC-127, UC-128). Money is **integer minor units + ISO currency** (a convention introduced by this section: Base Standards above define no money format); dates are ISO-8601 UTC (`due_date`: `YYYY-MM-DD`). Error codes: `docs/ERROR_CATALOG.md` § Planned origins: `BILLING_*` and `SIGNUP_*`.
 
 ### `POST /v1/public/billing/webhooks/asaas` and `POST /v1/public/billing/webhooks/stripe` — Provider webhooks (UC-114)
 
@@ -1736,27 +1736,32 @@ Body: { "tenantId" | "chargeId": "…",
 
 ### Provider port (Ikaro's terms)
 
-`BillingProviderPort` is defined in Ikaro's terms and never leaks a provider type beyond the adapter. Adapters: `AsaasBillingProvider` (BRL), `StripeBillingProvider` (USD, slice E) and the non-production `FakeBillingProvider`; one contract suite runs against the fake on every PR and against the Asaas sandbox and Stripe test mode nightly. Live-adapter startup rule: `docs/ENGINEERING_RULES_INFRA.md` § Billing configuration (planned).
+`BillingProviderPort` is defined in Ikaro's terms and never leaks a provider type beyond the adapter. Adapters: `AsaasBillingProvider` (BRL), `StripeBillingProvider` (USD, slice E) and the non-production `FakeBillingProvider`; one contract suite runs against the fake on every PR and against the Asaas sandbox and Stripe test mode nightly. The merchant-profile-key rule is enforced on lookup in the registry and never at startup: `docs/ENGINEERING_RULES_INFRA.md` § Billing configuration (planned). Built so far (M25-S14): the port, the fake for `BRL_FAKE`, the registry and the contract suite; the Asaas and Stripe adapters are M26 and M28.
 
 ```ts
 interface BillingProviderPort {
   ensureCustomer(tenantId, identity): Promise<{ providerCustomerId: string }>;   // Asaas: name + cpfCnpj (Asaas enforces cpfCnpj when the charge is created, not the customer: docs/ASAAS_PROVIDER.md § 1), notificationDisabled=true; Stripe: location for tax
-  // Asaas: billingType UNDEFINED, our charge id as externalReference (Asaas allows at most 100 characters, docs/ASAAS_PROVIDER.md § 1). Stripe: one finalized invoice (send_invoice) with automatic_tax.
-  createCharge(input: { merchantProfileKey, customerId, dueDate, lines, currency, taxBehavior, customerLocation, description, externalReference, returnUrl }):
+  // Asaas: billingType UNDEFINED, our charge id as externalReference (Asaas allows at most 100 characters, docs/ASAAS_PROVIDER.md § 1). externalReference is also the retry key: createCharge with the same value returns the charge already created (the Asaas adapter sends it as the Idempotency-Key header and looks the charge up on the 409). Stripe: one finalized invoice (send_invoice) with automatic_tax.
+  createCharge(input: { merchantProfileKey, providerCustomerId, dueDate, lines, currency, taxBehavior, customerLocation, description, externalReference, returnUrl }):
     Promise<{ providerChargeId, paymentUrl, expiresAt, totalMinor, tax: { totalTaxMinor, lines, providerCalculationId? } }>;   // tax is empty while every price is tax-inclusive (BR); the Stripe adapter fills it (slice E)
   regeneratePaymentLink(providerChargeId): Promise<{ paymentUrl, expiresAt }>;
   cancelCharge(providerChargeId): Promise<void>;
-  startAutoBilling(customerId, mode): Promise<{ authorizationUrl }>;   // slice F: Pix Automático / hosted recurring card checkout
-  revokeAutoBilling(customerId): Promise<void>;
+  startAutoBilling(providerCustomerId, mode): Promise<{ authorizationUrl }>;   // slice F: Pix Automático / hosted recurring card checkout
+  revokeAutoBilling(providerCustomerId): Promise<void>;
   fetchChargeStatus(providerChargeId): Promise<NormalizedChargeStatus>;
   // Provider health (UC-140): the account-health read and the webhook-queue re-enable.
   readAccountHealth(merchantProfileKey): Promise<{ webhookStatus: 'OK' | 'PAUSED' | 'UNKNOWN', queuePaused: boolean }>;
   reenableWebhookQueue(merchantProfileKey): Promise<void>;   // Asaas: PUT /v3/webhooks/{id} {interrupted: false} is the documented reactivation (docs/ASAAS_PROVIDER.md § 4, launch gate G3). The health job raises the alert when the queue is PAUSED and closes it only after a webhook delivery succeeds after the call, never because the flag was cleared
+  // Inbound, local, no network, stateless: the same body always yields the same event and providerEventId (de-duplication is the M26 inbox's). It normalises only: the Asaas token check is the BFF's, Stripe's signature check is the adapter's (slice E). A body it cannot read throws InvalidProviderWebhookError.
+  parseWebhook(rawBody, headers): NormalizedProviderEvent;
 }
-// Inbound: adapter.parseWebhook(rawBody, headers) -> NormalizedProviderEvent   (normalises only; the Asaas token check is the BFF's, Stripe's signature check is the adapter's, slice E)
-// cancelCharge throws the typed ChargeAlreadyPaidError when the provider refuses because the charge was just paid (not a new method); fetchChargeStatus returns NormalizedChargeStatus incl. receiptUrl
-//   PaymentConfirmed | PaymentOverdue | PaymentRefunded | PaymentChargeback | AutoBillingAuthorized | AutoBillingRevoked
+// cancelCharge throws the typed ChargeAlreadyPaidError when the provider refuses because the charge was just paid (not a new method); fetchChargeStatus returns NormalizedChargeStatus incl. receiptUrl (set when paid)
+// NormalizedProviderEvent.type (every event carries providerEventId and occurredAt; a charge event also providerChargeId, providerCustomerId, chargeReference = our charge id, amountMinor):
+//   PaymentConfirmed (the first of the provider's CONFIRMED / RECEIVED, idempotent) | PaymentOverdue | PaymentCancelled | PaymentRefunded | PaymentPartiallyRefunded | PaymentChargeback (opened only)
+//   | AutoBillingAuthorized | AutoBillingRevoked | Ignored (any event the normaliser does not handle)
 ```
+
+`BillingProviderRegistry.resolve(merchantProfileKey)` returns the adapter of a subscription's key and is what every use case injects; today only the fake serves `BRL_FAKE`, and every other key (`USD_FAKE`, the sandbox and live keys) throws `ProviderNotSupportedError` until its adapter exists. A fake or sandbox key is rejected when `APP_ENV=production` and a live key anywhere else (`MerchantProfileKeyNotAllowedError`).
 
 There is no separate tax port (Stripe returns the breakdown when it finalizes the invoice) and no manual provider or manual mark-paid route.
 

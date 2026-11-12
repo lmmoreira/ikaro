@@ -20,6 +20,13 @@ import { TypeOrmSignupRegistrationRepository } from './infrastructure/repositori
 import { TypeOrmBillingAccountRepository } from './infrastructure/repositories/typeorm-billing-account.repository';
 import { TypeOrmFeaturePriceRepository } from './infrastructure/repositories/typeorm-feature-price.repository';
 import { TypeOrmSubscriptionRepository } from './infrastructure/repositories/typeorm-subscription.repository';
+import { resolveAppEnv } from '../../shared/database/resolve-app-env';
+import { BILLING_PROVIDER_REGISTRY } from './application/ports/billing-provider.port';
+import {
+  BILLING_APP_ENV,
+  BillingProviderRegistry,
+} from './infrastructure/providers/billing-provider.registry';
+import { FakeBillingProvider } from './infrastructure/providers/fake-billing.provider';
 
 // Billing context (Ikaro charging its tenants). Each aggregate story registers its own
 // repositories, use cases and controllers here. M25-S04: the platform-wide price list (read side).
@@ -43,6 +50,9 @@ import { TypeOrmSubscriptionRepository } from './infrastructure/repositories/typ
     { provide: FEATURE_PRICE_REPOSITORY, useClass: TypeOrmFeaturePriceRepository },
     { provide: SUBSCRIPTION_REPOSITORY, useClass: TypeOrmSubscriptionRepository },
     { provide: BILLING_ACCOUNT_REPOSITORY, useClass: TypeOrmBillingAccountRepository },
+    { provide: BILLING_APP_ENV, useFactory: () => resolveAppEnv(process.env) },
+    FakeBillingProvider,
+    { provide: BILLING_PROVIDER_REGISTRY, useClass: BillingProviderRegistry },
     GetFeaturePriceAtUseCase,
     ListSelectablePricesUseCase,
   ],

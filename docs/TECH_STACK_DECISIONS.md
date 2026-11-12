@@ -3,7 +3,7 @@
 > **When to load:** questioning or revisiting a technology choice (TypeORM, NestJS, Next.js, Pub/Sub, Cloud Run, PostgreSQL, Secret Manager, Terraform, the email provider, the payment providers) and why it was made, with its scaling path; current infrastructure facts are in `docs/DEPLOYMENT_STRATEGY.md` and `docs/INFRASTRUCTURE_TOOLING_MAP.md`.
 > **Tags:** agent-process
 **Date:** 2026-05-12 (originally written; later edits are dated where they occur)  
-**Status:** Decision record. The stack below is implemented, except §10 Payment Providers, which is planned (Billing milestone); the checklist and next-steps sections near the end are the original pre-development plan, kept as history.  
+**Status:** Decision record. The stack below is implemented, except §10 Payment Providers, which is planned (Billing milestone; the port, the fake and the contract suite are built, M25-S14); the checklist and next-steps sections near the end are the original pre-development plan, kept as history.  
 **Audience:** Development team, stakeholders, AI agents  
 **Related Documents:** See cross-references throughout
 
@@ -1242,7 +1242,7 @@ Ikaro charges its tenants through **Asaas for BRL** (the first adapter, Brazil) 
 
 ### Consequences
 - **No provider subscriptions in the baseline:** Ikaro issues its own charges so plan changes at period boundaries, dated price versions and the early invoice stay Ikaro's policy; optional provider-collected card billing (a hosted recurring checkout) is a later slice that mirrors provider-generated charges into ordinary charges.
-- **Test environments never touch a live provider:** a `FakeBillingProvider` and one contract suite run on every PR, the provider sandboxes run nightly and in staging, and a live adapter refuses to start outside production — `docs/TESTING_STRATEGY.md` § Testing the billing provider — fake, sandbox, contract suite and clock.
+- **Test environments never touch a live provider:** a `FakeBillingProvider` and one contract suite run on every PR, the provider sandboxes run nightly and in staging, and a live merchant profile key is refused outside production when it is looked up — `docs/TESTING_STRATEGY.md` § Testing the billing provider — fake, sandbox, contract suite and clock.
 - **Ikaro absorbs provider fees** in the list price.
 - Secrets (`ASAAS_API_KEY`, `ASAAS_WEBHOOK_TOKEN`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, sandbox and live separately) live in Secret Manager — § 7 above.
 - The verified Asaas facts (documentation plus the M25-S01 sandbox run) and its launch gates: `docs/ASAAS_PROVIDER.md`; the Stripe facts, the account-opening checklist and the owner and accountant gates stay in `docs/discovery/tenant-billing/tenant-billing_PROVIDERS.md` until Stripe has its own doc; the decision's context: `docs/discovery/tenant-billing/tenant-billing.md` § 3.

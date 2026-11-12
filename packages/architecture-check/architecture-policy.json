@@ -536,6 +536,78 @@
       "adapterPaths": [
         "apps/backend/src/shared/infrastructure/google-oidc-token-verifier.adapter.ts"
       ]
+    },
+    {
+      "portFile": "apps/backend/src/contexts/billing/application/ports/billing-provider.port.ts",
+      "interfaceName": "BillingProviderPort",
+      "methodName": "ensureCustomer",
+      "adapterPaths": [
+        "apps/backend/src/contexts/billing/infrastructure/providers/fake-billing.provider.ts"
+      ]
+    },
+    {
+      "portFile": "apps/backend/src/contexts/billing/application/ports/billing-provider.port.ts",
+      "interfaceName": "BillingProviderPort",
+      "methodName": "createCharge",
+      "adapterPaths": [
+        "apps/backend/src/contexts/billing/infrastructure/providers/fake-billing.provider.ts"
+      ]
+    },
+    {
+      "portFile": "apps/backend/src/contexts/billing/application/ports/billing-provider.port.ts",
+      "interfaceName": "BillingProviderPort",
+      "methodName": "regeneratePaymentLink",
+      "adapterPaths": [
+        "apps/backend/src/contexts/billing/infrastructure/providers/fake-billing.provider.ts"
+      ]
+    },
+    {
+      "portFile": "apps/backend/src/contexts/billing/application/ports/billing-provider.port.ts",
+      "interfaceName": "BillingProviderPort",
+      "methodName": "cancelCharge",
+      "adapterPaths": [
+        "apps/backend/src/contexts/billing/infrastructure/providers/fake-billing.provider.ts"
+      ]
+    },
+    {
+      "portFile": "apps/backend/src/contexts/billing/application/ports/billing-provider.port.ts",
+      "interfaceName": "BillingProviderPort",
+      "methodName": "startAutoBilling",
+      "adapterPaths": [
+        "apps/backend/src/contexts/billing/infrastructure/providers/fake-billing.provider.ts"
+      ]
+    },
+    {
+      "portFile": "apps/backend/src/contexts/billing/application/ports/billing-provider.port.ts",
+      "interfaceName": "BillingProviderPort",
+      "methodName": "revokeAutoBilling",
+      "adapterPaths": [
+        "apps/backend/src/contexts/billing/infrastructure/providers/fake-billing.provider.ts"
+      ]
+    },
+    {
+      "portFile": "apps/backend/src/contexts/billing/application/ports/billing-provider.port.ts",
+      "interfaceName": "BillingProviderPort",
+      "methodName": "fetchChargeStatus",
+      "adapterPaths": [
+        "apps/backend/src/contexts/billing/infrastructure/providers/fake-billing.provider.ts"
+      ]
+    },
+    {
+      "portFile": "apps/backend/src/contexts/billing/application/ports/billing-provider.port.ts",
+      "interfaceName": "BillingProviderPort",
+      "methodName": "readAccountHealth",
+      "adapterPaths": [
+        "apps/backend/src/contexts/billing/infrastructure/providers/fake-billing.provider.ts"
+      ]
+    },
+    {
+      "portFile": "apps/backend/src/contexts/billing/application/ports/billing-provider.port.ts",
+      "interfaceName": "BillingProviderPort",
+      "methodName": "reenableWebhookQueue",
+      "adapterPaths": [
+        "apps/backend/src/contexts/billing/infrastructure/providers/fake-billing.provider.ts"
+      ]
     }
   ],
   "aggregateValueObjectRegistry": [
@@ -963,6 +1035,46 @@
       "class": "BillingAccountSubscriptionMissingError",
       "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
       "rationale": "Same as FeatureDependencyUnmetError above: a data-integrity failure (an account whose tenant has no subscription, which S05's backfill and S11's single transaction make impossible), never a user-facing refusal; it surfaces as a 500 by design, so it stays an exception rather than a mapped code.",
+      "owner": "billing",
+      "reviewBy": "2026-12-31"
+    },
+    {
+      "rule": "error-mapper-coverage",
+      "class": "ChargeAlreadyPaidError",
+      "path": "apps/backend/src/contexts/billing/domain/errors/billing-provider.errors.ts",
+      "rationale": "M25-S14 builds the provider port and its fake with no HTTP surface: nothing calls the port in M25, so no endpoint can throw this error. Mapping it now would fix a wire status and code before one exists (codes are additive-only once shipped). The first M26 route or job that cancels a charge (UC-134 reactivate, the status sweep) handles it as a paid charge (UC-114 step 4) and, if it can reach HTTP, maps it in billing-error.mapper.ts and removes this entry.",
+      "owner": "billing",
+      "reviewBy": "2026-12-31"
+    },
+    {
+      "rule": "error-mapper-coverage",
+      "class": "ProviderNotSupportedError",
+      "path": "apps/backend/src/contexts/billing/domain/errors/billing-provider.errors.ts",
+      "rationale": "Same as ChargeAlreadyPaidError above: no billing HTTP surface can throw it yet. M26's callers of the provider registry (the issue-charges job, the status sweep, reconcile, self-heal) treat it for a US subscription as skip-and-log, never a response; if a route can ever surface it, that story maps it and removes this entry.",
+      "owner": "billing",
+      "reviewBy": "2026-12-31"
+    },
+    {
+      "rule": "error-mapper-coverage",
+      "class": "InvalidProviderWebhookError",
+      "path": "apps/backend/src/contexts/billing/domain/errors/billing-provider.errors.ts",
+      "rationale": "Same as ChargeAlreadyPaidError above: raised by parseWebhook, whose only caller is M26's webhook use case. That story decides the response status (the provider must still get a 200 for a body it can never process, so a retry loop is not started) and maps or absorbs it, then removes this entry.",
+      "owner": "billing",
+      "reviewBy": "2026-12-31"
+    },
+    {
+      "rule": "error-mapper-coverage",
+      "class": "MerchantProfileKeyNotAllowedError",
+      "path": "apps/backend/src/contexts/billing/domain/errors/billing-provider.errors.ts",
+      "rationale": "A configuration failure, never a user-facing refusal: the key is a database column set from APP_ENV (resolveMerchantProfileKey), so reaching this means a fake or sandbox key is in production or a live key is elsewhere. It surfaces as a 500 by design so it pages, which is why it stays an exception rather than a mapped code.",
+      "owner": "billing",
+      "reviewBy": "2026-12-31"
+    },
+    {
+      "rule": "error-mapper-coverage",
+      "class": "ProviderRequestError",
+      "path": "apps/backend/src/contexts/billing/domain/errors/billing-provider.errors.ts",
+      "rationale": "Same as ChargeAlreadyPaidError above: no billing HTTP surface can throw it yet. The first M26 route that issues a payment link maps UNAVAILABLE and LINK_EXPIRED to BILLING_PROVIDER_UNAVAILABLE (retryable) in billing-error.mapper.ts and removes this entry.",
       "owner": "billing",
       "reviewBy": "2026-12-31"
     },

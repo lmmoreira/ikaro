@@ -93,6 +93,48 @@ describe('architecture checks', () => {
     ]);
   });
 
+  it('rejects a BillingProviderPort network call made through the registry inside a transaction', () => {
+    const project = fixtureProject({
+      '/repo/apps/backend/src/contexts/billing/application/ports/billing-provider.port.ts': `
+        export interface BillingProviderPort { createCharge(): Promise<void>; parseWebhook(): void }
+        export interface BillingProviderRegistryPort { resolve(key: string): BillingProviderPort }
+      `,
+      '/repo/apps/backend/src/contexts/billing/infrastructure/providers/fake-billing.provider.ts': `
+        import { BillingProviderPort } from '../../application/ports/billing-provider.port';
+        class FakeBillingProvider implements BillingProviderPort {
+          async createCharge(): Promise<void> {}
+          parseWebhook(): void {}
+        }
+      `,
+      '/repo/apps/backend/src/contexts/billing/application/charge.use-case.ts': `
+        import { BillingProviderRegistryPort } from './ports/billing-provider.port';
+        interface ITransactionManager { run(callback: () => Promise<void>): Promise<void> }
+        declare const tx: ITransactionManager;
+        declare const registry: BillingProviderRegistryPort;
+        async function invalid() { await tx.run(async () => { await registry.resolve('BRL_FAKE').createCharge(); }); }
+        async function parsingIsLocal() { await tx.run(async () => { registry.resolve('BRL_FAKE').parseWebhook(); }); }
+        async function afterCommit() { await tx.run(async () => undefined); await registry.resolve('BRL_FAKE').createCharge(); }
+      `,
+    });
+    const result = checkTransactionalIo(project, [
+      {
+        portFile: 'apps/backend/src/contexts/billing/application/ports/billing-provider.port.ts',
+        interfaceName: 'BillingProviderPort',
+        methodName: 'createCharge',
+        adapterPaths: [
+          'apps/backend/src/contexts/billing/infrastructure/providers/fake-billing.provider.ts',
+        ],
+      },
+    ]);
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        rule: 'transactional-io',
+        file: expect.stringContaining('charge.use-case.ts'),
+        line: 6,
+      }),
+    ]);
+  });
+
   it('requires each concrete domain error to be referenced by a mapper', () => {
     const project = fixtureProject({
       '/repo/apps/backend/src/contexts/demo/domain/errors/demo-domain.error.ts': `
