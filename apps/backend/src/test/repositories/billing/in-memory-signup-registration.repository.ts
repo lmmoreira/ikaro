@@ -1,4 +1,5 @@
 import { ISignupRegistrationRepository } from '../../../contexts/billing/application/ports/signup-registration-repository.port';
+import { SignupRegistrationNotAvailableError } from '../../../contexts/billing/domain/errors/billing-domain.error';
 import type { SignupRegistration } from '../../../contexts/billing/domain/signup-registration';
 import type { GoogleSubHistoryEntry } from '../../../contexts/billing/domain/trial-eligibility';
 
@@ -33,5 +34,18 @@ export class InMemorySignupRegistrationRepository implements ISignupRegistration
     if (registration.source === 'SELF_SIGNUP' && registration.googleSub !== null) {
       this.seedHistory(registration.googleSub, { status: 'RESERVED', hasEverPaid: false });
     }
+  }
+
+  async findById(id: string): Promise<SignupRegistration | null> {
+    return this.saved.find((row) => row.id === id) ?? null;
+  }
+
+  // Mirrors the adapter's conditional UPDATE: only a stored RESERVED row completes.
+  async complete(registration: SignupRegistration): Promise<void> {
+    const index = this.saved.findIndex((row) => row.id === registration.id);
+    if (index === -1 || this.saved[index].status !== 'RESERVED') {
+      throw new SignupRegistrationNotAvailableError(registration.id);
+    }
+    this.saved[index] = registration;
   }
 }

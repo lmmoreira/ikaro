@@ -1,5 +1,9 @@
 import { TaxId } from '../../../shared/value-objects/tax-id.vo';
-import { SignupTermsNotAcceptedError } from './errors/billing-domain.error';
+import { SignupRegistrationBuilder } from '../../../test/builders/billing';
+import {
+  SignupRegistrationNotAvailableError,
+  SignupTermsNotAcceptedError,
+} from './errors/billing-domain.error';
 import { SignupRegistration } from './signup-registration';
 
 const NOW = new Date('2026-11-11T12:00:00Z');
@@ -119,5 +123,37 @@ describe('SignupRegistration.reserve', () => {
     const input = { source: 'OPERATOR' as const, taxId: null, now: NOW };
 
     expect(SignupRegistration.reserve(input).id).not.toBe(SignupRegistration.reserve(input).id);
+  });
+});
+
+describe('SignupRegistration.complete', () => {
+  const TENANT_ID = 'aaaaaaaa-0000-4000-8000-000000000001';
+
+  it('returns the COMPLETED record with the tenant id set and the tax id cleared', () => {
+    const registration = new SignupRegistrationBuilder()
+      .withTaxId(TaxId.reconstitute('52998224725', 'CPF'))
+      .build();
+
+    const completed = registration.complete(TENANT_ID);
+
+    expect(completed).toMatchObject({
+      id: registration.id,
+      status: 'COMPLETED',
+      tenantId: TENANT_ID,
+      taxId: null,
+      googleSub: registration.googleSub,
+      terms: registration.terms,
+      exempt: registration.exempt,
+    });
+    expect(registration.status).toBe('RESERVED');
+    expect(registration.taxId?.value).toBe('52998224725');
+  });
+
+  it('refuses a registration that is already COMPLETED', () => {
+    const completed = new SignupRegistrationBuilder().completedFor(TENANT_ID).build();
+
+    expect(() => completed.complete('bbbbbbbb-0000-4000-8000-000000000002')).toThrow(
+      SignupRegistrationNotAvailableError,
+    );
   });
 });

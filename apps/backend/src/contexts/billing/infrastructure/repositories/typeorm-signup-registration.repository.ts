@@ -6,7 +6,11 @@ import { ISignupRegistrationRepository } from '../../application/ports/signup-re
 import type { SignupRegistration } from '../../domain/signup-registration';
 import type { GoogleSubHistoryEntry } from '../../domain/trial-eligibility';
 import { SignupRegistrationEntity } from '../entities/signup-registration.entity';
-import { signupRegistrationToEntity } from './typeorm-signup-registration.mapper';
+import { SignupRegistrationNotAvailableError } from '../../domain/errors/billing-domain.error';
+import {
+  signupRegistrationToDomain,
+  signupRegistrationToEntity,
+} from './typeorm-signup-registration.mapper';
 
 interface HistoryRow {
   status: 'RESERVED' | 'COMPLETED';
@@ -57,5 +61,27 @@ export class TypeOrmSignupRegistrationRepository implements ISignupRegistrationR
   async save(registration: SignupRegistration): Promise<void> {
     const manager = getActiveEntityManager() ?? this.repo.manager;
     await manager.insert(SignupRegistrationEntity, signupRegistrationToEntity(registration));
+  }
+
+  async findById(id: string): Promise<SignupRegistration | null> {
+    const manager = getActiveEntityManager() ?? this.repo.manager;
+    const entity = await manager.findOne(SignupRegistrationEntity, { where: { id } });
+    return entity ? signupRegistrationToDomain(entity) : null;
+  }
+
+  async complete(registration: SignupRegistration): Promise<void> {
+    const manager = getActiveEntityManager() ?? this.repo.manager;
+    const result = await manager
+      .createQueryBuilder()
+      .update(SignupRegistrationEntity)
+      .set({
+        tenantId: registration.tenantId,
+        status: registration.status,
+        taxIdType: null,
+        taxId: null,
+      })
+      .where('id = :id AND status = :reserved', { id: registration.id, reserved: 'RESERVED' })
+      .execute();
+    if (result.affected !== 1) throw new SignupRegistrationNotAvailableError(registration.id);
   }
 }

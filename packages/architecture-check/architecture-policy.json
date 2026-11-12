@@ -423,6 +423,16 @@
         "rationale": "Booking reacts to the platform tenant-provisioned domain event.",
         "owner": "booking",
         "reviewBy": "2027-04-20"
+      },
+      {
+        "source": "apps/backend/src/contexts/billing/infrastructure/events/tenant-provisioned-billing.handler.ts",
+        "target": "platform",
+        "targetPaths": [
+          "apps/backend/src/contexts/platform/domain/events/tenant-provisioned.event.ts"
+        ],
+        "rationale": "Billing starts the tenant's trial subscription when the platform provisions a tenant (UC-110).",
+        "owner": "billing",
+        "reviewBy": "2027-05-12"
       }
     ]
   },
@@ -722,9 +732,10 @@
         "SubscriptionEntity",
         "SubscriptionItemEntity",
         "BillingAccountEntity",
-        "SignupRegistrationEntity"
+        "SignupRegistrationEntity",
+        "InboxRecordEntity"
       ],
-      "rationale": "Per-context integration app for the Billing context (M25-S04, the first Billing story with entities): it boots only BillingModule and the entities its repositories read. Every later Billing entity story adds its entities here (M25-D7)."
+      "rationale": "Per-context integration app for the Billing context (M25-S04, the first Billing story with entities): it boots only BillingModule and the entities its repositories read. Every later Billing entity story adds its entities here (M25-D7). InboxRecordEntity was added by M25-S11: the TenantProvisioned consumer dedups through the shared inbox."
     },
     {
       "file": "apps/backend/src/test/utils/booking-integration-app.ts",
@@ -938,7 +949,15 @@
       "rule": "error-mapper-coverage",
       "class": "SubscriptionAlreadyExistsError",
       "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
-      "rationale": "Same as FeatureDependencyUnmetError above: raised only to the TenantProvisioned handler (M25-S11), which swallows it as an idempotent redelivery and never reaches HTTP; if a route can ever surface it, that story maps it and removes this entry.",
+      "rationale": "Same as FeatureDependencyUnmetError above: raised only to the TenantProvisioned handler (M25-S11), which rethrows it (the retry then finds the existing subscription and does nothing) and never reaches HTTP; if a route can ever surface it, that story maps it and removes this entry.",
+      "owner": "billing",
+      "reviewBy": "2026-12-31"
+    },
+    {
+      "rule": "error-mapper-coverage",
+      "class": "SignupRegistrationNotAvailableError",
+      "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
+      "rationale": "UC-110 A8: raised only to the TenantProvisioned handler (M25-S11) when the event names an unknown or already COMPLETED registration; the message dead-letters and the operator follows the RUNBOOKS Billing entry. No route can throw it; if one ever can, that story maps it and removes this entry.",
       "owner": "billing",
       "reviewBy": "2026-12-31"
     },

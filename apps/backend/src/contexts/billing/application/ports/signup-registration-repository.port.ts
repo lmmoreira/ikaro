@@ -20,6 +20,18 @@ export interface ISignupRegistrationRepository {
    */
   isTaxIdHeldByUnpaid(taxId: string): Promise<boolean>;
 
-  /** Inserts the registration (S09 only creates; S11 completes it). */
+  /** Inserts a new `RESERVED` registration (S09). Completing one is `complete()`. */
   save(registration: SignupRegistration): Promise<void>;
+
+  /** The registration with this id, or `null` when none exists. Takes no lock (see `complete`). */
+  findById(id: string): Promise<SignupRegistration | null>;
+
+  /**
+   * Persists the `COMPLETED` record `SignupRegistration.complete()` returned (tenant id set, tax id
+   * cleared) with one conditional `UPDATE … WHERE id = :id AND status = 'RESERVED'`, so a
+   * registration can attach to one tenant only even when two completions race: the loser matches
+   * zero rows and gets `SignupRegistrationNotAvailableError`. No row lock is needed (M25-S11).
+   * Must run inside the same `ITransactionManager.run()` as the subscription it belongs to.
+   */
+  complete(registration: SignupRegistration): Promise<void>;
 }

@@ -5,14 +5,12 @@ interface TenantProvisionedData extends Record<string, unknown> {
   slug: string;
   adminEmail: string;
   timezone: string;
-  /** Absent on a row written before the Billing release (redelivered from the outbox). */
-  countryCode?: string;
+  countryCode: string;
   /**
    * The Billing registration reserved before the tenant (UC-024, UC-127). It holds the billing
-   * intent (exempt flag, tax identity, terms), so none of that travels in the event. Absent on a
-   * row written before the Billing release.
+   * intent (exempt flag, tax identity, terms), so none of that travels in the event.
    */
-  registrationId?: string;
+  registrationId: string;
 }
 
 export class TenantProvisioned extends DomainEvent<TenantProvisionedData> {

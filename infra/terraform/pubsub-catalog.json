@@ -224,6 +224,7 @@
     "consumers": [
       "audit-log",
       "booking",
+      "create-trial-subscription",
       "notification-template-seed",
       "staff"
     ]

@@ -48,8 +48,15 @@ describe('Tenant', () => {
       expect(() => new TenantBuilder().withSlug('lavacar-belo-01').build()).not.toThrow();
     });
 
-    it('raises TenantProvisioned with countryCode and no registrationId when none is given', () => {
-      const tenant = Tenant.create('Lavacar', 'lavacar', 'a@a.com', 'corr-1', 'America/Sao_Paulo');
+    it('raises TenantProvisioned with the default country and the registration id', () => {
+      const tenant = Tenant.create(
+        'Lavacar',
+        'lavacar',
+        'a@a.com',
+        'corr-1',
+        TEST_REGISTRATION_ID,
+        'America/Sao_Paulo',
+      );
 
       const [event] = tenant.domainEvents as TenantProvisioned[];
       expect(event.data).toEqual({
@@ -58,6 +65,7 @@ describe('Tenant', () => {
         adminEmail: 'a@a.com',
         timezone: 'America/Sao_Paulo',
         countryCode: 'BR',
+        registrationId: TEST_REGISTRATION_ID,
       });
     });
 
@@ -67,9 +75,9 @@ describe('Tenant', () => {
         'lavacar-us',
         'a@a.us',
         'corr-2',
+        TEST_REGISTRATION_ID,
         'America/New_York',
         'US',
-        TEST_REGISTRATION_ID,
       );
 
       const [event] = tenant.domainEvents as TenantProvisioned[];

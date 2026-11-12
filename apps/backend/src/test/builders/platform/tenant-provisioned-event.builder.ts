@@ -1,4 +1,5 @@
 import { TenantProvisioned } from '../../../contexts/platform/domain/events/tenant-provisioned.event';
+import { TEST_REGISTRATION_ID } from '../../utils/test-registration-id';
 
 export class TenantProvisionedEventBuilder {
   private tenantId = 'aaaaaaaa-0000-4000-8000-000000000001';
@@ -8,7 +9,7 @@ export class TenantProvisionedEventBuilder {
   private adminEmail = 'admin@lavacar.com.br';
   private timezone = 'America/Sao_Paulo';
   private countryCode = 'BR';
-  private registrationId: string | undefined;
+  private registrationId = TEST_REGISTRATION_ID;
 
   withTenantId(tenantId: string): this {
     this.tenantId = tenantId;
@@ -57,7 +58,7 @@ export class TenantProvisionedEventBuilder {
       adminEmail: this.adminEmail,
       timezone: this.timezone,
       countryCode: this.countryCode,
-      ...(this.registrationId ? { registrationId: this.registrationId } : {}),
+      registrationId: this.registrationId,
     });
   }
 }
