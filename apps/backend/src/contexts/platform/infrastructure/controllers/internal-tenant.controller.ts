@@ -9,7 +9,7 @@ import {
   ProvisionTenantUseCaseResult,
   ProvisionTenantUseCase,
 } from '../../application/use-cases/provision-tenant.use-case';
-import { PlatformAdminGuard } from '../guards/platform-admin.guard';
+import { PlatformAdminGuard } from '../../../../shared/guards/platform-admin.guard';
 import { mapPlatformError } from '../http/platform-error.mapper';
 
 @Controller('internal/tenants')

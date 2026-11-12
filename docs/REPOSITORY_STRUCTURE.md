@@ -219,8 +219,8 @@ apps/web/
 
 ## Guard placement
 
-- **`src/shared/guards/`** - guards used across multiple contexts: the role guards that enforce the `X-Actor-Role` header contract (`CustomerRoleGuard`, `ManagerRoleGuard`, `StaffOrManagerRoleGuard`, `AnyAuthenticatedRoleGuard`) the service-to-service guards (`InternalApiGuard`, `PubSubPushGuard`) and, once the Billing enforcement stories land (planned, M25-S15a), `PlatformAdminGuard` (`platform-admin.guard.ts`, moved here from the Platform context because Billing's operator routes also use it). Every guard has its own `.spec.ts`.
-- **`src/contexts/<context>/infrastructure/guards/`** - guards with domain-specific logic tied to one context (none exists today once `PlatformAdminGuard` moves to `src/shared/guards/`; a guard that injects a repository of one context, for example, would stay local). These stay local.
+- **`src/shared/guards/`** - guards used across multiple contexts: the role guards that enforce the `X-Actor-Role` header contract (`CustomerRoleGuard`, `ManagerRoleGuard`, `StaffOrManagerRoleGuard`, `AnyAuthenticatedRoleGuard`) the service-to-service guards (`InternalApiGuard`, `PubSubPushGuard`) and `PlatformAdminGuard` (`platform-admin.guard.ts`, moved here from the Platform context by M25-S15a because Billing's operator routes also use it). Every guard has its own `.spec.ts`.
+- **`src/contexts/<context>/infrastructure/guards/`** - guards with domain-specific logic tied to one context (none exists today since `PlatformAdminGuard` moved to `src/shared/guards/`; a guard that injects a repository of one context, for example, would stay local). These stay local.
 - Never import a guard from another context's `infrastructure/guards/` path - that is a context-isolation violation.
 
 ---
