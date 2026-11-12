@@ -35,7 +35,7 @@ import {
 
 const FAKE_PAYMENT_URL_BASE = 'https://fake-billing.invalid/i';
 const LINK_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-const PAID_STATES: ReadonlyArray<FakeCharge['state']> = ['PAID', 'PARTIALLY_REFUNDED'];
+const PAID_STATES: ReadonlySet<FakeCharge['state']> = new Set(['PAID', 'PARTIALLY_REFUNDED']);
 
 /**
  * The in-process provider behind `BRL_FAKE`. It is a real adapter, not a `jest.fn()` stub, and as
@@ -93,7 +93,7 @@ export class FakeBillingProvider implements BillingProviderPort {
     if (charge.state === 'CANCELED') return;
     // Only a charge that is paid (even partly refunded) is "the payment" a caller must honour. A
     // refunded or charged-back one is refused too, but it must never read as a payment.
-    if (PAID_STATES.includes(charge.state)) throw new ChargeAlreadyPaidError(providerChargeId);
+    if (PAID_STATES.has(charge.state)) throw new ChargeAlreadyPaidError(providerChargeId);
     if (charge.state !== 'PENDING' && charge.state !== 'OVERDUE') {
       throw new ProviderRequestError('NOT_CANCELLABLE');
     }
