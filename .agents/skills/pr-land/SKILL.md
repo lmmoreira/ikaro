@@ -100,6 +100,7 @@ Collect, in one list, from every actor that responded in Step 1:
   - Every ⚠️ Not-verified bullet joins the pooled list: verify it yourself when you can (a log, a grep, a `gh` call); otherwise carry it to the merge ask (Step 4).
 - Read every review comment in full: never cut `gh api .../pulls/<N>/comments` or a review body with `head`, `tail` or a character limit. A CodeRabbit finding past the cut was missed in round 1 of PR #703 and only surfaced in round 2. Count the comments (`--jq 'length'`) and check each bot's count against its own summary.
 - Round 1 only: every CodeRabbit finding (if it posted an actual review rather than a rate-limit notice).
+- Read each review's **body** as well as its inline comments: CodeRabbit puts its "Failed pre-merge checks" (and any finding it cannot anchor to a line) only in the review body (`gh api repos/lmmoreira/ikaro/pulls/<N>/reviews/<id> --jq .body`). Pool them like any other finding (PR #771 round 1: three such findings were missed and surfaced only when Codex re-flagged them in round 2).
 
 ---
 
