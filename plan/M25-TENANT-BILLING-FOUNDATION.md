@@ -1008,7 +1008,7 @@ Create the one synchronous contract the rest of the system uses to ask "is this 
 
 ---
 
-### M25-S14 — `BillingProviderPort`, `FakeBillingProvider`, contract-suite skeleton, live-adapter guard
+### M25-S14 — `BillingProviderPort`, `FakeBillingProvider`, contract-suite skeleton, live-adapter guard ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** M
