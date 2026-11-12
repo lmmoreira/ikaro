@@ -942,7 +942,7 @@ Every date rule in Billing (trial end, due dates, grace, purge age) must be test
 
 ---
 
-### M25-S13 — `TenantAccessPort`, caching adapter, access endpoints (UC-120)
+### M25-S13 — `TenantAccessPort`, caching adapter, access endpoints (UC-120) ✅ Done
 
 **Agent:** `backend-ts + bff-ts`
 **Complexity:** L
