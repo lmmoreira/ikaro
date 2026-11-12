@@ -1492,9 +1492,9 @@ Types are the minimum M25-S03 needs (the discovery data model lists column names
 |--------|------|-------------|
 | id | UUID | PRIMARY KEY |
 | tenant_id | UUID | NOT NULL |
-| actor | VARCHAR(100) | NOT NULL — operator identifier (script/user) |
+| actor | VARCHAR(100) | NOT NULL — the operator's name (a person, trimmed, never empty). Claimed by the caller: the shared `PLATFORM_ADMIN_KEY` cannot tell operators apart, so it is not a verified identity |
 | action | VARCHAR(20) | NOT NULL — `GRACE` \| `SUSPEND` (reason `OPERATOR`) \| `UNSUSPEND` (only for an `OPERATOR` suspension) \| `SET_EXEMPT` (tenant-scoped actions only; there is no operator payment override, and price-list changes are audited on `feature_price_versions`) |
-| payload | JSONB | NOT NULL — bounded; includes the reason |
+| payload | JSONB | NOT NULL — flat JSON scalars, at most 4 KB serialized; carries the required `reason` as `payload.reason` (the table has no `reason` column), plus action-specific facts such as `graceUntil`. Enforced by the `OperatorAudit` domain record, not by a DB check |
 | occurred_at | TIMESTAMP WITH TIME ZONE | NOT NULL |
 | **INDEX** | (tenant_id, occurred_at DESC) | append-only |
 
