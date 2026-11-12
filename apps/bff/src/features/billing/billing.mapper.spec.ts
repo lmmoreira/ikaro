@@ -1,4 +1,5 @@
-import { toBillingAccessResponse } from './billing.mapper';
+import { FEATURE_KEYS } from '@ikaro/validation';
+import { failOpenBackendAccess, toBillingAccessResponse } from './billing.mapper';
 import type { BackendTenantAccess } from './billing.types';
 
 const ACCESS: BackendTenantAccess = {
@@ -51,4 +52,14 @@ describe('toBillingAccessResponse', () => {
       expect(serialized).not.toContain('degraded');
     },
   );
+});
+
+describe('failOpenBackendAccess', () => {
+  it('is operational with every sellable feature, chatbot at BASIC', () => {
+    const access = failOpenBackendAccess();
+
+    expect(access).toMatchObject({ status: 'ACTIVE', operational: true });
+    expect(access.features.map((feature) => feature.key).sort()).toEqual([...FEATURE_KEYS].sort());
+    expect(access.features.find((feature) => feature.key === 'CHATBOT')?.tier).toBe('BASIC');
+  });
 });

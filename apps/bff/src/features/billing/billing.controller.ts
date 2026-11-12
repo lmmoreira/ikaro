@@ -1,10 +1,9 @@
 import { Controller, Get, HttpException } from '@nestjs/common';
 import type { BillingAccessResponse } from '@ikaro/types';
-import { FEATURE_KEYS } from '@ikaro/validation';
 import { CurrentUser, CurrentUserPayload } from '../../shared/decorators/current-user.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { BackendTenantAccessSchema } from './billing.schemas';
-import { toBillingAccessResponse } from './billing.mapper';
+import { failOpenBackendAccess, toBillingAccessResponse } from './billing.mapper';
 import type { BackendTenantAccess } from './billing.types';
 
 // The canonical read of operational state for the web (staff notice, customer badge, dashboard).
@@ -30,15 +29,7 @@ export class BillingController {
       return BackendTenantAccessSchema.parse(raw);
     } catch (err: unknown) {
       if (err instanceof HttpException && err.getStatus() < 500) throw err;
-      return failOpenAccess();
+      return failOpenBackendAccess();
     }
   }
-}
-
-function failOpenAccess(): BackendTenantAccess {
-  return {
-    status: 'ACTIVE',
-    operational: true,
-    features: FEATURE_KEYS.map((key) => ({ key, tier: key === 'CHATBOT' ? 'BASIC' : 'STANDARD' })),
-  };
 }
