@@ -190,10 +190,11 @@ export interface LeadFormModuleData {
 
 // ─── NAVIGATION and CONTENT_BLOCK modules ─────────────────────────────
 
-// Same-page section anchors only (#service-list, #gallery, …). Booking is never a navigation item
-// and the separate /lead-form route is not an anchor.
+// Same-page section anchors (#service-list, #gallery, …) plus `home`, the hotsite's root page —
+// the one target that is not a section, so it needs no module and is always available. Booking is
+// never a navigation item and the separate /lead-form route is not an anchor.
 export type HotsiteNavigationTarget =
-  'service-list' | 'gallery' | 'testimonials' | 'about' | 'contact';
+  'home' | 'service-list' | 'gallery' | 'testimonials' | 'about' | 'contact';
 
 export interface HotsiteNavigationItem {
   label: string;

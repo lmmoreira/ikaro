@@ -1678,7 +1678,7 @@
             }
           },
           "navigation": {
-            "description": "Os links da barra do topo. Cada um leva a uma seção desta página.",
+            "description": "Os links da barra do topo. Cada um leva ao início ou a uma seção desta página.",
             "incomplete": "Preencha o nome de todos os links para aplicar as alterações.",
             "dragLabel": "Reordenar o link {position}",
             "itemLabel": "Nome do link {position}",
@@ -1686,6 +1686,7 @@
             "removeItem": "Remover o link {position}",
             "itemTarget": "O link {position} leva a",
             "targets": {
+              "home": "Início",
               "service-list": "Serviços",
               "gallery": "Galeria",
               "testimonials": "Depoimentos",

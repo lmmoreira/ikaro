@@ -9,6 +9,7 @@ import { resolveLeadFormModule } from '@/features/platform/hotsite/lead-form-mod
 import {
   resolveHotsiteDisplayName,
   resolveHotsiteNavigationCta,
+  resolveManifestNavigation,
 } from '@/features/platform/hotsite/page-model';
 
 export const revalidate = 300;
@@ -52,6 +53,7 @@ export default async function LeadFormPage({ params }: LeadFormPageProps) {
         slug={slug}
         logoUrl={manifest.branding.logoUrl}
         tenantName={displayName}
+        navigation={resolveManifestNavigation(manifest)}
         navigationCta={resolveHotsiteNavigationCta(manifest.layout)}
       />
       <LeadFormWidget

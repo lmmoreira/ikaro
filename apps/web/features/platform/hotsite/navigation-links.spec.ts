@@ -3,6 +3,7 @@ import type { HotsiteModuleResponse } from '@ikaro/types';
 import {
   disableModuleRemovingLinks,
   hasNavigationReferences,
+  isNavigationTargetEnabled,
   moveNavigationItem,
   navigationReferences,
 } from './navigation-links';
@@ -88,5 +89,25 @@ describe('disableModuleRemovingLinks', () => {
     const result = disableModuleRemovingLinks(layoutWith(nav), 'LEAD_FORM');
 
     expect(result.find((module) => module.type === 'NAVIGATION')?.data).toEqual(nav);
+  });
+});
+
+describe('Home navigation item', () => {
+  it('is always an available target, even with every section off', () => {
+    expect(isNavigationTargetEnabled([], 'home')).toBe(true);
+    expect(isNavigationTargetEnabled([], 'gallery')).toBe(false);
+  });
+
+  it('survives turning a section off — it depends on none', () => {
+    const layout = layoutWith({
+      items: [
+        { label: 'Início', target: 'home' },
+        { label: 'Galeria', target: 'gallery' },
+      ],
+    });
+
+    const next = disableModuleRemovingLinks(layout, 'GALLERY');
+
+    expect(next[0].data).toEqual({ items: [{ label: 'Início', target: 'home' }] });
   });
 });

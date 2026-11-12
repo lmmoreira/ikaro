@@ -6,12 +6,14 @@ import {
   type NavigationModuleData,
 } from '@ikaro/types';
 
-// The section a navigation item scrolls to, by target. Mirrors the backend's
+// The section a navigation item scrolls to, by target; `home` links to the hotsite root and needs
+// no section (null). Mirrors the backend's
 // NAVIGATION_TARGET_MODULE_TYPE (hotsite-layout.rules.ts); the backend is what enforces that an
 // enabled navigation never links to a disabled section, the editor only explains it first.
 export const NAVIGATION_TARGET_MODULE: Readonly<
-  Record<HotsiteNavigationTarget, HotsiteModuleType>
+  Record<HotsiteNavigationTarget, HotsiteModuleType | null>
 > = {
+  home: null,
   'service-list': 'SERVICE_LIST',
   gallery: 'GALLERY',
   testimonials: 'TESTIMONIALS',
@@ -21,6 +23,7 @@ export const NAVIGATION_TARGET_MODULE: Readonly<
 
 // The picker's order; the Record above makes the compiler reject a target missing from either.
 export const NAVIGATION_TARGETS: readonly HotsiteNavigationTarget[] = [
+  'home',
   'service-list',
   'gallery',
   'testimonials',
@@ -39,6 +42,14 @@ export function moveNavigationItem<T>(items: readonly T[], from: number, to: num
   const [moved] = next.splice(from, 1);
   next.splice(to, 0, moved);
   return next;
+}
+
+export function isNavigationTargetEnabled(
+  layout: readonly HotsiteModuleResponse[],
+  target: HotsiteNavigationTarget,
+): boolean {
+  const type = NAVIGATION_TARGET_MODULE[target];
+  return type === null || isModuleEnabled(layout, type);
 }
 
 export function isModuleEnabled(

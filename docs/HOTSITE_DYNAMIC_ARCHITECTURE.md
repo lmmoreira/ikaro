@@ -542,12 +542,12 @@ interface TrialSignupCtaModuleData {
 
 ```typescript
 interface NavigationModuleData {
-  items: { label: string; target: 'service-list' | 'gallery' | 'testimonials' | 'about' | 'contact' }[];
+  items: { label: string; target: 'home' | 'service-list' | 'gallery' | 'testimonials' | 'about' | 'contact' }[];
   cta?: { label: string; target: 'booking-form' | 'lead-form' }; // header button, 1–30 characters
 }
 ```
 
-Page chrome, **not a section**: it is always the first `layout` entry, it never takes part in section alternation or dividers, and the public page and the editor preview hand its links to the top bar (`HotsiteAuthBar`) instead of rendering it in the section flow — one header only. `label` is 1–30 characters, at most 6 items. Item targets are the existing same-page anchors (`#service-list`, `#gallery`, …); booking and lead form are separate CTA routes. The optional CTA appears on desktop and in the mobile menu and links to `/{slug}/booking` or `/{slug}/lead-form`. The module has its own `enabled` toggle and is pinned first (the layout editor offers no drag handle for it).
+Page chrome, **not a section**: it is always the first `layout` entry, it never takes part in section alternation or dividers, and the public page and the editor preview hand its links to the top bar (`HotsiteAuthBar`) instead of rendering it in the section flow — one header only. `label` is 1–30 characters, at most 6 items. Item targets are the existing same-page anchors (`#service-list`, `#gallery`, …) plus `home`, which links to the hotsite root (`/{slug}`) and so works from every hotsite route; `home` is opt-in like any other item (a tenant adds, labels and orders it) and, being no section, depends on no module; booking and lead form are separate CTA routes. The optional CTA appears on desktop and in the mobile menu and links to `/{slug}/booking` or `/{slug}/lead-form`. The module has its own `enabled` toggle and is pinned first (the layout editor offers no drag handle for it).
 
 Rules, each owned by exactly one layer:
 
@@ -555,8 +555,8 @@ Rules, each owned by exactly one layer:
 |---|---|
 | closed shape: item count, label length, target set, no unknown keys | `NavigationModuleDataSchema` in `packages/types/src/hotsite-schemas.ts`, imported by both `@ikaro/validation` (`HotsiteModuleSchema`) and `apps/web` |
 | `NAVIGATION` is the first entry | `HotsiteConfig` → `HotsiteNavigationNotFirstError` (`PLATFORM_HOTSITE_NAVIGATION_NOT_FIRST`); the Manifesto tab also rejects it (`navigationNotFirst`) because it would break the layout editor at once |
-| every item's target (and a `lead-form` header `cta`, which needs an enabled `LEAD_FORM`) is an **enabled** module of the same layout (checked only while `NAVIGATION` itself is enabled — a disabled navigation renders nothing) | `HotsiteConfig` → `HotsiteNavigationTargetNotEnabledError` (`PLATFORM_HOTSITE_NAVIGATION_TARGET_NOT_ENABLED`); the web shows it on Publish |
-| at render, only items whose target section made it into the render plan become links | `resolveHotsiteNavigation(layout, plan)` in `page-model.ts` |
+| every item's target other than `home` (and a `lead-form` header `cta`, which needs an enabled `LEAD_FORM`) is an **enabled** module of the same layout (checked only while `NAVIGATION` itself is enabled — a disabled navigation renders nothing) | `HotsiteConfig` → `HotsiteNavigationTargetNotEnabledError` (`PLATFORM_HOTSITE_NAVIGATION_TARGET_NOT_ENABLED`); the web shows it on Publish |
+| at render, only items whose target section made it into the render plan become links (a `home` item is always kept) | `resolveHotsiteNavigation(layout, plan)` in `page-model.ts` |
 
 ### CONTENT_BLOCK (TD56)
 

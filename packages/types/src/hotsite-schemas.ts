@@ -48,7 +48,7 @@ export const NavigationModuleDataSchema = z.strictObject({
     .array(
       z.strictObject({
         label: z.string().min(1).max(30),
-        target: z.enum(['service-list', 'gallery', 'testimonials', 'about', 'contact']),
+        target: z.enum(['home', 'service-list', 'gallery', 'testimonials', 'about', 'contact']),
       }),
     )
     .max(6),

@@ -26,7 +26,7 @@ import { splitPresentation } from '@/features/platform/hotsite/module-presentati
 import {
   NAVIGATION_MAX_ITEMS,
   NAVIGATION_TARGETS,
-  NAVIGATION_TARGET_MODULE,
+  isNavigationTargetEnabled,
   isModuleEnabled,
   moveNavigationItem,
 } from '@/features/platform/hotsite/navigation-links';
@@ -61,8 +61,11 @@ export function NavigationConfigPanel({
   // Without a layout (a panel rendered on its own) nothing is known to be disabled.
   const modules: readonly HotsiteModuleResponse[] | undefined = layout;
   const targetEnabled: TargetEnabled = (target) =>
-    modules === undefined || isModuleEnabled(modules, NAVIGATION_TARGET_MODULE[target]);
-  const firstEnabledTarget = NAVIGATION_TARGETS.find(targetEnabled) ?? NAVIGATION_TARGETS[0];
+    modules === undefined || isNavigationTargetEnabled(modules, target);
+  // A new link starts on a section, not on Home — Home is a deliberate one-off choice.
+  const firstEnabledTarget =
+    NAVIGATION_TARGETS.find((target) => target !== 'home' && targetEnabled(target)) ??
+    NAVIGATION_TARGETS[0];
 
   function update(patch: Partial<NavigationModuleData>): void {
     onChange(writeModuleData({ ...navigation, ...patch }));
