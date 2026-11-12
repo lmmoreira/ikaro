@@ -8,13 +8,15 @@ import { OperatorAuditEntity } from '../entities/operator-audit.entity';
 import { operatorAuditToDomain, operatorAuditToEntity } from './typeorm-operator-audit.mapper';
 import { TypeOrmOperatorAuditRepository } from './typeorm-operator-audit.repository';
 
-function fakeManager(found: OperatorAuditEntity | null = null): {
+function fakeManager(): {
   manager: EntityManager;
   inserted: unknown[];
   lookups: unknown[];
+  state: { found: OperatorAuditEntity | null };
 } {
   const inserted: unknown[] = [];
   const lookups: unknown[] = [];
+  const state: { found: OperatorAuditEntity | null } = { found: null };
   const manager = {
     insert: (_entity: unknown, value: unknown) => {
       inserted.push(value);
@@ -22,10 +24,10 @@ function fakeManager(found: OperatorAuditEntity | null = null): {
     },
     findOne: (_entity: unknown, options: unknown) => {
       lookups.push(options);
-      return Promise.resolve(found);
+      return Promise.resolve(state.found);
     },
   } as unknown as EntityManager;
-  return { manager, inserted, lookups };
+  return { manager, inserted, lookups, state };
 }
 
 describe('operator audit mapper', () => {
@@ -54,25 +56,28 @@ describe('operator audit mapper', () => {
 });
 
 describe('TypeOrmOperatorAuditRepository', () => {
-  const repoOf = (manager: EntityManager): TypeOrmOperatorAuditRepository =>
-    new TypeOrmOperatorAuditRepository({ manager } as unknown as Repository<OperatorAuditEntity>);
+  let own: ReturnType<typeof fakeManager>;
+  let repo: TypeOrmOperatorAuditRepository;
+
+  beforeEach(() => {
+    own = fakeManager();
+    repo = new TypeOrmOperatorAuditRepository({
+      manager: own.manager,
+    } as unknown as Repository<OperatorAuditEntity>);
+  });
 
   it('inserts the mapped entity', async () => {
-    const { manager, inserted } = fakeManager();
     const audit = new OperatorAuditBuilder().build();
 
-    await repoOf(manager).save(audit);
+    await repo.save(audit);
 
-    expect(inserted).toEqual([operatorAuditToEntity(audit)]);
+    expect(own.inserted).toEqual([operatorAuditToEntity(audit)]);
   });
 
   it('uses the transaction entity manager when one is active', async () => {
-    const own = fakeManager();
     const active = fakeManager();
 
-    await runWithEntityManager(active.manager, () =>
-      repoOf(own.manager).save(new OperatorAuditBuilder().build()),
-    );
+    await runWithEntityManager(active.manager, () => repo.save(new OperatorAuditBuilder().build()));
 
     expect(own.inserted).toHaveLength(0);
     expect(active.inserted).toHaveLength(1);
@@ -80,17 +85,15 @@ describe('TypeOrmOperatorAuditRepository', () => {
 
   it('finds by tenant and id together', async () => {
     const entity = new OperatorAuditEntityBuilder().build();
-    const { manager, lookups } = fakeManager(entity);
+    own.state.found = entity;
 
-    const found = await repoOf(manager).findByIdAndTenant(entity.tenantId, entity.id);
+    const found = await repo.findByIdAndTenant(entity.tenantId, entity.id);
 
-    expect(lookups).toEqual([{ where: { tenantId: entity.tenantId, id: entity.id } }]);
+    expect(own.lookups).toEqual([{ where: { tenantId: entity.tenantId, id: entity.id } }]);
     expect(found?.id).toBe(entity.id);
   });
 
   it('returns null when nothing matches', async () => {
-    const { manager } = fakeManager(null);
-
-    await expect(repoOf(manager).findByIdAndTenant('t', 'i')).resolves.toBeNull();
+    await expect(repo.findByIdAndTenant('t', 'i')).resolves.toBeNull();
   });
 });

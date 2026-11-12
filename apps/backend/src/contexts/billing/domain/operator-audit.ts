@@ -61,8 +61,10 @@ export class OperatorAudit {
     this.actor = props.actor;
     this.action = props.action;
     this.reason = props.reason;
-    this.details = props.details;
-    this.occurredAt = props.occurredAt;
+    // Own the values: a caller that keeps its input object or Date cannot change the record (and so
+    // the persisted payload, or its size after `record()` checked it) afterwards.
+    this.details = Object.freeze({ ...props.details });
+    this.occurredAt = new Date(props.occurredAt.getTime());
   }
 
   static record(input: RecordOperatorAuditInput): OperatorAudit {

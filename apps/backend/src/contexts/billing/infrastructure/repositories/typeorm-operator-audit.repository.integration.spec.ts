@@ -1,7 +1,9 @@
 import { DataSource } from 'typeorm';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
-import { OperatorAudit } from '../../domain/operator-audit';
-import { OperatorAuditEntityBuilder } from '../../../../test/builders/billing';
+import {
+  OperatorAuditBuilder,
+  OperatorAuditEntityBuilder,
+} from '../../../../test/builders/billing';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { OperatorAuditEntity } from '../entities/operator-audit.entity';
 import { TypeOrmOperatorAuditRepository } from './typeorm-operator-audit.repository';
@@ -39,14 +41,13 @@ describe('TypeOrmOperatorAuditRepository (integration)', () => {
 
   it('persists a record and reads it back by (tenantId, id), reason included', async () => {
     const tenantId = newTenant();
-    const audit = OperatorAudit.record({
-      tenantId,
-      actor: 'ops@ikaro',
-      action: 'GRACE',
-      reason: 'customer asked',
-      details: { graceUntil: '2026-12-01T00:00:00.000Z' },
-      now: new Date('2026-11-12T10:00:00.000Z'),
-    });
+    const audit = new OperatorAuditBuilder()
+      .withTenantId(tenantId)
+      .withAction('GRACE')
+      .withReason('customer asked')
+      .withDetails({ graceUntil: '2026-12-01T00:00:00.000Z' })
+      .withOccurredAt(new Date('2026-11-12T10:00:00.000Z'))
+      .build();
 
     await repo.save(audit);
     const found = await repo.findByIdAndTenant(tenantId, audit.id);
@@ -58,13 +59,7 @@ describe('TypeOrmOperatorAuditRepository (integration)', () => {
   it('tenant isolation: another tenant asking for the same id gets nothing', async () => {
     const tenantA = newTenant();
     const tenantB = newTenant();
-    const audit = OperatorAudit.record({
-      tenantId: tenantA,
-      actor: 'ops@ikaro',
-      action: 'SUSPEND',
-      reason: 'abuse report',
-      now: new Date(),
-    });
+    const audit = new OperatorAuditBuilder().withTenantId(tenantA).build();
     await repo.save(audit);
 
     await expect(repo.findByIdAndTenant(tenantB, audit.id)).resolves.toBeNull();

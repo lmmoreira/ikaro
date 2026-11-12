@@ -34,6 +34,22 @@ describe('OperatorAudit', () => {
       expect(OperatorAudit.record(input()).id).not.toBe(audit.id);
     });
 
+    it('owns its details and timestamp: changing the caller inputs afterwards changes nothing', () => {
+      const details: Record<string, string> = { graceUntil: '2026-12-01T00:00:00.000Z' };
+      const now = new Date('2026-11-12T10:00:00.000Z');
+      const audit = OperatorAudit.record(input({ details, now }));
+
+      details['extra'] = 'x'.repeat(OPERATOR_AUDIT_PAYLOAD_MAX_BYTES);
+      now.setTime(0);
+
+      expect(audit.payload()).toEqual({
+        graceUntil: '2026-12-01T00:00:00.000Z',
+        reason: 'abuse report',
+      });
+      expect(audit.occurredAt.toISOString()).toBe('2026-11-12T10:00:00.000Z');
+      expect(Object.isFrozen(audit.details)).toBe(true);
+    });
+
     it('trims the actor and the reason', () => {
       const audit = OperatorAudit.record(input({ actor: '  ops@ikaro ', reason: '  why  ' }));
 

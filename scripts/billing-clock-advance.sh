@@ -48,7 +48,9 @@ fi
 call() {
   local out
   # Keep the body on a 4xx/5xx so the operator sees the violation or the 401 detail.
-  if ! out="$(curl -sS --fail-with-body -H "X-Internal-Key: $INTERNAL_API_KEY" -H "X-Platform-Admin-Key: $PLATFORM_ADMIN_KEY" -H "Content-Type: application/json" "$@")"; then
+  # The keys travel on curl's stdin (`--config -`), never as arguments: process arguments are
+  # readable by other users on the host (the relay VM).
+  if ! out="$(printf 'header = "X-Internal-Key: %s"\nheader = "X-Platform-Admin-Key: %s"\nheader = "Content-Type: application/json"\n' "$INTERNAL_API_KEY" "$PLATFORM_ADMIN_KEY" | curl -sS --fail-with-body --config - "$@")"; then
     echo "Request failed: $out" >&2
     exit 1
   fi
