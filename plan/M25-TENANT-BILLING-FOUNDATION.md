@@ -1087,7 +1087,7 @@ Define the single seam to payment providers, built from S01's *observed* behavio
 
 ---
 
-### M25-S15a — `PlatformAdminGuard` move, dev-clock adoption, `operator_audit` entity (UC-111, UC-137)
+### M25-S15a — `PlatformAdminGuard` move, dev-clock adoption, `operator_audit` entity (UC-111, UC-137) ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** S
@@ -1178,7 +1178,7 @@ No new principals. The topic bindings can only be created by the Foundation appl
 - `docs/DOMAIN_EVENTS.md` (modify — `SubscriptionReactivated` data gains `suspendedAt` and its consumers gain the Loyalty pause close; `SubscriptionSuspended` consumers gain the Loyalty pause open, S27 — the exempt-protection and UC-137 "end-dated at the moment of the change" wording are already in the docs)
 - `apps/backend/http/billing/operator.http` (new — local use only)
 - `scripts/lib/relay-auth.sh` (new — the shared relay-VM auth block extracted from `scripts/provision-tenant.sh`: metadata access token, backend URL from the Cloud Run API, identity token, `platform-admin-key` and `internal-api-key` from Secret Manager; sourced, never executed; it also offers a `curl` wrapper that sends the two keys through `--config -` on stdin, so no secret appears in process arguments, readable by other users on the relay VM: `provision-tenant.sh` passes them as `-H` arguments today and `billing-clock-advance.sh` already uses this form) and `scripts/provision-tenant.sh` (modify — source the helper instead of its inline copy and send its headers through the wrapper; behaviour unchanged, verified by running it with `--help`/argument validation and, on the relay VM, by the next provisioning)
-- `scripts/billing-operator.sh` (new — **the production path for the operator routes: the backend is on internal ingress, so they are reachable only from the relay VM shell**) with subcommands `suspend`, `unsuspend`, `grace`, `exempt` and `list`; sources `relay-auth.sh`; `--reason` is required on every write and is validated before any network call; `--help` documents each subcommand and the relay-VM requirement; the `exempt` subcommand takes `--set`/`--clear`
+- `scripts/billing-operator.sh` (new — **the production path for the operator routes: the backend is on internal ingress, so they are reachable only from the relay VM shell**) with subcommands `suspend`, `unsuspend`, `grace`, `exempt` and `list`; sources `relay-auth.sh`; `--reason` and `--operator "<person's name>"` are required on every write and validated before any network call (the name is sent as a required request field and stored as `operator_audit.actor`; the shared `PLATFORM_ADMIN_KEY` cannot tell operators apart, so the audit row records the claimed name, not a verified identity; decided 2026-11-12); `--help` documents each subcommand and the relay-VM requirement; the `exempt` subcommand takes `--set`/`--clear`
 - `docs/RUNBOOKS.md` § Operator cases (modify — the abuse/takedown, refund and other entries name `scripts/billing-operator.sh` and the relay-VM flow (`scripts/relay-vm-up.sh` … `relay-vm-down.sh`, § Staging) instead of listing a bare route)
 - `infra/terraform/pubsub-catalog.json` (modify — regenerated; no `envs/*` edit: Foundation reads the catalog and derives topics, subscriptions, DLQs and grants from it)
 

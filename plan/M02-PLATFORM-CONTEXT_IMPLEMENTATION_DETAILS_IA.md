@@ -27,7 +27,7 @@
 | TenantContext | `src/shared/tenant/tenant-context.ts` | AsyncLocalStorage-based, not request-scoped DI *(historical: replaced by `RequestContext` / `RequestInterceptor` in `apps/backend/src/shared/request/` — no longer in the codebase)* |
 | TenantInterceptor | `src/shared/tenant/tenant.interceptor.ts` | Skips `/health` and `/internal` — reads `X-Tenant-ID` header *(historical: replaced by `RequestContext` / `RequestInterceptor` in `apps/backend/src/shared/request/` — no longer in the codebase)* |
 | TenantModule | `src/shared/tenant/tenant.module.ts` | Exported from AppModule; also imported by PlatformModule — safe due to shared AsyncLocalStorage *(historical: replaced by `RequestContext` / `RequestInterceptor` in `apps/backend/src/shared/request/` — no longer in the codebase)* |
-| PlatformAdminGuard | `src/contexts/platform/infrastructure/guards/platform-admin.guard.ts` | `crypto.timingSafeEqual` + SHA-256 normalisation |
+| PlatformAdminGuard | `src/shared/guards/platform-admin.guard.ts` (moved from `contexts/platform/infrastructure/guards/` in M25-S15a) | `crypto.timingSafeEqual` + SHA-256 normalisation |
 | ManagerRoleGuard | `src/shared/guards/manager-role.guard.ts` | Shipped as a stub in M02 (always returned true); enforces the real MANAGER check via `X-Actor-Role` since M03-S05 and now lives in `src/shared/guards/` |
 | platform-error.mapper.ts | `src/contexts/platform/infrastructure/http/platform-error.mapper.ts` | Maps `SlugAlreadyTakenError`→409, `TenantInactiveError`→409, `TenantNotFoundError`→404, `PlatformDomainError`→400 |
 | ProvisionTenantUseCase | `src/contexts/platform/application/use-cases/provision-tenant.use-case.ts` | Writes Tenant + HotsiteConfig atomically; publishes `TenantProvisioned` |
