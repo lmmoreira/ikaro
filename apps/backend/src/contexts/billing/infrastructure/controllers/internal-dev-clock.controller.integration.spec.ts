@@ -7,6 +7,8 @@ import { InternalApiGuard } from '../../../../shared/guards/internal-api.guard';
 import { createBillingIntegrationApp } from '../../../../test/utils/billing-integration-app';
 
 const INTERNAL_KEY = 'integ-clock-key-integ-clock-key-x'; // 33 chars (≥32)
+const PLATFORM_KEY = 'integ-clock-platform-key-integ-clock-k'; // ≥32 chars
+const KEYS = { 'X-Internal-Key': INTERNAL_KEY, 'X-Platform-Admin-Key': PLATFORM_KEY };
 const HOUR_MS = 60 * 60 * 1000;
 
 describe('InternalDevClockController (integration)', () => {
@@ -16,6 +18,7 @@ describe('InternalDevClockController (integration)', () => {
 
     beforeAll(async () => {
       process.env['INTERNAL_API_KEY'] = INTERNAL_KEY;
+      process.env['PLATFORM_ADMIN_KEY'] = PLATFORM_KEY;
       ({ app } = await createBillingIntegrationApp({
         extraProviders: [{ provide: APP_GUARD, useClass: InternalApiGuard }],
       }));
@@ -25,15 +28,50 @@ describe('InternalDevClockController (integration)', () => {
     afterAll(async () => {
       await app.close();
       delete process.env['INTERNAL_API_KEY'];
+      delete process.env['PLATFORM_ADMIN_KEY'];
     });
 
     afterEach(async () => {
-      await request(app.getHttpServer())
-        .post('/internal/dev/clock/reset')
-        .set('X-Internal-Key', INTERNAL_KEY);
+      await request(app.getHttpServer()).post('/internal/dev/clock/reset').set(KEYS);
     });
 
-    it('returns 401 without the internal key', async () => {
+    it('returns 401 when only the internal key is sent', async () => {
+      await request(app.getHttpServer())
+        .get('/internal/dev/clock')
+        .set('X-Internal-Key', INTERNAL_KEY)
+        .expect(401);
+      await request(app.getHttpServer())
+        .post('/internal/dev/clock/advance')
+        .set('X-Internal-Key', INTERNAL_KEY)
+        .send({ days: 1 })
+        .expect(401);
+      await request(app.getHttpServer())
+        .post('/internal/dev/clock/reset')
+        .set('X-Internal-Key', INTERNAL_KEY)
+        .expect(401);
+    });
+
+    it('returns 401 when only the platform admin key is sent', async () => {
+      await request(app.getHttpServer())
+        .get('/internal/dev/clock')
+        .set('X-Platform-Admin-Key', PLATFORM_KEY)
+        .expect(401);
+      await request(app.getHttpServer())
+        .post('/internal/dev/clock/advance')
+        .set('X-Platform-Admin-Key', PLATFORM_KEY)
+        .send({ days: 1 })
+        .expect(401);
+      await request(app.getHttpServer())
+        .post('/internal/dev/clock/reset')
+        .set('X-Platform-Admin-Key', PLATFORM_KEY)
+        .expect(401);
+    });
+
+    it('returns 200 when both keys are sent', async () => {
+      await request(app.getHttpServer()).get('/internal/dev/clock').set(KEYS).expect(200);
+    });
+
+    it('returns 401 without either key', async () => {
       await request(app.getHttpServer()).get('/internal/dev/clock').expect(401);
       await request(app.getHttpServer())
         .post('/internal/dev/clock/advance')
@@ -47,7 +85,7 @@ describe('InternalDevClockController (integration)', () => {
 
       const { body } = await request(app.getHttpServer())
         .post('/internal/dev/clock/advance')
-        .set('X-Internal-Key', INTERNAL_KEY)
+        .set(KEYS)
         .send({ days: 1, hours: 2 })
         .expect(200);
 
@@ -60,7 +98,7 @@ describe('InternalDevClockController (integration)', () => {
       async (body) => {
         const res = await request(app.getHttpServer())
           .post('/internal/dev/clock/advance')
-          .set('X-Internal-Key', INTERNAL_KEY)
+          .set(KEYS)
           .send(body)
           .expect(400);
 
@@ -72,7 +110,7 @@ describe('InternalDevClockController (integration)', () => {
         ).toBe(true);
         const { body: state } = await request(app.getHttpServer())
           .get('/internal/dev/clock')
-          .set('X-Internal-Key', INTERNAL_KEY)
+          .set(KEYS)
           .expect(200);
         expect(state.offsetMs).toBe(0);
       },
@@ -81,13 +119,13 @@ describe('InternalDevClockController (integration)', () => {
     it('rejects a cumulative advance past the cap with 400 and keeps IClock.now() a valid Date', async () => {
       await request(app.getHttpServer())
         .post('/internal/dev/clock/advance')
-        .set('X-Internal-Key', INTERNAL_KEY)
+        .set(KEYS)
         .send({ days: 36_500 })
         .expect(200);
 
       const res = await request(app.getHttpServer())
         .post('/internal/dev/clock/advance')
-        .set('X-Internal-Key', INTERNAL_KEY)
+        .set(KEYS)
         .send({ hours: 1 })
         .expect(400);
 
@@ -98,11 +136,11 @@ describe('InternalDevClockController (integration)', () => {
     it('GET returns the offset and a stable instanceId', async () => {
       const first = await request(app.getHttpServer())
         .get('/internal/dev/clock')
-        .set('X-Internal-Key', INTERNAL_KEY)
+        .set(KEYS)
         .expect(200);
       const second = await request(app.getHttpServer())
         .get('/internal/dev/clock')
-        .set('X-Internal-Key', INTERNAL_KEY)
+        .set(KEYS)
         .expect(200);
 
       expect(first.body.instanceId).toEqual(expect.any(String));
@@ -112,17 +150,14 @@ describe('InternalDevClockController (integration)', () => {
     it('reset after an advance returns IClock.now() to real time, and a second reset is a no-op', async () => {
       await request(app.getHttpServer())
         .post('/internal/dev/clock/advance')
-        .set('X-Internal-Key', INTERNAL_KEY)
+        .set(KEYS)
         .send({ days: 3 })
         .expect(200);
 
-      await request(app.getHttpServer())
-        .post('/internal/dev/clock/reset')
-        .set('X-Internal-Key', INTERNAL_KEY)
-        .expect(200);
+      await request(app.getHttpServer()).post('/internal/dev/clock/reset').set(KEYS).expect(200);
       const second = await request(app.getHttpServer())
         .post('/internal/dev/clock/reset')
-        .set('X-Internal-Key', INTERNAL_KEY)
+        .set(KEYS)
         .expect(200);
 
       expect(second.body.offsetMs).toBe(0);
@@ -135,6 +170,7 @@ describe('InternalDevClockController (integration)', () => {
 
     beforeAll(async () => {
       process.env['INTERNAL_API_KEY'] = INTERNAL_KEY;
+      process.env['PLATFORM_ADMIN_KEY'] = PLATFORM_KEY;
       ({ app } = await createBillingIntegrationApp({
         appEnv: 'production',
         extraProviders: [{ provide: APP_GUARD, useClass: InternalApiGuard }],
@@ -144,10 +180,11 @@ describe('InternalDevClockController (integration)', () => {
     afterAll(async () => {
       await app.close();
       delete process.env['INTERNAL_API_KEY'];
+      delete process.env['PLATFORM_ADMIN_KEY'];
     });
 
     it('answers 404 on every dev clock route', async () => {
-      const key = { 'X-Internal-Key': INTERNAL_KEY };
+      const key = KEYS;
       await request(app.getHttpServer()).get('/internal/dev/clock').set(key).expect(404);
       await request(app.getHttpServer())
         .post('/internal/dev/clock/advance')

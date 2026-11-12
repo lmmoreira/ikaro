@@ -11,16 +11,19 @@
 
 @baseUrl     = {{backendUrl}}
 @internalKey = {{$dotenv INTERNAL_API_KEY}}
+@platformKey = {{$dotenv PLATFORM_ADMIN_KEY}}
 
 ### Current offset and the instance that answered
 GET {{baseUrl}}/internal/dev/clock
 X-Internal-Key: {{internalKey}}
+X-Platform-Admin-Key: {{platformKey}}
 
 ###
 
 ### Move the clock forward 1 day + 2 hours (26 h). Non-negative integers, total > 0.
 POST {{baseUrl}}/internal/dev/clock/advance
 X-Internal-Key: {{internalKey}}
+X-Platform-Admin-Key: {{platformKey}}
 Content-Type: application/json
 
 { "days": 1, "hours": 2 }
@@ -30,6 +33,7 @@ Content-Type: application/json
 ### Invalid: fractional / negative / empty → 400 GENERIC_VALUE_OUT_OF_RANGE
 POST {{baseUrl}}/internal/dev/clock/advance
 X-Internal-Key: {{internalKey}}
+X-Platform-Admin-Key: {{platformKey}}
 Content-Type: application/json
 
 { "days": 1.5 }
@@ -39,3 +43,4 @@ Content-Type: application/json
 ### Back to real time (idempotent)
 POST {{baseUrl}}/internal/dev/clock/reset
 X-Internal-Key: {{internalKey}}
+X-Platform-Admin-Key: {{platformKey}}

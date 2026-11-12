@@ -10,7 +10,11 @@ set -euo pipefail
 #   --reset     set the offset back to zero
 #   --status    print the current offset and instanceId without moving time
 #
-# Env: BACKEND_URL (default http://localhost:3001), INTERNAL_API_KEY (required).
+# Env: BACKEND_URL (default http://localhost:3001), INTERNAL_API_KEY and PLATFORM_ADMIN_KEY (both
+# required: the routes sit behind InternalApiGuard + PlatformAdminGuard).
+#
+# Developer tool, not an operator one. On staging the backend is on internal ingress, so run it from
+# the relay VM's SSH shell (docs/RUNBOOKS.md § Staging) with BACKEND_URL and both keys exported.
 #
 # SINGLE-INSTANCE RULE: the offset lives in the backend process. On staging, hold the backend Cloud
 # Run service to ONE instance while the clock is in use (docs/RUNBOOKS.md § Billing). This script
@@ -22,7 +26,7 @@ HOURS=""
 ACTION="advance"
 
 usage() {
-  sed -n '3,17p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '3,21p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 while [ "$#" -gt 0 ]; do
@@ -36,15 +40,17 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-if [ -z "${INTERNAL_API_KEY:-}" ]; then
-  echo "INTERNAL_API_KEY is required" >&2
+if [ -z "${INTERNAL_API_KEY:-}" ] || [ -z "${PLATFORM_ADMIN_KEY:-}" ]; then
+  echo "INTERNAL_API_KEY and PLATFORM_ADMIN_KEY are both required" >&2
   exit 1
 fi
 
 call() {
   local out
   # Keep the body on a 4xx/5xx so the operator sees the violation or the 401 detail.
-  if ! out="$(curl -sS --fail-with-body -H "X-Internal-Key: $INTERNAL_API_KEY" -H "Content-Type: application/json" "$@")"; then
+  # The keys travel on curl's stdin (`--config -`), never as arguments: process arguments are
+  # readable by other users on the host (the relay VM).
+  if ! out="$(printf 'header = "X-Internal-Key: %s"\nheader = "X-Platform-Admin-Key: %s"\nheader = "Content-Type: application/json"\n' "$INTERNAL_API_KEY" "$PLATFORM_ADMIN_KEY" | curl -sS --fail-with-body --config - "$@")"; then
     echo "Request failed: $out" >&2
     exit 1
   fi

@@ -1,4 +1,5 @@
 import { InternalApiGuard } from '../../../../shared/guards/internal-api.guard';
+import { PlatformAdminGuard } from '../../../../shared/guards/platform-admin.guard';
 import { AdvanceableClock } from '../../../../shared/infrastructure/clock/advanceable-clock.adapter';
 import { AdvanceClockUseCase } from '../../application/use-cases/advance-clock.use-case';
 import { GetClockUseCase } from '../../application/use-cases/get-clock.use-case';
@@ -45,11 +46,9 @@ describe('InternalDevClockController', () => {
     expect(controller.reset().offsetMs).toBe(0);
   });
 
-  // Interim state (M25-S12 until S15a): InternalApiGuard alone. S15a flips this assertion to
-  // InternalApiGuard + PlatformAdminGuard.
-  it('carries InternalApiGuard only', () => {
+  it('carries InternalApiGuard and PlatformAdminGuard', () => {
     const guards = Reflect.getMetadata('__guards__', InternalDevClockController) as unknown[];
 
-    expect(guards).toEqual([InternalApiGuard]);
+    expect(guards).toEqual([InternalApiGuard, PlatformAdminGuard]);
   });
 });

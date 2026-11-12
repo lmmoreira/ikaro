@@ -11,6 +11,9 @@ import { TenantProvisionedBillingHandler } from './infrastructure/events/tenant-
 import { GetFeaturePriceAtUseCase } from './application/use-cases/get-feature-price-at.use-case';
 import { ListSelectablePricesUseCase } from './application/use-cases/list-selectable-prices.use-case';
 import { BILLING_ACCOUNT_REPOSITORY } from './application/ports/billing-account-repository.port';
+import { OPERATOR_AUDIT_REPOSITORY } from './application/ports/operator-audit-repository.port';
+import { OperatorAuditEntity } from './infrastructure/entities/operator-audit.entity';
+import { TypeOrmOperatorAuditRepository } from './infrastructure/repositories/typeorm-operator-audit.repository';
 import { SUBSCRIPTION_REPOSITORY } from './application/ports/subscription-repository.port';
 import { BillingAccountEntity } from './infrastructure/entities/billing-account.entity';
 import { FeaturePriceVersionEntity } from './infrastructure/entities/feature-price-version.entity';
@@ -64,6 +67,7 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
       SubscriptionItemEntity,
       BillingAccountEntity,
       SignupRegistrationEntity,
+      OperatorAuditEntity,
     ]),
   ],
   controllers: [InternalBillingRegistrationController, InternalBillingAccessController],
@@ -78,6 +82,8 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     CachingSubscriptionRepository,
     { provide: SUBSCRIPTION_REPOSITORY, useClass: CachingSubscriptionRepository },
     { provide: BILLING_ACCOUNT_REPOSITORY, useClass: TypeOrmBillingAccountRepository },
+    // Written by S15b's operator use cases, in the same transaction as the change they audit.
+    { provide: OPERATOR_AUDIT_REPOSITORY, useClass: TypeOrmOperatorAuditRepository },
     { provide: BILLING_APP_ENV, useFactory: () => resolveAppEnv(process.env) },
     FakeBillingProvider,
     { provide: BILLING_PROVIDER_REGISTRY, useClass: BillingProviderRegistry },

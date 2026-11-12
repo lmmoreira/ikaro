@@ -3,6 +3,8 @@ export * from './billing-account-entity.builder';
 export * from './feature-price.builder';
 export * from './feature-price-entity.builder';
 export * from './feature-price-version-entity.builder';
+export * from './operator-audit.builder';
+export * from './operator-audit-entity.builder';
 export * from './signup-registration.builder';
 export * from './signup-registration-entity.builder';
 export * from './subscription.builder';
