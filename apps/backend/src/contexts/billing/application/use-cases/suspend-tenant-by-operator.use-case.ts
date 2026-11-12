@@ -18,7 +18,7 @@ import {
   loadSubscriptionForUpdate,
   type OperatorBillingStateResult,
   toOperatorBillingState,
-} from './operator-billing.shared';
+} from '../helpers/operator-billing.helpers';
 
 export interface SuspendTenantByOperatorUseCaseInput {
   tenantId: string;

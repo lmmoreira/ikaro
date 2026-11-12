@@ -1,31 +1,23 @@
 import { LogDomainEventUseCase } from '../../../../shared/application/use-cases/log-domain-event.use-case';
 import { Envelope } from '../../../../shared/domain/envelope';
 import { AppLogger } from '../../../../shared/observability/app-logger';
+import {
+  SubscriptionReactivatedEventBuilder,
+  SubscriptionSuspendedEventBuilder,
+} from '../../../../test/builders/billing';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
-import { SubscriptionReactivated } from '../../domain/events/subscription-reactivated.event';
-import { SubscriptionSuspended } from '../../domain/events/subscription-suspended.event';
 import { BillingAuditLogHandler } from './billing-audit-log.handler';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000115';
-const SUBSCRIPTION_ID = '00000000-0000-7000-8000-000000000116';
-const AT = '2026-11-12T12:00:00.000Z';
 
-// Every domain event the billing context owns. The set is pinned here and kept in step with the
-// handler by architecture-check's domain-event-audit-coverage detector.
+// Every domain event the billing context owns, each built by its real builder. The set is pinned
+// here and kept in step with the handler by architecture-check's domain-event-audit-coverage
+// detector.
 const EVENT_BUILDERS: Record<string, () => Envelope> = {
   SubscriptionSuspended: () =>
-    new SubscriptionSuspended(TENANT_ID, 'corr-1', {
-      subscriptionId: SUBSCRIPTION_ID,
-      reason: 'OPERATOR',
-      suspendedAt: AT,
-      purgeAt: AT,
-    }),
+    new SubscriptionSuspendedEventBuilder().withTenantId(TENANT_ID).build(),
   SubscriptionReactivated: () =>
-    new SubscriptionReactivated(TENANT_ID, 'corr-2', {
-      subscriptionId: SUBSCRIPTION_ID,
-      reactivatedAt: AT,
-      suspendedAt: AT,
-    }),
+    new SubscriptionReactivatedEventBuilder().withTenantId(TENANT_ID).build(),
 };
 const EVENT_NAMES = Object.keys(EVENT_BUILDERS);
 
