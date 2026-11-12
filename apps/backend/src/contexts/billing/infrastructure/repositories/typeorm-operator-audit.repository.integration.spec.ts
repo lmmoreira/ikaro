@@ -1,6 +1,7 @@
 import { DataSource } from 'typeorm';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { OperatorAudit } from '../../domain/operator-audit';
+import { OperatorAuditEntityBuilder } from '../../../../test/builders/billing';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { OperatorAuditEntity } from '../entities/operator-audit.entity';
 import { TypeOrmOperatorAuditRepository } from './typeorm-operator-audit.repository';
@@ -75,13 +76,10 @@ describe('TypeOrmOperatorAuditRepository (integration)', () => {
   });
 
   it('the action CHECK rejects a value outside the closed set', async () => {
-    const entity = new OperatorAuditEntity();
-    entity.id = uuidv7();
-    entity.tenantId = newTenant();
-    entity.actor = 'ops@ikaro';
-    entity.action = 'PAYMENT_OVERRIDE';
-    entity.payload = { reason: 'x' };
-    entity.occurredAt = new Date();
+    const entity = new OperatorAuditEntityBuilder()
+      .withTenantId(newTenant())
+      .withAction('PAYMENT_OVERRIDE')
+      .build();
 
     await expect(dataSource.getRepository(OperatorAuditEntity).insert(entity)).rejects.toThrow(
       /CHK_billing_operator_audit_action/,
