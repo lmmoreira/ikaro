@@ -10,6 +10,11 @@ interface HotsiteNavigationProps {
   readonly cta?: NavigationModuleData['cta'];
 }
 
+// `home` is the hotsite root; every other target is an anchor on it.
+function itemHref(slug: string, item: HotsiteNavigationItem): string {
+  return item.target === 'home' ? `/${slug}` : `/${slug}#${item.target}`;
+}
+
 const LINK_CLASS = 'text-[0.8125rem] font-medium no-underline hover:opacity-70';
 
 // The NAVIGATION module's links, rendered inside the one top bar (HotsiteAuthBar and the editor
@@ -75,7 +80,7 @@ export function HotsiteNavigation({
         {items.map((item) => (
           <a
             key={`${item.target}-${item.label}`}
-            href={`/${slug}#${item.target}`}
+            href={itemHref(slug, item)}
             className={LINK_CLASS}
             style={{ color: 'var(--ba-secondary-text, var(--ba-text))' }}
           >
@@ -130,7 +135,7 @@ export function HotsiteNavigation({
           {items.map((item) => (
             <a
               key={`${item.target}-${item.label}`}
-              href={`/${slug}#${item.target}`}
+              href={itemHref(slug, item)}
               onClick={closeMenu}
               className={`${LINK_CLASS} px-4 py-3`}
               style={{ color: 'var(--ba-secondary-text, var(--ba-text))' }}

@@ -317,7 +317,7 @@ describe('NAVIGATION and CONTENT_BLOCK in the render plan', () => {
   };
   const contentBlockData = { variant: 'image-statement' as const, title: 'Nossa história' };
   const navigation = (
-    targets: ('service-list' | 'gallery' | 'testimonials' | 'about' | 'contact')[],
+    targets: ('home' | 'service-list' | 'gallery' | 'testimonials' | 'about' | 'contact')[],
     enabled = true,
   ): HotsiteModuleResponse =>
     makeLayoutItem({
@@ -434,6 +434,14 @@ describe('NAVIGATION and CONTENT_BLOCK in the render plan', () => {
           { label: 'gallery', target: 'gallery' },
           { label: 'about', target: 'about' },
         ],
+      );
+    });
+
+    it('keeps a Home item whatever the layout holds — it targets no section', () => {
+      const layout = [navigation(['home']), makeLayoutItem({ type: 'HERO', data: heroData })];
+
+      expect(resolveHotsiteNavigation(layout, buildHotsiteModuleRenderPlan(layout, false))).toEqual(
+        [{ label: 'home', target: 'home' }],
       );
     });
 

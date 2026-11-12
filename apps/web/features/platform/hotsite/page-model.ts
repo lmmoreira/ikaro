@@ -97,14 +97,17 @@ export function shouldSkipDivider(
 const NON_SECTION_TYPES: ReadonlySet<HotsiteModuleType> = new Set(['NAVIGATION']);
 
 // The module type a navigation item's `target` anchor points at (the section's own DOM id).
-const NAVIGATION_TARGET_TYPE: Readonly<Record<HotsiteNavigationItem['target'], HotsiteModuleType>> =
-  {
-    'service-list': 'SERVICE_LIST',
-    gallery: 'GALLERY',
-    testimonials: 'TESTIMONIALS',
-    about: 'ABOUT',
-    contact: 'CONTACT',
-  };
+// `home` has no section: it links to the hotsite root, so it is always kept.
+const NAVIGATION_TARGET_TYPE: Readonly<
+  Record<HotsiteNavigationItem['target'], HotsiteModuleType | null>
+> = {
+  home: null,
+  'service-list': 'SERVICE_LIST',
+  gallery: 'GALLERY',
+  testimonials: 'TESTIMONIALS',
+  about: 'ABOUT',
+  contact: 'CONTACT',
+};
 
 // A plan item whose component actually draws a section. Gallery and Testimonials render nothing for
 // valid but empty data (no images, no items), so a link to them would point at an anchor that does
@@ -132,7 +135,10 @@ export function resolveHotsiteNavigation(
   const renderedTypes = new Set<HotsiteModuleType>(
     plan.filter(rendersSection).map((item) => item.parsed.type),
   );
-  return parsed.data.items.filter((item) => renderedTypes.has(NAVIGATION_TARGET_TYPE[item.target]));
+  return parsed.data.items.filter((item) => {
+    const type = NAVIGATION_TARGET_TYPE[item.target];
+    return type === null || renderedTypes.has(type);
+  });
 }
 
 // A header CTA belongs to the same enabled, validated NAVIGATION entry as the section links; a

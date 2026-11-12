@@ -40,10 +40,12 @@ const PRESENTATION_BACKGROUND_MODULE_TYPES: ReadonlySet<HotsiteModuleType> = new
   'CONTENT_BLOCK',
 ]);
 
-// A navigation item targets the section anchor of one of these module types.
+// A navigation item targets the section anchor of one of these module types; `home` links to the
+// hotsite root, which always exists, so it depends on no module.
 const NAVIGATION_TARGET_MODULE_TYPE: Readonly<
-  Record<NavigationModuleData['items'][number]['target'], HotsiteModuleType>
+  Record<NavigationModuleData['items'][number]['target'], HotsiteModuleType | null>
 > = {
+  home: null,
   'service-list': 'SERVICE_LIST',
   gallery: 'GALLERY',
   testimonials: 'TESTIMONIALS',
@@ -79,7 +81,8 @@ function assertNavigationTargetsEnabled(layout: readonly HotsiteModule[]): void 
 
   const enabledTypes = new Set(layout.filter((m) => m.enabled).map((m) => m.type));
   for (const item of (navigation.data as NavigationModuleData).items) {
-    if (!enabledTypes.has(NAVIGATION_TARGET_MODULE_TYPE[item.target])) {
+    const requiredType = NAVIGATION_TARGET_MODULE_TYPE[item.target];
+    if (requiredType !== null && !enabledTypes.has(requiredType)) {
       throw new HotsiteNavigationTargetNotEnabledError(item.target);
     }
   }

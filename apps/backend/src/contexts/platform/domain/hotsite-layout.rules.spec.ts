@@ -10,7 +10,7 @@ import { HotsiteModule, HotsiteModulePresentation } from './hotsite-config.types
 import { assertValidLayoutStructure } from './hotsite-layout.rules';
 
 const navigation = (
-  targets: ('service-list' | 'gallery' | 'testimonials' | 'about' | 'contact')[],
+  targets: ('home' | 'service-list' | 'gallery' | 'testimonials' | 'about' | 'contact')[],
   enabled = true,
 ): HotsiteModule => ({
   type: 'NAVIGATION',
@@ -95,6 +95,10 @@ describe('assertValidLayoutStructure', () => {
           contact(),
         ]),
       ).not.toThrow();
+    });
+
+    it('accepts a Home link with no other module in the layout', () => {
+      expect(() => assertValidLayoutStructure([navigation(['home']), hero()])).not.toThrow();
     });
 
     it('rejects a target whose module is disabled', () => {

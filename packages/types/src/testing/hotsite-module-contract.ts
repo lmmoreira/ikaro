@@ -61,6 +61,7 @@ const block = { title: 'Title' };
 export const HOTSITE_MODULE_CONTRACT_CASES: readonly HotsiteModuleContractCase[] = [
   // NAVIGATION — new type, strict
   accept('NAVIGATION', 'no items', { items: [] }),
+  accept('NAVIGATION', 'a Home link', { items: [{ label: 'Início', target: 'home' }] }),
   accept('NAVIGATION', 'booking CTA', {
     items: [],
     cta: { label: 'Agendar', target: 'booking-form' },

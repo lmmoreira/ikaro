@@ -70,6 +70,17 @@ describe('HotsiteNavigation', () => {
     );
   });
 
+  it('links a Home item to the hotsite root, not to an anchor', () => {
+    renderWithIntl(
+      <HotsiteNavigation items={[{ label: 'Início', target: 'home' }]} slug="casa47" />,
+    );
+
+    expect(screen.getAllByRole('link', { name: 'Início', hidden: true })[0]).toHaveAttribute(
+      'href',
+      '/casa47',
+    );
+  });
+
   it('shows the inline links from md up and the collapsed menu below it', () => {
     renderWithIntl(<HotsiteNavigation items={ITEMS} slug="casa47" />);
 

@@ -1678,7 +1678,7 @@
             }
           },
           "navigation": {
-            "description": "The links in the top bar. Each one scrolls to a section of this page.",
+            "description": "The links in the top bar. Each one goes to Home or scrolls to a section of this page.",
             "incomplete": "Fill in every link’s label to apply these changes.",
             "dragLabel": "Reorder link {position}",
             "itemLabel": "Link {position} label",
@@ -1686,6 +1686,7 @@
             "removeItem": "Remove link {position}",
             "itemTarget": "Link {position} goes to",
             "targets": {
+              "home": "Home",
               "service-list": "Services",
               "gallery": "Gallery",
               "testimonials": "Testimonials",
