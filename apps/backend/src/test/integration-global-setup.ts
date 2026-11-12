@@ -78,6 +78,7 @@ import { FeaturePriceVersionEntity } from '../contexts/billing/infrastructure/en
 import { FeaturePriceEntity } from '../contexts/billing/infrastructure/entities/feature-price.entity';
 import { BillingAccountEntity } from '../contexts/billing/infrastructure/entities/billing-account.entity';
 import { SignupRegistrationEntity } from '../contexts/billing/infrastructure/entities/signup-registration.entity';
+import { OperatorAuditEntity } from '../contexts/billing/infrastructure/entities/operator-audit.entity';
 import { SubscriptionItemEntity } from '../contexts/billing/infrastructure/entities/subscription-item.entity';
 import { SubscriptionEntity } from '../contexts/billing/infrastructure/entities/subscription.entity';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
@@ -183,6 +184,7 @@ export default async function globalSetup(): Promise<void> {
       SubscriptionItemEntity,
       BillingAccountEntity,
       SignupRegistrationEntity,
+      OperatorAuditEntity,
       LeadFormSubmissionEntity,
       LeadFormAnswerEntity,
       ResourceEntity,

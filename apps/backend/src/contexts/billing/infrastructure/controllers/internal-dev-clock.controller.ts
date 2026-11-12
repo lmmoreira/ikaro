@@ -1,6 +1,7 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 import { ZodValidationPipe } from '@ikaro/nestjs-http';
 import { InternalApiGuard } from '../../../../shared/guards/internal-api.guard';
+import { PlatformAdminGuard } from '../../../../shared/guards/platform-admin.guard';
 import { AdvanceClockDto, AdvanceClockSchema } from '../../application/dtos/advance-clock.dto';
 import {
   AdvanceClockUseCase,
@@ -16,10 +17,9 @@ import {
 } from '../../application/use-cases/reset-clock.use-case';
 import { mapClockError } from '../../../../shared/http/clock-error.mapper';
 
-// Interim guard (M25-S12 until S15a): `InternalApiGuard` alone, because `PlatformAdminGuard` still
-// lives in Platform. S15a moves it to `src/shared/guards/` and adds it here. Registered only in
-// `local` and `staging` (`DevClockModule.register`).
-@UseGuards(InternalApiGuard)
+// Both operator-key guards (M25-S15a): the route moves time, so it needs `X-Internal-Key` and
+// `X-Platform-Admin-Key`. Registered only in `local` and `staging` (`DevClockModule.register`).
+@UseGuards(InternalApiGuard, PlatformAdminGuard)
 @Controller('internal/dev/clock')
 export class InternalDevClockController {
   constructor(

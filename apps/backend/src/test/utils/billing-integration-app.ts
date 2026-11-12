@@ -7,6 +7,7 @@ import { FeaturePriceVersionEntity } from '../../contexts/billing/infrastructure
 import { FeaturePriceEntity } from '../../contexts/billing/infrastructure/entities/feature-price.entity';
 import { BillingAccountEntity } from '../../contexts/billing/infrastructure/entities/billing-account.entity';
 import { SignupRegistrationEntity } from '../../contexts/billing/infrastructure/entities/signup-registration.entity';
+import { OperatorAuditEntity } from '../../contexts/billing/infrastructure/entities/operator-audit.entity';
 import { SubscriptionItemEntity } from '../../contexts/billing/infrastructure/entities/subscription-item.entity';
 import { SubscriptionEntity } from '../../contexts/billing/infrastructure/entities/subscription.entity';
 import { BillingModule } from '../../contexts/billing/billing.module';
@@ -61,6 +62,7 @@ export async function createBillingIntegrationApp(
           SubscriptionItemEntity,
           BillingAccountEntity,
           SignupRegistrationEntity,
+          OperatorAuditEntity,
           InboxRecordEntity,
           // BillingModule imports PlatformSettingsModule (the access resolver's tenant-info read).
           TenantEntity,

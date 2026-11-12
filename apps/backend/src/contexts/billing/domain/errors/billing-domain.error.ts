@@ -176,3 +176,15 @@ export class BillingTenantNotFoundError extends BillingDomainError implements Do
     this.name = 'BillingTenantNotFoundError';
   }
 }
+
+/**
+ * An `OperatorAudit` record was built with an empty or over-long actor, an empty reason, or an
+ * oversize payload (M25-S15a). The operator routes validate the reason at the request boundary, so
+ * this is a defence-in-depth error no endpoint surfaces.
+ */
+export class OperatorAuditInvariantError extends BillingDomainError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'OperatorAuditInvariantError';
+  }
+}
