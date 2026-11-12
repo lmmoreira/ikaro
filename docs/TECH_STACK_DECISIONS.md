@@ -3,7 +3,7 @@
 > **When to load:** questioning or revisiting a technology choice (TypeORM, NestJS, Next.js, Pub/Sub, Cloud Run, PostgreSQL, Secret Manager, Terraform, the email provider, the payment providers) and why it was made, with its scaling path; current infrastructure facts are in `docs/DEPLOYMENT_STRATEGY.md` and `docs/INFRASTRUCTURE_TOOLING_MAP.md`.
 > **Tags:** agent-process
 **Date:** 2026-05-12 (originally written; later edits are dated where they occur)  
-**Status:** Decision record. The stack below is implemented, except §10 Payment Providers, which is planned (Billing milestone); the checklist and next-steps sections near the end are the original pre-development plan, kept as history.  
+**Status:** Decision record. The stack below is implemented, except §10 Payment Providers, which is planned (Billing milestone; the port, the fake and the contract suite are built, M25-S14); the checklist and next-steps sections near the end are the original pre-development plan, kept as history.  
 **Audience:** Development team, stakeholders, AI agents  
 **Related Documents:** See cross-references throughout
 

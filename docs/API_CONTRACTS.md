@@ -1737,7 +1737,7 @@ Body: { "tenantId" | "chargeId": "…",
 
 ### Provider port (Ikaro's terms)
 
-`BillingProviderPort` is defined in Ikaro's terms and never leaks a provider type beyond the adapter. Adapters: `AsaasBillingProvider` (BRL), `StripeBillingProvider` (USD, slice E) and the non-production `FakeBillingProvider`; one contract suite runs against the fake on every PR and against the Asaas sandbox and Stripe test mode nightly. Live-adapter startup rule: `docs/ENGINEERING_RULES_INFRA.md` § Billing configuration (planned).
+`BillingProviderPort` is defined in Ikaro's terms and never leaks a provider type beyond the adapter. Adapters: `AsaasBillingProvider` (BRL), `StripeBillingProvider` (USD, slice E) and the non-production `FakeBillingProvider`; one contract suite runs against the fake on every PR and against the Asaas sandbox and Stripe test mode nightly. The merchant-profile-key rule is enforced on lookup in the registry and never at startup: `docs/ENGINEERING_RULES_INFRA.md` § Billing configuration (planned). Built so far (M25-S14): the port, the fake for `BRL_FAKE`, the registry and the contract suite; the Asaas and Stripe adapters are M26 and M28.
 
 ```ts
 interface BillingProviderPort {
