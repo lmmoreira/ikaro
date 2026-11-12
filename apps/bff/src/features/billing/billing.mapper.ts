@@ -19,6 +19,11 @@ export function failOpenBackendAccess(): BackendTenantAccess {
   };
 }
 
+function describeCause(err: unknown): string {
+  if (err instanceof ZodError) return 'invalid backend response';
+  return err instanceof Error ? err.message : String(err);
+}
+
 // The `.catch(...)` of the access read (UC-120 A2): a 4xx is a real answer from the backend (an
 // unknown tenant, a bad key) and is rethrown; anything else (an outage, a network error, a body
 // that does not match the contract) fails open and is logged, so a paying tenant is never locked
@@ -29,13 +34,9 @@ export function recoverAccessLookup(
   logger: AccessLookupLogger,
 ): BackendTenantAccess {
   if (err instanceof HttpException && err.getStatus() < 500) throw err;
-  const cause =
-    err instanceof ZodError
-      ? 'invalid backend response'
-      : err instanceof Error
-        ? err.message
-        : String(err);
-  logger.error(`Billing access lookup failed for tenant '${tenantId}', failing open: ${cause}`);
+  logger.error(
+    `Billing access lookup failed for tenant '${tenantId}', failing open: ${describeCause(err)}`,
+  );
   return failOpenBackendAccess();
 }
 

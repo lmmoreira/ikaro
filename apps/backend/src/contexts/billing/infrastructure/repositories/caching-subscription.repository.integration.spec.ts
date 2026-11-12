@@ -2,22 +2,28 @@ import { INestApplication } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { TENANT_ACCESS_PORT, TenantAccessPort } from '../../../../shared/ports/tenant-access.port';
+import {
+  ITransactionManager,
+  TRANSACTION_MANAGER,
+} from '../../../../shared/ports/transaction-manager.port';
 import { SubscriptionEntityBuilder } from '../../../../test/builders/billing';
 import { TenantEntityBuilder } from '../../../../test/builders/platform';
 import { createBillingIntegrationApp } from '../../../../test/utils/billing-integration-app';
 import { TenantEntity } from '../../../platform/infrastructure/entities/tenant.entity';
 import {
-  TENANT_ACCESS_CACHE_INVALIDATOR,
-  TenantAccessCacheInvalidator,
-} from '../../application/ports/tenant-access-cache-invalidator.port';
+  ISubscriptionRepository,
+  SUBSCRIPTION_REPOSITORY,
+} from '../../application/ports/subscription-repository.port';
 import { CreateTrialSubscriptionUseCase } from '../../application/use-cases/create-trial-subscription.use-case';
 import { SubscriptionEntity } from '../entities/subscription.entity';
+import { CachingSubscriptionRepository } from './caching-subscription.repository';
 
-describe('CachingTenantAccessAdapter (integration)', () => {
+describe('CachingSubscriptionRepository (integration)', () => {
   let app: INestApplication;
   let ds: DataSource;
   let port: TenantAccessPort;
-  let invalidator: TenantAccessCacheInvalidator;
+  let repo: ISubscriptionRepository;
+  let txManager: ITransactionManager;
   const tenantIds: string[] = [];
 
   const newTenantId = (): string => {
@@ -29,7 +35,8 @@ describe('CachingTenantAccessAdapter (integration)', () => {
   beforeAll(async () => {
     ({ app, ds } = await createBillingIntegrationApp());
     port = app.get<TenantAccessPort>(TENANT_ACCESS_PORT);
-    invalidator = app.get<TenantAccessCacheInvalidator>(TENANT_ACCESS_CACHE_INVALIDATOR);
+    repo = app.get<ISubscriptionRepository>(SUBSCRIPTION_REPOSITORY);
+    txManager = app.get<ITransactionManager>(TRANSACTION_MANAGER);
   });
 
   afterEach(async () => {
@@ -51,7 +58,11 @@ describe('CachingTenantAccessAdapter (integration)', () => {
     await app.close();
   });
 
-  it('serves a repeat read from the cache until the invalidator evicts it', async () => {
+  it('registers the caching decorator as the subscription repository', () => {
+    expect(repo).toBeInstanceOf(CachingSubscriptionRepository);
+  });
+
+  it('serves a repeat read of the port from the cache until a save() through the repository evicts it', async () => {
     const tenantId = newTenantId();
     await ds
       .getRepository(SubscriptionEntity)
@@ -63,7 +74,12 @@ describe('CachingTenantAccessAdapter (integration)', () => {
       [tenantId],
     );
     const stillCached = await port.getAccess(tenantId);
-    await invalidator.invalidate(tenantId);
+    // Any writer going through the repository evicts: here a plain load-and-save in a transaction.
+    await txManager.run(async () => {
+      const loaded = await repo.findByTenantIdForUpdate(tenantId);
+      if (!loaded) throw new Error('expected the subscription to exist');
+      await repo.save(loaded);
+    });
     const fresh = await port.getAccess(tenantId);
 
     expect(first.operational).toBe(true);
@@ -71,7 +87,7 @@ describe('CachingTenantAccessAdapter (integration)', () => {
     expect(fresh.operational).toBe(false);
   });
 
-  it('replaces a cached provisional answer with the real one once the trial handler committed', async () => {
+  it('never caches a missing subscription: the provisional answer ends the moment the trial exists', async () => {
     const tenantId = newTenantId();
     const slug = `s13-${uuidv7()}`;
     await ds.getRepository(TenantEntity).insert(

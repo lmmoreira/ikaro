@@ -26,18 +26,17 @@ import { TypeOrmSignupRegistrationLockAdapter } from './infrastructure/locks/typ
 import { TypeOrmSignupRegistrationRepository } from './infrastructure/repositories/typeorm-signup-registration.repository';
 import { TypeOrmBillingAccountRepository } from './infrastructure/repositories/typeorm-billing-account.repository';
 import { TypeOrmFeaturePriceRepository } from './infrastructure/repositories/typeorm-feature-price.repository';
+import { CachingSubscriptionRepository } from './infrastructure/repositories/caching-subscription.repository';
 import { TypeOrmSubscriptionRepository } from './infrastructure/repositories/typeorm-subscription.repository';
 import { type AppEnv, resolveAppEnv } from '../../shared/database/resolve-app-env';
 import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cache.module';
 import { TENANT_ACCESS_PORT } from '../../shared/ports/tenant-access.port';
 import { PlatformSettingsModule } from '../platform/platform-settings.module';
 import { BILLING_PLATFORM_PORT } from './application/ports/billing-platform.port';
-import { TENANT_ACCESS_CACHE_INVALIDATOR } from './application/ports/tenant-access-cache-invalidator.port';
 import { GetTenantAccessUseCase } from './application/use-cases/get-tenant-access.use-case';
 import { ListSuspendedTenantIdsUseCase } from './application/use-cases/list-suspended-tenant-ids.use-case';
 import { ListTenantIdsNotEntitledToUseCase } from './application/use-cases/list-tenant-ids-not-entitled-to.use-case';
-import { CachingTenantAccessAdapter } from './infrastructure/adapters/caching-tenant-access.adapter';
-import { TenantAccessCacheInvalidatorAdapter } from './infrastructure/adapters/tenant-access-cache-invalidator.adapter';
+import { TenantAccessAdapter } from './infrastructure/adapters/tenant-access.adapter';
 import { BillingPlatformAdapter } from './infrastructure/cross-context/billing-platform.adapter';
 import { InternalBillingAccessController } from './infrastructure/controllers/internal-billing-access.controller';
 import { BILLING_PROVIDER_REGISTRY } from './application/ports/billing-provider.port';
@@ -73,7 +72,11 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     { provide: SIGNUP_REGISTRATION_LOCK, useClass: TypeOrmSignupRegistrationLockAdapter },
     ReserveSignupRegistrationUseCase,
     { provide: FEATURE_PRICE_REPOSITORY, useClass: TypeOrmFeaturePriceRepository },
-    { provide: SUBSCRIPTION_REPOSITORY, useClass: TypeOrmSubscriptionRepository },
+    // The cached layer: every reader of the subscription (the access resolver, the shared port, any
+    // later use case) goes through the decorator; the concrete adapter is its inner repository.
+    TypeOrmSubscriptionRepository,
+    CachingSubscriptionRepository,
+    { provide: SUBSCRIPTION_REPOSITORY, useClass: CachingSubscriptionRepository },
     { provide: BILLING_ACCOUNT_REPOSITORY, useClass: TypeOrmBillingAccountRepository },
     { provide: BILLING_APP_ENV, useFactory: () => resolveAppEnv(process.env) },
     FakeBillingProvider,
@@ -91,11 +94,10 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
       }),
     },
     { provide: BILLING_PLATFORM_PORT, useClass: BillingPlatformAdapter },
-    { provide: TENANT_ACCESS_CACHE_INVALIDATOR, useClass: TenantAccessCacheInvalidatorAdapter },
     GetTenantAccessUseCase,
     ListSuspendedTenantIdsUseCase,
     ListTenantIdsNotEntitledToUseCase,
-    { provide: TENANT_ACCESS_PORT, useClass: CachingTenantAccessAdapter },
+    { provide: TENANT_ACCESS_PORT, useClass: TenantAccessAdapter },
     CreateTrialSubscriptionUseCase,
     TenantProvisionedBillingHandler,
   ],

@@ -4,7 +4,6 @@ import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { TaxId } from '../../../../shared/value-objects/tax-id.vo';
 import { FeaturePriceBuilder, SignupRegistrationBuilder } from '../../../../test/builders/billing';
 import { InMemoryInboxRepository } from '../../../../test/infrastructure/in-memory-inbox.repository';
-import { InMemoryTenantAccessCacheInvalidator } from '../../../../test/infrastructure/in-memory-tenant-access-cache-invalidator';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBillingAccountRepository } from '../../../../test/repositories/billing/in-memory-billing-account.repository';
 import { InMemoryFeaturePriceRepository } from '../../../../test/repositories/billing/in-memory-feature-price.repository';
@@ -33,7 +32,6 @@ describe('CreateTrialSubscriptionUseCase', () => {
   let prices: InMemoryFeaturePriceRepository;
   let inbox: InMemoryInboxRepository;
   let txManager: InMemoryTransactionManager;
-  let accessCache: InMemoryTenantAccessCacheInvalidator;
   let config: BillingProvisioningConfig;
   let useCase: CreateTrialSubscriptionUseCase;
 
@@ -45,7 +43,6 @@ describe('CreateTrialSubscriptionUseCase', () => {
     prices.seed(new FeaturePriceBuilder().withCountryCode('BR').build());
     inbox = new InMemoryInboxRepository();
     txManager = new InMemoryTransactionManager();
-    accessCache = new InMemoryTenantAccessCacheInvalidator(txManager);
     config = { appEnv: 'local', platformOwnerSlug: OWNER_SLUG };
     useCase = new CreateTrialSubscriptionUseCase(
       subscriptions,
@@ -55,7 +52,6 @@ describe('CreateTrialSubscriptionUseCase', () => {
       inbox,
       txManager,
       config,
-      accessCache,
     );
   });
 
@@ -76,26 +72,6 @@ describe('CreateTrialSubscriptionUseCase', () => {
     correlationId: uuidv7(),
     eventId: uuidv7(),
     ...overrides,
-  });
-
-  describe('access cache invalidation (M25-S13)', () => {
-    it('evicts the tenant access answer only after the transaction committed', async () => {
-      const request = input();
-
-      await useCase.execute(request);
-
-      expect(accessCache.invalidated).toEqual([request.tenantId]);
-      expect(accessCache.calledInsideTransaction).toEqual([false]);
-    });
-
-    it('does not evict anything for a redelivery that created nothing', async () => {
-      const request = input();
-      await useCase.execute(request);
-
-      await useCase.execute(request);
-
-      expect(accessCache.invalidated).toEqual([request.tenantId]);
-    });
   });
 
   describe('a non-exempt tenant', () => {
@@ -176,7 +152,6 @@ describe('CreateTrialSubscriptionUseCase', () => {
         inbox,
         txManager,
         config,
-        accessCache,
       );
 
       await useCase.execute(input());
@@ -220,7 +195,6 @@ describe('CreateTrialSubscriptionUseCase', () => {
         inbox,
         txManager,
         config,
-        accessCache,
       );
 
       await useCase.execute(input({ slug: OWNER_SLUG }));

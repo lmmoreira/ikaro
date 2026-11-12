@@ -41,14 +41,14 @@ describe('toBillingAccessResponse', () => {
     'never carries a suspension reason or an internal marker for %s, even when the input does',
     (role) => {
       // What the backend really sends for a suspended tenant, markers and reason included.
-      const backendAnswer = {
+      const backendAnswer: BackendTenantAccess & Record<string, unknown> = {
         status: 'SUSPENDED',
         suspensionReason: 'NON_PAYMENT',
         operational: false,
         features: [],
         provisional: true,
         degraded: true,
-      } as unknown as BackendTenantAccess;
+      };
 
       const serialized = JSON.stringify(toBillingAccessResponse(role, backendAnswer));
 
