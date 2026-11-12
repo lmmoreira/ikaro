@@ -734,7 +734,7 @@ Resolve the common failure modes without an operator. Hourly trigger `cron-billi
 - `infra/terraform/modules/scheduler/main.tf`, `infra/terraform/modules/scheduler/variables.tf`, `infra/terraform/modules/scheduler/tests/resources_unit_test.tftest.hcl`, `infra/terraform/pubsub-catalog.json` (modify)
 
 **Acceptance criteria — product:**
-- [ ] A tenant that ended up with no subscription (a lost event, a legacy payload) gets its trial within the hour, automatically.
+- [ ] A tenant that ended up with no subscription (a lost or dead-lettered event) gets its trial within the hour, automatically.
 - [ ] If the provider or Ikaro's own reconcile has been down for a day, no paying tenant is suspended; the freeze lifts by itself.
 - [ ] A paused provider webhook is re-enabled by the system where the provider allows it, and the alert stays raised until a webhook delivery succeeds after the re-enable (a cleared flag is not recovery, and a wrong token keeps failing with `401`); otherwise an alert names the runbook.
 
