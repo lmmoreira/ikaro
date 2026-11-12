@@ -2735,15 +2735,15 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 ### **UC-111: Operator Extends Grace or Suspends a Tenant**
 
 - **Actor:** Operator
-- **Endpoint:** `POST /internal/tenants/{tenantId}/billing/grace` | `…/suspend` | `…/unsuspend` (`InternalApiGuard` + `PlatformAdminGuard`, audited; where the guard lives for Billing: `docs/BOUNDED_CONTEXTS.md` § 7. Billing Context)
+- **Endpoint:** `POST /internal/tenants/{tenantId}/billing/grace` | `…/suspend` | `…/unsuspend` (`InternalApiGuard` + `PlatformAdminGuard`, audited; where the guard lives for Billing: `docs/BOUNDED_CONTEXTS.md` § 7. Billing Context), and the read-only investigation list `GET /internal/billing/tenants`. The backend is on internal ingress, so the operator runs them through `scripts/billing-operator.sh` from the relay VM shell (`docs/RUNBOOKS.md` § Operator cases)
 - **Preconditions:** The subscription exists.
-- **Trigger:** The operator runs grace / suspend / unsuspend with `tenantId` and a `reason`, and for grace a `graceUntil`.
+- **Trigger:** The operator runs grace / suspend / unsuspend with `tenantId`, **their own name** (`operator`) and a `reason` (both required, a blank or missing one is `400`), and for grace a `graceUntil`. The shared platform key cannot tell operators apart, so the audit row records the name the operator claims, not a verified identity.
 - **Main Flow:** **Grace** sets `graceUntil` (the status sweep then waits until that date before suspending). **Suspend** (abuse / takedown) sets `SUSPENDED` with reason `OPERATOR`: no recovery charge is issued and payment does not lift it. **Unsuspend** — valid for the `OPERATOR` reason alone — restores access. Grace is a mapped edge case, rarely needed because the suspension freeze (UC-140) covers provider outages. There is **no** operator payment override and no operator reactivation of a `NON_PAYMENT`, `CANCELED` or `PAYMENT_REVERSED` suspension: only provider-confirmed payment restores access (UC-114, UC-134).
 - **Alternative Flows:**
    - **A1: Grace on a tenant that is not `PAST_DUE`** → rejected (`409 BILLING_GRACE_NOT_ALLOWED`).
    - **A3: Suspend an `exempt` tenant** → rejected with `403 BILLING_EXEMPT_PROTECTED`: an exempt tenant is never suspended, including by the operator (clear `exempt` first, UC-137).
    - **A2: Attempt to reactivate a payment-based suspension** → rejected; it cannot bypass provider-confirmed payment (`409 BILLING_UNSUSPEND_NOT_ALLOWED`; the same code refuses an unsuspend of any non-`OPERATOR` suspension). The one exception is making the tenant `exempt` (UC-137 A3), which makes it free rather than paid.
-- **Postconditions:** Grace or suspension changed; `operator_audit` row written; access cache invalidated.
+- **Postconditions:** Grace or suspension changed; `operator_audit` row written (`actor` = the operator's name, with the reason: who and why); access cache invalidated. A call that finds the tenant already in the requested state is a no-op: no audit row, no event.
 - **Events Triggered:** `SubscriptionSuspended` / `SubscriptionReactivated` where applicable.
 
 ---
@@ -3272,13 +3272,13 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 ### **UC-137: Operator Sets or Clears a Tenant's `exempt` Flag**
 
 - **Actor:** Operator
-- **Endpoint:** `PUT /internal/tenants/{tenantId}/billing/exempt` with `{ exempt, reason }` (`InternalApiGuard` + `PlatformAdminGuard`); or provisioning from an `exempt` operator registration (`POST /internal/billing/registrations` with `exempt: true`, `scripts/provision-tenant.sh --exempt`)
+- **Endpoint:** `PUT /internal/tenants/{tenantId}/billing/exempt` with `{ exempt, operator, reason }` (`InternalApiGuard` + `PlatformAdminGuard`; `scripts/billing-operator.sh exempt <tenantId> --set|--clear`); or provisioning from an `exempt` operator registration (`POST /internal/billing/registrations` with `exempt: true`, `scripts/provision-tenant.sh --exempt`)
 - **Preconditions:** The subscription exists (or the tenant is being provisioned from an `exempt` registration).
 - **Trigger:** The operator marks a tenant as free (partner, internal, test-that-must-never-be-charged) or puts it back on the paid ladder.
 - **Main Flow:**
    1. **Set:** the subscription becomes `ACTIVE`, `exempt = true`, every feature entitled with open-ended items (items that have already started are end-dated at the moment of the change; items that have not started yet, such as a trial's default paid items `[trial_ends_at, ∞)`, are replaced outright because an end date before their start would be an empty range; either way the exclusion constraint never sees an overlap); any open charge is cancelled locally and at the provider; billing emails stop; the tenant is excluded from charge issuing, the sweep and purge.
    2. **Clear:** the subscription becomes `TRIALING` with a fresh 14-day window and `plan_confirmed_at = NULL`; the open-ended exempt items are **replaced** by the default paid items `[trial_ends_at, ∞)` in the same transaction (the exclusion constraint forbids overlap), so the manager picks and confirms the first paid selection; nothing is charged before the trial ends.
-   3. The access cache is invalidated after commit and an `operator_audit` row (`SET_EXEMPT`, who, why) is written.
+   3. The access cache is invalidated after commit and an `operator_audit` row (`SET_EXEMPT`; `actor` is the `operator` name from the request, plus the reason) is written.
 - **Alternative Flows:**
    - **A1: Tenant is Ikaro's own** (`PLATFORM_OWNER_TENANT_SLUG`) → clearing is rejected (`403 BILLING_EXEMPT_PROTECTED`).
    - **A2: Already in the requested state** → no-op, no audit row.

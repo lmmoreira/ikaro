@@ -1,4 +1,4 @@
-import { PlatformErrorCode, SignupErrorCode } from '@ikaro/types/protocol/errors';
+import { BillingErrorCode, PlatformErrorCode, SignupErrorCode } from '@ikaro/types/protocol/errors';
 import type { DomainErrorShape } from '../../../../shared/domain/domain-error-shape';
 
 // Billing domain errors (M25-S04). Plain typed classes: the Billing HTTP error mapper and the
@@ -71,7 +71,9 @@ export class PlanEmptyError extends BillingDomainError {
 }
 
 /** An exempt subscription is never suspended, and the platform-owner tenant's is never un-exempted. */
-export class ExemptProtectedError extends BillingDomainError {
+export class ExemptProtectedError extends BillingDomainError implements DomainErrorShape {
+  readonly code = BillingErrorCode.EXEMPT_PROTECTED;
+
   constructor(message: string) {
     super(message);
     this.name = 'ExemptProtectedError';
@@ -79,7 +81,9 @@ export class ExemptProtectedError extends BillingDomainError {
 }
 
 /** Grace is refused unless the subscription is PAST_DUE, and it never shortens the 14 days. */
-export class GraceNotAllowedError extends BillingDomainError {
+export class GraceNotAllowedError extends BillingDomainError implements DomainErrorShape {
+  readonly code = BillingErrorCode.GRACE_NOT_ALLOWED;
+
   constructor(message: string) {
     super(message);
     this.name = 'GraceNotAllowedError';
@@ -87,7 +91,9 @@ export class GraceNotAllowedError extends BillingDomainError {
 }
 
 /** Only an OPERATOR suspension is lifted by the operator; a payment-based one needs a payment. */
-export class UnsuspendNotAllowedError extends BillingDomainError {
+export class UnsuspendNotAllowedError extends BillingDomainError implements DomainErrorShape {
+  readonly code = BillingErrorCode.UNSUSPEND_NOT_ALLOWED;
+
   constructor(message: string) {
     super(message);
     this.name = 'UnsuspendNotAllowedError';

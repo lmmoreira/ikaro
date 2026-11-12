@@ -220,6 +220,18 @@
     ]
   },
   {
+    "event": "SubscriptionReactivated",
+    "consumers": [
+      "audit-log"
+    ]
+  },
+  {
+    "event": "SubscriptionSuspended",
+    "consumers": [
+      "audit-log"
+    ]
+  },
+  {
     "event": "TenantProvisioned",
     "consumers": [
       "audit-log",

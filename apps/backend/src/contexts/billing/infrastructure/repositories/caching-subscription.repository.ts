@@ -6,7 +6,11 @@ import { CACHE_PORT, type CachePort } from '../../../../shared/ports/cache.port'
 import { CalendarDate } from '../../../../shared/value-objects/calendar-date.vo';
 import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
 import { Timezone } from '../../../../shared/value-objects/timezone.vo';
-import type { ISubscriptionRepository } from '../../application/ports/subscription-repository.port';
+import type {
+  ISubscriptionRepository,
+  ListOperatorSubscriptionsQuery,
+  OperatorSubscriptionSummary,
+} from '../../application/ports/subscription-repository.port';
 import type { FeatureTier } from '../../domain/feature-price.aggregate';
 import {
   Subscription,
@@ -110,6 +114,12 @@ export class CachingSubscriptionRepository implements ISubscriptionRepository {
 
   listSuspendedTenantIds(): Promise<string[]> {
     return this.repo.listSuspendedTenantIds();
+  }
+
+  listSummaries(
+    query: ListOperatorSubscriptionsQuery,
+  ): Promise<{ items: OperatorSubscriptionSummary[]; total: number }> {
+    return this.repo.listSummaries(query);
   }
 
   findTenantIdsNotEntitledTo(featureKey: FeatureKey, now: Date): Promise<string[]> {

@@ -1,0 +1,62 @@
+# Billing — Operator routes (UC-111, UC-137). LOCAL USE ONLY.
+# In staging and production the backend is on internal ingress: use scripts/billing-operator.sh from
+# the relay VM shell instead (docs/RUNBOOKS.md § Operator cases). Every route needs both keys.
+#
+# `operator` is your name (stored as the audit row's actor); `reason` is required (1-500 characters).
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run dev
+#   3. a tenant with a subscription (pnpm provision, or the seed)
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@baseUrl     = {{backendUrl}}
+@internalKey = {{$dotenv INTERNAL_API_KEY}}
+@platformKey = {{$dotenv PLATFORM_ADMIN_KEY}}
+@tenantId    = 00000000-0000-0000-0000-000000000000
+
+### Investigation list (read-only): newest first, 25 per page, optional status filter
+GET {{baseUrl}}/internal/billing/tenants?status=ACTIVE&limit=25&offset=0
+X-Internal-Key: {{internalKey}}
+X-Platform-Admin-Key: {{platformKey}}
+
+###
+
+### Suspend for abuse / takedown (reason OPERATOR). 403 BILLING_EXEMPT_PROTECTED for an exempt tenant
+POST {{baseUrl}}/internal/tenants/{{tenantId}}/billing/suspend
+X-Internal-Key: {{internalKey}}
+X-Platform-Admin-Key: {{platformKey}}
+Content-Type: application/json
+
+{ "operator": "Your Name", "reason": "abuse report #42" }
+
+###
+
+### Lift an OPERATOR suspension. 409 BILLING_UNSUSPEND_NOT_ALLOWED for a payment-based one
+POST {{baseUrl}}/internal/tenants/{{tenantId}}/billing/unsuspend
+X-Internal-Key: {{internalKey}}
+X-Platform-Admin-Key: {{platformKey}}
+Content-Type: application/json
+
+{ "operator": "Your Name", "reason": "false positive" }
+
+###
+
+### Extend grace on a PAST_DUE tenant. 409 BILLING_GRACE_NOT_ALLOWED otherwise, or if it would shorten the 14 days
+POST {{baseUrl}}/internal/tenants/{{tenantId}}/billing/grace
+X-Internal-Key: {{internalKey}}
+X-Platform-Admin-Key: {{platformKey}}
+Content-Type: application/json
+
+{ "operator": "Your Name", "reason": "customer promised payment", "graceUntil": "2026-12-01T00:00:00Z" }
+
+###
+
+### Set exempt (free access); { "exempt": false } clears it into a fresh 14-day trial
+PUT {{baseUrl}}/internal/tenants/{{tenantId}}/billing/exempt
+X-Internal-Key: {{internalKey}}
+X-Platform-Admin-Key: {{platformKey}}
+Content-Type: application/json
+
+{ "operator": "Your Name", "reason": "partner account", "exempt": true }

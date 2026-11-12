@@ -3,7 +3,7 @@
 > **When to load:** adding or mapping an error code, or showing an API error in the UI: the RFC 9457 format, HTTP status usage, where each code originates (including the planned `BILLING_*` / `SIGNUP_*` origins) and how frontend and API code should use them; endpoint contracts are in `docs/API_CONTRACTS.md`.
 > **Tags:** backend, bff, web
 
-**Status:** Live — reflects the shipped `code`-driven pattern. The `BILLING_*` and `SIGNUP_*` origins are in `packages/types/src/error-codes.ts` since M25-S06 (`SignupErrorCode`: `TAX_ID_INVALID`, `TAX_ID_REQUIRED`, and `TERMS_NOT_ACCEPTED` since M25-S09, thrown by the Billing registration use case as a `422`; `BillingErrorCode`: still empty after M25-S08, whose domain errors are deliberately unmapped; later stories add members, see *Planned origins*); every other member listed under *Planned origins* is added, with its locale entries, by the story that first throws it.
+**Status:** Live — reflects the shipped `code`-driven pattern. The `BILLING_*` and `SIGNUP_*` origins are in `packages/types/src/error-codes.ts` since M25-S06 (`SignupErrorCode`: `TAX_ID_INVALID`, `TAX_ID_REQUIRED`, and `TERMS_NOT_ACCEPTED` since M25-S09, thrown by the Billing registration use case as a `422`; `BillingErrorCode`: `EXEMPT_PROTECTED` (`403`), `GRACE_NOT_ALLOWED` and `UNSUSPEND_NOT_ALLOWED` (`409`) since M25-S15b, the operator refusals; later stories add members, see *Planned origins*); every other member listed under *Planned origins* is added, with its locale entries, by the story that first throws it.
 **Audience:** Frontend developers, API consumers, AI agents
 **Standard:** RFC 9457 Problem Details for HTTP APIs
 **Last Updated:** 2026-10-12

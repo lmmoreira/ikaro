@@ -16,6 +16,7 @@ import { BillingAccountEntity } from '../entities/billing-account.entity';
 import { SubscriptionEntity } from '../entities/subscription.entity';
 import { TypeOrmBillingAccountRepository } from './typeorm-billing-account.repository';
 import { TypeOrmSubscriptionRepository } from './typeorm-subscription.repository';
+import { InMemoryOutboxPublisher } from '../../../../test/infrastructure/in-memory-outbox-publisher';
 
 describe('TypeOrmBillingAccountRepository (integration)', () => {
   let dataSource: DataSource;
@@ -50,7 +51,10 @@ describe('TypeOrmBillingAccountRepository (integration)', () => {
     dataSource = await createTestDataSource();
     txManager = new TypeOrmTransactionManager(dataSource);
     accounts = new TypeOrmBillingAccountRepository(dataSource.getRepository(BillingAccountEntity));
-    subscriptions = new TypeOrmSubscriptionRepository(dataSource.getRepository(SubscriptionEntity));
+    subscriptions = new TypeOrmSubscriptionRepository(
+      dataSource.getRepository(SubscriptionEntity),
+      new InMemoryOutboxPublisher(),
+    );
   });
 
   afterEach(async () => {

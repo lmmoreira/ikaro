@@ -332,8 +332,8 @@ export const EmailErrorCode = {
 export type EmailErrorCode = (typeof EmailErrorCode)[keyof typeof EmailErrorCode];
 
 // Billing release origins (M25-S06). SignupErrorCode holds the codes thrown so far (the shared
-// TaxId VO — every provisioning-time path); BillingErrorCode starts empty and each story adds its
-// members when it first throws them, with their locale entries (docs/ERROR_CATALOG.md § Planned
+// TaxId VO — every provisioning-time path); BillingErrorCode holds the operator refusals and each
+// later story adds its members when it first throws them, with their locale entries (docs/ERROR_CATALOG.md § Planned
 // origins). A member needs a translation in both errors.json files the moment it is added.
 export const SignupErrorCode = {
   TAX_ID_INVALID: 'SIGNUP_TAX_ID_INVALID',
@@ -342,7 +342,12 @@ export const SignupErrorCode = {
 } as const;
 export type SignupErrorCode = (typeof SignupErrorCode)[keyof typeof SignupErrorCode];
 
-export const BillingErrorCode = {} as const;
+export const BillingErrorCode = {
+  // Operator refusals (M25-S15b, UC-111 / UC-137).
+  EXEMPT_PROTECTED: 'BILLING_EXEMPT_PROTECTED',
+  GRACE_NOT_ALLOWED: 'BILLING_GRACE_NOT_ALLOWED',
+  UNSUSPEND_NOT_ALLOWED: 'BILLING_UNSUSPEND_NOT_ALLOWED',
+} as const;
 export type BillingErrorCode = (typeof BillingErrorCode)[keyof typeof BillingErrorCode];
 
 // Genuinely BFF-feature-originated conditions (TD23 Story 11) — guest-token/guard/tenant-lookup
