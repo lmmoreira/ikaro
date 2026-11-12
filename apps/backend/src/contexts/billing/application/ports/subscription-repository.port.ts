@@ -1,3 +1,4 @@
+import type { FeatureKey } from '@ikaro/validation';
 import type { Subscription } from '../../domain/subscription.aggregate';
 
 export const SUBSCRIPTION_REPOSITORY = Symbol('ISubscriptionRepository');
@@ -20,4 +21,17 @@ export interface ISubscriptionRepository {
    * `subscription.itemsDirty`. A second subscription for a tenant is `SubscriptionAlreadyExistsError`.
    */
   save(subscription: Subscription): Promise<void>;
+
+  /**
+   * Cross-tenant system read (UC-120 A4): ids of `SUSPENDED` subscriptions, oldest suspension
+   * first. Served by the standalone partial index `IDX_billing_subscriptions_suspended_at`.
+   * Ids only, never another tenant's state.
+   */
+  listSuspendedTenantIds(): Promise<string[]>;
+
+  /**
+   * Cross-tenant system read (UC-120 A4): ids of operational tenants that are not on a trial (a
+   * trial grants every feature) and have no item for `featureKey` active at `now`. Ids only.
+   */
+  findTenantIdsNotEntitledTo(featureKey: FeatureKey, now: Date): Promise<string[]>;
 }

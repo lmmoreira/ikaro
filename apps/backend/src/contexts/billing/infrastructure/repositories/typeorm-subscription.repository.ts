@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import type { FeatureKey } from '@ikaro/validation';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, In, QueryFailedError, Repository } from 'typeorm';
+import { EntityManager, In, QueryFailedError, Repository, SelectQueryBuilder } from 'typeorm';
 import { runInNewTransaction } from '../../../../shared/infrastructure/run-in-new-transaction';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { mapSequentially } from '../../../../shared/utils/sequential';
@@ -55,6 +56,54 @@ export class TypeOrmSubscriptionRepository implements ISubscriptionRepository {
     } else {
       await runInNewTransaction(this.repo.manager, (tx) => this.persist(tx, subscription));
     }
+  }
+
+  // Cross-tenant system read: the partial index on `suspended_at WHERE status = 'SUSPENDED'`
+  // serves both the filter and the order. Ids only.
+  async listSuspendedTenantIds(): Promise<string[]> {
+    const rows = await this.buildSuspendedIdsQuery().getRawMany<{ tenantId: string }>();
+    return rows.map((row) => row.tenantId);
+  }
+
+  // Cross-tenant system read: operational, non-trial subscriptions with no item for the feature
+  // active at `now` (same window as `SubscriptionItem.isActiveAt`). The anti-join probes
+  // `IDX_billing_subscription_items_subscription (tenant_id, subscription_id)` per subscription.
+  async findTenantIdsNotEntitledTo(featureKey: FeatureKey, now: Date): Promise<string[]> {
+    const rows = await this.buildNotEntitledQuery(featureKey, now).getRawMany<{
+      tenantId: string;
+    }>();
+    return rows.map((row) => row.tenantId);
+  }
+
+  // The two batch queries are public so the integration spec can `EXPLAIN` the exact SQL that runs.
+  buildSuspendedIdsQuery(): SelectQueryBuilder<SubscriptionEntity> {
+    return this.repo
+      .createQueryBuilder('s')
+      .select('s.tenantId', 'tenantId')
+      .where('s.status = :status', { status: 'SUSPENDED' })
+      .orderBy('s.suspendedAt', 'ASC');
+  }
+
+  buildNotEntitledQuery(featureKey: FeatureKey, now: Date): SelectQueryBuilder<SubscriptionEntity> {
+    return this.repo
+      .createQueryBuilder('s')
+      .select('s.tenantId', 'tenantId')
+      .where('s.status IN (:...statuses)', { statuses: ['ACTIVE', 'PAST_DUE'] })
+      .andWhere((qb) => {
+        const items = qb
+          .subQuery()
+          .select('1')
+          .from(SubscriptionItemEntity, 'i')
+          .where('i.tenantId = s.tenantId')
+          .andWhere('i.subscriptionId = s.id')
+          .andWhere('i.featureKey = :featureKey')
+          .andWhere('i.startsAt <= :now')
+          .andWhere('(i.endsAt IS NULL OR i.endsAt > :now)')
+          .getQuery();
+        return `NOT EXISTS ${items}`;
+      })
+      .setParameters({ featureKey, now })
+      .orderBy('s.tenantId', 'ASC');
   }
 
   private async load(

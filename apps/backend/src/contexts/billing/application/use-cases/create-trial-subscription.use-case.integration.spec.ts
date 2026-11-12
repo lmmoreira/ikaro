@@ -29,6 +29,7 @@ import {
   SIGNUP_REGISTRATION_REPOSITORY,
 } from '../ports/signup-registration-repository.port';
 import { SUBSCRIPTION_REPOSITORY } from '../ports/subscription-repository.port';
+import { TENANT_ACCESS_CACHE_INVALIDATOR } from '../ports/tenant-access-cache-invalidator.port';
 import { CreateTrialSubscriptionUseCase } from './create-trial-subscription.use-case';
 
 // A fresh 11-digit tax id per test, so a run overlapping this one can never hold the same value.
@@ -88,6 +89,7 @@ describe('CreateTrialSubscriptionUseCase (integration)', () => {
       app.get(INBOX_REPOSITORY),
       app.get(TRANSACTION_MANAGER),
       app.get(BILLING_PROVISIONING_CONFIG),
+      app.get(TENANT_ACCESS_CACHE_INVALIDATOR),
     );
 
   const inputOf = (tenantId: string, registrationId: string) => {

@@ -14,6 +14,10 @@ import { resolveMerchantProfileKey } from '../../domain/merchant-profile-key';
 import type { SignupRegistration } from '../../domain/signup-registration';
 import { Subscription } from '../../domain/subscription.aggregate';
 import {
+  TENANT_ACCESS_CACHE_INVALIDATOR,
+  type TenantAccessCacheInvalidator,
+} from '../ports/tenant-access-cache-invalidator.port';
+import {
   BILLING_PROVISIONING_CONFIG,
   BillingProvisioningConfig,
 } from '../ports/billing-provisioning-config.port';
@@ -75,6 +79,8 @@ export class CreateTrialSubscriptionUseCase {
     @Inject(INBOX_REPOSITORY) private readonly inbox: IInboxRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     @Inject(BILLING_PROVISIONING_CONFIG) private readonly config: BillingProvisioningConfig,
+    @Inject(TENANT_ACCESS_CACHE_INVALIDATOR)
+    private readonly accessCache: TenantAccessCacheInvalidator,
   ) {}
 
   async execute(
@@ -117,6 +123,11 @@ export class CreateTrialSubscriptionUseCase {
       if (eventId)
         await this.inbox.markProcessed(eventId, CreateTrialSubscriptionUseCase.CONSUMER_NAME);
     });
+
+    // After commit, never inside the transaction. A within-window "provisional" answer may be
+    // cached for this tenant; evict it so the real subscription is read next (best-effort: the
+    // port never throws, and the 60 s TTL bounds other instances).
+    await this.accessCache.invalidate(tenantId);
 
     return { created: true };
   }

@@ -1,4 +1,4 @@
-import { SignupErrorCode } from '@ikaro/types/protocol/errors';
+import { PlatformErrorCode, SignupErrorCode } from '@ikaro/types/protocol/errors';
 import type { DomainErrorShape } from '../../../../shared/domain/domain-error-shape';
 
 // Billing domain errors (M25-S04). Plain typed classes: the Billing HTTP error mapper and the
@@ -160,5 +160,19 @@ export class SignupTermsNotAcceptedError extends BillingDomainError implements D
   constructor() {
     super('The Terms of Use must be accepted to sign up');
     this.name = 'SignupTermsNotAcceptedError';
+  }
+}
+
+/**
+ * The tenant an access lookup names does not exist (`404`, M25-S13). It deliberately reuses
+ * Platform's `TENANT_NOT_FOUND` code, so Billing adds no wire code and no locale entry; it must
+ * never be mistaken for a transient lookup error, which fails open.
+ */
+export class BillingTenantNotFoundError extends BillingDomainError implements DomainErrorShape {
+  readonly code = PlatformErrorCode.TENANT_NOT_FOUND;
+
+  constructor(tenantId: string) {
+    super(`Tenant '${tenantId}' not found`);
+    this.name = 'BillingTenantNotFoundError';
   }
 }

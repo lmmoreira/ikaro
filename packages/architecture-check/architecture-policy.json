@@ -433,6 +433,16 @@
         "rationale": "Billing starts the tenant's trial subscription when the platform provisions a tenant (UC-110).",
         "owner": "billing",
         "reviewBy": "2027-05-12"
+      },
+      {
+        "source": "apps/backend/src/contexts/billing/infrastructure/cross-context/billing-platform.adapter.ts",
+        "target": "platform",
+        "targetPaths": [
+          "apps/backend/src/contexts/platform/application/use-cases/get-tenant-billing-info.use-case.ts"
+        ],
+        "rationale": "Billing's access resolver reads a tenant's creation time for the 15-minute provisioning window (UC-120 A1), through the narrow GetTenantBillingInfoUseCase.",
+        "owner": "billing",
+        "reviewBy": "2027-05-12"
       }
     ]
   },
@@ -805,9 +815,11 @@
         "SubscriptionItemEntity",
         "BillingAccountEntity",
         "SignupRegistrationEntity",
-        "InboxRecordEntity"
+        "InboxRecordEntity",
+        "TenantEntity",
+        "HotsiteConfigEntity"
       ],
-      "rationale": "Per-context integration app for the Billing context (M25-S04, the first Billing story with entities): it boots only BillingModule and the entities its repositories read. Every later Billing entity story adds its entities here (M25-D7). InboxRecordEntity was added by M25-S11: the TenantProvisioned consumer dedups through the shared inbox."
+      "rationale": "Per-context integration app for the Billing context (M25-S04, the first Billing story with entities): it boots only BillingModule and the entities its repositories read. Every later Billing entity story adds its entities here (M25-D7). InboxRecordEntity was added by M25-S11: the TenantProvisioned consumer dedups through the shared inbox. TenantEntity and HotsiteConfigEntity were added by M25-S13: BillingModule imports PlatformSettingsModule for the access resolver's tenant-info read."
     },
     {
       "file": "apps/backend/src/test/utils/booking-integration-app.ts",

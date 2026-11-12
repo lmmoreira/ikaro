@@ -50,7 +50,7 @@ Backend is already in the canonical shape and should stay close to this layout:
 apps/backend/src/
 ├── config/
 ├── contexts/
-│   ├── billing/       # schema (M25-S03); aggregates land story by story: FeaturePrice (M25-S04), Subscription and BillingAccount (M25-S08) are built, Charge is not
+│   ├── billing/       # schema (M25-S03); aggregates land story by story: FeaturePrice (M25-S04), Subscription and BillingAccount (M25-S08) are built, Charge is not; the access resolution (`TenantAccessPort` caching adapter and its cache invalidator, M25-S13) is built
 │   ├── booking/
 │   │   ├── domain/
 │   │   ├── application/
@@ -84,7 +84,7 @@ Cross-cutting concerns ONLY. Domain objects and repositories are NEVER here, and
 
 ```text
 apps/backend/src/shared/
-├── ports/            # IEventBus, IOutboxRepository, ITransactionManager, ITriggerBus … (cross-cutting ports only; each context's repository ports live in its own application/ports/) — no barrel index.ts (ESLint enforced); planned with Billing: `clock.port.ts` and `tenant-access.port.ts`
+├── ports/            # IEventBus, IOutboxRepository, ITransactionManager, ITriggerBus … (cross-cutting ports only; each context's repository ports live in its own application/ports/) — no barrel index.ts (ESLint enforced); Billing's `clock.port.ts` (M25-S12) and `tenant-access.port.ts` (M25-S13, the one access contract every context injects)
 ├── application/      # use-cases/log-domain-event.use-case.ts only — the shared audit-log consumer (M23-S36)
 ├── domain/           # AggregateRoot, DomainEvent, ValueObject base classes — no barrel index.ts
 ├── value-objects/    # Email, PhoneNumber, Address, Money, HexColor, Timezone, TimeOfDay, CalendarDate, Slug, CountryCode, SeoTitle, SeoDescription
@@ -115,7 +115,7 @@ The BFF mirrors backend ownership by feature slice. Domain-owned code uses the c
 apps/bff/src/
 ├── features/
 │   ├── auth/                 # technical slice: OAuth, JWT issuance, tenant selection
-│   ├── billing/              # domain slice (planned): `GET /v1/billing/access`, manager billing routes, provider webhooks, public prices
+│   ├── billing/              # domain slice (partly built): `GET /v1/billing/access` (M25-S13, role-reduced); manager billing routes, provider webhooks and public prices are planned
 │   ├── booking/              # domain slice: bookings, schedule, services, attachments
 │   ├── customer/             # domain slice
 │   ├── loyalty/              # domain slice
