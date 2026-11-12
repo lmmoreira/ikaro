@@ -15,4 +15,16 @@ describe('ListSuspendedTenantIdsUseCase', () => {
 
     expect(result).toEqual({ tenantIds: [suspended.tenantId] });
   });
+
+  it('lists the oldest suspension first, whatever order they were saved in', async () => {
+    const subscriptions = new InMemorySubscriptionRepository();
+    const newer = new SubscriptionBuilder().withSuspension('OPERATOR', new Date(2_000_000)).build();
+    const older = new SubscriptionBuilder().withSuspension('OPERATOR', new Date(1_000_000)).build();
+    await subscriptions.save(newer);
+    await subscriptions.save(older);
+
+    const result = await new ListSuspendedTenantIdsUseCase(subscriptions).execute();
+
+    expect(result.tenantIds).toEqual([older.tenantId, newer.tenantId]);
+  });
 });

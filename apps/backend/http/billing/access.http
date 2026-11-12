@@ -28,6 +28,9 @@ X-Internal-Key: {{internalKey}}
 ### Missing internal key: 401
 GET {{baseUrl}}/internal/billing/tenants/{{tenantId}}/access
 
+### Suspended tenant ids without the internal key: 401
+GET {{baseUrl}}/internal/billing/suspended-tenant-ids
+
 ### Suspended tenant ids: { tenantIds: [...] }, unpaginated, ids only
 GET {{baseUrl}}/internal/billing/suspended-tenant-ids
 X-Internal-Key: {{internalKey}}

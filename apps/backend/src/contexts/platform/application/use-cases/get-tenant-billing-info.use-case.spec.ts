@@ -18,6 +18,15 @@ describe('GetTenantBillingInfoUseCase', () => {
     );
   });
 
+  it("does not return another tenant's row: asking for tenant B finds nothing when only A exists", async () => {
+    const tenantA = new TenantBuilder().withSlug('tenant-a').build();
+    await repo.save(tenantA);
+
+    await expect(useCase.execute({ tenantId: 'tenant-b-id' })).rejects.toBeInstanceOf(
+      TenantNotFoundError,
+    );
+  });
+
   it('returns exactly tenantId, slug, countryCode, timezone and createdAt', async () => {
     const tenant = new TenantBuilder().withSlug('lavacar-bh').build();
     await repo.save(tenant);

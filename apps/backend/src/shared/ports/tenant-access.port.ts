@@ -38,7 +38,12 @@ export interface TenantAccess {
 export interface TenantAccessPort {
   getAccess(tenantId: string): Promise<TenantAccess>;
 
-  /** Ids of suspended tenants, for the rare cross-tenant scan (never one `getAccess` per tenant). */
+  /**
+   * Ids of tenants whose subscription is `SUSPENDED`, for the rare cross-tenant scan (never one
+   * `getAccess` per tenant). A tenant with no subscription row at all is not in this list even when
+   * `getAccess` denies it after the provisioning window: Billing reads only its own tables here,
+   * and the M26 self-heal job repairs that incident.
+   */
   listSuspendedTenantIds(): Promise<string[]>;
 
   /** Ids of operational tenants that lack one feature (ids only: never another tenant's state). */

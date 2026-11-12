@@ -90,8 +90,13 @@ describe('InternalBillingAccessController (integration)', () => {
   });
 
   it('returns 401 without the internal key', async () => {
-    await request(app.getHttpServer()).get(accessUrl(uuidv7())).expect(401);
-    await request(app.getHttpServer()).get('/internal/billing/suspended-tenant-ids').expect(401);
+    const access = await request(app.getHttpServer()).get(accessUrl(uuidv7()));
+    const suspended = await request(app.getHttpServer()).get(
+      '/internal/billing/suspended-tenant-ids',
+    );
+
+    expect(access.status).toBe(401);
+    expect(suspended.status).toBe(401);
   });
 
   describe('GET /internal/billing/tenants/{tenantId}/access', () => {
@@ -172,7 +177,9 @@ describe('InternalBillingAccessController (integration)', () => {
     });
 
     it('answers 400 for a tenant id that is not a UUID', async () => {
-      await get(accessUrl('not-a-uuid')).expect(400);
+      const response = await get(accessUrl('not-a-uuid'));
+
+      expect(response.status).toBe(400);
     });
 
     it('is tenant-isolated: tenant A’s answer carries only A’s subscription state', async () => {

@@ -1,5 +1,11 @@
 import { FEATURE_KEYS } from '@ikaro/validation';
-import { failOpenBackendAccess, toBillingAccessResponse } from './billing.mapper';
+import { HttpException, HttpStatus } from '@nestjs/common';
+import { z } from 'zod';
+import {
+  failOpenBackendAccess,
+  recoverAccessLookup,
+  toBillingAccessResponse,
+} from './billing.mapper';
 import type { BackendTenantAccess } from './billing.types';
 
 const ACCESS: BackendTenantAccess = {
@@ -61,5 +67,54 @@ describe('failOpenBackendAccess', () => {
     expect(access).toMatchObject({ status: 'ACTIVE', operational: true });
     expect(access.features.map((feature) => feature.key).sort()).toEqual([...FEATURE_KEYS].sort());
     expect(access.features.find((feature) => feature.key === 'CHATBOT')?.tier).toBe('BASIC');
+  });
+});
+
+describe('recoverAccessLookup', () => {
+  const recordingLogger = () => {
+    const messages: string[] = [];
+    return { messages, error: (message: string) => void messages.push(message) };
+  };
+
+  it('fails open and logs the cause on an outage', () => {
+    const logger = recordingLogger();
+
+    const access = recoverAccessLookup(new Error('ECONNRESET'), 't-1', logger);
+
+    expect(access).toEqual(failOpenBackendAccess());
+    expect(logger.messages).toHaveLength(1);
+    expect(logger.messages[0]).toContain("tenant 't-1'");
+    expect(logger.messages[0]).toContain('ECONNRESET');
+  });
+
+  it('fails open on a 5xx and logs it', () => {
+    const logger = recordingLogger();
+
+    const access = recoverAccessLookup(
+      new HttpException('down', HttpStatus.SERVICE_UNAVAILABLE),
+      't-1',
+      logger,
+    );
+
+    expect(access.operational).toBe(true);
+    expect(logger.messages).toHaveLength(1);
+  });
+
+  it('fails open on a body that does not match the contract, logged as an invalid backend response', () => {
+    const logger = recordingLogger();
+    const schemaError = z.object({ status: z.string() }).safeParse({}).error as z.ZodError;
+
+    const access = recoverAccessLookup(schemaError, 't-1', logger);
+
+    expect(access.operational).toBe(true);
+    expect(logger.messages[0]).toContain('invalid backend response');
+  });
+
+  it('rethrows a 4xx and logs nothing: it is a real answer, never fail-open', () => {
+    const logger = recordingLogger();
+    const notFound = new HttpException('not found', HttpStatus.NOT_FOUND);
+
+    expect(() => recoverAccessLookup(notFound, 't-1', logger)).toThrow(notFound);
+    expect(logger.messages).toHaveLength(0);
   });
 });

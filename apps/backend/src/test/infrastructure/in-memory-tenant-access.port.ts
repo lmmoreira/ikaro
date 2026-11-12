@@ -14,8 +14,8 @@ const ALL_FEATURES: TenantAccess['features'] = [
 // a tenant without one feature).
 export class InMemoryTenantAccessPort implements TenantAccessPort {
   private readonly byTenant = new Map<string, TenantAccess>();
-  private suspendedIds: string[] = [];
-  private notEntitledIds = new Map<FeatureKey, string[]>();
+  private readonly suspendedIds: string[] = [];
+  private readonly notEntitledIds = new Map<FeatureKey, string[]>();
   // State-based replacement for a jest.fn() call-count assertion.
   readonly getAccessCalls: string[] = [];
 

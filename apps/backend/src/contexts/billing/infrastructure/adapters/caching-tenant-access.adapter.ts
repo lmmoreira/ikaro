@@ -11,7 +11,9 @@ import { tenantAccessCacheKey } from './tenant-access-cache-key';
 /**
  * Billing's `TenantAccessPort`: the access use case behind a cache with asymmetric TTLs, so a
  * paying tenant comes back fast after a suspension is lifted. The fail-open answer (`degraded`) is
- * never cached, so one transient blip cannot hold the door open for a minute. The cache is
+ * never cached, so one transient blip cannot hold the door open for a minute. A provisional
+ * (within-window) answer is cached like any operational one, so the 15-minute grace can run up to
+ * one TTL (60 s) longer; that bound is accepted and stated in UC-120 A1. The cache is
  * best-effort: a failing read or write falls through to the use case.
  */
 @Injectable()

@@ -11,7 +11,8 @@ export class TenantEntityBuilder {
   private slug = 'beloauto';
   private isActive = true;
   private settings: TenantSettingsProps = TenantSettings.default().toJSON();
-  private createdAt = new Date('2026-01-01T00:00:00Z');
+  // Relative to now, never a calendar date: the access resolver reads it against a 15-minute window.
+  private createdAt = new Date();
   private readonly updatedAt = new Date('2026-01-01T00:00:00Z');
 
   withId(id: string): this {

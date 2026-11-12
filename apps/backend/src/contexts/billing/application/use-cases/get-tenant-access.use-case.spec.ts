@@ -164,6 +164,20 @@ describe('GetTenantAccessUseCase', () => {
       await expect(useCase.execute({ tenantId })).resolves.toMatchObject({ operational: false });
     });
 
+    it("does not return another tenant's suspension for a tenant without a subscription", async () => {
+      const tenantA = new SubscriptionBuilder()
+        .withSuspension('NON_PAYMENT', new Date(NOW.getTime() - 1000))
+        .build();
+      await subscriptions.save(tenantA);
+      const tenantB = uuidv7();
+      seedTenantAged(tenantB, PROVISIONING_GRACE_MINUTES + 1);
+
+      const access = await useCase.execute({ tenantId: tenantB });
+
+      expect(access.suspensionReason).toBeNull();
+      expect(access.operational).toBe(false);
+    });
+
     it('throws a typed not-found, never fails open, for a tenant that does not exist', async () => {
       await expect(useCase.execute({ tenantId: uuidv7() })).rejects.toBeInstanceOf(
         BillingTenantNotFoundError,

@@ -28,8 +28,10 @@ export class InMemorySubscriptionRepository implements ISubscriptionRepository {
   }
 
   async listSuspendedTenantIds(): Promise<string[]> {
+    // Oldest suspension first, like the production query's `ORDER BY suspended_at`.
     return this.saved
       .filter((subscription) => subscription.status === 'SUSPENDED')
+      .sort((a, b) => (a.suspendedAt?.getTime() ?? 0) - (b.suspendedAt?.getTime() ?? 0))
       .map((subscription) => subscription.tenantId);
   }
 

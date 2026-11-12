@@ -1,9 +1,10 @@
-import { Controller, Get, HttpException } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
 import type { BillingAccessResponse } from '@ikaro/types';
 import { CurrentUser, CurrentUserPayload } from '../../shared/decorators/current-user.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
+import { AppLogger } from '../../shared/observability/app-logger';
 import { BackendTenantAccessSchema } from './billing.schemas';
-import { failOpenBackendAccess, toBillingAccessResponse } from './billing.mapper';
+import { recoverAccessLookup, toBillingAccessResponse } from './billing.mapper';
 import type { BackendTenantAccess } from './billing.types';
 
 // The canonical read of operational state for the web (staff notice, customer badge, dashboard).
@@ -11,6 +12,8 @@ import type { BackendTenantAccess } from './billing.types';
 // parameter. It adds no cache of its own: the backend port keeps the 60 s / 10 s cache.
 @Controller('billing')
 export class BillingController {
+  private readonly logger = new AppLogger(BillingController.name);
+
   constructor(private readonly backendHttp: BackendHttpService) {}
 
   @Get('access')
@@ -19,17 +22,11 @@ export class BillingController {
     return toBillingAccessResponse(user.role, access);
   }
 
-  // Fails open on a lookup error (UC-120 A2): a backend outage must not lock a paying tenant out.
-  // A 4xx is a real answer (an unknown tenant, a bad key) and is never swallowed.
-  private async readAccess(tenantId: string): Promise<BackendTenantAccess> {
-    try {
-      const raw = await this.backendHttp.get<unknown>(
-        `/internal/billing/tenants/${tenantId}/access`,
-      );
-      return BackendTenantAccessSchema.parse(raw);
-    } catch (err: unknown) {
-      if (err instanceof HttpException && err.getStatus() < 500) throw err;
-      return failOpenBackendAccess();
-    }
+  // Fails open on a lookup error (UC-120 A2), through the mapper's `.catch`: a 4xx still propagates.
+  private readAccess(tenantId: string): Promise<BackendTenantAccess> {
+    return this.backendHttp
+      .get<unknown>(`/internal/billing/tenants/${tenantId}/access`)
+      .then((raw) => BackendTenantAccessSchema.parse(raw))
+      .catch((err: unknown) => recoverAccessLookup(err, tenantId, this.logger));
   }
 }
