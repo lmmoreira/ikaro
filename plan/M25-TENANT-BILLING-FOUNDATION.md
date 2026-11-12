@@ -796,7 +796,7 @@ Make provisioning one pattern, for the operator and for self-signup (M26). **Dec
 
 ### M25-S11 — Billing `create-trial-subscription` handler on `TenantProvisioned` (UC-110) ✅ Done
 
-  - ⚠️ Live check (3) not run: the staging end-to-end provision (`scripts/provision-tenant.sh` from the relay VM, then a `billing.subscriptions` row and the handler's log line with the `correlationId`) was deferred by the user on 2026-11-12. Verified live that day instead: Foundation applied (run 43221775806), and in both `ikaro-staging` and `ikaro-prod` the subscription has `roles/pubsub.subscriber` and its `-dlq` topic has `roles/pubsub.publisher` for the Pub/Sub service agent; the staging push endpoint, OIDC audience, 5 attempts and backoff are as designed. Run the provision check before M25-S13 relies on the handler — tracking TD not yet opened (`/create-td`), 2026-11-12.
+  - ⚠️ Live check (3) not run: the staging end-to-end provision (`scripts/provision-tenant.sh` from the relay VM, then a `billing.subscriptions` row and the handler's log line with the `correlationId`) was deferred by the user on 2026-11-12. Verified live that day instead: Foundation applied (run 43221775806), and in both `ikaro-staging` and `ikaro-prod` the subscription has `roles/pubsub.subscriber` and its `-dlq` topic has `roles/pubsub.publisher` for the Pub/Sub service agent; the staging push endpoint, OIDC audience, 5 attempts and backoff are as designed. The check is carried to M26-S24's technical AC (that story changes the same script and runs it on the relay VM), 2026-11-12; run it earlier if a story before then needs the handler proven on staging.
 
 **Agent:** `backend-ts + devops`
 **Complexity:** M
