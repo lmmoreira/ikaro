@@ -74,13 +74,15 @@ async function uploadTenantImage(page: Page): Promise<string> {
 
 // Applies a template to the signed-in manager's tenant and publishes it, exactly as the editor's
 // Publish does: a real PATCH of the fixture's manifest, then the real publish. Returns the fixture
-// so the caller can assert on what it declared.
+// so the caller can assert on what it declared. `adjust` edits the fixture before that one PATCH: a
+// second PATCH cannot reuse it, because the first one promotes its tmp images out of staging.
 export async function applyTemplateFixture(
   page: Page,
   name: TemplateName,
+  adjust: (fixture: TemplateFixture) => TemplateFixture = (fixture) => fixture,
 ): Promise<TemplateFixture> {
   const imagePath = await uploadTenantImage(page);
-  const fixture = substituteTemplateAssets(loadTemplateFixture(name), imagePath);
+  const fixture = adjust(substituteTemplateAssets(loadTemplateFixture(name), imagePath));
   await updateHotsiteConfig(page, fixture);
   await publishHotsite(page);
   return fixture;

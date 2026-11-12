@@ -259,20 +259,22 @@ test.describe.serial('hotsite template compositions (MANAGER)', () => {
   test('lume-studio: the navigation, with a Home link a tenant added, also appears on the lead-form page', async ({
     page,
   }) => {
-    const fixture = await applyTemplateFixture(page, 'lume-studio');
-    const [navigation, ...rest] = fixture.layout;
-    const items = (navigation.data.items ?? []) as { label: string; target: string }[];
-    await updateHotsiteConfig(page, {
-      ...fixture,
-      layout: [
-        {
-          ...navigation,
-          data: { ...navigation.data, items: [{ label: 'Início', target: 'home' }, ...items] },
-        },
-        ...rest,
-      ],
+    const fixture = await applyTemplateFixture(page, 'lume-studio', (template) => {
+      const [navigation, ...rest] = template.layout;
+      const items = (navigation.data.items ?? []) as { label: string; target: string }[];
+      return {
+        ...template,
+        layout: [
+          {
+            ...navigation,
+            data: { ...navigation.data, items: [{ label: 'Início', target: 'home' }, ...items] },
+          },
+          ...rest,
+        ],
+      };
     });
-    await publishHotsite(page);
+    const items = (fixture.layout[0].data.items ?? []) as { label: string; target: string }[];
+    const sectionLink = items[1];
 
     // The public manifest sits behind a tagged data cache: wait for the new item to reach it.
     await expect
@@ -289,9 +291,9 @@ test.describe.serial('hotsite template compositions (MANAGER)', () => {
     await expect(page.locator('header')).toHaveCount(1);
     const desktopNav = page.getByTestId('hotsite-navigation');
     await expect(desktopNav).toBeVisible();
-    await expect(desktopNav.getByRole('link', { name: items[0].label })).toHaveAttribute(
+    await expect(desktopNav.getByRole('link', { name: sectionLink.label })).toHaveAttribute(
       'href',
-      `/${SLUG}#${items[0].target}`,
+      `/${SLUG}#${sectionLink.target}`,
     );
     await expect(desktopNav.getByRole('link', { name: 'Início' })).toHaveAttribute(
       'href',
