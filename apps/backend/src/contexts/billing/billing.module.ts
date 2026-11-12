@@ -27,7 +27,7 @@ import { TypeOrmSignupRegistrationRepository } from './infrastructure/repositori
 import { TypeOrmBillingAccountRepository } from './infrastructure/repositories/typeorm-billing-account.repository';
 import { TypeOrmFeaturePriceRepository } from './infrastructure/repositories/typeorm-feature-price.repository';
 import { TypeOrmSubscriptionRepository } from './infrastructure/repositories/typeorm-subscription.repository';
-import { resolveAppEnv } from '../../shared/database/resolve-app-env';
+import { type AppEnv, resolveAppEnv } from '../../shared/database/resolve-app-env';
 import { BILLING_PROVIDER_REGISTRY } from './application/ports/billing-provider.port';
 import {
   BILLING_APP_ENV,
@@ -63,11 +63,12 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     GetFeaturePriceAtUseCase,
     ListSelectablePricesUseCase,
     // APP_ENV and the owner slug are fixed for the life of the process: one plain value, read once.
+    // `appEnv` is the module's own `BILLING_APP_ENV`, so Billing has a single source for it.
     {
       provide: BILLING_PROVISIONING_CONFIG,
-      inject: [ConfigService],
-      useFactory: (config: ConfigService): BillingProvisioningConfig => ({
-        appEnv: config.get<string>('APP_ENV', 'local'),
+      inject: [ConfigService, BILLING_APP_ENV],
+      useFactory: (config: ConfigService, appEnv: AppEnv): BillingProvisioningConfig => ({
+        appEnv,
         platformOwnerSlug: config.get<string>('PLATFORM_OWNER_TENANT_SLUG') ?? null,
       }),
     },
