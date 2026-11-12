@@ -255,4 +255,50 @@ test.describe.serial('hotsite template compositions (MANAGER)', () => {
       page.locator('input[type="date"], input[type="time"], input[type="datetime-local"]'),
     ).toHaveCount(0);
   });
+
+  test('lume-studio: the navigation, with a Home link a tenant added, also appears on the lead-form page', async ({
+    page,
+  }) => {
+    const fixture = await applyTemplateFixture(page, 'lume-studio');
+    const [navigation, ...rest] = fixture.layout;
+    const items = (navigation.data.items ?? []) as { label: string; target: string }[];
+    await updateHotsiteConfig(page, {
+      ...fixture,
+      layout: [
+        {
+          ...navigation,
+          data: { ...navigation.data, items: [{ label: 'Início', target: 'home' }, ...items] },
+        },
+        ...rest,
+      ],
+    });
+    await publishHotsite(page);
+
+    // The public manifest sits behind a tagged data cache: wait for the new item to reach it.
+    await expect
+      .poll(async () => {
+        const manifest = await getPublicManifest(page, SLUG);
+        const nav = manifest.layout.find((module) => module.type === 'NAVIGATION');
+        return JSON.stringify(nav?.data);
+      })
+      .toContain('"target":"home"');
+
+    await page.setViewportSize(DESKTOP);
+    await page.goto(`/${SLUG}/lead-form`);
+
+    await expect(page.locator('header')).toHaveCount(1);
+    const desktopNav = page.getByTestId('hotsite-navigation');
+    await expect(desktopNav).toBeVisible();
+    await expect(desktopNav.getByRole('link', { name: items[0].label })).toHaveAttribute(
+      'href',
+      `/${SLUG}#${items[0].target}`,
+    );
+    await expect(desktopNav.getByRole('link', { name: 'Início' })).toHaveAttribute(
+      'href',
+      `/${SLUG}`,
+    );
+
+    await desktopNav.getByRole('link', { name: 'Início' }).click();
+    await expect(page).toHaveURL(new RegExp(`/${SLUG}/?$`));
+  });
 });
