@@ -1096,7 +1096,7 @@ Define the single seam to payment providers, built from S01's *observed* behavio
 **Pattern:** a pure refactor commit (the guard move) plus Repository + Adapter for the audit record.
 
 **Description:**
-The structural half of the operator story, split from S15b so the guard refactor and the audit table land before any operator use case. **Step 1 — move `PlatformAdminGuard` to shared (its own commit).** Today it lives only in `contexts/platform/infrastructure/guards/` and nothing outside Platform imports it, so a Billing controller cannot use it without an exact-path `permittedEdges` exception. Decision: move it to `apps/backend/src/shared/guards/platform-admin.guard.ts` (next to `InternalApiGuard`), update every Platform import, and move its spec; behaviour is unchanged (a refactor commit with the existing specs green before any Billing code is added). **Step 2 — the dev-clock controller from S12 adopts it** (`InternalApiGuard` + `PlatformAdminGuard`), ending S12's interim guard. **Step 3 — the `operator_audit` record:** the Billing `OperatorAudit` thin record (actor, tenant, action, reason, payload; `docs/DATABASE_SCHEMA.md` § `billing.operator_audit`), its entity, repository and builders, so S15b's use cases write the audit row in the same transaction as the state change. No operator route, use case or event exists in this story.
+The structural half of the operator story, split from S15b so the guard refactor and the audit table land before any operator use case. **Step 1 — move `PlatformAdminGuard` to shared (its own commit).** Today it lives only in `contexts/platform/infrastructure/guards/` and nothing outside Platform imports it, so a Billing controller cannot use it without an exact-path `permittedEdges` exception. Decision: move it to `apps/backend/src/shared/guards/platform-admin.guard.ts` (next to `InternalApiGuard`), update every Platform import, and move its spec; behaviour is unchanged (a refactor commit with the existing specs green before any Billing code is added). **Step 2 — the dev-clock controller from S12 adopts it** (`InternalApiGuard` + `PlatformAdminGuard`), ending S12's interim guard. **Step 3 — the `operator_audit` record:** the Billing `OperatorAudit` thin record (actor, tenant, action, reason, payload; `docs/DATABASE_SCHEMA.md` § `billing.operator_audit`), its entity, repository and builders, so S15b's use cases write the audit row in the same transaction as the state change. No operator route, use case or event exists in this story. **Audit record decisions (locked at discovery):** the table has no `reason` column, so `reason` is a **required domain field serialized into `payload.reason`**; the domain rejects an empty actor, an empty reason and a payload over **4 KB serialized**; the `action` set (`GRACE`, `SUSPEND`, `UNSUSPEND`, `SET_EXEMPT`) has one canonical constant mirroring `CHK_billing_operator_audit_action` (check whether `closedEnumRegistry` applies); the port is minimal and append-only (`save`, `findByIdAndTenant`; S15b adds anything else it needs). **Adding the second guard breaks every existing caller of the dev clock**, so the story also updates them: the helper script and `.http` file send `X-Platform-Admin-Key`, the docs drop the "interim until S15a" wording, and M26-S35's Playwright teardown (which calls `reset`) must send the platform key too.
 
 **Backend use case steps:** none.
 **Backend HTTP surface:** none — the dev-clock routes gain a guard.
@@ -1113,19 +1113,25 @@ The structural half of the operator story, split from S15b so the guard refactor
 - `apps/backend/src/contexts/billing/billing.module.ts` (modify — the audit repository)
 - `docs/BOUNDED_CONTEXTS.md` (modify — replace the "Operator endpoints (planned)" guard-placement caveat with the final location `src/shared/guards/platform-admin.guard.ts`)
 - `docs/REPOSITORY_STRUCTURE.md` (modify — the shared-tree guard entry moves `PlatformAdminGuard` to `src/shared/guards/`; the "stays local" example must be a real context-local guard)
+- `apps/backend/src/contexts/billing/infrastructure/controllers/internal-dev-clock.controller.spec.ts` and `.integration.spec.ts` (modify — flip the guard-metadata assertion; the integration spec sets `PLATFORM_ADMIN_KEY` and wires both guards, as `internal-tenant.controller.integration.spec.ts` does)
+- `scripts/billing-clock-advance.sh` (modify — require `PLATFORM_ADMIN_KEY`, send `X-Platform-Admin-Key`, update the header comment and `--help`; it stays a developer tool aimed at a local or direct `BACKEND_URL`, with no relay-VM auth block: the dev clock is never an operator task) and `apps/backend/http/billing/dev-clock.http` (modify — add the header)
+- `docs/RUNBOOKS.md` § Billing, "Dev clock (non-production)" entry (modify — add that on staging the script runs from the relay VM shell, because the backend is on internal ingress)
+- `docs/USE_CASES.md` (UC-138), `docs/API_CONTRACTS.md`, `docs/TESTING_STRATEGY.md` (modify — drop the "interim until S15a" wording; also grep `docs/ANTI_PATTERNS.md` and `docs/API_CONTRACTS.md` for the old `platform-admin.guard` path)
+- `plan/M25-TENANT-BILLING-FOUNDATION.md` / M26-S35 (modify — note that the Playwright teardown's `reset` call must send the platform key)
 
 **Acceptance criteria — product:**
 - [ ] No operator-visible behaviour changes: every Platform operator route is protected exactly as before, and the dev clock now requires both guards.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] The moved `PlatformAdminGuard` spec passes unchanged; `OperatorAudit` rejects an empty actor or reason
+  - [ ] The moved `PlatformAdminGuard` spec passes unchanged; `OperatorAudit` rejects an empty actor, an empty reason and a payload over 4 KB serialized (a negative guarantee, pinned by name)
 - Integration:
   - [ ] The shared guard still protects every Platform operator route (the existing Platform operator integration specs pass unchanged after the move)
-  - [ ] The dev clock route now requires both guards (S12's interim-guard assertion is flipped to `InternalApiGuard` + `PlatformAdminGuard`)
+  - [ ] The dev clock route now requires both guards (S12's interim-guard assertion is flipped to `InternalApiGuard` + `PlatformAdminGuard`), pinned by three named tests: internal key only → `401`, platform key only → `401`, both keys → `200`
   - [ ] The audit repository persists and reads a row by `(tenantId, id)`
 - Tenant isolation: [ ] an audit read with another tenant's id returns nothing
 - E2E: none — covered by unit/integration
+- [ ] Docs check (not an integration test): `scripts/billing-clock-advance.sh` sends both keys, and no doc still says the dev clock is on an interim guard
 - [ ] `architecture-check` passes (`test-builder-coverage`, `test-harness-registration`, `entity-builder-pk-uuidv7-default`)
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
@@ -1170,7 +1176,10 @@ No new principals. The topic bindings can only be created by the Foundation appl
 - `apps/backend/src/contexts/billing/billing.module.ts` (modify — use cases, controller, audit handler)
 - `apps/backend/src/contexts/billing/infrastructure/http/billing-error.mapper.ts` (modify — `BILLING_EXEMPT_PROTECTED` → 403, `BILLING_GRACE_NOT_ALLOWED` and `BILLING_UNSUSPEND_NOT_ALLOWED` → 409) and `packages/i18n/locales/{pt-BR,en}/errors.json` (modify — the three entries; S08 added none)
 - `docs/DOMAIN_EVENTS.md` (modify — `SubscriptionReactivated` data gains `suspendedAt` and its consumers gain the Loyalty pause close; `SubscriptionSuspended` consumers gain the Loyalty pause open, S27 — the exempt-protection and UC-137 "end-dated at the moment of the change" wording are already in the docs)
-- `apps/backend/http/billing/operator.http` (new)
+- `apps/backend/http/billing/operator.http` (new — local use only)
+- `scripts/lib/relay-auth.sh` (new — the shared relay-VM auth block extracted from `scripts/provision-tenant.sh`: metadata access token, backend URL from the Cloud Run API, identity token, `platform-admin-key` and `internal-api-key` from Secret Manager; sourced, never executed) and `scripts/provision-tenant.sh` (modify — source the helper instead of its inline copy; behaviour unchanged, verified by running it with `--help`/argument validation and, on the relay VM, by the next provisioning)
+- `scripts/billing-operator.sh` (new — **the production path for the operator routes: the backend is on internal ingress, so they are reachable only from the relay VM shell**) with subcommands `suspend`, `unsuspend`, `grace`, `exempt` and `list`; sources `relay-auth.sh`; `--reason` is required on every write and is validated before any network call; `--help` documents each subcommand and the relay-VM requirement; the `exempt` subcommand takes `--set`/`--clear`
+- `docs/RUNBOOKS.md` § Operator cases (modify — the abuse/takedown, refund and other entries name `scripts/billing-operator.sh` and the relay-VM flow (`scripts/relay-vm-up.sh` … `relay-vm-down.sh`, § Staging) instead of listing a bare route)
 - `infra/terraform/pubsub-catalog.json` (modify — regenerated; no `envs/*` edit: Foundation reads the catalog and derives topics, subscriptions, DLQs and grants from it)
 
 **Acceptance criteria — product:**
@@ -1192,6 +1201,8 @@ No new principals. The topic bindings can only be created by the Foundation appl
   - [ ] **Set-exempt on a `TRIALING` tenant** that holds the default paid items from S11 succeeds: the not-yet-started items are removed, none overlaps another (the GIST exclusion is not tripped), the tenant ends `ACTIVE`, exempt, with one open-ended item per feature; the same on an `ACTIVE` tenant with running items end-dates them at `now` and the new items start at `now`
   - [ ] Every operator state change is saved through the cached `SUBSCRIPTION_REPOSITORY` (S13's `CachingSubscriptionRepository`), whose `save()` evicts after commit: no explicit invalidation call, pinned by an integration case (suspend, then the next `getAccess` reflects it)
   - [ ] Missing or wrong `InternalApiGuard`/`PlatformAdminGuard` credentials → `401`
+  - [ ] Script (not a Jest test): `scripts/billing-operator.sh` rejects a missing `--reason` and an unknown subcommand before any network call, and `provision-tenant.sh` still validates its arguments after the helper extraction
+  - [ ] Live check (relay VM, staging): `scripts/billing-operator.sh list` and a `suspend` / `unsuspend` round trip on a test tenant succeed through the relay VM, each leaving an `operator_audit` row; the result is recorded in the PR
   - [ ] `SubscriptionReactivated` carries `suspendedAt` equal to the span's start for an `unsuspend` and for an `exempt` set on a suspended tenant
   - [ ] `architecture-check` passes (`domain-event-audit-coverage` with the `BillingAuditLogHandler` lines, `lock-catalog-coverage`, `test-builder-coverage`)
 - Tenant isolation: [ ] an action on tenant A never touches B's subscription or audit rows; the list endpoint is operator-only and paginated
