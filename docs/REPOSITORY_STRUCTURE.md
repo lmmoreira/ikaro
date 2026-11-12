@@ -50,7 +50,7 @@ Backend is already in the canonical shape and should stay close to this layout:
 apps/backend/src/
 ├── config/
 ├── contexts/
-│   ├── billing/       # schema (M25-S03); aggregates land story by story: FeaturePrice (M25-S04), Subscription and BillingAccount (M25-S08) are built, Charge is not; the access resolution (`TenantAccessPort` caching adapter and its cache invalidator, M25-S13) is built
+│   ├── billing/       # schema (M25-S03); aggregates land story by story: FeaturePrice (M25-S04), Subscription and BillingAccount (M25-S08) are built, Charge is not; the access resolution (the shared `TenantAccessPort`, its adapter and the `CachingSubscriptionRepository` cache, M25-S13) is built
 │   ├── booking/
 │   │   ├── domain/
 │   │   ├── application/
