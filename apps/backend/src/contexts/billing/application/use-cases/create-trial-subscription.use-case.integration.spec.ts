@@ -318,9 +318,11 @@ describe('CreateTrialSubscriptionUseCase (integration)', () => {
       const registrationA = await seedRegistration();
       const registrationB = await seedRegistration();
 
+      // The handler is called directly: the in-process bus runs its handlers one after the other,
+      // so publishing both events would never overlap the two transactions.
       await Promise.all([
-        eventBus.publish(provisioned(tenantA, registrationA)),
-        eventBus.publish(provisioned(tenantB, registrationB)),
+        handler.handle(provisioned(tenantA, registrationA)),
+        handler.handle(provisioned(tenantB, registrationB)),
       ]);
 
       expect((await subscriptionsOf(tenantA)).map((row) => row.tenantId)).toEqual([tenantA]);
