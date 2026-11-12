@@ -24,23 +24,21 @@ class RecordingUseCase {
   }
 }
 
-function makeHandler(): {
-  handler: TenantProvisionedBillingHandler;
-  useCase: RecordingUseCase;
-  eventBus: InMemoryEventBus;
-} {
-  const useCase = new RecordingUseCase();
-  const eventBus = new InMemoryEventBus();
-  const handler = new TenantProvisionedBillingHandler(
-    useCase as unknown as CreateTrialSubscriptionUseCase,
-    eventBus,
-  );
-  return { handler, useCase, eventBus };
-}
-
 describe('TenantProvisionedBillingHandler', () => {
+  let handler: TenantProvisionedBillingHandler;
+  let useCase: RecordingUseCase;
+  let eventBus: InMemoryEventBus;
+
+  beforeEach(() => {
+    useCase = new RecordingUseCase();
+    eventBus = new InMemoryEventBus();
+    handler = new TenantProvisionedBillingHandler(
+      useCase as unknown as CreateTrialSubscriptionUseCase,
+      eventBus,
+    );
+  });
+
   it('calls exactly one use case with the event fields, its id and its correlation id', async () => {
-    const { handler, useCase } = makeHandler();
     const event = new TenantProvisionedEventBuilder()
       .withTenantId('aaaaaaaa-0000-4000-8000-000000000001')
       .withCorrelationId('corr-billing-handler')
@@ -69,7 +67,6 @@ describe('TenantProvisionedBillingHandler', () => {
   });
 
   it('rethrows the use case error so Pub/Sub nacks and retries', async () => {
-    const { handler, useCase } = makeHandler();
     useCase.failWith = new Error('no prices');
 
     await expect(handler.handle(new TenantProvisionedEventBuilder().build())).rejects.toThrow(
@@ -78,8 +75,6 @@ describe('TenantProvisionedBillingHandler', () => {
   });
 
   it('subscribes to TenantProvisioned under the use case consumer name', () => {
-    const { handler, eventBus } = makeHandler();
-
     handler.onModuleInit();
 
     expect(CreateTrialSubscriptionUseCase.CONSUMER_NAME).toBe('create-trial-subscription');

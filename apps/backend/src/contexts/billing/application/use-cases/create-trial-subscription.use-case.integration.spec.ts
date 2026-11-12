@@ -9,7 +9,10 @@ import { SignupRegistrationEntityBuilder } from '../../../../test/builders/billi
 import { TenantProvisionedEventBuilder } from '../../../../test/builders/platform';
 import { createBillingIntegrationApp } from '../../../../test/utils/billing-integration-app';
 import { SignupRegistration } from '../../domain/signup-registration';
-import { SignupRegistrationNotAvailableError } from '../../domain/errors/billing-domain.error';
+import {
+  FeaturePriceNotFoundError,
+  SignupRegistrationNotAvailableError,
+} from '../../domain/errors/billing-domain.error';
 import { BillingAccountEntity } from '../../infrastructure/entities/billing-account.entity';
 import { SignupRegistrationEntity } from '../../infrastructure/entities/signup-registration.entity';
 import { SubscriptionItemEntity } from '../../infrastructure/entities/subscription-item.entity';
@@ -17,7 +20,10 @@ import { SubscriptionEntity } from '../../infrastructure/entities/subscription.e
 import { TenantProvisionedBillingHandler } from '../../infrastructure/events/tenant-provisioned-billing.handler';
 import { BILLING_PROVISIONING_CONFIG } from '../ports/billing-provisioning-config.port';
 import { BILLING_ACCOUNT_REPOSITORY } from '../ports/billing-account-repository.port';
-import { FEATURE_PRICE_REPOSITORY } from '../ports/feature-price-repository.port';
+import {
+  FEATURE_PRICE_REPOSITORY,
+  IFeaturePriceRepository,
+} from '../ports/feature-price-repository.port';
 import {
   ISignupRegistrationRepository,
   SIGNUP_REGISTRATION_REPOSITORY,
@@ -68,14 +74,17 @@ describe('CreateTrialSubscriptionUseCase (integration)', () => {
   const registrationRow = (id: string) =>
     ds.getRepository(SignupRegistrationEntity).findOneByOrFail({ id });
 
-  // A real use case whose registration repository is wrapped, to force a failure or an interleaving
-  // the real one would only produce by chance.
-  const useCaseWith = (registrations: ISignupRegistrationRepository) =>
+  // A real use case over the real database whose registration repository (or price list) is
+  // swapped, to force a failure or an interleaving the real one would only produce by chance.
+  const useCaseWith = (
+    registrations: ISignupRegistrationRepository,
+    prices: IFeaturePriceRepository = app.get(FEATURE_PRICE_REPOSITORY),
+  ) =>
     new CreateTrialSubscriptionUseCase(
       app.get(SUBSCRIPTION_REPOSITORY),
       app.get(BILLING_ACCOUNT_REPOSITORY),
       registrations,
-      app.get(FEATURE_PRICE_REPOSITORY),
+      prices,
       app.get(INBOX_REPOSITORY),
       app.get(TRANSACTION_MANAGER),
       app.get(BILLING_PROVISIONING_CONFIG),
@@ -210,6 +219,30 @@ describe('CreateTrialSubscriptionUseCase (integration)', () => {
 
     expect(await subscriptionsOf(stranger)).toHaveLength(0);
     expect((await registrationRow(registrationId)).tenantId).toBe(owner);
+  });
+
+  it('creates no row at all when the country has no price list (A2), and the retry succeeds once it has one', async () => {
+    const tenantId = newTenant();
+    const registrationId = await seedRegistration();
+    const real = app.get<ISignupRegistrationRepository>(SIGNUP_REGISTRATION_REPOSITORY);
+    const noPrices: IFeaturePriceRepository = {
+      findByNaturalKey: async () => null,
+      listSelectableByCountry: async () => [],
+    };
+    const input = inputOf(tenantId, registrationId);
+
+    await expect(useCaseWith(real, noPrices).execute(input)).rejects.toThrow(
+      FeaturePriceNotFoundError,
+    );
+
+    expect(await subscriptionsOf(tenantId)).toHaveLength(0);
+    await expect(ds.getRepository(BillingAccountEntity).countBy({ tenantId })).resolves.toBe(0);
+    await expect(
+      ds.getRepository(InboxRecordEntity).existsBy({ eventId: input.eventId }),
+    ).resolves.toBe(false);
+    expect((await registrationRow(registrationId)).status).toBe('RESERVED');
+
+    await expect(useCaseWith(real).execute(input)).resolves.toEqual({ created: true });
   });
 
   it('rolls back the subscription, items, account and inbox row when the registration cannot be completed, and a retry then succeeds', async () => {

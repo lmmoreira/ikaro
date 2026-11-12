@@ -860,7 +860,7 @@ No new principal and no binding targets a resource this story's own Terraform ca
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] Each alternative flow A1–A4 and A6–A8 (one named test each; A5 removed)
+  - [ ] Each alternative flow A1–A4, A7 and A8 (one named test each; A5 removed). A6 (an access read before this handler has run) is the 15-minute provisioning window, which the S13 access port owns and tests: nothing in this story acts on it, so it has no S11 test.
   - [ ] Field sourcing: a non-exempt BR tenant gets `currency = BRL` from the price rows, `merchantProfileKey = BRL_FAKE` locally, `anchorDay` from the trial-end day; an **exempt** tenant in a country with no price rows gets its subscription with the country-default currency and performs **no** `FeaturePrice` lookup (the repository is not called); `terms_accepted_by` equals `adminEmail` for `SELF_SIGNUP` and NULL for `OPERATOR`; no Google `sub` is written to `billing_accounts`
   - [ ] `requireTaxId`: a `SELF_SIGNUP` registration with a BR tax id builds the account with it; an `OPERATOR` registration without one builds the account without throwing (BR, non-exempt, UC-110 A7); an exempt registration holds none; the use case called with no `registrationId` (the M26 repair) creates a default trial
   - [ ] `trialEndsAt` correct for a UTC-3 tenant and a DST zone

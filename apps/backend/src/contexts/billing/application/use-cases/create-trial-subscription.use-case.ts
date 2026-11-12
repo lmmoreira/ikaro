@@ -128,7 +128,7 @@ export class CreateTrialSubscriptionUseCase {
   ): Promise<SignupRegistration | null> {
     if (registrationId === undefined) return null;
     const registration = await this.registrations.findById(registrationId);
-    if (registration === null || registration.status !== 'RESERVED') {
+    if (registration?.status !== 'RESERVED') {
       throw new SignupRegistrationNotAvailableError(registrationId);
     }
     return registration;
