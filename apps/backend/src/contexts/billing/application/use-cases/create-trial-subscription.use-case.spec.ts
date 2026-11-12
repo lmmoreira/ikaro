@@ -121,6 +121,27 @@ describe('CreateTrialSubscriptionUseCase', () => {
       expect(subscription.trialEndsAt).toEqual(new Date('2026-03-15T04:00:00.000Z'));
     });
 
+    it('starts a non-exempt US tenant on a trial like any other, with no special rule before M28 (A4)', async () => {
+      prices.seed(new FeaturePriceBuilder().withCountryCode('US').build());
+      const registrationId = await reserve(new SignupRegistrationBuilder().asOperator().build());
+      const request = input({
+        countryCode: 'US',
+        timezone: 'America/New_York',
+        registrationId,
+      });
+
+      await expect(useCase.execute(request)).resolves.toEqual({ created: true });
+
+      const [subscription] = subscriptions.saved;
+      expect(subscription.tenantId).toBe(request.tenantId);
+      expect(subscription.status).toBe('TRIALING');
+      expect(subscription.exempt).toBe(false);
+      expect(subscription.currency).toBe('USD');
+      expect(subscription.items.map((item) => item.featureKey).sort()).toEqual(
+        [...FEATURE_KEYS].sort(),
+      );
+    });
+
     it('takes the merchant profile from the environment and the country, never the tenant', async () => {
       config = { appEnv: 'staging', platformOwnerSlug: null };
       useCase = new CreateTrialSubscriptionUseCase(

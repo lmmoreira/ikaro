@@ -313,13 +313,17 @@ describe('CreateTrialSubscriptionUseCase (integration)', () => {
   });
 
   describe('tenant isolation', () => {
-    it('gives each tenant its own subscription and account, and each registration completes for its own tenant only', async () => {
+    it('gives each tenant provisioned at the same time its own subscription and account, and each registration completes for its own tenant only', async () => {
       const [tenantA, tenantB] = [newTenant(), newTenant()];
       const registrationA = await seedRegistration();
       const registrationB = await seedRegistration();
 
-      await eventBus.publish(provisioned(tenantA, registrationA));
-      await eventBus.publish(provisioned(tenantB, registrationB));
+      // The handler is called directly: the in-process bus runs its handlers one after the other,
+      // so publishing both events would never overlap the two transactions.
+      await Promise.all([
+        handler.handle(provisioned(tenantA, registrationA)),
+        handler.handle(provisioned(tenantB, registrationB)),
+      ]);
 
       expect((await subscriptionsOf(tenantA)).map((row) => row.tenantId)).toEqual([tenantA]);
       expect((await subscriptionsOf(tenantB)).map((row) => row.tenantId)).toEqual([tenantB]);
