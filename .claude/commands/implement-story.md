@@ -74,7 +74,7 @@ In an agent session, run the push detached and wait on the real process; a foreg
 ```bash
 git rev-parse HEAD                    # note the commit being pushed
 nohup git push --porcelain </dev/null >/tmp/push-<story-id>-<unix-time>.log 2>&1 &    # one log per push: put the current epoch seconds in the name as a literal
-pgrep -af '^git push'                 # one-shot: note the PID it prints
+pgrep -af '^git push'                 # one-shot: note the PID it prints; other sessions push from their own worktrees, so if more than one line prints, pick yours with `ls -l /proc/<pid>/cwd` (it must be this worktree), never the lowest PID
 while kill -0 <pid> 2>/dev/null; do sleep 10; done   # separate foreground call, timeout 600000; if it times out, run it again
 git ls-remote origin refs/heads/<branch>   # the remote head must equal the commit noted above; read the log too: a ref line for the branch, or "Everything up-to-date"
 ```
