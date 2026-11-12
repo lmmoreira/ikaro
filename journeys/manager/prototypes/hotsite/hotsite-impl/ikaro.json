@@ -1,0 +1,172 @@
+{
+  "branding": {
+    "primaryColor": "#AE8652",
+    "secondaryColor": "#192B39",
+    "backgroundColor": "#F6F3EC",
+    "textColor": "#192B39",
+    "headingFontFamily": "Playfair Display",
+    "bodyFontFamily": "DM Sans",
+    "borderRadius": "rounded",
+    "buttonStyle": "filled",
+    "buttonBackgroundColor": "#AE8652",
+    "buttonTextColor": "#192B39",
+    "spacing": "spacious",
+    "shadowStyle": "none",
+    "heroBgStyle": "background",
+    "alternateSectionBg": false,
+    "dividerStyle": "none",
+    "brandName": "ikaro",
+    "brandTagline": "Bom trabalho merece ser visto.",
+    "buttonRadius": "sharp",
+    "headingWeight": 600,
+    "headingTransform": "none",
+    "logoUrl": "https://storage.googleapis.com/ikaro-public-staging/tenants/019f9b04-d883-7755-b742-96b34fd496a0/hotsite/branding/01a12562-a7ab-7597-b723-58ff7b404d0e/Ikaro.webp"
+  },
+  "layout": [
+    {
+      "type": "NAVIGATION",
+      "enabled": true,
+      "data": {
+        "items": [
+          {
+            "label": "Nossa história",
+            "target": "about"
+          },
+          {
+            "label": "Chamada introdutória",
+            "target": "service-list"
+          }
+        ],
+        "cta": {
+          "label": "Responder perguntas",
+          "target": "lead-form"
+        }
+      }
+    },
+    {
+      "type": "HERO",
+      "enabled": true,
+      "data": {
+        "variant": "centered",
+        "eyebrow": "PARA QUEM FAZ UM BOM TRABALHO ACONTECER",
+        "title": "Bom trabalho merece ser visto.",
+        "subtitle": "Você coloca tudo de si no que faz. Nós ajudamos as pessoas certas a encontrar seu negócio — e facilitamos o agendamento.",
+        "ctaLabel": "Nossa história",
+        "ctaTarget": "about",
+        "contentPositionX": "center",
+        "contentPositionY": "center"
+      },
+      "presentation": {
+        "surface": "background",
+        "minHeight": "lg"
+      }
+    },
+    {
+      "type": "CONTENT_BLOCK",
+      "enabled": true,
+      "data": {
+        "variant": "process-steps",
+        "eyebrow": "UM POUCO MENOS PARA DAR CONTA",
+        "title": "Mais espaço para fazer o que você faz de melhor.",
+        "body": "As ferramentas certas e um parceiro de verdade para ajudar você a aproveitar cada oportunidade.",
+        "appearance": "ruled",
+        "items": [
+          {
+            "label": "SEJA ENCONTRADO",
+            "title": "Uma presença com a sua cara",
+            "body": "Um site à altura do seu trabalho, que facilita a descoberta do seu negócio por novos clientes."
+          },
+          {
+            "label": "RECEBA AGENDAMENTOS",
+            "title": "Uma agenda que trabalha por você",
+            "body": "Ofereça aos clientes uma forma simples de encontrar um horário e agendar, mesmo enquanto você está ocupado trabalhando."
+          },
+          {
+            "label": "CONTINUE CRESCENDO",
+            "title": "Um parceiro para os próximos passos",
+            "body": "Alguém para olhar com você o que está funcionando e transformar isso em próximos passos práticos."
+          }
+        ]
+      },
+      "presentation": {
+        "surface": "background",
+        "contentWidth": "wide",
+        "padding": "spacious"
+      }
+    },
+    {
+      "type": "ABOUT",
+      "enabled": true,
+      "data": {
+        "variant": "editorial",
+        "eyebrow": "POR QUE CRIAMOS A IKARO",
+        "title": "Você já faz a parte mais difícil.",
+        "body": "A maioria dos pequenos negócios não tem um problema de qualidade. Tem um problema de visibilidade.\n\nSeu negócio cresceu com bom trabalho e indicações. Mas sua agenda vive nas mensagens, no caderno e na sua cabeça — e um cliente que não encontra uma resposta pode agendar em outro lugar.\n\nCriamos a Ikaro para quem é excelente no que faz e não tem tempo para virar especialista em marketing. Presença, processo e consistência, com um parceiro ao seu lado.",
+        "imagePosition": "right"
+      },
+      "presentation": {
+        "surface": "secondary",
+        "padding": "spacious"
+      }
+    },
+    {
+      "type": "SERVICE_LIST",
+      "enabled": true,
+      "data": {
+        "eyebrow": "O PRIMEIRO PASSO",
+        "title": "Uma boa conversa pode abrir caminhos.",
+        "showPrices": false,
+        "showPoints": false,
+        "layout": "numbered",
+        "itemAction": "details",
+        "itemCtaLabel": "Conhecer a chamada",
+        "detailPage": {
+          "heroStyle": "cover",
+          "galleryLayout": "grid",
+          "showPrice": false,
+          "showDuration": false,
+          "showLoyaltyPoints": false,
+          "bookingCtaLabel": "Agendar chamada"
+        }
+      },
+      "presentation": {
+        "surface": "background",
+        "contentWidth": "wide",
+        "padding": "spacious"
+      }
+    },
+    {
+      "type": "LEAD_FORM",
+      "enabled": true,
+      "data": {
+        "variant": "centered",
+        "eyebrow": "ENTRE EM CONTATO",
+        "title": "Conte um pouco sobre seu negócio.",
+        "subtitle": "Responda algumas perguntas para entendermos seu momento e como podemos ajudar.",
+        "ctaLabel": "Responder perguntas",
+        "bgStyle": "background"
+      },
+      "presentation": {
+        "surface": "background",
+        "minHeight": "md"
+      }
+    },
+    {
+      "type": "FOOTER",
+      "enabled": true,
+      "data": {
+        "tagline": "Bom trabalho merece ser visto.",
+        "copyrightNote": "Todos os direitos reservados.",
+        "showWhatsapp": false
+      },
+      "presentation": {
+        "surface": "secondary"
+      }
+    }
+  ],
+  "seo": {
+    "title": "Ikaro | Bom trabalho merece ser visto",
+    "description": "Presença digital, agendamentos mais simples e parceria para os próximos passos. A Ikaro ajuda bons negócios a serem vistos.",
+    "ogImageUrl": ""
+  }
+}
