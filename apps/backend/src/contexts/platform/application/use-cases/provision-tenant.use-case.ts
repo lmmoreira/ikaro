@@ -57,9 +57,9 @@ export class ProvisionTenantUseCase {
       input.slug,
       input.adminEmail,
       correlationId,
+      input.registrationId,
       timezone,
       countryCode.value,
-      input.registrationId,
     );
     const config = HotsiteConfig.create(tenant.id);
 

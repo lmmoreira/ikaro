@@ -8,6 +8,7 @@ import {
   SubscriptionEntityBuilder,
 } from '../../../../test/builders/billing';
 import { createTestDataSource } from '../../../../test/test-datasource';
+import { SignupRegistrationNotAvailableError } from '../../domain/errors/billing-domain.error';
 import { BillingAccountEntity } from '../entities/billing-account.entity';
 import { SignupRegistrationEntity } from '../entities/signup-registration.entity';
 import { SubscriptionEntity } from '../entities/subscription.entity';
@@ -258,6 +259,72 @@ describe('TypeOrmSignupRegistrationRepository (integration)', () => {
 
       const text = plan.map((row) => row['QUERY PLAN']).join('\n');
       expect(text).toContain('IDX_billing_billing_accounts_tax_id');
+    });
+  });
+
+  describe('findById', () => {
+    it('round-trips a stored registration and returns null for an unknown id', async () => {
+      const registration = new SignupRegistrationBuilder()
+        .withGoogleSub(newSub())
+        .withTaxId(TaxId.reconstitute(cpf, 'CPF'))
+        .build();
+      registrationIds.push(registration.id);
+      await repo.save(registration);
+
+      await expect(repo.findById(registration.id)).resolves.toEqual(registration);
+      await expect(repo.findById(uuidv7())).resolves.toBeNull();
+    });
+  });
+
+  describe('complete', () => {
+    it('sets the tenant, marks the row COMPLETED and clears the tax id, keeping the Google sub and terms', async () => {
+      const googleSub = newSub();
+      const registration = new SignupRegistrationBuilder()
+        .withGoogleSub(googleSub)
+        .withTaxId(TaxId.reconstitute(cpf, 'CPF'))
+        .build();
+      registrationIds.push(registration.id);
+      await repo.save(registration);
+      const tenantId = newTenant();
+
+      await repo.complete(registration.complete(tenantId));
+
+      const row = await dataSource
+        .getRepository(SignupRegistrationEntity)
+        .findOneByOrFail({ id: registration.id });
+      expect(row).toMatchObject({
+        status: 'COMPLETED',
+        tenantId,
+        taxId: null,
+        taxIdType: null,
+        googleSub,
+        termsVersion: registration.terms?.version,
+      });
+    });
+
+    it('matches nothing for a registration that is already COMPLETED: the first tenant keeps it', async () => {
+      const registration = new SignupRegistrationBuilder().asOperator().build();
+      registrationIds.push(registration.id);
+      await repo.save(registration);
+      const firstTenant = newTenant();
+      await repo.complete(registration.complete(firstTenant));
+
+      await expect(repo.complete(registration.complete(newTenant()))).rejects.toThrow(
+        SignupRegistrationNotAvailableError,
+      );
+
+      const row = await dataSource
+        .getRepository(SignupRegistrationEntity)
+        .findOneByOrFail({ id: registration.id });
+      expect(row.tenantId).toBe(firstTenant);
+    });
+
+    it('refuses an id that was never stored', async () => {
+      const registration = new SignupRegistrationBuilder().asOperator().build();
+
+      await expect(repo.complete(registration.complete(newTenant()))).rejects.toThrow(
+        SignupRegistrationNotAvailableError,
+      );
     });
   });
 });

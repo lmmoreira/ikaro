@@ -61,9 +61,9 @@ export class Tenant extends AggregateRoot {
     slug: string,
     adminEmail: string,
     correlationId: string,
+    registrationId: string,
     timezone = 'America/Sao_Paulo',
     countryCode = 'BR',
-    registrationId?: string,
   ): Tenant {
     const normalizedName = normalizeText(name);
     if (!normalizedName) {
@@ -90,7 +90,7 @@ export class Tenant extends AggregateRoot {
         adminEmail,
         timezone,
         countryCode,
-        ...(registrationId ? { registrationId } : {}),
+        registrationId,
       }),
     );
 

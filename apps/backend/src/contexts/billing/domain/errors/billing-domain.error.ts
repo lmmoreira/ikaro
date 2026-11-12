@@ -142,6 +142,17 @@ export class BillingAccountSubscriptionMissingError extends BillingDomainError {
   }
 }
 
+/**
+ * The registration a provisioned tenant names is unknown, or already `COMPLETED` for another
+ * tenant (UC-110 A8). Raised to the `TenantProvisioned` handler, never to a route.
+ */
+export class SignupRegistrationNotAvailableError extends BillingDomainError {
+  constructor(registrationId: string) {
+    super(`Signup registration ${registrationId} is unknown or already completed`);
+    this.name = 'SignupRegistrationNotAvailableError';
+  }
+}
+
 /** A `SELF_SIGNUP` registration was reserved without the accepted terms (`422`, M25-S09). */
 export class SignupTermsNotAcceptedError extends BillingDomainError implements DomainErrorShape {
   readonly code = SignupErrorCode.TERMS_NOT_ACCEPTED;

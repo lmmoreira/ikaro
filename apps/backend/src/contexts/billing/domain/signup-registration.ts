@@ -1,6 +1,9 @@
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import type { TaxId } from '../../../shared/value-objects/tax-id.vo';
-import { SignupTermsNotAcceptedError } from './errors/billing-domain.error';
+import {
+  SignupRegistrationNotAvailableError,
+  SignupTermsNotAcceptedError,
+} from './errors/billing-domain.error';
 
 export type SignupSource = 'SELF_SIGNUP' | 'OPERATOR';
 export type SignupRegistrationStatus = 'RESERVED' | 'COMPLETED';
@@ -40,7 +43,8 @@ export interface ReserveSignupRegistrationInput {
 /**
  * The provisioning registration: a thin record reserved before the tenant exists, so the Google
  * `sub`, the tax id and the accepted terms never travel through Pub/Sub or the audit log. Not a
- * rich aggregate: it raises no events and S09 only creates it; S11 completes it.
+ * rich aggregate: it raises no events; S09 creates it and the `TenantProvisioned` handler (S11)
+ * completes it.
  */
 export class SignupRegistration {
   readonly id: string;
@@ -91,6 +95,26 @@ export class SignupRegistration {
       terms: selfSignup && version ? { version, acceptedAt: input.now } : null,
       exempt: input.exempt === true,
       createdAt: input.now,
+    });
+  }
+
+  /**
+   * The `COMPLETED` record for the tenant created from this registration: the tenant id is set and
+   * the tax id is cleared (it now lives on the billing account). Only a `RESERVED` registration
+   * completes; the repository's conditional `UPDATE` enforces the same rule against the database.
+   */
+  complete(tenantId: string): SignupRegistration {
+    if (this.status !== 'RESERVED') throw new SignupRegistrationNotAvailableError(this.id);
+    return new SignupRegistration({
+      id: this.id,
+      tenantId,
+      source: this.source,
+      status: 'COMPLETED',
+      googleSub: this.googleSub,
+      taxId: null,
+      terms: this.terms,
+      exempt: this.exempt,
+      createdAt: this.createdAt,
     });
   }
 

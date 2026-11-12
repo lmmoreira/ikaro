@@ -1,5 +1,6 @@
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { Slug } from '../../../shared/value-objects/slug.vo';
+import { TEST_REGISTRATION_ID } from '../../utils/test-registration-id';
 import { Tenant } from '../../../contexts/platform/domain/tenant.aggregate';
 import { TenantSettings } from '../../../contexts/platform/domain/value-objects/tenant-settings.vo';
 
@@ -51,6 +52,7 @@ export class TenantBuilder {
         this.slug,
         this.adminEmail,
         DEFAULT_CORRELATION,
+        TEST_REGISTRATION_ID,
         this.timezone,
       );
       tenant.clearDomainEvents(); // builders don't produce events in tests
