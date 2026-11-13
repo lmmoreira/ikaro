@@ -11,6 +11,8 @@ import {
   SubscriptionInvariantError,
   UnsuspendNotAllowedError,
 } from './errors/billing-domain.error';
+import { SubscriptionReactivated } from './events/subscription-reactivated.event';
+import { SubscriptionSuspended } from './events/subscription-suspended.event';
 import { defaultSelection, type SelectionEntry, validateSelection } from './plan-selection';
 import { SubscriptionItem } from './subscription-item';
 import { assertCurrencyMatchesCountry, trialWindow } from './subscription-trial-window';
@@ -262,9 +264,7 @@ export class Subscription extends AggregateRoot {
 
   /** `suspendedAt` + 90 days (never paid) or + 180 days (paid at least once); null while not suspended. */
   get purgeAt(): Date | null {
-    if (this._suspendedAt === null) return null;
-    const days = this._hasEverPaid ? PURGE_DAYS_PAID : PURGE_DAYS_NEVER_PAID;
-    return DateTime.fromJSDate(this._suspendedAt, { zone: 'utc' }).plus({ days }).toJSDate();
+    return this._suspendedAt === null ? null : this.purgeAtFrom(this._suspendedAt);
   }
 
   /**
@@ -319,45 +319,61 @@ export class Subscription extends AggregateRoot {
 
   /**
    * Operator suspension (abuse / takedown): payment does not lift it, only `unsuspendOperator`.
-   * An exempt subscription is never suspended. Already `OPERATOR`-suspended is a no-op; a
-   * payment-based suspension becomes `OPERATOR` and keeps its clean-up clock (`suspendedAt`).
+   * An exempt subscription is never suspended. A tenant that is already suspended, for any
+   * reason, is left exactly as it is (no change, no event): converting a payment suspension into an
+   * `OPERATOR` one would let the operator lift it with `unsuspendOperator` and restore access
+   * without a payment, which UC-111 forbids. Returns whether the state changed.
    */
-  suspendByOperator(now: Date): void {
+  suspendByOperator(now: Date, correlationId: string): boolean {
     if (this._exempt) {
       throw new ExemptProtectedError(
         'An exempt subscription is never suspended: clear exempt first',
       );
     }
-    if (this._status === 'SUSPENDED') {
-      this._suspensionReason = 'OPERATOR';
-      return;
-    }
+    if (this._status === 'SUSPENDED') return false;
     this._status = 'SUSPENDED';
     this._suspensionReason = 'OPERATOR';
     this._suspendedAt = now;
+    this.addDomainEvent(
+      new SubscriptionSuspended(this.tenantId, correlationId, {
+        subscriptionId: this.id,
+        reason: 'OPERATOR',
+        suspendedAt: now.toISOString(),
+        purgeAt: this.purgeAtFrom(now).toISOString(),
+      }),
+    );
+    return true;
   }
 
   /**
    * Lifts an `OPERATOR` suspension — and only that one. Access returns as `TRIALING` when the
    * trial window is still running (the trial was never consumed), otherwise as `ACTIVE`. The
-   * clean-up clock and its warning marks are cleared.
+   * clean-up clock and its warning marks are cleared. Raises `SubscriptionReactivated`. A
+   * subscription that is not suspended is already in the requested state: no change, returns
+   * `false`. A payment-based suspension is refused. Returns whether the state changed.
    */
-  unsuspendOperator(now: Date): void {
-    if (this._status !== 'SUSPENDED' || this._suspensionReason !== 'OPERATOR') {
+  unsuspendOperator(now: Date, correlationId: string): boolean {
+    if (this._status !== 'SUSPENDED') return false;
+    if (this._suspensionReason !== 'OPERATOR' || this._suspendedAt === null) {
       throw new UnsuspendNotAllowedError(
         'Only an OPERATOR suspension can be lifted by the operator; a payment-based one needs a payment',
       );
     }
+    const suspendedAt = this._suspendedAt;
     const trialRunning = this._trialEndsAt !== null && this._trialEndsAt.getTime() > now.getTime();
     this._status = trialRunning ? 'TRIALING' : 'ACTIVE';
     this.clearSuspension();
+    this.addReactivated(now, suspendedAt, correlationId);
+    return true;
   }
 
   /**
    * Operator override of the 14-day grace: only while `PAST_DUE`, and never earlier than
-   * `pastDueSince` + 14 days — a grace extends the window, it never shortens it.
+   * `pastDueSince` + 14 days, and never earlier than a grace already stored — a grace extends the
+   * window, it never shortens it. Returns whether the stored `graceUntil` changed (the same
+   * instant again is a no-op).
    */
-  extendGrace(graceUntil: Date): void {
+  extendGrace(graceUntil: Date): boolean {
     if (this._status !== 'PAST_DUE' || this._pastDueSince === null) {
       throw new GraceNotAllowedError('Grace can only be extended on a PAST_DUE subscription');
     }
@@ -369,17 +385,27 @@ export class Subscription extends AggregateRoot {
         `Grace cannot end before pastDueSince + ${GRACE_DAYS} days (${earliest.toISOString()})`,
       );
     }
+    if (this._graceUntil !== null && graceUntil.getTime() < this._graceUntil.getTime()) {
+      throw new GraceNotAllowedError(
+        `Grace cannot end before the grace already set (${this._graceUntil.toISOString()})`,
+      );
+    }
+    if (this._graceUntil?.getTime() === graceUntil.getTime()) return false;
     this._graceUntil = graceUntil;
+    return true;
   }
 
   /**
    * Free access: `ACTIVE`, never charged, suspended, purged or emailed about billing. Reactivates a
    * suspended subscription without payment (UC-137 A3), clears every trial / period / due field
    * (an exempt subscription has none), ends the plan as it stands — not-yet-started items are
-   * removed, running ones end at `now` — and opens every feature from `now`. Already exempt: no-op.
+   * removed, running ones end at `now` — and opens every feature from `now`. Raises
+   * `SubscriptionReactivated` when it ends a suspension. Already exempt: no-op. Returns whether
+   * the state changed.
    */
-  setExempt(now: Date, actor: string): void {
-    if (this._exempt) return;
+  setExempt(now: Date, actor: string, correlationId: string): boolean {
+    if (this._exempt) return false;
+    const suspendedAt = this._status === 'SUSPENDED' ? this._suspendedAt : null;
     this._exempt = true;
     this._status = 'ACTIVE';
     this.clearSuspension();
@@ -392,6 +418,8 @@ export class Subscription extends AggregateRoot {
     this._cancelAt = null;
     this._planConfirmedAt = null;
     this.replacePlan(now, now, actor);
+    if (suspendedAt !== null) this.addReactivated(now, suspendedAt, correlationId);
+    return true;
   }
 
   /**
@@ -399,9 +427,10 @@ export class Subscription extends AggregateRoot {
    * open-ended items ended and the default paid items `[trialEndsAt, ∞)` in their place.
    * `hasEverPaid` is never touched. The platform-owner tenant is never un-exempted
    * (`isPlatformOwner` is resolved by the caller from `PLATFORM_OWNER_TENANT_SLUG`). Not exempt: no-op.
+   * Returns whether the state changed.
    */
-  clearExempt(now: Date, actor: string, isPlatformOwner: boolean): void {
-    if (!this._exempt) return;
+  clearExempt(now: Date, actor: string, isPlatformOwner: boolean): boolean {
+    if (!this._exempt) return false;
     if (isPlatformOwner) {
       throw new ExemptProtectedError("The platform owner's subscription is always exempt");
     }
@@ -418,12 +447,28 @@ export class Subscription extends AggregateRoot {
     this._cancelAt = null;
     this._planConfirmedAt = null;
     this.replacePlan(now, window.trialEndsAt, actor);
+    return true;
   }
 
   /** Called by the repository after a successful insert/update with the version now stored. */
   markPersisted(version: number): void {
     this._version = version;
     this._itemsDirty = false;
+  }
+
+  private purgeAtFrom(suspendedAt: Date): Date {
+    const days = this._hasEverPaid ? PURGE_DAYS_PAID : PURGE_DAYS_NEVER_PAID;
+    return DateTime.fromJSDate(suspendedAt, { zone: 'utc' }).plus({ days }).toJSDate();
+  }
+
+  private addReactivated(now: Date, suspendedAt: Date, correlationId: string): void {
+    this.addDomainEvent(
+      new SubscriptionReactivated(this.tenantId, correlationId, {
+        subscriptionId: this.id,
+        reactivatedAt: now.toISOString(),
+        suspendedAt: suspendedAt.toISOString(),
+      }),
+    );
   }
 
   private clearSuspension(): void {

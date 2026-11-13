@@ -1,5 +1,11 @@
 import type { FeatureKey } from '@ikaro/validation';
-import { ISubscriptionRepository } from '../../../contexts/billing/application/ports/subscription-repository.port';
+import { drainDomainEvents } from '../../../shared/infrastructure/outbox/drain-domain-events';
+import { IOutboxPublisher } from '../../../shared/ports/outbox-publisher.port';
+import {
+  ISubscriptionRepository,
+  ListOperatorSubscriptionsQuery,
+  OperatorSubscriptionSummary,
+} from '../../../contexts/billing/application/ports/subscription-repository.port';
 import { SubscriptionAlreadyExistsError } from '../../../contexts/billing/domain/errors/billing-domain.error';
 import type { Subscription } from '../../../contexts/billing/domain/subscription.aggregate';
 
@@ -7,6 +13,8 @@ export class InMemorySubscriptionRepository implements ISubscriptionRepository {
   readonly saved: Subscription[] = [];
 
   private nextFindError: unknown = null;
+
+  constructor(private readonly outboxPublisher: IOutboxPublisher = { publish: async () => {} }) {}
 
   /** The next `findByTenantId` rejects with this (a transient failure), then the double recovers. */
   failNextFind(error: unknown): void {
@@ -48,14 +56,38 @@ export class InMemorySubscriptionRepository implements ISubscriptionRepository {
       .map((subscription) => subscription.tenantId);
   }
 
+  // Newest first = reverse insertion order (the double has no `created_at`).
+  async listSummaries(
+    query: ListOperatorSubscriptionsQuery,
+  ): Promise<{ items: OperatorSubscriptionSummary[]; total: number }> {
+    const matching = [...this.saved]
+      .reverse()
+      .filter((subscription) => query.status === undefined || subscription.status === query.status);
+    return {
+      items: matching.slice(query.offset, query.offset + query.limit).map((subscription) => ({
+        tenantId: subscription.tenantId,
+        status: subscription.status,
+        suspensionReason: subscription.suspensionReason,
+        exempt: subscription.exempt,
+        trialEndsAt: subscription.trialEndsAt,
+        graceUntil: subscription.graceUntil,
+        pastDueSince: subscription.pastDueSince,
+        suspendedAt: subscription.suspendedAt,
+        hasEverPaid: subscription.hasEverPaid,
+      })),
+      total: matching.length,
+    };
+  }
+
   // Mirrors `UNIQUE(tenant_id)`: a never-persisted aggregate for a tenant that has one is refused.
   async save(subscription: Subscription): Promise<void> {
     const index = this.saved.findIndex((row) => row.tenantId === subscription.tenantId);
     if (index === -1) {
       this.saved.push(subscription);
-      return;
+    } else {
+      if (subscription.version === undefined) throw new SubscriptionAlreadyExistsError();
+      this.saved[index] = subscription;
     }
-    if (subscription.version === undefined) throw new SubscriptionAlreadyExistsError();
-    this.saved[index] = subscription;
+    await drainDomainEvents(subscription, this.outboxPublisher);
   }
 }

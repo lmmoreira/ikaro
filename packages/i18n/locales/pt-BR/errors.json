@@ -252,5 +252,9 @@
   "AUTH_TRANSACTION_CONTENTION": "O sistema está ocupado com outra operação. Tente novamente em instantes.",
   "SIGNUP_TAX_ID_INVALID": "O documento fiscal informado é inválido.",
   "SIGNUP_TAX_ID_REQUIRED": "Informe o documento fiscal.",
-  "SIGNUP_TERMS_NOT_ACCEPTED": "É necessário aceitar os Termos de Uso e a Política de Privacidade para continuar."
+  "SIGNUP_TERMS_NOT_ACCEPTED": "É necessário aceitar os Termos de Uso e a Política de Privacidade para continuar.",
+  "BILLING_EXEMPT_PROTECTED": "Esta assinatura é isenta e não pode ser alterada desta forma.",
+  "BILLING_GRACE_NOT_ALLOWED": "A carência só pode ser definida em uma assinatura em atraso e nunca termina antes dos 14 dias padrão.",
+  "BILLING_UNSUSPEND_NOT_ALLOWED": "Somente uma suspensão do operador pode ser levantada desta forma; uma suspensão por pagamento exige o pagamento.",
+  "BILLING_CONCURRENT_MODIFICATION": "Esta assinatura foi alterada por outra solicitação. Recarregue e tente novamente."
 }

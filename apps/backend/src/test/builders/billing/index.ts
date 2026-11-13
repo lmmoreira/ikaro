@@ -10,3 +10,5 @@ export * from './signup-registration-entity.builder';
 export * from './subscription.builder';
 export * from './subscription-entity.builder';
 export * from './subscription-item-entity.builder';
+export * from './subscription-reactivated-event.builder';
+export * from './subscription-suspended-event.builder';

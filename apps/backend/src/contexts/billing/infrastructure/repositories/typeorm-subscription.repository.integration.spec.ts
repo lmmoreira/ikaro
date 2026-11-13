@@ -12,6 +12,7 @@ import { Subscription } from '../../domain/subscription.aggregate';
 import { SubscriptionItemEntity } from '../entities/subscription-item.entity';
 import { SubscriptionEntity } from '../entities/subscription.entity';
 import { TypeOrmSubscriptionRepository } from './typeorm-subscription.repository';
+import { InMemoryOutboxPublisher } from '../../../../test/infrastructure/in-memory-outbox-publisher';
 
 // Polls until some backend is parked on a row lock, pausing inside Postgres (pg_sleep) so no
 // test-side timer is involved. Bounded: a lock wait that never appears fails the test instead of
@@ -64,7 +65,10 @@ describe('TypeOrmSubscriptionRepository (integration)', () => {
   beforeAll(async () => {
     dataSource = await createTestDataSource();
     txManager = new TypeOrmTransactionManager(dataSource);
-    repo = new TypeOrmSubscriptionRepository(dataSource.getRepository(SubscriptionEntity));
+    repo = new TypeOrmSubscriptionRepository(
+      dataSource.getRepository(SubscriptionEntity),
+      new InMemoryOutboxPublisher(),
+    );
   });
 
   afterEach(async () => {
@@ -115,7 +119,7 @@ describe('TypeOrmSubscriptionRepository (integration)', () => {
     const loaded = await reload(tenantId);
     const itemIdsBefore = loaded.items.map((item) => item.id).sort();
 
-    loaded.suspendByOperator(new Date('2026-02-01T12:00:00Z'));
+    loaded.suspendByOperator(new Date('2026-02-01T12:00:00Z'), 'corr-1');
     await save(loaded);
 
     const found = await reload(tenantId);
@@ -132,9 +136,9 @@ describe('TypeOrmSubscriptionRepository (integration)', () => {
     const first = await reload(tenantId);
     const second = await reload(tenantId);
 
-    first.suspendByOperator(new Date('2026-02-01T12:00:00Z'));
+    first.suspendByOperator(new Date('2026-02-01T12:00:00Z'), 'corr-1');
     await save(first);
-    second.suspendByOperator(new Date('2026-02-02T12:00:00Z'));
+    second.suspendByOperator(new Date('2026-02-02T12:00:00Z'), 'corr-1');
 
     await expect(save(second)).rejects.toThrow(SubscriptionConcurrentModificationError);
     expect((await reload(tenantId)).suspendedAt?.toISOString()).toBe('2026-02-01T12:00:00.000Z');
@@ -216,7 +220,7 @@ describe('TypeOrmSubscriptionRepository (integration)', () => {
       const oldIds = loaded.items.map((item) => item.id);
       const now = new Date('2026-11-05T12:00:00Z');
 
-      loaded.setExempt(now, 'operator-7');
+      loaded.setExempt(now, 'operator-7', 'corr-1');
       await save(loaded);
 
       const found = await reload(tenantId);
@@ -239,7 +243,7 @@ describe('TypeOrmSubscriptionRepository (integration)', () => {
       const running = await reload(tenantId);
       const now = new Date(running.trialEndsAt!.getTime() + 10 * 86_400_000);
 
-      running.setExempt(now, 'operator-7');
+      running.setExempt(now, 'operator-7', 'corr-1');
       await save(running);
 
       const found = await reload(tenantId);
@@ -321,7 +325,7 @@ describe('TypeOrmSubscriptionRepository (integration)', () => {
         order.push('first-locked');
         firstHasLock();
         await firstReleased;
-        locked.suspendByOperator(new Date('2026-02-01T12:00:00Z'));
+        locked.suspendByOperator(new Date('2026-02-01T12:00:00Z'), 'corr-1');
         await repo.save(locked);
         order.push('first-committing');
       });

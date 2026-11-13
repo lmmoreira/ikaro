@@ -1,11 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import type { FeatureKey } from '@ikaro/validation';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, In, QueryFailedError, Repository, SelectQueryBuilder } from 'typeorm';
+import { drainDomainEvents } from '../../../../shared/infrastructure/outbox/drain-domain-events';
 import { runInNewTransaction } from '../../../../shared/infrastructure/run-in-new-transaction';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
+import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
 import { mapSequentially } from '../../../../shared/utils/sequential';
-import { ISubscriptionRepository } from '../../application/ports/subscription-repository.port';
+import {
+  ISubscriptionRepository,
+  ListOperatorSubscriptionsQuery,
+  OperatorSubscriptionSummary,
+} from '../../application/ports/subscription-repository.port';
 import {
   SubscriptionAlreadyExistsError,
   SubscriptionConcurrentModificationError,
@@ -35,6 +41,7 @@ export class TypeOrmSubscriptionRepository implements ISubscriptionRepository {
   constructor(
     @InjectRepository(SubscriptionEntity)
     private readonly repo: Repository<SubscriptionEntity>,
+    @Inject(OUTBOX_PUBLISHER) private readonly outboxPublisher: IOutboxPublisher,
   ) {}
 
   findByTenantId(tenantId: string): Promise<Subscription | null> {
@@ -73,6 +80,33 @@ export class TypeOrmSubscriptionRepository implements ISubscriptionRepository {
       tenantId: string;
     }>();
     return rows.map((row) => row.tenantId);
+  }
+
+  async listSummaries(
+    query: ListOperatorSubscriptionsQuery,
+  ): Promise<{ items: OperatorSubscriptionSummary[]; total: number }> {
+    const builder = this.repo.createQueryBuilder('s');
+    if (query.status) builder.where('s.status = :status', { status: query.status });
+    const [rows, total] = await builder
+      .orderBy('s.createdAt', 'DESC')
+      .addOrderBy('s.id', 'DESC')
+      .take(query.limit)
+      .skip(query.offset)
+      .getManyAndCount();
+    return {
+      items: rows.map((row) => ({
+        tenantId: row.tenantId,
+        status: row.status as OperatorSubscriptionSummary['status'],
+        suspensionReason: row.suspensionReason as OperatorSubscriptionSummary['suspensionReason'],
+        exempt: row.exempt,
+        trialEndsAt: row.trialEndsAt,
+        graceUntil: row.graceUntil,
+        pastDueSince: row.pastDueSince,
+        suspendedAt: row.suspendedAt,
+        hasEverPaid: row.hasEverPaid,
+      })),
+      total,
+    };
   }
 
   // The two batch queries are public so the integration spec can `EXPLAIN` the exact SQL that runs.
@@ -147,6 +181,9 @@ export class TypeOrmSubscriptionRepository implements ISubscriptionRepository {
     // A status-only change (sweep, payment) leaves the item rows alone entirely.
     if (subscription.itemsDirty) await this.syncItems(manager, subscription);
     subscription.markPersisted(nextVersion);
+    // In the same transaction as the write (`persist` always runs inside one): a rollback drops the
+    // outbox rows with the subscription change.
+    await drainDomainEvents(subscription, this.outboxPublisher);
   }
 
   private async insert(manager: EntityManager, entity: SubscriptionEntity): Promise<void> {

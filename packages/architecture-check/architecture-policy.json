@@ -1001,41 +1001,9 @@
     },
     {
       "rule": "error-mapper-coverage",
-      "class": "ExemptProtectedError",
-      "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
-      "rationale": "Same as FeatureDependencyUnmetError above: no billing HTTP surface can throw it yet; M25-S15b's operator routes map it (BILLING_EXEMPT_PROTECTED, 403 per UC-111 A3) and remove this entry.",
-      "owner": "billing",
-      "reviewBy": "2026-12-31"
-    },
-    {
-      "rule": "error-mapper-coverage",
-      "class": "GraceNotAllowedError",
-      "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
-      "rationale": "Same as FeatureDependencyUnmetError above: no billing HTTP surface can throw it yet; M25-S15b's operator grace route maps it (BILLING_GRACE_NOT_ALLOWED, 409 per UC-111 A1) and removes this entry.",
-      "owner": "billing",
-      "reviewBy": "2026-12-31"
-    },
-    {
-      "rule": "error-mapper-coverage",
-      "class": "UnsuspendNotAllowedError",
-      "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
-      "rationale": "Same as FeatureDependencyUnmetError above: no billing HTTP surface can throw it yet; M25-S15b's operator unsuspend route maps it (BILLING_UNSUSPEND_NOT_ALLOWED, 409 per UC-111 A2) and removes this entry.",
-      "owner": "billing",
-      "reviewBy": "2026-12-31"
-    },
-    {
-      "rule": "error-mapper-coverage",
       "class": "SubscriptionInvariantError",
       "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
       "rationale": "Same as FeatureDependencyUnmetError above: a programming-contract guard (tier/feature mismatch, overlapping item windows, a malformed item) that no endpoint input can reach once its caller validates the selection; the first story that exposes one of these to user input maps it with its own code and removes this entry.",
-      "owner": "billing",
-      "reviewBy": "2026-12-31"
-    },
-    {
-      "rule": "error-mapper-coverage",
-      "class": "SubscriptionConcurrentModificationError",
-      "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
-      "rationale": "Same as FeatureDependencyUnmetError above: no billing HTTP surface can throw it yet; the first use case behind a route (M25-S15b) decides its wire status and code (a 409 retry) and removes this entry.",
       "owner": "billing",
       "reviewBy": "2026-12-31"
     },

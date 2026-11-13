@@ -8,6 +8,7 @@ import { createTestDataSource } from '../../../../test/test-datasource';
 import { SubscriptionItemEntity } from '../entities/subscription-item.entity';
 import { SubscriptionEntity } from '../entities/subscription.entity';
 import { TypeOrmSubscriptionRepository } from './typeorm-subscription.repository';
+import { InMemoryOutboxPublisher } from '../../../../test/infrastructure/in-memory-outbox-publisher';
 
 interface PlanNode {
   'Node Type': string;
@@ -82,7 +83,10 @@ describe('TypeOrmSubscriptionRepository access batch reads (integration)', () =>
 
   beforeAll(async () => {
     dataSource = await createTestDataSource();
-    repo = new TypeOrmSubscriptionRepository(dataSource.getRepository(SubscriptionEntity));
+    repo = new TypeOrmSubscriptionRepository(
+      dataSource.getRepository(SubscriptionEntity),
+      new InMemoryOutboxPublisher(),
+    );
   });
 
   afterEach(async () => {

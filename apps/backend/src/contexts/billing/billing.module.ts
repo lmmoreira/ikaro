@@ -32,6 +32,7 @@ import { TypeOrmFeaturePriceRepository } from './infrastructure/repositories/typ
 import { CachingSubscriptionRepository } from './infrastructure/repositories/caching-subscription.repository';
 import { TypeOrmSubscriptionRepository } from './infrastructure/repositories/typeorm-subscription.repository';
 import { type AppEnv, resolveAppEnv } from '../../shared/database/resolve-app-env';
+import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.module';
 import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cache.module';
 import { TENANT_ACCESS_PORT } from '../../shared/ports/tenant-access.port';
 import { PlatformSettingsModule } from '../platform/platform-settings.module';
@@ -41,6 +42,13 @@ import { ListSuspendedTenantIdsUseCase } from './application/use-cases/list-susp
 import { ListTenantIdsNotEntitledToUseCase } from './application/use-cases/list-tenant-ids-not-entitled-to.use-case';
 import { TenantAccessAdapter } from './infrastructure/adapters/tenant-access.adapter';
 import { BillingPlatformAdapter } from './infrastructure/cross-context/billing-platform.adapter';
+import { ExtendGraceUseCase } from './application/use-cases/extend-grace.use-case';
+import { ListTenantBillingStatusUseCase } from './application/use-cases/list-tenant-billing-status.use-case';
+import { SetTenantExemptUseCase } from './application/use-cases/set-tenant-exempt.use-case';
+import { SuspendTenantByOperatorUseCase } from './application/use-cases/suspend-tenant-by-operator.use-case';
+import { UnsuspendTenantUseCase } from './application/use-cases/unsuspend-tenant.use-case';
+import { BillingAuditLogHandler } from './infrastructure/events/billing-audit-log.handler';
+import { InternalBillingOperatorController } from './infrastructure/controllers/internal-billing-operator.controller';
 import { InternalBillingAccessController } from './infrastructure/controllers/internal-billing-access.controller';
 import { BILLING_PROVIDER_REGISTRY } from './application/ports/billing-provider.port';
 import {
@@ -60,6 +68,7 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
   imports: [
     PlatformSettingsModule,
     SharedCacheModule,
+    AuditLogModule,
     TypeOrmModule.forFeature([
       FeaturePriceEntity,
       FeaturePriceVersionEntity,
@@ -70,7 +79,11 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
       OperatorAuditEntity,
     ]),
   ],
-  controllers: [InternalBillingRegistrationController, InternalBillingAccessController],
+  controllers: [
+    InternalBillingRegistrationController,
+    InternalBillingAccessController,
+    InternalBillingOperatorController,
+  ],
   providers: [
     { provide: SIGNUP_REGISTRATION_REPOSITORY, useClass: TypeOrmSignupRegistrationRepository },
     { provide: SIGNUP_REGISTRATION_LOCK, useClass: TypeOrmSignupRegistrationLockAdapter },
@@ -82,7 +95,7 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     CachingSubscriptionRepository,
     { provide: SUBSCRIPTION_REPOSITORY, useClass: CachingSubscriptionRepository },
     { provide: BILLING_ACCOUNT_REPOSITORY, useClass: TypeOrmBillingAccountRepository },
-    // Written by S15b's operator use cases, in the same transaction as the change they audit.
+    // Written by the operator use cases (M25-S15b), in the same transaction as the change they audit.
     { provide: OPERATOR_AUDIT_REPOSITORY, useClass: TypeOrmOperatorAuditRepository },
     { provide: BILLING_APP_ENV, useFactory: () => resolveAppEnv(process.env) },
     FakeBillingProvider,
@@ -106,11 +119,26 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     { provide: TENANT_ACCESS_PORT, useClass: TenantAccessAdapter },
     CreateTrialSubscriptionUseCase,
     TenantProvisionedBillingHandler,
+    SuspendTenantByOperatorUseCase,
+    UnsuspendTenantUseCase,
+    ExtendGraceUseCase,
+    SetTenantExemptUseCase,
+    ListTenantBillingStatusUseCase,
+    BillingAuditLogHandler,
   ],
-  // The shared access port is consumed by every context (M25-S16 onwards). The registration use
-  // case is injected by this module's own controller, which the `global-module-export-pairing`
-  // detector counts as an external consumer once the module is @Global(). The rest are consumed
-  // in-process by M26's charge issuer and price page; export them then, not before.
-  exports: [TENANT_ACCESS_PORT, ReserveSignupRegistrationUseCase],
+  // The shared access port is consumed by every context (M25-S16 onwards). The registration and
+  // the five operator use cases are injected by this module's own controllers, which the
+  // `global-module-export-pairing` detector counts as external consumers once the module is
+  // @Global(). The rest are consumed in-process by M26's charge issuer and price page; export them
+  // then, not before.
+  exports: [
+    TENANT_ACCESS_PORT,
+    ReserveSignupRegistrationUseCase,
+    SuspendTenantByOperatorUseCase,
+    UnsuspendTenantUseCase,
+    ExtendGraceUseCase,
+    SetTenantExemptUseCase,
+    ListTenantBillingStatusUseCase,
+  ],
 })
 export class BillingModule {}

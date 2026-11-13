@@ -15,6 +15,7 @@ import { Subscription } from '../../domain/subscription.aggregate';
 import { SubscriptionItemEntity } from '../entities/subscription-item.entity';
 import { SubscriptionEntity } from '../entities/subscription.entity';
 import { TypeOrmSubscriptionRepository } from './typeorm-subscription.repository';
+import { InMemoryOutboxPublisher } from '../../../../test/infrastructure/in-memory-outbox-publisher';
 
 const TENANT = '0197a2b0-0000-7000-8000-0000000000aa';
 
@@ -60,15 +61,18 @@ function mockManager(): Mocks {
 describe('TypeOrmSubscriptionRepository', () => {
   let mocks: Mocks;
   let repo: TypeOrmSubscriptionRepository;
+  let outbox: InMemoryOutboxPublisher;
 
   const inTransaction = <T>(work: () => Promise<T>): Promise<T> =>
     runWithEntityManager(mocks.manager, work);
 
   beforeEach(() => {
     mocks = mockManager();
-    repo = new TypeOrmSubscriptionRepository({
-      manager: mocks.manager,
-    } as unknown as Repository<SubscriptionEntity>);
+    outbox = new InMemoryOutboxPublisher();
+    repo = new TypeOrmSubscriptionRepository(
+      { manager: mocks.manager } as unknown as Repository<SubscriptionEntity>,
+      outbox,
+    );
   });
 
   describe('findByTenantId', () => {
@@ -230,7 +234,7 @@ describe('TypeOrmSubscriptionRepository', () => {
         .withStatus('ACTIVE')
         .withVersion(3)
         .build();
-      subscription.suspendByOperator(new Date('2026-03-01T12:00:00Z'));
+      subscription.suspendByOperator(new Date('2026-03-01T12:00:00Z'), 'corr-1');
 
       await inTransaction(() => repo.save(subscription));
 
@@ -240,6 +244,31 @@ describe('TypeOrmSubscriptionRepository', () => {
       const set = qb['set']!.mock.calls[0]![0] as Partial<SubscriptionEntity>;
       expect(set).toMatchObject({ status: 'SUSPENDED', suspensionReason: 'OPERATOR', version: 4 });
       expect(subscription.version).toBe(4);
+    });
+
+    it("drains the aggregate's pending events into the outbox after the write, and only once", async () => {
+      const subscription = new SubscriptionBuilder()
+        .withTenantId(TENANT)
+        .withStatus('ACTIVE')
+        .withVersion(3)
+        .build();
+      subscription.suspendByOperator(new Date('2026-03-01T12:00:00Z'), 'corr-1');
+
+      await inTransaction(() => repo.save(subscription));
+      await inTransaction(() => repo.save(subscription));
+
+      expect(outbox.published.map((event) => event.eventName)).toEqual(['SubscriptionSuspended']);
+      expect(subscription.domainEvents).toEqual([]);
+    });
+
+    it('publishes nothing when the optimistic update loses (the write never happened)', async () => {
+      const subscription = new SubscriptionBuilder().withTenantId(TENANT).withVersion(3).build();
+      subscription.suspendByOperator(new Date('2026-03-01T12:00:00Z'), 'corr-1');
+      mocks.executeUpdate.mockResolvedValueOnce({ affected: 0 });
+
+      await expect(inTransaction(() => repo.save(subscription))).rejects.toThrow();
+
+      expect(outbox.published).toHaveLength(0);
     });
 
     it('never rewrites the columns fixed at creation', async () => {
@@ -279,7 +308,7 @@ describe('TypeOrmSubscriptionRepository', () => {
         .withItems([new SubscriptionItemBuilder().build()])
         .withVersion(1)
         .build();
-      subscription.suspendByOperator(new Date('2026-03-01T12:00:00Z'));
+      subscription.suspendByOperator(new Date('2026-03-01T12:00:00Z'), 'corr-1');
 
       await inTransaction(() => repo.save(subscription));
 
@@ -326,7 +355,7 @@ describe('TypeOrmSubscriptionRepository', () => {
         storedRow(untouched),
       ]);
 
-      subscription.setExempt(now, 'operator-7');
+      subscription.setExempt(now, 'operator-7', 'corr-1');
       await inTransaction(() => repo.save(subscription));
 
       // BOOKING's not-yet-started item is deleted; the running ones are end-dated at now; the five
