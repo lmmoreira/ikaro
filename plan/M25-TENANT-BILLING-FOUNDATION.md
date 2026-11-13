@@ -1348,6 +1348,8 @@ Annotate every existing **Platform** HTTP route with explicit entitlement and su
 
 `tenant-settings.controller.ts` mixes features on **both** sides (settings → `HOTSITE`, `chatbot/cap-status` → `CHATBOT`), so its annotations are **per route, never controller-level**. The exact route list is whatever the detector reports in warn mode when this story starts (run it first and count); if it exceeds what one PR can hold, this story splits at story discovery along the controller boundary (hotsite+templates / chatbot / lead-form / tenant+settings). A route the framework cannot classify is recorded in the PR, never given an invented decorator.
 
+**Decisions locked at discovery (2026-11-13).** *Route count:* the detector in warn mode reports **50** in-scope routes (25 backend, 25 BFF), which fit one PR, so the story does not split. The four Platform controllers `cron-chatbot`, `cron-lead-form`, `internal-tenant-read` and `internal-tenant` also show as warnings but belong to **S20** (cron and internal surface) and are not touched here. *Placement:* a controller whose routes all share one feature carries `@RequiresFeature` and `@SuspensionAccess` **once on the class** (hotsite-admin, hotsite-templates, lead-form manager, tenant, chatbot, lead-form-public); a handler that differs overrides it (`readTenantAccessRequirement` resolves entitlement at the nearest scope and the policy separately). The mixed controllers (`tenant-settings` on both sides, and the BFF `platform.public.controller.ts`) are annotated **per route**. *Settings stay `HOTSITE`:* `PATCH /tenants/settings` is `HOTSITE` / `DEFAULT_DENY` and is **not** gated by chatbot entitlement per key. A tenant without `CHATBOT` can still save its chatbot settings (they are preserved and resume when entitled), but cannot use the chat (`PUBLIC_NONE` refuses the public routes), cannot read `chatbot/cap-status`, and S25 removes the module from the manifest. The guard decides feature and suspension only; no use case gains entitlement logic. Recorded in the PR body as a deliberate trade. *Suspended tenants:* every hotsite admin route, `publish` and `unpublish` included, is `DEFAULT_DENY`, so a suspended manager cannot change `isPublished`; the manager's flag is frozen and the effective value (`isPublished && operational`) is S25's. *Manifest scope:* this story only keeps the manifest and the published list reachable for a suspended tenant (`PUBLIC_MANIFEST`, `200`, payload as today, never a typed denial); computing `isPublished = false` is S25's. *Recording:* ambiguous choices go in the PR body; the only `.http` comments added are on the two `PUBLIC_MANIFEST` routes.
+
 **Backend use case steps:** none.
 **Backend HTTP surface:** none — annotates existing controllers; no new route.
 **New migration / i18n keys / env vars / feature flags:** none.
@@ -1355,22 +1357,29 @@ Annotate every existing **Platform** HTTP route with explicit entitlement and su
 **Files to create/modify:**
 - `apps/backend/src/contexts/platform/infrastructure/controllers/hotsite-admin.controller.ts`, `hotsite.controller.ts`, `chatbot.controller.ts`, `lead-form.controller.ts`, `lead-form-public.controller.ts`, `tenant-settings.controller.ts`, `tenant.controller.ts` (modify)
 - `apps/bff/src/features/platform/hotsite-admin.controller.ts`, `hotsite-templates.controller.ts`, `lead-form.controller.ts`, `platform.public.controller.ts`, `tenant-settings.controller.ts`, `tenant.controller.ts` (modify)
-- the matching `.spec.ts` / `.integration.spec.ts` / `.component.spec.ts` of each controller (modify — add the gate assertions)
+- **Tests (consolidated; the existing per-controller specs stay untouched, which is the non-regression proof):**
+  - `apps/backend/src/contexts/platform/infrastructure/controllers/platform-tenant-access.metadata.spec.ts` (create — table-driven mapping spec)
+  - `apps/backend/src/contexts/platform/infrastructure/controllers/platform-tenant-access.integration.spec.ts` (create — real `TenantAccessGuard` + `InMemoryTenantAccessPort` over `createPlatformIntegrationApp`)
+  - `apps/bff/src/features/platform/platform-tenant-access.metadata.spec.ts` (create — the BFF mapping spec)
+  - `apps/bff/src/features/platform/platform-tenant-access.component.spec.ts` (create — real BFF `TenantAccessGuard` over the Platform controllers, using `createTestApp`)
+- `apps/bff/http/platform/platform.http` (modify — a comment on the manifest and published-list requests only)
 - `docs/USE_CASES.md` UC-125 already says the public booking, lead-form and chatbot routes refuse while the manifest and published list are exempt; no doc edit is owed
 
 **Acceptance criteria — product:**
 - [ ] No Platform behaviour changes for an entitled or exempt tenant.
-- [ ] A tenant without `CHATBOT` (test subscription) cannot use the chatbot routes and keeps its `knowledgeText`; the same for `LEAD_FORM`; regaining the entitlement resumes exactly as left.
+- [ ] A tenant without `CHATBOT` (test subscription) cannot use the chatbot routes and keeps its `knowledgeText` (it can still save chatbot settings through `PATCH /tenants/settings`, by design); the same for `LEAD_FORM`; regaining the entitlement resumes exactly as left.
+- [ ] A suspended tenant's manifest and published-hotsites list still answer `200`, never a typed denial, with the payload as today (S25 adds the effective `isPublished`).
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] A table-driven spec over the controllers' metadata asserts every route carries explicit metadata and the mapping above
+  - [ ] A table-driven spec per app reads each in-scope route's metadata with `readTenantAccessRequirement` and asserts the feature and policy of the mapping above (the detector proves a declaration exists; this proves it is the right one)
 - Integration:
-  - [ ] For each feature group: entitled tenant → 200, non-entitled → typed denial, suspended → `BILLING_TENANT_SUSPENDED` (public routes refuse), **except the manifest**: a suspended tenant's manifest (backend `GET /hotsite` and the BFF composition) and the published list answer `200` with `isPublished = false` and branding
-  - [ ] **Non-regression:** an `exempt` tenant's existing Platform integration specs pass unchanged
+  - [ ] For each of `HOTSITE`, `CHATBOT` and `LEAD_FORM`: entitled tenant → 200, non-entitled → `BILLING_FEATURE_NOT_ENTITLED`, suspended → `BILLING_TENANT_SUSPENDED` (public routes refuse, a suspended manager's `publish` / `unpublish` included), **except the manifest**: a suspended tenant's manifest (backend `GET /hotsite` and the BFF composition) and the published list answer `200`, never a typed denial
+  - [ ] **Non-regression (negative guarantee):** no existing Platform spec file is modified and every one still passes; an `exempt` tenant behaves exactly as before
+  - [ ] `PATCH /tenants/settings` with chatbot keys succeeds for a tenant without `CHATBOT` and `GET …/chatbot/cap-status` is refused for it
 - Tenant isolation: [ ] each denial concerns the caller's tenant only
 - E2E: none — covered by integration
-- [ ] The detector reports zero Platform-route warnings
+- [ ] The detector reports zero warnings on the 7 backend and 6 BFF Platform controllers listed here (the four S20 controllers stay until S20)
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
