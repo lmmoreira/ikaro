@@ -15,11 +15,13 @@ export class BillingAuditLogHandler extends AuditLogHandlerBase {
       SubscriptionSuspended.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
     this.eventBus.subscribe(
       SubscriptionReactivated.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
   }
 }

@@ -20,6 +20,7 @@ export class AdminDailyScheduleReminderHandler implements OnModuleInit {
       AdminDailyScheduleReminder.name,
       (event) => this.handle(event),
       AdminDailyScheduleReminderHandler.CONSUMER_NAME,
+      { skipWhenSuspended: true },
     );
   }
 

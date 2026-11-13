@@ -20,6 +20,7 @@ export class StaffInvitedHandler implements OnModuleInit {
       StaffInvited.name,
       (event) => this.handle(event),
       StaffInvitedHandler.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
   }
 

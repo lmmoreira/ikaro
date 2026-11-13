@@ -8,7 +8,7 @@ import { InboxRecordEntity } from '../../../../shared/infrastructure/inbox/inbox
 import { OutboxModule } from '../../../../shared/infrastructure/outbox/outbox.module';
 import { TransactionManagerModule } from '../../../../shared/infrastructure/transaction-manager.module';
 import { AppLogger } from '../../../../shared/observability/app-logger';
-import { EVENT_BUS } from '../../../../shared/ports/event-bus.port';
+import { EVENT_BUS, EVENT_BUS_TRANSPORT } from '../../../../shared/ports/event-bus.port';
 import { OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
 import { StaffEntityBuilder } from '../../../../test/builders/staff/staff-entity.builder';
 import { RoutingInMemoryEventBus } from '../../../../test/infrastructure/routing-in-memory-event-bus';
@@ -51,6 +51,8 @@ describe('StaffAuditLogHandler (integration)', () => {
       ],
     })
       .overrideProvider(EVENT_BUS)
+      .useValue(routingBus)
+      .overrideProvider(EVENT_BUS_TRANSPORT)
       .useValue(routingBus)
       .overrideProvider(OUTBOX_PUBLISHER)
       .useValue(routingBus)

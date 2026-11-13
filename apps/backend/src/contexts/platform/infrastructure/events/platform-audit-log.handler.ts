@@ -14,11 +14,13 @@ export class PlatformAuditLogHandler extends AuditLogHandlerBase {
       LeadFormSubmissionReceived.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
     this.eventBus.subscribe(
       TenantProvisioned.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
   }
 }

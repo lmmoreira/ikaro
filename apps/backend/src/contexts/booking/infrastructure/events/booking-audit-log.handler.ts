@@ -48,26 +48,31 @@ export class BookingAuditLogHandler extends AuditLogHandlerBase {
       BookingRequested.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
     this.eventBus.subscribe(
       BookingInfoRequested.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
     this.eventBus.subscribe(
       BookingInfoSubmitted.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
     this.eventBus.subscribe(
       BookingApproved.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
     this.eventBus.subscribe(
       BookingRejected.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
   }
 
@@ -76,26 +81,31 @@ export class BookingAuditLogHandler extends AuditLogHandlerBase {
       BookingCancelled.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
     this.eventBus.subscribe(
       BookingRescheduled.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
     this.eventBus.subscribe(
       BookingCompleted.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
     this.eventBus.subscribe(
       BookingNoShow.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
     this.eventBus.subscribe(
       BookingResourceReassigned.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
   }
 
@@ -104,26 +114,31 @@ export class BookingAuditLogHandler extends AuditLogHandlerBase {
       AvailabilityAlertCreated.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
     this.eventBus.subscribe(
       AvailabilityAlertUpdated.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
     this.eventBus.subscribe(
       AvailabilityAlertCancelled.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
     this.eventBus.subscribe(
       AvailabilityAlertExpired.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
     this.eventBus.subscribe(
       AvailabilityAlertMatched.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
   }
 
@@ -132,21 +147,25 @@ export class BookingAuditLogHandler extends AuditLogHandlerBase {
       FutureCommitmentExceptionRaised.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
     this.eventBus.subscribe(
       FutureCommitmentExceptionResolved.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
     this.eventBus.subscribe(
       FutureCommitmentExceptionDismissed.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
     this.eventBus.subscribe(
       ResourceDeactivationImpactRaised.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
   }
 
@@ -155,21 +174,25 @@ export class BookingAuditLogHandler extends AuditLogHandlerBase {
       RecurringBookingScheduleCreated.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
     this.eventBus.subscribe(
       RecurringBookingScheduleApprovalRequested.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
     this.eventBus.subscribe(
       RecurringBookingScheduleRejected.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
     this.eventBus.subscribe(
       RecurringBookingScheduleEnded.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
   }
 }

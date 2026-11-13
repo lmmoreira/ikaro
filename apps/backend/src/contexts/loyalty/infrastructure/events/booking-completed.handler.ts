@@ -18,6 +18,7 @@ export class BookingCompletedHandler implements OnModuleInit {
       BookingCompleted.name,
       (event) => this.handle(event),
       CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME,
+      { requires: 'LOYALTY', skipWhenSuspended: true },
     );
   }
 

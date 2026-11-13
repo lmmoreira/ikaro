@@ -20,6 +20,7 @@ export class RecurringScheduleEndedNotificationHandler implements OnModuleInit {
       RecurringBookingScheduleEnded.name,
       (event) => this.handle(event),
       RecurringScheduleEndedNotificationHandler.CONSUMER_NAME,
+      { skipWhenSuspended: true },
     );
   }
 

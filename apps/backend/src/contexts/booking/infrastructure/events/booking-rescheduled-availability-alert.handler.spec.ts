@@ -30,6 +30,7 @@ describe('BookingRescheduledAvailabilityAlertHandler', () => {
       'BookingRescheduled',
       expect.any(Function),
       BookingRescheduledAvailabilityAlertHandler.CONSUMER_NAME,
+      { skipWhenSuspended: true },
     );
   });
 

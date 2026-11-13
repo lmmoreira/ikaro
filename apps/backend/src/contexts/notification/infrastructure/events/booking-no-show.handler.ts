@@ -20,6 +20,7 @@ export class BookingNoShowHandler implements OnModuleInit {
       BookingNoShow.name,
       (event) => this.handle(event),
       BookingNoShowHandler.CONSUMER_NAME,
+      { skipWhenSuspended: true },
     );
   }
 

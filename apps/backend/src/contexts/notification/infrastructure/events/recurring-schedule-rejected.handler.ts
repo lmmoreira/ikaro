@@ -20,6 +20,7 @@ export class RecurringScheduleRejectedNotificationHandler implements OnModuleIni
       RecurringBookingScheduleRejected.name,
       (event) => this.handle(event),
       RecurringScheduleRejectedNotificationHandler.CONSUMER_NAME,
+      { skipWhenSuspended: true },
     );
   }
 

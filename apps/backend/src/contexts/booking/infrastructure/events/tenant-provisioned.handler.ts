@@ -20,6 +20,7 @@ export class TenantProvisionedBookingHandler implements OnModuleInit {
       TenantProvisioned.name,
       (event) => this.handle(event),
       TenantProvisionedBookingHandler.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
   }
 

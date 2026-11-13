@@ -22,6 +22,7 @@ export class BookingCancelledHandler implements OnModuleInit {
       BookingCancelled.name,
       (event) => this.handle(event),
       BookingCancelledHandler.CONSUMER_NAME,
+      { skipWhenSuspended: true },
     );
   }
 

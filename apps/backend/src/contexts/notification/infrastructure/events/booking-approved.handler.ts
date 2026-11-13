@@ -20,6 +20,7 @@ export class BookingApprovedHandler implements OnModuleInit {
       BookingApproved.name,
       (event) => this.handle(event),
       BookingApprovedHandler.CONSUMER_NAME,
+      { skipWhenSuspended: true },
     );
   }
 
