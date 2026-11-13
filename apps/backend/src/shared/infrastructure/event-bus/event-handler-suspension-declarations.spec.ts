@@ -64,9 +64,10 @@ describe('declared skipWhenSuspended values (UC-123)', () => {
   });
 
   describe('Loyalty', () => {
-    it('earns points only for a tenant entitled to LOYALTY and not suspended', () => {
+    it('always runs: settling a redemption already applied must not depend on current access', () => {
+      // The use case itself skips only the earning half (`complete-booking-loyalty-effects.use-case.spec.ts`).
       expect(declarations('loyalty', 'booking-completed.handler.ts')).toEqual([
-        'requires LOYALTY, skipWhenSuspended true',
+        'skipWhenSuspended false',
       ]);
     });
 

@@ -28,7 +28,7 @@ describe('BookingCompletedHandler', () => {
       'BookingCompleted',
       expect.any(Function),
       CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME,
-      { requires: 'LOYALTY', skipWhenSuspended: true },
+      { skipWhenSuspended: false },
     );
   });
 

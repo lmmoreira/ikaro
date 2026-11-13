@@ -1507,7 +1507,7 @@ Annotate every existing **Loyalty**, **Customer** and **Staff** HTTP route (back
 | `GET /staff/me/tenants` (backend-only; the BFF `GET /auth/staff-tenants` assembles from it) | `HOTSITE` (root) | `AUTH_TENANT_SWITCH` |
 | every other staff management route (list, invite, edit, activate, deactivate) | `HOTSITE` (root) | `DEFAULT_DENY` |
 
-`/staff/me/status` and `/staff/me/tenants` have no BFF route of their own. The staff **notice** is not read from a staff route: it renders from `GET /v1/billing/access` (`ANY_AUTHENTICATED`, S13/S26/S29), so no suspension reason is ever returned by a staff or customer route. The **loyalty earn handler** on `BookingCompleted` is an event subscription, so it is gated in S21a (`requires: 'LOYALTY'`, `skipWhenSuspended: true`), not by a route annotation here.
+`/staff/me/status` and `/staff/me/tenants` have no BFF route of their own. The staff **notice** is not read from a staff route: it renders from `GET /v1/billing/access` (`ANY_AUTHENTICATED`, S13/S26/S29), so no suspension reason is ever returned by a staff or customer route. The **loyalty earn handler** on `BookingCompleted` is an event subscription, so it is handled in S21a (the handler always runs and the use case skips only the earning half; see the Loyalty row of S21a's declaration table), not by a route annotation here.
 
 **Backend use case steps:** none.
 **Backend HTTP surface:** none — annotates existing controllers.
@@ -1520,7 +1520,7 @@ Annotate every existing **Loyalty**, **Customer** and **Staff** HTTP route (back
 
 **Acceptance criteria — product:**
 - [ ] No behaviour change for an entitled or exempt tenant.
-- [ ] A suspended tenant: customers can still read their balance and history; redemption is refused (earning is refused by the S21a event gate); staff and managers can still sign in, load their session and see the suspended notice.
+- [ ] A suspended tenant: customers can still read their balance and history; redemption is refused (earning is refused by the loyalty use case, which reads the tenant's access); staff and managers can still sign in, load their session and see the suspended notice.
 
 **Acceptance criteria — technical:**
 - Unit:
@@ -1614,7 +1614,7 @@ Annotate the surface that is **not** a sellable feature: the BFF `auth.controlle
 | Booking (28): the 23 `BookingAuditLogHandler` lines | `skipWhenSuspended: false` |
 | Booking: `booking-cancelled-`, `booking-rejected-`, `booking-rescheduled-availability-alert.handler.ts` (3) | `true` — they end up notifying customers |
 | Booking: `staff-deactivated.handler.ts`, `tenant-provisioned.handler.ts` (2) | `false` — state sync / seeding |
-| Loyalty (2): `booking-completed.handler.ts` | **`{ requires: 'LOYALTY', skipWhenSuspended: true }`** (UC-121: earning stops while suspended; UC-125: a tenant without LOYALTY earns nothing) — the one declaration in M25 that uses `requires` |
+| Loyalty (2): `booking-completed.handler.ts` | **`{ skipWhenSuspended: false }`**, and the use case skips only the earning half (UC-121: earning stops while suspended; UC-125: a tenant without LOYALTY earns nothing). The same event also settles the points already spent on a discount applied at completion, in one transaction on one balance row, so skipping the whole handler would leave the customer with the discount and the points. The gate cannot skip half of a transaction, so `CompleteBookingLoyaltyEffectsUseCase` reads `TenantAccessPort` itself, before the transaction, fails open on a lookup error and always settles the redemption (decided in PR review, 2026-11-13; a two-consumer split was rejected: it needs a new subscription and a balance lock, because the balance is saved by an unlocked read-modify-write upsert). No M25 subscription uses `requires`; the option stays available and is covered by the gate's unit tests |
 | Loyalty: `LoyaltyAuditLogHandler` | `false` |
 | Staff (4): 3 `StaffAuditLogHandler` lines, `tenant-provisioned.handler.ts` | `false` |
 | Platform (2): `PlatformAuditLogHandler` lines | `false` |
@@ -1641,14 +1641,14 @@ Handlers added later by S25, S27 and S28 declare their own options in their own 
 - `packages/infra-scripts/src/pubsub-catalog.spec.ts` (modify — a 4-argument call yields the same entry as a 3-argument one; no change to `pubsub-catalog.ts` expected)
 - every `eventBus.subscribe(...)` call site: **63 non-test sites** across `contexts/booking`, `contexts/notification`, `contexts/staff`, `contexts/platform`, `contexts/loyalty` and `contexts/billing` (modify — add the explicit options)
 - `infra/terraform/pubsub-catalog.json` (regenerated, expected unchanged)
-- new specs: `gated-event-bus.spec.ts`, `event-handler-suspension-declarations.spec.ts` (pins every Notification subscription and the loyalty earn handler, reading the handler sources), `event-bus.module.integration.spec.ts` (the boot test: real graph, nothing overridden), `notification-suspension-gate.integration.spec.ts` and `loyalty/.../booking-completed.handler.gate.spec.ts`; `apps/backend/src/test/infrastructure/in-memory-tenant-access.port.ts` gains `getAccessError` (modify)
+- new specs: `gated-event-bus.spec.ts`, `event-handler-suspension-declarations.spec.ts` (pins every Notification subscription and the loyalty earn handler, reading the handler sources), `event-bus.module.integration.spec.ts` (the boot test: real graph, nothing overridden), `notification-suspension-gate.integration.spec.ts` and the new access cases in `loyalty/.../complete-booking-loyalty-effects.use-case.spec.ts`; `apps/backend/src/test/infrastructure/in-memory-tenant-access.port.ts` gains `getAccessError` (modify)
 - stale-reference sweep (the harness override shape changed): `docs/TESTING_STRATEGY.md` (§ Dual-token override and the helper table), `docs/AGENT_PATTERNS.md`, `docs/CI_TRAPS.md`, `docs/ENGINEERING_RULES_BACKEND.md` (the spec table rows)
 - `docs/ENGINEERING_RULES_BACKEND.md` § Billing (planned) (the `IEventBus.subscribe` bullet) and `docs/ENGINEERING_RULES_SHARED.md` § Tenant access enforcement — the declarative choke points (planned) (item 3): "planned detector" becomes the real `event-handler-suspension-declaration` detector, the call-site count is dropped or re-counted, and the decorator wiring (`GatedEventBus` over `EVENT_BUS_TRANSPORT`) is stated
 
 **Acceptance criteria — product:**
 - [ ] With every tenant entitled or exempt, no event is skipped and no handler behaves differently.
 - [ ] For a suspended test tenant, outbound-sending handlers are skipped and logged; audit-log, state-sync and Billing handlers still run.
-- [ ] The loyalty earn handler is skipped for a suspended tenant and for a tenant without `LOYALTY`, and runs for an entitled one.
+- [ ] The loyalty use case records no points for a suspended tenant or one without `LOYALTY`, and does for an entitled one; a discount spent on the booking is settled in every case (`complete-booking-loyalty-effects.use-case.spec.ts`).
 
 **Acceptance criteria — technical:**
 - Unit:
