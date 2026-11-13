@@ -1139,7 +1139,7 @@ The structural half of the operator story, split from S15b so the guard refactor
 
 ---
 
-### M25-S15b — Operator use cases, events and topics (UC-111, UC-137)
+### M25-S15b — Operator use cases, events and topics (UC-111, UC-137) ✅ Done
 
 **Agent:** `backend-ts + devops`
 **Complexity:** M
@@ -1216,6 +1216,7 @@ No new principals. The topic bindings can only be created by the Foundation appl
   - [ ] Missing or wrong `InternalApiGuard`/`PlatformAdminGuard` credentials → `401`
   - [ ] Script (not a Jest test): `scripts/billing-operator.sh` rejects a missing `--reason` and an unknown subcommand before any network call, and `provision-tenant.sh` still validates its arguments after the helper extraction
   - [ ] Live check (relay VM, staging): `scripts/billing-operator.sh list` and a `suspend` / `unsuspend` round trip on a test tenant succeed through the relay VM, each leaving an `operator_audit` row; the result is recorded in the PR
+    - ⚠️ The staging relay-VM run of `scripts/billing-operator.sh` (list, suspend/unsuspend round trip, audit rows, consumer log) is not run: carried to M25-S32 by the user's decision, 2026-11-13. The Pub/Sub IAM half was verified the same day (evidence on PR #774).
   - [ ] `SubscriptionReactivated` carries `suspendedAt` equal to the span's start for an `unsuspend` and for an `exempt` set on a suspended tenant
   - [ ] `architecture-check` passes (`domain-event-audit-coverage` with the `BillingAuditLogHandler` lines, `lock-catalog-coverage`, `test-builder-coverage`)
 - Tenant isolation: [ ] an action on tenant A never touches B's subscription or audit rows; the list endpoint is operator-only and paginated
