@@ -272,7 +272,9 @@ ActiveStaffGuard (skipped on @Public() routes)
   │  → rejects a deactivated staff member's still-valid JWT
   ▼
 TenantAccessGuard (M25-S16, UC-125 — registered last, after TenantGuard, RolesGuard and ActiveStaffGuard)
-  │  Reads @RequiresFeature / @SuspensionAccess metadata and asks the access port for the tenant;
+  │  Reads @RequiresFeature / @NoFeatureGate / @SuspensionAccess metadata and asks the access port for the tenant
+  │  (an @Public() route's tenant comes from its :slug path or X-Tenant-Slug header; a route whose tenant rides a token
+  │  or body passes here and is gated by the backend guard, which every such call reaches with X-Tenant-ID);
   │  a Guard, never an Interceptor — see docs/ENGINEERING_RULES_SHARED.md § Tenant access enforcement
   │  — the declarative choke points (planned). Its 300 s (operational) / 10 s (SUSPENDED) answer cache is an
   │  in-process cache in the BFF (apps/bff/src/shared/cache/ttl-cache.ts; TTLs: docs/DOMAIN_MODEL.md § Entry point)
