@@ -1665,7 +1665,7 @@ Handlers added later by S25, S27 and S28 declare their own options in their own 
 
 ---
 
-### M25-S22 — Shared tenant-job runner, extracted from Booking's `WindowedTenantJob` (UC-125)
+### M25-S22 — Shared tenant-job runner, extracted from Booking's `WindowedTenantJob` (UC-125) ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** M
