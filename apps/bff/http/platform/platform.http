@@ -14,6 +14,8 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 ### Get the hotsite manifest for a tenant by slug (public — no auth required)
+# Tenant access (M25-S17): HOTSITE + PUBLIC_MANIFEST — reachable while the tenant is suspended (200, never a
+# typed denial) so the "Página não publicada" page can render (UC-122).
 GET {{bffUrl}}/v1/public/platform/manifest/{{tenantSlug}}
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -33,6 +35,7 @@ GET {{bffUrl}}/v1/public/platform/manifest/unpublished-hotsite-tenant
 # ─────────────────────────────────────────────────────────────────────────────
 
 ### List active tenants with a published hotsite — { items: [{ slug, updatedAt }] }
+# Tenant access (M25-S17): HOTSITE + PUBLIC_MANIFEST — names no tenant, so it is never gated (UC-122).
 GET {{bffUrl}}/v1/public/platform/published-hotsites
 
 # ─────────────────────────────────────────────────────────────────────────────

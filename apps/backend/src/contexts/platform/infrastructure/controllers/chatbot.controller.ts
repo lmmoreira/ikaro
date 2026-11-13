@@ -1,5 +1,5 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
-import { ZodValidationPipe } from '@ikaro/nestjs-http';
+import { RequiresFeature, SuspensionAccess, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { RequestContext } from '../../../../shared/request/request-context';
 import {
   SendChatMessageDto,
@@ -22,6 +22,8 @@ import { mapPlatformError } from '../http/platform-error.mapper';
 // BackendHttpService.postForPublic('/platform/chatbot/messages', body, tenantId); `status`
 // (M19-S06) is the route it calls via getForPublic('/platform/chatbot/status', tenantId).
 @Controller('platform/chatbot')
+@RequiresFeature('CHATBOT')
+@SuspensionAccess('PUBLIC_NONE')
 export class ChatbotController {
   constructor(
     private readonly requestContext: RequestContext,

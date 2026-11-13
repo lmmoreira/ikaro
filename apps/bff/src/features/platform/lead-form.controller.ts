@@ -6,7 +6,12 @@ import {
   LeadFormSubmissionDetailResponse,
   LeadFormSubmissionsListResponse,
 } from '@ikaro/types';
-import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
+import {
+  CanonicalParseUUIDPipe,
+  RequiresFeature,
+  SuspensionAccess,
+  ZodValidationPipe,
+} from '@ikaro/nestjs-http';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import {
@@ -23,6 +28,8 @@ export * from './lead-form.schemas';
 // separate PATCH here. This controller stays read-only for config (GET), and owns
 // submissions/status, which have no equivalent on the hotsite endpoint.
 @Controller('tenants/lead-form')
+@RequiresFeature('LEAD_FORM')
+@SuspensionAccess('DEFAULT_DENY')
 export class LeadFormController {
   constructor(private readonly backendHttp: BackendHttpService) {}
 

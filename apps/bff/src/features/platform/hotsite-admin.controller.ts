@@ -1,5 +1,5 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Patch, Post } from '@nestjs/common';
-import { ZodValidationPipe } from '@ikaro/nestjs-http';
+import { RequiresFeature, SuspensionAccess, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import {
@@ -29,6 +29,8 @@ export * from './hotsite-admin.schemas';
 
 @Controller('tenants/hotsite')
 @Roles('MANAGER')
+@RequiresFeature('HOTSITE')
+@SuspensionAccess('DEFAULT_DENY')
 export class HotsiteAdminController {
   constructor(private readonly backendHttp: BackendHttpService) {}
 

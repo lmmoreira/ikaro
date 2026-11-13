@@ -1,5 +1,5 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Patch, UseGuards } from '@nestjs/common';
-import { ZodValidationPipe } from '@ikaro/nestjs-http';
+import { RequiresFeature, SuspensionAccess, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { RequestContext } from '../../../../shared/request/request-context';
 import {
   UpdateTenantSettingsDto,
@@ -37,6 +37,8 @@ export class TenantSettingsController {
   ) {}
 
   @Get('settings')
+  @RequiresFeature('HOTSITE')
+  @SuspensionAccess('DEFAULT_DENY')
   @HttpCode(HttpStatus.OK)
   @UseGuards(StaffOrManagerRoleGuard)
   async getSettings(): Promise<GetTenantSettingsResult> {
@@ -47,6 +49,8 @@ export class TenantSettingsController {
   }
 
   @Patch('settings')
+  @RequiresFeature('HOTSITE')
+  @SuspensionAccess('DEFAULT_DENY')
   @HttpCode(HttpStatus.OK)
   @UseGuards(ManagerRoleGuard)
   updateSettings(
@@ -60,6 +64,8 @@ export class TenantSettingsController {
   }
 
   @Get('chatbot/cap-status')
+  @RequiresFeature('CHATBOT')
+  @SuspensionAccess('DEFAULT_DENY')
   @HttpCode(HttpStatus.OK)
   @UseGuards(ManagerRoleGuard)
   getCapStatus(): Promise<GetChatbotCapStatusUseCaseResult> {

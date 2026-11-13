@@ -20,7 +20,7 @@ import {
   HotsiteManifestResponse,
   HotsiteSitemapEntryListResponse,
 } from '@ikaro/types';
-import { ZodValidationPipe } from '@ikaro/nestjs-http';
+import { RequiresFeature, SuspensionAccess, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { decodeUserJwt } from '../../shared/auth/decode-user-jwt';
 import { Public } from '../../shared/decorators/public.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
@@ -71,6 +71,8 @@ export class PlatformPublicController {
 
   @Get('manifest/:slug')
   @Public()
+  @RequiresFeature('HOTSITE')
+  @SuspensionAccess('PUBLIC_MANIFEST')
   @Header('Cache-Control', 'public, max-age=300')
   async getManifest(@Param('slug') slug: string): Promise<HotsiteManifestResponse> {
     // The tenant the guard already resolved from this path slug (one by-slug hop per TTL window).
@@ -84,6 +86,8 @@ export class PlatformPublicController {
 
   @Get('published-hotsites')
   @Public()
+  @RequiresFeature('HOTSITE')
+  @SuspensionAccess('PUBLIC_MANIFEST')
   @Header('Cache-Control', 'public, max-age=300')
   getPublishedHotsites(): Promise<HotsiteSitemapEntryListResponse> {
     return this.backendHttp.get<HotsiteSitemapEntryListResponse>(
@@ -96,6 +100,8 @@ export class PlatformPublicController {
   // so no intermediate HTTP cache can ever serve a stale "available: true" (PR #373 review, Codex).
   @Get('chatbot/status')
   @Public()
+  @RequiresFeature('CHATBOT')
+  @SuspensionAccess('PUBLIC_NONE')
   @Header('Cache-Control', 'no-store')
   getChatbotStatus(
     @Headers('x-tenant-slug') tenantSlug: string | undefined,
@@ -110,6 +116,8 @@ export class PlatformPublicController {
 
   @Post('chatbot/messages')
   @Public()
+  @RequiresFeature('CHATBOT')
+  @SuspensionAccess('PUBLIC_NONE')
   @HttpCode(HttpStatus.OK)
   sendChatbotMessage(
     @Headers('x-tenant-slug') tenantSlug: string | undefined,
@@ -148,6 +156,8 @@ export class PlatformPublicController {
 
   @Get('lead-form/:slug')
   @Public()
+  @RequiresFeature('LEAD_FORM')
+  @SuspensionAccess('PUBLIC_NONE')
   async getLeadFormConfig(
     @Param('slug') pathSlug: string,
     @Headers('x-tenant-slug') tenantSlug: string | undefined,
@@ -169,6 +179,8 @@ export class PlatformPublicController {
 
   @Post('lead-form/:slug/submissions')
   @Public()
+  @RequiresFeature('LEAD_FORM')
+  @SuspensionAccess('PUBLIC_NONE')
   @HttpCode(HttpStatus.OK)
   async submitLeadForm(
     @Param('slug') pathSlug: string,

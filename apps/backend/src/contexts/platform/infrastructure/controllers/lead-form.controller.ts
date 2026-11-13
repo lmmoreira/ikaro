@@ -1,5 +1,10 @@
 import { Controller, Get, HttpCode, HttpStatus, Param, Query, UseGuards } from '@nestjs/common';
-import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
+import {
+  CanonicalParseUUIDPipe,
+  RequiresFeature,
+  SuspensionAccess,
+  ZodValidationPipe,
+} from '@ikaro/nestjs-http';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { ManagerRoleGuard } from '../../../../shared/guards/manager-role.guard';
 import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
@@ -34,6 +39,8 @@ import { mapPlatformError } from '../http/platform-error.mapper';
 // separate PATCH here. This controller stays read-only for config (GET), and owns
 // submissions/status, which have no equivalent on the hotsite endpoint.
 @Controller('tenants/lead-form')
+@RequiresFeature('LEAD_FORM')
+@SuspensionAccess('DEFAULT_DENY')
 export class LeadFormController {
   constructor(
     private readonly requestContext: RequestContext,
