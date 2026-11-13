@@ -319,10 +319,10 @@ export class Subscription extends AggregateRoot {
 
   /**
    * Operator suspension (abuse / takedown): payment does not lift it, only `unsuspendOperator`.
-   * An exempt subscription is never suspended. Already `OPERATOR`-suspended is a no-op; a
-   * payment-based suspension becomes `OPERATOR` and keeps its clean-up clock (`suspendedAt`), with
-   * no new `SubscriptionSuspended` (it was already suspended, so the downstream pause is open).
-   * Returns whether the state changed.
+   * An exempt subscription is never suspended. A tenant that is already suspended, for any
+   * reason, is left exactly as it is (no change, no event): converting a payment suspension into an
+   * `OPERATOR` one would let the operator lift it with `unsuspendOperator` and restore access
+   * without a payment, which UC-111 forbids. Returns whether the state changed.
    */
   suspendByOperator(now: Date, correlationId: string): boolean {
     if (this._exempt) {
@@ -330,11 +330,7 @@ export class Subscription extends AggregateRoot {
         'An exempt subscription is never suspended: clear exempt first',
       );
     }
-    if (this._status === 'SUSPENDED') {
-      if (this._suspensionReason === 'OPERATOR') return false;
-      this._suspensionReason = 'OPERATOR';
-      return true;
-    }
+    if (this._status === 'SUSPENDED') return false;
     this._status = 'SUSPENDED';
     this._suspensionReason = 'OPERATOR';
     this._suspendedAt = now;
@@ -352,14 +348,13 @@ export class Subscription extends AggregateRoot {
   /**
    * Lifts an `OPERATOR` suspension — and only that one. Access returns as `TRIALING` when the
    * trial window is still running (the trial was never consumed), otherwise as `ACTIVE`. The
-   * clean-up clock and its warning marks are cleared. Raises `SubscriptionReactivated`.
+   * clean-up clock and its warning marks are cleared. Raises `SubscriptionReactivated`. A
+   * subscription that is not suspended is already in the requested state: no change, returns
+   * `false`. A payment-based suspension is refused. Returns whether the state changed.
    */
-  unsuspendOperator(now: Date, correlationId: string): void {
-    if (
-      this._status !== 'SUSPENDED' ||
-      this._suspensionReason !== 'OPERATOR' ||
-      this._suspendedAt === null
-    ) {
+  unsuspendOperator(now: Date, correlationId: string): boolean {
+    if (this._status !== 'SUSPENDED') return false;
+    if (this._suspensionReason !== 'OPERATOR' || this._suspendedAt === null) {
       throw new UnsuspendNotAllowedError(
         'Only an OPERATOR suspension can be lifted by the operator; a payment-based one needs a payment',
       );
@@ -369,12 +364,14 @@ export class Subscription extends AggregateRoot {
     this._status = trialRunning ? 'TRIALING' : 'ACTIVE';
     this.clearSuspension();
     this.addReactivated(now, suspendedAt, correlationId);
+    return true;
   }
 
   /**
    * Operator override of the 14-day grace: only while `PAST_DUE`, and never earlier than
-   * `pastDueSince` + 14 days — a grace extends the window, it never shortens it. Returns whether
-   * the stored `graceUntil` changed (the same instant again is a no-op).
+   * `pastDueSince` + 14 days, and never earlier than a grace already stored — a grace extends the
+   * window, it never shortens it. Returns whether the stored `graceUntil` changed (the same
+   * instant again is a no-op).
    */
   extendGrace(graceUntil: Date): boolean {
     if (this._status !== 'PAST_DUE' || this._pastDueSince === null) {
@@ -386,6 +383,11 @@ export class Subscription extends AggregateRoot {
     if (graceUntil.getTime() < earliest.getTime()) {
       throw new GraceNotAllowedError(
         `Grace cannot end before pastDueSince + ${GRACE_DAYS} days (${earliest.toISOString()})`,
+      );
+    }
+    if (this._graceUntil !== null && graceUntil.getTime() < this._graceUntil.getTime()) {
+      throw new GraceNotAllowedError(
+        `Grace cannot end before the grace already set (${this._graceUntil.toISOString()})`,
       );
     }
     if (this._graceUntil?.getTime() === graceUntil.getTime()) return false;

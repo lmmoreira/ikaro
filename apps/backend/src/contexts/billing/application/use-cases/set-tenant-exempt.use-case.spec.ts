@@ -5,13 +5,16 @@ import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-m
 import { SubscriptionBuilder } from '../../../../test/builders/billing';
 import { InMemoryOperatorAuditRepository } from '../../../../test/repositories/billing/in-memory-operator-audit.repository';
 import { InMemorySubscriptionRepository } from '../../../../test/repositories/billing/in-memory-subscription.repository';
-import { ExemptProtectedError } from '../../domain/errors/billing-domain.error';
+import {
+  BillingTenantNotFoundError,
+  ExemptProtectedError,
+} from '../../domain/errors/billing-domain.error';
 import { SetTenantExemptUseCase } from './set-tenant-exempt.use-case';
 
 const NOW = new Date('2026-11-12T12:00:00.000Z');
 const SUSPENDED_AT = new Date('2026-11-01T08:00:00.000Z');
 const OWNER_SLUG = 'ikaro';
-const INPUT = { operator: 'Ana Souza', reason: 'partner account' };
+const INPUT = { operator: 'Ana Souza', reason: 'partner account', correlationId: 'corr-req-3' };
 
 describe('SetTenantExemptUseCase', () => {
   let outbox: InMemoryOutboxPublisher;
@@ -21,14 +24,15 @@ describe('SetTenantExemptUseCase', () => {
   let useCase: SetTenantExemptUseCase;
 
   beforeEach(() => {
-    outbox = new InMemoryOutboxPublisher();
+    const txManager = new InMemoryTransactionManager();
+    outbox = new InMemoryOutboxPublisher(txManager);
     subscriptions = new InMemorySubscriptionRepository(outbox);
     audits = new InMemoryOperatorAuditRepository();
     platform = new InMemoryBillingPlatformPort();
     useCase = new SetTenantExemptUseCase(
       subscriptions,
       audits,
-      new InMemoryTransactionManager(),
+      txManager,
       new AdvanceableClock(NOW),
       platform,
       { appEnv: 'local', platformOwnerSlug: OWNER_SLUG },
@@ -118,6 +122,24 @@ describe('SetTenantExemptUseCase', () => {
     await useCase.execute({ tenantId: paying.tenantId, ...INPUT, exempt: false });
 
     expect(audits.saved).toHaveLength(0);
+  });
+
+  it("never touches another tenant's subscription: a request for tenant B leaves tenant A alone", async () => {
+    const tenantA = new SubscriptionBuilder().withStatus('TRIALING').build();
+    await subscriptions.save(tenantA);
+    outbox.published.length = 0;
+
+    await expect(
+      useCase.execute({
+        tenantId: '0197b0a0-0000-7000-8000-0000000000b2',
+        ...INPUT,
+        exempt: true,
+      }),
+    ).rejects.toThrow(BillingTenantNotFoundError);
+
+    expect(subscriptions.saved[0]).toMatchObject({ status: 'TRIALING', exempt: false });
+    expect(audits.saved).toHaveLength(0);
+    expect(outbox.published).toHaveLength(0);
   });
 
   it('does not look the tenant up when setting exempt (only a clear needs the owner check)', async () => {

@@ -15,6 +15,14 @@
 @internalKey = {{$dotenv INTERNAL_API_KEY}}
 @platformKey = {{$dotenv PLATFORM_ADMIN_KEY}}
 @tenantId    = 00000000-0000-0000-0000-000000000000
+# graceUntil: an instant YOU choose, at least 14 days after the tenant went past due and never
+# earlier than a grace already set (ISO-8601 UTC).
+@graceUntil  = 2030-01-01T00:00:00Z
+# Tenants for the refusal cases below (each needs the state named in its comment).
+@exemptTenantId           = 00000000-0000-0000-0000-000000000001
+@paymentSuspendedTenantId = 00000000-0000-0000-0000-000000000002
+@notPastDueTenantId       = 00000000-0000-0000-0000-000000000003
+@ownerTenantId            = 00000000-0000-0000-0000-000000000004
 
 ### Investigation list (read-only): newest first, 25 per page, optional status filter
 GET {{baseUrl}}/internal/billing/tenants?status=ACTIVE&limit=25&offset=0
@@ -49,7 +57,7 @@ X-Internal-Key: {{internalKey}}
 X-Platform-Admin-Key: {{platformKey}}
 Content-Type: application/json
 
-{ "operator": "Your Name", "reason": "customer promised payment", "graceUntil": "2026-12-01T00:00:00Z" }
+{ "operator": "Your Name", "reason": "customer promised payment", "graceUntil": "{{graceUntil}}" }
 
 ###
 
@@ -60,3 +68,53 @@ X-Platform-Admin-Key: {{platformKey}}
 Content-Type: application/json
 
 { "operator": "Your Name", "reason": "partner account", "exempt": true }
+
+###
+
+### Refusal: suspend an EXEMPT tenant -> 403 BILLING_EXEMPT_PROTECTED (clear exempt first)
+POST {{baseUrl}}/internal/tenants/{{exemptTenantId}}/billing/suspend
+X-Internal-Key: {{internalKey}}
+X-Platform-Admin-Key: {{platformKey}}
+Content-Type: application/json
+
+{ "operator": "Your Name", "reason": "abuse report #42" }
+
+###
+
+### Refusal: unsuspend a payment-based suspension -> 409 BILLING_UNSUSPEND_NOT_ALLOWED
+POST {{baseUrl}}/internal/tenants/{{paymentSuspendedTenantId}}/billing/unsuspend
+X-Internal-Key: {{internalKey}}
+X-Platform-Admin-Key: {{platformKey}}
+Content-Type: application/json
+
+{ "operator": "Your Name", "reason": "customer asked" }
+
+###
+
+### Refusal: grace on a tenant that is not PAST_DUE -> 409 BILLING_GRACE_NOT_ALLOWED
+POST {{baseUrl}}/internal/tenants/{{notPastDueTenantId}}/billing/grace
+X-Internal-Key: {{internalKey}}
+X-Platform-Admin-Key: {{platformKey}}
+Content-Type: application/json
+
+{ "operator": "Your Name", "reason": "customer promised payment", "graceUntil": "{{graceUntil}}" }
+
+###
+
+### Refusal: clear exempt on Ikaro's own tenant -> 403 BILLING_EXEMPT_PROTECTED
+PUT {{baseUrl}}/internal/tenants/{{ownerTenantId}}/billing/exempt
+X-Internal-Key: {{internalKey}}
+X-Platform-Admin-Key: {{platformKey}}
+Content-Type: application/json
+
+{ "operator": "Your Name", "reason": "mistake", "exempt": false }
+
+###
+
+### Refusal: a missing or blank reason / operator -> 400
+POST {{baseUrl}}/internal/tenants/{{tenantId}}/billing/suspend
+X-Internal-Key: {{internalKey}}
+X-Platform-Admin-Key: {{platformKey}}
+Content-Type: application/json
+
+{ "operator": "Your Name" }

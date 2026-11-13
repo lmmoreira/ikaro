@@ -1,5 +1,4 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { CLOCK, type IClock } from '../../../../shared/ports/clock.port';
 import {
   ITransactionManager,
@@ -30,6 +29,8 @@ export interface SetTenantExemptUseCaseInput {
   operator: string;
   reason: string;
   exempt: boolean;
+  /** The request's correlation id (set by the correlation middleware), carried onto the events. */
+  correlationId: string;
 }
 
 export type SetTenantExemptUseCaseResult = OperatorBillingStateResult;
@@ -53,7 +54,6 @@ export class SetTenantExemptUseCase {
   ) {}
 
   async execute(input: SetTenantExemptUseCaseInput): Promise<SetTenantExemptUseCaseResult> {
-    const correlationId = uuidv7();
     // A cross-context read, outside the transaction: never I/O inside the locked section.
     // Only a clear needs it: the owner tenant is the one that is never un-exempted.
     const isPlatformOwner = !input.exempt && (await this.isPlatformOwner(input.tenantId));
@@ -61,7 +61,7 @@ export class SetTenantExemptUseCase {
       const subscription = await loadSubscriptionForUpdate(this.subscriptions, input.tenantId);
       const now = this.clock.now();
       const changed = input.exempt
-        ? subscription.setExempt(now, input.operator, correlationId)
+        ? subscription.setExempt(now, input.operator, input.correlationId)
         : subscription.clearExempt(now, input.operator, isPlatformOwner);
       if (changed) {
         await this.subscriptions.save(subscription);

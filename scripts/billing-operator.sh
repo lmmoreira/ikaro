@@ -18,7 +18,8 @@ set -euo pipefail
 #              tenant is refused (403): clear exempt first.
 #   unsuspend  Lifts an OPERATOR suspension only (409 for a payment-based one).
 #   grace      Sets graceUntil on a PAST_DUE tenant; it only extends the 14 days (409 otherwise).
-#              --until is an ISO-8601 UTC instant, for example 2026-12-01T00:00:00Z.
+#              --until is an ISO-8601 UTC instant (YYYY-MM-DDTHH:MM:SSZ) you choose: at least 14 days
+#              after the tenant went past due and never earlier than a grace already set.
 #   exempt     --set gives free access (a suspended tenant is reactivated without payment);
 #              --clear starts a fresh 14-day trial. Clearing it on Ikaro's own tenant is refused.
 #   list       Read-only lookup of subscription status per tenant (newest first, 25 per page by
@@ -94,8 +95,13 @@ while [ "$#" -gt 0 ]; do
       esac
       shift 2
       ;;
-    --set) EXEMPT_MODE="set"; shift ;;
-    --clear) EXEMPT_MODE="clear"; shift ;;
+    --set|--clear)
+      # Both flags would silently let the last one win: clearing exempt on a free tenant starts a
+      # paid trial, so refuse the conflict instead of guessing.
+      [ -z "$EXEMPT_MODE" ] || die "give only one of --set and --clear."
+      EXEMPT_MODE="${1#--}"
+      shift
+      ;;
     *) die "unknown argument '$1'." ;;
   esac
 done
@@ -124,7 +130,7 @@ else
   [ -z "$STATUS$LIMIT$OFFSET" ] || die "--status, --limit and --offset belong to list."
   if [ "$COMMAND" = "grace" ]; then
     [[ "$UNTIL" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z$ ]] \
-      || die "grace needs --until as an ISO-8601 UTC instant, for example 2026-12-01T00:00:00Z."
+      || die "grace needs --until as an ISO-8601 UTC instant (YYYY-MM-DDTHH:MM:SSZ)."
   elif [ -n "$UNTIL" ]; then
     die "--until belongs to grace."
   fi

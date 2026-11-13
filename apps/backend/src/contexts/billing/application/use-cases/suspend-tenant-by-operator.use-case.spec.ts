@@ -11,7 +11,7 @@ import {
 import { SuspendTenantByOperatorUseCase } from './suspend-tenant-by-operator.use-case';
 
 const NOW = new Date('2026-11-12T12:00:00.000Z');
-const INPUT = { operator: 'Ana Souza', reason: 'abuse report #42' };
+const INPUT = { operator: 'Ana Souza', reason: 'abuse report #42', correlationId: 'corr-req-1' };
 
 describe('SuspendTenantByOperatorUseCase', () => {
   let outbox: InMemoryOutboxPublisher;
@@ -20,18 +20,19 @@ describe('SuspendTenantByOperatorUseCase', () => {
   let useCase: SuspendTenantByOperatorUseCase;
 
   beforeEach(() => {
-    outbox = new InMemoryOutboxPublisher();
+    const txManager = new InMemoryTransactionManager();
+    outbox = new InMemoryOutboxPublisher(txManager);
     subscriptions = new InMemorySubscriptionRepository(outbox);
     audits = new InMemoryOperatorAuditRepository();
     useCase = new SuspendTenantByOperatorUseCase(
       subscriptions,
       audits,
-      new InMemoryTransactionManager(),
+      txManager,
       new AdvanceableClock(NOW),
     );
   });
 
-  it('suspends an active tenant, audits who and why, and publishes SubscriptionSuspended', async () => {
+  it('suspends an active tenant, audits who and why, and publishes SubscriptionSuspended with the request correlation id', async () => {
     const subscription = new SubscriptionBuilder().withStatus('ACTIVE').build();
     await subscriptions.save(subscription);
     outbox.published.length = 0;
@@ -55,6 +56,7 @@ describe('SuspendTenantByOperatorUseCase', () => {
     expect(outbox.published[0]).toMatchObject({
       eventName: 'SubscriptionSuspended',
       tenantId: subscription.tenantId,
+      correlationId: 'corr-req-1',
       data: { reason: 'OPERATOR', suspendedAt: NOW.toISOString() },
     });
   });
@@ -72,7 +74,7 @@ describe('SuspendTenantByOperatorUseCase', () => {
     expect(outbox.published).toHaveLength(0);
   });
 
-  it('turns a payment suspension into an OPERATOR one: audited, but no new SubscriptionSuspended', async () => {
+  it('leaves a payment suspension exactly as it is: no reason change, no audit row, no event (an operator can never lift it afterwards)', async () => {
     const suspendedAt = new Date('2026-10-01T00:00:00.000Z');
     const subscription = new SubscriptionBuilder()
       .withSuspension('NON_PAYMENT', suspendedAt)
@@ -82,9 +84,9 @@ describe('SuspendTenantByOperatorUseCase', () => {
 
     const result = await useCase.execute({ tenantId: subscription.tenantId, ...INPUT });
 
-    expect(result.suspensionReason).toBe('OPERATOR');
+    expect(result.suspensionReason).toBe('NON_PAYMENT');
     expect(subscriptions.saved[0]?.suspendedAt).toEqual(suspendedAt);
-    expect(audits.saved).toHaveLength(1);
+    expect(audits.saved).toHaveLength(0);
     expect(outbox.published).toHaveLength(0);
   });
 
@@ -106,5 +108,19 @@ describe('SuspendTenantByOperatorUseCase', () => {
     await expect(
       useCase.execute({ tenantId: '0197b0a0-0000-7000-8000-000000000001', ...INPUT }),
     ).rejects.toThrow(BillingTenantNotFoundError);
+  });
+
+  it("never touches another tenant's subscription: a request for tenant B leaves tenant A alone", async () => {
+    const tenantA = new SubscriptionBuilder().withStatus('ACTIVE').build();
+    await subscriptions.save(tenantA);
+    outbox.published.length = 0;
+
+    await expect(
+      useCase.execute({ tenantId: '0197b0a0-0000-7000-8000-0000000000b2', ...INPUT }),
+    ).rejects.toThrow(BillingTenantNotFoundError);
+
+    expect(subscriptions.saved[0]?.status).toBe('ACTIVE');
+    expect(audits.saved).toHaveLength(0);
+    expect(outbox.published).toHaveLength(0);
   });
 });

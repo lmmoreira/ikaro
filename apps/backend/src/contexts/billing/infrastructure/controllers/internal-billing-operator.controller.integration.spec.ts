@@ -21,7 +21,13 @@ import { SubscriptionEntity } from '../entities/subscription.entity';
 
 const INTERNAL_KEY = 'integ-operator-key-integ-operator-k'; // ≥32 chars
 const PLATFORM_KEY = 'integ-operator-platform-key-integ-op'; // ≥32 chars
-const KEYS = { 'X-Internal-Key': INTERNAL_KEY, 'X-Platform-Admin-Key': PLATFORM_KEY };
+// The correlation middleware (not part of this harness) sets this header in production.
+const CORRELATION_ID = uuidv7();
+const KEYS = {
+  'X-Internal-Key': INTERNAL_KEY,
+  'X-Platform-Admin-Key': PLATFORM_KEY,
+  'X-Correlation-ID': CORRELATION_ID,
+};
 const OWNER_SLUG = `owner-${uuidv7().slice(-12)}`;
 const BODY = { operator: 'Ana Souza', reason: 'abuse report #42' };
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -167,6 +173,7 @@ describe('InternalBillingOperatorController (integration)', () => {
       expect(audits[0]).toMatchObject({ actor: 'Ana Souza', action: 'SUSPEND' });
       expect(audits[0]?.payload).toMatchObject({ reason: 'abuse report #42' });
       expect(eventBus.published.map((event) => event.eventName)).toEqual(['SubscriptionSuspended']);
+      expect(eventBus.published[0]?.correlationId).toBe(CORRELATION_ID);
     });
 
     it('evicts the cached access answer: the next getAccess reflects the suspension', async () => {
@@ -218,8 +225,23 @@ describe('InternalBillingOperatorController (integration)', () => {
       expect(await auditRowsOf(tenantB)).toHaveLength(0);
     });
 
+    it('leaves a payment suspension untouched (200, reason unchanged, no audit row, no event)', async () => {
+      const tenantId = newTenantId();
+      await seedSubscription(tenantId, (b) =>
+        b.withStatus('SUSPENDED').withSuspension('NON_PAYMENT', new Date(Date.now() - DAY_MS)),
+      );
+
+      const { body } = await post(suspendUrl(tenantId)).expect(200);
+
+      expect(body).toMatchObject({ status: 'SUSPENDED', suspensionReason: 'NON_PAYMENT' });
+      expect(await auditRowsOf(tenantId)).toHaveLength(0);
+      expect(eventBus.published).toHaveLength(0);
+    });
+
     it('answers 404 for a tenant with no subscription', async () => {
-      await post(suspendUrl(uuidv7())).expect(404);
+      const response = await post(suspendUrl(uuidv7()));
+
+      expect(response.status).toBe(404);
     });
   });
 
@@ -240,6 +262,17 @@ describe('InternalBillingOperatorController (integration)', () => {
         eventName: 'SubscriptionReactivated',
         data: { suspendedAt: suspendedAt.toISOString() },
       });
+    });
+
+    it('is a no-op (200, no audit row, no event) for a tenant that is not suspended', async () => {
+      const tenantId = newTenantId();
+      await seedSubscription(tenantId, (b) => b.withStatus('ACTIVE'));
+
+      const { body } = await post(unsuspendUrl(tenantId)).expect(200);
+
+      expect(body).toMatchObject({ status: 'ACTIVE', suspensionReason: null });
+      expect(await auditRowsOf(tenantId)).toHaveLength(0);
+      expect(eventBus.published).toHaveLength(0);
     });
 
     it('refuses a payment-based suspension with 409 BILLING_UNSUSPEND_NOT_ALLOWED', async () => {
@@ -267,6 +300,25 @@ describe('InternalBillingOperatorController (integration)', () => {
 
       expect(body.graceUntil).toBe(graceUntil);
       expect((await auditRowsOf(tenantId))[0]).toMatchObject({ action: 'GRACE' });
+    });
+
+    it('refuses a grace earlier than the one already set with 409 BILLING_GRACE_NOT_ALLOWED', async () => {
+      const tenantId = newTenantId();
+      await seedSubscription(tenantId, (b) =>
+        b.withStatus('PAST_DUE').withPastDueSince(new Date(Date.now() - 2 * DAY_MS)),
+      );
+      await post(graceUrl(tenantId), {
+        ...BODY,
+        graceUntil: new Date(Date.now() + 30 * DAY_MS).toISOString(),
+      }).expect(200);
+
+      const { body } = await post(graceUrl(tenantId), {
+        ...BODY,
+        graceUntil: new Date(Date.now() + 20 * DAY_MS).toISOString(),
+      }).expect(409);
+
+      expect(body.code).toBe(BillingErrorCode.GRACE_NOT_ALLOWED);
+      expect(await auditRowsOf(tenantId)).toHaveLength(1);
     });
 
     it('refuses a tenant that is not PAST_DUE with 409 BILLING_GRACE_NOT_ALLOWED', async () => {

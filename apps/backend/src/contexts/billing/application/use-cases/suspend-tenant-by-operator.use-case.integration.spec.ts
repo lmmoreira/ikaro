@@ -9,8 +9,10 @@ import { SubscriptionEntity } from '../../infrastructure/entities/subscription.e
 import { OPERATOR_AUDIT_REPOSITORY } from '../ports/operator-audit-repository.port';
 import { SuspendTenantByOperatorUseCase } from './suspend-tenant-by-operator.use-case';
 
-// The audit row is the last write of the transaction: when it fails, the subscription change and
-// the outbox row must leave nothing behind (all-or-nothing, M25-S15b).
+// The audit row is the last write of the transaction: when it fails, the subscription change must
+// be rolled back and no event may become durable (the in-process bus used by this harness records
+// an event only after the commit). The outbox ROW itself is covered against the real outbox
+// publisher in typeorm-subscription.repository.integration.spec.ts.
 describe('SuspendTenantByOperatorUseCase (integration): one transaction', () => {
   let app: INestApplication;
   let ds: DataSource;
@@ -45,7 +47,12 @@ describe('SuspendTenantByOperatorUseCase (integration): one transaction', () => 
 
   it('rolls back the subscription change and publishes nothing when the audit write fails', async () => {
     await expect(
-      useCase.execute({ tenantId, operator: 'Ana Souza', reason: 'abuse report' }),
+      useCase.execute({
+        tenantId,
+        operator: 'Ana Souza',
+        reason: 'abuse report',
+        correlationId: 'corr-rollback',
+      }),
     ).rejects.toThrow('audit write failed');
 
     const row = await ds.getRepository(SubscriptionEntity).findOneByOrFail({ tenantId });

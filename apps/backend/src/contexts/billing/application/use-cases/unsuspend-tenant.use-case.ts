@@ -1,5 +1,4 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { CLOCK, type IClock } from '../../../../shared/ports/clock.port';
 import {
   ITransactionManager,
@@ -24,13 +23,16 @@ export interface UnsuspendTenantUseCaseInput {
   tenantId: string;
   operator: string;
   reason: string;
+  /** The request's correlation id (set by the correlation middleware), carried onto the events. */
+  correlationId: string;
 }
 
 export type UnsuspendTenantUseCaseResult = OperatorBillingStateResult;
 
 /**
  * UC-111: lifts an `OPERATOR` suspension, and only that one (`409 BILLING_UNSUSPEND_NOT_ALLOWED`
- * for anything else, a payment-based suspension included). Raises `SubscriptionReactivated`.
+ * for a payment-based suspension). Raises `SubscriptionReactivated`. A tenant that is not suspended
+ * is already in the requested state: a no-op, with no audit row and no event.
  */
 @Injectable()
 export class UnsuspendTenantUseCase {
@@ -42,22 +44,22 @@ export class UnsuspendTenantUseCase {
   ) {}
 
   async execute(input: UnsuspendTenantUseCaseInput): Promise<UnsuspendTenantUseCaseResult> {
-    const correlationId = uuidv7();
     return this.txManager.run(async () => {
       const subscription = await loadSubscriptionForUpdate(this.subscriptions, input.tenantId);
       const now = this.clock.now();
-      subscription.unsuspendOperator(now, correlationId);
-      await this.subscriptions.save(subscription);
-      await this.audits.save(
-        OperatorAudit.record({
-          tenantId: input.tenantId,
-          actor: input.operator,
-          action: 'UNSUSPEND',
-          reason: input.reason,
-          details: { resultingStatus: subscription.status },
-          now,
-        }),
-      );
+      if (subscription.unsuspendOperator(now, input.correlationId)) {
+        await this.subscriptions.save(subscription);
+        await this.audits.save(
+          OperatorAudit.record({
+            tenantId: input.tenantId,
+            actor: input.operator,
+            action: 'UNSUSPEND',
+            reason: input.reason,
+            details: { resultingStatus: subscription.status },
+            now,
+          }),
+        );
+      }
       return toOperatorBillingState(subscription);
     });
   }

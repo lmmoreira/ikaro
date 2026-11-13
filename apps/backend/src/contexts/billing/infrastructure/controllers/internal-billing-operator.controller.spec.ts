@@ -14,6 +14,7 @@ import { UnsuspendTenantUseCase } from '../../application/use-cases/unsuspend-te
 import { InternalBillingOperatorController } from './internal-billing-operator.controller';
 
 const NOW = new Date('2026-11-12T12:00:00.000Z');
+const CORRELATION_ID = '0197b0a0-0000-7000-8000-0000000000c1';
 const BODY = { operator: 'Ana Souza', reason: 'abuse report' };
 
 describe('InternalBillingOperatorController', () => {
@@ -57,7 +58,9 @@ describe('InternalBillingOperatorController', () => {
     const subscription = new SubscriptionBuilder().withStatus('ACTIVE').build();
     await subscriptions.save(subscription);
 
-    await expect(controller.suspend(subscription.tenantId, BODY)).resolves.toMatchObject({
+    await expect(
+      controller.suspend(subscription.tenantId, BODY, CORRELATION_ID),
+    ).resolves.toMatchObject({
       status: 'SUSPENDED',
       suspensionReason: 'OPERATOR',
     });
@@ -67,7 +70,9 @@ describe('InternalBillingOperatorController', () => {
     const subscription = new SubscriptionBuilder().withStatus('ACTIVE').withExempt(true).build();
     await subscriptions.save(subscription);
 
-    await expect(controller.suspend(subscription.tenantId, BODY)).rejects.toMatchObject({
+    await expect(
+      controller.suspend(subscription.tenantId, BODY, CORRELATION_ID),
+    ).rejects.toMatchObject({
       status: 403,
     });
   });
@@ -78,7 +83,9 @@ describe('InternalBillingOperatorController', () => {
       .build();
     await subscriptions.save(subscription);
 
-    await expect(controller.unsuspend(subscription.tenantId, BODY)).rejects.toMatchObject({
+    await expect(
+      controller.unsuspend(subscription.tenantId, BODY, CORRELATION_ID),
+    ).rejects.toMatchObject({
       status: 409,
     });
   });
@@ -97,13 +104,13 @@ describe('InternalBillingOperatorController', () => {
     await subscriptions.save(subscription);
 
     await expect(
-      controller.exempt(subscription.tenantId, { ...BODY, exempt: true }),
+      controller.exempt(subscription.tenantId, { ...BODY, exempt: true }, CORRELATION_ID),
     ).resolves.toMatchObject({ status: 'ACTIVE', exempt: true });
   });
 
   it('an unknown tenant is a 404 through the error mapper', async () => {
     await expect(
-      controller.suspend('0197b0a0-0000-7000-8000-000000000001', BODY),
+      controller.suspend('0197b0a0-0000-7000-8000-000000000001', BODY, CORRELATION_ID),
     ).rejects.toMatchObject({ status: 404 });
   });
 

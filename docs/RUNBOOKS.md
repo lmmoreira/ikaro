@@ -198,7 +198,7 @@ Validated procedure from M17-S35's live acceptance-criteria run against real sta
 
 ## Billing (planned)
 
-> **PLANNED, NOT YET BUILT** (Billing milestone): no billing alert policy, job or endpoint below exists yet, except the non-production dev-clock routes (`/internal/dev/clock*`, M25-S12) behind the "Dev clock" entry. Billing is **operator-free by default** — the provider, the system and the tenant own every situation first; a runbook below applies only after the automatic response failed (an alert names its runbook) or for the few mapped operator cases. Contracts: `docs/API_CONTRACTS.md` § Billing — Provider Webhooks and Internal API; the billing job names and schedules are in § Billing cron triggers (UC-113, UC-115, UC-116, UC-132, UC-139, UC-140) of the same doc. Each entry: symptom · check · action · who.
+> **PLANNED, NOT YET BUILT** (Billing milestone): no billing alert policy or job below exists yet, and the only built endpoints are the non-production dev-clock routes (`/internal/dev/clock*`, M25-S12) behind the "Dev clock" entry and the operator routes (`suspend`, `unsuspend`, `grace`, `exempt`, the investigation list; M25-S15b) behind `scripts/billing-operator.sh` in "Operator cases". Billing is **operator-free by default** — the provider, the system and the tenant own every situation first; a runbook below applies only after the automatic response failed (an alert names its runbook) or for the few mapped operator cases. Contracts: `docs/API_CONTRACTS.md` § Billing — Provider Webhooks and Internal API; the billing job names and schedules are in § Billing cron triggers (UC-113, UC-115, UC-116, UC-132, UC-139, UC-140) of the same doc. Each entry: symptom · check · action · who.
 
 ### Alert runbooks
 

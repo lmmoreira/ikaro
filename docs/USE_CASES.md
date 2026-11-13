@@ -2743,7 +2743,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
    - **A1: Grace on a tenant that is not `PAST_DUE`** → rejected (`409 BILLING_GRACE_NOT_ALLOWED`).
    - **A3: Suspend an `exempt` tenant** → rejected with `403 BILLING_EXEMPT_PROTECTED`: an exempt tenant is never suspended, including by the operator (clear `exempt` first, UC-137).
    - **A2: Attempt to reactivate a payment-based suspension** → rejected; it cannot bypass provider-confirmed payment (`409 BILLING_UNSUSPEND_NOT_ALLOWED`; the same code refuses an unsuspend of any non-`OPERATOR` suspension). The one exception is making the tenant `exempt` (UC-137 A3), which makes it free rather than paid.
-- **Postconditions:** Grace or suspension changed; `operator_audit` row written (`actor` = the operator's name, with the reason: who and why); access cache invalidated. A call that finds the tenant already in the requested state is a no-op: no audit row, no event.
+- **Postconditions:** Grace or suspension changed; `operator_audit` row written (`actor` = the operator's name, with the reason: who and why); access cache invalidated. A call that finds the tenant already in the requested state is a no-op: no audit row, no event. That includes an operator `suspend` of a tenant that is already suspended for any reason (it never turns a payment suspension into an `OPERATOR` one) and an `unsuspend` of a tenant that is not suspended. A grace that is earlier than one already set is refused like one that would shorten the 14 days.
 - **Events Triggered:** `SubscriptionSuspended` / `SubscriptionReactivated` where applicable.
 
 ---
@@ -3272,7 +3272,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 ### **UC-137: Operator Sets or Clears a Tenant's `exempt` Flag**
 
 - **Actor:** Operator
-- **Endpoint:** `PUT /internal/tenants/{tenantId}/billing/exempt` with `{ exempt, operator, reason }` (`InternalApiGuard` + `PlatformAdminGuard`; `scripts/billing-operator.sh exempt <tenantId> --set|--clear`); or provisioning from an `exempt` operator registration (`POST /internal/billing/registrations` with `exempt: true`, `scripts/provision-tenant.sh --exempt`)
+- **Endpoint:** `PUT /internal/tenants/{tenantId}/billing/exempt` with `{ exempt, operator, reason }` (`InternalApiGuard` + `PlatformAdminGuard`; `scripts/billing-operator.sh exempt <tenantId> --set|--clear --reason "<why>" --operator "<your name>"`); or provisioning from an `exempt` operator registration (`POST /internal/billing/registrations` with `exempt: true`, `scripts/provision-tenant.sh --exempt`)
 - **Preconditions:** The subscription exists (or the tenant is being provisioned from an `exempt` registration).
 - **Trigger:** The operator marks a tenant as free (partner, internal, test-that-must-never-be-charged) or puts it back on the paid ladder.
 - **Main Flow:**

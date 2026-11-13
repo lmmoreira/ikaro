@@ -7,6 +7,7 @@ import {
 } from '../../../../shared/ports/transaction-manager.port';
 import { SubscriptionEntityBuilder } from '../../../../test/builders/billing';
 import { createBillingIntegrationApp } from '../../../../test/utils/billing-integration-app';
+import { databaseNow, waitForBlockedLock } from '../../../../test/utils/booking-lock-race-world';
 import { ExemptProtectedError } from '../../domain/errors/billing-domain.error';
 import { OperatorAuditEntity } from '../../infrastructure/entities/operator-audit.entity';
 import { SubscriptionEntity } from '../../infrastructure/entities/subscription.entity';
@@ -15,8 +16,6 @@ import {
   SUBSCRIPTION_REPOSITORY,
 } from '../ports/subscription-repository.port';
 import { SuspendTenantByOperatorUseCase } from './suspend-tenant-by-operator.use-case';
-
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Lock B-R1 (docs/LOCK_CATALOG.md): an operator suspend must wait for a concurrent transaction that
 // already holds the subscription row, and then decide on that transaction's COMMITTED state. The
@@ -63,17 +62,22 @@ describe('SuspendTenantByOperatorUseCase (integration): lock B-R1', () => {
     });
     await locked;
 
-    let settled = false;
-    const suspend = useCase.execute({ tenantId, operator: 'Ana Souza', reason: 'abuse report' });
-    suspend.then(
-      () => (settled = true),
-      () => (settled = true),
-    );
-    await sleep(400);
-    expect(settled).toBe(false); // still parked on the row lock
-
-    release();
-    await holder;
+    const since = await databaseNow(ds);
+    const suspend = useCase.execute({
+      tenantId,
+      operator: 'Ana Souza',
+      reason: 'abuse report',
+      correlationId: 'corr-suspend',
+    });
+    // The suspend is observably parked on the row lock (Postgres reports its session waiting), so
+    // the release below cannot be what lets it through. Releasing in `finally` keeps a failed wait
+    // from leaving the holder's lock behind for the teardown.
+    try {
+      await waitForBlockedLock(ds, 'row', since);
+    } finally {
+      release();
+      await holder;
+    }
 
     await expect(suspend).rejects.toThrow(ExemptProtectedError);
     const row = await ds.getRepository(SubscriptionEntity).findOneByOrFail({ tenantId });

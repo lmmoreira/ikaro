@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Param,
@@ -48,7 +49,9 @@ import { mapBillingError } from '../http/billing-error.mapper';
 // The operator edge cases of UC-111 / UC-137, on both keys: `X-Internal-Key` and
 // `X-Platform-Admin-Key`. The backend is on internal ingress, so these are reachable only from the
 // relay VM (`scripts/billing-operator.sh`). Tenant-less like every `/internal/*` route: the tenant
-// is the explicit path parameter. Every write is audited in the use case's own transaction.
+// is the explicit path parameter. Every write is audited in the use case's own transaction. The
+// correlation id is the one the correlation middleware set on the request (it runs on every route,
+// guard-rejected ones included), so the events link back to the operator call.
 @UseGuards(InternalApiGuard, PlatformAdminGuard)
 @Controller('internal')
 export class InternalBillingOperatorController {
@@ -65,8 +68,9 @@ export class InternalBillingOperatorController {
   suspend(
     @Param('tenantId', CanonicalParseUUIDPipe) tenantId: string,
     @Body(new ZodValidationPipe(OperatorActionSchema)) dto: OperatorActionDto,
+    @Headers('x-correlation-id') correlationId: string,
   ): Promise<SuspendTenantByOperatorUseCaseResult> {
-    return this.suspendTenant.execute({ tenantId, ...dto }).catch(mapBillingError);
+    return this.suspendTenant.execute({ tenantId, correlationId, ...dto }).catch(mapBillingError);
   }
 
   @Post('tenants/:tenantId/billing/unsuspend')
@@ -74,8 +78,9 @@ export class InternalBillingOperatorController {
   unsuspend(
     @Param('tenantId', CanonicalParseUUIDPipe) tenantId: string,
     @Body(new ZodValidationPipe(OperatorActionSchema)) dto: OperatorActionDto,
+    @Headers('x-correlation-id') correlationId: string,
   ): Promise<UnsuspendTenantUseCaseResult> {
-    return this.unsuspendTenant.execute({ tenantId, ...dto }).catch(mapBillingError);
+    return this.unsuspendTenant.execute({ tenantId, correlationId, ...dto }).catch(mapBillingError);
   }
 
   @Post('tenants/:tenantId/billing/grace')
@@ -92,14 +97,15 @@ export class InternalBillingOperatorController {
   exempt(
     @Param('tenantId', CanonicalParseUUIDPipe) tenantId: string,
     @Body(new ZodValidationPipe(SetExemptSchema)) dto: SetExemptDto,
+    @Headers('x-correlation-id') correlationId: string,
   ): Promise<SetTenantExemptUseCaseResult> {
-    return this.setTenantExempt.execute({ tenantId, ...dto }).catch(mapBillingError);
+    return this.setTenantExempt.execute({ tenantId, correlationId, ...dto }).catch(mapBillingError);
   }
 
   @Get('billing/tenants')
   list(
     @Query(new ZodValidationPipe(ListTenantBillingStatusSchema)) query: ListTenantBillingStatusDto,
   ): Promise<ListTenantBillingStatusUseCaseResult> {
-    return this.listTenantBillingStatus.execute(query);
+    return this.listTenantBillingStatus.execute(query).catch(mapBillingError);
   }
 }

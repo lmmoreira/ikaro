@@ -3,7 +3,10 @@ import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-m
 import { SubscriptionBuilder } from '../../../../test/builders/billing';
 import { InMemoryOperatorAuditRepository } from '../../../../test/repositories/billing/in-memory-operator-audit.repository';
 import { InMemorySubscriptionRepository } from '../../../../test/repositories/billing/in-memory-subscription.repository';
-import { GraceNotAllowedError } from '../../domain/errors/billing-domain.error';
+import {
+  BillingTenantNotFoundError,
+  GraceNotAllowedError,
+} from '../../domain/errors/billing-domain.error';
 import { ExtendGraceUseCase } from './extend-grace.use-case';
 
 const NOW = new Date('2026-11-12T12:00:00.000Z');
@@ -75,6 +78,18 @@ describe('ExtendGraceUseCase', () => {
     expect(audits.saved).toHaveLength(0);
   });
 
+  it('rejects a grace earlier than one already set (it only ever extends)', async () => {
+    const tenantId = await seedPastDue();
+    await useCase.execute({ tenantId, ...INPUT, graceUntil: '2026-11-30T00:00:00.000Z' });
+
+    await expect(
+      useCase.execute({ tenantId, ...INPUT, graceUntil: '2026-11-25T00:00:00.000Z' }),
+    ).rejects.toThrow(GraceNotAllowedError);
+
+    expect(subscriptions.saved[0]?.graceUntil?.toISOString()).toBe('2026-11-30T00:00:00.000Z');
+    expect(audits.saved).toHaveLength(1);
+  });
+
   it('writes no second audit row when the same instant is set again', async () => {
     const tenantId = await seedPastDue();
     const input = { tenantId, ...INPUT, graceUntil: '2026-11-30T00:00:00.000Z' };
@@ -83,5 +98,20 @@ describe('ExtendGraceUseCase', () => {
     await useCase.execute(input);
 
     expect(audits.saved).toHaveLength(1);
+  });
+
+  it("never touches another tenant's subscription: a request for tenant B leaves tenant A alone", async () => {
+    const tenantA = await seedPastDue();
+
+    await expect(
+      useCase.execute({
+        tenantId: '0197b0a0-0000-7000-8000-0000000000b2',
+        ...INPUT,
+        graceUntil: '2026-11-30T00:00:00.000Z',
+      }),
+    ).rejects.toThrow(BillingTenantNotFoundError);
+
+    expect(subscriptions.saved.find((row) => row.tenantId === tenantA)?.graceUntil).toBeNull();
+    expect(audits.saved).toHaveLength(0);
   });
 });

@@ -4,12 +4,15 @@ import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-m
 import { SubscriptionBuilder } from '../../../../test/builders/billing';
 import { InMemoryOperatorAuditRepository } from '../../../../test/repositories/billing/in-memory-operator-audit.repository';
 import { InMemorySubscriptionRepository } from '../../../../test/repositories/billing/in-memory-subscription.repository';
-import { UnsuspendNotAllowedError } from '../../domain/errors/billing-domain.error';
+import {
+  BillingTenantNotFoundError,
+  UnsuspendNotAllowedError,
+} from '../../domain/errors/billing-domain.error';
 import { UnsuspendTenantUseCase } from './unsuspend-tenant.use-case';
 
 const NOW = new Date('2026-11-12T12:00:00.000Z');
 const SUSPENDED_AT = new Date('2026-11-01T08:00:00.000Z');
-const INPUT = { operator: 'Ana Souza', reason: 'false positive' };
+const INPUT = { operator: 'Ana Souza', reason: 'false positive', correlationId: 'corr-req-2' };
 
 describe('UnsuspendTenantUseCase', () => {
   let outbox: InMemoryOutboxPublisher;
@@ -18,13 +21,14 @@ describe('UnsuspendTenantUseCase', () => {
   let useCase: UnsuspendTenantUseCase;
 
   beforeEach(() => {
-    outbox = new InMemoryOutboxPublisher();
+    const txManager = new InMemoryTransactionManager();
+    outbox = new InMemoryOutboxPublisher(txManager);
     subscriptions = new InMemorySubscriptionRepository(outbox);
     audits = new InMemoryOperatorAuditRepository();
     useCase = new UnsuspendTenantUseCase(
       subscriptions,
       audits,
-      new InMemoryTransactionManager(),
+      txManager,
       new AdvanceableClock(NOW),
     );
   });
@@ -42,6 +46,7 @@ describe('UnsuspendTenantUseCase', () => {
     expect(outbox.published).toHaveLength(1);
     expect(outbox.published[0]).toMatchObject({
       eventName: 'SubscriptionReactivated',
+      correlationId: 'corr-req-2',
       data: { reactivatedAt: NOW.toISOString(), suspendedAt: SUSPENDED_AT.toISOString() },
     });
   });
@@ -60,12 +65,29 @@ describe('UnsuspendTenantUseCase', () => {
     expect(outbox.published).toHaveLength(0);
   });
 
-  it('refuses a tenant that is not suspended', async () => {
+  it('is a no-op (200, no audit row, no event) for a tenant that is not suspended', async () => {
     const subscription = new SubscriptionBuilder().withStatus('ACTIVE').build();
     await subscriptions.save(subscription);
+    outbox.published.length = 0;
 
-    await expect(useCase.execute({ tenantId: subscription.tenantId, ...INPUT })).rejects.toThrow(
-      UnsuspendNotAllowedError,
-    );
+    const result = await useCase.execute({ tenantId: subscription.tenantId, ...INPUT });
+
+    expect(result.status).toBe('ACTIVE');
+    expect(audits.saved).toHaveLength(0);
+    expect(outbox.published).toHaveLength(0);
+  });
+
+  it("never touches another tenant's subscription: a request for tenant B leaves tenant A suspended", async () => {
+    const tenantA = new SubscriptionBuilder().withSuspension('OPERATOR', SUSPENDED_AT).build();
+    await subscriptions.save(tenantA);
+    outbox.published.length = 0;
+
+    await expect(
+      useCase.execute({ tenantId: '0197b0a0-0000-7000-8000-0000000000b2', ...INPUT }),
+    ).rejects.toThrow(BillingTenantNotFoundError);
+
+    expect(subscriptions.saved[0]?.status).toBe('SUSPENDED');
+    expect(audits.saved).toHaveLength(0);
+    expect(outbox.published).toHaveLength(0);
   });
 });

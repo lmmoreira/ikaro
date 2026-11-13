@@ -1,5 +1,4 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { CLOCK, type IClock } from '../../../../shared/ports/clock.port';
 import {
   ITransactionManager,
@@ -24,6 +23,8 @@ export interface SuspendTenantByOperatorUseCaseInput {
   tenantId: string;
   operator: string;
   reason: string;
+  /** The request's correlation id (set by the correlation middleware), carried onto the events. */
+  correlationId: string;
 }
 
 export type SuspendTenantByOperatorUseCaseResult = OperatorBillingStateResult;
@@ -32,7 +33,8 @@ export type SuspendTenantByOperatorUseCaseResult = OperatorBillingStateResult;
  * UC-111: suspends a tenant for abuse or takedown (reason `OPERATOR`). Payment does not lift it;
  * only `unsuspend` (or making the tenant exempt) does. Refuses an exempt tenant. The subscription
  * change, its `SubscriptionSuspended` outbox row and the audit row commit together; an
- * already-suspended-by-operator tenant is a no-op with no audit row and no event. The access cache
+ * tenant that is already suspended, for any reason, is left as it is: no audit row, no event (so a
+ * payment suspension can never be turned into one the operator can lift). The access cache
  * is evicted by the cached repository after the commit.
  */
 @Injectable()
@@ -47,13 +49,11 @@ export class SuspendTenantByOperatorUseCase {
   async execute(
     input: SuspendTenantByOperatorUseCaseInput,
   ): Promise<SuspendTenantByOperatorUseCaseResult> {
-    // /internal routes skip the RequestInterceptor: the correlation id is generated here.
-    const correlationId = uuidv7();
     return this.txManager.run(async () => {
       const subscription = await loadSubscriptionForUpdate(this.subscriptions, input.tenantId);
       const now = this.clock.now();
       const previousReason = subscription.suspensionReason;
-      if (subscription.suspendByOperator(now, correlationId)) {
+      if (subscription.suspendByOperator(now, input.correlationId)) {
         await this.subscriptions.save(subscription);
         await this.audits.save(
           OperatorAudit.record({

@@ -43,7 +43,23 @@ _relay_secret() {
     | grep -o '"data": *"[^"]*"' | cut -d'"' -f4 | base64 -d
 }
 
+# A BACKEND_URL taken from the environment must not send the identity token and both keys over
+# plain HTTP to a remote host. Loopback stays allowed for local acceptance (the default of
+# scripts/billing-clock-advance.sh is http://localhost:3001).
+_relay_require_safe_backend_url() {
+  case "$1" in
+    https://*|http://localhost|http://localhost[:/]*|http://127.0.0.1|http://127.0.0.1[:/]*|http://\[::1\]|http://\[::1\][:/]*) ;;
+    *)
+      echo "ERROR: BACKEND_URL must be https:// (plain http:// is allowed only for localhost): $1" >&2
+      return 1
+      ;;
+  esac
+}
+
 relay_auth_init() {
+  if [ -n "${BACKEND_URL:-}" ]; then
+    _relay_require_safe_backend_url "$BACKEND_URL" || return 1
+  fi
   PROJECT_ID="${PROJECT_ID:-$(relay_meta project/project-id)}"
 
   echo "Fetching access token..." >&2
