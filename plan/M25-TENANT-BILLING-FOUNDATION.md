@@ -1273,14 +1273,14 @@ Build the declarative enforcement mechanism and **wire it dark** — it decides 
 **New migration / i18n keys / env vars / feature flags:** no migration, env var or flag. **i18n keys: yes** — the two new denial codes are **not** in the code base yet (the S06 story shipped only the `SIGNUP_TAX_ID_*` / `SIGNUP_TERMS_NOT_ACCEPTED` codes and the S15b operator refusals): add `FEATURE_NOT_ENTITLED` and `TENANT_SUSPENDED` to `BillingErrorCode`, an entry for each in **both** `packages/i18n/locales/pt-BR/errors.json` and `en/errors.json`, a `BffThrowableCode` entry (the BFF guard throws them) and the rest of `docs/ENGINEERING_RULES_SHARED.md` § Adding a new error — checklist (the web exhaustiveness test fails CI otherwise).
 
 **Files to create/modify:**
-- `apps/backend/src/shared/decorators/requires-feature.decorator.ts`, `suspension-access.decorator.ts`, `no-feature-gate.decorator.ts` (+ specs) (new)
+- `packages/nestjs-http/src/tenant-access-decorators.ts` (+ spec) (new — `@RequiresFeature`, `@SuspensionAccess` and `@NoFeatureGate`, defined once and imported by both apps; they moved here from per-app copies because the one-line wrappers were identical, and `@Public()` stays per app because it is not shared)
 - `apps/backend/src/shared/guards/tenant-access.guard.ts` (+ `.spec.ts`) (new)
 - Billing denial errors: **no new shared domain-error class or filter mapping** (shipped decision): both guards throw through `throwProblemDetail(403, BillingErrorCode.…)` like every other guard, and `BaseErrorFilter` already renders an `HttpException`; `billing-error.mapper.ts` is untouched (the denials are not Billing use-case errors)
 - `apps/backend/src/app.module.ts` (modify — `APP_GUARD` after `InternalApiGuard`)
-- `apps/bff/src/shared/decorators/requires-feature.decorator.ts`, `suspension-access.decorator.ts`, `no-feature-gate.decorator.ts` (+ specs) (new)
+- `apps/bff/src/shared/http/backend-internal-client.ts` (+ spec) (new — the singleton backend caller for global guards: `BackendHttpService` is request-scoped, so it takes the request as an argument; `ActiveStaffGuard` and the tenant-access lookup both use it instead of each repeating the `HttpService` call)
 - `apps/bff/src/shared/guards/tenant-access.guard.ts` (+ `.spec.ts`) (new)
 - `apps/bff/src/shared/cache/ttl-cache.ts`, `in-memory-bff-cache.ts` (+ specs) and `bff-cache.port.ts` (new — bounded in-process TTL cache with an injectable clock, behind the async `BffCache` port so a Redis adapter replaces only the provider; the BFF guard's 300 s / 10 s store)
-- `apps/bff/src/shared/` a singleton tenant-access lookup provider (`HttpService` + `buildBackendHeaders`, over the `ttl-cache`) (+ `.spec.ts`) (new)
+- `apps/bff/src/shared/` a singleton tenant-access lookup provider (over `BackendInternalClient` and the `BffCache` port) (+ `.spec.ts`) (new)
 - `packages/types/src/` the `SUSPENSION_POLICIES` table and `SuspensionAccessPolicy` type (+ `.spec.ts`), exported from the package index (new)
 - `packages/types/src/error-codes.ts` (modify — `BillingErrorCode.FEATURE_NOT_ENTITLED`, `TENANT_SUSPENDED`), `packages/i18n/locales/pt-BR/errors.json` and `en/errors.json` (modify — both entries), the BFF `BffThrowableCode` set (modify)
 - `apps/backend/src/contexts/billing/infrastructure/repositories/caching-subscription.repository.ts` and its specs (modify — `OPERATIONAL_TTL_MS` 60 000 → 300 000)

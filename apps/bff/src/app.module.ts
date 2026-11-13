@@ -15,6 +15,7 @@ import { ScheduleModule } from './features/booking/schedule.module';
 import { BookingServicesModule } from './features/booking/services.module';
 import { StaffModule } from './features/staff/staff.module';
 import { ActiveStaffGuard } from './shared/guards/active-staff.guard';
+import { BackendInternalClient } from './shared/http/backend-internal-client';
 import { AppThrottlerGuard } from './shared/guards/app-throttler.guard';
 import { JwtAuthGuard } from './shared/guards/jwt-auth.guard';
 import { TenantAccessGuard } from './shared/guards/tenant-access.guard';
@@ -63,6 +64,8 @@ import { RequestInterceptor } from './shared/request/request.interceptor';
     // Runs first (registration order, TD38): rejects any caller that isn't ikaro-web itself
     // before it can consume a rate-limit bucket or reach JWT/tenant/role checks — nothing
     // legitimate calls BFF except ikaro-web, so this must be the very first gate.
+    // The singleton guards' one backend caller (BackendHttpService is request-scoped).
+    BackendInternalClient,
     { provide: APP_GUARD, useClass: WebOnlyGuard },
     // Runs second (registration order) — rejects over-limit requests before JWT
     // verification/tenant/role checks do any work.

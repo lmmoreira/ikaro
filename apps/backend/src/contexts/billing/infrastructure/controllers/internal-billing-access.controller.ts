@@ -1,7 +1,5 @@
 import { Controller, Get, Inject, Param, UseGuards } from '@nestjs/common';
-import { CanonicalParseUUIDPipe } from '@ikaro/nestjs-http';
-import { NoFeatureGate } from '../../../../shared/decorators/no-feature-gate.decorator';
-import { SuspensionAccess } from '../../../../shared/decorators/suspension-access.decorator';
+import { CanonicalParseUUIDPipe, NoFeatureGate, SuspensionAccess } from '@ikaro/nestjs-http';
 import { InternalApiGuard } from '../../../../shared/guards/internal-api.guard';
 import {
   TENANT_ACCESS_PORT,

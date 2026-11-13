@@ -5,33 +5,25 @@ import {
   HttpStatus,
   Injectable,
 } from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { AxiosError } from 'axios';
-import { firstValueFrom } from 'rxjs';
 import { Request } from 'express';
 import { AuthErrorCode, BffErrorCode, StaffErrorCode } from '@ikaro/types';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { getCurrentUser } from '../decorators/current-user.decorator';
-import { buildBackendHeaders } from '../http/backend-headers';
+import { BackendInternalClient } from '../http/backend-internal-client';
 import { throwProblemDetail } from '../http/problem-detail';
 import { StaffActiveResponse } from '../types/backend-responses';
 
 @Injectable()
 export class ActiveStaffGuard implements CanActivate {
-  private readonly backendUrl: string;
-
   // ActiveStaffGuard is singleton-scoped; BackendHttpService is REQUEST-scoped.
   // NestJS cannot inject a REQUEST-scoped service into a singleton.
-  // buildBackendHeaders(req) gives us the same header logic without the scope conflict.
+  // BackendInternalClient takes the request as an argument, so it has no scope conflict.
   constructor(
-    private readonly http: HttpService,
+    private readonly backend: BackendInternalClient,
     private readonly reflector: Reflector,
-    private readonly config: ConfigService,
-  ) {
-    this.backendUrl = this.config.getOrThrow<string>('BACKEND_INTERNAL_URL');
-  }
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
@@ -67,17 +59,8 @@ export class ActiveStaffGuard implements CanActivate {
   // (staff-list lookups) and would always 403 a plain STAFF actor — the cause of a real bug
   // found during TD23 Story 11 discovery (every STAFF-role request used to 503 via the generic
   // branch below).
-  private async fetchStaffStatus(req: Request): Promise<StaffActiveResponse> {
-    const { data } = await firstValueFrom(
-      this.http.get<StaffActiveResponse>(`${this.backendUrl}/staff/me/status`, {
-        headers: {
-          ...buildBackendHeaders(req),
-          'X-Internal-Key': this.config.getOrThrow('INTERNAL_API_KEY'),
-        },
-        timeout: 5_000,
-      }),
-    );
-    return data;
+  private fetchStaffStatus(req: Request): Promise<StaffActiveResponse> {
+    return this.backend.get<StaffActiveResponse>('/staff/me/status', req);
   }
 
   private rethrowStatusCheckError(err: unknown): never {

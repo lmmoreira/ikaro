@@ -2,14 +2,17 @@ import { Observable, of, throwError } from 'rxjs';
 import { makeBackendHttp } from '../../test/backend-http.mock';
 import { makeRequest } from '../../test/execution-context.factory';
 import { InMemoryBffCache } from '../cache/in-memory-bff-cache';
+import {
+  BackendInternalClient,
+  type BackendClientConfig,
+  type BackendGetClient,
+} from '../http/backend-internal-client';
 import { TtlCache } from '../cache/ttl-cache';
 import { publicTenantCache, withPublicTenant } from '../http/public-tenant';
 import {
   OPERATIONAL_ACCESS_TTL_MS,
   SUSPENDED_ACCESS_TTL_MS,
   TenantAccessLookup,
-  type AccessLookupConfig,
-  type BackendGetClient,
 } from './tenant-access.lookup';
 
 const TENANT_ID = '10000000-0000-4000-8000-000000000001';
@@ -53,7 +56,7 @@ class FailingBackend implements BackendGetClient {
   }
 }
 
-const config: AccessLookupConfig = {
+const config: BackendClientConfig = {
   getOrThrow: (key) => (key === 'BACKEND_INTERNAL_URL' ? 'http://backend:3001' : 'internal-key'),
 };
 
@@ -64,7 +67,11 @@ type AccessCache = InMemoryBffCache<{ operational: boolean; features: { key: str
 function makeLookup(answer: () => unknown, clock = new FakeClock()) {
   const backend = new FakeBackend(answer);
   const cache: AccessCache = new InMemoryBffCache({ maxEntries: 100, clock });
-  return { lookup: new TenantAccessLookup(backend, config, cache), backend, clock };
+  return {
+    lookup: new TenantAccessLookup(new BackendInternalClient(backend, config), cache),
+    backend,
+    clock,
+  };
 }
 
 describe('TenantAccessLookup', () => {
@@ -141,8 +148,7 @@ describe('TenantAccessLookup', () => {
   it('propagates a backend failure for the guard to turn into a pass-through', async () => {
     const backend = new FailingBackend('connect ECONNREFUSED');
     const lookup = new TenantAccessLookup(
-      backend,
-      config,
+      new BackendInternalClient(backend, config),
       new InMemoryBffCache({ maxEntries: 10, clock: new FakeClock() }),
     );
     await expect(lookup.getAccess(TENANT_ID, req)).rejects.toThrow('ECONNREFUSED');
@@ -234,8 +240,7 @@ describe('TenantAccessLookup', () => {
     it('never caches a failed lookup (an unknown slug)', async () => {
       const backend = new FailingBackend('404');
       const lookup = new TenantAccessLookup(
-        backend,
-        config,
+        new BackendInternalClient(backend, config),
         new InMemoryBffCache({ maxEntries: 10 }),
       );
       await expect(lookup.resolveTenantId('nope', req)).rejects.toThrow('404');

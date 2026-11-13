@@ -1,8 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 import type { BillingAccessResponse } from '@ikaro/types';
+import { NoFeatureGate, SuspensionAccess } from '@ikaro/nestjs-http';
 import { CurrentUser, CurrentUserPayload } from '../../shared/decorators/current-user.decorator';
-import { NoFeatureGate } from '../../shared/decorators/no-feature-gate.decorator';
-import { SuspensionAccess } from '../../shared/decorators/suspension-access.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { AppLogger } from '../../shared/observability/app-logger';
 import { BackendTenantAccessSchema } from './billing.schemas';
