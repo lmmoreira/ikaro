@@ -1,5 +1,5 @@
 import { Body, Controller, HttpCode, HttpStatus, Patch, UseGuards } from '@nestjs/common';
-import { ZodValidationPipe } from '@ikaro/nestjs-http';
+import { RequiresFeature, SuspensionAccess, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { RenameTenantDto, RenameTenantSchema } from '../../application/dtos/rename-tenant.dto';
 import {
@@ -11,6 +11,8 @@ import { ManagerRoleGuard } from '../../../../shared/guards/manager-role.guard';
 import { mapPlatformError } from '../http/platform-error.mapper';
 
 @Controller('tenants')
+@RequiresFeature('HOTSITE')
+@SuspensionAccess('DEFAULT_DENY')
 @UseGuards(ManagerRoleGuard)
 export class TenantController {
   constructor(

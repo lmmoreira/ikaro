@@ -1,4 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
+import { RequiresFeature, SuspensionAccess } from '@ikaro/nestjs-http';
 import { RequestContext } from '../../../../shared/request/request-context';
 import {
   GetHotsiteManifestUseCase,
@@ -7,6 +8,8 @@ import {
 import { mapPlatformError } from '../http/platform-error.mapper';
 
 @Controller('hotsite')
+@RequiresFeature('HOTSITE')
+@SuspensionAccess('PUBLIC_MANIFEST')
 export class HotsiteController {
   constructor(
     private readonly ctx: RequestContext,

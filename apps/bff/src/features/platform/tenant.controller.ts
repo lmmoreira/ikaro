@@ -1,6 +1,6 @@
 import { Body, Controller, HttpCode, HttpStatus, Patch } from '@nestjs/common';
 import { RenameTenantResponse } from '@ikaro/types';
-import { ZodValidationPipe } from '@ikaro/nestjs-http';
+import { RequiresFeature, SuspensionAccess, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { RenameTenantBody, RenameTenantBodySchema } from './tenant.schemas';
@@ -11,6 +11,8 @@ export * from './tenant.schemas';
 
 @Controller('tenants')
 @Roles('MANAGER')
+@RequiresFeature('HOTSITE')
+@SuspensionAccess('DEFAULT_DENY')
 export class TenantController {
   constructor(private readonly backendHttp: BackendHttpService) {}
 

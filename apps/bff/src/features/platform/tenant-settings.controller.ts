@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Patch } from '@nestjs/common';
 import { ChatbotCapStatusResponse, TenantSettingsResponse } from '@ikaro/types';
-import { ZodValidationPipe } from '@ikaro/nestjs-http';
+import { RequiresFeature, SuspensionAccess, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import {
@@ -18,12 +18,16 @@ export class TenantSettingsController {
   constructor(private readonly backendHttp: BackendHttpService) {}
 
   @Get('settings')
+  @RequiresFeature('HOTSITE')
+  @SuspensionAccess('DEFAULT_DENY')
   @Roles('STAFF', 'MANAGER')
   getSettings(): Promise<TenantSettingsResponse> {
     return this.backendHttp.get<TenantSettingsResponse>('/tenants/settings');
   }
 
   @Patch('settings')
+  @RequiresFeature('HOTSITE')
+  @SuspensionAccess('DEFAULT_DENY')
   @HttpCode(HttpStatus.OK)
   @Roles('MANAGER')
   updateSettings(
@@ -33,6 +37,8 @@ export class TenantSettingsController {
   }
 
   @Get('chatbot/cap-status')
+  @RequiresFeature('CHATBOT')
+  @SuspensionAccess('DEFAULT_DENY')
   @Roles('MANAGER')
   getChatbotCapStatus(): Promise<ChatbotCapStatusResponse> {
     return this.backendHttp.get<ChatbotCapStatusResponse>('/tenants/chatbot/cap-status');

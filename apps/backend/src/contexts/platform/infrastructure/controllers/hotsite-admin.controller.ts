@@ -10,7 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { RequestContext } from '../../../../shared/request/request-context';
-import { ZodValidationPipe } from '@ikaro/nestjs-http';
+import { RequiresFeature, SuspensionAccess, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { ManagerRoleGuard } from '../../../../shared/guards/manager-role.guard';
 import {
   ApplyHotsiteTemplateDto,
@@ -76,6 +76,8 @@ import {
 import { mapPlatformError } from '../http/platform-error.mapper';
 
 @Controller('tenants/hotsite')
+@RequiresFeature('HOTSITE')
+@SuspensionAccess('DEFAULT_DENY')
 @UseGuards(ManagerRoleGuard)
 export class HotsiteAdminController {
   constructor(

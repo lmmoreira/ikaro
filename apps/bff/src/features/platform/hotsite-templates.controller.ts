@@ -1,5 +1,5 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
-import { ZodValidationPipe } from '@ikaro/nestjs-http';
+import { RequiresFeature, SuspensionAccess, ZodValidationPipe } from '@ikaro/nestjs-http';
 import type { ApplyHotsiteTemplateResponse, HotsiteTemplateSummaryResponse } from '@ikaro/types';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
@@ -16,6 +16,8 @@ import {
  */
 @Controller('tenants/hotsite')
 @Roles('MANAGER')
+@RequiresFeature('HOTSITE')
+@SuspensionAccess('DEFAULT_DENY')
 export class HotsiteTemplatesController {
   constructor(private readonly backendHttp: BackendHttpService) {}
 

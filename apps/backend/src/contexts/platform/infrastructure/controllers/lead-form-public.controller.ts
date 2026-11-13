@@ -1,5 +1,5 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
-import { ZodValidationPipe } from '@ikaro/nestjs-http';
+import { RequiresFeature, SuspensionAccess, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { RequestContext } from '../../../../shared/request/request-context';
 import {
   SubmitLeadFormDto,
@@ -21,6 +21,8 @@ import { mapPlatformError } from '../http/platform-error.mapper';
 // exists), not from a route guard. Public counterpart to LeadFormController (`tenants/lead-form`,
 // MANAGER-only) — never returns the teaser/admin fields that controller does.
 @Controller('platform/lead-form')
+@RequiresFeature('LEAD_FORM')
+@SuspensionAccess('PUBLIC_NONE')
 export class LeadFormPublicController {
   constructor(
     private readonly requestContext: RequestContext,
