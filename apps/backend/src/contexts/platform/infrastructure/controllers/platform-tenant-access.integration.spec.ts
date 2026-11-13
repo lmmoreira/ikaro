@@ -91,6 +91,11 @@ const ROUTES: PlatformRoute[] = [
   },
 ];
 
+// The manifest is gated on `HOTSITE` for an operational tenant but is the one route a suspended
+// tenant can still reach (`PUBLIC_MANIFEST`), so it joins the entitlement matrix and not the
+// suspension one.
+const MANIFEST_ROUTE: PlatformRoute = { method: 'get', path: '/hotsite', feature: 'HOTSITE' };
+
 const withoutFeature = (feature: FeatureKey) =>
   (['HOTSITE', 'BOOKING', 'LOYALTY', 'CHATBOT', 'LEAD_FORM'] as const)
     .filter((key) => key !== feature)
@@ -162,19 +167,22 @@ describe('Platform routes — tenant access (integration)', () => {
   }
 
   describe('a tenant without the feature', () => {
-    it.each(ROUTES)('refuses $method $path with BILLING_FEATURE_NOT_ENTITLED', async (route) => {
-      access.seed(TENANT_A, {
-        status: 'ACTIVE',
-        suspensionReason: null,
-        operational: true,
-        features: withoutFeature(route.feature),
-      });
+    it.each([...ROUTES, MANIFEST_ROUTE])(
+      'refuses $method $path with BILLING_FEATURE_NOT_ENTITLED',
+      async (route) => {
+        access.seed(TENANT_A, {
+          status: 'ACTIVE',
+          suspensionReason: null,
+          operational: true,
+          features: withoutFeature(route.feature),
+        });
 
-      const res = await call(route, TENANT_A);
+        const res = await call(route, TENANT_A);
 
-      expect(res.status).toBe(403);
-      expect(res.body).toMatchObject({ code: BillingErrorCode.FEATURE_NOT_ENTITLED });
-    });
+        expect(res.status).toBe(403);
+        expect(res.body).toMatchObject({ code: BillingErrorCode.FEATURE_NOT_ENTITLED });
+      },
+    );
   });
 
   describe('a suspended tenant', () => {
