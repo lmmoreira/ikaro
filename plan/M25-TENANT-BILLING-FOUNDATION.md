@@ -1279,7 +1279,7 @@ Build the declarative enforcement mechanism and **wire it dark** — it decides 
 - `apps/backend/src/app.module.ts` (modify — `APP_GUARD` after `InternalApiGuard`)
 - `apps/bff/src/shared/decorators/requires-feature.decorator.ts`, `suspension-access.decorator.ts`, `no-feature-gate.decorator.ts` (+ specs) (new)
 - `apps/bff/src/shared/guards/tenant-access.guard.ts` (+ `.spec.ts`) (new)
-- `apps/bff/src/shared/cache/ttl-cache.ts` (+ `.spec.ts`) (new — bounded in-process TTL cache with an injectable clock, the BFF guard's 300 s / 10 s store)
+- `apps/bff/src/shared/cache/ttl-cache.ts`, `in-memory-bff-cache.ts` (+ specs) and `bff-cache.port.ts` (new — bounded in-process TTL cache with an injectable clock, behind the async `BffCache` port so a Redis adapter replaces only the provider; the BFF guard's 300 s / 10 s store)
 - `apps/bff/src/shared/` a singleton tenant-access lookup provider (`HttpService` + `buildBackendHeaders`, over the `ttl-cache`) (+ `.spec.ts`) (new)
 - `packages/types/src/` the `SUSPENSION_POLICIES` table and `SuspensionAccessPolicy` type (+ `.spec.ts`), exported from the package index (new)
 - `packages/types/src/error-codes.ts` (modify — `BillingErrorCode.FEATURE_NOT_ENTITLED`, `TENANT_SUSPENDED`), `packages/i18n/locales/pt-BR/errors.json` and `en/errors.json` (modify — both entries), the BFF `BffThrowableCode` set (modify)

@@ -6,7 +6,7 @@ import type { TenantAccessView } from '@ikaro/types';
 import { Request } from 'express';
 import { firstValueFrom, type Observable } from 'rxjs';
 import { z } from 'zod';
-import { TtlCache } from '../cache/ttl-cache';
+import type { BffCache } from '../cache/bff-cache.port';
 import { buildBackendHeaders } from '../http/backend-headers';
 import { resolvePublicTenant } from '../http/public-tenant';
 import type { TenantInfoResponse } from '../types/backend-responses';
@@ -48,7 +48,7 @@ export interface TenantAccessSource {
 
 /**
  * The BFF side of `TenantAccessPort`: the backend's `GET /internal/billing/tenants/{id}/access`
- * behind a bounded per-instance TTL cache. A singleton, so it calls the backend through
+ * behind the `BffCache` port (in-memory today). A singleton, so it calls the backend through
  * `HttpService` with `buildBackendHeaders(req)` exactly as `ActiveStaffGuard` does (the
  * request-scoped `BackendHttpService` cannot be injected into a singleton guard).
  *
@@ -62,20 +62,20 @@ export class TenantAccessLookup implements TenantAccessSource {
     // The concrete classes are the DI tokens (the narrow interfaces are erased at runtime).
     @Inject(HttpService) private readonly http: BackendGetClient,
     @Inject(ConfigService) private readonly config: AccessLookupConfig,
-    @Inject(TENANT_ACCESS_CACHE) private readonly cache: TtlCache<TenantAccessView>,
+    @Inject(TENANT_ACCESS_CACHE) private readonly cache: BffCache<TenantAccessView>,
   ) {
     this.backendUrl = this.config.getOrThrow('BACKEND_INTERNAL_URL');
   }
 
   async getAccess(tenantId: string, req: Request): Promise<TenantAccessView> {
-    const cached = this.cache.get(tenantId);
+    const cached = await this.cache.get(tenantId);
     if (cached) return cached;
 
     const raw = await this.get<unknown>(`/internal/billing/tenants/${tenantId}/access`, req);
     const { degraded, ...access } = AccessAnswerSchema.parse(raw);
     if (!degraded) {
       const ttl = access.operational ? OPERATIONAL_ACCESS_TTL_MS : SUSPENDED_ACCESS_TTL_MS;
-      this.cache.set(tenantId, access, ttl);
+      await this.cache.set(tenantId, access, ttl);
     }
     return access;
   }

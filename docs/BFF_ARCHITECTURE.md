@@ -277,7 +277,7 @@ TenantAccessGuard (M25-S16, UC-125 — registered last, after TenantGuard, Roles
   │  or body passes here and is gated by the backend guard, which every such call reaches with X-Tenant-ID);
   │  a Guard, never an Interceptor — see docs/ENGINEERING_RULES_SHARED.md § Tenant access enforcement
   │  — the declarative choke points (planned). Its 300 s (operational) / 10 s (SUSPENDED) answer cache is an
-  │  in-process cache in the BFF (apps/bff/src/shared/cache/ttl-cache.ts; TTLs: docs/DOMAIN_MODEL.md § Entry point)
+  │  cache in the BFF behind the async `BffCache` port (in-memory adapter today, apps/bff/src/shared/cache/in-memory-bff-cache.ts, a Redis adapter replaces only that provider; TTLs: docs/DOMAIN_MODEL.md § Entry point)
   ▼
 RequestInterceptor
   │  Runs after the Guards, so req.user is populated: adds tenantId/actor to OTel span attributes

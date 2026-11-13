@@ -1,6 +1,7 @@
 import { Observable, of, throwError } from 'rxjs';
 import { makeBackendHttp } from '../../test/backend-http.mock';
 import { makeRequest } from '../../test/execution-context.factory';
+import { InMemoryBffCache } from '../cache/in-memory-bff-cache';
 import { TtlCache } from '../cache/ttl-cache';
 import { publicTenantCache, withPublicTenant } from '../http/public-tenant';
 import {
@@ -58,11 +59,11 @@ const config: AccessLookupConfig = {
 
 const req = makeRequest({ headers: { 'x-correlation-id': 'corr-1' } });
 
-type AccessCache = TtlCache<{ operational: boolean; features: { key: string }[] }>;
+type AccessCache = InMemoryBffCache<{ operational: boolean; features: { key: string }[] }>;
 
 function makeLookup(answer: () => unknown, clock = new FakeClock()) {
   const backend = new FakeBackend(answer);
-  const cache: AccessCache = new TtlCache({ maxEntries: 100, clock });
+  const cache: AccessCache = new InMemoryBffCache({ maxEntries: 100, clock });
   return { lookup: new TenantAccessLookup(backend, config, cache), backend, clock };
 }
 
@@ -142,7 +143,7 @@ describe('TenantAccessLookup', () => {
     const lookup = new TenantAccessLookup(
       backend,
       config,
-      new TtlCache({ maxEntries: 10, clock: new FakeClock() }),
+      new InMemoryBffCache({ maxEntries: 10, clock: new FakeClock() }),
     );
     await expect(lookup.getAccess(TENANT_ID, req)).rejects.toThrow('ECONNREFUSED');
   });
@@ -232,7 +233,11 @@ describe('TenantAccessLookup', () => {
 
     it('never caches a failed lookup (an unknown slug)', async () => {
       const backend = new FailingBackend('404');
-      const lookup = new TenantAccessLookup(backend, config, new TtlCache({ maxEntries: 10 }));
+      const lookup = new TenantAccessLookup(
+        backend,
+        config,
+        new InMemoryBffCache({ maxEntries: 10 }),
+      );
       await expect(lookup.resolveTenantId('nope', req)).rejects.toThrow('404');
       await expect(lookup.resolveTenantId('nope', req)).rejects.toThrow('404');
       expect(backend.calls).toBe(2);

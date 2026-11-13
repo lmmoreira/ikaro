@@ -24,7 +24,7 @@ import {
   TenantAccessLookup,
 } from './shared/guards/tenant-access.lookup';
 import { TenantGuard } from './shared/guards/tenant.guard';
-import { TtlCache } from './shared/cache/ttl-cache';
+import { InMemoryBffCache } from './shared/cache/in-memory-bff-cache';
 import { RolesGuard } from './shared/guards/roles.guard';
 import { WebOnlyGuard } from './shared/guards/web-only.guard';
 import { CorrelationMiddleware } from './shared/middleware/correlation.middleware';
@@ -76,7 +76,7 @@ import { RequestInterceptor } from './shared/request/request.interceptor';
     // nothing until a tenant is suspended or lacks a feature a route declares.
     {
       provide: TENANT_ACCESS_CACHE,
-      useFactory: () => new TtlCache({ maxEntries: TENANT_ACCESS_CACHE_MAX_ENTRIES }),
+      useFactory: () => new InMemoryBffCache({ maxEntries: TENANT_ACCESS_CACHE_MAX_ENTRIES }),
     },
     TenantAccessLookup,
     { provide: APP_GUARD, useClass: TenantAccessGuard },

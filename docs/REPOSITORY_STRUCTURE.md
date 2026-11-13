@@ -122,7 +122,7 @@ apps/bff/src/
 │   ├── platform/             # domain slice: hotsite, tenant settings, manifest
 │   ├── staff/                # domain slice
 │   └── uploads/              # NOT a current slice — would exist only if the signed-url flow became genuinely shared
-├── shared/                   # cross-cutting transport and infra helpers only (planned with Billing: `shared/cache/ttl-cache.ts`, the in-process TTL cache behind the tenant-access guard)
+├── shared/                   # cross-cutting transport and infra helpers only (planned with Billing: `shared/cache/bff-cache.port.ts`, the async `BffCache` port, with `in-memory-bff-cache.ts` over `ttl-cache.ts` as its in-process adapter, behind the tenant-access guard)
 ├── config/
 ├── health/
 ├── test/

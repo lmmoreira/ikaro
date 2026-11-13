@@ -152,7 +152,7 @@ describe('PlatformPublicController', () => {
     it('reuses the tenant the access guard already resolved from the path slug, with no second by-slug call', async () => {
       // The guard resolves this slug through the same cache before the controller runs.
       const resolved = { ...tenantInfo, locale: 'pt-BR' };
-      publicTenantCache.set('lavacar-bh', resolved, 60_000);
+      await publicTenantCache.set('lavacar-bh', resolved, 60_000);
       const backendHttp = makeBackendHttp({
         get: jest.fn(),
         getForPublic: jest.fn().mockResolvedValue(hotsiteResponse),
