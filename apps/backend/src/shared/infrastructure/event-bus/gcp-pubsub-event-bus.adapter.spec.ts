@@ -243,6 +243,10 @@ describe('GcpPubSubEventBusAdapter', () => {
         (c: unknown[]) => c[0] === 'message',
       )?.[1] as (msg: unknown) => void;
 
+      // Resolved by the adapter's own ack, so the test waits for dispatch to finish, not for a timer.
+      const acknowledged = new Promise<void>((resolve) => {
+        mockAck.mockImplementationOnce(() => resolve());
+      });
       messageHandler({
         data: Buffer.from(JSON.stringify(new StubEvent({ value: 'x' }))),
         ack: mockAck,
@@ -250,7 +254,7 @@ describe('GcpPubSubEventBusAdapter', () => {
         deliveryAttempt: 1,
         attributes: {},
       });
-      await new Promise((r) => setTimeout(r, 10));
+      await acknowledged;
 
       expect(delivered).toEqual([]);
       expect(mockAck).toHaveBeenCalledTimes(1);

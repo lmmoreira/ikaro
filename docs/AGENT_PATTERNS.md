@@ -637,7 +637,7 @@ import { InboxModule } from '../../shared/infrastructure/inbox/inbox.module';
 import { InboxRecordEntity } from '../../shared/infrastructure/inbox/inbox-record.entity';
 import { OutboxModule } from '../../shared/infrastructure/outbox/outbox.module';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
-import { EVENT_BUS } from '../../shared/ports/event-bus.port';
+import { EVENT_BUS, EVENT_BUS_TRANSPORT } from '../../shared/ports/event-bus.port';
 import { OUTBOX_PUBLISHER } from '../../shared/ports/outbox-publisher.port';
 import { STORAGE_SERVICE } from '../../shared/ports/storage.service.port';
 import { RequestInterceptor } from '../../shared/request/request.interceptor';

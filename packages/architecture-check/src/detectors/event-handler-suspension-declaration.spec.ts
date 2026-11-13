@@ -80,6 +80,21 @@ describe('checkEventHandlerSuspensionDeclaration', () => {
       expect(result.findings[0].message).toContain('must be a literal true or false');
     });
 
+    it('flags a spread placed after the flag, which can overwrite the literal', () => {
+      const result = scan(
+        `this.eventBus.subscribe(X.name, (e) => this.handle(e), 'c', { skipWhenSuspended: true, ...OPTS });`,
+      );
+      expect(result.findings).toHaveLength(1);
+      expect(result.findings[0].message).toContain('spreads another object after');
+    });
+
+    it('accepts a spread placed before the flag (the literal wins)', () => {
+      const result = scan(
+        `this.eventBus.subscribe(X.name, (e) => this.handle(e), 'c', { ...OPTS, skipWhenSuspended: false });`,
+      );
+      expect(result.findings).toEqual([]);
+    });
+
     it('has no exemption: an audit-log handler without the flag fails too', () => {
       const result = scan(
         `this.eventBus.subscribe(X.name, (e) => this.handle(e), 'audit-log');`,

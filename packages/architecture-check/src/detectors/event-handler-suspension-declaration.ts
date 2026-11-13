@@ -83,6 +83,17 @@ function declarationProblem(call: CallExpression): string | undefined {
   if (!property || !Node.isPropertyAssignment(property)) {
     return `subscribe() options do not state ${DECLARATION_KEY}.`;
   }
+  // `{ skipWhenSuspended: true, ...OPTS }`: a later spread can overwrite the literal with a value the
+  // detector cannot read, so only a spread placed before the key (which the key then wins over) is safe.
+  const spreadAfterKey = options
+    .getProperties()
+    .some(
+      (candidate) =>
+        Node.isSpreadAssignment(candidate) && candidate.getStart() > property.getStart(),
+    );
+  if (spreadAfterKey) {
+    return `subscribe() spreads another object after ${DECLARATION_KEY}, which can overwrite the literal.`;
+  }
   const initializer = property.getInitializer();
   const literal = initializer?.getText();
   if (literal !== 'true' && literal !== 'false') {

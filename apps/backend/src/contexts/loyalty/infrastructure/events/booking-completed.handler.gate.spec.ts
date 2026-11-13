@@ -1,4 +1,5 @@
 import { BookingCompletedEventBuilder } from '../../../../test/builders/booking';
+import { BookingCompleted } from '../../../booking/domain/events/booking-completed.event';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
 import { GatedEventBus } from '../../../../shared/infrastructure/event-bus/gated-event-bus';
@@ -17,12 +18,16 @@ describe('BookingCompletedHandler behind the event delivery gate', () => {
   let transport: InMemoryEventBus;
   let access: InMemoryTenantAccessPort;
 
-  async function deliver(tenantId: string): Promise<void> {
+  async function deliver(tenantId: string): Promise<BookingCompleted> {
     const event = new BookingCompletedEventBuilder().withTenantId(tenantId).build();
     await transport.subscriptions[0].handler(event);
+    return event;
   }
 
   beforeEach(() => {
+    // The handler takes the concrete use-case class, whose private dependencies a structural stub
+    // cannot satisfy, so the repo's spec convention (see booking-completed.handler.spec.ts) is the
+    // same narrow cast: only `execute` is ever called.
     useCase = {
       execute: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<CompleteBookingLoyaltyEffectsUseCase>;
@@ -31,10 +36,17 @@ describe('BookingCompletedHandler behind the event delivery gate', () => {
     new BookingCompletedHandler(useCase, new GatedEventBus(transport, access)).onModuleInit();
   });
 
-  it('earns for an entitled, operational tenant', async () => {
-    await deliver(TENANT_ID);
+  it('earns for an entitled, operational tenant, forwarding the event ids to the use case', async () => {
+    const event = await deliver(TENANT_ID);
 
     expect(useCase.execute).toHaveBeenCalledTimes(1);
+    expect(useCase.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: TENANT_ID,
+        eventId: event.eventId,
+        correlationId: event.correlationId,
+      }),
+    );
   });
 
   it('does not earn for a suspended tenant', async () => {
