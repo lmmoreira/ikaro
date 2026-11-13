@@ -32,6 +32,19 @@ Also check whether this problem is already tracked: grep `td/*.md` and `docs/ANT
 
 ---
 
+## Step 1b — Need check (before drafting anything)
+
+The need check asks whether the problem is real and the proposed machinery is justified. It never asks whether a cheaper hack would do. When the need is real, the solution is the best long-term one, with the right ports, reuse and structure (CLAUDE.md §7). Answer in four short lines and show them to the user:
+
+1. **Evidence:** the real occurrences today (file paths) and the incidents (a PR or a review round). For new process machinery (a detector, a rule, a new TD), zero or one occurrence means stop. A genuine defect or design flaw is fixed properly even if it occurs once.
+2. **Cost:** what the chosen solution adds to maintain (an allowlist, false positives, a rule contributors must learn), weighed against its benefit. It is never a reason to pick a worse solution.
+3. **Cheaper layer:** is the gap already covered by a skill check, a lint rule, a doc rule or a review lens?
+4. **Existing solution:** does an existing mechanism (a port, a pattern, a check already in the repo) already solve the *root cause*, so that using it needs no new machinery? This is never permission for a workaround, a suppression or a design shortcut.
+
+If the evidence is thin or a cheaper layer covers it, report that and ask "still want a TD?" Do not draft. "No TD" is a normal outcome.
+
+---
+
 ## Step 2 — Decide single-scope vs. multi-story
 
 Don't default to a multi-story shape for a TD that's really one fix, and don't cram a real dependency sequence into one oversized story. Use the same judgment `/discovery-to-milestone` Step 3 applies when splitting UCs into stories:
