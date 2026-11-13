@@ -73,6 +73,7 @@
 | 3 | M25-S30 | `Unavailable` page and hotsite login bar (UC-122) |
 | 3 | M25-S31a | Staff notice, "Suspensa" tenant list, customer "Empresa inativa" — components (UC-121) |
 | 3 | M25-S31b | Suspended-experience spanning Playwright E2E (UC-121) |
+| 4 | M25-S32 | Staging live verification — the operator script, its audit rows and the consumer log (carried from S15b) |
 
 ```mermaid
 graph TD
@@ -1164,6 +1165,7 @@ The structural half of the operator story, split from S15b so the guard refactor
 
 No new principals. The topic bindings can only be created by the Foundation apply *after* the topics exist, which is why the apply follows the PR.
 **Live-verification check:** after the Foundation apply, `gcloud pubsub topics get-iam-policy projects/<staging>/topics/<SubscriptionSuspended topic>` (and `…Reactivated`) show the publisher and subscriber bindings (**not** just `{"etag": …}`, the M23-S04 failure mode); then call `…/billing/suspend` on a test tenant in staging and confirm the audit-log consumer logged the event. Pass = both policies populated and the consumer log observed.
+**Progress (2026-11-13):** the Foundation apply ran and the whole IAM read-back passed in staging and production (evidence on PR #774). The relay-VM half (the `billing-operator.sh` run, its audit rows and the consumer log) is **carried to M25-S32**, the milestone's closing story, by the user's decision; `/mark-done M25-S15b` records it as carried, and S32 deletes this note when it passes.
 
 **Backend use case steps:**
 1. **`SuspendTenantByOperatorUseCase`**, 2. **`UnsuspendTenantUseCase`**, 3. **`ExtendGraceUseCase`**, 4. **`SetTenantExemptUseCase`** — each loads the subscription with `findByTenantIdForUpdate` (B-R1), applies the aggregate method, writes the `operator_audit` row and publishes the event(s) in one `txManager.run()`, invalidates the cache after commit; 5. **`ListTenantBillingStatusUseCase`** (read-only).
@@ -2198,6 +2200,43 @@ Own the milestone's **Playwright spanning spec** for the suspended experience. *
   - [ ] **Spanning Playwright spec** `billing-suspended-experience.spec.ts` covering the scenario above (staff, multi-tenant staff, customer, hotsite, locked feature, unsuspend), with "today"/dates computed in the tenant timezone, not the runner's, and fixtures with symmetric setup/teardown; every assertion that follows a suspend or unsuspend **polls up to 90 s** (BFF guard cache 30 s over the backend's 60 s) rather than asserting instantly
 - [ ] Coverage ≥80% on changed code (test helpers excluded from the gate)
 - [ ] `tsc --noEmit` clean, lint clean
+
+---
+
+## Wave 4 — Closing live verification
+
+### M25-S32 — Staging live verification — the operator script, its audit rows and the consumer log (carried from M25-S15b)
+
+**Agent:** devops
+**Complexity:** S
+**Docs to load:** `docs/RUNBOOKS.md` § Staging (the relay VM flow and Cloud SQL Studio access) and § Operator cases, `docs/ENGINEERING_RULES_INFRA.md` § A script never passes a secret in process arguments, `infra/terraform/README.md` § New-resource PR-sequencing playbook (the Pub/Sub topic row, for the apply evidence only)
+**Dependencies:** M25-S15b (the operator routes, `scripts/billing-operator.sh` and `scripts/lib/relay-auth.sh` under test), M25-S25, M25-S27, M25-S28 (their own live checks suspend and unsuspend a test tenant through the S15b routes on the relay VM; if one of them already ran `billing-operator.sh` and recorded the audit rows, the round trip below reduces to confirming that record), M25-S31b (the last story of the milestone, so this closes it)
+**Pattern:** plain composition — no named pattern applies (verification only, no code).
+
+**Discovered:** 2026-11-13, when M25-S15b merged (PR #774, `80de71af5`). Its infra live checks were post-merge by design (they need the Foundation Environments and the relay VM) and the user chose to batch the relay-VM part at the end of the milestone. **Already verified that day, so not repeated here:** the user dispatched the Foundation apply and approved both Environments; the Pub/Sub IAM read-back (the two topics' publisher bindings, the two audit-log subscriptions' subscriber bindings and push endpoints, the two `-dlq` topics' publisher bindings, in both `ikaro-staging` and `ikaro-prod`) is on PR #774 as a `Re: live verification` comment.
+
+**Description:**
+S15b shipped `scripts/billing-operator.sh` (the only production path to the operator routes: the backend is on internal ingress, so it runs from the relay VM shell) and moved the relay VM auth block from `scripts/provision-tenant.sh` into `scripts/lib/relay-auth.sh`, which now sends every token and key on curl's stdin. CI proved the routes, the audit rows, the events and the script's argument validation, but no real run has gone through the relay VM, the real identity token or the staging database. This story runs that once and records the evidence. It does **not** repeat S25/S27/S28's subscription checks, and it does **not** run `scripts/provision-tenant.sh` end to end: that check is already carried to M26-S24 (from M25-S11), which changes the same script; M26-S24 now also covers the `relay-auth.sh` refactor.
+
+**Files to create/modify:**
+- `plan/M25-TENANT-BILLING-FOUNDATION.md` (modify: record the results under this story, then delete the carry note under M25-S15b)
+- `docs/RUNBOOKS.md` § Operator cases (modify only if the live run shows a documented step is wrong)
+
+**Acceptance criteria — product:**
+- [ ] An operator can suspend and unsuspend a staging test tenant from the relay VM with `scripts/billing-operator.sh`, and each write leaves an audit row naming who and why.
+
+**Acceptance criteria — technical:**
+- [ ] On the staging relay VM (`scripts/relay-vm-up.sh staging`, SSH, then `relay-vm-down.sh staging` afterwards): `billing-operator.sh list` answers with the test tenant; `suspend` then `unsuspend` on that tenant each leave one `billing.operator_audit` row (read in Cloud SQL Studio as `ikaro_migrator`) with the operator's name as `actor` and the reason in `payload.reason`; a repeated `suspend` on the already-suspended tenant writes no second row and raises no event; and the audit-log consumer logs both `SubscriptionSuspended` and `SubscriptionReactivated` (the Cloud Run log lines, with the request's correlation id)
+- [ ] Argument checks on the VM: a missing `--reason` or `--operator`, an unknown subcommand and `exempt --set --clear` are rejected before any network call
+- [ ] `exempt --clear` on Ikaro's own tenant is refused with `403 BILLING_EXEMPT_PROTECTED` and writes no audit row
+- [ ] No secret appears in the VM's process list during a run (`ps` on the relay VM while the script is calling the backend shows no key or token)
+- [ ] The staging test tenant is removed afterwards (the manual offboarding runbook of `plan/M17-CLOUD-DEPLOY.md` M17-S51) and the relay VM is torn down (`relay-vm-down.sh staging`, merge the generated PR, apply Foundation, confirm the instance is absent)
+- [ ] The results are recorded under this story with the command output quoted; a failed or un-runnable check is a stuck condition, fixed through a new story or TD, never skipped
+- [ ] Checkov / Tfsec clean (no Terraform changes expected)
+
+**IAM / permissions:** none new. The operator's own `gcloud` account runs the relay flow and reads Cloud SQL Studio; the relay VM service account already reads both secrets (`platform-admin-key`, `internal-api-key`).
+**Live-verification check:** the technical criteria above are the check. Pass = every bullet observed, the `operator_audit` rows and the two consumer log lines quoted.
+**PR sequence:** no Terraform and no new resource, so no playbook row applies: 1 docs-only PR recording the evidence (plus any runbook correction). The relay VM teardown PR that `relay-vm-down.sh` generates is a separate, ordinary Foundation PR.
 
 ---
 
