@@ -1641,7 +1641,7 @@ Handlers added later by S25, S27 and S28 declare their own options in their own 
 - `packages/infra-scripts/src/pubsub-catalog.spec.ts` (modify — a 4-argument call yields the same entry as a 3-argument one; no change to `pubsub-catalog.ts` expected)
 - every `eventBus.subscribe(...)` call site: **63 non-test sites** across `contexts/booking`, `contexts/notification`, `contexts/staff`, `contexts/platform`, `contexts/loyalty` and `contexts/billing` (modify — add the explicit options)
 - `infra/terraform/pubsub-catalog.json` (regenerated, expected unchanged)
-- `docs/ENGINEERING_RULES_BACKEND.md` § Billing (planned) (the `IEventBus.subscribe` bullet) and `docs/ENGINEERING_RULES_SHARED.md` § Tenant access enforcement item 3: "planned detector" becomes the real `event-handler-suspension-declaration` detector, the call-site count is dropped or re-counted, and the decorator wiring (`GatedEventBus` over `EVENT_BUS_TRANSPORT`) is stated
+- `docs/ENGINEERING_RULES_BACKEND.md` § Billing (planned) (the `IEventBus.subscribe` bullet) and `docs/ENGINEERING_RULES_SHARED.md` § Tenant access enforcement — the declarative choke points (planned) (item 3): "planned detector" becomes the real `event-handler-suspension-declaration` detector, the call-site count is dropped or re-counted, and the decorator wiring (`GatedEventBus` over `EVENT_BUS_TRANSPORT`) is stated
 
 **Acceptance criteria — product:**
 - [ ] With every tenant entitled or exempt, no event is skipped and no handler behaves differently.
