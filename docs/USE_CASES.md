@@ -2946,8 +2946,8 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 - **Postconditions:** None.
 - **Events Triggered:** None.
 - **Open items (carried, not decided here):**
-   - **O-L1 — Loyalty expiry while suspended** (Loyalty story): system-wide loyalty expiry sweeps do not load the tenant, so points keep expiring during a suspension, which penalises end customers for the tenant's non-payment. The decided design (M25-S27, confirmed at story discovery) pauses the expiry clock while `SUSPENDED` without rewriting `expires_at`: `LoyaltyEntry` stays append-only, Loyalty records each tenant pause (`loyalty.tenant_expiry_pauses`) and the effective expiry accounts for it (`docs/DOMAIN_MODEL.md` § Expiration window). The expiry-warning emails are stopped by the notification gate (UC-123).
-   - **O-B1 — Customers with future bookings of a suspended tenant** (Booking story): customers with `APPROVED` future bookings are not told (the notification gate, UC-123, stops tenant emails) and `PENDING` bookings nobody can approve just sit. The recommended default is one Billing-exempt, reason-neutral email to each affected customer on suspension ("o estabelecimento está temporariamente indisponível, confirme com ele"), with bookings left to expire by their normal rules.
+   - **O-L1 — Loyalty expiry while suspended** (Loyalty story): system-wide loyalty expiry sweeps do not load the tenant, so points keep expiring during a suspension, which penalises end customers for the tenant's non-payment. The decided design (M25-S27, confirmed at story discovery) pauses the expiry clock while `SUSPENDED` without rewriting `expires_at`: `LoyaltyEntry` stays append-only, Loyalty records each tenant pause (`loyalty.tenant_expiry_pauses`) and the effective expiry accounts for it (`docs/DOMAIN_MODEL.md` § Expiration window). The expiry-warning emails are stopped by the event-subscription gate (UC-123: the points-expiring handler declares `skipWhenSuspended: true`).
+   - **O-B1 — Customers with future bookings of a suspended tenant** (Booking story): customers with `APPROVED` future bookings are not told (the event-subscription gate, UC-123, stops tenant emails) and `PENDING` bookings nobody can approve just sit. The recommended default is one Billing-exempt, reason-neutral email to each affected customer on suspension ("o estabelecimento está temporariamente indisponível, confirme com ele"), with bookings left to expire by their normal rules.
 
 ---
 
@@ -2966,16 +2966,16 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 
 ---
 
-### **UC-123: Notification Gate Skips Suspended Tenants (Billing Emails Exempt)**
+### **UC-123: Suspended Tenants Send No Notifications (Billing Emails Exempt)**
 
-- **Actor:** System (the notification send path)
+- **Actor:** System (the event dispatcher)
 - **Preconditions:** None.
-- **Trigger:** Any notification about to be sent.
-- **Main Flow:** The send path asks the access port (UC-120) for the tenant. An `exempt` tenant is never suspended, so its sends are never skipped. If the tenant is suspended the send is skipped and recorded as `SKIPPED_TENANT_SUSPENDED`, and it is not replayed later; templates that belong to Billing (UC-124) are exempt. **Placement:** the gate runs in `BaseNotificationUseCase` *before* dispatch and writes the `SKIPPED_*` log and inbox row itself, because a skip inside the dispatcher would be logged as `SENT` (`saveLog` always calls `markSent()`). The `status` column is widened first (the new names do not fit `VARCHAR(20)`, `docs/DATABASE_SCHEMA.md` § Schema: `notification`), and the parallel `SendAvailabilityAlertMatchedEmailService` send path needs the same gate.
+- **Trigger:** A domain event reaches a Notification handler.
+- **Main Flow:** Every email Notification sends is triggered by an event subscription, so the one gate is the event-subscription option of UC-125, not a second check in the send path. Notification's send handlers declare `skipWhenSuspended: true`: the dispatcher asks the access port (UC-120) for the event's `tenantId` at delivery time and, if the tenant is not operational, acknowledges the message and logs the skip (`tenantId`, `eventId`) without running the handler. An `exempt` tenant is never suspended, so its events are never skipped. Handlers that must run for a suspended tenant declare `skipWhenSuspended: false`: Billing's manager-email handlers (UC-124), the tenant-unavailable customer notice (UC-121 O-B1), the audit-log, state-sync and dead-letter handlers, and `staff-invited` (an operator / provisioning action). A skipped event is not replayed on reactivation. **Decided (M25-S23, dropped at story discovery, 2026-11-13):** no second gate in `BaseNotificationUseCase`, no `SKIPPED_TENANT_SUSPENDED` status and no `bypassSuspensionGate` template flag. The subscription gate runs at delivery time, so a gate in the send path would check the same fact milliseconds later; the skip is logged rather than stored in `notification_logs`, and `notification_logs.status` stays `PENDING | SENT | FAILED`.
 - **Alternative Flows:**
    - **A1: A Billing email but the manager has no address** → logged, with an ops alert.
-   - **A2: Access lookup error** → fail open (send).
-- **Postconditions:** No tenant, customer or staff messages while suspended.
+   - **A2: Access lookup error** → fail open (the handler runs and the email is sent).
+- **Postconditions:** No tenant, customer or staff messages for events of a suspended tenant, except the handlers that declare `false`.
 - **Events Triggered:** None.
 
 ---
@@ -3001,7 +3001,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 - **Actor:** Any user or API caller
 - **Preconditions:** The tenant lacks the entitlement for a feature.
 - **Trigger:** A user opens the feature in the dashboard, or calls its API directly.
-- **Main Flow:** Enforcement is declarative: route metadata (`@RequiresFeature`, `@SuspensionAccess`), an opt-in option on event subscriptions (`skipWhenSuspended`, declared explicitly at every site; audit-log and state-sync handlers declare `false`, so they always run), one shared tenant-scoped job helper for crons, the notification gate (UC-123) and one web route-to-feature registry — all described once in `docs/ENGINEERING_RULES_SHARED.md` § Tenant access enforcement — the declarative choke points (planned). A guard fails with a typed error (`BILLING_FEATURE_NOT_ENTITLED`, `BILLING_TENANT_SUSPENDED`); the dashboard shows locked items and preserves the tenant's settings; the public booking, lead-form and chatbot routes refuse, whereas the public hotsite manifest and published-hotsites list are exempt from the suspended denial and answer `200` with the effective `isPublished = false` (UC-122). Record-dependent Booking and customer-cancellation policy stays in Booking rather than being duplicated as route `if`s.
+- **Main Flow:** Enforcement is declarative: route metadata (`@RequiresFeature`, `@SuspensionAccess`), an opt-in option on event subscriptions (`skipWhenSuspended`, declared explicitly at every site; audit-log and state-sync handlers declare `false`, so they always run), one shared tenant-scoped job helper for crons and one web route-to-feature registry (notification emails are stopped by that same `skipWhenSuspended` option, UC-123) — all described once in `docs/ENGINEERING_RULES_SHARED.md` § Tenant access enforcement — the declarative choke points (planned). A guard fails with a typed error (`BILLING_FEATURE_NOT_ENTITLED`, `BILLING_TENANT_SUSPENDED`); the dashboard shows locked items and preserves the tenant's settings; the public booking, lead-form and chatbot routes refuse, whereas the public hotsite manifest and published-hotsites list are exempt from the suspended denial and answer `200` with the effective `isPublished = false` (UC-122). Record-dependent Booking and customer-cancellation policy stays in Booking rather than being duplicated as route `if`s.
 - **Alternative Flows:**
    - **A1: Direct API call** → refused with the typed error.
    - **A2: Feature lost while the manager had it enabled** → the preference is preserved and the feature is inert; regaining the entitlement resumes it.
@@ -3125,7 +3125,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 - **Preconditions:** The tenant is `SUSPENDED` for at least 90 days (`has_ever_paid = false`) or at least 180 days (`has_ever_paid = true`), for any suspension reason, and is not `exempt`.
 - **Trigger:** The daily trigger.
 - **Main Flow:**
-   1. At 30 and 7 days before the deadline, a `TenantPurgeWarning` event (one per threshold, deduplicated by `purge_warning_30_sent_at` / `purge_warning_7_sent_at` on the subscription and cleared on reactivation) sends a warning email to the manager (Billing template, exempt from the suspension gate, UC-123). It says what will be deleted and how to ask for an export.
+   1. At 30 and 7 days before the deadline, a `TenantPurgeWarning` event (one per threshold, deduplicated by `purge_warning_30_sent_at` / `purge_warning_7_sent_at` on the subscription and cleared on reactivation) sends a warning email to the manager (Billing template; its handler declares `skipWhenSuspended: false`, UC-123). It says what will be deleted and how to ask for an export.
    2. At the deadline Billing creates a durable `TenantPurgeJob` and publishes `TenantPurgeRequested` (reason `SUSPENSION_AGE`). Each bounded context deletes its own data idempotently and publishes `TenantPurgeContextCompleted` after its local transaction commits.
    3. Billing records every completion. Storage cleanup, provider cancellation and Billing's own anonymization are required steps. Only after every required completion does Platform delete the tenant root and release the slug.
 - **Alternative Flows:**
@@ -3502,7 +3502,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 | UC-120 | System resolves a tenant's access, `TenantAccessPort` *(planned, not built)* | System | Explicit `tenantId`; cached, fails open on a lookup error; batch method for crons |
 | UC-121 | Login routing by role when suspended *(planned, not built)* | Manager / Staff / Customer | Login never blocked; manager → billing only, staff → notice, customer → "Empresa inativa" account |
 | UC-122 | Hotsite is effectively unpublished when suspended *(planned, not built)* | Visitor | `isPublished && operational` everywhere; the same reason-neutral page as any unpublished hotsite |
-| UC-123 | Notification gate skips suspended tenants *(planned, not built)* | System | `SKIPPED_TENANT_SUSPENDED` logged before dispatch; Billing templates exempt |
+| UC-123 | Suspended tenants send no notifications *(planned, not built)* | System | The event-subscription gate (`skipWhenSuspended`, UC-125) stops the send handlers; Billing and notice handlers declare `false` |
 | UC-124 | Billing emails to the manager *(planned, not built)* | System | One handler per event; billing email else managers; exempt tenants skipped |
 | UC-125 | Entitlement enforcement per feature and locked UI *(planned, not built)* | Any user / API caller | Declarative metadata, typed denial, locked dashboard items, preference preserved |
 | UC-126 | Backfill existing tenants at the Billing release *(planned, not built)* | System | Every tenant without a subscription gets an `ACTIVE`, `exempt` one |
