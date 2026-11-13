@@ -159,6 +159,22 @@ describe('TenantJobRunner', () => {
         expect.any(String),
       );
     });
+
+    it('fails open when the feature-entitlement read is the one that throws', async () => {
+      const errorSpy = jest.spyOn(AppLogger.prototype, 'error').mockImplementation();
+      access.batchReadError = new Error('billing read failed');
+
+      await runner.forEachTenant(
+        { label: LABEL, scope: 'includingSuspended', requires: 'BOOKING' },
+        NOW,
+        collect,
+      );
+
+      expect(access.listSuspendedCalls).toBe(0);
+      expect(access.notEntitledCalls).toEqual(['BOOKING']);
+      expect(seen).toEqual([ACTIVE.id, SUSPENDED.id, NO_BOOKING.id, NO_LOYALTY.id]);
+      expect(errorSpy).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('summary log', () => {
