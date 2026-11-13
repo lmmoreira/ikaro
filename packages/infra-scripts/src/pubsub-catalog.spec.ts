@@ -21,6 +21,52 @@ describe('buildPubSubCatalog', () => {
     ]);
   });
 
+  it('reads a four-argument subscribe() (the S21a options object) exactly like a three-argument one', () => {
+    const threeArguments = new Map([
+      [
+        '/virtual/three.ts',
+        `class Handler {
+          init() { this.eventBus.subscribe<SomeEvent>(SomeEvent.name, (e) => this.handle(e), 'notification'); }
+        }`,
+      ],
+    ]);
+    const fourArguments = new Map([
+      [
+        '/virtual/four.ts',
+        `class Handler {
+          init() {
+            this.eventBus.subscribe<SomeEvent>(
+              SomeEvent.name,
+              (e) => this.handle(e),
+              'notification',
+              { skipWhenSuspended: true },
+            );
+          }
+        }`,
+      ],
+    ]);
+
+    expect(buildPubSubCatalog(fourArguments)).toEqual(buildPubSubCatalog(threeArguments));
+    expect(buildPubSubCatalog(fourArguments)).toEqual([
+      { event: 'SomeEvent', consumers: ['notification'] },
+    ]);
+  });
+
+  it('does not read the GatedEventBus delegation (a transport receiver) as a subscription', () => {
+    const sources = new Map([
+      [
+        '/virtual/gated-event-bus.ts',
+        `class GatedEventBus {
+          subscribe(eventName: string, handler: H, consumerName: string) {
+            this.transport.subscribe(eventName, handler, consumerName);
+          }
+        }`,
+      ],
+    ]);
+
+    expect(buildPubSubCatalog(sources)).toEqual([]);
+  });
+
   it('groups multiple consumers of the same topic across different files, sorted deterministically', () => {
     const sources = new Map([
       [

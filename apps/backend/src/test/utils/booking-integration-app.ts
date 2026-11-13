@@ -9,7 +9,7 @@ import { EventBusModule } from '../../shared/infrastructure/event-bus/event-bus.
 import { InboxModule } from '../../shared/infrastructure/inbox/inbox.module';
 import { InboxRecordEntity } from '../../shared/infrastructure/inbox/inbox-record.entity';
 import { OutboxModule } from '../../shared/infrastructure/outbox/outbox.module';
-import { EVENT_BUS } from '../../shared/ports/event-bus.port';
+import { EVENT_BUS_TRANSPORT } from '../../shared/ports/event-bus.port';
 import { OUTBOX_PUBLISHER } from '../../shared/ports/outbox-publisher.port';
 import { RequestInterceptor } from '../../shared/request/request.interceptor';
 import { RequestModule } from '../../shared/request/request.module';
@@ -126,7 +126,7 @@ export async function createBookingIntegrationApp(
       { provide: TENANT_SETTINGS_PORT, useClass: InMemoryTenantSettingsPort },
     ],
   })
-    .overrideProvider(EVENT_BUS)
+    .overrideProvider(EVENT_BUS_TRANSPORT)
     .useValue(routingBus)
     .overrideProvider(OUTBOX_PUBLISHER)
     .useValue(routingBus)

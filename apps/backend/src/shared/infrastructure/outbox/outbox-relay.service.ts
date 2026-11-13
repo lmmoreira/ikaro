@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Envelope } from '../../domain/envelope';
 import { uuidv7 } from '../../domain/uuid-v7';
 import { AppLogger } from '../../observability/app-logger';
-import { EVENT_BUS, IEventBus } from '../../ports/event-bus.port';
+import { EVENT_BUS_TRANSPORT, IEventBus } from '../../ports/event-bus.port';
 import { IInboxRepository, INBOX_REPOSITORY } from '../../ports/inbox.port';
 import {
   IOutboxRepository,
@@ -43,7 +43,9 @@ export class OutboxRelayService {
 
   constructor(
     @Inject(OUTBOX_REPOSITORY) private readonly outboxRepo: IOutboxRepository,
-    @Inject(EVENT_BUS) private readonly eventBus: IEventBus,
+    // The raw transport, never EVENT_BUS: the gated bus depends on TENANT_ACCESS_PORT, whose chain
+    // reaches OUTBOX_PUBLISHER and this relay, so injecting it here would close a dependency cycle.
+    @Inject(EVENT_BUS_TRANSPORT) private readonly eventBus: IEventBus,
     @Inject(INBOX_REPOSITORY) private readonly inboxRepo: IInboxRepository,
     private readonly config: ConfigService,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,

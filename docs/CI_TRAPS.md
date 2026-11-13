@@ -84,7 +84,7 @@ These appear as `Nest can't resolve dependencies of XxxUseCase (?, ...)` in test
 | `Cannot read properties of undefined` (reading `tenantId`) | `RequestModule` missing from the **context module** — not just the test app | Add `RequestModule` to the context's own `xxx.module.ts` `imports[]` |
 | `Nest can't resolve IXxxRepository` | `{ provide: XXX_REPOSITORY, useClass: TypeOrmXxxRepository }` missing from `providers[]` | Add the provider entry to the module |
 | TypeORM entity not registered | Entity class not in `entities[]` of `TypeOrmModule.forRoot` | Add entity to the integration app's `forRoot` entity list |
-| `ProvisionTenantUseCase` DI crash | `EventBusModule` missing — `PlatformModule` always needs it | Add `EventBusModule` + `.overrideProvider(EVENT_BUS).useValue(new InMemoryEventBus())` |
+| `ProvisionTenantUseCase` DI crash | `EventBusModule` missing — `PlatformModule` always needs it | Add `EventBusModule` + `.overrideProvider(EVENT_BUS).useValue(new InMemoryEventBus())` and `.overrideProvider(EVENT_BUS_TRANSPORT).useValue(...)` (the same instance) |
 
 ---
 

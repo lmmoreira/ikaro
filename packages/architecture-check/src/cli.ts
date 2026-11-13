@@ -22,6 +22,7 @@ import {
   checkPrototypeChainSafety,
   checkReverseDiAlias,
   checkSharedValueObjectErrorMapperCoverage,
+  checkEventHandlerSuspensionDeclaration,
   checkTenantAccessRouteMetadata,
   checkTestBuilderCoverage,
   checkTestDataHarnessRegistrations,
@@ -223,6 +224,7 @@ const results = [
   checkIkaroTypesDrift(web, types, ikaroTypesDriftExceptions),
   checkClosedEnumRegistry([validation, types], closedEnumRegistry),
   checkTenantAccessRouteMetadata([backend, bff], tenantAccessRouteMetadata),
+  checkEventHandlerSuspensionDeclaration(backend),
 ];
 const zeroTargetResults = results.filter((result) => result.scannedTargets === 0);
 const { errors, warnings, failed } = classifyScanResults(results, warnRules);

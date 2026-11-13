@@ -9,7 +9,7 @@ import { InboxModule } from '../../../../shared/infrastructure/inbox/inbox.modul
 import { InboxRecordEntity } from '../../../../shared/infrastructure/inbox/inbox-record.entity';
 import { OutboxModule } from '../../../../shared/infrastructure/outbox/outbox.module';
 import { TransactionManagerModule } from '../../../../shared/infrastructure/transaction-manager.module';
-import { EVENT_BUS } from '../../../../shared/ports/event-bus.port';
+import { EVENT_BUS, EVENT_BUS_TRANSPORT } from '../../../../shared/ports/event-bus.port';
 import { OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
 import { RequestInterceptor } from '../../../../shared/request/request.interceptor';
 import { RequestModule } from '../../../../shared/request/request.module';
@@ -64,6 +64,8 @@ describe('StaffController (integration) — management endpoints', () => {
       ],
     })
       .overrideProvider(EVENT_BUS)
+      .useValue(routingBus)
+      .overrideProvider(EVENT_BUS_TRANSPORT)
       .useValue(routingBus)
       .overrideProvider(OUTBOX_PUBLISHER)
       .useValue(routingBus)

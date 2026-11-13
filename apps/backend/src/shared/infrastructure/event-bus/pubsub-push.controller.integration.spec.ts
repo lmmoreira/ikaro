@@ -2,7 +2,10 @@ import { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { EVENT_BUS } from '../../ports/event-bus.port';
+import { EVENT_BUS, EVENT_BUS_TRANSPORT, IEventBus } from '../../ports/event-bus.port';
+import { TENANT_ACCESS_PORT } from '../../ports/tenant-access.port';
+import { InMemoryTenantAccessPort } from '../../../test/infrastructure/in-memory-tenant-access.port';
+import { GatedEventBus } from './gated-event-bus';
 import { PUSHABLE_EVENT_BUS } from '../../ports/pushable-event-bus.port';
 import { OIDC_TOKEN_VERIFIER, IOidcTokenVerifier } from '../../ports/oidc-token-verifier.port';
 import { DomainEvent } from '../../domain/domain-event';
@@ -64,22 +67,33 @@ function encode(event: DomainEvent): string {
 describe('PubSubPushController (integration)', () => {
   let app: INestApplication;
   let handlerSpy: jest.Mock;
+  let gatedHandlerSpy: jest.Mock;
+  let access: InMemoryTenantAccessPort;
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [PubSubPushController],
       providers: [
         { provide: ConfigService, useValue: fakeConfigService },
-        { provide: EVENT_BUS, useClass: GcpPubSubEventBusAdapter },
-        { provide: PUSHABLE_EVENT_BUS, useExisting: EVENT_BUS },
+        { provide: EVENT_BUS_TRANSPORT, useClass: GcpPubSubEventBusAdapter },
+        { provide: EVENT_BUS, useClass: GatedEventBus },
+        { provide: TENANT_ACCESS_PORT, useClass: InMemoryTenantAccessPort },
+        { provide: PUSHABLE_EVENT_BUS, useExisting: EVENT_BUS_TRANSPORT },
         { provide: OIDC_TOKEN_VERIFIER, useValue: validVerifier },
         PubSubPushGuard,
       ],
     }).compile();
 
-    const adapter = moduleRef.get<GcpPubSubEventBusAdapter>(EVENT_BUS);
+    // Handlers register on the gated bus, exactly as in production; the push controller reaches
+    // the adapter through PUSHABLE_EVENT_BUS, so a gated handler is what it dispatches.
+    const bus = moduleRef.get<IEventBus>(EVENT_BUS);
+    access = moduleRef.get<InMemoryTenantAccessPort>(TENANT_ACCESS_PORT);
     handlerSpy = jest.fn().mockResolvedValue(undefined);
-    adapter.subscribe(StubEvent.name, handlerSpy, 'test-consumer');
+    gatedHandlerSpy = jest.fn().mockResolvedValue(undefined);
+    bus.subscribe(StubEvent.name, handlerSpy, 'test-consumer');
+    bus.subscribe(StubEvent.name, gatedHandlerSpy, 'gated-consumer', {
+      skipWhenSuspended: true,
+    });
 
     app = moduleRef.createNestApplication();
     await app.init();
@@ -92,6 +106,55 @@ describe('PubSubPushController (integration)', () => {
   beforeEach(() => {
     handlerSpy.mockClear();
     handlerSpy.mockResolvedValue(undefined);
+    gatedHandlerSpy.mockClear();
+    access.reactivate('tenant-1');
+  });
+
+  describe('the event delivery gate on the push path', () => {
+    function pushBody(subscription: string): Record<string, unknown> {
+      return {
+        message: {
+          data: encode(new StubEvent({ value: 'gated' })),
+          messageId: 'm-gate',
+          attributes: {},
+        },
+        subscription: `projects/ikaro-local/subscriptions/${subscription}`,
+      };
+    }
+
+    it('acknowledges (204) and skips a gated handler for a suspended tenant', async () => {
+      access.seedSuspended('tenant-1');
+
+      await request(app.getHttpServer())
+        .post('/pubsub/push')
+        .set('Authorization', 'Bearer fake-valid-token')
+        .send(pushBody('ikaro-StubEvent-gated-consumer'))
+        .expect(204);
+
+      expect(gatedHandlerSpy).not.toHaveBeenCalled();
+    });
+
+    it('delivers the same event to a gated handler when the tenant is operational', async () => {
+      await request(app.getHttpServer())
+        .post('/pubsub/push')
+        .set('Authorization', 'Bearer fake-valid-token')
+        .send(pushBody('ikaro-StubEvent-gated-consumer'))
+        .expect(204);
+
+      expect(gatedHandlerSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('still delivers to an ungated handler of a suspended tenant', async () => {
+      access.seedSuspended('tenant-1');
+
+      await request(app.getHttpServer())
+        .post('/pubsub/push')
+        .set('Authorization', 'Bearer fake-valid-token')
+        .send(pushBody('ikaro-StubEvent-test-consumer'))
+        .expect(204);
+
+      expect(handlerSpy).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('dispatches a synthetic push envelope to the correct handler and returns 204', async () => {

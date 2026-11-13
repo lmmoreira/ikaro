@@ -22,7 +22,7 @@ import { NotificationTemplateEntity } from '../../contexts/notification/infrastr
 import { NotificationModule } from '../../contexts/notification/notification.module';
 import { InMemoryNotificationDispatcher } from '../infrastructure/in-memory-notification-dispatcher';
 import { OutboxEventEntity } from '../../shared/infrastructure/outbox/outbox-event.entity';
-import { EVENT_BUS, IEventBus } from '../../shared/ports/event-bus.port';
+import { EVENT_BUS_TRANSPORT, IEventBus } from '../../shared/ports/event-bus.port';
 import { OUTBOX_PUBLISHER } from '../../shared/ports/outbox-publisher.port';
 import { STORAGE_SERVICE } from '../../shared/ports/storage.service.port';
 import { RoutingInMemoryEventBus } from '../infrastructure/routing-in-memory-event-bus';
@@ -98,7 +98,7 @@ export async function createNotificationIntegrationApp(
       ? [{ provide: APP_INTERCEPTOR, useClass: RequestInterceptor }]
       : [],
   })
-    .overrideProvider(EVENT_BUS)
+    .overrideProvider(EVENT_BUS_TRANSPORT)
     .useValue(routingBus)
     .overrideProvider(NOTIFICATION_DISPATCHER)
     .useValue(dispatcher)
@@ -118,5 +118,6 @@ export async function createNotificationIntegrationApp(
   const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication();
   await app.init();
-  return { app, ds: moduleRef.get(DataSource), eventBus: moduleRef.get<IEventBus>(EVENT_BUS) };
+  // The hand-built bus, not moduleRef.get(EVENT_BUS): EVENT_BUS is the GatedEventBus over it.
+  return { app, ds: moduleRef.get(DataSource), eventBus: routingBus };
 }

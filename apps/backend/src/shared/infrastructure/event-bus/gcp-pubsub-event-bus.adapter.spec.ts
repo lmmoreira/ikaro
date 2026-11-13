@@ -1,6 +1,8 @@
 import { ConfigService } from '@nestjs/config';
 import { ITracingPort } from '@ikaro/observability';
 import { DomainEvent } from '../../domain/domain-event';
+import { InMemoryTenantAccessPort } from '../../../test/infrastructure/in-memory-tenant-access.port';
+import { GatedEventBus } from './gated-event-bus';
 import { StubEvent as SharedStubEvent } from '../../../test/infrastructure/stub-envelope-classes';
 import { ChatbotBalancePollTriggerHandler } from '../../../contexts/platform/infrastructure/events/chatbot-balance-poll-trigger.handler';
 import { ChatbotRetentionPurgeTriggerHandler } from '../../../contexts/platform/infrastructure/events/chatbot-retention-purge-trigger.handler';
@@ -219,6 +221,38 @@ describe('GcpPubSubEventBusAdapter', () => {
       messageHandler(fakeMessage);
       await new Promise((r) => setTimeout(r, 10));
 
+      expect(mockAck).toHaveBeenCalledTimes(1);
+      expect(mockNack).not.toHaveBeenCalled();
+    });
+
+    it("acks without running a gated handler when the event's tenant is suspended (pull path)", async () => {
+      const access = new InMemoryTenantAccessPort();
+      access.seedSuspended('tenant-1');
+      const gated = new GatedEventBus(adapter, access);
+      const delivered: string[] = [];
+      gated.subscribe(
+        StubEvent.name,
+        async (event: StubEvent) => {
+          delivered.push(event.eventId);
+        },
+        'gated-consumer',
+        { skipWhenSuspended: true },
+      );
+      await adapter.onApplicationBootstrap();
+      const messageHandler = mockSubOn.mock.calls.find(
+        (c: unknown[]) => c[0] === 'message',
+      )?.[1] as (msg: unknown) => void;
+
+      messageHandler({
+        data: Buffer.from(JSON.stringify(new StubEvent({ value: 'x' }))),
+        ack: mockAck,
+        nack: mockNack,
+        deliveryAttempt: 1,
+        attributes: {},
+      });
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(delivered).toEqual([]);
       expect(mockAck).toHaveBeenCalledTimes(1);
       expect(mockNack).not.toHaveBeenCalled();
     });
