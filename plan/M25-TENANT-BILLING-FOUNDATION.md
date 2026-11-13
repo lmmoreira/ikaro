@@ -1270,7 +1270,7 @@ Build the declarative enforcement mechanism and **wire it dark** — it decides 
 **Files to create/modify:**
 - `apps/backend/src/shared/decorators/requires-feature.decorator.ts`, `suspension-access.decorator.ts`, `no-feature-gate.decorator.ts` (+ specs) (new)
 - `apps/backend/src/shared/guards/tenant-access.guard.ts` (+ `.spec.ts`) (new)
-- `apps/backend/src/shared/domain/errors/` billing denial errors and the filter mapping (the shared denial errors are mapped by the shared filter; `billing-error.mapper.ts` is extended only for Billing-owned errors) (new/modify — located with `grep -rn "DomainErrorFilter\|error.filter" apps/backend/src/shared/filters`)
+- Billing denial errors: **no new shared domain-error class or filter mapping** (shipped decision): both guards throw through `throwProblemDetail(403, BillingErrorCode.…)` like every other guard, and `BaseErrorFilter` already renders an `HttpException`; `billing-error.mapper.ts` is untouched (the denials are not Billing use-case errors)
 - `apps/backend/src/app.module.ts` (modify — `APP_GUARD` after `InternalApiGuard`)
 - `apps/bff/src/shared/decorators/requires-feature.decorator.ts`, `suspension-access.decorator.ts`, `no-feature-gate.decorator.ts` (+ specs) (new)
 - `apps/bff/src/shared/guards/tenant-access.guard.ts` (+ `.spec.ts`) (new)
@@ -1301,7 +1301,7 @@ Build the declarative enforcement mechanism and **wire it dark** — it decides 
   - [ ] Backend guard reads `x-tenant-id` itself; BFF guard denies before the controller runs (the controller never executes for a rejected request)
   - [ ] BFF guard order: `TenantAccessGuard` runs after `ActiveStaffGuard` (a deactivated staff member gets the active-staff error, not a billing one, and triggers no access lookup)
   - [ ] `ttl-cache`: entries expire at their TTL with a fake clock (300 s operational, 10 s suspended); the cache never exceeds its maximum size (oldest evicted); a second request inside the TTL makes no second backend call
-  - [ ] **Stacked staleness is pinned here** (the BFF cache exists only from this story): composing the BFF `ttl-cache` (300 s / 10 s) over S13's cached subscription repository (300 s / 10 s, TTL-aware `InMemoryCachePort`) on one shared fake clock, a suspension is visible to another instance within 600 s and a lifting within 20 s
+  - [ ] **Stacked staleness is pinned here** (the BFF cache exists only from this story): composing the BFF `ttl-cache` (300 s / 10 s) over a stand-in for the backend layer with the same 300 s / 10 s TTLs on one shared fake clock (the BFF cannot import backend code; the real `CachingSubscriptionRepository` constants are pinned by its own spec), a suspension is visible to another instance within 600 s and a lifting within 20 s
   - [ ] Extensibility: the guard spec iterates over every `FEATURE_KEYS` member (entitled and not entitled) and every `SUSPENSION_POLICIES` entry, so a new feature or policy is covered without a spec edit; a policy-table entry with no evaluated behaviour fails the spec
   - [ ] A `BillingTenantNotFoundError` from the lookup passes the guard untouched (backend and BFF); a lookup error fails open (no denial)
   - [ ] The two new codes resolve a translation in both locales (the web exhaustiveness test) and both denials answer `403` with the code
