@@ -105,15 +105,11 @@ export class CompleteBookingLoyaltyEffectsUseCase {
     );
     const pointsRedeemed = dto.discountByPoints?.pointsUsed ?? 0;
     const mayEarn = await this.mayEarnPoints(dto);
-    // Nothing to record: earning is not allowed and no discount was spent.
-    if (!mayEarn && pointsRedeemed <= 0) return SKIPPED_RESULT;
+    if (!mayEarn && pointsRedeemed <= 0) return this.markProcessedWithoutRecording(dto);
 
-    const totalPointsEarned = mayEarn
-      ? dto.lines.reduce((sum, l) => sum + l.pointsValueAtBooking, 0)
-      : 0;
-
-    const balance = await this.findOrCreateBalance(dto.tenantId, customerId);
     const entries = mayEarn ? this.buildEntries(dto, customerId, expiryDays) : [];
+    const totalPointsEarned = entries.reduce((sum, entry) => sum + entry.points, 0);
+    const balance = await this.findOrCreateBalance(dto.tenantId, customerId);
     if (mayEarn) balance.increment(totalPointsEarned);
 
     const redemption = this.applyRedemption(
@@ -136,6 +132,17 @@ export class CompleteBookingLoyaltyEffectsUseCase {
     await this.persist(entries, balance, redemption, dto, servicePointsEarned);
 
     return { skipped: false, entriesCreated: entries.length, totalPointsEarned, pointsRedeemed };
+  }
+
+  // Earning is not allowed and no discount was spent: nothing to record. The event is still marked
+  // processed, so a duplicate delivered after access is restored cannot earn for it.
+  private async markProcessedWithoutRecording(
+    dto: CompleteBookingLoyaltyEffectsUseCaseInput,
+  ): Promise<CompleteBookingLoyaltyEffectsUseCaseResult> {
+    await this.txManager.run(() =>
+      this.inboxRepo.markProcessed(dto.eventId, CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME),
+    );
+    return SKIPPED_RESULT;
   }
 
   // Read before the transaction opens: no cross-service call inside txManager.run().

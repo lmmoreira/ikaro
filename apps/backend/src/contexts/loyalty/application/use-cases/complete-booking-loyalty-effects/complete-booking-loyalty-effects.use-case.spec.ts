@@ -224,7 +224,7 @@ describe('CompleteBookingLoyaltyEffectsUseCase', () => {
       expect((await balanceRepo.findByCustomer(TENANT_ID, CUSTOMER_ID))!.currentPoints).toBe(300);
     });
 
-    it('does nothing, and marks nothing processed, when it may not earn and no discount was spent', async () => {
+    it('records no points and no redemption when it may not earn and no discount was spent, but marks the event processed', async () => {
       tenantAccess.seedSuspended(TENANT_ID);
 
       const result = await useCase.execute(makeDto());
@@ -237,7 +237,19 @@ describe('CompleteBookingLoyaltyEffectsUseCase', () => {
           EVENT_ID,
           CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME,
         ),
-      ).toBe(false);
+      ).toBe(true);
+    });
+
+    it('does not earn for a duplicate delivery once access is restored', async () => {
+      tenantAccess.seedSuspended(TENANT_ID);
+      await useCase.execute(makeDto());
+
+      tenantAccess.reactivate(TENANT_ID);
+      const duplicate = await useCase.execute(makeDto());
+
+      expect(duplicate.skipped).toBe(true);
+      expect(entryRepo.entries).toHaveLength(0);
+      expect(await balanceRepo.findByCustomer(TENANT_ID, CUSTOMER_ID)).toBeNull();
     });
 
     it('earns when the access lookup fails (fail open)', async () => {
