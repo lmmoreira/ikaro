@@ -79,7 +79,6 @@
         "targetPaths": [
           "apps/backend/src/contexts/platform/application/ports/frontend-revalidation.port.ts",
           "apps/backend/src/contexts/platform/application/use-cases/get-tenant-by-id.use-case.ts",
-          "apps/backend/src/contexts/platform/application/use-cases/get-tenants.use-case.ts",
           "apps/backend/src/contexts/platform/application/use-cases/get-hotsite-booking-picker.use-case.ts",
           "apps/backend/src/contexts/platform/application/use-cases/get-tenant-business-hours-for-update.use-case.ts"
         ],

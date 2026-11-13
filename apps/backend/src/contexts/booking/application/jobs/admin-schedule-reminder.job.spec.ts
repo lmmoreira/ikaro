@@ -1,6 +1,8 @@
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
+import { TenantJobRunner } from '../../../../shared/application/jobs/tenant-job-runner';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
-import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
+import { InMemoryTenantDirectoryPort } from '../../../../test/infrastructure/in-memory-tenant-directory.port';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryBookingCustomerPort } from '../../../../test/infrastructure/in-memory-booking-customer.port';
 import { BookingBuilder, BookingLineBuilder } from '../../../../test/builders/booking/index';
@@ -32,19 +34,21 @@ const NOW_OUT = new Date('2026-06-01T10:00:00.000Z');
 const TODAY = new Date('2026-06-01T09:00:00.000Z');
 
 describe('AdminScheduleReminderJob', () => {
-  let tenantPort: InMemoryBookingPlatformPort;
+  let directory: InMemoryTenantDirectoryPort;
+  let access: InMemoryTenantAccessPort;
   let bookingRepo: InMemoryBookingRepository;
   let customerProfilePort: InMemoryBookingCustomerPort;
   let outboxPublisher: InMemoryEventBus;
   let job: AdminScheduleReminderJob;
 
   beforeEach(() => {
-    tenantPort = new InMemoryBookingPlatformPort();
+    directory = new InMemoryTenantDirectoryPort();
+    access = new InMemoryTenantAccessPort();
     bookingRepo = new InMemoryBookingRepository();
     customerProfilePort = new InMemoryBookingCustomerPort();
     outboxPublisher = new InMemoryEventBus();
     job = new AdminScheduleReminderJob(
-      tenantPort,
+      new TenantJobRunner(directory, access),
       bookingRepo,
       customerProfilePort,
       outboxPublisher,
@@ -55,7 +59,7 @@ describe('AdminScheduleReminderJob', () => {
   afterEach(() => jest.resetAllMocks());
 
   it('emits AdminDailyScheduleReminder once per eligible tenant', async () => {
-    tenantPort.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
+    directory.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
 
     await job.run(NOW_IN);
 
@@ -67,7 +71,7 @@ describe('AdminScheduleReminderJob', () => {
   });
 
   it('emits with empty bookingsToday when no APPROVED bookings today', async () => {
-    tenantPort.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
+    directory.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
 
     await job.run(NOW_IN);
 
@@ -79,7 +83,7 @@ describe('AdminScheduleReminderJob', () => {
   });
 
   it('includes today bookings in digest with correct fields', async () => {
-    tenantPort.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
+    directory.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
     const booking = new BookingBuilder()
       .withTenantId(TENANT_IN)
       .withStatus(BookingStatus.APPROVED)
@@ -113,7 +117,7 @@ describe('AdminScheduleReminderJob', () => {
   });
 
   it('uses customer profile name and phone for authenticated bookings', async () => {
-    tenantPort.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
+    directory.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
     const booking = new BookingBuilder()
       .withTenantId(TENANT_IN)
       .withStatus(BookingStatus.APPROVED)
@@ -140,13 +144,13 @@ describe('AdminScheduleReminderJob', () => {
   });
 
   it('does not emit events for tenant outside 06:00–06:29 window', async () => {
-    tenantPort.seed([{ id: TENANT_OUT, timezone: 'UTC' }]);
+    directory.seed([{ id: TENANT_OUT, timezone: 'UTC' }]);
     await job.run(NOW_OUT);
     expect(outboxPublisher.published).toHaveLength(0);
   });
 
   it('includes localDate in YYYY-MM-DD format in tenant timezone', async () => {
-    tenantPort.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
+    directory.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
 
     await job.run(NOW_IN);
 
@@ -157,7 +161,7 @@ describe('AdminScheduleReminderJob', () => {
   });
 
   it('sets dedupKey to AdminDailyScheduleReminder:<tenantId>:<local date>', async () => {
-    tenantPort.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
+    directory.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
 
     await job.run(NOW_IN);
 
@@ -168,7 +172,7 @@ describe('AdminScheduleReminderJob', () => {
   });
 
   it('two overlapping runs for the same day produce the same dedupKey (TD24-S03 cron double-send fix)', async () => {
-    tenantPort.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
+    directory.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
 
     await job.run(NOW_IN);
     await job.run(NOW_IN);
@@ -181,7 +185,7 @@ describe('AdminScheduleReminderJob', () => {
   });
 
   it('tenant isolation: Tenant A bookings do not appear in Tenant B digest', async () => {
-    tenantPort.seed([
+    directory.seed([
       { id: TENANT_IN, timezone: 'UTC' },
       { id: TENANT_OUT, timezone: 'UTC' },
     ]);
@@ -202,7 +206,7 @@ describe('AdminScheduleReminderJob', () => {
   });
 
   it('processes every tenant, then fails the run so the trigger message is retried', async () => {
-    tenantPort.seed([
+    directory.seed([
       { id: TENANT_IN, timezone: 'UTC' },
       { id: TENANT_OUT, timezone: 'UTC' },
     ]);
@@ -218,5 +222,24 @@ describe('AdminScheduleReminderJob', () => {
       (e) => e.eventName === 'AdminDailyScheduleReminder',
     );
     expect(digests.map((e) => e.tenantId)).toEqual([TENANT_OUT]);
+  });
+
+  it('skips a suspended tenant and a tenant without BOOKING', async () => {
+    const suspended = '00000000-0000-7000-8000-000000000003';
+    const withoutBooking = '00000000-0000-7000-8000-000000000004';
+    directory.seed([
+      { id: TENANT_IN, timezone: 'UTC' },
+      { id: suspended, timezone: 'UTC' },
+      { id: withoutBooking, timezone: 'UTC' },
+    ]);
+    access.seedSuspended(suspended);
+    access.seedNotEntitledTo('BOOKING', [withoutBooking]);
+
+    await job.run(NOW_IN);
+
+    const events = outboxPublisher.published.filter(
+      (e) => e.eventName === 'AdminDailyScheduleReminder',
+    );
+    expect(events.map((e) => e.tenantId)).toEqual([TENANT_IN]);
   });
 });

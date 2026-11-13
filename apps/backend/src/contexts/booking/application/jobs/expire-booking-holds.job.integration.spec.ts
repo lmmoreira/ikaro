@@ -2,12 +2,15 @@ import { DEFAULT_TEST_BUSINESS_HOURS } from '../../../../test/utils/business-hou
 import { INestApplication } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
+import { TENANT_ACCESS_PORT } from '../../../../shared/ports/tenant-access.port';
 import { TRANSACTION_MANAGER } from '../../../../shared/ports/transaction-manager.port';
+import type { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
 import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
 import {
   bookingStatus,
   createLockRaceWorld,
   entryStatus,
+  holdResourceLocks,
   LockRaceEnv,
   openEntriesOf,
 } from '../../../../test/utils/booking-lock-race-world';
@@ -34,6 +37,7 @@ describe('ExpireBookingHoldsJob (integration)', () => {
   let ds: DataSource;
   let env: LockRaceEnv;
   let job: ExpireBookingHoldsJob;
+  let access: InMemoryTenantAccessPort;
 
   beforeAll(async () => {
     ({ app, ds } = await createBookingIntegrationApp());
@@ -44,6 +48,7 @@ describe('ExpireBookingHoldsJob (integration)', () => {
       tenantLock: app.get(TENANT_LOCK_PORT),
     };
     job = app.get(ExpireBookingHoldsJob);
+    access = app.get(TENANT_ACCESS_PORT);
   });
 
   afterAll(async () => {
@@ -269,5 +274,68 @@ describe('ExpireBookingHoldsJob (integration)', () => {
       );
       expect(await transitionsOf(world.tenantId, bookingId)).toHaveLength(1);
     }
+  });
+
+  it('processes only the active tenant while another is suspended, and the suspended one resumes on reactivation', async () => {
+    const active = await createLockRaceWorld(env);
+    const suspended = await createLockRaceWorld(env);
+    const activeBooking = await active.seedBooking({
+      resources: [active.roomA],
+      status: 'PENDING',
+      holdExpiresAt: OVERDUE(),
+    });
+    const suspendedBooking = await suspended.seedBooking({
+      resources: [suspended.roomA],
+      status: 'PENDING',
+      holdExpiresAt: OVERDUE(),
+    });
+    access.seedSuspended(suspended.tenantId);
+
+    await job.run();
+
+    expect(await bookingStatus(ds, active.tenantId, activeBooking.bookingId)).toBe('CANCELLED');
+    expect(await bookingStatus(ds, suspended.tenantId, suspendedBooking.bookingId)).toBe('PENDING');
+
+    access.reactivate(suspended.tenantId);
+    await job.run();
+
+    expect(await bookingStatus(ds, suspended.tenantId, suspendedBooking.bookingId)).toBe(
+      'CANCELLED',
+    );
+  });
+
+  it("a lock another transaction holds on one tenant's resource does not stop the sweep, and that hold expires on the next run", async () => {
+    const contended = await createLockRaceWorld(env);
+    const free = await createLockRaceWorld(env);
+    const contendedBooking = await contended.seedBooking({
+      resources: [contended.roomA],
+      status: 'PENDING',
+      holdExpiresAt: OVERDUE(),
+    });
+    const freeBooking = await free.seedBooking({
+      resources: [free.roomA],
+      status: 'PENDING',
+      holdExpiresAt: OVERDUE(),
+    });
+    const held = await holdResourceLocks(env, contended.tenantId, [contended.roomA.id]);
+
+    try {
+      // The contended booking's transaction waits for the lock until the transaction-local
+      // lock_timeout fires; the job logs that booking as failed and goes on.
+      await job.run();
+
+      expect(await bookingStatus(ds, free.tenantId, freeBooking.bookingId)).toBe('CANCELLED');
+      expect(await bookingStatus(ds, contended.tenantId, contendedBooking.bookingId)).toBe(
+        'PENDING',
+      );
+    } finally {
+      await held.release();
+    }
+
+    await job.run();
+
+    expect(await bookingStatus(ds, contended.tenantId, contendedBooking.bookingId)).toBe(
+      'CANCELLED',
+    );
   });
 });

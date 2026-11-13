@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
+import { TenantJobRunner } from '../../../../shared/application/jobs/tenant-job-runner';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import {
   ITransactionManager,
@@ -9,7 +10,6 @@ import { utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
 import { mapSequentially } from '../../../../shared/utils/sequential';
 import { BookingConcurrentModificationError } from '../../domain/errors/booking-domain.error';
 import { RecurringBookingSchedule } from '../../domain/recurring-booking-schedule.aggregate';
-import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
 import {
   IRecurringBookingScheduleRepository,
   RECURRING_BOOKING_SCHEDULE_REPOSITORY,
@@ -29,15 +29,18 @@ export class ExpireRecurringBookingScheduleApprovalsJob {
   private readonly logger = new AppLogger(ExpireRecurringBookingScheduleApprovalsJob.name);
 
   constructor(
-    @Inject(BOOKING_PLATFORM_PORT) private readonly tenantPort: IBookingPlatformPort,
+    private readonly tenantRunner: TenantJobRunner,
     @Inject(RECURRING_BOOKING_SCHEDULE_REPOSITORY)
     private readonly scheduleRepo: IRecurringBookingScheduleRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
   async run(now: Date = new Date()): Promise<ExpireRecurringScheduleApprovalsJobResult> {
-    const tenants = await this.tenantPort.findAllActive();
-    const perTenant = await mapSequentially(tenants, (tenant) => this.processTenant(tenant, now));
+    const perTenant = await this.tenantRunner.forEachTenant(
+      { label: 'Expire recurring schedule approvals' },
+      now,
+      (tenant) => this.processTenant(tenant, now),
+    );
     return {
       expired: perTenant.reduce((sum, result) => sum + result.expired, 0),
       ended: perTenant.reduce((sum, result) => sum + result.ended, 0),

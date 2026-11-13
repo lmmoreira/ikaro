@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
+import { TenantJobRunner } from '../../../../shared/application/jobs/tenant-job-runner';
 import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
 import {
   ITransactionManager,
@@ -29,13 +30,14 @@ export class RecurringScheduleRenewalReminderJob extends WindowedTenantJob {
   protected readonly label = 'Renewal reminder';
 
   constructor(
-    @Inject(BOOKING_PLATFORM_PORT) tenantPort: IBookingPlatformPort,
+    tenantRunner: TenantJobRunner,
+    @Inject(BOOKING_PLATFORM_PORT) private readonly tenantPort: IBookingPlatformPort,
     @Inject(RECURRING_BOOKING_SCHEDULE_REPOSITORY)
     private readonly scheduleRepo: IRecurringBookingScheduleRepository,
     @Inject(OUTBOX_PUBLISHER) private readonly outboxPublisher: IOutboxPublisher,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {
-    super(tenantPort);
+    super(tenantRunner);
   }
 
   protected async processTenant(tenant: WindowedTenant, now: Date): Promise<void> {

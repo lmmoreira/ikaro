@@ -1,4 +1,5 @@
 import { Provider } from '@nestjs/common';
+import { TenantJobRunner } from '../../shared/application/jobs/tenant-job-runner';
 import { BOOKING_AVAILABILITY_PORT } from './application/ports/booking-availability.port';
 import { TENANT_LOCK_PORT } from './application/ports/tenant-lock.port';
 import { BOOKING_REPOSITORY } from './application/ports/booking-repository.port';
@@ -157,6 +158,7 @@ export const bookingModuleProviders: Provider[] = [
   { provide: BOOKING_CUSTOMER_PORT, useClass: BookingCustomerAdapter },
   { provide: BOOKING_STAFF_PORT, useClass: BookingStaffAdapter },
   AvailabilityService,
+  TenantJobRunner,
   BookingReminderJob,
   ExpireBookingHoldsJob,
   ExpireRecurringBookingScheduleApprovalsJob,

@@ -1,4 +1,6 @@
 import { DataSource } from 'typeorm';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
+import { TenantJobRunner } from '../../../../shared/application/jobs/tenant-job-runner';
 import { TypeOrmTransactionManager } from '../../../../shared/infrastructure/typeorm-transaction-manager';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { OutboxRelayService } from '../../../../shared/infrastructure/outbox/outbox-relay.service';
@@ -8,7 +10,7 @@ import { makeConfigService } from '../../../../test/infrastructure/fake-config-s
 import { makeRealOutboxPublisher } from '../../../../test/factories/real-outbox-publisher.factory';
 import { InMemoryInboxRepository } from '../../../../test/infrastructure/in-memory-inbox.repository';
 import { createTestDataSource } from '../../../../test/test-datasource';
-import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
+import { InMemoryTenantDirectoryPort } from '../../../../test/infrastructure/in-memory-tenant-directory.port';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryBookingCustomerPort } from '../../../../test/infrastructure/in-memory-booking-customer.port';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
@@ -40,11 +42,11 @@ describe('AdminScheduleReminderJob (integration, TD24-S03 cron double-send fix)'
 
   it('two overlapping runs for the same day → exactly one outbox row, relay delivers exactly one message', async () => {
     const tenantId = uuidv7();
-    const tenantPort = new InMemoryBookingPlatformPort();
-    tenantPort.seed([{ id: tenantId, timezone: 'UTC' }]);
+    const directory = new InMemoryTenantDirectoryPort();
+    directory.seed([{ id: tenantId, timezone: 'UTC' }]);
 
     const job = new AdminScheduleReminderJob(
-      tenantPort,
+      new TenantJobRunner(directory, new InMemoryTenantAccessPort()),
       new InMemoryBookingRepository(),
       new InMemoryBookingCustomerPort(),
       makeRealOutboxPublisher(outboxRepo, eventBus),

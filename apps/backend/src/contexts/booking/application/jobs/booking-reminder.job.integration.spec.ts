@@ -1,4 +1,6 @@
 import { DataSource } from 'typeorm';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
+import { TenantJobRunner } from '../../../../shared/application/jobs/tenant-job-runner';
 import { IOutboxPublisher } from '../../../../shared/ports/outbox-publisher.port';
 import { TypeOrmTransactionManager } from '../../../../shared/infrastructure/typeorm-transaction-manager';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
@@ -9,7 +11,7 @@ import { makeConfigService } from '../../../../test/infrastructure/fake-config-s
 import { makeRealOutboxPublisher } from '../../../../test/factories/real-outbox-publisher.factory';
 import { InMemoryInboxRepository } from '../../../../test/infrastructure/in-memory-inbox.repository';
 import { createTestDataSource } from '../../../../test/test-datasource';
-import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
+import { InMemoryTenantDirectoryPort } from '../../../../test/infrastructure/in-memory-tenant-directory.port';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryBookingCustomerPort } from '../../../../test/infrastructure/in-memory-booking-customer.port';
 import { BookingBuilder, BookingLineBuilder } from '../../../../test/builders/booking/index';
@@ -26,7 +28,7 @@ describe('BookingReminderJob (integration, TD24-S03 cron double-send fix)', () =
   let txManager: TypeOrmTransactionManager;
   let outboxRepo: TypeOrmOutboxRepository;
   let eventBus: InMemoryEventBus;
-  let tenantPort: InMemoryBookingPlatformPort;
+  let directory: InMemoryTenantDirectoryPort;
   let bookingRepo: InMemoryBookingRepository;
   let customerProfilePort: InMemoryBookingCustomerPort;
 
@@ -45,14 +47,14 @@ describe('BookingReminderJob (integration, TD24-S03 cron double-send fix)', () =
 
   beforeEach(() => {
     eventBus = new InMemoryEventBus();
-    tenantPort = new InMemoryBookingPlatformPort();
+    directory = new InMemoryTenantDirectoryPort();
     bookingRepo = new InMemoryBookingRepository();
     customerProfilePort = new InMemoryBookingCustomerPort();
   });
 
   it('two overlapping runs for the same day → exactly one outbox row, relay delivers exactly one message', async () => {
     const tenantId = uuidv7();
-    tenantPort.seed([{ id: tenantId, timezone: 'UTC' }]);
+    directory.seed([{ id: tenantId, timezone: 'UTC' }]);
     const booking = new BookingBuilder()
       .withTenantId(tenantId)
       .withStatus(BookingStatus.APPROVED)
@@ -62,7 +64,7 @@ describe('BookingReminderJob (integration, TD24-S03 cron double-send fix)', () =
     await bookingRepo.save(booking);
 
     const job = new BookingReminderJob(
-      tenantPort,
+      new TenantJobRunner(directory, new InMemoryTenantAccessPort()),
       bookingRepo,
       customerProfilePort,
       makeRealOutboxPublisher(outboxRepo, eventBus),
@@ -108,7 +110,7 @@ describe('BookingReminderJob (integration, TD24-S03 cron double-send fix)', () =
   it('mid-run crash on one tenant leaves the other tenant unaffected; re-run completes only the crashed tenant, no duplicate for the one that already committed', async () => {
     const healthyTenantId = uuidv7();
     const crashingTenantId = uuidv7();
-    tenantPort.seed([
+    directory.seed([
       { id: healthyTenantId, timezone: 'UTC' },
       { id: crashingTenantId, timezone: 'UTC' },
     ]);
@@ -140,7 +142,7 @@ describe('BookingReminderJob (integration, TD24-S03 cron double-send fix)', () =
     };
 
     const crashingJob = new BookingReminderJob(
-      tenantPort,
+      new TenantJobRunner(directory, new InMemoryTenantAccessPort()),
       bookingRepo,
       customerProfilePort,
       crashingPublisher,
@@ -163,7 +165,7 @@ describe('BookingReminderJob (integration, TD24-S03 cron double-send fix)', () =
     // Re-run with a working publisher: the healthy tenant's fact is a no-op conflict (same
     // dedupKey), the crashing tenant's fact is completed — no duplicate, no dropped remainder.
     const retryJob = new BookingReminderJob(
-      tenantPort,
+      new TenantJobRunner(directory, new InMemoryTenantAccessPort()),
       bookingRepo,
       customerProfilePort,
       makeRealOutboxPublisher(outboxRepo, eventBus),

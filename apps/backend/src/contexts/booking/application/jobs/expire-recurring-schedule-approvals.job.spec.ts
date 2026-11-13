@@ -1,5 +1,7 @@
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
-import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
+import { TenantJobRunner } from '../../../../shared/application/jobs/tenant-job-runner';
+import { InMemoryTenantDirectoryPort } from '../../../../test/infrastructure/in-memory-tenant-directory.port';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryRecurringBookingScheduleRepository } from '../../../../test/repositories/booking/in-memory-recurring-booking-schedule.repository';
 import { BookingConcurrentModificationError } from '../../domain/errors/booking-domain.error';
@@ -14,7 +16,8 @@ const NOW = new Date('2026-10-10T02:30:00.000Z');
 
 describe('ExpireRecurringBookingScheduleApprovalsJob', () => {
   let scheduleRepo: InMemoryRecurringBookingScheduleRepository;
-  let platformPort: InMemoryBookingPlatformPort;
+  let directory: InMemoryTenantDirectoryPort;
+  let access: InMemoryTenantAccessPort;
   let eventBus: InMemoryEventBus;
   let job: ExpireRecurringBookingScheduleApprovalsJob;
 
@@ -60,13 +63,14 @@ describe('ExpireRecurringBookingScheduleApprovalsJob', () => {
   beforeEach(() => {
     eventBus = new InMemoryEventBus();
     scheduleRepo = new InMemoryRecurringBookingScheduleRepository(eventBus);
-    platformPort = new InMemoryBookingPlatformPort();
-    platformPort.seed([
+    directory = new InMemoryTenantDirectoryPort();
+    access = new InMemoryTenantAccessPort();
+    directory.seed([
       { id: TENANT_A, timezone: 'America/Sao_Paulo' },
       { id: TENANT_B, timezone: 'UTC' },
     ]);
     job = new ExpireRecurringBookingScheduleApprovalsJob(
-      platformPort,
+      new TenantJobRunner(directory, access),
       scheduleRepo,
       new InMemoryTransactionManager(),
     );
@@ -215,6 +219,44 @@ describe('ExpireRecurringBookingScheduleApprovalsJob', () => {
       const result = await job.run(NOW);
 
       expect(result.expired).toBe(0);
+    });
+  });
+
+  describe('tenant access', () => {
+    const overdueHold = new Date('2026-10-10T02:00:00.000Z');
+
+    it("skips a suspended tenant's overdue request until the tenant is reactivated", async () => {
+      const overdue = seed(TENANT_A, { status: 'PENDING_APPROVAL', holdExpiresAt: overdueHold });
+      access.seedSuspended(TENANT_A);
+
+      await job.run(NOW);
+      expect(await statusOf(overdue)).toBe('PENDING_APPROVAL');
+
+      access.reactivate(TENANT_A);
+      await job.run(NOW);
+      expect(await statusOf(overdue)).toBe('CANCELLED');
+    });
+
+    it('still expires the request of a tenant that lost the BOOKING feature (cleanup keeps going)', async () => {
+      const overdue = seed(TENANT_A, { status: 'PENDING_APPROVAL', holdExpiresAt: overdueHold });
+      access.seedNotEntitledTo('BOOKING', [TENANT_A]);
+
+      await job.run(NOW);
+
+      expect(await statusOf(overdue)).toBe('CANCELLED');
+    });
+
+    it('keeps expiring the other tenants after one tenant throws, then fails the run', async () => {
+      const healthy = seed(TENANT_B, { status: 'PENDING_APPROVAL', holdExpiresAt: overdueHold });
+      jest
+        .spyOn(scheduleRepo, 'findPendingApprovalExpired')
+        .mockRejectedValueOnce(new Error('tenant A read failed'));
+
+      await expect(job.run(NOW)).rejects.toThrow(
+        `Expire recurring schedule approvals failed for tenant(s): ${TENANT_A}`,
+      );
+
+      expect(await statusOf(healthy)).toBe('CANCELLED');
     });
   });
 });
