@@ -5,6 +5,7 @@ import {
   ExemptProtectedError,
   GraceNotAllowedError,
   SignupTermsNotAcceptedError,
+  SubscriptionConcurrentModificationError,
   UnsuspendNotAllowedError,
 } from '../../domain/errors/billing-domain.error';
 import { mapSharedAddressError } from '../../../../shared/http/address-validation-error.mapper';
@@ -31,7 +32,13 @@ export function mapBillingError(err: unknown): never {
   if (err instanceof ExemptProtectedError) {
     throw throwProblemDetail(HttpStatus.FORBIDDEN, err.code, err.message);
   }
-  if (err instanceof GraceNotAllowedError || err instanceof UnsuspendNotAllowedError) {
+  // The optimistic version check lost a race behind B-R1 (or a writer that skipped it): the client
+  // reloads and retries, like the other contexts' CONCURRENT_MODIFICATION codes.
+  if (
+    err instanceof GraceNotAllowedError ||
+    err instanceof UnsuspendNotAllowedError ||
+    err instanceof SubscriptionConcurrentModificationError
+  ) {
     throw throwProblemDetail(HttpStatus.CONFLICT, err.code, err.message);
   }
   if (err instanceof Error) throw err;

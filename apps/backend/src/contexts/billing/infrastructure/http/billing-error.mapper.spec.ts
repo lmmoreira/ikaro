@@ -13,6 +13,7 @@ import {
   FeaturePriceNotFoundError,
   GraceNotAllowedError,
   SignupTermsNotAcceptedError,
+  SubscriptionConcurrentModificationError,
   UnsuspendNotAllowedError,
 } from '../../domain/errors/billing-domain.error';
 import { mapBillingError } from './billing-error.mapper';
@@ -63,6 +64,12 @@ describe('mapBillingError', () => {
     const thrown = call(new UnsuspendNotAllowedError('payment based')) as HttpException;
     expect(thrown.getStatus()).toBe(HttpStatus.CONFLICT);
     expect(thrown.getResponse()).toMatchObject({ code: BillingErrorCode.UNSUSPEND_NOT_ALLOWED });
+  });
+
+  it('maps SubscriptionConcurrentModificationError to a retryable 409 BILLING_CONCURRENT_MODIFICATION', () => {
+    const thrown = call(new SubscriptionConcurrentModificationError()) as HttpException;
+    expect(thrown.getStatus()).toBe(HttpStatus.CONFLICT);
+    expect(thrown.getResponse()).toMatchObject({ code: BillingErrorCode.CONCURRENT_MODIFICATION });
   });
 
   it('maps a CountryCodeValidationError to 400 (shared address branch)', () => {

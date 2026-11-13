@@ -1009,14 +1009,6 @@
     },
     {
       "rule": "error-mapper-coverage",
-      "class": "SubscriptionConcurrentModificationError",
-      "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
-      "rationale": "Same as FeatureDependencyUnmetError above: no billing HTTP surface can throw it yet; the first use case behind a route (M25-S15b) decides its wire status and code (a 409 retry) and removes this entry.",
-      "owner": "billing",
-      "reviewBy": "2026-12-31"
-    },
-    {
-      "rule": "error-mapper-coverage",
       "class": "SubscriptionAlreadyExistsError",
       "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
       "rationale": "Same as FeatureDependencyUnmetError above: raised only to the TenantProvisioned handler (M25-S11), which rethrows it (the retry then finds the existing subscription and does nothing) and never reaches HTTP; if a route can ever surface it, that story maps it and removes this entry.",

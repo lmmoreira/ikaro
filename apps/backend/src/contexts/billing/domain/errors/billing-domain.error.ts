@@ -109,7 +109,12 @@ export class SubscriptionInvariantError extends BillingDomainError {
 }
 
 /** The optimistic `version` check found the row changed since it was read. */
-export class SubscriptionConcurrentModificationError extends BillingDomainError {
+export class SubscriptionConcurrentModificationError
+  extends BillingDomainError
+  implements DomainErrorShape
+{
+  readonly code = BillingErrorCode.CONCURRENT_MODIFICATION;
+
   constructor() {
     super('The subscription was modified concurrently; reload it and retry');
     this.name = 'SubscriptionConcurrentModificationError';

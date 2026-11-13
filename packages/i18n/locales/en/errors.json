@@ -255,5 +255,6 @@
   "SIGNUP_TERMS_NOT_ACCEPTED": "You must accept the Terms of Use and Privacy Policy to continue.",
   "BILLING_EXEMPT_PROTECTED": "This subscription is exempt and cannot be changed this way.",
   "BILLING_GRACE_NOT_ALLOWED": "A grace period can only be set on an overdue subscription, and never ends before the standard 14 days.",
-  "BILLING_UNSUSPEND_NOT_ALLOWED": "Only an operator suspension can be lifted this way; a payment suspension needs a payment."
+  "BILLING_UNSUSPEND_NOT_ALLOWED": "Only an operator suspension can be lifted this way; a payment suspension needs a payment.",
+  "BILLING_CONCURRENT_MODIFICATION": "This subscription was changed by another request. Reload it and try again."
 }

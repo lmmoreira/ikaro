@@ -347,6 +347,8 @@ export const BillingErrorCode = {
   EXEMPT_PROTECTED: 'BILLING_EXEMPT_PROTECTED',
   GRACE_NOT_ALLOWED: 'BILLING_GRACE_NOT_ALLOWED',
   UNSUSPEND_NOT_ALLOWED: 'BILLING_UNSUSPEND_NOT_ALLOWED',
+  // The optimistic `version` check lost a race (a retryable 409), reachable from every write.
+  CONCURRENT_MODIFICATION: 'BILLING_CONCURRENT_MODIFICATION',
 } as const;
 export type BillingErrorCode = (typeof BillingErrorCode)[keyof typeof BillingErrorCode];
 
