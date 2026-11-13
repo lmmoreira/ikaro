@@ -123,16 +123,16 @@ describe('CachingSubscriptionRepository', () => {
   });
 
   describe('asymmetric TTLs on a fake clock', () => {
-    it('caches an operational subscription for 60 s', async () => {
+    it('caches an operational subscription for 300 s', async () => {
       const subscription = new SubscriptionBuilder().withStatus('ACTIVE').build();
       await inner.save(subscription);
       await repo.findByTenantId(subscription.tenantId);
 
-      clock.advanceMs(59_000);
+      clock.advanceMs(299_000);
       expect(cache.has(keyOf(subscription.tenantId))).toBe(true);
       clock.advanceMs(1_000);
       expect(cache.has(keyOf(subscription.tenantId))).toBe(false);
-      expect(cache.setCalls[0].ttlMs).toBe(60_000);
+      expect(cache.setCalls[0].ttlMs).toBe(300_000);
     });
 
     it('caches a SUSPENDED subscription for only 10 s', async () => {

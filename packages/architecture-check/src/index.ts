@@ -32,6 +32,8 @@ export { checkNoJestFnForRepositoryOrPortMocks } from './detectors/jest-fn-port-
 export { checkOccupancyReleaseChokePoint } from './detectors/occupancy-release-choke-point';
 export { checkPrototypeChainSafety } from './detectors/prototype-chain';
 export { checkSharedValueObjectErrorMapperCoverage } from './detectors/shared-vo-error-mapping';
+export { checkTenantAccessRouteMetadata } from './detectors/tenant-access-route-metadata';
+export type { TenantAccessRoutePolicy } from './detectors/tenant-access-route-metadata';
 export { checkTestBuilderCoverage } from './detectors/test-builder-coverage';
 export { checkTestDataHarnessRegistrations } from './detectors/test-harness-registration';
 export type { TestDataHarnessRegistration } from './detectors/test-harness-registration';
@@ -54,5 +56,5 @@ export type {
   DocsForResult,
   DocTagDefinition,
 } from './doc-tags';
-export { mergeScanResults } from './model';
-export type { Finding, ScanResult } from './model';
+export { classifyScanResults, mergeScanResults } from './model';
+export type { DetectorMode, Finding, ScanResult } from './model';

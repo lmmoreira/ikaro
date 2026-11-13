@@ -9,7 +9,7 @@ import type { BackendTenantAccess } from './billing.types';
 
 // The canonical read of operational state for the web (staff notice, customer badge, dashboard).
 // Open to every authenticated role: no `@Roles`, and the tenant comes from the JWT, never from a
-// parameter. It adds no cache of its own: the backend port keeps the 60 s / 10 s cache.
+// parameter. It adds no cache of its own: the backend port keeps the 300 s / 10 s cache.
 @Controller('billing')
 export class BillingController {
   private readonly logger = new AppLogger(BillingController.name);

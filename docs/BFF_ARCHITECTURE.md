@@ -271,11 +271,11 @@ ActiveStaffGuard (skipped on @Public() routes)
   │  For a staff caller, asks the backend whether the staff member is still active
   │  → rejects a deactivated staff member's still-valid JWT
   ▼
-TenantAccessGuard (planned with Billing, UC-125 — registered last, after TenantGuard, RolesGuard and ActiveStaffGuard)
+TenantAccessGuard (M25-S16, UC-125 — registered last, after TenantGuard, RolesGuard and ActiveStaffGuard)
   │  Reads @RequiresFeature / @SuspensionAccess metadata and asks the access port for the tenant;
   │  a Guard, never an Interceptor — see docs/ENGINEERING_RULES_SHARED.md § Tenant access enforcement
-  │  — the declarative choke points (planned). Its 30 s (operational) / 10 s (SUSPENDED) answer cache is a
-  │  planned in-process cache in the BFF; nothing of it exists yet (TTLs: docs/DOMAIN_MODEL.md § Entry point)
+  │  — the declarative choke points (planned). Its 300 s (operational) / 10 s (SUSPENDED) answer cache is an
+  │  in-process cache in the BFF (apps/bff/src/shared/cache/ttl-cache.ts; TTLs: docs/DOMAIN_MODEL.md § Entry point)
   ▼
 RequestInterceptor
   │  Runs after the Guards, so req.user is populated: adds tenantId/actor to OTel span attributes

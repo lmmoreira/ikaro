@@ -17,7 +17,14 @@ import { StaffModule } from './features/staff/staff.module';
 import { ActiveStaffGuard } from './shared/guards/active-staff.guard';
 import { AppThrottlerGuard } from './shared/guards/app-throttler.guard';
 import { JwtAuthGuard } from './shared/guards/jwt-auth.guard';
+import { TenantAccessGuard } from './shared/guards/tenant-access.guard';
+import {
+  TENANT_ACCESS_CACHE,
+  TENANT_ACCESS_CACHE_MAX_ENTRIES,
+  TenantAccessLookup,
+} from './shared/guards/tenant-access.lookup';
 import { TenantGuard } from './shared/guards/tenant.guard';
+import { TtlCache } from './shared/cache/ttl-cache';
 import { RolesGuard } from './shared/guards/roles.guard';
 import { WebOnlyGuard } from './shared/guards/web-only.guard';
 import { CorrelationMiddleware } from './shared/middleware/correlation.middleware';
@@ -64,6 +71,15 @@ import { RequestInterceptor } from './shared/request/request.interceptor';
     { provide: APP_GUARD, useClass: TenantGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_GUARD, useClass: ActiveStaffGuard },
+    // Runs last (M25-S16, UC-125): identity, tenant, role and active-staff failures keep their own
+    // errors, and a deactivated staff member never costs an access lookup. Wired dark — it denies
+    // nothing until a tenant is suspended or lacks a feature a route declares.
+    {
+      provide: TENANT_ACCESS_CACHE,
+      useFactory: () => new TtlCache({ maxEntries: TENANT_ACCESS_CACHE_MAX_ENTRIES }),
+    },
+    TenantAccessLookup,
+    { provide: APP_GUARD, useClass: TenantAccessGuard },
     // Runs after all Guards above (Interceptors are the next pipeline stage) — req.user is
     // populated by then, so tenantId/actor fields are available for OTel span attributes and
     // AppLogger enrichment. See RequestInterceptor's own comment for the guard-rejection caveat.

@@ -2921,7 +2921,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 - **Alternative Flows:**
    - **A1: No subscription row after a successful lookup** → a provisioning / data-integrity incident, distinct from a lookup error. Inside the `PROVISIONING_GRACE_MINUTES` window the tenant is treated as a pending trial; after it, tenant operations are denied, a metric / log is emitted and the self-heal job (UC-140) repairs the row. An alert fires only if self-heal fails.
    - **A2: Lookup error** → fail open and log.
-   - **A3: Stale cache** → the subscription read is cached by `CachingSubscriptionRepository` (60 s operational, 10 s suspended); every `save()` evicts the tenant's key best-effort after commit, on the instance that ran it, so no use case calls the cache and no event handler is involved; the TTL bounds staleness on every other instance. The billing page and the access calls it makes bypass the BFF cache (UC-117).
+   - **A3: Stale cache** → the subscription read is cached by `CachingSubscriptionRepository` (300 s operational, 10 s suspended); every `save()` evicts the tenant's key best-effort after commit, on the instance that ran it, so no use case calls the cache and no event handler is involved; the TTL bounds staleness on every other instance. The billing page and the access calls it makes bypass the BFF cache (UC-117).
    - **A4: Bulk need** (a cron scanning all tenants) → the batch methods (`listSuspendedTenantIds()` and `findTenantIdsNotEntitledTo(feature)`; the route is `suspended-tenant-ids`, `docs/API_CONTRACTS.md` § Billing — Provider Webhooks and Internal API), never one call per tenant.
 - **Postconditions:** None.
 - **Events Triggered:** None.

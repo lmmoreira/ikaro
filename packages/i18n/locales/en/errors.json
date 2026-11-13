@@ -256,5 +256,7 @@
   "BILLING_EXEMPT_PROTECTED": "This subscription is exempt and cannot be changed this way.",
   "BILLING_GRACE_NOT_ALLOWED": "A grace period can only be set on an overdue subscription, and never ends before the standard 14 days.",
   "BILLING_UNSUSPEND_NOT_ALLOWED": "Only an operator suspension can be lifted this way; a payment suspension needs a payment.",
-  "BILLING_CONCURRENT_MODIFICATION": "This subscription was changed by another request. Reload it and try again."
+  "BILLING_CONCURRENT_MODIFICATION": "This subscription was changed by another request. Reload it and try again.",
+  "BILLING_FEATURE_NOT_ENTITLED": "This feature is not included in your plan.",
+  "BILLING_TENANT_SUSPENDED": "This account is currently unavailable."
 }

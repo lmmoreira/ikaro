@@ -2,6 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import * as jwt from 'jsonwebtoken';
 import { makeBackendHttp } from '../../test/backend-http.mock';
 import { ClientIpRequest } from '../../shared/http/client-ip';
+import { publicTenantIdCache } from '../../shared/http/public-tenant';
 import {
   CHATBOT_MESSAGE_TIMEOUT_MS,
   LEAD_FORM_SUBMISSION_TIMEOUT_MS,
@@ -120,7 +121,11 @@ const unpublishedHotsiteResponse: HotsiteResponse & {
 };
 
 describe('PlatformPublicController', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => {
+    jest.resetAllMocks();
+    // The slug → tenant id cache is process-level state shared with `TenantAccessGuard`.
+    publicTenantIdCache.clear();
+  });
 
   describe('getManifest()', () => {
     it('resolves slug to tenant then composes the hotsite manifest', async () => {

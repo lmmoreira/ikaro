@@ -22,6 +22,7 @@ import {
   checkPrototypeChainSafety,
   checkReverseDiAlias,
   checkSharedValueObjectErrorMapperCoverage,
+  checkTenantAccessRouteMetadata,
   checkTestBuilderCoverage,
   checkTestDataHarnessRegistrations,
   checkTransactionalIo,
@@ -30,6 +31,7 @@ import {
   checkUseCaseInputNaming,
   checkUseCaseResultNaming,
   checkValueObjectCreateNeverThrowsBareError,
+  classifyScanResults,
   mergeScanResults,
   type AggregateValueObjectConcept,
   type BffInlineTypeException,
@@ -40,6 +42,7 @@ import {
   type ErrorMapperException,
   type ExternalSideEffectPort,
   type IkaroTypesDriftException,
+  type TenantAccessRoutePolicy,
   type TestDataHarnessRegistration,
 } from './index';
 import { loadProject } from './project';
@@ -66,6 +69,7 @@ const policy = JSON.parse(
   closedEnumRegistry?: ClosedEnumRegistryEntry[];
   docLinkIntegrity?: DocLinkIntegrityPolicy;
   docOrientation?: DocOrientationPolicy;
+  tenantAccessRouteMetadata?: TenantAccessRoutePolicy;
   projects?: string[];
 };
 const projectPaths = policy.projects ?? [];
@@ -156,6 +160,19 @@ const docLinkIntegrity = policy.docLinkIntegrity;
 if (!docLinkIntegrity) {
   throw new Error('The architecture policy must define docLinkIntegrity.');
 }
+const tenantAccessRouteMetadata = policy.tenantAccessRouteMetadata;
+if (
+  !tenantAccessRouteMetadata?.entitlementDecorators.length ||
+  !tenantAccessRouteMetadata.suspensionDecorators.length
+) {
+  throw new Error(
+    'The architecture policy must define tenantAccessRouteMetadata with its entitlement and suspension decorators.',
+  );
+}
+// Rules whose policy `mode` is `warn`: their findings are printed as warnings and never fail the run.
+const warnRules = new Set<string>(
+  tenantAccessRouteMetadata.mode === 'warn' ? ['tenant-access-route-metadata'] : [],
+);
 const docOrientation = policy.docOrientation;
 if (!docOrientation) {
   throw new Error('The architecture policy must define docOrientation.');
@@ -205,9 +222,10 @@ const results = [
   checkBffTypesLiveInModuleFiles(bff, bffInlineTypeExceptions),
   checkIkaroTypesDrift(web, types, ikaroTypesDriftExceptions),
   checkClosedEnumRegistry([validation, types], closedEnumRegistry),
+  checkTenantAccessRouteMetadata([backend, bff], tenantAccessRouteMetadata),
 ];
 const zeroTargetResults = results.filter((result) => result.scannedTargets === 0);
-const findings = results.flatMap((result) => result.findings);
+const { errors, warnings, failed } = classifyScanResults(results, warnRules);
 
 for (const result of results) {
   process.stdout.write(
@@ -217,7 +235,18 @@ for (const result of results) {
 for (const result of zeroTargetResults) {
   process.stderr.write(`[architecture-check] ${result.rule}: zero targets discovered\n`);
 }
-for (const finding of findings) {
+for (const finding of errors) {
   process.stderr.write(`${finding.file}:${finding.line} [${finding.rule}] ${finding.message}\n`);
 }
-if (zeroTargetResults.length > 0 || findings.length > 0) process.exitCode = 1;
+// A warn-mode finding is the work still to do, not a failure: one line each, never an exit code.
+for (const finding of warnings) {
+  process.stdout.write(
+    `${finding.file}:${finding.line} [${finding.rule}] WARNING ${finding.message}\n`,
+  );
+}
+if (warnings.length > 0) {
+  process.stdout.write(
+    `[architecture-check] ${warnings.length} warning(s) from rule(s) in warn mode (policy \`mode\`); they do not fail the run\n`,
+  );
+}
+if (failed) process.exitCode = 1;

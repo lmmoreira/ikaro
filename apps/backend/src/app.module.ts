@@ -21,6 +21,7 @@ import { OutboxModule } from './shared/infrastructure/outbox/outbox.module';
 import { TransactionManagerModule } from './shared/infrastructure/transaction-manager.module';
 import { InternalApiGuard } from './shared/guards/internal-api.guard';
 import { PubSubPushGuard } from './shared/guards/pubsub-push.guard';
+import { TenantAccessGuard } from './shared/guards/tenant-access.guard';
 import { RequestInterceptor } from './shared/request/request.interceptor';
 import { RequestModule } from './shared/request/request.module';
 import { CorrelationMiddleware } from './shared/request/correlation.middleware';
@@ -103,6 +104,10 @@ import {
     { provide: APP_INTERCEPTOR, useClass: RequestInterceptor },
     { provide: APP_FILTER, useClass: ErrorFilter },
     { provide: APP_GUARD, useClass: InternalApiGuard },
+    // After InternalApiGuard (registration order): an unauthenticated internal call is refused
+    // first. Wired dark (M25-S16) — it denies nothing until a tenant is suspended or lacks a
+    // feature a route declares.
+    { provide: APP_GUARD, useClass: TenantAccessGuard },
     { provide: OIDC_TOKEN_VERIFIER, useClass: GoogleOidcTokenVerifier },
     PubSubPushGuard,
     CloudSqlConnectorShutdownHook,
