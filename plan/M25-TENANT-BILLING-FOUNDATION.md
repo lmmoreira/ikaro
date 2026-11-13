@@ -1323,7 +1323,7 @@ Build the declarative enforcement mechanism and **wire it dark** — it decides 
 
 ---
 
-### M25-S17 — Annotate Platform routes — backend + BFF (UC-125)
+### M25-S17 — Annotate Platform routes — backend + BFF (UC-125) ✅ Done
 
 **Agent:** `backend-ts + bff-ts`
 **Complexity:** M
