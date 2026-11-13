@@ -40,7 +40,11 @@ describe('resolveTenantIdForAttachmentUpload()', () => {
       jwtSecret: JWT_SECRET,
     });
 
-    expect(backendHttp.get).toHaveBeenCalledWith(`/internal/tenants/by-slug/${TENANT_SLUG}`);
+    expect(backendHttp.get).toHaveBeenCalledWith(
+      `/internal/tenants/by-slug/${TENANT_SLUG}`,
+      undefined,
+      expect.anything(),
+    );
     expect(tenantId).toBe(TENANT_ID);
   });
 

@@ -19,7 +19,6 @@ import {
   HotsiteServiceListResponse,
   TenantSettings,
 } from '@ikaro/types';
-import { publicTenantCache } from '../../shared/http/public-tenant';
 import { CHATBOT_MESSAGE_TIMEOUT_MS } from './platform.public.controller';
 import { BackendTenantByIdResponse } from './platform.types';
 import { HotsiteServiceBuilder } from '../../test/builders/hotsite-service.builder';
@@ -135,8 +134,6 @@ describe('PlatformPublicController (component)', () => {
 
   afterEach(() => {
     jest.resetAllMocks();
-    // The slug → tenant id cache is process-level state shared with `TenantAccessGuard`.
-    publicTenantCache.clear();
   });
 
   describe('GET /v1/public/platform/manifest/:slug (public)', () => {
@@ -149,7 +146,11 @@ describe('PlatformPublicController (component)', () => {
       expect(res.status).toBe(200);
       expect(res.body).toEqual({ tenant: tenantInfo, ...hotsiteResponse });
       expect(res.headers['cache-control']).toBe('public, max-age=300');
-      expect(backendHttpService.get).toHaveBeenCalledWith('/internal/tenants/by-slug/lavacar-bh');
+      expect(backendHttpService.get).toHaveBeenCalledWith(
+        '/internal/tenants/by-slug/lavacar-bh',
+        undefined,
+        expect.anything(),
+      );
       expect(backendHttpService.getForPublic).toHaveBeenCalledWith('/hotsite', tenantInfo.id);
     });
 

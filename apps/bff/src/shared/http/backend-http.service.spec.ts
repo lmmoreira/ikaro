@@ -5,6 +5,7 @@ import { BffErrorCode } from '@ikaro/types';
 import { AxiosError, AxiosResponse } from 'axios';
 import { Request } from 'express';
 import { throwError, of } from 'rxjs';
+import { InMemoryBffCache } from '../cache/in-memory-bff-cache';
 import { BackendHttpService } from './backend-http.service';
 import { CurrentUserPayload } from '../decorators/current-user.decorator';
 
@@ -54,7 +55,13 @@ function makeService(
     headers: { 'x-correlation-id': correlationId },
   } as unknown as Request;
 
-  const service = new BackendHttpService(http as unknown as HttpService, makeConfigService(), req);
+  const store = new InMemoryBffCache<unknown>({ maxEntries: 10 });
+  const service = new BackendHttpService(
+    http as unknown as HttpService,
+    makeConfigService(),
+    req,
+    store,
+  );
   return { service, http };
 }
 
@@ -93,6 +100,39 @@ describe('BackendHttpService', () => {
         expect.any(String),
         expect.objectContaining({ params: { page: 1 } }),
       );
+    });
+
+    it('never caches a read that passes no cache option', async () => {
+      const { service, http } = makeService();
+      http.get.mockReturnValue(axiosOf({ ok: true }));
+
+      await service.get('/health');
+      await service.get('/health');
+
+      expect(http.get).toHaveBeenCalledTimes(2);
+    });
+
+    it('serves a read that declares a cache from the cache, with no second backend call', async () => {
+      const { service, http } = makeService();
+      http.get.mockReturnValue(axiosOf({ id: 'tenant-uuid' }));
+      const cache = { key: 'tenant-by-slug:autospa', ttlMs: 300_000 };
+
+      const first = await service.get('/internal/tenants/by-slug/autospa', undefined, { cache });
+      const second = await service.get('/internal/tenants/by-slug/autospa', undefined, { cache });
+
+      expect(second).toEqual(first);
+      expect(http.get).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not cache a failed read', async () => {
+      const { service, http } = makeService();
+      http.get
+        .mockReturnValueOnce(throwError(() => new AxiosError('boom')))
+        .mockReturnValueOnce(axiosOf({ id: 'tenant-uuid' }));
+      const cache = { key: 'tenant-by-slug:later', ttlMs: 300_000 };
+
+      await expect(service.get('/p', undefined, { cache })).rejects.toBeInstanceOf(HttpException);
+      await expect(service.get('/p', undefined, { cache })).resolves.toEqual({ id: 'tenant-uuid' });
     });
   });
 
@@ -326,6 +366,7 @@ describe('BackendHttpService', () => {
         http as unknown as HttpService,
         makeConfigService(),
         req,
+        new InMemoryBffCache({ maxEntries: 10 }),
       );
       http.get.mockReturnValue(axiosOf({}));
 
@@ -399,6 +440,7 @@ describe('BackendHttpService', () => {
         http as unknown as HttpService,
         makeConfigService(),
         req,
+        new InMemoryBffCache({ maxEntries: 10 }),
       );
       http.get.mockReturnValue(axiosOf({}));
 

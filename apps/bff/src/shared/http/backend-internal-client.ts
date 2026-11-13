@@ -3,7 +3,9 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
 import { firstValueFrom, type Observable } from 'rxjs';
+import type { BffCache } from '../cache/bff-cache.port';
 import { buildBackendHeaders } from './backend-headers';
+import { BACKEND_RESPONSE_CACHE, readThrough, type BackendReadOptions } from './backend-read-cache';
 
 const BACKEND_INTERNAL_TIMEOUT_MS = 5_000;
 
@@ -25,7 +27,8 @@ export interface BackendClientConfig {
  * it holds the incoming request to forward its correlation and actor headers, and Nest cannot inject
  * a request-scoped provider into a singleton. This client takes the request as an argument instead
  * and builds the same headers with `buildBackendHeaders(req)` plus the internal key. It throws the
- * raw transport error; each caller decides what a failure means.
+ * raw transport error; each caller decides what a failure means. A read is cached only when the call
+ * passes `options.cache` (`readThrough`), in the cache `BackendHttpService` shares.
  */
 @Injectable()
 export class BackendInternalClient {
@@ -35,20 +38,23 @@ export class BackendInternalClient {
     // The concrete classes are the DI tokens (the narrow interfaces are erased at runtime).
     @Inject(HttpService) private readonly http: BackendGetClient,
     @Inject(ConfigService) private readonly config: BackendClientConfig,
+    @Inject(BACKEND_RESPONSE_CACHE) private readonly store: BffCache<unknown>,
   ) {
     this.backendUrl = this.config.getOrThrow('BACKEND_INTERNAL_URL');
   }
 
-  async get<T>(path: string, req: Request): Promise<T> {
-    const { data } = await firstValueFrom(
-      this.http.get<T>(`${this.backendUrl}${path}`, {
-        headers: {
-          ...buildBackendHeaders(req),
-          'X-Internal-Key': this.config.getOrThrow('INTERNAL_API_KEY'),
-        },
-        timeout: BACKEND_INTERNAL_TIMEOUT_MS,
-      }),
-    );
-    return data;
+  get<T>(path: string, req: Request, options?: BackendReadOptions<T>): Promise<T> {
+    return readThrough(this.store, options?.cache, async () => {
+      const { data } = await firstValueFrom(
+        this.http.get<T>(`${this.backendUrl}${path}`, {
+          headers: {
+            ...buildBackendHeaders(req),
+            'X-Internal-Key': this.config.getOrThrow('INTERNAL_API_KEY'),
+          },
+          timeout: BACKEND_INTERNAL_TIMEOUT_MS,
+        }),
+      );
+      return data;
+    });
   }
 }

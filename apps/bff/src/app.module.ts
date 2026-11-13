@@ -15,17 +15,13 @@ import { ScheduleModule } from './features/booking/schedule.module';
 import { BookingServicesModule } from './features/booking/services.module';
 import { StaffModule } from './features/staff/staff.module';
 import { ActiveStaffGuard } from './shared/guards/active-staff.guard';
+import { BackendCacheModule } from './shared/http/backend-cache.module';
 import { BackendInternalClient } from './shared/http/backend-internal-client';
 import { AppThrottlerGuard } from './shared/guards/app-throttler.guard';
 import { JwtAuthGuard } from './shared/guards/jwt-auth.guard';
 import { TenantAccessGuard } from './shared/guards/tenant-access.guard';
-import {
-  TENANT_ACCESS_CACHE,
-  TENANT_ACCESS_CACHE_MAX_ENTRIES,
-  TenantAccessLookup,
-} from './shared/guards/tenant-access.lookup';
+import { TenantAccessLookup } from './shared/guards/tenant-access.lookup';
 import { TenantGuard } from './shared/guards/tenant.guard';
-import { InMemoryBffCache } from './shared/cache/in-memory-bff-cache';
 import { RolesGuard } from './shared/guards/roles.guard';
 import { WebOnlyGuard } from './shared/guards/web-only.guard';
 import { CorrelationMiddleware } from './shared/middleware/correlation.middleware';
@@ -37,6 +33,8 @@ import { RequestInterceptor } from './shared/request/request.interceptor';
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
     HttpModule,
+    // The cache `BackendInternalClient` shares with `BackendHttpService` (same module instance).
+    BackendCacheModule,
     RequestModule,
     // Single per-IP default tier (M17-S30, simplified 2026-07-18) — no separate
     // authenticated/JWT-sub tier; identity-keyed limiting was dropped as unneeded
@@ -77,10 +75,6 @@ import { RequestInterceptor } from './shared/request/request.interceptor';
     // Runs last (M25-S16, UC-125): identity, tenant, role and active-staff failures keep their own
     // errors, and a deactivated staff member never costs an access lookup. Wired dark — it denies
     // nothing until a tenant is suspended or lacks a feature a route declares.
-    {
-      provide: TENANT_ACCESS_CACHE,
-      useFactory: () => new InMemoryBffCache({ maxEntries: TENANT_ACCESS_CACHE_MAX_ENTRIES }),
-    },
     TenantAccessLookup,
     { provide: APP_GUARD, useClass: TenantAccessGuard },
     // Runs after all Guards above (Interceptors are the next pipeline stage) — req.user is

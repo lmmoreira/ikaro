@@ -1,5 +1,4 @@
 import { Observable, of, throwError } from 'rxjs';
-import { makeBackendHttp } from '../../test/backend-http.mock';
 import { makeRequest } from '../../test/execution-context.factory';
 import { InMemoryBffCache } from '../cache/in-memory-bff-cache';
 import {
@@ -8,7 +7,7 @@ import {
   type BackendGetClient,
 } from '../http/backend-internal-client';
 import { TtlCache } from '../cache/ttl-cache';
-import { publicTenantCache, withPublicTenant } from '../http/public-tenant';
+import { tenantBySlugRead } from '../http/public-tenant';
 import {
   OPERATIONAL_ACCESS_TTL_MS,
   SUSPENDED_ACCESS_TTL_MS,
@@ -62,21 +61,18 @@ const config: BackendClientConfig = {
 
 const req = makeRequest({ headers: { 'x-correlation-id': 'corr-1' } });
 
-type AccessCache = InMemoryBffCache<{ operational: boolean; features: { key: string }[] }>;
-
 function makeLookup(answer: () => unknown, clock = new FakeClock()) {
   const backend = new FakeBackend(answer);
-  const cache: AccessCache = new InMemoryBffCache({ maxEntries: 100, clock });
+  const cache = new InMemoryBffCache<unknown>({ maxEntries: 100, clock });
   return {
-    lookup: new TenantAccessLookup(new BackendInternalClient(backend, config), cache),
+    lookup: new TenantAccessLookup(new BackendInternalClient(backend, config, cache)),
     backend,
+    cache,
     clock,
   };
 }
 
 describe('TenantAccessLookup', () => {
-  afterEach(() => publicTenantCache.clear());
-
   it('reads the backend access route with the internal key and keeps only what the gate needs', async () => {
     const { lookup, backend } = makeLookup(() => ({
       status: 'ACTIVE',
@@ -148,8 +144,11 @@ describe('TenantAccessLookup', () => {
   it('propagates a backend failure for the guard to turn into a pass-through', async () => {
     const backend = new FailingBackend('connect ECONNREFUSED');
     const lookup = new TenantAccessLookup(
-      new BackendInternalClient(backend, config),
-      new InMemoryBffCache({ maxEntries: 10, clock: new FakeClock() }),
+      new BackendInternalClient(
+        backend,
+        config,
+        new InMemoryBffCache({ maxEntries: 10, clock: new FakeClock() }),
+      ),
     );
     await expect(lookup.getAccess(TENANT_ID, req)).rejects.toThrow('ECONNREFUSED');
   });
@@ -217,31 +216,27 @@ describe('TenantAccessLookup', () => {
   });
 
   describe('slug → tenant id for an @Public() route', () => {
-    it('makes one by-slug call for the guard and withPublicTenant together, and none inside the TTL', async () => {
-      const { lookup, backend } = makeLookup(() => ({
+    it('caches the tenant under the key every public caller shares, and makes no second call inside the TTL', async () => {
+      const { lookup, backend, cache } = makeLookup(() => ({
         id: TENANT_ID,
         slug: 'autospa',
         name: 'Autospa',
       }));
-      const backendHttp = makeBackendHttp({
-        get: jest.fn().mockResolvedValue({ id: TENANT_ID }),
-      });
-      const run = jest.fn().mockResolvedValue('ok');
 
       await lookup.resolveTenantId('autospa', req);
-      await withPublicTenant(backendHttp, 'autospa', run);
       await lookup.resolveTenantId('autospa', req);
 
       expect(backend.urls).toEqual(['http://backend:3001/internal/tenants/by-slug/autospa']);
-      expect(backendHttp.get).not.toHaveBeenCalled();
-      expect(run).toHaveBeenCalledWith(TENANT_ID);
+      // `withPublicTenant` and the manifest declare this same key, so they hit this entry.
+      expect(await cache.get(tenantBySlugRead('autospa').cache.key)).toMatchObject({
+        id: TENANT_ID,
+      });
     });
 
     it('never caches a failed lookup (an unknown slug)', async () => {
       const backend = new FailingBackend('404');
       const lookup = new TenantAccessLookup(
-        new BackendInternalClient(backend, config),
-        new InMemoryBffCache({ maxEntries: 10 }),
+        new BackendInternalClient(backend, config, new InMemoryBffCache({ maxEntries: 10 })),
       );
       await expect(lookup.resolveTenantId('nope', req)).rejects.toThrow('404');
       await expect(lookup.resolveTenantId('nope', req)).rejects.toThrow('404');

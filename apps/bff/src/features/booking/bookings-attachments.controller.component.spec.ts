@@ -90,6 +90,8 @@ describe('BookingsAttachmentsController (component)', () => {
       expect(res.status).toBe(201);
       expect(backendHttpService.get).toHaveBeenCalledWith(
         `/internal/tenants/by-slug/${TENANT_SLUG}`,
+        undefined,
+        expect.anything(),
       );
       expect(backendHttpService.postForPublic).toHaveBeenCalledWith(
         '/bookings/attachments/signed-url',
