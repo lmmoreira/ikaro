@@ -221,13 +221,25 @@ Check the story's *proposed design*, not just its documentation completeness, ag
 
 - **A story that removes or narrows a lint exemption** (an ESLint `no-restricted-syntax` list, a folder entry): run the lint over the tree with the exemption gone and list every selector that fires, by count, before the design is locked. An exemption often lifts more bans than the story names (TD51-S06: dropping the branded folders from the raw-control list would also have flagged 40 raw buttons and 16 `htmlFor` labels; found at implementation, not at discovery). Put the surviving allowances in the story's Files list.
 
+### 4o2. Design quality — candidates, replaceability, reuse, maintainability, load
+Discovery is the cheapest place to get the design right: a design that is wrong here costs a rework or a review round later (M25-S16: an in-memory cache, a concrete class and two copies of the same backend call each reached review before anyone asked for a port, a seam or a shared module). For every **new** component, class, module or cross-cutting behaviour the story adds, answer each question below and print the answers in Step 5's **Design review** block. This is a design read, not a doc-gap check: a weak answer is a RISK tagged `[DESIGN]`, raised in Step 6, never a silent choice.
+
+1. **Candidates, not a single answer.** List at least two ways to build it, one of them "reuse or extend what already exists" (grep first). Recommend one and say why. When the candidates differ materially (a new abstraction versus an existing one, a shared package versus an app-local helper), put the choice to the user in Step 6 as a `[DESIGN]` question with the recommendation first; never lock a design the user has not seen the alternative to.
+2. **Replaceability (ports and adapters, dependency inversion).** For anything that touches I/O, state, time, a cache, a queue or an external service, name the **port** (the interface callers depend on), the **adapter** the story ships, and what the **second adapter** would be (an in-memory cache and a Redis one; a real client and a fake). Name the file that provides it (the DI provider or token). "No port" is allowed with a one-line reason.
+3. **Composition root.** Concrete infrastructure comes from a DI provider or token, never `new` at module scope and never module-level mutable state (a global cache, a singleton variable). Callers are typed against the port, never against the adapter class.
+4. **Reuse before create.** Grep for the same call shape, helper or decorator in sibling code **and in the other apps** (backend, BFF, web, `packages/*`). A precedent that is itself duplicated is not copied: either extract it in this story or state in one line why the copy is right. A helper or decorator both apps need belongs in a `packages/*` module both can import, not in one app's `shared/`.
+5. **SOLID, cohesion and encapsulation.** One reason to change per class; the smallest public surface that serves the callers; nothing exported without a consumer; no adapter types in a caller's signature; callers depend on abstractions. Name any class that would end up with two reasons to change.
+6. **Default off, explicit on.** A new cross-cutting behaviour (a cache, a gate, a retry) is opt-in at the call site, not implicit for every caller.
+7. **Maintainability: the change-cost test.** Name the **two most likely next changes** (a new feature key, a new provider, a new cache backend, a new role) and, for each, how many files change and which ones. A design where a likely change touches the framework, the cache and several callers is not finished.
+8. **Load: only for a hot path.** If the story touches a hot path (a guard or interceptor, the request pipeline, a cron's per-tenant loop, an event handler, a list endpoint), give **numbers, not adjectives**: the calls, network hops and DB queries it adds **per request**; anything **unbounded** (a map, cache or list) and its cap; whether state is **per instance or shared** and what that does to staleness; the **timeout and the failure behaviour** when the dependency is down (fail open or closed, and why); any **per-item loop that calls out** (an N+1 or fan-out). A story off every hot path writes `n/a — not a hot path` and nothing more; do not pad it.
+
 ### 4p. Stale-reference sweep anticipation (Definition of Done)
 If this story replaces or removes an existing flow/mechanism (an auth pattern, a data model assumption, a transport layer, a dead endpoint) — does the story's own scope explicitly include grepping `docs/*.md`, other milestones' `plan/*_IMPLEMENTATION_DETAILS_*.md`, `.claude/commands/**`, `.claude/skills/**`, and `scripts/**` for stale references to the old version? If the story is silent on this, flag it now — `docs/DEFINITION_OF_DONE.md` makes this mandatory, and catching the gap here is cheaper than at milestone close-out (M13 precedent: 18 such findings across 8 files, found only when the milestone closed).
 
 **Inverse case — journey GAP-status drift:** if this story's own `Prototype references` point at a `journeys/<actor>/<slug>.md` that currently marks the relevant screen/flow `❓ GAP`, does the story's scope include flipping that status in the same commit? A full `/docs-audit` sweep (2026-08-04) found this exact pattern in *every actor's* journeys (28 findings) — `dev-notes.md` consistently got updated when a gap shipped, the parent journey `.md`'s mermaid/Prototype table consistently didn't. Flag as **RISK** if the story is silent on it.
 
 ### 4q. Pattern & test-strategy lock-in
-- **Architectural pattern:** does the story's design name the concrete pattern it uses (strategy, factory, builder, plain composition, etc.) and why — or explicitly state that no named pattern applies? A story that's silent on this pushes an undocumented judgment call into implementation time; surface it as a question in Step 6 instead.
+- **Architectural pattern:** does the story's design name the concrete pattern it uses (strategy, factory, builder, decorator, ports and adapters, plain composition, etc.) **and the force it resolves** (the problem that pattern removes here) — or explicitly state that no named pattern applies? "No pattern" is a valid answer; a pattern with no force behind it is speculative abstraction (`docs/CODE_STANDARDS.md` § Comments and abstraction discipline). Cross-check the answer with §4o2. A story that's silent on this pushes an undocumented judgment call into implementation time; surface it as a question in Step 6 instead.
 - **Test/e2e coverage plan:** does the story name concrete test scenarios — the specific unit cases, integration flows, and (for frontend stories) e2e/Playwright scenarios — rather than a vague "at least one integration test"? A vague coverage statement here becomes an implementation-time judgment call instead of a discovery-time decision. For every **new** E2E scenario the plan also names the existing E2E test of the same route or flow (grep `apps/web/e2e`) and says why the new one is not a `test.step` of it; an E2E test is the most expensive layer, and each assertion goes to the lowest layer that can prove it (`docs/TESTING_STRATEGY.md` § Layer 5, "Before adding an E2E test").
 - **A named precedent is read, not just cited.** When the story's Pattern line or description names an existing class as its precedent (`CachingTenantRepository`, an adapter, a handler), open that class and compare *which layer it sits in* (a decorator on the repository, an adapter behind a port, a use case), *who triggers its side effects* (cache eviction inside `save()` versus a call made by each use case) and *what it stores*. If the story's design differs on any of these, raise it in Step 6 as a `[PATTERN]` question with the precedent's shape as the recommended option, instead of locking the story's wording. (M25-S13: the story cited `CachingTenantRepository` but described an answer cache plus an invalidator port; the repository-level decorator was chosen only after a PR-review question, which cost a redesign and a review round.)
 - **Negative-guarantee criteria:** for every AC phrased as "exempt", "not blocked", "not trimmed" or "rejected on save", does the plan name a test that pins it? Such a line holds by construction and nothing else will catch a regression (`docs/STORY_SCHEMA.md`).
@@ -280,7 +292,19 @@ Start with a **Story scope summary** — a quick mental model for the agent befo
 - **Devops PR sequence:** N/A / <N> PRs (<one-line summary — e.g. "1: topic+scheduler job+app code (infra-app-mix-ok); 2: Foundation apply dispatch (no PR) + IAM-policy check">)
 ```
 
+Then the **Design review** (§4o2), one block per new component the story adds (a story that adds none writes `Design review: n/a — no new component`):
+
+```
+### Design review
+- **<component>** — candidates: (A) <reuse/extend existing> · (B) <new> · recommended: <A|B> because <reason>
+  - Port / adapters: <port> → <adapter shipped> · second adapter would be <x> · provided by <file/token>
+  - Reuse check: grepped <where>; <duplicate found → extracted / copy justified>
+  - Likely next changes: (1) <change> → <N files: …> · (2) <change> → <N files: …>
+  - Load: <n/a — not a hot path | per-request cost, caps, per-instance vs shared, timeout + fail-open/closed, fan-out>
+```
+
 Then list findings:
+
 
 ```
 ### Blockers (resolve before writing any code)
@@ -295,6 +319,7 @@ Then list findings:
 4. [I18N] Story implies new UI copy but doesn't name i18n keys
 5. [MIGRATION] New entity detected — verify `integration-global-setup.ts` is updated in same commit
 6. [WORKAROUND] AC #3 suppresses a lint warning instead of fixing the underlying type error — root-cause fix looks available
+7a. [DESIGN] Story builds a concrete in-process cache; no port, so a Redis adapter would change every caller — put it behind a port and provide it by token
 7. [PATTERN] Story proposes a new Port+Adapter for booking→loyalty reads; `infrastructure/cross-context/` already has one — extend it instead
 8. [STALE-SWEEP] Story replaces the legacy invite-link format but doesn't mention checking `docs/*.md`/`.claude/commands/**` for references to the old one
 
@@ -400,6 +425,8 @@ Do not start implementation until all blockers are cleared.
 ```
 
 If NOT READY, stop here. Do not proceed to Step 9.
+
+A ✅ READY verdict requires the **Design review** block (§4o2) to be printed and every `[DESIGN]` question to be answered or explicitly declined by the user; a story that adds a component and has no such block is not ready.
 
 A ✅ READY verdict is the single authorization for the rest of the implementation workflow (CLAUDE.md §9) — commit, push, `/pre-pr`, PR, CI-fix, and bot-fix all proceed autonomously from here with no further per-step asks; only the final merge review and any stuck condition come back to the user.
 

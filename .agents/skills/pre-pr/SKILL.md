@@ -111,6 +111,9 @@ For every new block in `*.integration.spec.ts`, verify all routes used as setup 
 ### 21. All new `<Image fill>` components have a `sizes` prop
 For every changed `.tsx` in `apps/web/`, verify every `<Image` with `fill` also has a `sizes` prop (e.g. `sizes="100vw"` for full-width, `sizes="(min-width: 640px) 50vw, 100vw"` for half-column).
 
+### Design quality (the questions `/story-discovery` §4o2 asked)
+For every new class, module or helper in the diff, check without waiting for a reviewer: infrastructure (a cache, a client, I/O) sits behind a port provided through DI and no concrete adapter is created with `new` at module scope or held in module-level mutable state; the same call, decorator or helper does not exist twice across the two apps or the diff (extract it into `packages/*` when both need it); nothing is exported without a consumer. A **new** component with no port, or a duplicate, is a finding to fix before the PR opens, not after.
+
 ### mapXxxError catch chain
 For changed `*.controller.ts` files (backend + BFF), verify use-case calls use `.catch(mapXxxError)` — never `try/catch` with a rethrown `HttpException` inside the controller. For changed `*.use-case.ts` files, verify they never `throw new HttpException` directly (HTTP concerns live at the controller layer only via the error mapper).
 
