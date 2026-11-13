@@ -1239,7 +1239,7 @@ No new principals. The topic bindings can only be created by the Foundation appl
 
 ---
 
-### M25-S16 — Gating framework — decorators, guards, route-completeness detector in warn mode (UC-125)
+### M25-S16 — Gating framework — decorators, guards, route-completeness detector in warn mode (UC-125) ✅ Done
 
 **Agent:** `backend-ts + bff-ts`
 **Complexity:** L
