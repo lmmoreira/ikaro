@@ -1525,6 +1525,11 @@
       }
     }
   },
+  "tenantAccessRouteMetadata": {
+    "mode": "warn",
+    "entitlementDecorators": ["RequiresFeature", "NoFeatureGate"],
+    "suspensionDecorators": ["SuspensionAccess"]
+  },
   "detectorContract": {
     "requiresPermanentPositiveAndNegativeFixtures": true,
     "requiresScannedTargetCount": true,

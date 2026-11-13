@@ -66,7 +66,7 @@ const fromIso = (value: string | null): Date | null => (value === null ? null : 
 /**
  * Read cache in front of the subscription repository (the same decorator shape as
  * `CachingTenantRepository`), so every reader gets it: the access resolver, the `TenantAccessPort`
- * and any future use case. Asymmetric TTLs: an operational subscription 60 s, a `SUSPENDED` one
+ * and any future use case. Asymmetric TTLs: an operational subscription 300 s, a `SUSPENDED` one
  * 10 s, so a paying tenant comes back fast. `save()` evicts after commit, which covers every writer
  * (the trial handler, the operator and webhook use cases to come) with no code of their own;
  * `CachePort` has no cross-instance broadcast, so other instances rely on the TTL.
@@ -77,7 +77,7 @@ const fromIso = (value: string | null): Date | null => (value === null ? null : 
  */
 @Injectable()
 export class CachingSubscriptionRepository implements ISubscriptionRepository {
-  static readonly OPERATIONAL_TTL_MS = 60_000;
+  static readonly OPERATIONAL_TTL_MS = 300_000;
   static readonly SUSPENDED_TTL_MS = 10_000;
   private static readonly CACHE_KEY_PREFIX = 'billing:subscription:';
 

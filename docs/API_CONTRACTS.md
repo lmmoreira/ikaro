@@ -1860,7 +1860,7 @@ The answer is reduced to what the caller's role may see (decided at M25-S13 disc
 | `STAFF` | `{ operational, features }` (no `status`, so staff never learn the tenant is `PAST_DUE`) |
 | `CUSTOMER` | `{ operational }` |
 
-No role ever receives the suspension reason or the internal `provisional` / `degraded` markers, and the tenant comes from the JWT, never from a parameter. It is read by the web layouts (routing by role while suspended, UC-121; `proxy.ts` cannot, because the JWT carries no tenant status), the dashboard (locked items, UC-125) and the customer account (the "Empresa inativa" badge). The route itself adds no cache: it returns the backend's answer (the backend port keeps its 60 s / 10 s cache, and the BFF's 30 s / 10 s TTL cache belongs to the `TenantAccessGuard` only, never to this route). It **fails open** on a lookup error; the billing page and the access calls it makes bypass the BFF cache (UC-117). The BFF guard does not call this route — it reads the backend's internal access endpoint through the shared port.
+No role ever receives the suspension reason or the internal `provisional` / `degraded` markers, and the tenant comes from the JWT, never from a parameter. It is read by the web layouts (routing by role while suspended, UC-121; `proxy.ts` cannot, because the JWT carries no tenant status), the dashboard (locked items, UC-125) and the customer account (the "Empresa inativa" badge). The route itself adds no cache: it returns the backend's answer (the backend port keeps its 300 s / 10 s cache, and the BFF's 300 s / 10 s TTL cache belongs to the `TenantAccessGuard` only, never to this route). It **fails open** on a lookup error; the billing page and the access calls it makes bypass the BFF cache (UC-117). The BFF guard does not call this route — it reads the backend's internal access endpoint through the shared port.
 
 **What `SUSPENDED` changes on existing routes** (UC-121, UC-122)
 
@@ -1875,7 +1875,7 @@ No role ever receives the suspension reason or the internal `provisional` / `deg
 
 *Notes on the table.* Tenant-less signup and registration routes live under `/internal/*` because those paths bypass `RequestInterceptor`. `StaffTenantOption` (`GET /auth/staff-tenants`) has no status field today; UC-121 A4 adds the per-tenant `operational` flag.
 
-**Typed denials.** A route refused for entitlement fails with `BILLING_FEATURE_NOT_ENTITLED`; one refused because the tenant is suspended fails with `BILLING_TENANT_SUSPENDED` (`docs/ERROR_CATALOG.md` § Planned origins: `BILLING_*` and `SIGNUP_*`). The HTTP status of each is not yet specified in the discovery; it is decided at story discovery.
+**Typed denials.** A route refused for entitlement fails with `BILLING_FEATURE_NOT_ENTITLED`; one refused because the tenant is suspended fails with `BILLING_TENANT_SUSPENDED` (`docs/ERROR_CATALOG.md` § Planned origins: `BILLING_*` and `SIGNUP_*`). Both answer `403` (decided at M25-S16's discovery: the web branches on `code`, never on status), with the RFC 9457 body of every other error and no tenant identifier, subscription state or feature list in it.
 
 ---
 

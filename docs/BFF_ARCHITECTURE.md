@@ -271,11 +271,13 @@ ActiveStaffGuard (skipped on @Public() routes)
   │  For a staff caller, asks the backend whether the staff member is still active
   │  → rejects a deactivated staff member's still-valid JWT
   ▼
-TenantAccessGuard (planned with Billing, UC-125 — registered last, after TenantGuard, RolesGuard and ActiveStaffGuard)
-  │  Reads @RequiresFeature / @SuspensionAccess metadata and asks the access port for the tenant;
+TenantAccessGuard (M25-S16, UC-125 — registered last, after TenantGuard, RolesGuard and ActiveStaffGuard)
+  │  Reads @RequiresFeature / @NoFeatureGate / @SuspensionAccess metadata and asks the access port for the tenant
+  │  (an @Public() route's tenant comes from its :slug path or X-Tenant-Slug header; a route whose tenant rides a token
+  │  or body passes here and is gated by the backend guard, which every such call reaches with X-Tenant-ID);
   │  a Guard, never an Interceptor — see docs/ENGINEERING_RULES_SHARED.md § Tenant access enforcement
-  │  — the declarative choke points (planned). Its 30 s (operational) / 10 s (SUSPENDED) answer cache is a
-  │  planned in-process cache in the BFF; nothing of it exists yet (TTLs: docs/DOMAIN_MODEL.md § Entry point)
+  │  — the declarative choke points (planned). Its 300 s (operational) / 10 s (SUSPENDED) answer cache is an
+  │  answers cached by the backend client (a call opts in with `cache: { key, ttlMs }`, § Backend HTTP Service; in-memory adapter of the async `BffCache` port today, apps/bff/src/shared/cache/in-memory-bff-cache.ts, a Redis adapter replaces only its provider; TTLs: docs/DOMAIN_MODEL.md § Entry point)
   ▼
 RequestInterceptor
   │  Runs after the Guards, so req.user is populated: adds tenantId/actor to OTel span attributes
@@ -350,6 +352,8 @@ export class BackendHttpService {
 In production (`BACKEND_AUTH_MODE=iam`) a singleton `BackendAuthInterceptor` (`apps/bff/src/shared/http/backend-auth.interceptor.ts`) registers one axios request interceptor on the shared axios instance. For requests whose origin matches `BACKEND_INTERNAL_URL` it sets `Authorization: Bearer <Google identity token>` (audience `BACKEND_AUDIENCE`, defaulting to the backend URL), obtained through the `IIdentityTokenProvider` port (`GoogleIdentityTokenProvider` adapter) so Cloud Run's IAM invoker check passes. It lives outside the request-scoped service so it registers once, not per request.
 
 **Timeout:** 10 seconds per call. If the backend does not respond within 10 s (or the connection fails), the BFF returns `503 BFF_UPSTREAM_UNAVAILABLE` with the correlationId so the ops team can trace the slow request.
+
+**Opt-in response cache:** a read is never cached unless the call passes `cache: { key, ttlMs }` (`get(path, params, { cache })` here, `BackendInternalClient.get(path, req, { cache })` in a guard). Both clients share one `BffCache` (`BackendCacheModule`, in-memory and per instance today; a Redis adapter replaces only that provider), so a guard and a controller that declare the same key hit the same entry. `ttlMs` is a number or a function of the response (return `undefined` to skip caching, as the access read does for a fail-open answer). A failed read is never stored. **The `key` is a tenant-isolation boundary:** the cache is shared, so a response that varies by tenant or actor must carry the tenant or actor in its key; only a tenant-independent read (a slug → tenant lookup, a tenant's access answer keyed by its own id) may use a plain key. Namespace it (`tenant-by-slug:<slug>`). The current users are `tenantBySlugRead(slug)` (`shared/http/public-tenant.ts`, 300 s) and the tenant-access read (`tenant-access:<id>`, 300 s operational / 10 s suspended).
 
 **Public POST variant:** `postForPublic(path, body, tenantId, timeoutMs = 10_000)` is the unauthenticated (guest/hotsite) counterpart of `post`, built on the tenant id instead of a JWT actor. Its `timeoutMs` is the one per-call timeout override in the class: the chatbot message endpoint passes a longer value because a real LLM completion can outlast the usual 10 seconds.
 

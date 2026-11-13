@@ -256,5 +256,7 @@
   "BILLING_EXEMPT_PROTECTED": "Esta assinatura é isenta e não pode ser alterada desta forma.",
   "BILLING_GRACE_NOT_ALLOWED": "A carência só pode ser definida em uma assinatura em atraso e nunca termina antes dos 14 dias padrão.",
   "BILLING_UNSUSPEND_NOT_ALLOWED": "Somente uma suspensão do operador pode ser levantada desta forma; uma suspensão por pagamento exige o pagamento.",
-  "BILLING_CONCURRENT_MODIFICATION": "Esta assinatura foi alterada por outra solicitação. Recarregue e tente novamente."
+  "BILLING_CONCURRENT_MODIFICATION": "Esta assinatura foi alterada por outra solicitação. Recarregue e tente novamente.",
+  "BILLING_FEATURE_NOT_ENTITLED": "Este recurso não está incluído no seu plano.",
+  "BILLING_TENANT_SUSPENDED": "Esta conta está temporariamente indisponível."
 }

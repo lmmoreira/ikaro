@@ -26,8 +26,7 @@ import { Public } from '../../shared/decorators/public.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { ClientIpRequest, getClientIp } from '../../shared/http/client-ip';
 import { throwProblemDetail } from '../../shared/http/problem-detail';
-import { withPublicTenant } from '../../shared/http/public-tenant';
-import { TenantInfoResponse } from '../../shared/types/backend-responses';
+import { resolvePublicTenantViaBackend, withPublicTenant } from '../../shared/http/public-tenant';
 import { getBusinessContext, getServicesContext } from './chatbot-context';
 import { buildSystemPrompt } from './chatbot.mapper';
 import {
@@ -74,9 +73,8 @@ export class PlatformPublicController {
   @Public()
   @Header('Cache-Control', 'public, max-age=300')
   async getManifest(@Param('slug') slug: string): Promise<HotsiteManifestResponse> {
-    const tenant = await this.backendHttp.get<TenantInfoResponse>(
-      `/internal/tenants/by-slug/${slug}`,
-    );
+    // The tenant the guard already resolved from this path slug (one by-slug hop per TTL window).
+    const tenant = await resolvePublicTenantViaBackend(this.backendHttp, slug);
     const hotsite = await this.backendHttp.getForPublic<BackendHotsiteManifestResponse>(
       '/hotsite',
       tenant.id,

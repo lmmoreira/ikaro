@@ -349,6 +349,10 @@ export const BillingErrorCode = {
   UNSUSPEND_NOT_ALLOWED: 'BILLING_UNSUSPEND_NOT_ALLOWED',
   // The optimistic `version` check lost a race (a retryable 409), reachable from every write.
   CONCURRENT_MODIFICATION: 'BILLING_CONCURRENT_MODIFICATION',
+  // The two typed denials of the declarative gate (M25-S16, UC-125): a feature the tenant lacks,
+  // and a suspended tenant on a route whose suspension policy does not admit the caller.
+  FEATURE_NOT_ENTITLED: 'BILLING_FEATURE_NOT_ENTITLED',
+  TENANT_SUSPENDED: 'BILLING_TENANT_SUSPENDED',
 } as const;
 export type BillingErrorCode = (typeof BillingErrorCode)[keyof typeof BillingErrorCode];
 

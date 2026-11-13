@@ -38,7 +38,11 @@ describe('ScheduleAvailabilityController', () => {
 
       const result = await controller.get(TENANT_SLUG, { date: DATE, serviceIds: SERVICE_ID });
 
-      expect(backendHttp.get).toHaveBeenCalledWith(`/internal/tenants/by-slug/${TENANT_SLUG}`);
+      expect(backendHttp.get).toHaveBeenCalledWith(
+        `/internal/tenants/by-slug/${TENANT_SLUG}`,
+        undefined,
+        expect.anything(),
+      );
       expect(backendHttp.getForPublic).toHaveBeenCalledWith('/schedule/availability', TENANT_ID, {
         date: DATE,
         serviceIds: SERVICE_ID,

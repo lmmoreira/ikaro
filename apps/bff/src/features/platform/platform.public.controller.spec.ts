@@ -2,6 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import * as jwt from 'jsonwebtoken';
 import { makeBackendHttp } from '../../test/backend-http.mock';
 import { ClientIpRequest } from '../../shared/http/client-ip';
+import { tenantBySlugRead } from '../../shared/http/public-tenant';
 import {
   CHATBOT_MESSAGE_TIMEOUT_MS,
   LEAD_FORM_SUBMISSION_TIMEOUT_MS,
@@ -120,7 +121,9 @@ const unpublishedHotsiteResponse: HotsiteResponse & {
 };
 
 describe('PlatformPublicController', () => {
-  afterEach(() => jest.resetAllMocks());
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
 
   describe('getManifest()', () => {
     it('resolves slug to tenant then composes the hotsite manifest', async () => {
@@ -132,7 +135,9 @@ describe('PlatformPublicController', () => {
 
       const result = await controller.getManifest('lavacar-bh');
 
-      expect(backendHttp.get).toHaveBeenCalledWith('/internal/tenants/by-slug/lavacar-bh');
+      // The same by-slug read (and cache entry) the access guard and `withPublicTenant` use.
+      const { path, cache } = tenantBySlugRead('lavacar-bh');
+      expect(backendHttp.get).toHaveBeenCalledWith(path, undefined, { cache });
       expect(backendHttp.getForPublic).toHaveBeenCalledWith('/hotsite', 'tenant-uuid');
       expect(result).toEqual({ tenant: tenantInfo, ...hotsiteResponse });
     });
@@ -183,7 +188,9 @@ describe('PlatformPublicController', () => {
 
       const result = await controller.getChatbotStatus('lavacar-bh');
 
-      expect(backendHttp.get).toHaveBeenCalledWith('/internal/tenants/by-slug/lavacar-bh');
+      // The same by-slug read (and cache entry) the access guard and `withPublicTenant` use.
+      const { path, cache } = tenantBySlugRead('lavacar-bh');
+      expect(backendHttp.get).toHaveBeenCalledWith(path, undefined, { cache });
       expect(backendHttp.getForPublic).toHaveBeenCalledWith(
         '/platform/chatbot/status',
         'tenant-uuid',
@@ -369,7 +376,9 @@ describe('PlatformPublicController', () => {
 
       const result = await controller.getLeadFormConfig('lavacar-bh', 'lavacar-bh');
 
-      expect(backendHttp.get).toHaveBeenCalledWith('/internal/tenants/by-slug/lavacar-bh');
+      // The same by-slug read (and cache entry) the access guard and `withPublicTenant` use.
+      const { path, cache } = tenantBySlugRead('lavacar-bh');
+      expect(backendHttp.get).toHaveBeenCalledWith(path, undefined, { cache });
       expect(backendHttp.getForPublic).toHaveBeenCalledWith(
         '/platform/lead-form/config',
         'tenant-uuid',

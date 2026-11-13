@@ -15,8 +15,12 @@ import { ScheduleModule } from './features/booking/schedule.module';
 import { BookingServicesModule } from './features/booking/services.module';
 import { StaffModule } from './features/staff/staff.module';
 import { ActiveStaffGuard } from './shared/guards/active-staff.guard';
+import { BackendCacheModule } from './shared/http/backend-cache.module';
+import { BackendInternalClient } from './shared/http/backend-internal-client';
 import { AppThrottlerGuard } from './shared/guards/app-throttler.guard';
 import { JwtAuthGuard } from './shared/guards/jwt-auth.guard';
+import { TenantAccessGuard } from './shared/guards/tenant-access.guard';
+import { TenantAccessLookup } from './shared/guards/tenant-access.lookup';
 import { TenantGuard } from './shared/guards/tenant.guard';
 import { RolesGuard } from './shared/guards/roles.guard';
 import { WebOnlyGuard } from './shared/guards/web-only.guard';
@@ -29,6 +33,8 @@ import { RequestInterceptor } from './shared/request/request.interceptor';
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
     HttpModule,
+    // The cache `BackendInternalClient` shares with `BackendHttpService` (same module instance).
+    BackendCacheModule,
     RequestModule,
     // Single per-IP default tier (M17-S30, simplified 2026-07-18) — no separate
     // authenticated/JWT-sub tier; identity-keyed limiting was dropped as unneeded
@@ -56,6 +62,8 @@ import { RequestInterceptor } from './shared/request/request.interceptor';
     // Runs first (registration order, TD38): rejects any caller that isn't ikaro-web itself
     // before it can consume a rate-limit bucket or reach JWT/tenant/role checks — nothing
     // legitimate calls BFF except ikaro-web, so this must be the very first gate.
+    // The singleton guards' one backend caller (BackendHttpService is request-scoped).
+    BackendInternalClient,
     { provide: APP_GUARD, useClass: WebOnlyGuard },
     // Runs second (registration order) — rejects over-limit requests before JWT
     // verification/tenant/role checks do any work.
@@ -64,6 +72,11 @@ import { RequestInterceptor } from './shared/request/request.interceptor';
     { provide: APP_GUARD, useClass: TenantGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_GUARD, useClass: ActiveStaffGuard },
+    // Runs last (M25-S16, UC-125): identity, tenant, role and active-staff failures keep their own
+    // errors, and a deactivated staff member never costs an access lookup. Wired dark — it denies
+    // nothing until a tenant is suspended or lacks a feature a route declares.
+    TenantAccessLookup,
+    { provide: APP_GUARD, useClass: TenantAccessGuard },
     // Runs after all Guards above (Interceptors are the next pipeline stage) — req.user is
     // populated by then, so tenantId/actor fields are available for OTel span attributes and
     // AppLogger enrichment. See RequestInterceptor's own comment for the guard-rejection caveat.

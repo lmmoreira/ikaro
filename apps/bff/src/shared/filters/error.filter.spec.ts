@@ -6,6 +6,7 @@ import { AuthErrorCode } from '@ikaro/types';
 import { AxiosError, AxiosResponse } from 'axios';
 import { Request } from 'express';
 import { throwError } from 'rxjs';
+import { InMemoryBffCache } from '../cache/in-memory-bff-cache';
 import { BackendHttpService } from '../http/backend-http.service';
 import { ErrorFilter } from './error.filter';
 
@@ -51,9 +52,12 @@ describe('ErrorFilter', () => {
     const config = {
       getOrThrow: (key: string) => (key === 'BACKEND_INTERNAL_URL' ? 'http://backend:3001' : 'k'),
     } as unknown as ConfigService;
-    const backend = new BackendHttpService(http as unknown as HttpService, config, {
-      headers: {},
-    } as unknown as Request);
+    const backend = new BackendHttpService(
+      http as unknown as HttpService,
+      config,
+      { headers: {} } as unknown as Request,
+      new InMemoryBffCache({ maxEntries: 10 }),
+    );
     const thrown = await backend.post('/v1/bookings', {}).catch((e: unknown) => e);
     const { host, status, json, set } = makeHost();
 

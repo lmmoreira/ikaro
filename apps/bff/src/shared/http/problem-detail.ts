@@ -1,5 +1,6 @@
 import { throwProblemDetail as throwProblemDetailBase } from '@ikaro/nestjs-http';
 import {
+  type BillingErrorCode,
   StaffErrorCode,
   type AuthErrorCode,
   type BffErrorCode,
@@ -13,6 +14,11 @@ import {
 // defeat the compile-time governance TD23 §9 exists to provide.
 type StaffDeactivatedCode = (typeof StaffErrorCode)['DEACTIVATED'];
 
+// The two typed denials `TenantAccessGuard` throws (M25-S16): narrowed to those members, not the
+// whole `BillingErrorCode` union, for the same reason as `StaffDeactivatedCode`.
+type BillingDenialCode =
+  (typeof BillingErrorCode)['FEATURE_NOT_ENTITLED'] | (typeof BillingErrorCode)['TENANT_SUSPENDED'];
+
 // Codes a BFF-originated throw site is allowed to use — spans every origin actually reused
 // across the BFF (TD23 Story 11): BFF-feature-specific, framework/guard fallback, VO-less
 // generic, and StaffDeactivatedCode (reused verbatim from the backend for the identical
@@ -20,7 +26,7 @@ type StaffDeactivatedCode = (typeof StaffErrorCode)['DEACTIVATED'];
 // AnyErrorCode, so a BFF site can't accidentally throw an unrelated backend-only code — that
 // would defeat the compile-time governance TD23 §9 exists to provide.
 export type BffThrowableCode =
-  BffErrorCode | AuthErrorCode | GenericErrorCode | StaffDeactivatedCode;
+  BffErrorCode | AuthErrorCode | GenericErrorCode | StaffDeactivatedCode | BillingDenialCode;
 
 // Canonical envelope for every BFF-originated error (TD23 Story 11) — never throw an
 // ad-hoc { type, title, status, detail } object or a bare BadRequestException(string)
