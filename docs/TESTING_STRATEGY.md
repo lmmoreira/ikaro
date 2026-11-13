@@ -29,6 +29,8 @@ Tests in Ikaro are **executable specifications**. Each test proves that a specif
 | In-memory fakes | **Manual** | Hand-written in-memory adapters (see §In-Memory Adapters) |
 | Frontend API mocking | **`vi.spyOn(globalThis, 'fetch')` / `vi.mock()`** | Vitest stubs for BFF calls (MSW is not used in `apps/web`) |
 
+**Running Jest by hand — two traps.** `jest --selectProjects unit <path>` reads `<path>` as another project name and runs the whole suite; filter with `--testPathPatterns <regex>` (for example `--testPathPatterns 'shared/application/jobs'`). Run the backend unit suite through `pnpm --filter @ikaro/backend test:unit`: a raw `jest` run lacks the `--max-old-space-size` setting and dies with `JavaScript heap out of memory` (`docs/ENGINEERING_RULES_TESTING.md` § Node's default V8 heap limit).
+
 ---
 
 ## The Testing Pyramid
