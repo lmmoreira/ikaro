@@ -113,14 +113,26 @@ describe('BFF Platform routes — tenant access (component)', () => {
     };
   }
 
-  // The three backend reads the guard chain makes, answered by URL so the order never matters.
-  function backendAnswers(tenantId: string, slug: string, access: object): void {
+  interface TenantAnswer {
+    tenantId: string;
+    slug: string;
+    access: object;
+  }
+
+  // The three backend reads the guard chain makes, answered by URL so the order never matters and
+  // keyed by tenant: a lookup for a tenant the test did not register fails loudly instead of
+  // receiving another tenant's answer.
+  function backendAnswers(...tenants: TenantAnswer[]): void {
     httpService.get.mockImplementation((url: string) => {
       if (url.includes('/staff/me/status')) return makeObservableResponse({ isActive: true });
       if (url.includes('/internal/tenants/by-slug/')) {
-        return makeObservableResponse({ id: tenantId, slug, name: 'Tenant' });
+        const bySlug = tenants.find((entry) => url.endsWith(`/by-slug/${entry.slug}`));
+        if (!bySlug) throw new Error(`Unexpected by-slug lookup: ${url}`);
+        return makeObservableResponse({ id: bySlug.tenantId, slug: bySlug.slug, name: 'Tenant' });
       }
-      return makeObservableResponse(access);
+      const byId = tenants.find((entry) => url.includes(`/tenants/${entry.tenantId}/access`));
+      if (!byId) throw new Error(`Unexpected access lookup: ${url}`);
+      return makeObservableResponse(byId.access);
     });
   }
 
@@ -143,7 +155,11 @@ describe('BFF Platform routes — tenant access (component)', () => {
       'refuses $label with BILLING_FEATURE_NOT_ENTITLED',
       async ({ route }) => {
         const { tenantId, slug } = nextTenant();
-        backendAnswers(tenantId, slug, operationalWithout(route.feature));
+        backendAnswers({
+          tenantId: tenantId,
+          slug: slug,
+          access: operationalWithout(route.feature),
+        });
 
         const res = await call(route, tenantId, slug);
 
@@ -162,7 +178,7 @@ describe('BFF Platform routes — tenant access (component)', () => {
       })),
     )('refuses $label with BILLING_TENANT_SUSPENDED', async ({ route }) => {
       const { tenantId, slug } = nextTenant();
-      backendAnswers(tenantId, slug, SUSPENDED);
+      backendAnswers({ tenantId: tenantId, slug: slug, access: SUSPENDED });
 
       const res = await call(route, tenantId, slug);
 
@@ -173,7 +189,7 @@ describe('BFF Platform routes — tenant access (component)', () => {
 
     it('still serves the manifest with 200 and its branding (never a typed denial)', async () => {
       const { tenantId, slug } = nextTenant();
-      backendAnswers(tenantId, slug, SUSPENDED);
+      backendAnswers({ tenantId: tenantId, slug: slug, access: SUSPENDED });
       const tenant = { id: tenantId, slug, name: 'Tenant' };
       backendHttpService.get.mockResolvedValueOnce(tenant);
       backendHttpService.getForPublic.mockResolvedValueOnce({
@@ -187,12 +203,22 @@ describe('BFF Platform routes — tenant access (component)', () => {
       expect(res.status).toBe(200);
       expect(res.body.branding).toEqual({ primaryColor: '#2563EB' });
     });
+
+    it('serves the published-hotsites list with 200 and makes no access lookup (it names no tenant)', async () => {
+      backendHttpService.get.mockResolvedValueOnce({ items: [] });
+
+      const res = await request(app.getHttpServer()).get('/v1/public/platform/published-hotsites');
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ items: [] });
+      expect(httpService.get).not.toHaveBeenCalled();
+    });
   });
 
   describe('an entitled tenant', () => {
     it('reaches the controller of an authenticated route', async () => {
       const { tenantId, slug } = nextTenant();
-      backendAnswers(tenantId, slug, ENTITLED);
+      backendAnswers({ tenantId: tenantId, slug: slug, access: ENTITLED });
       backendHttpService.get.mockResolvedValueOnce({
         tenantId,
         name: 'Tenant',
@@ -207,7 +233,7 @@ describe('BFF Platform routes — tenant access (component)', () => {
 
     it('reaches the controller of a public route', async () => {
       const { tenantId, slug } = nextTenant();
-      backendAnswers(tenantId, slug, ENTITLED);
+      backendAnswers({ tenantId: tenantId, slug: slug, access: ENTITLED });
       backendHttpService.get.mockResolvedValueOnce({ id: tenantId, slug, name: 'Tenant' });
       backendHttpService.getForPublic.mockResolvedValueOnce({ available: true });
 
@@ -224,7 +250,7 @@ describe('BFF Platform routes — tenant access (component)', () => {
   describe('the settings route stays HOTSITE (a tenant without CHATBOT keeps its chatbot settings)', () => {
     it('saves chatbot settings but is refused the chatbot-owned cap-status', async () => {
       const { tenantId, slug } = nextTenant();
-      backendAnswers(tenantId, slug, operationalWithout('CHATBOT'));
+      backendAnswers({ tenantId: tenantId, slug: slug, access: operationalWithout('CHATBOT') });
       backendHttpService.patch.mockResolvedValueOnce({
         tenantId,
         name: 'Tenant',
@@ -254,10 +280,9 @@ describe('BFF Platform routes — tenant access (component)', () => {
       const operational = nextTenant();
       const route = authed('get', '/v1/tenants/settings', 'HOTSITE');
 
-      backendAnswers(suspended.tenantId, suspended.slug, SUSPENDED);
+      backendAnswers({ ...suspended, access: SUSPENDED }, { ...operational, access: ENTITLED });
       const own = await call(route, suspended.tenantId, suspended.slug);
 
-      backendAnswers(operational.tenantId, operational.slug, ENTITLED);
       backendHttpService.get.mockResolvedValueOnce({
         tenantId: operational.tenantId,
         name: 'Tenant',

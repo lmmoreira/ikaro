@@ -1,7 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import request from 'supertest';
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import { BillingErrorCode } from '@ikaro/types';
 import type { FeatureKey } from '@ikaro/validation';
 import { ErrorFilter } from '../../../../shared/filters/error.filter';
@@ -99,6 +99,15 @@ const withoutFeature = (feature: FeatureKey) =>
 // M25-S17 — the real Platform controllers behind the real `TenantAccessGuard`, with only the access
 // answer faked. Existing per-controller specs stay unchanged (they run without the guard, which is
 // the non-regression proof for an entitled or exempt tenant).
+const FIXTURE_TENANT_IDS = [TENANT_A, TENANT_B];
+
+// FK-safe order: the hotsite config row references the tenant. Called defensively before seeding and
+// as the whole teardown, so a reused Testcontainers database never carries these fixed-UUID rows over.
+async function cleanupFixtures(ds: DataSource): Promise<void> {
+  await ds.getRepository(HotsiteConfigEntity).delete({ tenantId: In(FIXTURE_TENANT_IDS) });
+  await ds.getRepository(TenantEntity).delete({ id: In(FIXTURE_TENANT_IDS) });
+}
+
 describe('Platform routes — tenant access (integration)', () => {
   let app: INestApplication;
   let ds: DataSource;
@@ -115,6 +124,8 @@ describe('Platform routes — tenant access (integration)', () => {
         { provide: APP_GUARD, useClass: TenantAccessGuard },
       ],
     }));
+
+    await cleanupFixtures(ds);
 
     for (const [id, slug] of [
       [TENANT_A, 'platform-access-integ-a'],
@@ -135,8 +146,12 @@ describe('Platform routes — tenant access (integration)', () => {
   });
 
   afterAll(async () => {
-    await app.close();
-    delete process.env['INTERNAL_API_KEY'];
+    try {
+      await cleanupFixtures(ds);
+    } finally {
+      await app.close();
+      delete process.env['INTERNAL_API_KEY'];
+    }
   });
 
   function call(route: Pick<PlatformRoute, 'method' | 'path' | 'role'>, tenantId: string) {

@@ -1362,7 +1362,7 @@ Annotate every existing **Platform** HTTP route with explicit entitlement and su
   - `apps/backend/src/contexts/platform/infrastructure/controllers/platform-tenant-access.integration.spec.ts` (create — real `TenantAccessGuard` + `InMemoryTenantAccessPort` over `createPlatformIntegrationApp`)
   - `apps/bff/src/features/platform/platform-tenant-access.metadata.spec.ts` (create — the BFF mapping spec)
   - `apps/bff/src/features/platform/platform-tenant-access.component.spec.ts` (create — real BFF `TenantAccessGuard` over the Platform controllers, using `createTestApp`)
-  - `apps/backend/src/test/utils/route-access-requirements.ts` and `apps/bff/src/test/route-access-requirements.ts` (create — one small test helper per app that lists a controller's route handlers with the requirement the guard resolves for each, so the mapping specs of S17–S20 share it instead of each copying it)
+  - `packages/nestjs-http/src/route-access-requirements.ts` and its `.spec.ts` (create — one shared helper that lists a controller's route handlers with the requirement the guard resolves for each, taking Nest's `Reflector`; the S17–S20 mapping specs of both apps import it instead of each copying it, which SonarCloud's duplication gate rejected when it lived once per app)
 - `apps/bff/http/platform/platform.http` (modify — a comment on the manifest and published-list requests only)
 - `docs/USE_CASES.md` UC-125 already says the public booking, lead-form and chatbot routes refuse while the manifest and published list are exempt; no doc edit is owed
 

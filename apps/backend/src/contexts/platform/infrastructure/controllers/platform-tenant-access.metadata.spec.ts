@@ -1,7 +1,8 @@
 import type { Type } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { routeAccessRequirements } from '@ikaro/nestjs-http';
 import type { SuspensionAccessPolicy } from '@ikaro/types';
 import type { FeatureKey } from '@ikaro/validation';
-import { routeAccessRequirements } from '../../../../test/utils/route-access-requirements';
 import { ChatbotController } from './chatbot.controller';
 import { HotsiteAdminController } from './hotsite-admin.controller';
 import { HotsiteController } from './hotsite.controller';
@@ -72,8 +73,10 @@ const MAPPING: ControllerMapping[] = [
   },
 ];
 
+const reflector = new Reflector();
+
 const rows = MAPPING.flatMap((mapping) =>
-  routeAccessRequirements(mapping.controller).map((route) => ({
+  routeAccessRequirements(mapping.controller, reflector).map((route) => ({
     controller: mapping.controller.name,
     handler: route.handler,
     requirement: route.requirement,
@@ -83,7 +86,7 @@ const rows = MAPPING.flatMap((mapping) =>
 
 describe('Platform routes — tenant access mapping (M25-S17)', () => {
   it.each(MAPPING)('finds the routes of $controller.name', ({ controller, minRoutes }) => {
-    expect(routeAccessRequirements(controller).length).toBeGreaterThanOrEqual(minRoutes);
+    expect(routeAccessRequirements(controller, reflector).length).toBeGreaterThanOrEqual(minRoutes);
   });
 
   it.each(rows)(
@@ -100,7 +103,9 @@ describe('Platform routes — tenant access mapping (M25-S17)', () => {
 
   it('maps every per-route entry of a mixed controller to a real handler', () => {
     for (const mapping of MAPPING.filter((entry) => entry.routes)) {
-      const handlers = routeAccessRequirements(mapping.controller).map((route) => route.handler);
+      const handlers = routeAccessRequirements(mapping.controller, reflector).map(
+        (route) => route.handler,
+      );
       expect(handlers.sort()).toEqual(Object.keys(mapping.routes ?? {}).sort());
     }
   });
