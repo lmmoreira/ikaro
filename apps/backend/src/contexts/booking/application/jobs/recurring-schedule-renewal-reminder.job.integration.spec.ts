@@ -9,6 +9,9 @@ import {
 } from '../../../../test/builders/booking/index';
 import { makeRealOutboxPublisher } from '../../../../test/factories/real-outbox-publisher.factory';
 import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
+import { InMemoryTenantDirectoryPort } from '../../../../test/infrastructure/in-memory-tenant-directory.port';
+import { TenantJobRunner } from '../../../../shared/application/jobs/tenant-job-runner';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { RecurringBookingScheduleEntity } from '../../infrastructure/entities/recurring-booking-schedule.entity';
@@ -26,6 +29,8 @@ describe('RecurringScheduleRenewalReminderJob (integration)', () => {
   let outboxRepo: TypeOrmOutboxRepository;
   let txManager: TypeOrmTransactionManager;
   let platform: InMemoryBookingPlatformPort;
+  let directory: InMemoryTenantDirectoryPort;
+  let access: InMemoryTenantAccessPort;
   let job: RecurringScheduleRenewalReminderJob;
 
   const tenantA = uuidv7();
@@ -52,7 +57,9 @@ describe('RecurringScheduleRenewalReminderJob (integration)', () => {
         new ServiceEntityBuilder().withId(serviceB).withTenantId(tenantB).build(),
       ]);
     platform = new InMemoryBookingPlatformPort();
-    platform.seed([
+    directory = new InMemoryTenantDirectoryPort();
+    access = new InMemoryTenantAccessPort();
+    directory.seed([
       { id: tenantA, timezone: 'America/Sao_Paulo' },
       { id: tenantB, timezone: 'America/Sao_Paulo' },
     ]);
@@ -65,6 +72,7 @@ describe('RecurringScheduleRenewalReminderJob (integration)', () => {
       reminderDays: 3,
     });
     job = new RecurringScheduleRenewalReminderJob(
+      new TenantJobRunner(directory, access),
       platform,
       repo,
       makeRealOutboxPublisher(outboxRepo, new InMemoryEventBus()),
@@ -155,5 +163,26 @@ describe('RecurringScheduleRenewalReminderJob (integration)', () => {
       (rows[0].payload as { data: { recurringScheduleId: string } }).data.recurringScheduleId,
     ).toBe(forB.id);
     expect(await outboxRows(tenantA)).toHaveLength(1);
+  });
+
+  it('skips an active tenant that lacks BOOKING and processes it once it has the feature', async () => {
+    // Tenant B's lead time is 3 days, so a schedule ending 2026-10-15 is due on NOW.
+    const schedule = new RecurringBookingScheduleBuilder()
+      .withTenantId(tenantB)
+      .withCustomerId(uuidv7())
+      .withServiceId(serviceB)
+      .withTerm('2026-08-01', '2026-10-15')
+      .withStatus('ACTIVE')
+      .build();
+    await repo.save(schedule);
+    const before = (await outboxRows(tenantB)).length;
+    access.seedNotEntitledTo('BOOKING', [tenantB]);
+
+    await job.run(NOW);
+    expect(await outboxRows(tenantB)).toHaveLength(before);
+
+    access.seedNotEntitledTo('BOOKING', []);
+    await job.run(NOW);
+    expect(await outboxRows(tenantB)).toHaveLength(before + 1);
   });
 });

@@ -1,11 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { TenantJobRunner } from '../../../../shared/application/jobs/tenant-job-runner';
 import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
 import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
 import { BOOKING_CUSTOMER_PORT, IBookingCustomerPort } from '../ports/booking-customer.port';
-import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
 import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
 import { WindowedTenantJob } from './windowed-tenant-job.base';
 
@@ -16,12 +16,12 @@ import { WindowedTenantJob } from './windowed-tenant-job.base';
 @Injectable()
 export abstract class BookingDayReminderJobBase extends WindowedTenantJob {
   constructor(
-    @Inject(BOOKING_PLATFORM_PORT) tenantPort: IBookingPlatformPort,
+    tenantRunner: TenantJobRunner,
     @Inject(BOOKING_REPOSITORY) protected readonly bookingRepo: IBookingRepository,
     @Inject(BOOKING_CUSTOMER_PORT) protected readonly customerProfilePort: IBookingCustomerPort,
     @Inject(OUTBOX_PUBLISHER) protected readonly outboxPublisher: IOutboxPublisher,
     @Inject(TRANSACTION_MANAGER) protected readonly txManager: ITransactionManager,
   ) {
-    super(tenantPort);
+    super(tenantRunner);
   }
 }

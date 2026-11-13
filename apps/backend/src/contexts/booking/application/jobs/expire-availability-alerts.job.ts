@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
+import { TenantJobRunner } from '../../../../shared/application/jobs/tenant-job-runner';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import {
   ITransactionManager,
@@ -12,7 +13,6 @@ import {
   AVAILABILITY_ALERT_REPOSITORY,
   IAvailabilityAlertRepository,
 } from '../ports/availability-alert-repository.port';
-import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
 
 export interface ExpireAvailabilityAlertsJobResult {
   expired: number;
@@ -41,16 +41,17 @@ export class ExpireAvailabilityAlertsJob {
   private readonly logger = new AppLogger(ExpireAvailabilityAlertsJob.name);
 
   constructor(
-    @Inject(BOOKING_PLATFORM_PORT) private readonly tenantPort: IBookingPlatformPort,
+    private readonly tenantRunner: TenantJobRunner,
     @Inject(AVAILABILITY_ALERT_REPOSITORY)
     private readonly alertRepo: IAvailabilityAlertRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {}
 
   async run(now: Date = new Date()): Promise<ExpireAvailabilityAlertsJobResult> {
-    const tenants = await this.tenantPort.findAllActive();
-    const perTenant = await mapSequentially(tenants, (tenant) =>
-      this.processTenant(tenant.id, now),
+    const perTenant = await this.tenantRunner.forEachTenant(
+      { label: 'Expire availability alerts' },
+      now,
+      (tenant) => this.processTenant(tenant.id, now),
     );
     return {
       expired: perTenant.reduce((sum, result) => sum + result.expired, 0),

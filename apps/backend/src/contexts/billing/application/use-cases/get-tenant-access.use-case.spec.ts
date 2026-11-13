@@ -7,7 +7,9 @@ import { InMemorySubscriptionRepository } from '../../../../test/repositories/bi
 import { BillingTenantNotFoundError } from '../../domain/errors/billing-domain.error';
 import { GetTenantAccessUseCase, PROVISIONING_GRACE_MINUTES } from './get-tenant-access.use-case';
 
-const NOW = new Date('2026-11-12T12:00:00.000Z');
+// Relative to the real clock, like SubscriptionItemBuilder's default start (a day before Date.now()):
+// a hardcoded instant puts that start in the spec clock's future as soon as real time passes it.
+const NOW = new Date();
 const MINUTE_MS = 60_000;
 
 describe('GetTenantAccessUseCase', () => {

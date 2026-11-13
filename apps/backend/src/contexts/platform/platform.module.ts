@@ -5,6 +5,7 @@ import { ApplicationConfigModule } from '../../shared/infrastructure/application
 import { StorageModule } from '../../shared/infrastructure/storage.module';
 import { RequestModule } from '../../shared/request/request.module';
 import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cache.module';
+import { TENANT_DIRECTORY_PORT } from '../../shared/ports/tenant-directory.port';
 import { TENANT_SETTINGS_PORT } from '../../shared/ports/tenant-settings.port';
 import { CHATBOT_MESSAGE_REPOSITORY } from './application/ports/chatbot-message-repository.port';
 import { CHATBOT_PROVIDER_BALANCE_REPOSITORY } from './application/ports/chatbot-provider-balance-repository.port';
@@ -71,6 +72,7 @@ import { LeadFormConfigEntity } from './infrastructure/entities/lead-form-config
 import { LeadFormSubmissionEntity } from './infrastructure/entities/lead-form-submission.entity';
 import { TenantEntity } from './infrastructure/entities/tenant.entity';
 import { FrontendRevalidationAdapter } from './infrastructure/adapters/frontend-revalidation.adapter';
+import { PlatformTenantDirectoryAdapter } from './infrastructure/cross-context/platform-tenant-directory.adapter';
 import { PlatformTenantSettingsAdapter } from './infrastructure/cross-context/platform-tenant-settings.adapter';
 import { AnthropicLlmAdapter } from './infrastructure/llm/anthropic-llm.adapter';
 import { FakeLlmAdapter } from './infrastructure/llm/fake-llm.adapter';
@@ -156,6 +158,7 @@ import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.
     },
     { provide: LEAD_FORM_SUBMISSION_REPOSITORY, useClass: TypeOrmLeadFormSubmissionRepository },
     { provide: TENANT_SETTINGS_PORT, useClass: PlatformTenantSettingsAdapter },
+    { provide: TENANT_DIRECTORY_PORT, useClass: PlatformTenantDirectoryAdapter },
     { provide: OPENROUTER_LLM_PROVIDER, useClass: OpenRouterLlmAdapter },
     { provide: ANTHROPIC_LLM_PROVIDER, useClass: AnthropicLlmAdapter },
     { provide: OPENAI_LLM_PROVIDER, useClass: OpenAiLlmAdapter },
@@ -235,6 +238,7 @@ import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.
     GetTenantsUseCase,
     GetHotsiteContentUseCase,
     TENANT_SETTINGS_PORT,
+    TENANT_DIRECTORY_PORT,
   ],
 })
 export class PlatformModule {}

@@ -6,10 +6,8 @@ import {
 } from '../../../platform/application/ports/frontend-revalidation.port';
 import { GetHotsiteBookingPickerUseCase } from '../../../platform/application/use-cases/get-hotsite-booking-picker.use-case';
 import { GetTenantByIdUseCase } from '../../../platform/application/use-cases/get-tenant-by-id.use-case';
-import { GetTenantsUseCase } from '../../../platform/application/use-cases/get-tenants.use-case';
 import { GetTenantBusinessHoursForUpdateUseCase } from '../../../platform/application/use-cases/get-tenant-business-hours-for-update.use-case';
 import {
-  ActiveTenantInfo,
   AvailabilityAlertTenantContext,
   IBookingPlatformPort,
   RecurringRenewalTenantSettings,
@@ -22,21 +20,12 @@ export class BookingPlatformAdapter implements IBookingPlatformPort {
   private readonly logger = new AppLogger(BookingPlatformAdapter.name);
 
   constructor(
-    private readonly getTenants: GetTenantsUseCase,
     private readonly getTenantById: GetTenantByIdUseCase,
     private readonly getTenantBusinessHoursForUpdate: GetTenantBusinessHoursForUpdateUseCase,
     private readonly getHotsiteBookingPicker: GetHotsiteBookingPickerUseCase,
     @Inject(FRONTEND_REVALIDATION_PORT)
     private readonly frontendRevalidation: IFrontendRevalidationPort,
   ) {}
-
-  async findAllActive(): Promise<ActiveTenantInfo[]> {
-    const result = await this.getTenants.execute({ status: 'ACTIVE' });
-    return result.items.map((tenant) => ({
-      id: tenant.id,
-      timezone: tenant.timezone,
-    }));
-  }
 
   // Best-effort per the port contract — the tenant lookup runs after the caller's write
   // transaction has already committed, so a failure here must never surface as an error for an

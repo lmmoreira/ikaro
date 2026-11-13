@@ -18,6 +18,10 @@ export class InMemoryTenantAccessPort implements TenantAccessPort {
   private readonly notEntitledIds = new Map<FeatureKey, string[]>();
   // State-based replacement for a jest.fn() call-count assertion.
   readonly getAccessCalls: string[] = [];
+  listSuspendedCalls = 0;
+  readonly notEntitledCalls: FeatureKey[] = [];
+  // Set to make both batch reads throw, like a Billing read that fails.
+  batchReadError: Error | null = null;
 
   seed(tenantId: string, access: TenantAccess): void {
     this.byTenant.set(tenantId, access);
@@ -31,6 +35,13 @@ export class InMemoryTenantAccessPort implements TenantAccessPort {
       features: [],
     });
     this.suspendedIds.push(tenantId);
+  }
+
+  // A suspended tenant coming back: operational again, with every feature (the default).
+  reactivate(tenantId: string): void {
+    this.byTenant.delete(tenantId);
+    const index = this.suspendedIds.indexOf(tenantId);
+    if (index >= 0) this.suspendedIds.splice(index, 1);
   }
 
   seedNotEntitledTo(feature: FeatureKey, tenantIds: string[]): void {
@@ -50,10 +61,14 @@ export class InMemoryTenantAccessPort implements TenantAccessPort {
   }
 
   async listSuspendedTenantIds(): Promise<string[]> {
+    this.listSuspendedCalls += 1;
+    if (this.batchReadError) throw this.batchReadError;
     return [...this.suspendedIds];
   }
 
   async findTenantIdsNotEntitledTo(feature: FeatureKey): Promise<string[]> {
+    this.notEntitledCalls.push(feature);
+    if (this.batchReadError) throw this.batchReadError;
     return [...(this.notEntitledIds.get(feature) ?? [])];
   }
 }

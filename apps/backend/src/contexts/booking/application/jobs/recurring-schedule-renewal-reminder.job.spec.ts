@@ -1,5 +1,8 @@
 import { RecurringBookingScheduleBuilder } from '../../../../test/builders/booking/index';
 import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
+import { InMemoryTenantDirectoryPort } from '../../../../test/infrastructure/in-memory-tenant-directory.port';
+import { TenantJobRunner } from '../../../../shared/application/jobs/tenant-job-runner';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryRecurringBookingScheduleRepository } from '../../../../test/repositories/booking/in-memory-recurring-booking-schedule.repository';
@@ -23,6 +26,9 @@ interface RenewalData {
 
 describe('RecurringScheduleRenewalReminderJob', () => {
   let platform: InMemoryBookingPlatformPort;
+  let directory: InMemoryTenantDirectoryPort;
+  let access: InMemoryTenantAccessPort;
+  let runner: TenantJobRunner;
   let repo: InMemoryRecurringBookingScheduleRepository;
   let outbox: InMemoryEventBus;
   let job: RecurringScheduleRenewalReminderJob;
@@ -52,7 +58,10 @@ describe('RecurringScheduleRenewalReminderJob', () => {
 
   beforeEach(() => {
     platform = new InMemoryBookingPlatformPort();
-    platform.seed([
+    directory = new InMemoryTenantDirectoryPort();
+    access = new InMemoryTenantAccessPort();
+    runner = new TenantJobRunner(directory, access);
+    directory.seed([
       { id: TENANT_A, timezone: 'America/Sao_Paulo' },
       { id: TENANT_B, timezone: 'America/Sao_Paulo' },
     ]);
@@ -67,6 +76,7 @@ describe('RecurringScheduleRenewalReminderJob', () => {
     repo = new InMemoryRecurringBookingScheduleRepository();
     outbox = new InMemoryEventBus();
     job = new RecurringScheduleRenewalReminderJob(
+      runner,
       platform,
       repo,
       outbox,
@@ -192,7 +202,7 @@ describe('RecurringScheduleRenewalReminderJob', () => {
     const tx = new InMemoryTransactionManager();
     const run = jest.spyOn(tx, 'run');
     const findEndingOn = jest.spyOn(repo, 'findActiveEndingOn');
-    job = new RecurringScheduleRenewalReminderJob(platform, repo, outbox, tx);
+    job = new RecurringScheduleRenewalReminderJob(runner, platform, repo, outbox, tx);
 
     await job.run(NOW_IN);
 
@@ -226,5 +236,25 @@ describe('RecurringScheduleRenewalReminderJob', () => {
     expect(renewals().map((e) => (e.data as unknown as RenewalData).recurringScheduleId)).toEqual([
       due.id,
     ]);
+  });
+
+  it('skips a suspended tenant', async () => {
+    seed('customer-a', IN_SEVEN_DAYS);
+    seed('customer-b', IN_SEVEN_DAYS, { tenantId: TENANT_B });
+    access.seedSuspended(TENANT_B);
+
+    await job.run(NOW_IN);
+
+    expect(renewals().map((e) => e.tenantId)).toEqual([TENANT_A]);
+  });
+
+  it('skips a tenant without BOOKING', async () => {
+    seed('customer-a', IN_SEVEN_DAYS);
+    seed('customer-b', IN_SEVEN_DAYS, { tenantId: TENANT_B });
+    access.seedNotEntitledTo('BOOKING', [TENANT_B]);
+
+    await job.run(NOW_IN);
+
+    expect(renewals().map((e) => e.tenantId)).toEqual([TENANT_A]);
   });
 });

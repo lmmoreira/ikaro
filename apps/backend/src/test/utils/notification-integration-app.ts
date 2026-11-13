@@ -30,6 +30,7 @@ import { InMemoryStorageService } from '../infrastructure/in-memory-storage.serv
 import { InMemoryTenantSettingsPort } from '../infrastructure/in-memory-tenant-settings.port';
 import { TENANT_SETTINGS_PORT } from '../../shared/ports/tenant-settings.port';
 import { testCacheModule } from './test-cache-module';
+import { testTenantAccessModule } from './test-tenant-access-module';
 import { testConfigModule } from './test-config-module';
 
 type EntityClass = abstract new (...args: unknown[]) => unknown;
@@ -67,6 +68,7 @@ export async function createNotificationIntegrationApp(
     imports: [
       testConfigModule(),
       testCacheModule(),
+      testTenantAccessModule(),
       TypeOrmModule.forRoot({
         type: 'postgres',
         url: process.env['TEST_DATABASE_URL'],

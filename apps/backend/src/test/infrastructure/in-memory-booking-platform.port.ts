@@ -1,5 +1,4 @@
 import {
-  ActiveTenantInfo,
   AvailabilityAlertTenantContext,
   IBookingPlatformPort,
   RecurringRenewalTenantSettings,
@@ -9,7 +8,6 @@ import {
 import { FULL_WEEK_BUSINESS_HOURS } from '../utils/business-hours-fixtures';
 
 export class InMemoryBookingPlatformPort implements IBookingPlatformPort {
-  private readonly tenants: ActiveTenantInfo[] = [];
   readonly revalidatedTenantIds: string[] = [];
   private readonly businessHoursAndLocaleByTenant = new Map<string, TenantBusinessHoursAndLocale>();
   private readonly autoApproveEnabledByTenant = new Map<string, boolean>();
@@ -17,10 +15,6 @@ export class InMemoryBookingPlatformPort implements IBookingPlatformPort {
   private readonly bookingWindowByTenant = new Map<string, TenantBookingWindow>();
   private readonly alertContextByTenant = new Map<string, AvailabilityAlertTenantContext>();
   private readonly renewalSettingsByTenant = new Map<string, RecurringRenewalTenantSettings>();
-
-  seed(tenants: ActiveTenantInfo[]): void {
-    this.tenants.push(...tenants);
-  }
 
   seedBusinessHoursAndLocale(tenantId: string, value: TenantBusinessHoursAndLocale): void {
     this.businessHoursAndLocaleByTenant.set(tenantId, value);
@@ -47,17 +41,12 @@ export class InMemoryBookingPlatformPort implements IBookingPlatformPort {
   }
 
   clear(): void {
-    this.tenants.length = 0;
     this.businessHoursAndLocaleByTenant.clear();
     this.autoApproveEnabledByTenant.clear();
     this.alertContextByTenant.clear();
     this.bookingWindowByTenant.clear();
     this.serviceBufferMinutesByTenant.clear();
     this.renewalSettingsByTenant.clear();
-  }
-
-  async findAllActive(): Promise<ActiveTenantInfo[]> {
-    return [...this.tenants];
   }
 
   async revalidatePublicPages(tenantId: string): Promise<void> {
@@ -107,14 +96,13 @@ export class InMemoryBookingPlatformPort implements IBookingPlatformPort {
 
   getRecurringRenewalSettings(tenantId: string): Promise<RecurringRenewalTenantSettings> {
     return Promise.resolve(
-      this.renewalSettingsByTenant.get(tenantId) ?? this.defaultRenewalSettings(tenantId),
+      this.renewalSettingsByTenant.get(tenantId) ?? this.defaultRenewalSettings(),
     );
   }
 
-  // The tenant's seeded timezone when it was seeded through seed(), the platform default otherwise.
-  private defaultRenewalSettings(tenantId: string): RecurringRenewalTenantSettings {
-    const tenant = this.tenants.find((t) => t.id === tenantId);
-    return { timezone: tenant?.timezone ?? 'America/Sao_Paulo', reminderDays: 7 };
+  // The platform default timezone and a 7-day lead time unless a spec seeded the tenant's own.
+  private defaultRenewalSettings(): RecurringRenewalTenantSettings {
+    return { timezone: 'America/Sao_Paulo', reminderDays: 7 };
   }
 
   getAvailabilityAlertContext(tenantId: string): Promise<AvailabilityAlertTenantContext> {

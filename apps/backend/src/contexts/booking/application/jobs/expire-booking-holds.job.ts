@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
+import { TenantJobRunner } from '../../../../shared/application/jobs/tenant-job-runner';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import {
   ITransactionManager,
@@ -8,7 +9,6 @@ import {
 import { mapSequentially } from '../../../../shared/utils/sequential';
 import { Booking, BookingStatus } from '../../domain/booking.aggregate';
 import { BookingConcurrentModificationError } from '../../domain/errors/booking-domain.error';
-import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
 import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
 import {
   FUTURE_COMMITMENT_EXCEPTION_REPOSITORY,
@@ -38,7 +38,7 @@ export class ExpireBookingHoldsJob {
   private readonly logger = new AppLogger(ExpireBookingHoldsJob.name);
 
   constructor(
-    @Inject(BOOKING_PLATFORM_PORT) private readonly tenantPort: IBookingPlatformPort,
+    private readonly tenantRunner: TenantJobRunner,
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     @Inject(RESOURCE_OCCUPANCY_REPOSITORY)
     private readonly occupancyRepo: IResourceOccupancyRepository,
@@ -49,9 +49,10 @@ export class ExpireBookingHoldsJob {
   ) {}
 
   async run(now: Date = new Date()): Promise<ExpireBookingHoldsJobResult> {
-    const tenants = await this.tenantPort.findAllActive();
-    const perTenant = await mapSequentially(tenants, (tenant) =>
-      this.expireForTenant(tenant.id, now),
+    const perTenant = await this.tenantRunner.forEachTenant(
+      { label: 'Expire booking holds' },
+      now,
+      (tenant) => this.expireForTenant(tenant.id, now),
     );
     return { expired: perTenant.reduce((sum, count) => sum + count, 0) };
   }

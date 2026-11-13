@@ -53,6 +53,7 @@ import { InMemoryTenantSettingsPort } from '../infrastructure/in-memory-tenant-s
 import { STORAGE_SERVICE } from '../../shared/ports/storage.service.port';
 import { TENANT_SETTINGS_PORT } from '../../shared/ports/tenant-settings.port';
 import { testCacheModule } from './test-cache-module';
+import { testTenantAccessModule } from './test-tenant-access-module';
 import { testConfigModule } from './test-config-module';
 
 export interface BookingIntegrationAppOptions {
@@ -76,6 +77,7 @@ export async function createBookingIntegrationApp(
     imports: [
       testConfigModule(),
       testCacheModule(),
+      testTenantAccessModule(),
       TypeOrmModule.forRoot({
         type: 'postgres',
         url: process.env['TEST_DATABASE_URL'],

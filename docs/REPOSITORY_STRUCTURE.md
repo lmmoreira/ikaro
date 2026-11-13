@@ -80,12 +80,12 @@ apps/backend/src/
 
 ### Shared folder (`apps/backend/src/shared/`)
 
-Cross-cutting concerns ONLY. Domain objects and repositories are NEVER here, and neither are use cases — with one carve-out: `application/use-cases/log-domain-event.use-case.ts`, the cross-cutting `audit-log` consumer every context's `<Context>AuditLogHandler` calls (M23-S36).
+Cross-cutting concerns ONLY. Domain objects and repositories are NEVER here, and neither are use cases — with two carve-outs: `application/use-cases/log-domain-event.use-case.ts`, the cross-cutting `audit-log` consumer every context's `<Context>AuditLogHandler` calls (M23-S36), and `application/jobs/`, the tenant-looping cron runner every context's jobs call (`TenantJobRunner`, M25-S22; it sits in `application/` because a job may never import `shared/infrastructure/`).
 
 ```text
 apps/backend/src/shared/
 ├── ports/            # IEventBus, IOutboxRepository, ITransactionManager, ITriggerBus … (cross-cutting ports only; each context's repository ports live in its own application/ports/) — no barrel index.ts (ESLint enforced); Billing's `clock.port.ts` (M25-S12) and `tenant-access.port.ts` (M25-S13, the one access contract every context injects)
-├── application/      # use-cases/log-domain-event.use-case.ts only — the shared audit-log consumer (M23-S36)
+├── application/      # use-cases/log-domain-event.use-case.ts (the shared audit-log consumer, M23-S36) and jobs/ (TenantJobRunner + localTimeWindow, the shared tenant-looping cron runner, M25-S22)
 ├── domain/           # AggregateRoot, DomainEvent, ValueObject base classes — no barrel index.ts
 ├── value-objects/    # Email, PhoneNumber, Address, Money, HexColor, Timezone, TimeOfDay, CalendarDate, Slug, CountryCode, SeoTitle, SeoDescription
 │                     # (plus the plain-type files business-hours.vo.ts and tenant-settings-data.ts — interfaces, not VO classes)

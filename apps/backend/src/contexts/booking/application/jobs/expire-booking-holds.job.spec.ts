@@ -1,4 +1,6 @@
-import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
+import { InMemoryTenantDirectoryPort } from '../../../../test/infrastructure/in-memory-tenant-directory.port';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
+import { TenantJobRunner } from '../../../../shared/application/jobs/tenant-job-runner';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
@@ -22,7 +24,8 @@ describe('ExpireBookingHoldsJob', () => {
   let bookingRepo: InMemoryBookingRepository;
   let transitionRepo: InMemoryBookingStatusTransitionRepository;
   let occupancyRepo: InMemoryResourceOccupancyRepository;
-  let platformPort: InMemoryBookingPlatformPort;
+  let directory: InMemoryTenantDirectoryPort;
+  let access: InMemoryTenantAccessPort;
   let eventBus: InMemoryEventBus;
   let job: ExpireBookingHoldsJob;
 
@@ -69,13 +72,14 @@ describe('ExpireBookingHoldsJob', () => {
     transitionRepo = new InMemoryBookingStatusTransitionRepository();
     bookingRepo = new InMemoryBookingRepository(eventBus, transitionRepo);
     occupancyRepo = new InMemoryResourceOccupancyRepository();
-    platformPort = new InMemoryBookingPlatformPort();
-    platformPort.seed([
+    directory = new InMemoryTenantDirectoryPort();
+    access = new InMemoryTenantAccessPort();
+    directory.seed([
       { id: TENANT_A, timezone: 'America/Sao_Paulo' },
       { id: TENANT_B, timezone: 'UTC' },
     ]);
     job = new ExpireBookingHoldsJob(
-      platformPort,
+      new TenantJobRunner(directory, access),
       bookingRepo,
       occupancyRepo,
       new InMemoryFutureCommitmentExceptionRepository(),
@@ -155,10 +159,10 @@ describe('ExpireBookingHoldsJob', () => {
   });
 
   it("does not touch another tenant's overdue booking when only this tenant is active", async () => {
-    const onlyA = new InMemoryBookingPlatformPort();
+    const onlyA = new InMemoryTenantDirectoryPort();
     onlyA.seed([{ id: TENANT_A, timezone: 'America/Sao_Paulo' }]);
     const scopedJob = new ExpireBookingHoldsJob(
-      onlyA,
+      new TenantJobRunner(onlyA, new InMemoryTenantAccessPort()),
       bookingRepo,
       occupancyRepo,
       new InMemoryFutureCommitmentExceptionRepository(),
@@ -204,6 +208,46 @@ describe('ExpireBookingHoldsJob', () => {
 
     expect(result.expired).toBe(1);
     expect(publishedBookingIds()).toEqual([healthy.id]);
+    expect(await statusOf(healthy)).toBe(BookingStatus.CANCELLED);
+  });
+
+  it("does not cancel a suspended tenant's overdue hold, and cancels it once the tenant is reactivated", async () => {
+    const overdue = await seed(TENANT_A);
+    access.seedSuspended(TENANT_A);
+
+    const whileSuspended = await job.run(NOW);
+
+    expect(whileSuspended.expired).toBe(0);
+    expect(await statusOf(overdue)).toBe(BookingStatus.PENDING);
+    expect(await occupancyOf(overdue)).toHaveLength(1);
+
+    access.reactivate(TENANT_A);
+    const afterReactivation = await job.run(NOW);
+
+    expect(afterReactivation.expired).toBe(1);
+    expect(await statusOf(overdue)).toBe(BookingStatus.CANCELLED);
+  });
+
+  it('still expires the hold of a tenant that lost the BOOKING feature (cleanup keeps going)', async () => {
+    const overdue = await seed(TENANT_A);
+    access.seedNotEntitledTo('BOOKING', [TENANT_A]);
+
+    const result = await job.run(NOW);
+
+    expect(result.expired).toBe(1);
+    expect(await statusOf(overdue)).toBe(BookingStatus.CANCELLED);
+  });
+
+  it('keeps expiring the other tenants after one tenant throws, then fails the run', async () => {
+    const healthy = await seed(TENANT_B);
+    jest
+      .spyOn(bookingRepo, 'findPendingWithExpiredHold')
+      .mockRejectedValueOnce(new Error('tenant A read failed'));
+
+    await expect(job.run(NOW)).rejects.toThrow(
+      `Expire booking holds failed for tenant(s): ${TENANT_A}`,
+    );
+
     expect(await statusOf(healthy)).toBe(BookingStatus.CANCELLED);
   });
 });
