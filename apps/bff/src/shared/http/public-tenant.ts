@@ -7,29 +7,42 @@ import { TenantInfoResponse } from '../types/backend-responses';
 
 // A renamed slug resolves to the old tenant for at most this long: the operational TTL, no worse
 // than the 300 s ISR already in front of a public page. Per instance by design.
-export const PUBLIC_TENANT_ID_TTL_MS = 300_000;
-const PUBLIC_TENANT_ID_MAX_ENTRIES = 1_000;
+export const PUBLIC_TENANT_TTL_MS = 300_000;
+const PUBLIC_TENANT_MAX_ENTRIES = 1_000;
 
-// One resolved tenant per slug serves both `TenantAccessGuard` and `withPublicTenant`, so a public
-// request costs one by-slug hop per TTL window instead of two per request.
-export const publicTenantIdCache = new TtlCache<string>({
-  maxEntries: PUBLIC_TENANT_ID_MAX_ENTRIES,
+// One resolved tenant per slug serves `TenantAccessGuard`, `withPublicTenant` and the hotsite
+// manifest (which returns the tenant info itself), so a public request costs one by-slug hop per
+// TTL window instead of two or more per request.
+export const publicTenantCache = new TtlCache<TenantInfoResponse>({
+  maxEntries: PUBLIC_TENANT_MAX_ENTRIES,
 });
 
 /**
- * Slug → tenant id through the shared bounded cache. `fetchTenantId` is the one backend hop (the
- * guard is singleton-scoped and cannot use the request-scoped `BackendHttpService`, so each caller
- * brings its own). A failed lookup (an unknown slug, an outage) is never cached.
+ * Slug → tenant through the shared bounded cache. `fetchTenant` is the one backend hop (the guard
+ * is singleton-scoped and cannot use the request-scoped `BackendHttpService`, so each caller brings
+ * its own). A failed lookup (an unknown slug, an outage) is never cached.
  */
-export async function resolvePublicTenantId(
+export async function resolvePublicTenant(
   tenantSlug: string,
-  fetchTenantId: () => Promise<string>,
-): Promise<string> {
-  const cached = publicTenantIdCache.get(tenantSlug);
+  fetchTenant: () => Promise<TenantInfoResponse>,
+): Promise<TenantInfoResponse> {
+  const cached = publicTenantCache.get(tenantSlug);
   if (cached) return cached;
-  const tenantId = await fetchTenantId();
-  publicTenantIdCache.set(tenantSlug, tenantId, PUBLIC_TENANT_ID_TTL_MS);
-  return tenantId;
+  const tenant = await fetchTenant();
+  publicTenantCache.set(tenantSlug, tenant, PUBLIC_TENANT_TTL_MS);
+  return tenant;
+}
+
+/** The by-slug read every public route starts from, cached through `resolvePublicTenant`. */
+export function resolvePublicTenantViaBackend(
+  backendHttp: BackendHttpService,
+  tenantSlug: string,
+): Promise<TenantInfoResponse> {
+  return resolvePublicTenant(tenantSlug, () =>
+    backendHttp.get<TenantInfoResponse>(
+      `/internal/tenants/by-slug/${encodeURIComponent(tenantSlug)}`,
+    ),
+  );
 }
 
 export async function withPublicTenant<T>(
@@ -45,11 +58,6 @@ export async function withPublicTenant<T>(
     );
   }
 
-  const tenantId = await resolvePublicTenantId(tenantSlug, async () => {
-    const tenant = await backendHttp.get<TenantInfoResponse>(
-      `/internal/tenants/by-slug/${encodeURIComponent(tenantSlug)}`,
-    );
-    return tenant.id;
-  });
-  return run(tenantId);
+  const tenant = await resolvePublicTenantViaBackend(backendHttp, tenantSlug);
+  return run(tenant.id);
 }

@@ -1,7 +1,6 @@
 import { SetMetadata } from '@nestjs/common';
+import { REQUIRES_FEATURE_KEY } from '@ikaro/nestjs-http';
 import type { FeatureKey } from '@ikaro/validation';
-
-export const REQUIRES_FEATURE_KEY = 'tenantAccess:requiresFeature';
 
 /**
  * Declares the sellable feature a route belongs to (UC-125). `TenantAccessGuard` refuses a tenant

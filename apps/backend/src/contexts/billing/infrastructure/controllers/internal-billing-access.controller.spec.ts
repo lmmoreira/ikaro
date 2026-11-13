@@ -1,8 +1,7 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { NO_FEATURE_GATE_KEY, SUSPENSION_ACCESS_KEY } from '@ikaro/nestjs-http';
 import { PlatformErrorCode } from '@ikaro/types';
-import { NO_FEATURE_GATE_KEY } from '../../../../shared/decorators/no-feature-gate.decorator';
-import { SUSPENSION_ACCESS_KEY } from '../../../../shared/decorators/suspension-access.decorator';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
 import { BillingTenantNotFoundError } from '../../domain/errors/billing-domain.error';

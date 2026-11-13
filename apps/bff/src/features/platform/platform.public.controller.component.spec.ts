@@ -19,7 +19,7 @@ import {
   HotsiteServiceListResponse,
   TenantSettings,
 } from '@ikaro/types';
-import { publicTenantIdCache } from '../../shared/http/public-tenant';
+import { publicTenantCache } from '../../shared/http/public-tenant';
 import { CHATBOT_MESSAGE_TIMEOUT_MS } from './platform.public.controller';
 import { BackendTenantByIdResponse } from './platform.types';
 import { HotsiteServiceBuilder } from '../../test/builders/hotsite-service.builder';
@@ -136,7 +136,7 @@ describe('PlatformPublicController (component)', () => {
   afterEach(() => {
     jest.resetAllMocks();
     // The slug → tenant id cache is process-level state shared with `TenantAccessGuard`.
-    publicTenantIdCache.clear();
+    publicTenantCache.clear();
   });
 
   describe('GET /v1/public/platform/manifest/:slug (public)', () => {

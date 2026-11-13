@@ -1,21 +1,18 @@
 import type { ArgumentsHost, ExecutionContext, Type } from '@nestjs/common';
 
-export interface StubHttpRequest {
-  headers: Record<string, string | string[] | undefined>;
-}
-
 type HttpArgumentsHost = ReturnType<ArgumentsHost['switchToHttp']>;
 
 /**
- * A real `ExecutionContext` for guard specs: the route's handler and controller class plus an HTTP
- * request. It implements the whole interface, so a spec needs no cast; the parts a guard never
- * reads throw if a future guard starts to.
+ * A real `ExecutionContext` test double for guard specs in either app: the route's handler and
+ * controller class plus an HTTP request. It implements the whole interface, so a spec needs no
+ * cast; the parts a guard never reads throw if a future guard starts to. `request` is whatever
+ * request shape the spec's guard reads.
  */
 export class StubExecutionContext implements ExecutionContext {
   constructor(
     private readonly handler: (...args: never[]) => unknown,
     private readonly controllerClass: Type<unknown>,
-    private readonly request: StubHttpRequest,
+    private readonly request: object,
   ) {}
 
   getClass<T = unknown>(): Type<T> {

@@ -1,11 +1,10 @@
 import { CanActivate, ExecutionContext, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { throwProblemDetail } from '@ikaro/nestjs-http';
+import { readTenantAccessRequirement, throwProblemDetail } from '@ikaro/nestjs-http';
 import { BillingErrorCode, evaluateTenantAccess } from '@ikaro/types';
 import { isActorRole } from '../request/request-context';
 import { AppLogger } from '../observability/app-logger';
 import { TENANT_ACCESS_PORT, type TenantAccessPort } from '../ports/tenant-access.port';
-import { readTenantAccessRequirement } from './tenant-access-metadata';
 
 type GateRequest = { headers: Record<string, string | string[] | undefined> };
 

@@ -1,12 +1,12 @@
 import { HttpException } from '@nestjs/common';
 import { BffErrorCode } from '@ikaro/types';
 import { makeBackendHttp } from '../../test/backend-http.mock';
-import { publicTenantIdCache, withPublicTenant } from './public-tenant';
+import { publicTenantCache, withPublicTenant } from './public-tenant';
 
 describe('withPublicTenant', () => {
   afterEach(() => {
     jest.resetAllMocks();
-    publicTenantIdCache.clear();
+    publicTenantCache.clear();
   });
 
   it('resolves a slug once and serves the next request from the shared cache', async () => {

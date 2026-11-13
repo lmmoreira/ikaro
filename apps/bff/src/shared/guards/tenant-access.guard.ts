@@ -1,5 +1,6 @@
 import { CanActivate, ExecutionContext, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { readTenantAccessRequirement } from '@ikaro/nestjs-http';
 import {
   BillingErrorCode,
   evaluateTenantAccess,
@@ -11,7 +12,6 @@ import { getCurrentUser } from '../decorators/current-user.decorator';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { throwProblemDetail } from '../http/problem-detail';
 import { AppLogger } from '../observability/app-logger';
-import { readTenantAccessRequirement } from './tenant-access-metadata';
 import { TenantAccessLookup, type TenantAccessSource } from './tenant-access.lookup';
 
 /**

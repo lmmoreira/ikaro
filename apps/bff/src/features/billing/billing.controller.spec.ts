@@ -1,8 +1,7 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { NO_FEATURE_GATE_KEY, SUSPENSION_ACCESS_KEY } from '@ikaro/nestjs-http';
 import { FEATURE_KEYS } from '@ikaro/validation';
-import { NO_FEATURE_GATE_KEY } from '../../shared/decorators/no-feature-gate.decorator';
-import { SUSPENSION_ACCESS_KEY } from '../../shared/decorators/suspension-access.decorator';
 import { makeBackendHttp } from '../../test/backend-http.mock';
 import type { CurrentUserPayload } from '../../shared/decorators/current-user.decorator';
 import { BillingController } from './billing.controller';

@@ -1,6 +1,5 @@
 import { SetMetadata } from '@nestjs/common';
-
-export const NO_FEATURE_GATE_KEY = 'tenantAccess:noFeatureGate';
+import { NO_FEATURE_GATE_KEY } from '@ikaro/nestjs-http';
 
 /**
  * Marks a route no sellable feature owns (health, auth, webhooks, internal, cron, Pub/Sub, the

@@ -8,7 +8,7 @@ import { firstValueFrom, type Observable } from 'rxjs';
 import { z } from 'zod';
 import { TtlCache } from '../cache/ttl-cache';
 import { buildBackendHeaders } from '../http/backend-headers';
-import { resolvePublicTenantId } from '../http/public-tenant';
+import { resolvePublicTenant } from '../http/public-tenant';
 import type { TenantInfoResponse } from '../types/backend-responses';
 
 export const TENANT_ACCESS_CACHE = Symbol('TenantAccessCache');
@@ -81,14 +81,14 @@ export class TenantAccessLookup implements TenantAccessSource {
   }
 
   /** Slug → tenant id for an `@Public()` route, through the cache `withPublicTenant` shares. */
-  resolveTenantId(tenantSlug: string, req: Request): Promise<string> {
-    return resolvePublicTenantId(tenantSlug, async () => {
-      const tenant = await this.get<TenantInfoResponse>(
+  async resolveTenantId(tenantSlug: string, req: Request): Promise<string> {
+    const tenant = await resolvePublicTenant(tenantSlug, () =>
+      this.get<TenantInfoResponse>(
         `/internal/tenants/by-slug/${encodeURIComponent(tenantSlug)}`,
         req,
-      );
-      return tenant.id;
-    });
+      ),
+    );
+    return tenant.id;
   }
 
   private async get<T>(path: string, req: Request): Promise<T> {

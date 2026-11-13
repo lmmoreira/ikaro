@@ -1,5 +1,6 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { StubExecutionContext } from '@ikaro/nestjs-http';
 import { FEATURE_KEYS, type FeatureKey } from '@ikaro/validation';
 import {
   BillingErrorCode,
@@ -10,7 +11,6 @@ import {
   type SuspensionAccessPolicy,
 } from '@ikaro/types';
 import { InMemoryTenantAccessPort } from '../../test/infrastructure/in-memory-tenant-access.port';
-import { StubExecutionContext } from '../../test/utils/stub-execution-context';
 import type { TenantAccess, TenantAccessPort } from '../ports/tenant-access.port';
 import { NoFeatureGate } from '../decorators/no-feature-gate.decorator';
 import { RequiresFeature } from '../decorators/requires-feature.decorator';

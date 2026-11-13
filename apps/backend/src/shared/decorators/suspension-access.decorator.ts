@@ -1,7 +1,6 @@
 import { SetMetadata } from '@nestjs/common';
+import { SUSPENSION_ACCESS_KEY } from '@ikaro/nestjs-http';
 import type { SuspensionAccessPolicy } from '@ikaro/types';
-
-export const SUSPENSION_ACCESS_KEY = 'tenantAccess:suspensionAccess';
 
 /**
  * Declares who may reach a route while the tenant is `SUSPENDED` (UC-125). The policy set and the

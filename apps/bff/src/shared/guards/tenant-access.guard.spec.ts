@@ -1,5 +1,6 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { StubExecutionContext } from '@ikaro/nestjs-http';
 import { FEATURE_KEYS, type FeatureKey } from '@ikaro/validation';
 import {
   BillingErrorCode,
@@ -8,7 +9,6 @@ import {
   type ActorRole,
   type TenantAccessView,
 } from '@ikaro/types';
-import { StubExecutionContext, type StubHttpRequest } from '../../test/stub-execution-context';
 import { NoFeatureGate } from '../decorators/no-feature-gate.decorator';
 import { Public } from '../decorators/public.decorator';
 import { RequiresFeature } from '../decorators/requires-feature.decorator';
@@ -60,7 +60,7 @@ function routeWith(...decorators: (MethodDecorator & ClassDecorator)[]) {
 
 function contextFor(
   route: new () => { handler(): void },
-  req: Partial<StubHttpRequest>,
+  req: { headers?: Record<string, string>; params?: Record<string, string>; user?: unknown },
 ): StubExecutionContext {
   return new StubExecutionContext(route.prototype.handler, route, { headers: {}, ...req });
 }

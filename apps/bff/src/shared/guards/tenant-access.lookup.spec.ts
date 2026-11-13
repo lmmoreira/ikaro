@@ -2,7 +2,7 @@ import { Observable, of, throwError } from 'rxjs';
 import { makeBackendHttp } from '../../test/backend-http.mock';
 import { makeRequest } from '../../test/execution-context.factory';
 import { TtlCache } from '../cache/ttl-cache';
-import { publicTenantIdCache, withPublicTenant } from '../http/public-tenant';
+import { publicTenantCache, withPublicTenant } from '../http/public-tenant';
 import {
   OPERATIONAL_ACCESS_TTL_MS,
   SUSPENDED_ACCESS_TTL_MS,
@@ -67,7 +67,7 @@ function makeLookup(answer: () => unknown, clock = new FakeClock()) {
 }
 
 describe('TenantAccessLookup', () => {
-  afterEach(() => publicTenantIdCache.clear());
+  afterEach(() => publicTenantCache.clear());
 
   it('reads the backend access route with the internal key and keeps only what the gate needs', async () => {
     const { lookup, backend } = makeLookup(() => ({

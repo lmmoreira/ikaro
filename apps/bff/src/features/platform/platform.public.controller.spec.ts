@@ -2,7 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import * as jwt from 'jsonwebtoken';
 import { makeBackendHttp } from '../../test/backend-http.mock';
 import { ClientIpRequest } from '../../shared/http/client-ip';
-import { publicTenantIdCache } from '../../shared/http/public-tenant';
+import { publicTenantCache } from '../../shared/http/public-tenant';
 import {
   CHATBOT_MESSAGE_TIMEOUT_MS,
   LEAD_FORM_SUBMISSION_TIMEOUT_MS,
@@ -124,7 +124,7 @@ describe('PlatformPublicController', () => {
   afterEach(() => {
     jest.resetAllMocks();
     // The slug → tenant id cache is process-level state shared with `TenantAccessGuard`.
-    publicTenantIdCache.clear();
+    publicTenantCache.clear();
   });
 
   describe('getManifest()', () => {
@@ -147,6 +147,35 @@ describe('PlatformPublicController', () => {
       const controller = new PlatformPublicController(backendHttp, makeConfigService());
 
       await expect(controller.getManifest('unknown-slug')).rejects.toThrow('404');
+    });
+
+    it('reuses the tenant the access guard already resolved from the path slug, with no second by-slug call', async () => {
+      // The guard resolves this slug through the same cache before the controller runs.
+      const resolved = { ...tenantInfo, locale: 'pt-BR' };
+      publicTenantCache.set('lavacar-bh', resolved, 60_000);
+      const backendHttp = makeBackendHttp({
+        get: jest.fn(),
+        getForPublic: jest.fn().mockResolvedValue(hotsiteResponse),
+      });
+      const controller = new PlatformPublicController(backendHttp, makeConfigService());
+
+      const result = await controller.getManifest('lavacar-bh');
+
+      expect(backendHttp.get).not.toHaveBeenCalled();
+      expect(result).toEqual({ tenant: resolved, ...hotsiteResponse });
+    });
+
+    it('resolves the tenant once for repeated manifest requests inside the TTL', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockResolvedValue(tenantInfo),
+        getForPublic: jest.fn().mockResolvedValue(hotsiteResponse),
+      });
+      const controller = new PlatformPublicController(backendHttp, makeConfigService());
+
+      await controller.getManifest('lavacar-bh');
+      await controller.getManifest('lavacar-bh');
+
+      expect(backendHttp.get).toHaveBeenCalledTimes(1);
     });
 
     it('returns the minimal payload (isPublished: false, empty layout) when the hotsite is not published', async () => {
