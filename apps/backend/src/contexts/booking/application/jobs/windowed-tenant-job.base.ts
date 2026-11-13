@@ -1,35 +1,30 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { AppLogger } from '../../../../shared/observability/app-logger';
-import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
-import { forEachTenantInWindow, LocalTimeWindow } from './tenant-local-window.helpers';
+import { Injectable } from '@nestjs/common';
+import {
+  localTimeWindow,
+  type LocalTimeWindow,
+} from '../../../../shared/application/jobs/local-time-window';
+import { TenantJobRunner } from '../../../../shared/application/jobs/tenant-job-runner';
+import type { ActiveTenant } from '../../../../shared/ports/tenant-directory.port';
 
-export interface WindowedTenant {
-  id: string;
-  timezone: string;
-}
+export type WindowedTenant = ActiveTenant;
 
-// The shape every per-tenant, local-time-window cron job shares: list the active tenants, run the
-// work for each one that is inside its window, and fail the run after every tenant was tried (see
-// forEachTenantInWindow). It owns the tenant port and `run()`; a job supplies only what differs: its
-// window, its log label and what it does for one tenant. The class carries its own constructor, so
-// Nest resolves the port from this class's parameter metadata.
+// The shape the Booking jobs that send something to customers or staff share: run the work for
+// each tenant that is inside its local window, is operational and has BOOKING (see
+// TenantJobRunner). A job supplies only what differs: its window, its log label and what it does
+// for one tenant. The class carries its own constructor, so Nest resolves the runner from this
+// class's parameter metadata.
 @Injectable()
 export abstract class WindowedTenantJob {
-  protected readonly logger = new AppLogger(this.constructor.name);
-
   protected abstract readonly window: LocalTimeWindow;
   protected abstract readonly label: string;
   protected abstract processTenant(tenant: WindowedTenant, now: Date): Promise<void>;
 
-  constructor(@Inject(BOOKING_PLATFORM_PORT) protected readonly tenantPort: IBookingPlatformPort) {}
+  constructor(protected readonly tenantRunner: TenantJobRunner) {}
 
   async run(now: Date = new Date()): Promise<void> {
-    const tenants = await this.tenantPort.findAllActive();
-    await forEachTenantInWindow(
-      tenants,
+    await this.tenantRunner.forEachTenant(
+      { label: this.label, requires: 'BOOKING', isDue: localTimeWindow(this.window) },
       now,
-      this.window,
-      { logger: this.logger, label: this.label },
       (tenant) => this.processTenant(tenant, now),
     );
   }

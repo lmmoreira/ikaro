@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cache.module';
+import { TENANT_DIRECTORY_PORT } from '../../shared/ports/tenant-directory.port';
 import { TENANT_SETTINGS_PORT } from '../../shared/ports/tenant-settings.port';
 import { FRONTEND_REVALIDATION_PORT } from './application/ports/frontend-revalidation.port';
 import { HOTSITE_CONFIG_REPOSITORY } from './application/ports/hotsite-config-repository.port';
@@ -13,6 +14,7 @@ import { GetTenantBusinessHoursForUpdateUseCase } from './application/use-cases/
 import { HotsiteConfigEntity } from './infrastructure/entities/hotsite-config.entity';
 import { TenantEntity } from './infrastructure/entities/tenant.entity';
 import { FrontendRevalidationAdapter } from './infrastructure/adapters/frontend-revalidation.adapter';
+import { PlatformTenantDirectoryAdapter } from './infrastructure/cross-context/platform-tenant-directory.adapter';
 import { PlatformTenantSettingsAdapter } from './infrastructure/cross-context/platform-tenant-settings.adapter';
 import { CachingTenantRepository } from './infrastructure/repositories/caching-tenant.repository';
 import { TypeOrmHotsiteConfigRepository } from './infrastructure/repositories/typeorm-hotsite-config.repository';
@@ -25,6 +27,7 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     CachingTenantRepository,
     { provide: TENANT_REPOSITORY, useClass: CachingTenantRepository },
     { provide: TENANT_SETTINGS_PORT, useClass: PlatformTenantSettingsAdapter },
+    { provide: TENANT_DIRECTORY_PORT, useClass: PlatformTenantDirectoryAdapter },
     // Read-only (GetHotsiteBookingPickerUseCase) — the uncached repository is enough, no write path here.
     { provide: HOTSITE_CONFIG_REPOSITORY, useClass: TypeOrmHotsiteConfigRepository },
     { provide: FRONTEND_REVALIDATION_PORT, useClass: FrontendRevalidationAdapter },
@@ -41,6 +44,7 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     GetTenantBusinessHoursForUpdateUseCase,
     GetHotsiteBookingPickerUseCase,
     TENANT_SETTINGS_PORT,
+    TENANT_DIRECTORY_PORT,
     FRONTEND_REVALIDATION_PORT,
   ],
 })

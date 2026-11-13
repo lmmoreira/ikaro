@@ -10,7 +10,6 @@ import { TenantSettings } from '../../../platform/domain/value-objects/tenant-se
 import { HotsiteModule } from '../../../platform/domain/hotsite-config.aggregate';
 import { GetHotsiteBookingPickerUseCase } from '../../../platform/application/use-cases/get-hotsite-booking-picker.use-case';
 import { GetTenantByIdUseCase } from '../../../platform/application/use-cases/get-tenant-by-id.use-case';
-import { GetTenantsUseCase } from '../../../platform/application/use-cases/get-tenants.use-case';
 import { GetTenantBusinessHoursForUpdateUseCase } from '../../../platform/application/use-cases/get-tenant-business-hours-for-update.use-case';
 import { BookingPlatformAdapter } from './booking-platform.adapter';
 
@@ -25,40 +24,11 @@ describe('BookingPlatformAdapter', () => {
     hotsiteRepo = new InMemoryHotsiteConfigRepository();
     revalidation = new InMemoryFrontendRevalidationPort();
     adapter = new BookingPlatformAdapter(
-      new GetTenantsUseCase(repo),
       new GetTenantByIdUseCase(repo),
       new GetTenantBusinessHoursForUpdateUseCase(repo),
       new GetHotsiteBookingPickerUseCase(hotsiteRepo),
       revalidation,
     );
-  });
-
-  it('returns all active tenants with their timezones', async () => {
-    const active = new TenantBuilder().build();
-    await repo.save(active);
-
-    const result = await adapter.findAllActive();
-
-    expect(result).toHaveLength(1);
-    expect(result[0].id).toBe(active.id);
-    expect(result[0].timezone).toBe('America/Sao_Paulo');
-  });
-
-  it('returns an empty array when no tenants exist', async () => {
-    const result = await adapter.findAllActive();
-    expect(result).toEqual([]);
-  });
-
-  it('resolves independently for two different tenants', async () => {
-    const tenantA = new TenantBuilder().withSlug('tenant-a').build();
-    const tenantB = new TenantBuilder().withSlug('tenant-b').build();
-    await repo.save(tenantA);
-    await repo.save(tenantB);
-
-    const result = await adapter.findAllActive();
-
-    expect(result).toHaveLength(2);
-    expect(result.map((t) => t.id)).toEqual(expect.arrayContaining([tenantA.id, tenantB.id]));
   });
 
   describe('revalidatePublicPages', () => {

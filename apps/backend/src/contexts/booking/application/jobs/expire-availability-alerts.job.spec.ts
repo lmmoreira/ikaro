@@ -1,6 +1,8 @@
 import { AvailabilityAlertBuilder } from '../../../../test/builders/booking/index';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
+import { TenantJobRunner } from '../../../../shared/application/jobs/tenant-job-runner';
 import { AppLogger } from '../../../../shared/observability/app-logger';
-import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
+import { InMemoryTenantDirectoryPort } from '../../../../test/infrastructure/in-memory-tenant-directory.port';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryAvailabilityAlertRepository } from '../../../../test/repositories/booking/in-memory-availability-alert.repository';
@@ -19,7 +21,8 @@ const HOUR_MS = 3_600_000;
 
 describe('ExpireAvailabilityAlertsJob', () => {
   let alertRepo: InMemoryAvailabilityAlertRepository;
-  let platformPort: InMemoryBookingPlatformPort;
+  let directory: InMemoryTenantDirectoryPort;
+  let access: InMemoryTenantAccessPort;
   let eventBus: InMemoryEventBus;
   let job: ExpireAvailabilityAlertsJob;
 
@@ -43,13 +46,14 @@ describe('ExpireAvailabilityAlertsJob', () => {
   beforeEach(() => {
     eventBus = new InMemoryEventBus();
     alertRepo = new InMemoryAvailabilityAlertRepository(eventBus);
-    platformPort = new InMemoryBookingPlatformPort();
-    platformPort.seed([
+    directory = new InMemoryTenantDirectoryPort();
+    access = new InMemoryTenantAccessPort();
+    directory.seed([
       { id: TENANT_A, timezone: 'America/Sao_Paulo' },
       { id: TENANT_B, timezone: 'UTC' },
     ]);
     job = new ExpireAvailabilityAlertsJob(
-      platformPort,
+      new TenantJobRunner(directory, access),
       alertRepo,
       new InMemoryTransactionManager(),
     );
@@ -257,5 +261,39 @@ describe('ExpireAvailabilityAlertsJob', () => {
     await job.run();
 
     expect(await statusOf(overdue)).toBe('EXPIRED');
+  });
+
+  it("skips a suspended tenant's overdue alert until the tenant is reactivated", async () => {
+    const overdue = seed(TENANT_A, at(-HOUR_MS));
+    access.seedSuspended(TENANT_A);
+
+    await job.run(NOW);
+    expect(await statusOf(overdue)).toBe('ACTIVE');
+
+    access.reactivate(TENANT_A);
+    await job.run(NOW);
+    expect(await statusOf(overdue)).toBe('EXPIRED');
+  });
+
+  it('still expires the alert of a tenant that lost the BOOKING feature (cleanup keeps going)', async () => {
+    const overdue = seed(TENANT_A, at(-HOUR_MS));
+    access.seedNotEntitledTo('BOOKING', [TENANT_A]);
+
+    await job.run(NOW);
+
+    expect(await statusOf(overdue)).toBe('EXPIRED');
+  });
+
+  it('keeps expiring the other tenants after one tenant throws, then fails the run', async () => {
+    const healthy = seed(TENANT_B, at(-HOUR_MS));
+    jest
+      .spyOn(alertRepo, 'findActiveExpired')
+      .mockRejectedValueOnce(new Error('tenant A read failed'));
+
+    await expect(job.run(NOW)).rejects.toThrow(
+      `Expire availability alerts failed for tenant(s): ${TENANT_A}`,
+    );
+
+    expect(await statusOf(healthy)).toBe('EXPIRED');
   });
 });

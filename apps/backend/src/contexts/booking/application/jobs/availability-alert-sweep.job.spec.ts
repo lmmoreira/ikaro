@@ -1,4 +1,6 @@
-import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
+import { InMemoryTenantDirectoryPort } from '../../../../test/infrastructure/in-memory-tenant-directory.port';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
+import { TenantJobRunner } from '../../../../shared/application/jobs/tenant-job-runner';
 import { MatchAvailabilityAlertsUseCase } from '../use-cases/match-availability-alerts.use-case';
 import { AvailabilityAlertSweepJob } from './availability-alert-sweep.job';
 
@@ -6,19 +8,21 @@ const SAO_PAULO_TENANT = '00000000-0000-7000-8000-000000000001'; // UTC-3
 const TOKYO_TENANT = '00000000-0000-7000-8000-000000000002'; // UTC+9
 
 describe('AvailabilityAlertSweepJob', () => {
-  let platformPort: InMemoryBookingPlatformPort;
+  let directory: InMemoryTenantDirectoryPort;
+  let access: InMemoryTenantAccessPort;
   let useCase: jest.Mocked<Pick<MatchAvailabilityAlertsUseCase, 'execute'>>;
   let job: AvailabilityAlertSweepJob;
 
   beforeEach(() => {
-    platformPort = new InMemoryBookingPlatformPort();
-    platformPort.seed([
+    directory = new InMemoryTenantDirectoryPort();
+    access = new InMemoryTenantAccessPort();
+    directory.seed([
       { id: SAO_PAULO_TENANT, timezone: 'America/Sao_Paulo' },
       { id: TOKYO_TENANT, timezone: 'Asia/Tokyo' },
     ]);
     useCase = { execute: jest.fn().mockResolvedValue({ notified: 2 }) };
     job = new AvailabilityAlertSweepJob(
-      platformPort,
+      new TenantJobRunner(directory, access),
       useCase as unknown as MatchAvailabilityAlertsUseCase,
     );
   });
@@ -74,8 +78,8 @@ describe('AvailabilityAlertSweepJob', () => {
 
   it('sweeps every tenant even when one fails, then throws so the message is retried', async () => {
     // Put both tenants in the same timezone so both are due at the same instant.
-    platformPort.clear();
-    platformPort.seed([
+    directory.clear();
+    directory.seed([
       { id: SAO_PAULO_TENANT, timezone: 'America/Sao_Paulo' },
       { id: TOKYO_TENANT, timezone: 'America/Sao_Paulo' },
     ]);
@@ -87,12 +91,42 @@ describe('AvailabilityAlertSweepJob', () => {
   });
 
   it('does nothing when there are no active tenants', async () => {
-    platformPort.clear();
+    directory.clear();
 
     expect(await job.run(new Date('2026-10-06T09:30:00.000Z'))).toEqual({
       tenantsSwept: 0,
       notified: 0,
     });
     expect(useCase.execute).not.toHaveBeenCalled();
+  });
+
+  describe('tenant access', () => {
+    const NOW_IN_WINDOW = new Date('2026-10-06T09:30:00.000Z');
+
+    beforeEach(() => {
+      directory.clear();
+      directory.seed([
+        { id: SAO_PAULO_TENANT, timezone: 'America/Sao_Paulo' },
+        { id: TOKYO_TENANT, timezone: 'America/Sao_Paulo' },
+      ]);
+    });
+
+    const sweptTenantIds = () => useCase.execute.mock.calls.map(([input]) => input.tenantId);
+
+    it('skips a suspended tenant', async () => {
+      access.seedSuspended(TOKYO_TENANT);
+
+      await job.run(NOW_IN_WINDOW);
+
+      expect(sweptTenantIds()).toEqual([SAO_PAULO_TENANT]);
+    });
+
+    it('skips a tenant without BOOKING', async () => {
+      access.seedNotEntitledTo('BOOKING', [TOKYO_TENANT]);
+
+      await job.run(NOW_IN_WINDOW);
+
+      expect(sweptTenantIds()).toEqual([SAO_PAULO_TENANT]);
+    });
   });
 });

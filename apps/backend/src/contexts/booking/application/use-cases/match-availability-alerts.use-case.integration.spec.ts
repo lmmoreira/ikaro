@@ -1,4 +1,7 @@
 import { DataSource } from 'typeorm';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
+import { InMemoryTenantDirectoryPort } from '../../../../test/infrastructure/in-memory-tenant-directory.port';
+import { TenantJobRunner } from '../../../../shared/application/jobs/tenant-job-runner';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { TypeOrmTransactionManager } from '../../../../shared/infrastructure/typeorm-transaction-manager';
 import { OutboxEventEntity } from '../../../../shared/infrastructure/outbox/outbox-event.entity';
@@ -75,6 +78,8 @@ describe('MatchAvailabilityAlerts (integration)', () => {
   let alertRepo: TypeOrmAvailabilityAlertRepository;
   let bookingRepo: TypeOrmBookingRepository;
   let platformPort: InMemoryBookingPlatformPort;
+  let directory: InMemoryTenantDirectoryPort;
+  let tenantRunner: TenantJobRunner;
   const tenantA = uuidv7();
   const tenantB = uuidv7();
   const serviceOf = new Map<string, string>();
@@ -103,7 +108,9 @@ describe('MatchAvailabilityAlerts (integration)', () => {
     }
 
     platformPort = new InMemoryBookingPlatformPort();
-    platformPort.seed([
+    directory = new InMemoryTenantDirectoryPort();
+    tenantRunner = new TenantJobRunner(directory, new InMemoryTenantAccessPort());
+    directory.seed([
       { id: tenantA, timezone: TZ },
       { id: tenantB, timezone: TZ },
     ]);
@@ -249,7 +256,7 @@ describe('MatchAvailabilityAlerts (integration)', () => {
 
     const settled = await Promise.allSettled([
       handler.handle(cancelledEvent(tenantA)),
-      new AvailabilityAlertSweepJob(platformPort, useCase).run(sweepNow),
+      new AvailabilityAlertSweepJob(tenantRunner, useCase).run(sweepNow),
     ]);
 
     // The loser of the race is a version-check conflict handled inside the use case, not a failure.
@@ -407,7 +414,8 @@ describe('MatchAvailabilityAlerts (integration)', () => {
   describe('criteria and duration on real data', () => {
     afterEach(() => {
       platformPort.clear();
-      platformPort.seed([
+      directory.clear();
+      directory.seed([
         { id: tenantA, timezone: TZ },
         { id: tenantB, timezone: TZ },
       ]);
@@ -427,9 +435,10 @@ describe('MatchAvailabilityAlerts (integration)', () => {
     it('a weekly-preference alert matches a Monday slot starting inside its local window', async () => {
       const alertId = await seedWeekly(tenantA);
       platformPort.clear();
-      platformPort.seed([{ id: tenantA, timezone: TZ }]);
+      directory.clear();
+      directory.seed([{ id: tenantA, timezone: TZ }]);
 
-      await new AvailabilityAlertSweepJob(platformPort, useCase).run(at(monday, '06:40'));
+      await new AvailabilityAlertSweepJob(tenantRunner, useCase).run(at(monday, '06:40'));
 
       expect(
         (await ds.getRepository(AvailabilityAlertEntity).findOneByOrFail({ id: alertId })).status,
@@ -482,7 +491,8 @@ describe('MatchAvailabilityAlerts (integration)', () => {
   describe('the sweep horizon and the alert queries', () => {
     afterEach(() => {
       platformPort.clear();
-      platformPort.seed([
+      directory.clear();
+      directory.seed([
         { id: tenantA, timezone: TZ },
         { id: tenantB, timezone: TZ },
       ]);
@@ -502,8 +512,9 @@ describe('MatchAvailabilityAlerts (integration)', () => {
     it('a date just outside the selectable window is not matched; once the window reaches it, it matches exactly once', async () => {
       const alertId = await farMondayRange(tenantA);
       platformPort.clear();
-      platformPort.seed([{ id: tenantA, timezone: TZ }]);
-      const sweep = new AvailabilityAlertSweepJob(platformPort, useCase);
+      directory.clear();
+      directory.seed([{ id: tenantA, timezone: TZ }]);
+      const sweep = new AvailabilityAlertSweepJob(tenantRunner, useCase);
       const now = at(monday, '06:40');
       const contextFor = (selectableDays: number) => ({
         businessHours: FULL_WEEK_BUSINESS_HOURS,
@@ -551,7 +562,7 @@ describe('MatchAvailabilityAlerts (integration)', () => {
   describe('the daily sweep', () => {
     it('matches a free slot with no booking event at all, once, inside the tenant-local morning window', async () => {
       const alertId = await seedAlert(tenantA);
-      const sweep = new AvailabilityAlertSweepJob(platformPort, useCase);
+      const sweep = new AvailabilityAlertSweepJob(tenantRunner, useCase);
       // Monday 06:40 local: inside 06:30–06:59, and the day the alert is about.
       const now = at(monday, '06:40');
 
@@ -568,7 +579,7 @@ describe('MatchAvailabilityAlerts (integration)', () => {
 
     it('does nothing outside the window', async () => {
       const alertId = await seedAlert(tenantA);
-      const sweep = new AvailabilityAlertSweepJob(platformPort, useCase);
+      const sweep = new AvailabilityAlertSweepJob(tenantRunner, useCase);
 
       const result = await sweep.run(at(monday, '08:00'));
 
@@ -582,9 +593,10 @@ describe('MatchAvailabilityAlerts (integration)', () => {
       const alertA = await seedAlert(tenantA);
       const alertB = await seedAlert(tenantB);
       platformPort.clear();
-      platformPort.seed([{ id: tenantA, timezone: TZ }]);
+      directory.clear();
+      directory.seed([{ id: tenantA, timezone: TZ }]);
 
-      await new AvailabilityAlertSweepJob(platformPort, useCase).run(at(monday, '06:40'));
+      await new AvailabilityAlertSweepJob(tenantRunner, useCase).run(at(monday, '06:40'));
 
       expect(
         (await ds.getRepository(AvailabilityAlertEntity).findOneByOrFail({ id: alertA })).status,

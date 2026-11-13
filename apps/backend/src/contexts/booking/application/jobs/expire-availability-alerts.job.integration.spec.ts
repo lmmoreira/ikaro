@@ -1,4 +1,6 @@
 import { DataSource } from 'typeorm';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
+import { TenantJobRunner } from '../../../../shared/application/jobs/tenant-job-runner';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { TypeOrmTransactionManager } from '../../../../shared/infrastructure/typeorm-transaction-manager';
 import { OutboxEventEntity } from '../../../../shared/infrastructure/outbox/outbox-event.entity';
@@ -8,7 +10,7 @@ import {
   ServiceEntityBuilder,
 } from '../../../../test/builders/booking/index';
 import { makeRealOutboxPublisher } from '../../../../test/factories/real-outbox-publisher.factory';
-import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
+import { InMemoryTenantDirectoryPort } from '../../../../test/infrastructure/in-memory-tenant-directory.port';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { AvailabilityAlert } from '../../domain/availability-alert.aggregate';
@@ -47,8 +49,8 @@ describe('ExpireAvailabilityAlertsJob (integration)', () => {
         );
       serviceIds.set(tenantId, service.id);
     }
-    const platformPort = new InMemoryBookingPlatformPort();
-    platformPort.seed([
+    const directory = new InMemoryTenantDirectoryPort();
+    directory.seed([
       { id: tenantA, timezone: 'America/Sao_Paulo' },
       { id: tenantB, timezone: 'UTC' },
     ]);
@@ -58,7 +60,11 @@ describe('ExpireAvailabilityAlertsJob (integration)', () => {
       ds.getRepository(AvailabilityAlertEntity),
       makeRealOutboxPublisher(outboxRepo, new InMemoryEventBus()),
     );
-    job = new ExpireAvailabilityAlertsJob(platformPort, alertRepo, txManager);
+    job = new ExpireAvailabilityAlertsJob(
+      new TenantJobRunner(directory, new InMemoryTenantAccessPort()),
+      alertRepo,
+      txManager,
+    );
   });
 
   afterAll(async () => {

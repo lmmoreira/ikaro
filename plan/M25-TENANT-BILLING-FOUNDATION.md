@@ -62,7 +62,7 @@
 | 2 | M25-S20 | Annotate cross-cutting routes — auth, internal, cron, pubsub, health (UC-125) |
 | 2 | M25-S21a | Event dispatcher opt-in gate, `subscribe()` options, pub/sub catalog scanner, declaration detector in WARN mode (UC-125) |
 | 2 | M25-S21b | Declare every existing `subscribe()` site, flip the detector to fail (UC-125) |
-| 2 | M25-S22 | Shared tenant-scoped job helper (extracted from Booking's `WindowedTenantJob`) (UC-125) |
+| 2 | M25-S22 | Shared tenant-job runner (extracted from Booking's `WindowedTenantJob`) (UC-125) |
 | 2 | M25-S23 | Notification send gate, `SKIPPED_TENANT_SUSPENDED`, status CHECK replacement (UC-123) |
 | 2 | M25-S24 | Flip the route detector to enforcing (UC-125) |
 | 2 | M25-S25 | Hotsite effective-published — manifest, published list, module filtering, revalidation (UC-122) |
@@ -1675,49 +1675,85 @@ Handlers added later by S25, S27 and S28 declare their own options in their own 
 
 ---
 
-### M25-S22 — Shared tenant-scoped job helper, extracted from Booking's `WindowedTenantJob` (UC-125)
+### M25-S22 — Shared tenant-job runner, extracted from Booking's `WindowedTenantJob` (UC-125) ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** M
-**Docs to load:** `docs/ENGINEERING_RULES_SHARED.md` § Tenant access enforcement (item 4), `docs/ENGINEERING_RULES_BACKEND.md` § Billing (planned) (trigger jobs), `docs/ENGINEERING_RULES_TESTING.md` § Standalone index for a cross-tenant system job, `docs/BOUNDED_CONTEXTS.md` § Communication Patterns (pattern 4)
-**Dependencies:** M25-S13 (the batch access method)
-**Pattern:** Template Method — an abstract shared job base (extracted from `WindowedTenantJob` / `forEachTenantInWindow`, which are Booking-local and active-tenants-only today); the existing Booking jobs become subclasses of the shared helper with unchanged behaviour. S22 is a **leaf** (no story depends on it).
+**Docs to load:** `docs/ENGINEERING_RULES_SHARED.md` § Tenant access enforcement (item 4), `docs/ENGINEERING_RULES_BACKEND.md` § Billing (planned) (trigger jobs), `docs/ENGINEERING_RULES_TESTING.md` § Standalone index for a cross-tenant system job, `docs/AGENT_PATTERNS.md` § 24 (shared application logic as a service), `docs/BOUNDED_CONTEXTS.md` § Communication Patterns (pattern 4)
+**Dependencies:** M25-S13 (the two batch methods `listSuspendedTenantIds()` and `findTenantIdsNotEntitledTo(feature)` on `TenantAccessPort`)
+**Pattern:** **Composition, not inheritance** (locked at discovery; replaces the earlier "Template Method abstract base"). A shared injectable `TenantJobRunner` service (`docs/AGENT_PATTERNS.md` § 24) that a job calls from its own `run()`; the "is this tenant due now?" rule is a plain predicate (`isDue`, a strategy value), so a new schedule kind is a new predicate, never a new subclass. Why not the base class: the seven jobs return different shapes (`void`, `{ expired }`, `{ tenantsSwept, notified }`), so a base needs hooks for the label, the feature, the scope, the schedule, the per-tenant work **and** result aggregation, plus `super(...)` plumbing of two extra ports through every subclass (the CLAUDE.md §7 mounting-complexity signal). Booking's existing `WindowedTenantJob` survives as a thin **Booking-local** convenience over the runner (its three subclasses change as little as possible); a shared windowed base is promoted only when a second context needs one. S22 is a **leaf** (no story depends on it).
 
 **Description:**
-Tenant-looping crons must not each re-implement "skip suspended and unentitled tenants". Extract the loop into a shared helper under `apps/backend/src/shared/infrastructure/jobs/` (`TenantScopedJob`, with `forEachTenant`; **a new folder, chosen deliberately**: `shared/application/` is reserved for the audit-log use case by `docs/REPOSITORY_STRUCTURE.md`, while `shared/infrastructure/` already holds the cross-cutting helpers): one method **iterates the tenants and already excludes suspended and unentitled ones using the single batch query** (never the access port once per tenant), with an explicit **`includeSuspended` option** for data-maintenance crons (e.g. retention purge), an optional **`requires: FeatureKey`** that also excludes tenants lacking that feature using the per-feature batch (`findTenantIdsNotEntitledTo`, S13 — UC-125 A4: the recurring-renewal reminder is skipped for a tenant without `BOOKING`), and the existing time-window semantics preserved; individual crons do not check. System-wide **single-pass sweeps that do not loop over tenants** (loyalty expiry, lead-form retention) are left alone — their gate is the notification gate (S23) and, for loyalty expiry, S27. Re-point Booking's `WindowedTenantJob` jobs (`booking-day-reminder-job.base.ts`, `recurring-schedule-renewal-reminder.job.ts`, the others that extend it) at the shared helper **without changing their behaviour**, and convert the **four tenant-looping jobs that do not extend `WindowedTenantJob`** — `expire-booking-holds.job.ts`, `expire-availability-alerts.job.ts`, `expire-recurring-schedule-approvals.job.ts` and `availability-alert-sweep.job.ts`, each of which calls `tenantPort.findAllActive()` itself — into `TenantScopedJob` subclasses that skip suspended tenants (decision: **all four skip**; the consequence is stated in the PR: a suspended tenant's booking holds are **not** auto-cancelled while it is suspended, they keep their slot and resume expiring on reactivation — `docs/ENGINEERING_RULES_BACKEND.md` item 8 already says so). **There are no Platform tenant-looping crons to convert:** the only Platform caller of `findAllActive` is `list-published-hotsites` (a read, S25), and chatbot retention, the chatbot balance poll and lead-form retention are single-pass sweeps that do not loop tenants, so S22 touches no Platform job. The batch read uses the standalone partial index (S13); a cross-tenant unscoped job needs a standalone index matching its filter column — verify, do not assume.
+Tenant-looping crons must not each re-implement "skip suspended and unentitled tenants". Extract the loop into a shared runner under `apps/backend/src/shared/application/jobs/` (`TenantJobRunner`; **a new folder, chosen deliberately**: the runner is orchestration over ports with no infrastructure of its own, and `pnpm dep-cruise` (`no-<context>-job-internal-imports`) forbids a job from importing `shared/infrastructure/`, so it sits in `shared/application/`, a second carve-out beside the audit-log use case that `docs/REPOSITORY_STRUCTURE.md` records; found at implementation, the first draft put it in `shared/infrastructure/jobs/`). One method, `forEachTenant(options, now, work)`, returns the per-tenant results (the caller reduces them to its own result type, so every job's `run()` signature and trigger handler stay unchanged). **The runner is feature-agnostic: nothing in it mentions BOOKING.**
+
+Options:
+- `label` — the log label.
+- `scope: 'operational' | 'includingSuspended'` (default `'operational'`) — a named option, not a boolean flag; `'includingSuspended'` serves data-maintenance crons (e.g. retention purge).
+- `requires?: FeatureKey | FeatureKey[]` — **all-of** semantics; the runner takes the **union** of `findTenantIdsNotEntitledTo(feature)` per listed feature (S13's port is **not** changed; typically one call). Feature dependencies (`LOYALTY` requires `BOOKING`, …) are enforced by Billing's `Subscription` aggregate, so a job declares only the feature it itself delivers, never its prerequisites. An any-of form is out of scope until a cron needs it.
+- `isDue?: (tenant, now) => boolean` — default always due. `localTimeWindow(window)` (moved from Booking's `tenant-local-window.helpers.ts`, with `isInLocalWindow` and the two window constants staying Booking-side unless the move is trivial) is the first predicate; predicates compose.
+
+Behaviour, in this order: (1) list the active tenants through a new narrow shared port, **`TENANT_DIRECTORY_PORT`** (`shared/ports/tenant-directory.port.ts`, `listActiveTenants(): Promise<ActiveTenant[]>`, `ActiveTenant = { id; timezone }`, ids and timezone only, uncached so a cron sees current data), implemented by Platform in `contexts/platform/infrastructure/cross-context/platform-tenant-directory.adapter.ts` over `TENANT_REPOSITORY` and wired and exported exactly as `TENANT_SETTINGS_PORT` is (precedent: `PlatformTenantSettingsAdapter`); (2) filter by `isDue`; (3) **only if at least one tenant is due**, read the exclusions with the **batch methods** (`listSuspendedTenantIds()` unless `scope` is `'includingSuspended'`, and `findTenantIdsNotEntitledTo` per required feature; **never `getAccess` once per tenant**), so a windowed job skips both Billing queries on the many 30-minute ticks that have no due tenant; (4) run `work` for each remaining tenant **sequentially**, collecting failures; (5) after every tenant was tried, throw once listing the failed tenant ids (nacks the Pub/Sub message; a re-run is safe because every job is idempotent). The runner takes **no lock and opens no transaction** around the loop (`work` keeps its own per-tenant transaction and locks, exactly as today; `docs/LOCK_CATALOG.md` is unchanged because S22 adds no lock).
+
+**Fail-open on the exclusion read (decided).** The two batch methods do not catch today (only `getAccess` fails open). If either throws, the runner logs at **error** level with the job label, processes every due tenant as if nothing were excluded, and continues. Accepted consequence: during that one failing tick a suspended or unentitled tenant may be processed once. A suspension or entitlement change racing a running tick has the same bounded effect and needs no lock (nothing may depend on instant global invalidation).
+
+**Log.** One summary line per run, **only when something was skipped**: the label, the count and the tenant ids skipped as suspended, and as unentitled per feature (carries `tenant_id` per invariant 8). A permanently suspended tenant therefore adds no line to a run that skipped nobody.
+
+**Migrations of existing jobs** (one commit per job family, green after each; no behaviour change for an entitled, operational tenant):
+- **Booking's `WindowedTenantJob` family** (`booking-reminder`, `admin-schedule-reminder` via `booking-day-reminder-job.base.ts`, `recurring-schedule-renewal-reminder`; located with `grep -rln "extends WindowedTenantJob\|extends BookingDayReminderJobBase" apps/backend/src`): the base keeps its declarative members (`window`, `label`, `processTenant`) and calls the runner with `isDue: localTimeWindow(window)`; it stops injecting `BOOKING_PLATFORM_PORT`.
+- **The four tenant-looping jobs that call `tenantPort.findAllActive()` themselves** — `expire-booking-holds`, `expire-availability-alerts`, `expire-recurring-schedule-approvals`, `availability-alert-sweep` — call the runner instead.
+- **`requires: BOOKING` is declared by the four outbound jobs only** (both reminders, the renewal reminder — UC-125 A4 — and the availability-alert sweep). **The three cleanup jobs (holds, alert expiry, approval expiry) declare no `requires`**: a tenant that loses BOOKING must still have its stale PENDING holds, alerts and approvals expired, so cleanup keeps going; suspension is temporary and they resume on reactivation, whereas a lost entitlement may not return.
+- **All four skip suspended tenants** (decision kept: a suspended tenant's booking holds are **not** auto-cancelled while it is suspended; they keep their slot and resume expiring on reactivation, as `docs/ENGINEERING_RULES_BACKEND.md` item 8 already says). The PR body states this.
+- **Deliberate behaviour change, stated in the PR body:** `expire-booking-holds`, `expire-availability-alerts` and `expire-recurring-schedule-approvals` today abort on the first tenant that throws (a bare `mapSequentially`); through the runner they try every tenant and throw at the end, as the windowed jobs and the sweep already do. A tenant that fails on every tick still reaches the dead-letter queue (existing alerting). A windowed job whose lock wait outlasts the tenant's 30-minute window still loses that tenant's day on redelivery (existing, documented in `forEachTenantInWindow`).
+- **`IBookingPlatformPort.findAllActive()`** is removed from the port, `booking-platform.adapter.ts` and `in-memory-booking-platform.port.ts` (no second tenant list); the Platform `list-published-hotsites` use case keeps using `TENANT_REPOSITORY.findAllActive()` (a read, S25).
+- **Not converted, by design:** system-wide single-pass sweeps that do not loop over tenants (loyalty expiry, lead-form and chatbot retention, `resource-occupancy-retention-purge`: their gate is the notification gate, S23, and for loyalty expiry S27); **Billing's own trigger jobs** (`docs/ENGINEERING_RULES_BACKEND.md` § Billing (planned): they select their own tenants through standalone partial indexes and must keep running for suspended tenants). **There are no Platform tenant-looping crons to convert.** The two batch reads use S13's standalone partial index (`IDX_billing_subscriptions_suspended_at`); S13's `typeorm-subscription.repository.access-batch.integration.spec.ts` already pins it, so S22 does not repeat the `EXPLAIN`.
 
 **Backend use case steps:**
-1. **Extract** the loop and the tenant source into the shared helper; 2. **migrate** each Booking job to it (one commit per job family, green after each); 3. add `includeSuspended`.
+1. Add `TENANT_DIRECTORY_PORT`, its Platform adapter and the in-memory double; 2. add `TenantJobRunner` (+ `localTimeWindow`); 3. migrate the `WindowedTenantJob` family (green); 4. migrate the four looping jobs (green after each); 5. remove `findAllActive` from Booking's port; 6. docs.
 
 **Backend HTTP surface:** none.
-**New migration / i18n keys / env vars / feature flags:** none.
+**New migration / i18n keys / env vars / feature flags:** none. No new Pub/Sub topic, subscription or scheduler job (trigger handlers, controllers and Terraform are untouched), so no Foundation apply.
 
 **Files to create/modify:**
-- `apps/backend/src/shared/infrastructure/jobs/tenant-scoped-job.base.ts` (+ `.spec.ts`) (new) and `docs/REPOSITORY_STRUCTURE.md` (modify — add `jobs/` to the `shared/infrastructure/` entry)
-- `apps/backend/src/contexts/booking/application/jobs/windowed-tenant-job.base.ts` (modify — becomes a thin subclass/adapter of the shared helper)
-- `apps/backend/src/contexts/booking/application/jobs/tenant-local-window.helpers.ts` (modify only if the window helper moves)
-- `apps/backend/src/contexts/booking/application/jobs/booking-day-reminder-job.base.ts`, `recurring-schedule-renewal-reminder.job.ts` and the other `WindowedTenantJob` subclasses (modify — located with `grep -rln "extends WindowedTenantJob" apps/backend/src`)
-- `apps/backend/src/contexts/booking/application/jobs/expire-booking-holds.job.ts`, `expire-availability-alerts.job.ts`, `expire-recurring-schedule-approvals.job.ts`, `availability-alert-sweep.job.ts` (+ their `.spec.ts` / `.integration.spec.ts`) (modify — extend `TenantScopedJob`)
-- `apps/backend/src/contexts/booking/application/ports/booking-platform.port.ts` and `…/infrastructure/cross-context/booking-platform.adapter.ts` (modify — `findAllActive` replaced or complemented by the shared tenant source)
-- `docs/ENGINEERING_RULES_BACKEND.md` (modify — § Billing (planned) / item 8: the "planned" wording for the helper becomes the final name; the four-expiry-jobs treatment is already written there)
+- `apps/backend/src/shared/ports/tenant-directory.port.ts` (new) and `apps/backend/src/shared/application/jobs/tenant-job-runner.ts` (+ `.spec.ts`), `…/jobs/jobs.module.ts` if the runner needs one (new); `apps/backend/src/shared/application/jobs/local-time-window.ts` (+ `.spec.ts`) if the window predicate moves (new)
+- `apps/backend/src/contexts/platform/infrastructure/cross-context/platform-tenant-directory.adapter.ts` (+ `.spec.ts`, `.integration.spec.ts`) and its wiring in `apps/backend/src/contexts/platform/platform.module.ts` (and `platform-settings.module.ts` only if the `TENANT_SETTINGS_PORT` precedent requires it) (new/modify)
+- `apps/backend/src/test/infrastructure/in-memory-tenant-directory.port.ts` (new)
+- `apps/backend/src/contexts/booking/application/jobs/windowed-tenant-job.base.ts` (modify — thin Booking-local base over the runner) and `tenant-local-window.helpers.ts` (modify only if the window helper moves)
+- `apps/backend/src/contexts/booking/application/jobs/booking-day-reminder-job.base.ts`, `booking-reminder.job.ts`, `admin-schedule-reminder.job.ts`, `recurring-schedule-renewal-reminder.job.ts` (modify — `requires: BOOKING`)
+- `apps/backend/src/contexts/booking/application/jobs/expire-booking-holds.job.ts`, `expire-availability-alerts.job.ts`, `expire-recurring-schedule-approvals.job.ts`, `availability-alert-sweep.job.ts` (+ their `.spec.ts` / `.integration.spec.ts`) (modify — call the runner)
+- `apps/backend/src/contexts/booking/application/ports/booking-platform.port.ts`, `…/infrastructure/cross-context/booking-platform.adapter.ts` (+ spec) and `apps/backend/src/test/infrastructure/in-memory-booking-platform.port.ts` (modify — remove `findAllActive`)
+- `docs/REPOSITORY_STRUCTURE.md` (modify — the `shared/application/` entry and its carve-out sentence gain `jobs/`), `docs/ENGINEERING_RULES_SHARED.md` § Tenant access enforcement (item 4) and `docs/ENGINEERING_RULES_BACKEND.md` § Billing (planned) (modify — the "planned" helper wording becomes `TenantJobRunner` and the final option names), `docs/ENGINEERING_RULES_BACKEND.md` item 8 (the four-expiry-jobs treatment is already written there; keep it consistent)
+- Test infrastructure (not in the first draft of this list): `apps/backend/src/test/utils/test-tenant-access-module.ts` (new, a global `TENANT_ACCESS_PORT` stand-in) wired into `booking-integration-app.ts`, `loyalty-integration-app.ts` and `notification-integration-app.ts`, because `BookingModule` now needs the port and those harnesses do not import Billing; `InMemoryTenantAccessPort` gains call records, `batchReadError` and `reactivate()`; and `get-tenant-access.use-case.spec.ts` (an unrelated latent S13 failure: its hardcoded clock fell behind `SubscriptionItemBuilder`'s `Date.now() - 1 day` default on 2026-11-13, fixed in this branch per CLAUDE.md §7)
+- Stale-reference sweep: grep `docs/*.md`, `.claude/commands/**` and `scripts/**` for `findAllActive`, `WindowedTenantJob` and "tenant-scoped job helper" wording and update each hit
 
 **Acceptance criteria — product:**
-- [ ] No Booking or Platform cron behaves differently for an entitled/exempt tenant: the same tenants are processed at the same times.
-- [ ] A suspended or non-entitled tenant is skipped by every tenant-looping cron, with a log line; a data-maintenance cron passing `includeSuspended` still processes it.
+- [ ] No Booking cron behaves differently for an entitled, operational tenant: the same tenants are processed at the same times.
+- [ ] A suspended tenant is skipped by every tenant-looping Booking cron, with a summary log line; a tenant without `BOOKING` is skipped by the four outbound jobs but **still processed by the three cleanup jobs**; a data-maintenance caller passing `scope: 'includingSuspended'` still processes a suspended tenant.
+- [ ] The runner is feature-agnostic: a job may declare any `FeatureKey` or a list of them.
 
 **Acceptance criteria — technical:**
-- Unit:
-  - [ ] Helper: iterates operational+entitled tenants only; `includeSuspended` includes the rest; one tenant's failure does not stop the others and the run fails after all were tried (the existing semantics)
+- Unit (runner, with `InMemoryTenantAccessPort` and `InMemoryTenantDirectoryPort`):
+  - [ ] Processes operational tenants only; `scope: 'includingSuspended'` includes the suspended ones
+  - [ ] `requires` with one feature and with a list (all-of): a tenant missing any listed feature is skipped (the union of the per-feature batch results)
+  - [ ] `isDue` filters before the exclusion reads: with no due tenant, neither batch method is called (assert on the double's call records, not `jest.fn()`); with due tenants each batch method is called once per run, never per tenant, and `getAccessCalls` stays empty
+  - [ ] One tenant's failure does not stop the others; after all were tried the run throws listing the failed ids
+  - [ ] **Fail-open:** a throwing `listSuspendedTenantIds` or `findTenantIdsNotEntitledTo` is logged at error level and every due tenant is still processed
+  - [ ] The summary log is emitted only when something was skipped, and carries the tenant ids
+  - [ ] The runner opens no transaction and takes no lock
+- Unit (jobs):
   - [ ] Every migrated Booking job keeps its original specs green without edits to their assertions (including the four expiry/sweep jobs for an entitled, operational tenant)
   - [ ] A suspended tenant's expired booking hold is **not** cancelled by `ExpireBookingHoldsJob`, and is cancelled after the tenant is reactivated
-- Integration:
-  - [ ] A tenant-looping job run with a suspended and an active tenant processes only the active one (Testcontainers)
+  - [ ] **Pins the negative guarantee:** an expiry job (holds, alerts, approvals) still processes an operational tenant that lacks `BOOKING`; the four outbound jobs skip it
+  - [ ] An expiry job keeps processing the tenants after one that throws, then fails the run
+- Integration (Testcontainers):
+  - [ ] A tenant-looping job run with a suspended and an active tenant processes only the active one
   - [ ] The recurring-renewal reminder job (declares `requires: BOOKING`) skips an active tenant that lacks `BOOKING` and processes one that has it
-  - [ ] `EXPLAIN` of the batch query shows the standalone partial index
-- Tenant isolation: [ ] per-tenant work receives only its own tenant's data; the batch query returns ids, not state
+  - [ ] `PlatformTenantDirectoryAdapter` returns active tenants only, with id and timezone, and no inactive tenant
+  - [ ] **Lock contention:** with another transaction holding the resource lock `ExpireBookingHoldsJob` needs for one tenant's booking, that booking's transaction times out on the transaction-local `lock_timeout`, which the job logs and skips (its per-booking `catch` never rethrows, so the run still succeeds and the tenant is not counted as failed); the other tenants are processed, and once the lock is released the next run expires the contended hold (concurrent test on its own tenants, mutation-checked: it fails when the lock is not held)
+- Tenant isolation: [ ] per-tenant work receives only its own tenant's data; the exclusion reads return ids, not state
 - E2E: none — covered by unit/integration
 - [ ] Coverage ≥80% on changed code
-- [ ] `tsc --noEmit` clean, lint clean
+- [ ] `tsc --noEmit` clean, lint clean, `pnpm dep-cruise` clean (the new port lives in `shared/ports/`; no context imports another)
+- [ ] The PR body states the two deliberate behaviour changes (the three expiry jobs now try every tenant; suspended tenants' holds are not auto-cancelled until reactivation)
 
 ---
 

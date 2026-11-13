@@ -1,20 +1,13 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
-import { AppLogger } from '../../../../shared/observability/app-logger';
-import { mapSequentially } from '../../../../shared/utils/sequential';
-import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
+import { localTimeWindow } from '../../../../shared/application/jobs/local-time-window';
+import { TenantJobRunner } from '../../../../shared/application/jobs/tenant-job-runner';
 import { MatchAvailabilityAlertsUseCase } from '../use-cases/match-availability-alerts.use-case';
-import { ALERT_SWEEP_WINDOW, isInLocalWindow } from './tenant-local-window.helpers';
+import { ALERT_SWEEP_WINDOW } from './tenant-local-window.helpers';
 
 // The local-morning window in which a tenant is swept — after BookingReminderJob's 06:00–06:29
 // window. The cron-reminders trigger fires every 30 minutes, so exactly one tick lands inside it:
 // once per tenant per day, with no "last run" state to store.
-
-interface TenantSweepOutcome {
-  tenantId: string;
-  notified: number;
-  failed: boolean;
-}
 
 export interface AvailabilityAlertSweepJobResult {
   tenantsSwept: number;
@@ -30,51 +23,38 @@ export interface AvailabilityAlertSweepJobResult {
 // notified).
 @Injectable()
 export class AvailabilityAlertSweepJob {
-  private readonly logger = new AppLogger(AvailabilityAlertSweepJob.name);
-
   constructor(
-    @Inject(BOOKING_PLATFORM_PORT) private readonly tenantPort: IBookingPlatformPort,
+    private readonly tenantRunner: TenantJobRunner,
     private readonly matchAlerts: MatchAvailabilityAlertsUseCase,
   ) {}
 
+  // A tenant is only swept inside its 06:30–06:59 window, so a swallowed error would wait a whole
+  // day: the runner throws after every tenant was tried, the trigger handler nacks and Pub/Sub
+  // redelivers the message, still inside the window.
   async run(now: Date = new Date()): Promise<AvailabilityAlertSweepJobResult> {
-    const tenants = await this.tenantPort.findAllActive();
-    const due = tenants.filter((tenant) =>
-      isInLocalWindow(now, tenant.timezone, ALERT_SWEEP_WINDOW),
+    const notified = await this.tenantRunner.forEachTenant(
+      {
+        label: 'Availability alert sweep',
+        requires: 'BOOKING',
+        isDue: localTimeWindow(ALERT_SWEEP_WINDOW),
+      },
+      now,
+      (tenant) => this.sweepTenant(tenant.id, now),
     );
-
-    const outcomes = await mapSequentially(due, (tenant) => this.sweepTenant(tenant.id, now));
-    const failed = outcomes.filter((outcome) => outcome.failed).map((outcome) => outcome.tenantId);
-    // Every tenant has been swept by now, so one failure never starves the others. The failure itself
-    // must still reach the subscription: a tenant is only swept inside its 06:30–06:59 window, so a
-    // swallowed error would wait a whole day. Throwing nacks the message and Pub/Sub redelivers it —
-    // still inside the window — and a re-run is a no-op for every alert already notified.
-    if (failed.length > 0) {
-      throw new Error(`Availability alert sweep failed for tenant(s): ${failed.join(', ')}`);
-    }
     return {
-      tenantsSwept: due.length,
-      notified: outcomes.reduce((sum, outcome) => sum + outcome.notified, 0),
+      tenantsSwept: notified.length,
+      notified: notified.reduce((sum, count) => sum + count, 0),
     };
   }
 
-  private async sweepTenant(tenantId: string, now: Date): Promise<TenantSweepOutcome> {
-    try {
-      const { notified } = await this.matchAlerts.execute({
-        tenantId,
-        correlationId: uuidv7(),
-        serviceIds: null,
-        around: null,
-        now,
-      });
-      return { tenantId, notified, failed: false };
-    } catch (err) {
-      this.logger.error(
-        'Availability alert sweep failed for a tenant — the run will be retried',
-        err instanceof Error ? err.stack : String(err),
-        { tenantId },
-      );
-      return { tenantId, notified: 0, failed: true };
-    }
+  private async sweepTenant(tenantId: string, now: Date): Promise<number> {
+    const { notified } = await this.matchAlerts.execute({
+      tenantId,
+      correlationId: uuidv7(),
+      serviceIds: null,
+      around: null,
+      now,
+    });
+    return notified;
   }
 }

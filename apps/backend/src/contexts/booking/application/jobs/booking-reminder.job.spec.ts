@@ -1,6 +1,8 @@
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
+import { TenantJobRunner } from '../../../../shared/application/jobs/tenant-job-runner';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
-import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
+import { InMemoryTenantDirectoryPort } from '../../../../test/infrastructure/in-memory-tenant-directory.port';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryBookingCustomerPort } from '../../../../test/infrastructure/in-memory-booking-customer.port';
 import { BookingBuilder, BookingLineBuilder } from '../../../../test/builders/booking/index';
@@ -31,19 +33,21 @@ const TOMORROW = new Date('2026-06-02T09:00:00.000Z');
 const TODAY = new Date('2026-06-01T09:00:00.000Z');
 
 describe('BookingReminderJob', () => {
-  let tenantPort: InMemoryBookingPlatformPort;
+  let directory: InMemoryTenantDirectoryPort;
+  let access: InMemoryTenantAccessPort;
   let bookingRepo: InMemoryBookingRepository;
   let customerProfilePort: InMemoryBookingCustomerPort;
   let outboxPublisher: InMemoryEventBus;
   let job: BookingReminderJob;
 
   beforeEach(() => {
-    tenantPort = new InMemoryBookingPlatformPort();
+    directory = new InMemoryTenantDirectoryPort();
+    access = new InMemoryTenantAccessPort();
     bookingRepo = new InMemoryBookingRepository();
     customerProfilePort = new InMemoryBookingCustomerPort();
     outboxPublisher = new InMemoryEventBus();
     job = new BookingReminderJob(
-      tenantPort,
+      new TenantJobRunner(directory, access),
       bookingRepo,
       customerProfilePort,
       outboxPublisher,
@@ -54,7 +58,7 @@ describe('BookingReminderJob', () => {
   afterEach(() => jest.resetAllMocks());
 
   it('emits BookingReminderDue for APPROVED booking scheduled tomorrow', async () => {
-    tenantPort.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
+    directory.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
     const booking = new BookingBuilder()
       .withTenantId(TENANT_IN)
       .withStatus(BookingStatus.APPROVED)
@@ -72,7 +76,7 @@ describe('BookingReminderJob', () => {
   });
 
   it('emits BookingReminderDueToday for APPROVED booking scheduled today', async () => {
-    tenantPort.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
+    directory.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
     const booking = new BookingBuilder()
       .withTenantId(TENANT_IN)
       .withStatus(BookingStatus.APPROVED)
@@ -91,7 +95,7 @@ describe('BookingReminderJob', () => {
   });
 
   it('uses guest email and name for guest bookings', async () => {
-    tenantPort.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
+    directory.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
     const booking = new BookingBuilder()
       .withTenantId(TENANT_IN)
       .withStatus(BookingStatus.APPROVED)
@@ -110,7 +114,7 @@ describe('BookingReminderJob', () => {
   });
 
   it('uses customer profile email and name for authenticated bookings', async () => {
-    tenantPort.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
+    directory.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
     const booking = new BookingBuilder()
       .withTenantId(TENANT_IN)
       .withStatus(BookingStatus.APPROVED)
@@ -134,7 +138,7 @@ describe('BookingReminderJob', () => {
   });
 
   it('falls back to guest fields when customer profile not found', async () => {
-    tenantPort.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
+    directory.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
     const booking = new BookingBuilder()
       .withTenantId(TENANT_IN)
       .withStatus(BookingStatus.APPROVED)
@@ -155,7 +159,7 @@ describe('BookingReminderJob', () => {
   });
 
   it('does not emit events for tenant outside 06:00–06:29 window', async () => {
-    tenantPort.seed([{ id: TENANT_OUT, timezone: 'UTC' }]);
+    directory.seed([{ id: TENANT_OUT, timezone: 'UTC' }]);
     const booking = new BookingBuilder()
       .withTenantId(TENANT_OUT)
       .withStatus(BookingStatus.APPROVED)
@@ -170,7 +174,7 @@ describe('BookingReminderJob', () => {
   });
 
   it('emits no events when tenant has no APPROVED bookings', async () => {
-    tenantPort.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
+    directory.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
 
     await job.run(NOW_IN);
 
@@ -178,7 +182,7 @@ describe('BookingReminderJob', () => {
   });
 
   it('includes serviceName and correct appointmentSlot in event payload', async () => {
-    tenantPort.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
+    directory.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
     const booking = new BookingBuilder()
       .withTenantId(TENANT_IN)
       .withStatus(BookingStatus.APPROVED)
@@ -205,7 +209,7 @@ describe('BookingReminderJob', () => {
   });
 
   it('tenant isolation: Tenant A bookings do not appear in Tenant B events', async () => {
-    tenantPort.seed([
+    directory.seed([
       { id: TENANT_IN, timezone: 'UTC' },
       { id: TENANT_OUT, timezone: 'UTC' },
     ]);
@@ -226,7 +230,7 @@ describe('BookingReminderJob', () => {
   });
 
   it('sets dedupKey to BookingReminderDue:<tenantId>:<bookingId>:<local tomorrow date>', async () => {
-    tenantPort.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
+    directory.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
     const booking = new BookingBuilder()
       .withTenantId(TENANT_IN)
       .withStatus(BookingStatus.APPROVED)
@@ -244,7 +248,7 @@ describe('BookingReminderJob', () => {
   });
 
   it('sets dedupKey to BookingReminderDueToday:<tenantId>:<bookingId>:<local today date>', async () => {
-    tenantPort.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
+    directory.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
     const booking = new BookingBuilder()
       .withTenantId(TENANT_IN)
       .withStatus(BookingStatus.APPROVED)
@@ -262,7 +266,7 @@ describe('BookingReminderJob', () => {
   });
 
   it('two overlapping runs for the same day produce the same dedupKey (TD24-S03 cron double-send fix)', async () => {
-    tenantPort.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
+    directory.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
     const booking = new BookingBuilder()
       .withTenantId(TENANT_IN)
       .withStatus(BookingStatus.APPROVED)
@@ -282,7 +286,7 @@ describe('BookingReminderJob', () => {
   });
 
   it('uses a fresh correlationId per tenant iteration', async () => {
-    tenantPort.seed([
+    directory.seed([
       { id: TENANT_IN, timezone: 'UTC' },
       { id: TENANT_OUT, timezone: 'UTC' },
     ]);
@@ -315,7 +319,7 @@ describe('BookingReminderJob', () => {
   });
 
   it('processes every tenant, then fails the run so the trigger message is retried', async () => {
-    tenantPort.seed([
+    directory.seed([
       { id: TENANT_IN, timezone: 'UTC' },
       { id: TENANT_OUT, timezone: 'UTC' },
     ]);
@@ -336,5 +340,32 @@ describe('BookingReminderJob', () => {
 
     const delivered = outboxPublisher.published.filter((e) => e.eventName === 'BookingReminderDue');
     expect(delivered.map((e) => e.tenantId)).toEqual([TENANT_OUT]);
+  });
+
+  it('skips a suspended tenant and a tenant without BOOKING', async () => {
+    const suspended = '00000000-0000-7000-8000-000000000003';
+    const withoutBooking = '00000000-0000-7000-8000-000000000004';
+    directory.seed([
+      { id: TENANT_IN, timezone: 'UTC' },
+      { id: suspended, timezone: 'UTC' },
+      { id: withoutBooking, timezone: 'UTC' },
+    ]);
+    access.seedSuspended(suspended);
+    access.seedNotEntitledTo('BOOKING', [withoutBooking]);
+    for (const tenantId of [TENANT_IN, suspended, withoutBooking]) {
+      await bookingRepo.save(
+        new BookingBuilder()
+          .withTenantId(tenantId)
+          .withStatus(BookingStatus.APPROVED)
+          .withScheduledAt(TOMORROW)
+          .withLines([new BookingLineBuilder().withServiceId(SERVICE_ID).build()])
+          .build(),
+      );
+    }
+
+    await job.run(NOW_IN);
+
+    const events = outboxPublisher.published.filter((e) => e.eventName === 'BookingReminderDue');
+    expect(events.map((e) => e.tenantId)).toEqual([TENANT_IN]);
   });
 });
