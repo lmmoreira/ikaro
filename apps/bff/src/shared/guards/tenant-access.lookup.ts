@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { FEATURE_KEYS } from '@ikaro/validation';
 import type { TenantAccessView } from '@ikaro/types';
 import { Request } from 'express';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, type Observable } from 'rxjs';
 import { z } from 'zod';
 import { TtlCache } from '../cache/ttl-cache';
 import { buildBackendHeaders } from '../http/backend-headers';
@@ -27,6 +27,19 @@ const AccessAnswerSchema = z.object({
   degraded: z.literal(true).optional(),
 });
 
+/** The one `HttpService` call the lookup makes: a narrow shape a spec can implement without a cast. */
+export interface BackendGetClient {
+  get<T>(
+    url: string,
+    config: { headers: Record<string, string>; timeout: number },
+  ): Observable<{ data: T }>;
+}
+
+/** The two config reads the lookup makes. */
+export interface AccessLookupConfig {
+  getOrThrow(key: 'BACKEND_INTERNAL_URL' | 'INTERNAL_API_KEY'): string;
+}
+
 /** What `TenantAccessGuard` needs, so a spec can substitute an in-memory source. */
 export interface TenantAccessSource {
   getAccess(tenantId: string, req: Request): Promise<TenantAccessView>;
@@ -46,11 +59,12 @@ export class TenantAccessLookup implements TenantAccessSource {
   private readonly backendUrl: string;
 
   constructor(
-    private readonly http: HttpService,
-    private readonly config: ConfigService,
+    // The concrete classes are the DI tokens (the narrow interfaces are erased at runtime).
+    @Inject(HttpService) private readonly http: BackendGetClient,
+    @Inject(ConfigService) private readonly config: AccessLookupConfig,
     @Inject(TENANT_ACCESS_CACHE) private readonly cache: TtlCache<TenantAccessView>,
   ) {
-    this.backendUrl = this.config.getOrThrow<string>('BACKEND_INTERNAL_URL');
+    this.backendUrl = this.config.getOrThrow('BACKEND_INTERNAL_URL');
   }
 
   async getAccess(tenantId: string, req: Request): Promise<TenantAccessView> {

@@ -1,14 +1,14 @@
-import { HttpService } from '@nestjs/axios';
-import { ConfigService } from '@nestjs/config';
-import { Request } from 'express';
-import { of, throwError } from 'rxjs';
-import { TtlCache } from '../cache/ttl-cache';
+import { Observable, of, throwError } from 'rxjs';
 import { makeBackendHttp } from '../../test/backend-http.mock';
+import { makeRequest } from '../../test/execution-context.factory';
+import { TtlCache } from '../cache/ttl-cache';
 import { publicTenantIdCache, withPublicTenant } from '../http/public-tenant';
 import {
   OPERATIONAL_ACCESS_TTL_MS,
   SUSPENDED_ACCESS_TTL_MS,
   TenantAccessLookup,
+  type AccessLookupConfig,
+  type BackendGetClient,
 } from './tenant-access.lookup';
 
 const TENANT_ID = '10000000-0000-4000-8000-000000000001';
@@ -24,28 +24,53 @@ class FakeClock {
   }
 }
 
-const config = {
-  getOrThrow: (key: string) =>
-    key === 'BACKEND_INTERNAL_URL' ? 'http://backend:3001' : 'internal-key',
-} as unknown as ConfigService;
+// Answers every GET with what `answer()` returns right now, and records the URLs it was asked for.
+class FakeBackend implements BackendGetClient {
+  readonly urls: string[] = [];
+  lastHeaders: Record<string, string> = {};
 
-const req = { headers: { 'x-correlation-id': 'corr-1' }, user: undefined } as unknown as Request;
+  constructor(private readonly answer: () => unknown) {}
+
+  get<T>(
+    url: string,
+    config: { headers: Record<string, string>; timeout: number },
+  ): Observable<{ data: T }> {
+    this.urls.push(url);
+    this.lastHeaders = config.headers;
+    return of({ data: this.answer() as T });
+  }
+}
+
+class FailingBackend implements BackendGetClient {
+  calls = 0;
+
+  constructor(private readonly message: string) {}
+
+  get<T>(): Observable<{ data: T }> {
+    this.calls += 1;
+    return throwError(() => new Error(this.message));
+  }
+}
+
+const config: AccessLookupConfig = {
+  getOrThrow: (key) => (key === 'BACKEND_INTERNAL_URL' ? 'http://backend:3001' : 'internal-key'),
+};
+
+const req = makeRequest({ headers: { 'x-correlation-id': 'corr-1' } });
+
+type AccessCache = TtlCache<{ operational: boolean; features: { key: string }[] }>;
 
 function makeLookup(answer: () => unknown, clock = new FakeClock()) {
-  const get = jest.fn().mockImplementation(() => of({ data: answer() }));
-  const http = { get } as unknown as HttpService;
-  const cache = new TtlCache<{ operational: boolean; features: { key: string }[] }>({
-    maxEntries: 100,
-    clock,
-  });
-  return { lookup: new TenantAccessLookup(http, config, cache), get, clock };
+  const backend = new FakeBackend(answer);
+  const cache: AccessCache = new TtlCache({ maxEntries: 100, clock });
+  return { lookup: new TenantAccessLookup(backend, config, cache), backend, clock };
 }
 
 describe('TenantAccessLookup', () => {
   afterEach(() => publicTenantIdCache.clear());
 
   it('reads the backend access route with the internal key and keeps only what the gate needs', async () => {
-    const { lookup, get } = makeLookup(() => ({
+    const { lookup, backend } = makeLookup(() => ({
       status: 'ACTIVE',
       suspensionReason: null,
       operational: true,
@@ -56,46 +81,44 @@ describe('TenantAccessLookup', () => {
       operational: true,
       features: [{ key: 'BOOKING' }],
     });
-    expect(get).toHaveBeenCalledWith(
+    expect(backend.urls).toEqual([
       `http://backend:3001/internal/billing/tenants/${TENANT_ID}/access`,
-      expect.objectContaining({
-        headers: expect.objectContaining({ 'X-Internal-Key': 'internal-key' }),
-      }),
-    );
+    ]);
+    expect(backend.lastHeaders['X-Internal-Key']).toBe('internal-key');
   });
 
   it('makes no second backend call inside the TTL', async () => {
-    const { lookup, get } = makeLookup(() => ({ operational: true, features: [BOOKING] }));
+    const { lookup, backend } = makeLookup(() => ({ operational: true, features: [BOOKING] }));
 
     await lookup.getAccess(TENANT_ID, req);
     await lookup.getAccess(TENANT_ID, req);
 
-    expect(get).toHaveBeenCalledTimes(1);
+    expect(backend.urls).toHaveLength(1);
   });
 
   it('caches an operational answer for 300 s and a suspended one for 10 s', async () => {
     let operational = true;
-    const { lookup, get, clock } = makeLookup(() => ({ operational, features: [BOOKING] }));
+    const { lookup, backend, clock } = makeLookup(() => ({ operational, features: [BOOKING] }));
     await lookup.getAccess(TENANT_ID, req);
 
     clock.advance(OPERATIONAL_ACCESS_TTL_MS - 1);
     await lookup.getAccess(TENANT_ID, req);
-    expect(get).toHaveBeenCalledTimes(1);
+    expect(backend.urls).toHaveLength(1);
     clock.advance(1);
     operational = false;
     await lookup.getAccess(TENANT_ID, req);
-    expect(get).toHaveBeenCalledTimes(2);
+    expect(backend.urls).toHaveLength(2);
 
     clock.advance(SUSPENDED_ACCESS_TTL_MS - 1);
     await lookup.getAccess(TENANT_ID, req);
-    expect(get).toHaveBeenCalledTimes(2);
+    expect(backend.urls).toHaveLength(2);
     clock.advance(1);
     await lookup.getAccess(TENANT_ID, req);
-    expect(get).toHaveBeenCalledTimes(3);
+    expect(backend.urls).toHaveLength(3);
   });
 
   it('never caches a degraded (fail-open) answer', async () => {
-    const { lookup, get } = makeLookup(() => ({
+    const { lookup, backend } = makeLookup(() => ({
       operational: true,
       features: [BOOKING],
       degraded: true,
@@ -106,7 +129,7 @@ describe('TenantAccessLookup', () => {
       features: [{ key: 'BOOKING' }],
     });
     await lookup.getAccess(TENANT_ID, req);
-    expect(get).toHaveBeenCalledTimes(2);
+    expect(backend.urls).toHaveLength(2);
   });
 
   it('rejects an answer that does not match the contract instead of guessing', async () => {
@@ -115,11 +138,9 @@ describe('TenantAccessLookup', () => {
   });
 
   it('propagates a backend failure for the guard to turn into a pass-through', async () => {
-    const http = {
-      get: () => throwError(() => new Error('connect ECONNREFUSED')),
-    } as unknown as HttpService;
+    const backend = new FailingBackend('connect ECONNREFUSED');
     const lookup = new TenantAccessLookup(
-      http,
+      backend,
       config,
       new TtlCache({ maxEntries: 10, clock: new FakeClock() }),
     );
@@ -190,7 +211,7 @@ describe('TenantAccessLookup', () => {
 
   describe('slug → tenant id for an @Public() route', () => {
     it('makes one by-slug call for the guard and withPublicTenant together, and none inside the TTL', async () => {
-      const { lookup, get } = makeLookup(() => ({
+      const { lookup, backend } = makeLookup(() => ({
         id: TENANT_ID,
         slug: 'autospa',
         name: 'Autospa',
@@ -204,25 +225,17 @@ describe('TenantAccessLookup', () => {
       await withPublicTenant(backendHttp, 'autospa', run);
       await lookup.resolveTenantId('autospa', req);
 
-      expect(get).toHaveBeenCalledTimes(1);
-      expect(get).toHaveBeenCalledWith(
-        'http://backend:3001/internal/tenants/by-slug/autospa',
-        expect.anything(),
-      );
+      expect(backend.urls).toEqual(['http://backend:3001/internal/tenants/by-slug/autospa']);
       expect(backendHttp.get).not.toHaveBeenCalled();
       expect(run).toHaveBeenCalledWith(TENANT_ID);
     });
 
     it('never caches a failed lookup (an unknown slug)', async () => {
-      const http = { get: jest.fn().mockReturnValue(throwError(() => new Error('404'))) };
-      const lookup = new TenantAccessLookup(
-        http as unknown as HttpService,
-        config,
-        new TtlCache({ maxEntries: 10 }),
-      );
+      const backend = new FailingBackend('404');
+      const lookup = new TenantAccessLookup(backend, config, new TtlCache({ maxEntries: 10 }));
       await expect(lookup.resolveTenantId('nope', req)).rejects.toThrow('404');
       await expect(lookup.resolveTenantId('nope', req)).rejects.toThrow('404');
-      expect(http.get).toHaveBeenCalledTimes(2);
+      expect(backend.calls).toBe(2);
     });
   });
 });

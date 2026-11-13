@@ -63,10 +63,14 @@ export function isAdmittedWhileSuspended(
 }
 
 /**
- * The one decision both guards apply. Suspension first (a suspended tenant that the policy does not
- * admit is refused whatever it owns), then entitlement, which a route that owns no feature or opts
- * out with `@NoFeatureGate()` skips. Suspension never changes the feature list, so a route that a
- * policy admits during a suspension still answers on the features the tenant holds.
+ * The one decision both guards apply. A suspended tenant is decided by the route's suspension
+ * policy alone: a policy that does not admit the caller refuses with `TENANT_SUSPENDED`, and a
+ * policy that admits the caller makes the route reachable, so the entitlement check is skipped. A
+ * suspended tenant holds no entitled feature (`Subscription.entitledAt` returns none), which would
+ * otherwise turn every route a policy admits, such as the hotsite manifest that declares
+ * `@RequiresFeature('HOTSITE')` beside `PUBLIC_MANIFEST`, into a `FEATURE_NOT_ENTITLED` denial.
+ * An operational tenant is decided by entitlement, which a route that owns no feature or opts out
+ * with `@NoFeatureGate()` skips.
  */
 export function evaluateTenantAccess(
   access: TenantAccessView,
@@ -75,7 +79,7 @@ export function evaluateTenantAccess(
 ): TenantAccessVerdict {
   if (!access.operational) {
     const policy = requirement.policy ?? 'DEFAULT_DENY';
-    if (!isAdmittedWhileSuspended(policy, role)) return 'TENANT_SUSPENDED';
+    return isAdmittedWhileSuspended(policy, role) ? 'ALLOW' : 'TENANT_SUSPENDED';
   }
   const { feature, noFeatureGate } = requirement;
   if (feature !== undefined && noFeatureGate !== true) {

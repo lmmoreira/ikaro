@@ -1,4 +1,4 @@
-import { ExecutionContext, HttpException, HttpStatus } from '@nestjs/common';
+import { HttpException, HttpStatus } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { FEATURE_KEYS, type FeatureKey } from '@ikaro/validation';
 import {
@@ -8,7 +8,7 @@ import {
   type ActorRole,
   type TenantAccessView,
 } from '@ikaro/types';
-import { Request } from 'express';
+import { StubExecutionContext, type StubHttpRequest } from '../../test/stub-execution-context';
 import { NoFeatureGate } from '../decorators/no-feature-gate.decorator';
 import { Public } from '../decorators/public.decorator';
 import { RequiresFeature } from '../decorators/requires-feature.decorator';
@@ -60,13 +60,9 @@ function routeWith(...decorators: (MethodDecorator & ClassDecorator)[]) {
 
 function contextFor(
   route: new () => { handler(): void },
-  req: Partial<Request> & { user?: unknown; headers?: Record<string, string> },
-): ExecutionContext {
-  return {
-    getHandler: () => route.prototype.handler,
-    getClass: () => route,
-    switchToHttp: () => ({ getRequest: () => ({ headers: {}, ...req }) }),
-  } as unknown as ExecutionContext;
+  req: Partial<StubHttpRequest>,
+): StubExecutionContext {
+  return new StubExecutionContext(route.prototype.handler, route, { headers: {}, ...req });
 }
 
 const jwt = (role: ActorRole, tenantId = TENANT_ID) => ({
@@ -206,6 +202,60 @@ describe('TenantAccessGuard (BFF)', () => {
     it('fails open when the access lookup fails', async () => {
       source.failWith = new Error('backend down');
       await expect(guard.canActivate(contextFor(publicRoute(), slugReq))).resolves.toBe(true);
+    });
+
+    describe('a route that carries the slug in its URL path (the hotsite manifest)', () => {
+      const pathReq = { headers: {}, params: { slug: SLUG } };
+
+      it('resolves the tenant from the :slug path param when there is no X-Tenant-Slug header', async () => {
+        const manifest = publicRoute(
+          RequiresFeature('HOTSITE'),
+          SuspensionAccess('PUBLIC_MANIFEST'),
+        );
+        await expect(guard.canActivate(contextFor(manifest, pathReq))).resolves.toBe(true);
+        expect(source.slugCalls).toEqual([SLUG]);
+        expect(source.accessCalls).toEqual([TENANT_ID]);
+      });
+
+      it('keeps the manifest reachable for a suspended tenant that holds no feature', async () => {
+        source.seed(TENANT_ID, { operational: false, features: [] });
+        const manifest = publicRoute(
+          RequiresFeature('HOTSITE'),
+          SuspensionAccess('PUBLIC_MANIFEST'),
+        );
+        await expect(guard.canActivate(contextFor(manifest, pathReq))).resolves.toBe(true);
+      });
+
+      it('applies the declared feature gate to the manifest route instead of skipping the lookup', async () => {
+        source.seed(TENANT_ID, { operational: true, features: [{ key: 'BOOKING' }] });
+        const manifest = publicRoute(
+          RequiresFeature('HOTSITE'),
+          SuspensionAccess('PUBLIC_MANIFEST'),
+        );
+        await expect(
+          denial(guard.canActivate(contextFor(manifest, pathReq))),
+        ).resolves.toMatchObject({ code: BillingErrorCode.FEATURE_NOT_ENTITLED });
+      });
+
+      it('prefers the path slug when both the path and the header carry one', async () => {
+        const both = { headers: { 'x-tenant-slug': 'other' }, params: { slug: SLUG } };
+        await expect(guard.canActivate(contextFor(publicRoute(), both))).resolves.toBe(true);
+        expect(source.slugCalls).toEqual([SLUG]);
+      });
+    });
+  });
+
+  describe('entitlement scope', () => {
+    it('lets a handler-level @RequiresFeature override a controller-level @NoFeatureGate', async () => {
+      @NoFeatureGate()
+      class ExemptController {
+        @RequiresFeature('CHATBOT')
+        handler(): void {}
+      }
+      source.seed(TENANT_ID, { operational: true, features: [{ key: 'BOOKING' }] });
+      await expect(
+        denial(guard.canActivate(contextFor(ExemptController, { user: jwt('MANAGER') }))),
+      ).resolves.toMatchObject({ code: BillingErrorCode.FEATURE_NOT_ENTITLED });
     });
   });
 });

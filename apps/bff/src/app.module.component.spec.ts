@@ -8,6 +8,9 @@ import { TenantAccessGuard } from './shared/guards/tenant-access.guard';
 import { TenantGuard } from './shared/guards/tenant.guard';
 import { WebOnlyGuard } from './shared/guards/web-only.guard';
 
+// A component spec on purpose: importing `AppModule` runs `ConfigModule.forRoot({ validate })` at
+// import time, which needs the BFF env that only the component suite provides (the unit suite has
+// none, and fails to load this file).
 describe('AppModule guard chain', () => {
   it('registers TenantAccessGuard last, after ActiveStaffGuard (Nest runs APP_GUARD in registration order)', () => {
     const providers: { provide?: unknown; useClass?: unknown }[] = Reflect.getMetadata(

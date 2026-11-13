@@ -1,5 +1,7 @@
 import { Controller, Get, Inject, Param, UseGuards } from '@nestjs/common';
 import { CanonicalParseUUIDPipe } from '@ikaro/nestjs-http';
+import { NoFeatureGate } from '../../../../shared/decorators/no-feature-gate.decorator';
+import { SuspensionAccess } from '../../../../shared/decorators/suspension-access.decorator';
 import { InternalApiGuard } from '../../../../shared/guards/internal-api.guard';
 import {
   TENANT_ACCESS_PORT,
@@ -17,7 +19,13 @@ export class InternalBillingAccessController {
   constructor(@Inject(TENANT_ACCESS_PORT) private readonly access: TenantAccessPort) {}
 
   // The full backend answer (reason and internal markers included): role reduction is the BFF's job.
+  // The gate's own lookup: the BFF forwards the caller's `X-Tenant-ID` on this call, so without
+  // this declaration `TenantAccessGuard` would refuse the very read that tells it a tenant is
+  // suspended (default policy), and the BFF guard would then fail open. No feature owns it, and it
+  // stays reachable while suspended.
   @Get('tenants/:tenantId/access')
+  @NoFeatureGate()
+  @SuspensionAccess('ANY_AUTHENTICATED')
   getAccess(@Param('tenantId', CanonicalParseUUIDPipe) tenantId: string): Promise<TenantAccess> {
     return this.access.getAccess(tenantId).catch(mapBillingError);
   }

@@ -5,6 +5,7 @@ import {
   evaluateTenantAccess,
   isAdmittedWhileSuspended,
   type SuspensionAccessPolicy,
+  type TenantAccessView,
 } from './tenant-access';
 
 // The roles each policy admits while suspended, written out by hand: a policy added to the table
@@ -81,8 +82,22 @@ describe('evaluateTenantAccess', () => {
     );
   });
 
-  it('still checks the entitlement on a route a policy admits during a suspension', () => {
-    const route = { feature: 'LOYALTY', policy: 'CUSTOMER_HISTORY' } as const;
-    expect(evaluateTenantAccess(SUSPENDED, route, 'CUSTOMER')).toBe('FEATURE_NOT_ENTITLED');
+  // A suspended tenant holds no entitled feature (`Subscription.entitledAt` returns none), so the
+  // real answer for it carries `features: []`; a route a policy admits must still be reachable.
+  const SUSPENDED_REAL: TenantAccessView = { operational: false, features: [] };
+
+  it('lets a route its policy admits answer for a suspended tenant that holds no feature', () => {
+    const manifest = { feature: 'HOTSITE', policy: 'PUBLIC_MANIFEST' } as const;
+    expect(evaluateTenantAccess(SUSPENDED_REAL, manifest, undefined)).toBe('ALLOW');
+    const history = { feature: 'LOYALTY', policy: 'CUSTOMER_HISTORY' } as const;
+    expect(evaluateTenantAccess(SUSPENDED_REAL, history, 'CUSTOMER')).toBe('ALLOW');
+  });
+
+  it('still refuses a suspended tenant on a route whose policy does not admit the caller', () => {
+    const history = { feature: 'LOYALTY', policy: 'CUSTOMER_HISTORY' } as const;
+    expect(evaluateTenantAccess(SUSPENDED_REAL, history, 'STAFF')).toBe('TENANT_SUSPENDED');
+    expect(evaluateTenantAccess(SUSPENDED_REAL, { feature: 'HOTSITE' }, 'MANAGER')).toBe(
+      'TENANT_SUSPENDED',
+    );
   });
 });

@@ -169,6 +169,34 @@ describe('checkTenantAccessRouteMetadata', () => {
       expect(result.findings).toEqual([]);
     });
 
+    it('4. a parenthesised reference, for the route decorator and the gate decorators alike', () => {
+      const result = scan(`
+        import * as gates from '../gates';
+        @Controller('demo')
+        export class DemoController {
+          @(Get)()
+          @(gates['RequiresFeature'])('BOOKING')
+          @((gates).SuspensionAccess)('DEFAULT_DENY')
+          list() {}
+        }
+      `);
+      // The route is scanned (not merely absent from the findings) and counts as declared.
+      expectScannedTargets(result, 1);
+      expect(result.findings).toEqual([]);
+    });
+
+    it('4b. a parenthesised route with no declaration is still scanned and flagged', () => {
+      const result = scan(`
+        @Controller('demo')
+        export class DemoController {
+          @(Post)()
+          create() {}
+        }
+      `);
+      expectScannedTargets(result, 1);
+      expect(result.findings).toHaveLength(1);
+    });
+
     it('does not count an unrelated decorator that merely resembles one', () => {
       const result = scan(`
         @Controller('demo')

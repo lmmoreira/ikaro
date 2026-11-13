@@ -1,4 +1,5 @@
 import { Reflector } from '@nestjs/core';
+import { StubExecutionContext } from '../../test/stub-execution-context';
 import { readTenantAccessRequirement } from '../guards/tenant-access-metadata';
 import { NO_FEATURE_GATE_KEY, NoFeatureGate } from './no-feature-gate.decorator';
 import { REQUIRES_FEATURE_KEY, RequiresFeature } from './requires-feature.decorator';
@@ -29,14 +30,40 @@ describe('tenant access decorators (BFF)', () => {
       @SuspensionAccess('STAFF_NOTICE')
       status(): void {}
     }
-    const context = {
-      getHandler: () => Controller.prototype.status,
-      getClass: () => Controller,
-    } as never;
+    const context = new StubExecutionContext(Controller.prototype.status, Controller, {
+      headers: {},
+    });
     expect(readTenantAccessRequirement(reflector, context)).toEqual({
       feature: 'BOOKING',
       noFeatureGate: undefined,
       policy: 'STAFF_NOTICE',
+    });
+  });
+
+  it('resolves the entitlement declaration at the nearest scope, never key by key', () => {
+    @NoFeatureGate()
+    class ExemptController {
+      @RequiresFeature('CHATBOT')
+      gated(): void {}
+
+      open(): void {}
+    }
+    const gated = new StubExecutionContext(ExemptController.prototype.gated, ExemptController, {
+      headers: {},
+    });
+    const open = new StubExecutionContext(ExemptController.prototype.open, ExemptController, {
+      headers: {},
+    });
+
+    // The handler's @RequiresFeature replaces the controller's whole entitlement declaration…
+    expect(readTenantAccessRequirement(reflector, gated)).toMatchObject({
+      feature: 'CHATBOT',
+      noFeatureGate: undefined,
+    });
+    // …and a handler that declares none inherits the controller's.
+    expect(readTenantAccessRequirement(reflector, open)).toMatchObject({
+      feature: undefined,
+      noFeatureGate: true,
     });
   });
 });

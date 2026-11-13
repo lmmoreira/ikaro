@@ -1,5 +1,8 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { PlatformErrorCode } from '@ikaro/types';
+import { NO_FEATURE_GATE_KEY } from '../../../../shared/decorators/no-feature-gate.decorator';
+import { SUSPENSION_ACCESS_KEY } from '../../../../shared/decorators/suspension-access.decorator';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
 import { BillingTenantNotFoundError } from '../../domain/errors/billing-domain.error';
@@ -12,6 +15,14 @@ class NotFoundTenantAccessPort extends InMemoryTenantAccessPort {
 }
 
 describe('InternalBillingAccessController', () => {
+  it('declares the access read reachable while a tenant is suspended, so the gate can read the answer that suspends it', () => {
+    const reflector = new Reflector();
+    const handler = InternalBillingAccessController.prototype.getAccess;
+
+    expect(reflector.get(NO_FEATURE_GATE_KEY, handler)).toBe(true);
+    expect(reflector.get(SUSPENSION_ACCESS_KEY, handler)).toBe('ANY_AUTHENTICATED');
+  });
+
   it('returns the full backend answer, reason included, for the BFF to reduce', async () => {
     const access = new InMemoryTenantAccessPort();
     const tenantId = uuidv7();

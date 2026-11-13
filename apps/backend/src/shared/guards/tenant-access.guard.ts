@@ -46,8 +46,11 @@ export class TenantAccessGuard implements CanActivate {
       verdict = evaluateTenantAccess(await this.access.getAccess(tenantId), requirement, role);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
+      // `tenantId` is passed explicitly: a guard runs before `RequestContext` exists, so the
+      // logger's own enrichment has no tenant to add.
       this.logger.warn(
         `Tenant access lookup did not answer, letting the request through: ${message}`,
+        { tenantId },
       );
       return true;
     }

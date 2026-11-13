@@ -113,21 +113,30 @@ function declaredNames(decorators: Decorator[], aliases: Map<string, string>): S
   return names;
 }
 
+// `@(gates['SuspensionAccess'])('X')` and `@(RequiresFeature)('X')`: the parentheses add no meaning.
+function unwrapParentheses(node: Node): Node {
+  let current = node;
+  while (Node.isParenthesizedExpression(current)) current = current.getExpression();
+  return current;
+}
+
 function collectNames(node: Node, aliases: Map<string, string>, out: Set<string>): void {
-  if (Node.isCallExpression(node)) {
-    const name = referenceName(node.getExpression(), aliases);
+  const unwrapped = unwrapParentheses(node);
+  if (Node.isCallExpression(unwrapped)) {
+    const name = referenceName(unwrapped.getExpression(), aliases);
     if (name === 'applyDecorators') {
-      for (const argument of node.getArguments()) collectNames(argument, aliases, out);
+      for (const argument of unwrapped.getArguments()) collectNames(argument, aliases, out);
     } else if (name) {
       out.add(name);
     }
     return;
   }
-  const name = referenceName(node, aliases);
+  const name = referenceName(unwrapped, aliases);
   if (name) out.add(name);
 }
 
 function referenceName(node: Node, aliases: Map<string, string>): string | undefined {
+  node = unwrapParentheses(node);
   if (Node.isIdentifier(node)) return aliases.get(node.getText()) ?? node.getText();
   if (Node.isPropertyAccessExpression(node)) return node.getName();
   if (Node.isElementAccessExpression(node)) {

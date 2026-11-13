@@ -1,4 +1,4 @@
-import { ExecutionContext, HttpException, HttpStatus } from '@nestjs/common';
+import { HttpException, HttpStatus } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { FEATURE_KEYS, type FeatureKey } from '@ikaro/validation';
 import {
@@ -10,6 +10,7 @@ import {
   type SuspensionAccessPolicy,
 } from '@ikaro/types';
 import { InMemoryTenantAccessPort } from '../../test/infrastructure/in-memory-tenant-access.port';
+import { StubExecutionContext } from '../../test/utils/stub-execution-context';
 import type { TenantAccess, TenantAccessPort } from '../ports/tenant-access.port';
 import { NoFeatureGate } from '../decorators/no-feature-gate.decorator';
 import { RequiresFeature } from '../decorators/requires-feature.decorator';
@@ -42,12 +43,8 @@ function routeWith(...decorators: MethodDecorator[]): { cls: new () => object; n
 function contextFor(
   route: { cls: new () => object; name: 'handler' },
   headers: Record<string, string | undefined>,
-): ExecutionContext {
-  return {
-    getHandler: () => route.cls.prototype[route.name],
-    getClass: () => route.cls,
-    switchToHttp: () => ({ getRequest: () => ({ headers }) }),
-  } as unknown as ExecutionContext;
+): StubExecutionContext {
+  return new StubExecutionContext(route.cls.prototype[route.name], route.cls, { headers });
 }
 
 function ctx(cls: new () => { handler(): void }, headers: Record<string, string | undefined>) {
@@ -178,6 +175,44 @@ describe('TenantAccessGuard', () => {
     await expect(
       codeOf(guard.canActivate(contextFor(route, { ...headers(), 'x-actor-role': 'ROOT' }))),
     ).resolves.toMatchObject({ status: HttpStatus.FORBIDDEN });
+  });
+
+  it('keeps a PUBLIC_MANIFEST route that declares its feature reachable for a suspended tenant with no feature', async () => {
+    // The real suspended answer carries `features: []`: a suspended tenant holds nothing entitled.
+    port.seed(TENANT, {
+      status: 'SUSPENDED',
+      suspensionReason: 'NON_PAYMENT',
+      operational: false,
+      features: [],
+    });
+    const route = routeWith(RequiresFeature('HOTSITE'), SuspensionAccess('PUBLIC_MANIFEST'));
+    await expect(guard.canActivate(contextFor(route, { 'x-tenant-id': TENANT }))).resolves.toBe(
+      true,
+    );
+  });
+
+  it('lets a handler-level @RequiresFeature override a controller-level @NoFeatureGate', async () => {
+    @NoFeatureGate()
+    class ExemptController {
+      @RequiresFeature('CHATBOT')
+      handler(): void {}
+    }
+    port.seed(TENANT, entitled(['BOOKING']));
+    await expect(
+      codeOf(guard.canActivate(ctx(ExemptController, headers('MANAGER')))),
+    ).resolves.toEqual({
+      status: HttpStatus.FORBIDDEN,
+      code: BillingErrorCode.FEATURE_NOT_ENTITLED,
+    });
+  });
+
+  it('applies a controller-level @NoFeatureGate to a handler that declares no entitlement of its own', async () => {
+    @NoFeatureGate()
+    class ExemptController {
+      handler(): void {}
+    }
+    port.seed(TENANT, entitled([]));
+    await expect(guard.canActivate(ctx(ExemptController, headers('MANAGER')))).resolves.toBe(true);
   });
 
   it('declares its policy through the shared type (compile-time)', () => {
