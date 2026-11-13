@@ -834,7 +834,7 @@ Ikaro charging its tenants (`docs/DOMAIN_MODEL.md` § Billing Context, `docs/USE
 #### **TenantPurgeWarning**
 - **Trigger:** the purge job at 30 and 7 days before the clean-up deadline (UC-132, slice G); deduped by `purge_warning_30_sent_at` / `purge_warning_7_sent_at`, cleared on reactivation
 - **Data:** `subscriptionId`, `daysBefore` (30 or 7), `purgeAt`, `recipientEmail?`
-- **Consumers:** Notification (to the manager; Billing template, exempt from the suspension gate); `audit-log`
+- **Consumers:** Notification (to the manager; the Billing handler declares `skipWhenSuspended: false`, so it runs while the tenant is suspended); `audit-log`
 
 #### **TenantPurgeRequested**
 - **Trigger:** the clean-up deadline (`SUSPENSION_AGE`), the self-service discard of a never-paid tenant (`SELF_SERVICE_DISCARD`, UC-141) or an operator request (`OPERATOR_REQUEST`); creates a durable `TenantPurgeJob` first (slice G)

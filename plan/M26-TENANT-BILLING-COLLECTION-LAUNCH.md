@@ -935,7 +935,7 @@ Ikaro sends every Billing email itself (Asaas customers are created with `notifi
 - Integration:
   - [ ] End to end through the in-memory bus on the fake: each event → one log row `SENT`; redelivery of the same `eventId` creates no second row
   - [ ] Missing platform template → failure plus a structured error log with the fixed field `event: "billing_template_missing"` (the log-based metric S36's alert reads), not a silent drop
-  - [ ] A suspended tenant still receives its `SubscriptionSuspended` / `ChargeIssued (recovery)` email (the gate exemption); an `OPERATOR` suspension sends the manager email without a payment link, and M25-S28's customer notice is unaffected and independent
+  - [ ] A suspended tenant still receives its `SubscriptionSuspended` / `ChargeIssued (recovery)` email (the handler's `skipWhenSuspended: false`); an `OPERATOR` suspension sends the manager email without a payment link, and M25-S28's customer notice is unaffected and independent
 - Tenant isolation: [ ] emails go only to the event's tenant's recipients; the log row carries that `tenantId`
 - E2E: none — covered by integration; live check above
 - [ ] Checkov / Tfsec clean

@@ -1664,6 +1664,7 @@ Handlers added later by S25, S27 and S28 declare their own options in their own 
   - [ ] The dead-letter handler (`false`) runs for an envelope with no `tenantId`
 - Integration:
   - [ ] End to end through the in-memory bus: a suspended tenant's `BookingApproved` is not notified but is audit-logged; an entitled tenant's is notified
+  - [ ] **Notification emails (the guarantee UC-123 now rests on, formerly planned as M25-S23):** a suspended tenant's `PointsExpiringSoon` (the O-L1 expiry warning), `AvailabilityAlertMatched` and a booking event send no email, while `StaffInvited` and a Billing manager-email event still send. A spec pins the declared value of every Notification subscription — `true` on the 21 send handlers, `false` on `dead-letter`, `staff-invited` and `tenant-provisioned` — because the detector only forces an *explicit* value, so a send handler wrongly declared `false` would pass CI and email a suspended tenant
   - [ ] The loyalty earn handler is skipped for a suspended tenant and for a tenant without `LOYALTY`, and runs for an entitled one (the only `requires` use)
   - [ ] `pnpm --filter @ikaro/infra-scripts run pubsub-catalog` leaves `pubsub-catalog.json` unchanged
 - Tenant isolation: [ ] the gate reads the event's own `tenantId`; a skip for tenant A never affects B's delivery
