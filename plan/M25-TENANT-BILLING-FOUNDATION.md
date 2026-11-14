@@ -1498,7 +1498,7 @@ Annotate the remaining existing **Booking** HTTP routes — the half S18a does n
 
 ---
 
-### M25-S19 — Annotate Loyalty, Customer and Staff routes — backend + BFF (UC-125)
+### M25-S19 — Annotate Loyalty, Customer and Staff routes — backend + BFF (UC-125) ✅ Done
 
 **Agent:** `backend-ts + bff-ts`
 **Complexity:** M
