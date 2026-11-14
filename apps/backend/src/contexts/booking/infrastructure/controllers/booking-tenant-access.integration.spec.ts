@@ -278,6 +278,47 @@ describe('Booking routes — tenant access (integration)', () => {
     });
   });
 
+  // The negative guarantee: an `exempt` subscription answers ACTIVE, operational, with every
+  // feature, so the real guard must change nothing for it on any route.
+  describe('an exempt tenant behaves exactly as before', () => {
+    const seedExempt = (tenantId: string) =>
+      access.seed(tenantId, {
+        status: 'ACTIVE',
+        suspensionReason: null,
+        operational: true,
+        features: ALL_FEATURES.map((key) => ({ key, tier: 'STANDARD' as const })),
+      });
+
+    it.each(ROUTES.map((route) => ({ route, label: routeKey(route) })))(
+      'never refuses $label with a billing denial',
+      async ({ route }) => {
+        seedExempt(tenantA);
+
+        const res = await call(route, tenantA);
+
+        expect(res.body?.code).not.toBe(BillingErrorCode.FEATURE_NOT_ENTITLED);
+        expect(res.body?.code).not.toBe(BillingErrorCode.TENANT_SUSPENDED);
+      },
+    );
+
+    it('serves the customer list, the detail read and the cancel with their normal results', async () => {
+      const bookingId = await createBooking();
+      seedExempt(tenantA);
+      const customer = actorHeaders(tenantA, customerA, 'CUSTOMER');
+
+      const list = await request(app.getHttpServer()).get('/bookings').set(customer);
+      const detail = await request(app.getHttpServer()).get(`/bookings/${bookingId}`).set(customer);
+      const cancel = await request(app.getHttpServer())
+        .patch(`/bookings/${bookingId}/cancel-customer`)
+        .set(customer);
+
+      expect(list.status).toBe(200);
+      expect(detail.status).toBe(200);
+      expect(cancel.status).toBe(200);
+      expect(cancel.body.status).toBe('CANCELLED');
+    });
+  });
+
   describe('an entitled tenant', () => {
     it('reaches the controller of an authenticated and of a guest route', async () => {
       const list = await call({ method: 'get', path: '/bookings', role: 'MANAGER' }, tenantA);

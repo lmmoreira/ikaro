@@ -297,6 +297,45 @@ describe('BFF booking routes — tenant access (component)', () => {
     });
   });
 
+  // The negative guarantee: an `exempt` subscription answers operational with every feature, so the
+  // real guard chain must change nothing for it on any route.
+  describe('an exempt tenant behaves exactly as before', () => {
+    it.each(ROUTES.map((route) => ({ route, label: routeKey(route) })))(
+      'never refuses $label with a billing denial',
+      async ({ route }) => {
+        const { tenantId, slug } = nextTenant();
+        backendAnswers({ tenantId, slug, access: ENTITLED });
+
+        const res = await call(route, tenantId, slug);
+
+        expect(res.body?.code).not.toBe(BillingErrorCode.FEATURE_NOT_ENTITLED);
+        expect(res.body?.code).not.toBe(BillingErrorCode.TENANT_SUSPENDED);
+      },
+    );
+
+    it('serves the customer list and cancel with their normal results', async () => {
+      const { tenantId, slug } = nextTenant();
+      backendAnswers({ tenantId, slug, access: ENTITLED });
+      backendHttpService.get.mockResolvedValueOnce({
+        items: [],
+        pagination: { limit: 20, offset: 0, total: 0, hasMore: false },
+      });
+      backendHttpService.patch.mockResolvedValueOnce({ bookingId: SOME_ID, status: 'CANCELLED' });
+
+      const list = await call({ method: 'get', path: '/v1/bookings' }, tenantId, slug, 'CUSTOMER');
+      const cancel = await call(
+        { method: 'patch', path: `/v1/bookings/${SOME_ID}/cancel` },
+        tenantId,
+        slug,
+        'CUSTOMER',
+      );
+
+      expect(list.status).toBe(200);
+      expect(cancel.status).toBe(200);
+      expect(cancel.body.status).toBe('CANCELLED');
+    });
+  });
+
   describe('an entitled tenant', () => {
     it('reaches the controller of an authenticated route', async () => {
       const { tenantId, slug } = nextTenant();
