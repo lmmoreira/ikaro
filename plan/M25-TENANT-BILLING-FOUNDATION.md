@@ -1513,7 +1513,7 @@ Annotate every existing **Loyalty**, **Customer** and **Staff** HTTP route (back
 |---|---|---|
 | `GET /loyalty/balance`, `GET /loyalty/entries`, `GET /loyalty/redemptions` (customer-scoped own reads) | `LOYALTY` | `CUSTOMER_HISTORY` |
 | `GET /loyalty/balances/own` (the tenant switch list reads it for every tenant the customer belongs to) | none — `@NoFeatureGate()` (a cross-tenant read; a tenant without `LOYALTY` must not break the list) | `AUTH_TENANT_SWITCH` |
-| `POST /loyalty/redeem` (BFF `/v1/loyalty/redeem`), staff-facing `GET /loyalty/balances`, `GET /customers/:customerId/loyalty/*` | `LOYALTY` | `DEFAULT_DENY` |
+| `POST /loyalty/redeem` (BFF `/v1/loyalty/redeem`), staff-facing `GET /loyalty/balances`, `GET /customers/:customerId/loyalty/*` (BFF also `GET /customers/:customerId/loyalty`, the composite read) | `LOYALTY` | `DEFAULT_DENY` |
 | `GET /customers/me` (BFF `/auth/session` and the customer profile read call it) | `HOTSITE` (root) | `ANY_AUTHENTICATED` |
 | `GET /customers/me/tenants` (BFF `GET /customers/tenants`, which also calls `GET /internal/tenants?ids=` and `/loyalty/balances/own`) | `HOTSITE` (root) | `AUTH_TENANT_SWITCH` |
 | `PATCH /customers/me`, staff-facing `GET /customers`, `GET /customers/:customerId` | `HOTSITE` (root) | `DEFAULT_DENY` |
@@ -1524,6 +1524,8 @@ Annotate every existing **Loyalty**, **Customer** and **Staff** HTTP route (back
 
 `/staff/me/status` and `/staff/me/tenants` have no BFF route of their own. The staff **notice** is not read from a staff route: it renders from `GET /v1/billing/access` (`ANY_AUTHENTICATED`, S13/S26/S29), so no suspension reason is ever returned by a staff or customer route. The **loyalty earn handler** on `BookingCompleted` is an event subscription, so it is handled in S21a (the handler always runs and the use case skips only the earning half; see the Loyalty row of S21a's declaration table), not by a route annotation here.
 
+**Decisions locked at discovery (2026-11-14).** *Scope:* **43** routes from the detector: **23 backend** (`loyalty` 9, `customer` 5, `staff` 9) and **20 BFF** (`loyalty` 8, `customers` 5, `staff` 7). *Placement:* the mapping is mixed inside each controller, so each class carries its default once (`LOYALTY` + `DEFAULT_DENY` on the loyalty controllers; `HOTSITE` + `DEFAULT_DENY` on the customer and staff controllers) and the exceptions are handler-level overrides: `CUSTOMER_HISTORY` on the three customer-scoped loyalty reads, `@NoFeatureGate()` + `AUTH_TENANT_SWITCH` on `balances/own`, `ANY_AUTHENTICATED` on `customers/me` and `staff/me`, `AUTH_TENANT_SWITCH` on `customers/me/tenants` and `staff/me/tenants`, `STAFF_NOTICE` on `staff/me/status`. *Test layout:* one consolidated metadata spec per app (the whole mapping in one table), and the guard specs per context, each beside its own harness (loyalty, customer, staff). *Out of scope:* the composite reads that go through S20-owned routes (BFF `/auth/session`, `GET /internal/tenants?ids=`) are unannotated until S20, so this story asserts only the routes it annotates and S20 / the S32 golden path prove the composites end to end.
+
 **Backend use case steps:** none.
 **Backend HTTP surface:** none — annotates existing controllers.
 **New migration / i18n keys / env vars / feature flags:** none.
@@ -1531,7 +1533,13 @@ Annotate every existing **Loyalty**, **Customer** and **Staff** HTTP route (back
 **Files to create/modify:**
 - `apps/backend/src/contexts/loyalty/infrastructure/controllers/loyalty.controller.ts`, `apps/backend/src/contexts/customer/infrastructure/controllers/customer.controller.ts`, `apps/backend/src/contexts/staff/infrastructure/controllers/staff.controller.ts` (modify)
 - `apps/bff/src/features/loyalty/loyalty.controller.ts`, `apps/bff/src/features/customer/customers.controller.ts`, `apps/bff/src/features/staff/staff.controller.ts` (modify)
-- **Tests (the S17 / S18a shape, `docs/TESTING_STRATEGY.md` § Testing a route's tenant-access annotation; no existing spec file is modified, which is the non-regression proof):** per app, a consolidated `<context>-tenant-access.metadata.spec.ts` and a real-guard `*-tenant-access.integration.spec.ts` (backend) / `*-tenant-access.component.spec.ts` (BFF), each guard spec with a named `an exempt tenant behaves exactly as before` block
+- `apps/backend/src/test/utils/loyalty-integration-app.ts` and the staff integration harness (modify — an optional `extraProviders`, as `createBookingIntegrationApp` and `createCustomerIntegrationApp` have)
+- **Tests (the S17 / S18a shape, `docs/TESTING_STRATEGY.md` § Testing a route's tenant-access annotation; no existing spec file is modified, which is the non-regression proof):**
+  - `apps/backend/src/contexts/loyalty/infrastructure/controllers/loyalty-customer-staff-tenant-access.metadata.spec.ts` (create — table-driven over the three backend controllers, 23 routes)
+  - `apps/backend/src/contexts/{loyalty,customer,staff}/infrastructure/controllers/<context>-tenant-access.integration.spec.ts` (create ×3 — real `TenantAccessGuard` + `InMemoryTenantAccessPort`)
+  - `apps/bff/src/features/loyalty/loyalty-customer-staff-tenant-access.metadata.spec.ts` (create — the three BFF controllers, 20 routes)
+  - `apps/bff/src/features/{loyalty,customer,staff}/<context>-tenant-access.component.spec.ts` (create ×3 — real BFF guard chain via `createTestApp`)
+  - each guard spec carries a named `an exempt tenant behaves exactly as before` block
 
 **Acceptance criteria — product:**
 - [ ] No behaviour change for an entitled or exempt tenant.
@@ -1543,8 +1551,8 @@ Annotate every existing **Loyalty**, **Customer** and **Staff** HTTP route (back
 - Integration:
   - [ ] Loyalty redeem: entitled → 200; suspended → `BILLING_TENANT_SUSPENDED`; balance read while suspended → 200
   - [ ] **Non-regression:** an `exempt` tenant's existing Loyalty, Customer and Staff integration specs pass unchanged
-  - [ ] No staff or customer route returns a suspension reason; the staff notice renders from `GET /v1/billing/access`
-  - [ ] Through the BFF `/auth/session` for a suspended tenant: staff, manager and customer each get `200` (it calls `GET /staff/me` or `GET /customers/me`, both `ANY_AUTHENTICATED`); the customer switch list (`GET /customers/tenants`) and its `/loyalty/balances/own` read answer `200` for a customer of a suspended tenant
+  - [ ] No staff or customer route returns a suspension reason; the staff notice renders from `GET /v1/billing/access`. Pinned by a named test: a suspended `GET /staff/me/status` keeps its normal body shape and carries no billing or suspension field
+  - [ ] For a suspended tenant, the routes `/auth/session` and the switch list call answer `200` for staff, manager and customer: backend and BFF `staff/me` and `customers/me` (`ANY_AUTHENTICATED`), `customers/me/tenants` / BFF `customers/tenants` and `loyalty/balances/own` (`AUTH_TENANT_SWITCH`). The composites through the S20-owned `/auth/session` and `GET /internal/tenants?ids=` are proven in S20 and the S32 golden path
   - [ ] Suspended tenant, staff role: `GET /staff/me/status` and `GET /staff/me/tenants` → `200` (so `ActiveStaffGuard` and the picker still work); any other staff route → `BILLING_TENANT_SUSPENDED`
 - Tenant isolation: [ ] denials concern the caller's tenant only
 - E2E: none — covered by integration
