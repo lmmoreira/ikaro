@@ -1540,6 +1540,7 @@ Annotate every existing **Loyalty**, **Customer** and **Staff** HTTP route (back
   - `apps/bff/src/features/loyalty/loyalty-customer-staff-tenant-access.metadata.spec.ts` (create — the three BFF controllers, 20 routes)
   - `apps/bff/src/features/{loyalty,customer,staff}/<context>-tenant-access.component.spec.ts` (create ×3 — real BFF guard chain via `createTestApp`)
   - each guard spec carries a named `an exempt tenant behaves exactly as before` block
+  - `apps/bff/src/shared/guards/tenant-access.guard.component.spec.ts` (modify — S16's guard spec used `GET /v1/staff` as its undeclared default route; S19 declares it `HOTSITE` + `DEFAULT_DENY`, so its operational fixture gains `HOTSITE`. The one existing spec that depended on a route S19 annotates)
 
 **Acceptance criteria — product:**
 - [ ] No behaviour change for an entitled or exempt tenant.
