@@ -1385,7 +1385,7 @@ Annotate every existing **Platform** HTTP route with explicit entitlement and su
 
 ---
 
-### M25-S18a — Annotate Booking routes — bookings and lifecycle — backend + BFF (UC-125)
+### M25-S18a — Annotate Booking routes — bookings and lifecycle — backend + BFF (UC-125) ✅ Done
 
 **Agent:** `backend-ts + bff-ts`
 **Complexity:** M
