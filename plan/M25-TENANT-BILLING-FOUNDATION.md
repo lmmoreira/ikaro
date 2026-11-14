@@ -1583,7 +1583,7 @@ Annotate the surface that is **not** a sellable feature: the BFF `auth.controlle
 
 ---
 
-### M25-S21a — Event delivery gate, `subscribe()` options, declaration detector and every existing `subscribe()` declared (UC-125, UC-123)
+### M25-S21a — Event delivery gate, `subscribe()` options, declaration detector and every existing `subscribe()` declared (UC-125, UC-123) ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** L
