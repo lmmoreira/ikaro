@@ -60,7 +60,7 @@ const REACHABLE = ROUTES.filter((entry) => entry.whileSuspended === 'REACHABLE')
 // The reads: the normal result an entitled or exempt tenant must keep getting.
 const READS = ROUTES.filter((entry) => entry.method === 'get');
 
-const ALL_FEATURES = ['HOTSITE', 'BOOKING', 'HOTSITE', 'CHATBOT', 'LEAD_FORM'] as const;
+const ALL_FEATURES = ['HOTSITE', 'BOOKING', 'LOYALTY', 'CHATBOT', 'LEAD_FORM'] as const;
 const features = (keys: readonly string[]) => keys.map((key) => ({ key, tier: 'STANDARD' }));
 
 const SUSPENDED = { operational: false, features: [] };

@@ -1,4 +1,4 @@
-import { INestApplication } from '@nestjs/common';
+import { HttpException, INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { BillingErrorCode } from '@ikaro/types';
 import {
@@ -56,7 +56,7 @@ const REACHABLE = ROUTES.filter((entry) => entry.whileSuspended === 'REACHABLE')
 // keep getting.
 const READS = ROUTES.filter((entry) => entry.method === 'get');
 
-const ALL_FEATURES = ['HOTSITE', 'BOOKING', 'HOTSITE', 'CHATBOT', 'LEAD_FORM'] as const;
+const ALL_FEATURES = ['HOTSITE', 'BOOKING', 'LOYALTY', 'CHATBOT', 'LEAD_FORM'] as const;
 const features = (keys: readonly string[]) => keys.map((key) => ({ key, tier: 'STANDARD' }));
 
 const SUSPENDED = { operational: false, features: [] };
@@ -64,6 +64,10 @@ const ENTITLED = { operational: true, features: features(ALL_FEATURES) };
 const WITHOUT_HOTSITE = {
   operational: true,
   features: features(ALL_FEATURES.filter((key) => key !== 'HOTSITE')),
+};
+const WITHOUT_LOYALTY = {
+  operational: true,
+  features: features(ALL_FEATURES.filter((key) => key !== 'LOYALTY')),
 };
 
 // One backend answer wide enough for every customer read: the search (no items) and the profile.
@@ -151,6 +155,30 @@ describe('BFF customer routes — tenant access (component)', () => {
         controllerNeverRan();
       },
     );
+  });
+
+  // The search shows each customer's points, read from a LOYALTY route: a tenant without LOYALTY
+  // must keep its customer search, with no points.
+  describe('a tenant without LOYALTY', () => {
+    it('still searches its customers, with no points', async () => {
+      const { tenantId } = nextTenant();
+      backendAnswers({ tenantId, access: WITHOUT_LOYALTY });
+      backendHttpService.get
+        .mockResolvedValueOnce({
+          items: [{ customerId: SOME_ID, name: 'Customer', email: 'c@customer-access.test' }],
+          total: 1,
+        })
+        .mockRejectedValueOnce(
+          new HttpException({ status: 403, code: BillingErrorCode.FEATURE_NOT_ENTITLED }, 403),
+        );
+
+      const res = await call(route('get', '/v1/customers', 'MANAGER', 'DENIED'), tenantId);
+
+      expect(res.status).toBe(200);
+      expect(res.body.items).toEqual([
+        expect.objectContaining({ customerId: SOME_ID, currentPoints: 0 }),
+      ]);
+    });
   });
 
   describe('a suspended tenant', () => {

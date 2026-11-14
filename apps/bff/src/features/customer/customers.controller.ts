@@ -16,11 +16,8 @@ import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { CustomerTenantSummaryResponse } from '../auth/auth.types';
 import { TenantInfoResponse } from '../../shared/types/backend-responses';
 import { toTenantOption } from './customers.mapper';
-import {
-  CustomerSearchResponse,
-  LoyaltyBalanceByTenantItem,
-  LoyaltyBalanceItem,
-} from './customers.types';
+import { CustomerSearchResponse, LoyaltyBalanceByTenantItem } from './customers.types';
+import { fetchLoyaltyBalancesForSearch } from './customers.loyalty-balances';
 import { throwProblemDetail } from '../../shared/http/problem-detail';
 import {
   CustomerSearchQuery,
@@ -53,9 +50,10 @@ export class CustomersController {
     );
     if (items.length === 0) return { items: [], total };
 
-    const balances = await this.backendHttp.get<LoyaltyBalanceItem[]>('/loyalty/balances', {
-      customerIds: items.map((c) => c.customerId).join(','),
-    });
+    const balances = await fetchLoyaltyBalancesForSearch(
+      this.backendHttp,
+      items.map((c) => c.customerId),
+    );
     const pointsByCustomer = new Map(balances.map((b) => [b.customerId, b.currentPoints]));
     const enriched = items.map((customer) => ({
       ...customer,
