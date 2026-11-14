@@ -1399,7 +1399,7 @@ Annotate the **booking and lifecycle** half of the existing Booking HTTP routes 
 | Backend route → BFF route | Suspension policy |
 |---|---|
 | `GET /bookings` (list) → `GET /v1/bookings` | `CUSTOMER_HISTORY` |
-| `PATCH /bookings/:id/cancel-customer` → BFF `PATCH /v1/bookings/:id/cancel` (the BFF routes to `cancel-customer` or `cancel-admin` by role) | `CUSTOMER_HISTORY` at the BFF; the backend `cancel-customer` is `CUSTOMER_HISTORY`, `cancel-admin` is `DEFAULT_DENY`, so a staff caller passes the BFF but is refused by the backend |
+| `PATCH /bookings/:id/cancel-customer` → BFF `PATCH /v1/bookings/:id/cancel` (the BFF routes to `cancel-customer` or `cancel-admin` by role) | `CUSTOMER_HISTORY` at the BFF; the backend `cancel-customer` is `CUSTOMER_HISTORY`, `cancel-admin` is `DEFAULT_DENY`. `CUSTOMER_HISTORY` is customer-only, so a suspended tenant's staff caller is refused **at the BFF** with `BILLING_TENANT_SUSPENDED` (the backend `cancel-admin` is a second wall behind it) |
 | `GET /bookings/:id` (detail) | `DEFAULT_DENY` |
 | `POST /bookings` (guest creation, public), `PATCH :id/submit-info/guest`, BFF `GET /bookings/:id/guest`, BFF public `POST /bookings/attachments/signed-url` | `PUBLIC_NONE` |
 | `POST /bookings/authenticated`, `POST /bookings/staff`, `PATCH :id/approve`, `reject`, `request-info`, `submit-info`, `cancel-admin`, `reschedule-customer`, `reschedule-admin`, `complete`, `POST :id/no-show`, `no-show/correct`, attachments `signed-url` (backend) | `DEFAULT_DENY` |
@@ -1415,7 +1415,13 @@ The S19 customer reads that feed the account (`GET /customers/me`, the tenant li
 **Files to create/modify:**
 - `apps/backend/src/contexts/booking/infrastructure/controllers/booking-attachments.controller.ts`, `booking-completion.controller.ts`, `booking-lifecycle.controller.ts`, `booking.controller.ts` (modify)
 - `apps/bff/src/features/booking/bookings-attachments.controller.ts`, `bookings-guest.controller.ts`, `bookings-no-show.controller.ts`, `bookings.controller.ts` (modify)
-- the matching spec files of each controller (modify — add the gate assertions)
+- **Tests (consolidated, S17's shape; no existing spec file is modified, which is the non-regression proof; S18b uses a different filename prefix so the two stories can run in parallel):**
+  - `apps/backend/src/contexts/booking/infrastructure/controllers/booking-tenant-access.metadata.spec.ts` (create — table-driven mapping spec over the 18 backend handlers, using the shared `route-access-requirements` helper from `@ikaro/nestjs-http`)
+  - `apps/backend/src/contexts/booking/infrastructure/controllers/booking-tenant-access.integration.spec.ts` (create — real `TenantAccessGuard` + `InMemoryTenantAccessPort` over `createBookingIntegrationApp`)
+  - `apps/bff/src/features/booking/bookings-tenant-access.metadata.spec.ts` (create — the 17 BFF handlers)
+  - `apps/bff/src/features/booking/bookings-tenant-access.component.spec.ts` (create — real BFF `TenantAccessGuard` over the four BFF controllers, using `createTestApp`)
+
+**Decisions locked at discovery (2026-11-14).** *Route count:* the detector in warn mode reports **35** in-scope routes (18 backend: attachments 1, completion 7, lifecycle 5, booking 5; 17 BFF: bookings 12, guest 2, attachments 1, no-show 2); no M24 booking route exists yet. *Placement:* `@RequiresFeature('BOOKING')` and `@SuspensionAccess('DEFAULT_DENY')` once on each class; a handler overrides only for `CUSTOMER_HISTORY` (backend `list`, `cancelAsCustomer`; BFF `list`, `cancel`) and `PUBLIC_NONE` (the guest and public routes). *Suspended staff on the BFF cancel:* refused at the BFF (see the table). *Out of scope:* web screens that call a now-denied route (customer booking detail and reschedule) are S29 / S31a's; enforcement is merged dark until a tenant can be suspended.
 
 **Acceptance criteria — product:**
 - [ ] No booking or lifecycle behaviour changes for an entitled or exempt tenant.
@@ -1433,7 +1439,8 @@ The S19 customer reads that feed the account (`GET /customers/me`, the tenant li
   - [ ] Suspended tenant, customer role: the booking **list** read → `200` and `PATCH :id/cancel` of a future booking → `200` (`CUSTOMER_HISTORY`); the booking **detail** `GET :id`, `PATCH :id/reschedule`, `PATCH :id/submit-info`, attachment upload and creating a booking (authenticated and guest) → `BILLING_TENANT_SUSPENDED` (UC-121: opening a booking's detail, rescheduling and new bookings are refused; the web, S31a, blocks the actions in the UI as well and enters the allowed cancel from the list row)
 - Tenant isolation: [ ] denials concern the caller's tenant only
 - E2E: none — covered by integration
-- [ ] The detector reports zero warnings for the controllers in this story
+- [ ] The detector reports zero warnings for the 4 backend and 4 BFF controllers in this story
+- [ ] BFF: a suspended tenant's staff caller is refused on `GET /v1/bookings` and `PATCH /v1/bookings/:id/cancel`, and the three token-based public routes (`GET :id/guest`, `PATCH :id/submit-info/guest`, public `attachments/signed-url`) each reach the backend gate and get `BILLING_TENANT_SUSPENDED`
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
