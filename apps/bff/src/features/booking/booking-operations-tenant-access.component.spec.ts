@@ -89,6 +89,7 @@ const ROUTES: OperationsRoute[] = [
 // One passthrough read per authenticated family: the normal result an entitled or exempt tenant
 // must keep getting.
 const FAMILY_READS: OperationsRoute[] = [
+  route('get', '/v1/services', 'MANAGER'),
   route('get', '/v1/resources', 'MANAGER'),
   route('get', '/v1/schedule/closures?from=2026-01-01&to=2026-01-31', 'MANAGER'),
   route('get', '/v1/schedule/openings?from=2026-01-01&to=2026-01-31', 'MANAGER'),
