@@ -1,6 +1,5 @@
 import { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { BillingErrorCode } from '@ikaro/types';
 import {
   MockBackendHttpService,
   MockHttpService,
@@ -177,7 +176,7 @@ describe('BFF auth routes — tenant access (component)', () => {
         .set('X-Tenant-Slug', slug);
 
       expect(res.status).toBe(302);
-      expect(res.body.code).not.toBe(BillingErrorCode.TENANT_SUSPENDED);
+      expect(res.headers['location']).toContain(`/${slug}`);
     });
 
     it('still starts the Google sign-in even when the request names the suspended tenant by slug', async () => {
@@ -188,8 +187,8 @@ describe('BFF auth routes — tenant access (component)', () => {
         .get(`/v1/auth/google?tenantSlug=${slug}`)
         .set('X-Tenant-Slug', slug);
 
-      expect(res.status).not.toBe(403);
-      expect(res.body?.code).not.toBe(BillingErrorCode.TENANT_SUSPENDED);
+      expect(res.status).toBe(302);
+      expect(res.headers['location']).toContain('accounts.google.com');
     });
 
     it('still answers the health probe', async () => {
