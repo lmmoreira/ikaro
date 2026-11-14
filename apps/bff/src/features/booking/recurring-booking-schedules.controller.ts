@@ -1,5 +1,10 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
-import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
+import {
+  CanonicalParseUUIDPipe,
+  ZodValidationPipe,
+  RequiresFeature,
+  SuspensionAccess,
+} from '@ikaro/nestjs-http';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import {
@@ -23,6 +28,8 @@ export * from './recurring-booking-schedules.schemas';
 // staff-on-behalf customerId) is made backend-side (RecurringBookingScheduleController), matching
 // docs/BFF_ARCHITECTURE.md's "BFF orchestrates, backend decides" split for this endpoint.
 @Controller('recurring-booking-schedules')
+@RequiresFeature('BOOKING')
+@SuspensionAccess('DEFAULT_DENY')
 @Roles('CUSTOMER', 'MANAGER', 'STAFF')
 export class RecurringBookingSchedulesController {
   constructor(private readonly backendHttp: BackendHttpService) {}

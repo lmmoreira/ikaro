@@ -10,7 +10,12 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
+import {
+  CanonicalParseUUIDPipe,
+  ZodValidationPipe,
+  RequiresFeature,
+  SuspensionAccess,
+} from '@ikaro/nestjs-http';
 import { CustomerRoleGuard } from '../../../../shared/guards/customer-role.guard';
 import { RequestContext } from '../../../../shared/request/request-context';
 import {
@@ -46,6 +51,8 @@ import { mapBookingError } from '../http/booking-error.mapper';
 // UC-072 / UC-076 — authenticated customers only; every route acts on the caller's own alerts
 // (the customerId always comes from the JWT-derived request context, never the body).
 @Controller('availability-alerts')
+@RequiresFeature('BOOKING')
+@SuspensionAccess('DEFAULT_DENY')
 @UseGuards(CustomerRoleGuard)
 export class AvailabilityAlertController {
   constructor(

@@ -1,5 +1,10 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
-import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
+import {
+  CanonicalParseUUIDPipe,
+  ZodValidationPipe,
+  RequiresFeature,
+  SuspensionAccess,
+} from '@ikaro/nestjs-http';
 import { RequestContext } from '../../../../shared/request/request-context';
 import {
   QuoteServiceDurationDto,
@@ -23,6 +28,8 @@ import { mapBookingError } from '../http/booking-error.mapper';
 // set by the BFF's public tenant resolution; the global InternalApiGuard still applies). Kept apart
 // from ServiceController, whose routes are the staff/manager configuration surface.
 @Controller('services')
+@RequiresFeature('BOOKING')
+@SuspensionAccess('PUBLIC_NONE')
 export class ServicePublicController {
   constructor(
     private readonly tenantContext: RequestContext,

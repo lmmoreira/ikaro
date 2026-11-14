@@ -6,7 +6,12 @@ import {
   HotsiteServiceResourceOptionsResponse,
   PublicServiceIntakeSchemaResponse,
 } from '@ikaro/types';
-import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
+import {
+  CanonicalParseUUIDPipe,
+  ZodValidationPipe,
+  RequiresFeature,
+  SuspensionAccess,
+} from '@ikaro/nestjs-http';
 import { Public } from '../../shared/decorators/public.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { withPublicTenant } from '../../shared/http/public-tenant';
@@ -27,6 +32,8 @@ import {
 } from './services.mapper';
 
 @Controller('public/services')
+@RequiresFeature('BOOKING')
+@SuspensionAccess('PUBLIC_NONE')
 export class ServicesPublicController {
   constructor(private readonly backendHttp: BackendHttpService) {}
 

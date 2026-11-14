@@ -1,5 +1,10 @@
 import { Body, Controller, HttpCode, HttpStatus, Param, Patch, UseGuards } from '@nestjs/common';
-import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
+import {
+  CanonicalParseUUIDPipe,
+  ZodValidationPipe,
+  RequiresFeature,
+  SuspensionAccess,
+} from '@ikaro/nestjs-http';
 import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
 import { RequestContext } from '../../../../shared/request/request-context';
 import {
@@ -17,6 +22,8 @@ import { mapBookingError } from '../http/booking-error.mapper';
 // images itself is MANAGER-only (the hotsite signed-url endpoint). Kept apart from ServiceController
 // (file-length limit), under the same `services` prefix.
 @Controller('services')
+@RequiresFeature('BOOKING')
+@SuspensionAccess('DEFAULT_DENY')
 export class ServicePublicPageController {
   constructor(
     private readonly tenantContext: RequestContext,

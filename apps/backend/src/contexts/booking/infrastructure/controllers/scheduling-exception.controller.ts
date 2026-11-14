@@ -9,7 +9,12 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
+import {
+  CanonicalParseUUIDPipe,
+  ZodValidationPipe,
+  RequiresFeature,
+  SuspensionAccess,
+} from '@ikaro/nestjs-http';
 import { ManagerRoleGuard } from '../../../../shared/guards/manager-role.guard';
 import { RequestContext } from '../../../../shared/request/request-context';
 import {
@@ -42,6 +47,8 @@ import { staffActorRole } from './staff-actor-role';
 // UC-073/UC-077 — the manager's worklist of bookings a resource deactivation left needing a
 // decision. Bulk-only: a single entry is a list of one.
 @Controller('scheduling-exceptions')
+@RequiresFeature('BOOKING')
+@SuspensionAccess('DEFAULT_DENY')
 @UseGuards(ManagerRoleGuard)
 export class SchedulingExceptionController {
   constructor(

@@ -1,6 +1,6 @@
 import { Controller, Get, Headers, Query } from '@nestjs/common';
 import { Public } from '../../shared/decorators/public.decorator';
-import { ZodValidationPipe } from '@ikaro/nestjs-http';
+import { ZodValidationPipe, RequiresFeature, SuspensionAccess } from '@ikaro/nestjs-http';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { withPublicTenant } from '../../shared/http/public-tenant';
 import { AvailabilityResponse } from './schedule.types';
@@ -11,6 +11,8 @@ import { GetAvailabilityQuery, GetAvailabilityQuerySchema } from './schedule-ava
 export * from './schedule-availability.schemas';
 
 @Controller('schedule/availability')
+@RequiresFeature('BOOKING')
+@SuspensionAccess('PUBLIC_NONE')
 export class ScheduleAvailabilityController {
   constructor(private readonly backendHttp: BackendHttpService) {}
 

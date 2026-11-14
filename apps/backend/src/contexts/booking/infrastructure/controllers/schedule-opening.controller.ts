@@ -10,7 +10,13 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { CanonicalParseUUIDPipe, ZodValidationPipe, throwProblemDetail } from '@ikaro/nestjs-http';
+import {
+  CanonicalParseUUIDPipe,
+  ZodValidationPipe,
+  throwProblemDetail,
+  RequiresFeature,
+  SuspensionAccess,
+} from '@ikaro/nestjs-http';
 import { RequestContext } from '../../../../shared/request/request-context';
 import {
   ListOpeningsDto,
@@ -31,6 +37,8 @@ import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-mana
 import { mapBookingError } from '../http/booking-error.mapper';
 
 @Controller('schedule/openings')
+@RequiresFeature('BOOKING')
+@SuspensionAccess('DEFAULT_DENY')
 @UseGuards(StaffOrManagerRoleGuard)
 export class ScheduleOpeningController {
   constructor(

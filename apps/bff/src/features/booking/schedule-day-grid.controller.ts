@@ -1,5 +1,5 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { ZodValidationPipe } from '@ikaro/nestjs-http';
+import { ZodValidationPipe, RequiresFeature, SuspensionAccess } from '@ikaro/nestjs-http';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { DayGridResponse } from './schedule.types';
@@ -10,6 +10,8 @@ import { GetDayGridQuery, GetDayGridQuerySchema } from './schedule-day-grid.sche
 export * from './schedule-day-grid.schemas';
 
 @Controller('schedule/day-grid')
+@RequiresFeature('BOOKING')
+@SuspensionAccess('DEFAULT_DENY')
 @Roles('MANAGER')
 export class ScheduleDayGridController {
   constructor(private readonly backendHttp: BackendHttpService) {}

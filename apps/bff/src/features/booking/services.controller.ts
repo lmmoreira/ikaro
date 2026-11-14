@@ -16,7 +16,12 @@ import {
   StaffServiceListResponse,
   StaffServiceResponse,
 } from '@ikaro/types';
-import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
+import {
+  CanonicalParseUUIDPipe,
+  ZodValidationPipe,
+  RequiresFeature,
+  SuspensionAccess,
+} from '@ikaro/nestjs-http';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import {
@@ -57,6 +62,8 @@ import {
 export * from './services.schemas';
 
 @Controller('services')
+@RequiresFeature('BOOKING')
+@SuspensionAccess('DEFAULT_DENY')
 export class ServicesController {
   constructor(private readonly backendHttp: BackendHttpService) {}
 
