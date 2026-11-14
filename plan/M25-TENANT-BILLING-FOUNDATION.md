@@ -1446,7 +1446,7 @@ The S19 customer reads that feed the account (`GET /customers/me`, the tenant li
 
 ---
 
-### M25-S18b — Annotate Booking routes — schedule, resources, services, recurring schedules, alerts — backend + BFF (UC-125)
+### M25-S18b — Annotate Booking routes — schedule, resources, services, recurring schedules, alerts — backend + BFF (UC-125) ✅ Done
 
 **Agent:** `backend-ts + bff-ts`
 **Complexity:** M
