@@ -69,6 +69,7 @@
 | 2 | M25-S26 | Suspended experience backend/BFF — staff-tenants, tenant switching, customer flag (UC-121) |
 | 2 | M25-S27 | Loyalty — pause point expiry while suspended (O-L1) |
 | 2 | M25-S28 | Booking — reason-neutral customer email (O-B1) |
+| 2 | M25-S33 | Remove the BFF tenant-access gate; the backend is the only enforcement point (UC-125) — runs before S25 |
 | 3 | M25-S29 | Web enforcement — feature registry, `<FeatureGate>`, suspended-manager redirect (UC-125, UC-121) |
 | 3 | M25-S30 | `Unavailable` page and hotsite login bar (UC-122) |
 | 3 | M25-S31a | Staff notice, "Suspensa" tenant list, customer "Empresa inativa" — components (UC-121) |
@@ -2108,6 +2109,82 @@ No new principal; the topic exists from S15b.
 - [ ] `architecture-check` passes (the new `permittedEdges` entries; the subscription declares `skipWhenSuspended`)
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
+
+---
+
+### M25-S33 — Remove the BFF tenant-access gate: the backend is the only enforcement point (UC-125)
+
+**Agent:** `bff-ts + backend-ts`
+**Complexity:** M (breadth, not logic: about 55 files, mostly deletions)
+**Docs to load:** `docs/ENGINEERING_RULES_SHARED.md` § Tenant access enforcement, `docs/BFF_ARCHITECTURE.md` (the guard chain), `docs/TESTING_STRATEGY.md` § Testing a route's tenant-access annotation, `docs/DOMAIN_MODEL.md` § Entry point: `TenantAccessPort`, `docs/API_CONTRACTS.md` § Billing — Access Resolution and Suspended-State Effects, `docs/USE_CASES.md` UC-120 and UC-125
+**Dependencies:** M25-S16, M25-S17, M25-S18a, M25-S18b, M25-S19, M25-S20, M25-S24. It must merge **before** M25-S25, S26, S29 and S31b and before M26-S13 to S20, whose text it changes (see "Stories and docs to rephrase"). The id is S33 because ids are never renumbered; it executes before S25.
+**Pattern:** plain composition. It removes a duplicated cross-cutting check so the backend guard (`Reflector` metadata plus one global guard) stays the single choke point, with the BFF as a transparent pass-through. The force: one authority, so the two layers cannot disagree and the stacked caches stop doubling the staleness.
+
+**Description:**
+Since S16 a tenant request is gated twice: by a BFF guard (`TenantAccessGuard`, which reads each BFF route's annotations and asks the backend's access endpoint through a 300 s / 10 s cache) and then by the backend guard on the real call. Both decide from the same backend data, so the BFF check adds no independent safety. It costs 92 duplicate annotation lines on 27 controllers, 15 duplicate spec files, a second cache, a second fail-open path and stacked staleness (a suspension is visible through the BFF within about 600 s, a reinstatement within about 20 s). Entitlement is a business rule and belongs to the service that owns the data. This story **removes the BFF gate**: the BFF forwards the backend's typed denial (`BILLING_FEATURE_NOT_ENTITLED`, `BILLING_TENANT_SUSPENDED`, status `403`) unchanged. Staleness becomes the backend cache alone: a suspension within 300 s, a reinstatement within 10 s.
+
+**Verified at drafting (2026-11-14):**
+- Every tenant-scoped BFF handler reaches a backend call: of 123 handlers, 111 call the backend directly and the other 12 (health, the OAuth and auth-flow routes, `billing.getAccess`, two one-line loyalty handlers) delegate to one. No BFF route loses its only gate.
+- All 27 `*ForPublic` calls send `X-Tenant-ID` (`publicHeaders`), so the backend gate sees the tenant on every public route. The one public handler without a tenant, `published-hotsites`, was never gated by the BFF either (no slug).
+
+**Decisions locked here:**
+- **What stays in the BFF:** `GET /v1/billing/access` (still reads the backend's role-reduced answer, without any BFF annotation), `BackendInternalClient` (used by `ActiveStaffGuard`), and the `withPublicTenant` / `tenantBySlugRead` slug-to-tenant cache (public routes still resolve the slug; only its comment about the guard sharing the cache changes). The decorators, `readTenantAccessRequirement` and the policy table stay for the backend.
+- **What goes:** `TenantAccessGuard`, `TenantAccessLookup` and their `app.module.ts` registration; the 92 annotation lines; the BFF-only policy `PUBLIC_ALWAYS` (S20 added it for BFF public routes only); the BFF from the detector's scan (`[backend]` only). **The cache plumbing that only the access cache used goes with it:** the function form of `ttlMs` in `backend-read-cache.ts` (`(body) => number | undefined`, used only by the access lookup to skip caching a fail-open answer; the by-slug read passes a plain number), and the cache support in `BackendInternalClient` (the `BACKEND_RESPONSE_CACHE` injection, the `readThrough` call and the `cache` option: its only remaining caller, `ActiveStaffGuard`, never passes one). **The cache layer itself stays:** `BffCache`, `InMemoryBffCache`, `TtlCache`, `BackendCacheModule` and the cache option on `BackendHttpService` keep one user, the by-slug tenant read that every public route starts from (it predates the access gate, and without it each public request would add a backend call).
+- **Parity rule, with a deliverable:** before deleting, a table of every BFF handler's declared (feature, policy) against the backend route(s) it calls goes in the PR body. Wherever the BFF was stricter than the backend (so removal loosens behaviour), the fix is to annotate the **backend** route correctly, never to keep a BFF check.
+- **S26's per-tenant access read** (`operational` on each tenant in `GET /auth/staff-tenants`) becomes a direct backend access read per tenant (a caller has a handful of tenants, and the backend's own cache absorbs it), not a BFF-cached one.
+- **Accepted trade-off:** a public request for a suspended tenant (for example a booking page) now reaches the backend, answered from its 10 s suspended cache, instead of being refused at the BFF.
+
+**Stories and docs to rephrase (done in this story's PR, text only):**
+- **M25:** S26 (replace "through the BFF cache" with the direct read), S31b (the staleness bound becomes the backend's 300 s alone), S29 (its dependency note "the registry mirrors the annotated routes" names backend routes), S25 (wording check on the manifest exemption), and the milestone narrative on `TenantAccessPort` caching and detector scope (the M25-D3 and `TenantAccessPort` paragraphs in "Design & test strategy").
+- **M26 (seven stories):** S13 (the BFF billing note), S14 (its Dependencies line and the decorator AC), S15, S16, S17, S19, S20 (every "Backend and BFF routes carry `@NoFeatureGate()` + `@SuspensionAccess(MANAGER_BILLING)`" AC and BFF endpoint spec line becomes backend-only).
+- **M24:** `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md` § Billing interaction (BFF routes need no annotation).
+- **Docs:** `ENGINEERING_RULES_SHARED` (items 1 and 2, the `PUBLIC_ALWAYS` entry, and a short rationale paragraph: one authoritative gate), `API_CONTRACTS` (the access endpoint's "the BFF guards read", the PARTLY BUILT line and the S20 row), `BFF_ARCHITECTURE` (remove `TenantAccessGuard` from the guard chain), `TESTING_STRATEGY` (the BFF component bullets and "Public routes at the BFF"), `DOMAIN_MODEL` (the BFF guard cache TTL and the roughly 600 s statement), `USE_CASES` (UC-120 A3's "bypass the BFF cache" and any UC-125 BFF mention), and the discovery docs with `[Superseded by M25-S33, <date>]` markers (`tenant-billing.md` decisions 91, 121 and the TTL line, and `tenant-billing_API.md`).
+
+**Backend use case steps:** none.
+**Backend HTTP surface:** none.
+**BFF endpoint spec:** none new; `GET /v1/billing/access` is unchanged apart from losing its annotation.
+**New migration / i18n keys / env vars / feature flags:** none.
+
+**Files to create/modify:**
+- Delete (all verified to exist): `apps/bff/src/shared/guards/tenant-access.guard.ts`, `tenant-access.lookup.ts`, and the 15 specs: `shared/guards/tenant-access.guard.spec.ts`, `tenant-access.guard.component.spec.ts`, `tenant-access.lookup.spec.ts`; `features/auth/auth-tenant-access.component.spec.ts`, `auth-tenant-access.metadata.spec.ts`; `features/booking/{booking-operations,bookings}-tenant-access.{component,metadata}.spec.ts`; `features/customer/customer-tenant-access.component.spec.ts`; `features/loyalty/loyalty-customer-staff-tenant-access.metadata.spec.ts`, `loyalty-tenant-access.component.spec.ts`; `features/platform/platform-tenant-access.{component,metadata}.spec.ts`; `features/staff/staff-tenant-access.component.spec.ts`. Before each deletion the spec is read, and any case that pins behaviour other than the gate itself is kept or moved into its controller's own spec.
+- Modify, removing annotations: the 27 BFF controllers (`features/auth/auth.controller.ts`, `features/billing/billing.controller.ts`, the 14 under `features/booking/`, `features/customer/customers.controller.ts`, `features/loyalty/loyalty.controller.ts`, the 5 under `features/platform/`, `features/staff/staff.controller.ts`, `health/health.controller.ts`).
+- Modify: `apps/bff/src/app.module.ts` (remove the guard and lookup providers), `apps/bff/src/app.module.component.spec.ts` (drop the "registers `TenantAccessGuard` last" case), `apps/bff/src/shared/http/problem-detail.ts` (the typed-denial union is kept only if the pass-through spec or another caller still uses it), `apps/bff/src/shared/http/public-tenant.ts` (comment only), `apps/bff/src/shared/http/backend-read-cache.ts` and `backend-read-cache.spec.ts` (drop the function form of `ttlMs` and its case), `apps/bff/src/shared/http/backend-internal-client.ts` and `backend-internal-client.spec.ts` (drop the cache support and its cases), `apps/bff/src/shared/http/public-tenant-shared-cache.spec.ts` (keeps proving that `withPublicTenant` and the hotsite manifest share one by-slug entry per slug, without the guard).
+- Modify: `packages/architecture-check/src/cli.ts` (scan `[backend]` only), `packages/architecture-check/src/detectors/tenant-access-route-metadata.spec.ts` (the multi-project case stays as a function-level test), `packages/architecture-check/src/cli-regression.spec.ts` (add: an unannotated BFF fixture controller no longer fails), `packages/types/src/tenant-access.ts` and `packages/types/src/tenant-access.spec.ts` (remove `PUBLIC_ALWAYS` and its row).
+- Create: `apps/bff/src/features/billing/tenant-access-denial-passthrough.component.spec.ts` (sibling of `billing.controller.component.spec.ts`).
+- Modify, text only: the docs, plan files and discovery docs listed above.
+
+**Acceptance criteria — product:**
+- [ ] No behaviour change for an entitled or exempt tenant on any route.
+- [ ] A tenant without a feature, or a suspended one, gets the same typed `403` (status, code, body) from the same routes as before, with only the parity-table differences, each decided and recorded.
+- [ ] A suspended tenant still reads its session, lists and switches tenants, signs in and out, and reads `GET /v1/billing/access`.
+- [ ] The documented staleness bound is the backend's alone: a suspension within 300 s, a reinstatement within 10 s (it was about 600 s and 20 s).
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] `packages/types` spec: every remaining policy still has an evaluated behaviour, and `PUBLIC_ALWAYS` is gone
+  - [ ] The detector's exit-code and decorator-form specs pass unchanged
+- Integration:
+  - [ ] **The backend real-guard specs of S17 to S20 pass unchanged**: they are now the only enforcement proof for platform, booking, loyalty, customer, staff and the cross-cutting routes
+  - [ ] The parity table is in the PR body, with every BFF-stricter difference fixed on the backend route
+- BFF component (the new pass-through spec, named cases):
+  - [ ] A backend `403` `BILLING_FEATURE_NOT_ENTITLED` and a `403` `BILLING_TENANT_SUSPENDED` reach the web with identical status, code and body, through one authenticated route per feature family (HOTSITE, BOOKING, LOYALTY, CHATBOT, LEAD_FORM) and one public slug route
+  - [ ] **Negative guarantee, pinned:** the BFF makes **no** access lookup (`/internal/billing/tenants/{id}/access` is never requested for a gated route)
+  - [ ] **`an exempt tenant behaves exactly as before`** on a representative call per family
+  - [ ] A suspended tenant's own session, tenant list and switch, and sign-out still answer `200` through the BFF
+  - [ ] A public route sends `X-Tenant-ID` to the backend (asserted on the mock call)
+- Tenant isolation:
+  - [ ] Tenant A suspended and tenant B active in the same run: B's requests are unaffected, and the BFF binds `X-Tenant-ID` to each caller's JWT tenant
+- E2E:
+  - [ ] none new; the existing Playwright smoke set passes unchanged in this PR's CI
+- Detector:
+  - [ ] `pnpm architecture-check` exits 0 with zero findings and no warning line, and a backend fixture without annotations still fails the real CLI (unchanged)
+  - [ ] An unannotated BFF fixture controller does **not** fail (pins the scope change)
+- [ ] No `TenantAccessGuard`, `TenantAccessLookup` or `PUBLIC_ALWAYS` reference remains outside superseded-marked history (grep)
+- [ ] No function form of `ttlMs` and no cache option or `BACKEND_RESPONSE_CACHE` injection on `BackendInternalClient` remains (grep), and the by-slug read is still cached and shared by `withPublicTenant` and the manifest (`public-tenant-shared-cache.spec.ts`)
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
+
+**Open items for `/story-discovery`:** the parity table itself (the first deliverable); whether `problem-detail.ts` and `public-tenant.ts` keep anything for the pass-through; whether `.copilot/context.md` §7's "every tenant-scoped route declares" line should say "backend"; and how S31b's E2E shortens the staleness wait now that only the backend cache remains (a single backend instance evicts its own cache on `save()`).
 
 ---
 
