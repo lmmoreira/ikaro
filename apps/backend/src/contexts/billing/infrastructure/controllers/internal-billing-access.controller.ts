@@ -28,7 +28,10 @@ export class InternalBillingAccessController {
     return this.access.getAccess(tenantId).catch(mapBillingError);
   }
 
+  // Read by tenant-looping crons and the BFF, with no tenant to gate.
   @Get('suspended-tenant-ids')
+  @NoFeatureGate()
+  @SuspensionAccess('ANY_AUTHENTICATED')
   async listSuspendedTenantIds(): Promise<{ tenantIds: string[] }> {
     return { tenantIds: await this.access.listSuspendedTenantIds() };
   }

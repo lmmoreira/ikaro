@@ -1,5 +1,5 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
-import { ZodValidationPipe } from '@ikaro/nestjs-http';
+import { NoFeatureGate, SuspensionAccess, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { InternalApiGuard } from '../../../../shared/guards/internal-api.guard';
 import { PlatformAdminGuard } from '../../../../shared/guards/platform-admin.guard';
 import { AdvanceClockDto, AdvanceClockSchema } from '../../application/dtos/advance-clock.dto';
@@ -20,6 +20,8 @@ import { mapClockError } from '../../../../shared/http/clock-error.mapper';
 // Both operator-key guards (M25-S15a): the route moves time, so it needs `X-Internal-Key` and
 // `X-Platform-Admin-Key`. Registered only in `local` and `staging` (`DevClockModule.register`).
 @UseGuards(InternalApiGuard, PlatformAdminGuard)
+@NoFeatureGate()
+@SuspensionAccess('ANY_AUTHENTICATED')
 @Controller('internal/dev/clock')
 export class InternalDevClockController {
   constructor(

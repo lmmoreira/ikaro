@@ -18,6 +18,7 @@ const EXPECTED: Record<SuspensionAccessPolicy, readonly (ActorRole | undefined)[
   AUTH_TENANT_SWITCH: ['CUSTOMER', 'STAFF', 'MANAGER'],
   ANY_AUTHENTICATED: ['CUSTOMER', 'STAFF', 'MANAGER'],
   PUBLIC_MANIFEST: ['CUSTOMER', 'STAFF', 'MANAGER', undefined],
+  PUBLIC_ALWAYS: ['CUSTOMER', 'STAFF', 'MANAGER', undefined],
   PUBLIC_NONE: [],
 };
 
@@ -80,6 +81,12 @@ describe('evaluateTenantAccess', () => {
     expect(evaluateTenantAccess(SUSPENDED, { policy: 'PUBLIC_NONE' }, undefined)).toBe(
       'TENANT_SUSPENDED',
     );
+  });
+
+  it('keeps PUBLIC_ALWAYS reachable for an unauthenticated caller of a suspended tenant', () => {
+    const route = { noFeatureGate: true, policy: 'PUBLIC_ALWAYS' } as const;
+    expect(evaluateTenantAccess(SUSPENDED, route, undefined)).toBe('ALLOW');
+    expect(evaluateTenantAccess(SUSPENDED, route, 'CUSTOMER')).toBe('ALLOW');
   });
 
   // A suspended tenant holds no entitled feature (`Subscription.entitledAt` returns none), so the

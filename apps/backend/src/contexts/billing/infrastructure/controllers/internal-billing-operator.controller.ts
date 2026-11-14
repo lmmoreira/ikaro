@@ -11,7 +11,12 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
+import {
+  CanonicalParseUUIDPipe,
+  NoFeatureGate,
+  SuspensionAccess,
+  ZodValidationPipe,
+} from '@ikaro/nestjs-http';
 import { InternalApiGuard } from '../../../../shared/guards/internal-api.guard';
 import { PlatformAdminGuard } from '../../../../shared/guards/platform-admin.guard';
 import {
@@ -53,6 +58,8 @@ import { mapBillingError } from '../http/billing-error.mapper';
 // correlation id is the one the correlation middleware set on the request (it runs on every route,
 // guard-rejected ones included), so the events link back to the operator call.
 @UseGuards(InternalApiGuard, PlatformAdminGuard)
+@NoFeatureGate()
+@SuspensionAccess('ANY_AUTHENTICATED')
 @Controller('internal')
 export class InternalBillingOperatorController {
   constructor(

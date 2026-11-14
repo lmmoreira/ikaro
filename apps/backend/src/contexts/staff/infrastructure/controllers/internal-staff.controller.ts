@@ -1,5 +1,11 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
-import { CanonicalParseUUIDPipe, throwProblemDetail, ZodValidationPipe } from '@ikaro/nestjs-http';
+import {
+  CanonicalParseUUIDPipe,
+  NoFeatureGate,
+  SuspensionAccess,
+  throwProblemDetail,
+  ZodValidationPipe,
+} from '@ikaro/nestjs-http';
 import { GenericErrorCode } from '@ikaro/types/protocol/errors';
 import {
   LinkGoogleAccountDto,
@@ -21,6 +27,8 @@ import { mapStaffError } from '../http/staff-error.mapper';
 
 // Auth-flow endpoints only — called by BFF during OAuth callback.
 // Protected at network level (backend not exposed publicly — BFF-only access).
+@NoFeatureGate()
+@SuspensionAccess('ANY_AUTHENTICATED')
 @Controller('internal/staff')
 export class InternalStaffController {
   constructor(

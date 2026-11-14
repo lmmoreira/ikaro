@@ -22,6 +22,9 @@ export const SUSPENSION_POLICIES = {
   AUTH_TENANT_SWITCH: { admits: 'AUTHENTICATED' },
   ANY_AUTHENTICATED: { admits: 'AUTHENTICATED' },
   PUBLIC_MANIFEST: { admits: 'EVERYONE' },
+  // A public route no suspension may refuse (BFF login, logout, health): reachable by any caller,
+  // authenticated or not, even if a request names a suspended tenant's slug.
+  PUBLIC_ALWAYS: { admits: 'EVERYONE' },
   PUBLIC_NONE: { admits: 'NONE' },
 } as const satisfies Record<string, { admits: SuspensionAdmits }>;
 

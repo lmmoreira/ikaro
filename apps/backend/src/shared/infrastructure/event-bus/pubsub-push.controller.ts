@@ -15,6 +15,7 @@ import { Public } from '../../decorators/public.decorator';
 import { PubSubPushGuard } from '../../guards/pubsub-push.guard';
 import type { ProblemDetail } from '@ikaro/types/protocol/errors';
 import { AppLogger } from '../../observability/app-logger';
+import { NoFeatureGate, SuspensionAccess } from '@ikaro/nestjs-http';
 
 interface PubSubPushMessage {
   data: string;
@@ -33,6 +34,8 @@ interface PubSubPushBody {
 // PubSubPushGuard is the real authentication here.
 @Public()
 @UseGuards(PubSubPushGuard)
+@NoFeatureGate()
+@SuspensionAccess('ANY_AUTHENTICATED')
 @Controller('pubsub')
 export class PubSubPushController {
   private readonly logger = new AppLogger(PubSubPushController.name);

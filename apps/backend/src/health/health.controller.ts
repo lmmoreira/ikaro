@@ -7,8 +7,11 @@ import {
 } from '@nestjs/terminus';
 import { AppLogger } from '../shared/observability/app-logger';
 import { Public } from '../shared/decorators/public.decorator';
+import { NoFeatureGate, SuspensionAccess } from '@ikaro/nestjs-http';
 
 @Public()
+@NoFeatureGate()
+@SuspensionAccess('ANY_AUTHENTICATED')
 @Controller('health')
 export class HealthController {
   private readonly logger = new AppLogger(HealthController.name);
