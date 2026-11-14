@@ -1806,7 +1806,7 @@ Behaviour, in this order: (1) list the active tenants through a new narrow share
 
 ---
 
-### M25-S24 — Flip the route-completeness detector to enforcing (UC-125)
+### M25-S24 — Flip the route-completeness detector to enforcing (UC-125) ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** S
