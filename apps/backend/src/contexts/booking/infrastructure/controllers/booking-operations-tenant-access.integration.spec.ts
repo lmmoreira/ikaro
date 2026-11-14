@@ -94,6 +94,8 @@ const ROUTES: OperationsRoute[] = [
 const FAMILY_READS: OperationsRoute[] = [
   route('get', '/services', 'MANAGER'),
   route('get', '/resources', 'MANAGER'),
+  route('get', '/schedule/closures?from=2026-01-01&to=2026-01-31', 'STAFF'),
+  route('get', '/schedule/openings?from=2026-01-01&to=2026-01-31', 'STAFF'),
   route('get', '/scheduling-exceptions/count', 'MANAGER'),
   route('get', '/recurring-booking-schedules', 'CUSTOMER'),
   route('get', '/availability-alerts', 'CUSTOMER'),

@@ -90,6 +90,8 @@ const ROUTES: OperationsRoute[] = [
 // must keep getting.
 const FAMILY_READS: OperationsRoute[] = [
   route('get', '/v1/resources', 'MANAGER'),
+  route('get', '/v1/schedule/closures?from=2026-01-01&to=2026-01-31', 'MANAGER'),
+  route('get', '/v1/schedule/openings?from=2026-01-01&to=2026-01-31', 'MANAGER'),
   route('get', '/v1/scheduling-exceptions/count', 'MANAGER'),
   route('get', '/v1/availability-alerts', 'CUSTOMER'),
   route('get', '/v1/recurring-booking-schedules', 'CUSTOMER'),
@@ -248,16 +250,19 @@ describe('BFF booking operations routes — tenant access (component)', () => {
   });
 
   describe('an entitled tenant', () => {
-    it('reaches the controller of an authenticated route', async () => {
-      const { tenantId, slug } = nextTenant();
-      backendAnswers({ tenantId, slug, access: ENTITLED });
-      backendHttpService.get.mockResolvedValueOnce({ items: [] });
+    it.each(FAMILY_READS.map((entry) => ({ entry, label: routeKey(entry) })))(
+      'reaches the controller of $label',
+      async ({ entry }) => {
+        const { tenantId, slug } = nextTenant();
+        backendAnswers({ tenantId, slug, access: ENTITLED });
+        backendHttpService.get.mockResolvedValueOnce({ items: [] });
 
-      const res = await call(route('get', '/v1/resources', 'MANAGER'), tenantId, slug);
+        const res = await call(entry, tenantId, slug);
 
-      expect(res.status).toBe(200);
-      expect(backendHttpService.get).toHaveBeenCalled();
-    });
+        expect(res.status).toBe(200);
+        expect(backendHttpService.get).toHaveBeenCalled();
+      },
+    );
   });
 
   describe('tenant isolation', () => {
