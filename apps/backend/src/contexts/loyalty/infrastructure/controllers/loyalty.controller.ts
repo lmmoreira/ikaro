@@ -9,7 +9,14 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { CanonicalParseUUIDPipe, throwProblemDetail, ZodValidationPipe } from '@ikaro/nestjs-http';
+import {
+  CanonicalParseUUIDPipe,
+  NoFeatureGate,
+  RequiresFeature,
+  SuspensionAccess,
+  ZodValidationPipe,
+  throwProblemDetail,
+} from '@ikaro/nestjs-http';
 import { GenericErrorCode } from '@ikaro/types/protocol/errors';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
@@ -56,6 +63,8 @@ export type EnrichedLoyaltyBalanceResult = GetLoyaltyBalanceUseCaseResult & {
 };
 
 @Controller()
+@RequiresFeature('LOYALTY')
+@SuspensionAccess('DEFAULT_DENY')
 export class LoyaltyController {
   constructor(
     private readonly getLoyaltyBalance: GetLoyaltyBalanceUseCase,
@@ -71,6 +80,7 @@ export class LoyaltyController {
   // ── Customer routes ────────────────────────────────────────────────────────
 
   @Get('loyalty/balance')
+  @SuspensionAccess('CUSTOMER_HISTORY')
   @UseGuards(CustomerRoleGuard)
   async getBalance(
     @Query(new ZodValidationPipe(CrossTenantQuerySchema))
@@ -96,6 +106,8 @@ export class LoyaltyController {
   // GetOwnLoyaltyBalancesUseCase) — this route takes no params, so it can't be used to read
   // another customer's balance.
   @Get('loyalty/balances/own')
+  @NoFeatureGate()
+  @SuspensionAccess('AUTH_TENANT_SWITCH')
   @UseGuards(CustomerRoleGuard)
   getOwnBalances(): Promise<GetOwnLoyaltyBalancesUseCaseResult[]> {
     const { tenantId: contextTenantId, actorId } = this.tenantContext;
@@ -105,6 +117,7 @@ export class LoyaltyController {
   }
 
   @Get('loyalty/entries')
+  @SuspensionAccess('CUSTOMER_HISTORY')
   @UseGuards(CustomerRoleGuard)
   getEntries(
     @Query(new ZodValidationPipe(PaginationSchema)) query: PaginationDto,
@@ -116,6 +129,7 @@ export class LoyaltyController {
   }
 
   @Get('loyalty/redemptions')
+  @SuspensionAccess('CUSTOMER_HISTORY')
   @UseGuards(CustomerRoleGuard)
   getRedemptions(
     @Query(new ZodValidationPipe(PaginationSchema)) query: PaginationDto,

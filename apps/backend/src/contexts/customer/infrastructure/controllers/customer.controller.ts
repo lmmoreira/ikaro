@@ -10,7 +10,12 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
+import {
+  CanonicalParseUUIDPipe,
+  RequiresFeature,
+  SuspensionAccess,
+  ZodValidationPipe,
+} from '@ikaro/nestjs-http';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { CustomerRoleGuard } from '../../../../shared/guards/customer-role.guard';
 import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
@@ -40,6 +45,8 @@ import {
 } from '../../application/use-cases/search-customers.use-case';
 
 @Controller('customers')
+@RequiresFeature('HOTSITE')
+@SuspensionAccess('DEFAULT_DENY')
 export class CustomerController {
   constructor(
     private readonly ctx: RequestContext,
@@ -64,6 +71,7 @@ export class CustomerController {
   }
 
   @Get('me')
+  @SuspensionAccess('ANY_AUTHENTICATED')
   @UseGuards(CustomerRoleGuard)
   getMe(): Promise<GetCustomerProfileResponse> {
     return this.getCustomerById
@@ -84,6 +92,7 @@ export class CustomerController {
   }
 
   @Get('me/tenants')
+  @SuspensionAccess('AUTH_TENANT_SWITCH')
   @UseGuards(CustomerRoleGuard)
   getMyTenants(): Promise<GetCustomerTenantsByIdUseCaseResult> {
     return this.getCustomerTenantsById
