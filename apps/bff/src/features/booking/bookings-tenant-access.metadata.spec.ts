@@ -1,6 +1,6 @@
 import type { Type } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { routeAccessRequirements } from '@ikaro/nestjs-http';
+import { SUSPENSION_ACCESS_KEY, routeAccessRequirements } from '@ikaro/nestjs-http';
 import type { SuspensionAccessPolicy } from '@ikaro/types';
 import type { FeatureKey } from '@ikaro/validation';
 import { BookingsAttachmentsController } from './bookings-attachments.controller';
@@ -89,6 +89,10 @@ describe('BFF booking routes — tenant access mapping (M25-S18a)', () => {
     );
 
     expect(getOne?.requirement.policy).toBe('DEFAULT_DENY');
+    // The effective policy alone would pass on the class default; the route must carry its own.
+    expect(reflector.get(SUSPENSION_ACCESS_KEY, BookingsController.prototype.getOne)).toBe(
+      'DEFAULT_DENY',
+    );
   });
 
   it('keeps the booking list and the cancel the only routes a suspended tenant reaches', () => {

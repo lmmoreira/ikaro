@@ -3,6 +3,7 @@ import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { BillingErrorCode } from '@ikaro/types';
+import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { ErrorFilter } from '../../../../shared/filters/error.filter';
 import { TenantAccessGuard } from '../../../../shared/guards/tenant-access.guard';
 import { TENANT_ACCESS_PORT } from '../../../../shared/ports/tenant-access.port';
@@ -89,7 +90,7 @@ describe('Booking routes — tenant access (integration)', () => {
       .set('X-Platform-Admin-Key', TEST_KEY)
       .send({
         name: `Booking Access ${label}`,
-        slug: `booking-access-${label}`,
+        slug: `booking-access-${label}-${uuidv7().slice(-12)}`,
         adminEmail: `${label}@booking-access.test`,
         country_code: 'BR',
         registrationId: TEST_REGISTRATION_ID,
