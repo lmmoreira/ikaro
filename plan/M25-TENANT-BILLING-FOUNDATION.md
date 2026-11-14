@@ -1563,7 +1563,7 @@ Annotate every existing **Loyalty**, **Customer** and **Staff** HTTP route (back
 
 ---
 
-### M25-S20 — Annotate cross-cutting routes — auth, internal, cron, pubsub, health (UC-125)
+### M25-S20 — Annotate cross-cutting routes — auth, internal, cron, pubsub, health (UC-125) ✅ Done
 
 **Agent:** `backend-ts + bff-ts`
 **Complexity:** M
