@@ -106,6 +106,9 @@ run_check "22. No throw new HttpException in use-case files (belongs in mapXxxEr
 # 24. No useExisting adapter token anti-pattern in module providers
 # A class target only (CamelCase): a token-to-token alias of an upper-case Symbol token is not the anti-pattern.
 grep_into_tmp "$ts_modules" "useExisting: *[A-Z][a-z]"
+# A comment line only explains the pattern (event-bus.module.ts does); it is never a provider.
+grep -vE '^[^:]+:[0-9]+:[[:space:]]*(//|/\*|\*)' "$TMP" > "$TMP.nocomment" || true
+mv "$TMP.nocomment" "$TMP"
 run_check "24. No useExisting in module providers — use useClass (CLAUDE.md §8)"
 
 # 18. No barrel imports from ports/ or shared/domain/
