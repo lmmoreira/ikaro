@@ -15,8 +15,10 @@ import { RequestContext } from '../../../../shared/request/request-context';
 import {
   CanonicalParseIntPipe,
   CanonicalParseUUIDPipe,
-  throwProblemDetail,
+  RequiresFeature,
+  SuspensionAccess,
   ZodValidationPipe,
+  throwProblemDetail,
 } from '@ikaro/nestjs-http';
 import { GenericErrorCode } from '@ikaro/types/protocol/errors';
 import { InviteStaffBodyDto, InviteStaffSchema } from '../../application/dtos/invite-staff.dto';
@@ -58,6 +60,8 @@ import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-mana
 import { mapStaffError } from '../http/staff-error.mapper';
 
 @Controller('staff')
+@RequiresFeature('HOTSITE')
+@SuspensionAccess('DEFAULT_DENY')
 export class StaffController {
   constructor(
     private readonly tenantContext: RequestContext,
@@ -86,6 +90,7 @@ export class StaffController {
   }
 
   @Get('me/tenants')
+  @SuspensionAccess('AUTH_TENANT_SWITCH')
   @UseGuards(StaffOrManagerRoleGuard)
   getMyTenants(): Promise<GetStaffTenantsByIdUseCaseResult[]> {
     return this.getStaffTenantsById
@@ -98,6 +103,7 @@ export class StaffController {
   // GET /staff/:id (below) is manager-only by design (staff-list lookups); reusing it here for a
   // STAFF actor's own self-check would always 403 (TD23 Story 11).
   @Get('me/status')
+  @SuspensionAccess('STAFF_NOTICE')
   @UseGuards(StaffOrManagerRoleGuard)
   async getMyStatus(): Promise<{ isActive: boolean }> {
     const { isActive } = await this.getStaffById
@@ -111,6 +117,7 @@ export class StaffController {
   // manager-only by design (staff-list lookups) and would always 403 a plain STAFF actor calling
   // it for themselves (same class of bug as me/status above, TD23 Story 11).
   @Get('me')
+  @SuspensionAccess('ANY_AUTHENTICATED')
   @UseGuards(StaffOrManagerRoleGuard)
   async getMyProfile(): Promise<GetStaffByIdUseCaseResult> {
     return this.getStaffById
