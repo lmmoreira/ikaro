@@ -65,7 +65,7 @@ flowchart TD
 |---|---|---|---|
 | `/dashboard/billing` (tabs, `?tab=`) | `BillingPage`, `BillingTabs`, `ResumoTab`, `PlanoTab`, `CobrancasTab`, `DadosCobrancaTab` (`BillingIdentityForm`), `CobrancaAutomaticaTab` | M26-S27 (shell, Resumo, Cobranças), S28 (Pagar agora), S29 (Dados), S30 (Plano); Cobrança automática is a deferred preview | ❓ GAP |
 | `/dashboard/billing/cancel` — cancel confirmation (a separate page: `app/dashboard/billing/cancel/page.tsx`; S27 hides `BottomNav` there and the suspended-redirect helper skips it) | `CancelSubscriptionPage`, `CancelOutcome`, `ReactivateAction` (prototype name `CancelSubscriptionConfirm`) | M26-S31 | ❓ GAP |
-| A feature the tenant has not bought (its settings section, or its route opened by URL) | `FeatureGate` locked state (settings section) and `LockedFeaturePage` (route opened by URL) (HTTP 200 with the upsell; the API answers `BILLING_FEATURE_NOT_ENTITLED`, proposed 403, HTTP status decided at S16) | M25 (feature gate) | ❓ GAP |
+| A feature the tenant has not bought (its settings section, or its route opened by URL) | `FeatureGate` locked state (settings section) and `LockedFeaturePage` (route opened by URL) (HTTP 200 with the upsell; the API answers `BILLING_FEATURE_NOT_ENTITLED`, 403, M25-S16) | M25 (feature gate) | ❓ GAP |
 | Every `/dashboard/**` page | `SubscriptionBanner` (manager-only; trial, past due, address missing) | M26-S32 | ❓ GAP |
 | `Sidebar` / `BottomNav` / `MoreSheet` | New manager-only "Assinatura" item | M26-S27 | ❓ GAP |
 

@@ -390,7 +390,7 @@ Mobile: bottom nav (Início, Agendamentos, Fidelidade); badge wraps under status
 ## Billing — open booking detail blocked (`16b-detalhe-bloqueado.html`; `BookingBlockedNotice`)
 
 File: `16b-detalhe-bloqueado.html` — Status: GAP, route EXISTS.
-Backend: `GET /v1/bookings/:id` -> `BILLING_TENANT_SUSPENDED` (proposed 403, HTTP status decided at S16) for **every** booking status (`DEFAULT_DENY`, M25-S18a); no row links here, so it is reachable only by direct URL.
+Backend: `GET /v1/bookings/:id` -> `BILLING_TENANT_SUSPENDED` (403, M25-S16) for **every** booking status (`DEFAULT_DENY`, M25-S18a); no row links here, so it is reachable only by direct URL.
 Copy: "Este agendamento não pode ser aberto agora", "Esta empresa está inativa no momento, por isso os detalhes de agendamentos em aberto não estão disponíveis.", "Voltar para Agendamentos". New error code needs translation in both `errors.json` locales.
 Mobile: drill-down page, bottom nav hidden.
 
@@ -401,7 +401,7 @@ Decided: the customer tenant switch list (`/switch-tenant`, BFF `GET /customers/
 ## Billing — new booking blocked (`16c-novo-agendamento-bloqueado.html`)
 
 File: `16c-novo-agendamento-bloqueado.html` — Status: GAP (variant of `BookingBlockedNotice`), booking route EXISTS.
-Backend: `POST /v1/bookings` -> `BILLING_TENANT_SUSPENDED` (proposed 403, HTTP status decided at S16).
+Backend: `POST /v1/bookings` -> `BILLING_TENANT_SUSPENDED` (403, M25-S16).
 Copy: "Esta empresa não está aceitando agendamentos no momento", "Voltar para minha conta".
 
 ## Inline feedback in the action pane (`03c-cancel-confirm-feedback.html`, `03d-cancel-confirm-feedback-erro.html`; `CancelConfirmPage`)

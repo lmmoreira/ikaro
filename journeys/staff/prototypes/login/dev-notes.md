@@ -85,7 +85,7 @@ UC-022 / UC-025 — one path (handleStaffLogin):
 ## Suspended-account notice — staff (`02-suspended-notice.html`; `StaffSuspendedNotice`)
 
 File: `02-suspended-notice.html` — Status: GAP. Visual base: staff login card (`app/dashboard/login/page.tsx`).
-Props: `role: 'STAFF'`. Component `StaffSuspendedNotice` (M25-S31a), rendered by `app/dashboard/suspended/page.tsx`, which branches on role (STAFF -> this; MANAGER -> `ManagerSuspendedNotice`, M25-S29; M26 later repoints managers to the billing page). The redirect to `/dashboard/suspended` is done by the shared helper called from `loadDashboardShellContext`, not `app/dashboard/layout.tsx`. No nav; API answers `BILLING_TENANT_SUSPENDED` (proposed 403 — HTTP status decided at S16).
+Props: `role: 'STAFF'`. Component `StaffSuspendedNotice` (M25-S31a), rendered by `app/dashboard/suspended/page.tsx`, which branches on role (STAFF -> this; MANAGER -> `ManagerSuspendedNotice`, M25-S29; M26 later repoints managers to the billing page). The redirect to `/dashboard/suspended` is done by the shared helper called from `loadDashboardShellContext`, not `app/dashboard/layout.tsx`. No nav; API answers `BILLING_TENANT_SUSPENDED` (403, M25-S16).
 BFF: `GET /v1/billing/access`.
 Copy: "Conta suspensa", "Esta conta está suspensa. Fale com o gerente.", button "Sair". Reason-neutral.
 States: single static state; loading = brand mark only; no load-error state — a failed access lookup fails open (the dashboard renders as today).

@@ -1091,6 +1091,16 @@ Currently affected helpers and their default overrides:
 | `createPlatformIntegrationApp()` | `EVENT_BUS`/`EVENT_BUS_TRANSPORT`/`OUTBOX_PUBLISHER` → same `InMemoryEventBus` (no gate) |
 | `createCustomerIntegrationApp()` | `STORAGE_SERVICE` → `InMemoryStorageService`; `EVENT_BUS`/`EVENT_BUS_TRANSPORT`/`OUTBOX_PUBLISHER` → same `InMemoryEventBus` (no gate) |
 
+### Testing a route's tenant-access annotation (M25, UC-125)
+
+A story that annotates routes with `@RequiresFeature` / `@SuspensionAccess` (the Billing enforcement stories: Platform, Booking, Loyalty / Customer / Staff, cross-cutting) ships the same files per app and modifies no existing spec. The existing specs run without the guard, so they only prove "no behaviour change"; they say nothing about the guard itself.
+
+- **Metadata spec** (`*-tenant-access.metadata.spec.ts`, backend and BFF): a `MAPPING` table of controller → default `{ feature, policy }`, per-handler overrides and `minRoutes`, read with `routeAccessRequirements(controller, new Reflector())` from `@ikaro/nestjs-http`. The detector proves a declaration exists; this spec proves it is the right one. A route the story requires to be explicit (a `GET :id` that stays `DEFAULT_DENY`) also asserts the handler-owned metadata with `reflector.get(SUSPENSION_ACCESS_KEY, Controller.prototype.handler)`, because the effective policy alone passes on the class default.
+- **Guard spec**: backend integration over the context's integration-app helper, with `extraProviders: [{ provide: APP_FILTER, useClass: ErrorFilter }, { provide: APP_GUARD, useClass: TenantAccessGuard }]` and an `InMemoryTenantAccessPort` passed through `overrideProviders` for `TENANT_ACCESS_PORT`; BFF component over `createTestApp()` with the backend's answers faked by URL. A request the guard refuses never reaches a pipe or a use case, so the denial matrices need no valid body.
+- **Blocks every guard spec carries:** no feature → `BILLING_FEATURE_NOT_ENTITLED` on every route; suspended → `BILLING_TENANT_SUSPENDED` on every route except those a policy admits (assert their real `200` instead); `an exempt tenant behaves exactly as before` (seed the exempt answer, `ACTIVE`, operational, every feature, then assert no route returns a billing denial and a representative call per family returns its normal result); tenant isolation (one tenant suspended, the other unaffected).
+- **Public routes at the BFF:** a route that carries its tenant in `X-Tenant-Slug` or a `:slug` param is gated by the BFF guard. A route whose tenant rides a token or the body passes the BFF guard with no lookup, so test it by making the backend mock throw the typed denial and asserting the BFF hands it back unchanged and made no access lookup.
+- **Fixtures:** tenants provisioned through the API take a per-run slug (`uuidv7().slice(-12)`), never a fixed one.
+
 ### Real-GCS-emulator integration tests (opt-in `useRealStorage`)
 
 Almost all integration tests use `InMemoryStorageService` (see the default-override rule above). One narrow exception exists: proving the upload/promote/delete storage lifecycle (tmp/ staging → copy → delete) actually works against a real GCS-compatible API, not just an in-memory double that can't catch bucket-target or signed-URL-shape mistakes.

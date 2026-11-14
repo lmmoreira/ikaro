@@ -1470,7 +1470,13 @@ Annotate the remaining existing **Booking** HTTP routes — the half S18a does n
 **Files to create/modify:**
 - `apps/backend/src/contexts/booking/infrastructure/controllers/availability-alert.controller.ts`, `recurring-booking-schedule.controller.ts`, `resource.controller.ts`, `schedule-availability-summary.controller.ts`, `schedule-availability.controller.ts`, `schedule-closure.controller.ts`, `schedule-day-grid.controller.ts`, `schedule-opening.controller.ts`, `scheduling-exception.controller.ts`, `service-public-page.controller.ts`, `service-public.controller.ts`, `service.controller.ts` (modify)
 - `apps/bff/src/features/booking/availability-alerts.controller.ts`, `recurring-booking-schedules.controller.ts`, `resource.controller.ts`, `schedule-availability-summary.controller.ts`, `schedule-availability.controller.ts`, `schedule-day-grid.controller.ts`, `schedule-opening.controller.ts`, `schedule.controller.ts`, `scheduling-exceptions.controller.ts`, `services.controller.ts`, `services.public.controller.ts` (modify)
-- the matching spec files of each controller (modify — add the gate assertions)
+- **Tests (consolidated, S17 / S18a shape; no existing spec file is modified, which is the non-regression proof; the `booking-operations-` prefix keeps the files apart from S18a's `booking-tenant-access` / `bookings-tenant-access`):**
+  - `apps/backend/src/contexts/booking/infrastructure/controllers/booking-operations-tenant-access.metadata.spec.ts` (create — table-driven mapping over the 12 backend controllers, using the shared `routeAccessRequirements` helper from `@ikaro/nestjs-http`)
+  - `apps/backend/src/contexts/booking/infrastructure/controllers/booking-operations-tenant-access.integration.spec.ts` (create — real `TenantAccessGuard` + `InMemoryTenantAccessPort` over `createBookingIntegrationApp` with its `extraProviders`)
+  - `apps/bff/src/features/booking/booking-operations-tenant-access.metadata.spec.ts` (create — the 11 BFF controllers)
+  - `apps/bff/src/features/booking/booking-operations-tenant-access.component.spec.ts` (create — real BFF `TenantAccessGuard` chain, using `createTestApp`)
+
+**Decisions locked at discovery (2026-11-14).** *Scope:* one PR for every route (the split the description allowed was declined). The detector in warn mode reports **97** in-scope routes: **47 backend** (`service` 12, `resource` 6, `recurring-booking-schedule` 6, `availability-alert` 5, `scheduling-exception` 5, `schedule-closure` 3, `schedule-opening` 3, `service-public` 3, `service-public-page` 1, `schedule-availability` 1, `schedule-availability-summary` 1, `schedule-day-grid` 1) and **50 BFF** (`services` 13, `resource` 7, `recurring-booking-schedules` 6, `availability-alerts` 5, `scheduling-exceptions` 5, `services.public` 5, `schedule` (closures) 3, `schedule-opening` 3, `schedule-availability` 1, `schedule-availability-summary` 1, `schedule-day-grid` 1). The two `cron-booking` routes are S20's. *Placement:* `@RequiresFeature('BOOKING')` and `@SuspensionAccess(...)` once on each class, with no per-handler override: `PUBLIC_NONE` on the all-public controllers (backend `service-public` and `schedule-availability*`; BFF `services.public` and `schedule-availability*`), `DEFAULT_DENY` on every other class. The backend `service.controller` reads `GET /services` and `GET :id/intake-schema` that the public BFF routes also call stay `DEFAULT_DENY` (staff use them too, and both policies refuse alike). *BFF public routes:* every one carries `X-Tenant-Slug`, so the BFF guard resolves and refuses them itself (unlike S18a's token-based routes); the component spec asserts the refusal with no backend call. *Recurring `end` and the customer's alerts:* `DEFAULT_DENY` as the table says (UC-121 allows only the booking list and the future-booking cancel; each occurrence stays cancellable through S18a's `CUSTOMER_HISTORY` route). *Out of scope:* web screens that call a now-refused route are S29 / S31a's; enforcement is merged dark.
 
 **Acceptance criteria — product:**
 - [ ] No schedule, resource, service, recurring-schedule or alert behaviour changes for an entitled or exempt tenant.
@@ -1482,10 +1488,11 @@ Annotate the remaining existing **Booking** HTTP routes — the half S18a does n
   - [ ] Table-driven metadata spec over the controllers above (explicit metadata on every route)
 - Integration:
   - [ ] Entitled → 200, non-entitled → typed denial, suspended → typed denial on every route family (schedule, resources, services, recurring, alerts, exceptions)
-  - [ ] **Non-regression:** an `exempt` tenant's existing schedule/resource/service/recurring/alert integration specs pass unchanged
+  - [ ] **Non-regression:** an `exempt` tenant's existing schedule/resource/service/recurring/alert integration specs pass unchanged, **and** each guard spec (backend integration, BFF component) carries a named `an exempt tenant behaves exactly as before` block: the exempt answer is seeded, no route returns a billing denial, and a representative call per family returns its normal result (unchanged specs run without the guard, so they alone prove nothing about it)
+  - [ ] The BFF public routes (`services.public`, `schedule-availability*`) are refused at the BFF for a suspended or unentitled tenant, resolved from `X-Tenant-Slug`, with no backend call
 - Tenant isolation: [ ] denials concern the caller's tenant only
 - E2E: none — covered by integration
-- [ ] The detector reports zero warnings for the controllers in this story; together with S18a, zero Booking-route warnings
+- [ ] The detector reports zero warnings for the controllers in this story; together with S18a, zero Booking-route warnings except the two `cron-booking` routes (S20)
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
@@ -1524,7 +1531,7 @@ Annotate every existing **Loyalty**, **Customer** and **Staff** HTTP route (back
 **Files to create/modify:**
 - `apps/backend/src/contexts/loyalty/infrastructure/controllers/loyalty.controller.ts`, `apps/backend/src/contexts/customer/infrastructure/controllers/customer.controller.ts`, `apps/backend/src/contexts/staff/infrastructure/controllers/staff.controller.ts` (modify)
 - `apps/bff/src/features/loyalty/loyalty.controller.ts`, `apps/bff/src/features/customer/customers.controller.ts`, `apps/bff/src/features/staff/staff.controller.ts` (modify)
-- the matching spec files (modify)
+- **Tests (the S17 / S18a shape, `docs/TESTING_STRATEGY.md` § Testing a route's tenant-access annotation; no existing spec file is modified, which is the non-regression proof):** per app, a consolidated `<context>-tenant-access.metadata.spec.ts` and a real-guard `*-tenant-access.integration.spec.ts` (backend) / `*-tenant-access.component.spec.ts` (BFF), each guard spec with a named `an exempt tenant behaves exactly as before` block
 
 **Acceptance criteria — product:**
 - [ ] No behaviour change for an entitled or exempt tenant.
@@ -1570,7 +1577,7 @@ Annotate the surface that is **not** a sellable feature: the BFF `auth.controlle
 - `apps/backend/src/shared/infrastructure/event-bus/pubsub-push.controller.ts`, `apps/backend/src/shared/infrastructure/outbox/outbox-relay.controller.ts`, `apps/backend/src/health/health.controller.ts`, `apps/bff/src/health/health.controller.ts` (modify)
 - `apps/backend/src/contexts/billing/infrastructure/controllers/*.controller.ts` and `apps/bff/src/features/billing/billing.controller.ts` (modify — the controllers created by S09, S13, S12, S15a, S15b)
 - `docs/ENGINEERING_RULES_SHARED.md` (modify — § Tenant access enforcement, item 1 already lists the internal, cron, Pub/Sub-push and outbox-relay surface under `@NoFeatureGate()`; correct its parenthetical "none of them carries a tenant session" (the BFF forwards `X-Tenant-ID` on authenticated internal calls) and state that this surface also declares `ANY_AUTHENTICATED`)
-- the matching spec files (modify)
+- **Tests (the S17 / S18a shape, `docs/TESTING_STRATEGY.md` § Testing a route's tenant-access annotation; no existing spec file is modified, which is the non-regression proof):** per app, a consolidated `*-tenant-access.metadata.spec.ts` and a real-guard `*-tenant-access.integration.spec.ts` (backend) / `*-tenant-access.component.spec.ts` (BFF), each guard spec with a named `an exempt tenant behaves exactly as before` block
 
 **Acceptance criteria — product:**
 - [ ] No behaviour change: login, health checks, crons, the outbox relay and Pub/Sub delivery all work for every tenant state, including a suspended one.

@@ -210,8 +210,8 @@ flowchart TD
 
     Login(["Customer signs in (never blocked)"]) --> List["✅ /{slug}/my-account/bookings<br/>❓ GAP: 'Empresa inativa' badge on open bookings<br/>(16-agendamentos-empresa-inativa)"]
     List -->|"history row (not a link, aria-disabled)"| Hist["History is readable in the list only: the booking detail is denied for every status"]
-    List -.->|"direct URL only (rows are not links)"| Blocked["❓ GAP: BookingBlockedNotice — BILLING_TENANT_SUSPENDED (proposed 403)<br/>(16b-detalhe-bloqueado)"]
-    List -->|"Novo agendamento (disabled)"| NewBlocked["❓ GAP: new booking refused — BILLING_TENANT_SUSPENDED (proposed 403)<br/>(16c-novo-agendamento-bloqueado)"]
+    List -.->|"direct URL only (rows are not links)"| Blocked["❓ GAP: BookingBlockedNotice — BILLING_TENANT_SUSPENDED (403)<br/>(16b-detalhe-bloqueado)"]
+    List -->|"Novo agendamento (disabled)"| NewBlocked["❓ GAP: new booking refused — BILLING_TENANT_SUSPENDED (403)<br/>(16c-novo-agendamento-bloqueado)"]
     List -->|"Cancelar link on an open future row"| Cancel["❓ GAP: CancelFromListConfirm dialog rendered from the row data (M25-S31a); Booking decides the record-dependent rules"]
 
     class Login existing

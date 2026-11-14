@@ -379,7 +379,7 @@ These tables are **not exhaustive** — they show the common entries. `ls` the d
 | `wait-for.ts` | `waitFor` | `(condition: () => Promise<boolean>, timeoutMs = 8000)` | polling async side effects in story integration specs |
 | `date-helpers.ts` | `futureDate`, `pastDate`, `addDays`, `nextWeekday` | `YYYY-MM-DD` strings, UTC | any date a spec needs — see `docs/TESTING_STRATEGY.md` § Shared date helpers (mandatory — never inline) |
 | `address-helpers.ts` | `testAddress`, `testAddressProps` | `testAddress(overrides?, countryCode = 'BR')` → `Address`; `testAddressProps(overrides?)` → `AddressProps` | any `Address` a spec needs — see `docs/TESTING_STRATEGY.md` § Shared address helper (mandatory — never inline) |
-| `booking-integration-app.ts` | `createBookingIntegrationApp` | `(options?: { extraModules?, overrideProviders? })` → `{ app, ds, eventBus, moduleRef }` | booking context integration tests |
+| `booking-integration-app.ts` | `createBookingIntegrationApp` | `(options?: { extraModules?, extraProviders?, overrideProviders? })` → `{ app, ds, eventBus, moduleRef }` | booking context integration tests (`extraProviders` adds root providers such as an `APP_GUARD`) |
 | `customer-integration-app.ts` | `createCustomerIntegrationApp` | `(options?: CustomerIntegrationAppOptions)` → `{ app, ds }` | customer context integration tests |
 | `notification-integration-app.ts` | `createNotificationIntegrationApp` | `(options: { dispatcher, … })` (`dispatcher` required) → `{ app, ds, eventBus }` | notification context integration tests |
 
