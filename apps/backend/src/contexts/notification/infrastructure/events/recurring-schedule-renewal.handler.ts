@@ -20,6 +20,7 @@ export class RecurringScheduleRenewalNotificationHandler implements OnModuleInit
       RecurringScheduleRenewalDue.name,
       (event) => this.handle(event),
       RecurringScheduleRenewalNotificationHandler.CONSUMER_NAME,
+      { skipWhenSuspended: true },
     );
   }
 

@@ -13,6 +13,7 @@ export class LoyaltyAuditLogHandler extends AuditLogHandlerBase {
       ServicePointsEarned.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
   }
 }

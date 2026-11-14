@@ -1,4 +1,5 @@
 import { DataSource } from 'typeorm';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
 import { TypeOrmTransactionManager } from '../../../../shared/infrastructure/typeorm-transaction-manager';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
@@ -43,6 +44,7 @@ describe('BookingCompletedHandler — no-show correction (integration, M23-S09)'
       new InMemoryLoyaltyPlatformPort().withPointsPerCurrencyUnit(10),
       loyaltyOutbox,
       new TypeOrmTransactionManager(ds),
+      new InMemoryTenantAccessPort(),
     );
     handler = new BookingCompletedHandler(useCase, eventBus);
   });

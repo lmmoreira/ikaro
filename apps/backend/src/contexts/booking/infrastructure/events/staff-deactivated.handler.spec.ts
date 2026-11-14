@@ -28,6 +28,7 @@ describe('StaffDeactivatedHandler', () => {
       'StaffDeactivated',
       expect.any(Function),
       CascadeStaffDeactivationUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
   });
 

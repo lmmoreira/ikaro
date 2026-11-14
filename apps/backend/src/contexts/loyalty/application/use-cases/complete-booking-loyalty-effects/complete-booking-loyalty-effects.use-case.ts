@@ -25,6 +25,11 @@ import {
 } from '../../ports/loyalty-redemption-repository.port';
 import { ILoyaltyPlatformPort, LOYALTY_PLATFORM_PORT } from '../../ports/loyalty-platform.port';
 import { IInboxRepository, INBOX_REPOSITORY } from '../../../../../shared/ports/inbox.port';
+import {
+  TENANT_ACCESS_PORT,
+  type TenantAccessPort,
+} from '../../../../../shared/ports/tenant-access.port';
+import { AppLogger } from '../../../../../shared/observability/app-logger';
 
 export interface BookingCompletedLine {
   lineId: string;
@@ -61,10 +66,18 @@ const SKIPPED_RESULT: CompleteBookingLoyaltyEffectsUseCaseResult = {
  * The single, self-contained reaction to `BookingCompleted`: records earned points
  * and — if a loyalty discount was applied at completion — redeems points, all in
  * one transaction with one idempotency check against the triggering event.
+ *
+ * Earning and settlement are one atomic write of the customer's balance, so this is the one place
+ * the tenant's access is read instead of the declarative event gate (UC-121, UC-125): the gate can
+ * skip a whole handler, not half of one transaction. A discount was already applied to the booking
+ * when it completed, so the redemption is always settled; points are earned only while the tenant
+ * is operational and entitled to LOYALTY (the lookup fails open, like the gate).
  */
 @Injectable()
 export class CompleteBookingLoyaltyEffectsUseCase {
   static readonly CONSUMER_NAME = 'complete-booking-loyalty-effects';
+
+  private readonly logger = new AppLogger(CompleteBookingLoyaltyEffectsUseCase.name);
 
   constructor(
     @Inject(LOYALTY_ENTRY_REPOSITORY) private readonly entryRepo: ILoyaltyEntryRepository,
@@ -77,6 +90,7 @@ export class CompleteBookingLoyaltyEffectsUseCase {
     private readonly tenantSettingsPort: ILoyaltyPlatformPort,
     @Inject(OUTBOX_PUBLISHER) private readonly outboxPublisher: IOutboxPublisher,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
+    @Inject(TENANT_ACCESS_PORT) private readonly tenantAccess: TenantAccessPort,
   ) {}
 
   async execute(
@@ -89,12 +103,14 @@ export class CompleteBookingLoyaltyEffectsUseCase {
     const { expiryDays, pointsPerCurrencyUnit } = await this.tenantSettingsPort.getLoyaltySettings(
       dto.tenantId,
     );
-    const totalPointsEarned = dto.lines.reduce((sum, l) => sum + l.pointsValueAtBooking, 0);
     const pointsRedeemed = dto.discountByPoints?.pointsUsed ?? 0;
+    const mayEarn = await this.mayEarnPoints(dto);
+    if (!mayEarn && pointsRedeemed <= 0) return this.markProcessedWithoutRecording(dto);
 
+    const entries = mayEarn ? this.buildEntries(dto, customerId, expiryDays) : [];
+    const totalPointsEarned = entries.reduce((sum, entry) => sum + entry.points, 0);
     const balance = await this.findOrCreateBalance(dto.tenantId, customerId);
-    const entries = this.buildEntries(dto, customerId, expiryDays);
-    balance.increment(totalPointsEarned);
+    if (mayEarn) balance.increment(totalPointsEarned);
 
     const redemption = this.applyRedemption(
       balance,
@@ -103,17 +119,53 @@ export class CompleteBookingLoyaltyEffectsUseCase {
       pointsRedeemed,
       pointsPerCurrencyUnit,
     );
-    const servicePointsEarned = this.buildServicePointsEarnedEvent(
-      dto,
-      customerId,
-      totalPointsEarned,
-      entries,
-      balance.currentPoints,
-    );
+    const servicePointsEarned = mayEarn
+      ? this.buildServicePointsEarnedEvent(
+          dto,
+          customerId,
+          totalPointsEarned,
+          entries,
+          balance.currentPoints,
+        )
+      : null;
 
     await this.persist(entries, balance, redemption, dto, servicePointsEarned);
 
     return { skipped: false, entriesCreated: entries.length, totalPointsEarned, pointsRedeemed };
+  }
+
+  // Earning is not allowed and no discount was spent: nothing to record. The event is still marked
+  // processed, so a duplicate delivered after access is restored cannot earn for it.
+  private async markProcessedWithoutRecording(
+    dto: CompleteBookingLoyaltyEffectsUseCaseInput,
+  ): Promise<CompleteBookingLoyaltyEffectsUseCaseResult> {
+    await this.txManager.run(() =>
+      this.inboxRepo.markProcessed(dto.eventId, CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME),
+    );
+    return SKIPPED_RESULT;
+  }
+
+  // Read before the transaction opens: no cross-service call inside txManager.run().
+  private async mayEarnPoints(dto: CompleteBookingLoyaltyEffectsUseCaseInput): Promise<boolean> {
+    try {
+      const access = await this.tenantAccess.getAccess(dto.tenantId);
+      const allowed = access.operational && access.features.some((f) => f.key === 'LOYALTY');
+      if (!allowed) {
+        this.logger.log('Points not earned: tenant is suspended or not entitled to LOYALTY', {
+          tenantId: dto.tenantId,
+          eventId: dto.eventId,
+          bookingId: dto.bookingId,
+        });
+      }
+      return allowed;
+    } catch (err) {
+      this.logger.warn('Tenant access lookup failed; earning points anyway', {
+        tenantId: dto.tenantId,
+        eventId: dto.eventId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return true;
+    }
   }
 
   private isAlreadyProcessed(eventId: string): Promise<boolean> {
@@ -197,7 +249,7 @@ export class CompleteBookingLoyaltyEffectsUseCase {
     balance: LoyaltyBalance,
     redemption: LoyaltyRedemption | null,
     dto: CompleteBookingLoyaltyEffectsUseCaseInput,
-    servicePointsEarned: ServicePointsEarned,
+    servicePointsEarned: ServicePointsEarned | null,
   ): Promise<void> {
     await this.txManager.run(async () => {
       for (const entry of entries) {
@@ -209,7 +261,7 @@ export class CompleteBookingLoyaltyEffectsUseCase {
         dto.eventId,
         CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME,
       );
-      await this.outboxPublisher.publish(servicePointsEarned);
+      if (servicePointsEarned) await this.outboxPublisher.publish(servicePointsEarned);
     });
   }
 }

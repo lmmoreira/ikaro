@@ -22,6 +22,7 @@ describe('AvailabilityAlertMatchedNotificationHandler', () => {
       'AvailabilityAlertMatched',
       expect.any(Function),
       'notification',
+      { skipWhenSuspended: true },
     );
   });
 

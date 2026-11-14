@@ -20,6 +20,7 @@ export class AvailabilityAlertMatchedNotificationHandler implements OnModuleInit
       AvailabilityAlertMatched.name,
       (event) => this.handle(event),
       AvailabilityAlertMatchedNotificationHandler.CONSUMER_NAME,
+      { skipWhenSuspended: true },
     );
   }
 

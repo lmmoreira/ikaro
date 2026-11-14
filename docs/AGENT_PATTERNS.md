@@ -637,7 +637,7 @@ import { InboxModule } from '../../shared/infrastructure/inbox/inbox.module';
 import { InboxRecordEntity } from '../../shared/infrastructure/inbox/inbox-record.entity';
 import { OutboxModule } from '../../shared/infrastructure/outbox/outbox.module';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
-import { EVENT_BUS } from '../../shared/ports/event-bus.port';
+import { EVENT_BUS, EVENT_BUS_TRANSPORT } from '../../shared/ports/event-bus.port';
 import { OUTBOX_PUBLISHER } from '../../shared/ports/outbox-publisher.port';
 import { STORAGE_SERVICE } from '../../shared/ports/storage.service.port';
 import { RequestInterceptor } from '../../shared/request/request.interceptor';
@@ -679,7 +679,9 @@ export async function createXxxIntegrationApp(): Promise<{
     providers: [{ provide: APP_INTERCEPTOR, useClass: RequestInterceptor }],
   })
     .overrideProvider(EVENT_BUS)
-    .useValue(eventBus) // suppress real Pub/Sub connections in tests
+    .useValue(eventBus) // handlers inject this: the gated bus in production
+    .overrideProvider(EVENT_BUS_TRANSPORT)
+    .useValue(eventBus) // suppress real Pub/Sub connections in tests (also what TRIGGER_BUS aliases)
     .overrideProvider(OUTBOX_PUBLISHER)
     .useValue(eventBus) // same instance: publish and subscribe stay connected, no real outbox table
     .overrideProvider(STORAGE_SERVICE)
@@ -703,7 +705,7 @@ export async function createXxxIntegrationApp(): Promise<{
 | `EventBusModule` | `PlatformModule` needs `IEventBus` for `ProvisionTenantUseCase` |
 | `OutboxModule` / `InboxModule` (+ `InboxRecordEntity`) | Write use cases publish through the outbox; event handlers dedupe through the inbox |
 | `PlatformModule` | Provides `POST /internal/tenants` — use it to seed tenants, never insert directly |
-| `.overrideProvider(EVENT_BUS)` and `.overrideProvider(OUTBOX_PUBLISHER)` → the same `InMemoryEventBus` | Prevents real GCP Pub/Sub connections and the real outbox relay |
+| `.overrideProvider(EVENT_BUS)`, `.overrideProvider(EVENT_BUS_TRANSPORT)` and `.overrideProvider(OUTBOX_PUBLISHER)` → the same `InMemoryEventBus` (override only the transport to keep the real `GatedEventBus`, see `docs/TESTING_STRATEGY.md`) | Prevents real GCP Pub/Sub connections and the real outbox relay |
 | `.overrideProvider(STORAGE_SERVICE).useValue(new InMemoryStorageService())` | Prevents real GCS access (add `TENANT_SETTINGS_PORT` → `InMemoryTenantSettingsPort` when the context reads tenant settings) |
 | `{ provide: APP_INTERCEPTOR, useClass: RequestInterceptor }` | Populates `RequestContext` from `X-Tenant-ID` header on each request |
 

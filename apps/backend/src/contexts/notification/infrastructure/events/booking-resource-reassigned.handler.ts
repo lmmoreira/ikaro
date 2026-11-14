@@ -20,6 +20,7 @@ export class BookingResourceReassignedHandler implements OnModuleInit {
       BookingResourceReassigned.name,
       (event) => this.handle(event),
       BookingResourceReassignedHandler.CONSUMER_NAME,
+      { skipWhenSuspended: true },
     );
   }
 

@@ -1,4 +1,5 @@
 import { DataSource } from 'typeorm';
+import { InMemoryTenantAccessPort } from '../../../../../test/infrastructure/in-memory-tenant-access.port';
 import { TypeOrmTransactionManager } from '../../../../../shared/infrastructure/typeorm-transaction-manager';
 import { createTestDataSource } from '../../../../../test/test-datasource';
 import { InMemoryEventBus } from '../../../../../test/infrastructure/in-memory-event-bus';
@@ -81,6 +82,7 @@ describe('CompleteBookingLoyaltyEffectsUseCase (integration, TD24-S03 §12.3 re-
       new InMemoryLoyaltyPlatformPort().withPointsPerCurrencyUnit(10),
       failingPublisher,
       txManager,
+      new InMemoryTenantAccessPort(),
     );
 
     await expect(failingUseCase.execute(dto)).rejects.toThrow('outbox write failed');
@@ -112,6 +114,7 @@ describe('CompleteBookingLoyaltyEffectsUseCase (integration, TD24-S03 §12.3 re-
       new InMemoryLoyaltyPlatformPort().withPointsPerCurrencyUnit(10),
       workingPublisher,
       txManager,
+      new InMemoryTenantAccessPort(),
     );
 
     const result = await retryUseCase.execute(dto);

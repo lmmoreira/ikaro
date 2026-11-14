@@ -25,11 +25,13 @@ export class BookingReminderHandler implements OnModuleInit {
       BookingReminderDue.name,
       (event) => this.handleDue(event),
       BookingReminderHandler.CONSUMER_NAME,
+      { skipWhenSuspended: true },
     );
     this.eventBus.subscribe<BookingReminderDueToday>(
       BookingReminderDueToday.name,
       (event) => this.handleDueToday(event),
       BookingReminderHandler.CONSUMER_NAME,
+      { skipWhenSuspended: true },
     );
   }
 

@@ -53,6 +53,7 @@ describe('DeadLetterHandler', () => {
         DEAD_LETTER_CHANNEL_NAME,
         expect.any(Function),
         'monitor',
+        { skipWhenSuspended: false },
       );
     });
   });

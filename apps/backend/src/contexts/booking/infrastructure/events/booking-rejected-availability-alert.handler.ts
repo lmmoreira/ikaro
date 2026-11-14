@@ -22,6 +22,7 @@ export class BookingRejectedAvailabilityAlertHandler implements OnModuleInit {
       BookingRejected.name,
       (event) => this.handle(event),
       BookingRejectedAvailabilityAlertHandler.CONSUMER_NAME,
+      { skipWhenSuspended: true },
     );
   }
 

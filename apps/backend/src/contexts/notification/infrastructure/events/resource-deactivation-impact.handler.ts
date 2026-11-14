@@ -20,6 +20,7 @@ export class ResourceDeactivationImpactHandler implements OnModuleInit {
       ResourceDeactivationImpactRaised.name,
       (event) => this.handle(event),
       ResourceDeactivationImpactHandler.CONSUMER_NAME,
+      { skipWhenSuspended: true },
     );
   }
 

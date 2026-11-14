@@ -15,16 +15,19 @@ export class StaffAuditLogHandler extends AuditLogHandlerBase {
       StaffActivated.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
     this.eventBus.subscribe(
       StaffDeactivated.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
     this.eventBus.subscribe(
       StaffInvited.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
   }
 }

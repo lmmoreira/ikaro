@@ -22,6 +22,8 @@ export class InMemoryTenantAccessPort implements TenantAccessPort {
   readonly notEntitledCalls: FeatureKey[] = [];
   // Set to make both batch reads throw, like a Billing read that fails.
   batchReadError: Error | null = null;
+  // Set to make getAccess() throw, like a lookup that fails (the gate fails open on it).
+  getAccessError: Error | null = null;
 
   seed(tenantId: string, access: TenantAccess): void {
     this.byTenant.set(tenantId, access);
@@ -50,6 +52,7 @@ export class InMemoryTenantAccessPort implements TenantAccessPort {
 
   async getAccess(tenantId: string): Promise<TenantAccess> {
     this.getAccessCalls.push(tenantId);
+    if (this.getAccessError) throw this.getAccessError;
     return (
       this.byTenant.get(tenantId) ?? {
         status: 'ACTIVE',

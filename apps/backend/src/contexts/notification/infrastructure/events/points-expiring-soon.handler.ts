@@ -20,6 +20,7 @@ export class PointsExpiringSoonHandler implements OnModuleInit {
       PointsExpiringSoon.name,
       (event) => this.handle(event),
       PointsExpiringSoonHandler.CONSUMER_NAME,
+      { skipWhenSuspended: true },
     );
   }
 

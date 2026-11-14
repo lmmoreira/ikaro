@@ -20,6 +20,7 @@ export class ServicePointsEarnedHandler implements OnModuleInit {
       ServicePointsEarned.name,
       (event) => this.handle(event),
       ServicePointsEarnedHandler.CONSUMER_NAME,
+      { skipWhenSuspended: true },
     );
   }
 

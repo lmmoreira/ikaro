@@ -6,6 +6,7 @@ import { InMemoryLoyaltyPlatformPort } from '../../../../../test/infrastructure/
 import { InMemoryLoyaltyRedemptionRepository } from '../../../../../test/repositories/loyalty/in-memory-loyalty-redemption.repository';
 import { InMemoryInboxRepository } from '../../../../../test/infrastructure/in-memory-inbox.repository';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
+import { InMemoryTenantAccessPort } from '../../../../../test/infrastructure/in-memory-tenant-access.port';
 import { LoyaltyBalanceBuilder } from '../../../../../test/builders/loyalty/index';
 import {
   CompleteBookingLoyaltyEffectsUseCaseInput,
@@ -53,6 +54,7 @@ describe('CompleteBookingLoyaltyEffectsUseCase', () => {
   let inboxRepo: InMemoryInboxRepository;
   let tenantSettingsPort: InMemoryLoyaltyPlatformPort;
   let outboxPublisher: InMemoryEventBus;
+  let tenantAccess: InMemoryTenantAccessPort;
   let useCase: CompleteBookingLoyaltyEffectsUseCase;
 
   beforeEach(() => {
@@ -62,6 +64,7 @@ describe('CompleteBookingLoyaltyEffectsUseCase', () => {
     inboxRepo = new InMemoryInboxRepository();
     tenantSettingsPort = new InMemoryLoyaltyPlatformPort().withPointsPerCurrencyUnit(10);
     outboxPublisher = new InMemoryEventBus();
+    tenantAccess = new InMemoryTenantAccessPort();
 
     useCase = new CompleteBookingLoyaltyEffectsUseCase(
       entryRepo,
@@ -71,6 +74,7 @@ describe('CompleteBookingLoyaltyEffectsUseCase', () => {
       tenantSettingsPort,
       outboxPublisher,
       new InMemoryTransactionManager(),
+      tenantAccess,
     );
   });
 
@@ -173,6 +177,109 @@ describe('CompleteBookingLoyaltyEffectsUseCase', () => {
     expect(redemptionRepo.saved).toHaveLength(1);
     const balance = await balanceRepo.findByCustomer(TENANT_ID, CUSTOMER_ID);
     expect(balance!.currentPoints).toBe(315);
+  });
+
+  describe("earning follows the tenant's access; the redemption always settles", () => {
+    const discount = { discountByPoints: { pointsUsed: 200, amountDeducted: 20 } };
+    const withoutLoyalty = {
+      status: 'ACTIVE' as const,
+      suspensionReason: null,
+      operational: true,
+      features: [{ key: 'BOOKING' as const, tier: 'STANDARD' as const }],
+    };
+
+    it('earns for an operational tenant entitled to LOYALTY', async () => {
+      const result = await useCase.execute(makeDto());
+
+      expect(result.entriesCreated).toBe(2);
+      expect(tenantAccess.getAccessCalls).toEqual([TENANT_ID]);
+    });
+
+    it('settles the redemption but earns nothing for a suspended tenant', async () => {
+      await seedBalance(500);
+      tenantAccess.seedSuspended(TENANT_ID);
+
+      const result = await useCase.execute(makeDto(discount));
+
+      expect(result.skipped).toBe(false);
+      expect(result.entriesCreated).toBe(0);
+      expect(result.totalPointsEarned).toBe(0);
+      expect(result.pointsRedeemed).toBe(200);
+      expect(entryRepo.entries).toHaveLength(0);
+      expect(redemptionRepo.saved).toHaveLength(1);
+      expect((await balanceRepo.findByCustomer(TENANT_ID, CUSTOMER_ID))!.currentPoints).toBe(300);
+      expect(
+        outboxPublisher.published.filter((e) => e instanceof ServicePointsEarned),
+      ).toHaveLength(0);
+    });
+
+    it('settles the redemption but earns nothing for a tenant without LOYALTY', async () => {
+      await seedBalance(500);
+      tenantAccess.seed(TENANT_ID, withoutLoyalty);
+
+      const result = await useCase.execute(makeDto(discount));
+
+      expect(result.entriesCreated).toBe(0);
+      expect(result.pointsRedeemed).toBe(200);
+      expect((await balanceRepo.findByCustomer(TENANT_ID, CUSTOMER_ID))!.currentPoints).toBe(300);
+    });
+
+    it('records no points and no redemption when it may not earn and no discount was spent, but marks the event processed', async () => {
+      tenantAccess.seedSuspended(TENANT_ID);
+
+      const result = await useCase.execute(makeDto());
+
+      expect(result.skipped).toBe(true);
+      expect(entryRepo.entries).toHaveLength(0);
+      expect(await balanceRepo.findByCustomer(TENANT_ID, CUSTOMER_ID)).toBeNull();
+      expect(
+        await inboxRepo.hasBeenProcessed(
+          EVENT_ID,
+          CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME,
+        ),
+      ).toBe(true);
+    });
+
+    it('does not earn for a duplicate delivery once access is restored', async () => {
+      tenantAccess.seedSuspended(TENANT_ID);
+      await useCase.execute(makeDto());
+
+      tenantAccess.reactivate(TENANT_ID);
+      const duplicate = await useCase.execute(makeDto());
+
+      expect(duplicate.skipped).toBe(true);
+      expect(entryRepo.entries).toHaveLength(0);
+      expect(await balanceRepo.findByCustomer(TENANT_ID, CUSTOMER_ID)).toBeNull();
+    });
+
+    it('earns when the access lookup fails (fail open)', async () => {
+      tenantAccess.getAccessError = new Error('billing unreachable');
+
+      const result = await useCase.execute(makeDto());
+
+      expect(result.entriesCreated).toBe(2);
+    });
+
+    it("never lets another tenant's suspension stop this tenant's earning", async () => {
+      tenantAccess.seedSuspended(TENANT_B_ID);
+
+      const result = await useCase.execute(makeDto());
+
+      expect(result.entriesCreated).toBe(2);
+    });
+
+    it('does not settle a redemption twice when the event is redelivered after a suspended earning', async () => {
+      await seedBalance(500);
+      tenantAccess.seedSuspended(TENANT_ID);
+      const dto = makeDto(discount);
+
+      await useCase.execute(dto);
+      const second = await useCase.execute(dto);
+
+      expect(second.skipped).toBe(true);
+      expect(redemptionRepo.saved).toHaveLength(1);
+      expect((await balanceRepo.findByCustomer(TENANT_ID, CUSTOMER_ID))!.currentPoints).toBe(300);
+    });
   });
 
   it('tenant isolation: processing for tenant B does not touch tenant A balance or redemptions', async () => {

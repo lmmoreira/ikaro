@@ -24,6 +24,7 @@ export class DeadLetterHandler implements OnModuleInit {
       DEAD_LETTER_CHANNEL_NAME,
       (event) => this.handle(event),
       DeadLetterHandler.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
   }
 

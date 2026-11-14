@@ -20,6 +20,7 @@ export class BookingRescheduledHandler implements OnModuleInit {
       BookingRescheduled.name,
       (event) => this.handle(event),
       BookingRescheduledHandler.CONSUMER_NAME,
+      { skipWhenSuspended: true },
     );
   }
 

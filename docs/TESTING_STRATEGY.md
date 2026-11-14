@@ -1031,7 +1031,7 @@ Any module that imports an adapter whose `onApplicationBootstrap()` makes a netw
 
 ```ts
 let builder = Test.createTestingModule({ imports: [..., BookingModule] })
-  .overrideProvider(EVENT_BUS)
+  .overrideProvider(EVENT_BUS_TRANSPORT)
   .useValue(routingBus)
   .overrideProvider(STORAGE_SERVICE)          // default — prevents GcsSignedUrlAdapter from being instantiated
   .useValue(new InMemoryStorageService());
@@ -1062,11 +1062,18 @@ Since every event-emitting aggregate's repository (7 today — see `docs/DOMAIN_
 ```ts
 const routingBus = new RoutingInMemoryEventBus();
 let builder = Test.createTestingModule({ imports: [..., OutboxModule, BookingModule] })
-  .overrideProvider(EVENT_BUS)
+  .overrideProvider(EVENT_BUS_TRANSPORT)
   .useValue(routingBus)
   .overrideProvider(OUTBOX_PUBLISHER)
-  .useValue(routingBus); // same instance — subscribe (EVENT_BUS) and publish (OUTBOX_PUBLISHER) sides must connect
+  .useValue(routingBus); // same instance — subscribe (the transport) and publish (OUTBOX_PUBLISHER) sides must connect
 ```
+
+**`EVENT_BUS` is the gated bus, `EVENT_BUS_TRANSPORT` is the transport (M25-S21a).** Handlers inject `EVENT_BUS`, which is `GatedEventBus` over `EVENT_BUS_TRANSPORT` (the Pub/Sub adapter); `TRIGGER_BUS` and `PUSHABLE_EVENT_BUS` alias the transport. A helper therefore overrides **`EVENT_BUS_TRANSPORT`**, never only `EVENT_BUS`: overriding just `EVENT_BUS` leaves the real Pub/Sub adapter instantiated as the transport. Two shapes:
+
+- **Keep the real gate** (a helper whose handlers opt in and whose specs assert suspension, e.g. booking, notification, loyalty): override `EVENT_BUS_TRANSPORT` only and import `testTenantAccessModule()` (an `InMemoryTenantAccessPort`: every tenant operational with every feature unless a spec calls `seedSuspended()`). Return the hand-built bus, not `moduleRef.get(EVENT_BUS)`, when a spec needs `.published`.
+- **No gate** (a helper that does not import Billing or test suspension, e.g. platform, customer, staff, billing): override **both** `EVENT_BUS` and `EVENT_BUS_TRANSPORT` with the hand-built bus, so `GatedEventBus` is never built and needs no access port.
+
+`event-bus.module.integration.spec.ts` boots the real graph with nothing overridden and fails if the loop `EVENT_BUS → TENANT_ACCESS_PORT → … → OUTBOX_PUBLISHER → OutboxRelayService → EVENT_BUS` is reintroduced (the relay must stay on the transport).
 
 `RoutingInMemoryEventBus` and `InMemoryEventBus` both satisfy `IOutboxPublisher`'s one-method shape (`publish(event: Envelope): Promise<void>`), so no separate outbox test double is needed. Binding one instance to both tokens keeps a flow test's publish and subscribe sides observably connected — but this means flow tests **bypass the real `shared.outbox` table by design**: outbox persistence itself is covered by TD24-S01's dedicated `OutboxPublisher`/`OutboxRelayService` specs plus TD24-S02's crash/failure/concurrency integration tests (`typeorm-booking.repository.outbox-cutover.integration.spec.ts`). One test per app — `outbox-full-topology.integration.spec.ts` — opts out of the `OUTBOX_PUBLISHER` override (`useRealOutbox: true` on `createNotificationIntegrationApp()`) specifically to exercise the real outbox table + real relay end-to-end.
 
@@ -1078,11 +1085,11 @@ Currently affected helpers and their default overrides:
 
 | Helper | Tokens overridden by default |
 |---|---|
-| `createBookingIntegrationApp()` | `STORAGE_SERVICE` → `InMemoryStorageService`; `EVENT_BUS`/`OUTBOX_PUBLISHER` → same `RoutingInMemoryEventBus` |
-| `createNotificationIntegrationApp()` | `STORAGE_SERVICE` → `InMemoryStorageService` (BookingModule pulled via `extraModules`); `EVENT_BUS`/`OUTBOX_PUBLISHER` → same `RoutingInMemoryEventBus` (pass `useRealOutbox: true` to skip the `OUTBOX_PUBLISHER` override) |
-| `createLoyaltyIntegrationApp()` | `EVENT_BUS`/`OUTBOX_PUBLISHER` → same `RoutingInMemoryEventBus`; `STORAGE_SERVICE` → `InMemoryStorageService`; `TENANT_SETTINGS_PORT` → `InMemoryTenantSettingsPort`; `LOYALTY_BOOKING_PORT` → the in-memory service catalog |
-| `createPlatformIntegrationApp()` | `EVENT_BUS`/`OUTBOX_PUBLISHER` → same `InMemoryEventBus` |
-| `createCustomerIntegrationApp()` | `STORAGE_SERVICE` → `InMemoryStorageService`; `EVENT_BUS`/`OUTBOX_PUBLISHER` → same `InMemoryEventBus` |
+| `createBookingIntegrationApp()` | `STORAGE_SERVICE` → `InMemoryStorageService`; `EVENT_BUS_TRANSPORT`/`OUTBOX_PUBLISHER` → same `RoutingInMemoryEventBus` (real `GatedEventBus` on top) |
+| `createNotificationIntegrationApp()` | `STORAGE_SERVICE` → `InMemoryStorageService` (BookingModule pulled via `extraModules`); `EVENT_BUS_TRANSPORT`/`OUTBOX_PUBLISHER` → same `RoutingInMemoryEventBus`, real `GatedEventBus` on top (pass `useRealOutbox: true` to skip the `OUTBOX_PUBLISHER` override) |
+| `createLoyaltyIntegrationApp()` | `EVENT_BUS_TRANSPORT`/`OUTBOX_PUBLISHER` → same `RoutingInMemoryEventBus` (real `GatedEventBus` on top); `STORAGE_SERVICE` → `InMemoryStorageService`; `TENANT_SETTINGS_PORT` → `InMemoryTenantSettingsPort`; `LOYALTY_BOOKING_PORT` → the in-memory service catalog |
+| `createPlatformIntegrationApp()` | `EVENT_BUS`/`EVENT_BUS_TRANSPORT`/`OUTBOX_PUBLISHER` → same `InMemoryEventBus` (no gate) |
+| `createCustomerIntegrationApp()` | `STORAGE_SERVICE` → `InMemoryStorageService`; `EVENT_BUS`/`EVENT_BUS_TRANSPORT`/`OUTBOX_PUBLISHER` → same `InMemoryEventBus` (no gate) |
 
 ### Real-GCS-emulator integration tests (opt-in `useRealStorage`)
 
@@ -1127,7 +1134,7 @@ await waitFor(async () => {
 
 ### Controller integration spec — event bus override
 
-Override `EVENT_BUS` with `new InMemoryEventBus()` in all controller integration specs that don't need end-to-end Pub/Sub routing. Without this override, `GcpPubSubEventBusAdapter` connects to the emulator — gRPC timeouts fail every test if the emulator is unreachable.
+Override `EVENT_BUS` and `EVENT_BUS_TRANSPORT` with `new InMemoryEventBus()` in all controller integration specs that don't need end-to-end Pub/Sub routing. Without this override, `GcpPubSubEventBusAdapter` connects to the emulator — gRPC timeouts fail every test if the emulator is unreachable.
 
 ---
 

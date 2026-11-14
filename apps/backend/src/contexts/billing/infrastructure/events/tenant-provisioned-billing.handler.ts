@@ -21,6 +21,7 @@ export class TenantProvisionedBillingHandler implements OnModuleInit {
       TenantProvisioned.name,
       (event) => this.handle(event),
       CreateTrialSubscriptionUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
   }
 

@@ -18,6 +18,9 @@ export class BookingCompletedHandler implements OnModuleInit {
       BookingCompleted.name,
       (event) => this.handle(event),
       CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME,
+      // Always delivered: settling the redemption of a discount already applied must not depend on the
+      // tenant's current access. The use case decides, inside its one transaction, whether to earn.
+      { skipWhenSuspended: false },
     );
   }
 

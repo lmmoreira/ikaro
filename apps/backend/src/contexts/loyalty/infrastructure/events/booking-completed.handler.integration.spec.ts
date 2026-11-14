@@ -2,7 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
-import { IEventBus, EVENT_BUS } from '../../../../shared/ports/event-bus.port';
+import { EVENT_BUS_TRANSPORT } from '../../../../shared/ports/event-bus.port';
 import { TENANT_SETTINGS_PORT } from '../../../../shared/ports/tenant-settings.port';
 import { InMemoryNotificationDispatcher } from '../../../../test/infrastructure/in-memory-notification-dispatcher';
 import { InMemoryTenantSettingsPort } from '../../../../test/infrastructure/in-memory-tenant-settings.port';
@@ -98,7 +98,7 @@ describe('Story: booking completion with a loyalty points discount (integration)
       withRequestInterceptor: true,
     }));
 
-    eventBus = app.get<IEventBus>(EVENT_BUS) as RoutingInMemoryEventBus;
+    eventBus = app.get<RoutingInMemoryEventBus>(EVENT_BUS_TRANSPORT);
     tenantSettingsPort = app.get<InMemoryTenantSettingsPort>(TENANT_SETTINGS_PORT);
   });
 

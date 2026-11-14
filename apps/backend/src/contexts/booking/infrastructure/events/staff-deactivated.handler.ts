@@ -19,6 +19,7 @@ export class StaffDeactivatedHandler implements OnModuleInit {
       StaffDeactivated.name,
       (event) => this.handle(event),
       CascadeStaffDeactivationUseCase.CONSUMER_NAME,
+      { skipWhenSuspended: false },
     );
   }
 

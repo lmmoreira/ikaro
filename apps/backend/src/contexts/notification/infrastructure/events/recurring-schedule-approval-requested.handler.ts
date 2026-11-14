@@ -22,6 +22,7 @@ export class RecurringScheduleApprovalRequestedNotificationHandler implements On
       RecurringBookingScheduleApprovalRequested.name,
       (event) => this.handle(event),
       RecurringScheduleApprovalRequestedNotificationHandler.CONSUMER_NAME,
+      { skipWhenSuspended: true },
     );
   }
 
