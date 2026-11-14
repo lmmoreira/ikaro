@@ -1,4 +1,5 @@
 import { INestApplication } from '@nestjs/common';
+import type { Provider } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { Test, TestingModuleBuilder } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -39,7 +40,14 @@ export interface LoyaltyIntegrationAppResult {
   eventBus: RoutingInMemoryEventBus;
 }
 
-export async function createLoyaltyIntegrationApp(): Promise<LoyaltyIntegrationAppResult> {
+export interface LoyaltyIntegrationAppOptions {
+  extraProviders?: Provider[];
+}
+
+export async function createLoyaltyIntegrationApp(
+  options: LoyaltyIntegrationAppOptions = {},
+): Promise<LoyaltyIntegrationAppResult> {
+  const { extraProviders = [] } = options;
   const serviceCatalog = new InMemoryLoyaltyBookingPort();
   const routingBus = new RoutingInMemoryEventBus();
 
@@ -71,7 +79,7 @@ export async function createLoyaltyIntegrationApp(): Promise<LoyaltyIntegrationA
       PlatformModule,
       LoyaltyModule,
     ],
-    providers: [{ provide: APP_INTERCEPTOR, useClass: RequestInterceptor }],
+    providers: [{ provide: APP_INTERCEPTOR, useClass: RequestInterceptor }, ...extraProviders],
   });
 
   builder = builder

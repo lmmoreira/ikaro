@@ -1533,13 +1533,14 @@ Annotate every existing **Loyalty**, **Customer** and **Staff** HTTP route (back
 **Files to create/modify:**
 - `apps/backend/src/contexts/loyalty/infrastructure/controllers/loyalty.controller.ts`, `apps/backend/src/contexts/customer/infrastructure/controllers/customer.controller.ts`, `apps/backend/src/contexts/staff/infrastructure/controllers/staff.controller.ts` (modify)
 - `apps/bff/src/features/loyalty/loyalty.controller.ts`, `apps/bff/src/features/customer/customers.controller.ts`, `apps/bff/src/features/staff/staff.controller.ts` (modify)
-- `apps/backend/src/test/utils/loyalty-integration-app.ts` and the staff integration harness (modify — an optional `extraProviders`, as `createBookingIntegrationApp` and `createCustomerIntegrationApp` have)
-- **Tests (the S17 / S18a shape, `docs/TESTING_STRATEGY.md` § Testing a route's tenant-access annotation; no existing spec file is modified, which is the non-regression proof):**
+- `apps/backend/src/test/utils/loyalty-integration-app.ts` (modify — an optional `extraProviders`, as `createBookingIntegrationApp` and `createCustomerIntegrationApp` have) and `customer-integration-app.ts` (modify — the `testTenantAccessModule()` stand-in so the guard has a port). Staff has no harness: its guard spec builds the module inline
+- **Tests (the S17 / S18a shape, `docs/TESTING_STRATEGY.md` § Testing a route's tenant-access annotation; no existing spec file of the annotated controllers is modified, which is the non-regression proof; the one spec that used a newly annotated route as its undeclared default is listed below):**
   - `apps/backend/src/contexts/loyalty/infrastructure/controllers/loyalty-customer-staff-tenant-access.metadata.spec.ts` (create — table-driven over the three backend controllers, 23 routes)
   - `apps/backend/src/contexts/{loyalty,customer,staff}/infrastructure/controllers/<context>-tenant-access.integration.spec.ts` (create ×3 — real `TenantAccessGuard` + `InMemoryTenantAccessPort`)
   - `apps/bff/src/features/loyalty/loyalty-customer-staff-tenant-access.metadata.spec.ts` (create — the three BFF controllers, 20 routes)
   - `apps/bff/src/features/{loyalty,customer,staff}/<context>-tenant-access.component.spec.ts` (create ×3 — real BFF guard chain via `createTestApp`)
   - each guard spec carries a named `an exempt tenant behaves exactly as before` block
+  - `apps/bff/src/shared/guards/tenant-access.guard.component.spec.ts` (modify — S16's guard spec used `GET /v1/staff` as its undeclared default route; S19 declares it `HOTSITE` + `DEFAULT_DENY`, so its operational fixture gains `HOTSITE`. The one existing spec that depended on a route S19 annotates)
 
 **Acceptance criteria — product:**
 - [ ] No behaviour change for an entitled or exempt tenant.
@@ -1549,7 +1550,7 @@ Annotate every existing **Loyalty**, **Customer** and **Staff** HTTP route (back
 - Unit:
   - [ ] Table-driven metadata spec over the six controllers
 - Integration:
-  - [ ] Loyalty redeem: entitled → 200; suspended → `BILLING_TENANT_SUSPENDED`; balance read while suspended → 200
+  - [ ] Loyalty redeem: entitled → 201 (the route's own status); suspended → `BILLING_TENANT_SUSPENDED`; balance read while suspended → 200
   - [ ] **Non-regression:** an `exempt` tenant's existing Loyalty, Customer and Staff integration specs pass unchanged
   - [ ] No staff or customer route returns a suspension reason; the staff notice renders from `GET /v1/billing/access`. Pinned by a named test: a suspended `GET /staff/me/status` keeps its normal body shape and carries no billing or suspension field
   - [ ] For a suspended tenant, the routes `/auth/session` and the switch list call answer `200` for staff, manager and customer: backend and BFF `staff/me` and `customers/me` (`ANY_AUTHENTICATED`), `customers/me/tenants` / BFF `customers/tenants` and `loyalty/balances/own` (`AUTH_TENANT_SWITCH`). The composites through the S20-owned `/auth/session` and `GET /internal/tenants?ids=` are proven in S20 and the S32 golden path
@@ -1585,7 +1586,7 @@ Annotate the surface that is **not** a sellable feature: the BFF `auth.controlle
 - `apps/backend/src/shared/infrastructure/event-bus/pubsub-push.controller.ts`, `apps/backend/src/shared/infrastructure/outbox/outbox-relay.controller.ts`, `apps/backend/src/health/health.controller.ts`, `apps/bff/src/health/health.controller.ts` (modify)
 - `apps/backend/src/contexts/billing/infrastructure/controllers/*.controller.ts` and `apps/bff/src/features/billing/billing.controller.ts` (modify — the controllers created by S09, S13, S12, S15a, S15b)
 - `docs/ENGINEERING_RULES_SHARED.md` (modify — § Tenant access enforcement, item 1 already lists the internal, cron, Pub/Sub-push and outbox-relay surface under `@NoFeatureGate()`; correct its parenthetical "none of them carries a tenant session" (the BFF forwards `X-Tenant-ID` on authenticated internal calls) and state that this surface also declares `ANY_AUTHENTICATED`)
-- **Tests (the S17 / S18a shape, `docs/TESTING_STRATEGY.md` § Testing a route's tenant-access annotation; no existing spec file is modified, which is the non-regression proof):** per app, a consolidated `*-tenant-access.metadata.spec.ts` and a real-guard `*-tenant-access.integration.spec.ts` (backend) / `*-tenant-access.component.spec.ts` (BFF), each guard spec with a named `an exempt tenant behaves exactly as before` block
+- **Tests (the S17 / S18a shape, `docs/TESTING_STRATEGY.md` § Testing a route's tenant-access annotation; no existing spec file of the annotated controllers is modified, which is the non-regression proof; a spec that uses a newly annotated route as its undeclared default fixture is the exception, see `docs/TESTING_STRATEGY.md`):** per app, a consolidated `*-tenant-access.metadata.spec.ts` and a real-guard `*-tenant-access.integration.spec.ts` (backend) / `*-tenant-access.component.spec.ts` (BFF), each guard spec with a named `an exempt tenant behaves exactly as before` block
 
 **Acceptance criteria — product:**
 - [ ] No behaviour change: login, health checks, crons, the outbox relay and Pub/Sub delivery all work for every tenant state, including a suspended one.

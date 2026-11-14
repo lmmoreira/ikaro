@@ -5,17 +5,19 @@ import {
   CustomerSearchListResponse,
   TenantOption,
 } from '@ikaro/types';
-import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
+import {
+  CanonicalParseUUIDPipe,
+  RequiresFeature,
+  SuspensionAccess,
+  ZodValidationPipe,
+} from '@ikaro/nestjs-http';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { CustomerTenantSummaryResponse } from '../auth/auth.types';
 import { TenantInfoResponse } from '../../shared/types/backend-responses';
 import { toTenantOption } from './customers.mapper';
-import {
-  CustomerSearchResponse,
-  LoyaltyBalanceByTenantItem,
-  LoyaltyBalanceItem,
-} from './customers.types';
+import { CustomerSearchResponse, LoyaltyBalanceByTenantItem } from './customers.types';
+import { fetchLoyaltyBalancesForSearch } from './customers.loyalty-balances';
 import { throwProblemDetail } from '../../shared/http/problem-detail';
 import {
   CustomerSearchQuery,
@@ -30,6 +32,8 @@ import {
 export * from './customers.schemas';
 
 @Controller('customers')
+@RequiresFeature('HOTSITE')
+@SuspensionAccess('DEFAULT_DENY')
 export class CustomersController {
   constructor(private readonly backendHttp: BackendHttpService) {}
 
@@ -46,9 +50,10 @@ export class CustomersController {
     );
     if (items.length === 0) return { items: [], total };
 
-    const balances = await this.backendHttp.get<LoyaltyBalanceItem[]>('/loyalty/balances', {
-      customerIds: items.map((c) => c.customerId).join(','),
-    });
+    const balances = await fetchLoyaltyBalancesForSearch(
+      this.backendHttp,
+      items.map((c) => c.customerId),
+    );
     const pointsByCustomer = new Map(balances.map((b) => [b.customerId, b.currentPoints]));
     const enriched = items.map((customer) => ({
       ...customer,
@@ -59,6 +64,7 @@ export class CustomersController {
   }
 
   @Get('me')
+  @SuspensionAccess('ANY_AUTHENTICATED')
   @Roles('CUSTOMER')
   getProfile(): Promise<CustomerProfileResponse> {
     return this.backendHttp.get<CustomerProfileResponse>('/customers/me');
@@ -78,6 +84,7 @@ export class CustomersController {
   // never read this from the httpOnly JWT cookie directly, so the BFF returns it here instead
   // of forcing a second round trip.
   @Get('tenants')
+  @SuspensionAccess('AUTH_TENANT_SWITCH')
   @Roles('CUSTOMER')
   async getTenants(): Promise<TenantOption[]> {
     const tenants =

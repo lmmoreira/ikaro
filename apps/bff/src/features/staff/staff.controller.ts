@@ -21,6 +21,8 @@ import {
 import {
   CanonicalParseIntPipe,
   CanonicalParseUUIDPipe,
+  RequiresFeature,
+  SuspensionAccess,
   ZodValidationPipe,
 } from '@ikaro/nestjs-http';
 import { Roles } from '../../shared/decorators/roles.decorator';
@@ -39,6 +41,8 @@ import {
 export * from './staff.schemas';
 
 @Controller('staff')
+@RequiresFeature('HOTSITE')
+@SuspensionAccess('DEFAULT_DENY')
 @Roles('MANAGER')
 export class StaffController {
   constructor(private readonly backendHttp: BackendHttpService) {}
@@ -73,6 +77,7 @@ export class StaffController {
   // GET /staff/:id — that route is ManagerRoleGuard-gated and always 403s a plain STAFF actor
   // (same class of bug ActiveStaffGuard's comment documents for /staff/me/status, TD23 Story 11).
   @Get('me')
+  @SuspensionAccess('ANY_AUTHENTICATED')
   @Roles('STAFF', 'MANAGER')
   getMe(): Promise<StaffResponse> {
     return this.backendHttp.get<StaffResponse>('/staff/me');

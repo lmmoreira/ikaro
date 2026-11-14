@@ -25,11 +25,15 @@ const OPERATIONAL = {
   status: 'ACTIVE',
   suspensionReason: null,
   operational: true,
-  features: [{ key: 'BOOKING', tier: 'STANDARD' }],
+  features: [
+    { key: 'HOTSITE', tier: 'STANDARD' },
+    { key: 'BOOKING', tier: 'STANDARD' },
+  ],
 };
 
-// The configured guard chain over real HTTP: `GET /v1/staff` declares no tenant-access metadata, so
-// it is the default (entitlement-allowed, suspension-denied) route.
+// The configured guard chain over real HTTP. `GET /v1/staff` declares `HOTSITE` and `DEFAULT_DENY`
+// (M25-S19), which is the same outcome the unannotated default gave these cases: an operational
+// tenant with the root feature passes and a suspended one is refused.
 describe('TenantAccessGuard (component)', () => {
   let app: INestApplication;
   let jwtService: JwtService;
