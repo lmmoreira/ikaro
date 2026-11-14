@@ -17,7 +17,6 @@ function runArchitectureCheck(): { status: number; output: string } {
       stdio: 'pipe',
       maxBuffer: 64 * 1024 * 1024,
     });
-    // A passing run still prints its warn-mode findings on stdout.
     return { status: 0, output: stdout.toString() };
   } catch (error) {
     if (typeof error === 'object' && error !== null && 'status' in error) {
@@ -109,8 +108,8 @@ describe('AC2: a real fixture violation fails the actual pnpm architecture-check
   }, 180_000);
 });
 
-describe('M25-S16: a rule in warn mode reports through the real CLI without failing it', () => {
-  it('prints an unannotated route as a warning and exits 0, then exits 0 with no warning once it is annotated', () => {
+describe('M25-S24: a route with no tenant-access metadata fails the real CLI', () => {
+  it('exits 1 naming an unannotated route, then exits 0 once it is annotated', () => {
     const fixtureDir = mkdtempSync(join(backendContextsDir, '__m25s16-fixture-'));
     const fixtureFile = join(fixtureDir, 'gate-probe.controller.ts');
 
@@ -130,7 +129,7 @@ describe('M25-S16: a rule in warn mode reports through the real CLI without fail
       );
 
       const unannotated = runArchitectureCheck();
-      expect(unannotated.status).toBe(0);
+      expect(unannotated.status).toBe(1);
       expect(unannotated.output).toContain('[tenant-access-route-metadata]');
       expect(unannotated.output).toContain('gate-probe.controller.ts');
       expect(unannotated.output).toContain('GateProbeController.list');

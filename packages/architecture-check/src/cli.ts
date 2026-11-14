@@ -170,10 +170,6 @@ if (
     'The architecture policy must define tenantAccessRouteMetadata with its entitlement and suspension decorators.',
   );
 }
-// Rules whose policy `mode` is `warn`: their findings are printed as warnings and never fail the run.
-const warnRules = new Set<string>(
-  tenantAccessRouteMetadata.mode === 'warn' ? ['tenant-access-route-metadata'] : [],
-);
 const docOrientation = policy.docOrientation;
 if (!docOrientation) {
   throw new Error('The architecture policy must define docOrientation.');
@@ -227,7 +223,7 @@ const results = [
   checkEventHandlerSuspensionDeclaration(backend),
 ];
 const zeroTargetResults = results.filter((result) => result.scannedTargets === 0);
-const { errors, warnings, failed } = classifyScanResults(results, warnRules);
+const { errors, failed } = classifyScanResults(results);
 
 for (const result of results) {
   process.stdout.write(
@@ -239,16 +235,5 @@ for (const result of zeroTargetResults) {
 }
 for (const finding of errors) {
   process.stderr.write(`${finding.file}:${finding.line} [${finding.rule}] ${finding.message}\n`);
-}
-// A warn-mode finding is the work still to do, not a failure: one line each, never an exit code.
-for (const finding of warnings) {
-  process.stdout.write(
-    `${finding.file}:${finding.line} [${finding.rule}] WARNING ${finding.message}\n`,
-  );
-}
-if (warnings.length > 0) {
-  process.stdout.write(
-    `[architecture-check] ${warnings.length} warning(s) from rule(s) in warn mode (policy \`mode\`); they do not fail the run\n`,
-  );
 }
 if (failed) process.exitCode = 1;
