@@ -1,5 +1,5 @@
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
-import { ZodValidationPipe } from '@ikaro/nestjs-http';
+import { RequiresFeature, SuspensionAccess, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { RequestContext } from '../../../../shared/request/request-context';
 import {
   GenerateAttachmentSignedUrlDto,
@@ -12,6 +12,8 @@ import {
 import { mapBookingError } from '../http/booking-error.mapper';
 
 @Controller('bookings/attachments')
+@RequiresFeature('BOOKING')
+@SuspensionAccess('DEFAULT_DENY')
 export class BookingAttachmentsController {
   constructor(
     private readonly ctx: RequestContext,
