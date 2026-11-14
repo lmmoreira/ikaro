@@ -1,7 +1,7 @@
 import { Body, Controller, Headers, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
-import { ZodValidationPipe } from '@ikaro/nestjs-http';
+import { RequiresFeature, SuspensionAccess, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { Public } from '../../shared/decorators/public.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { resolveTenantIdForAttachmentUpload } from './attachment-tenant-resolver';
@@ -13,6 +13,8 @@ import { AttachmentSignedUrlBody, AttachmentSignedUrlBodySchema } from './bookin
 // tenant resolved from a JWT/tenantSlug/guestToken, never a route param). Same
 // @Controller('bookings') base and route as before the split, so no URL changes.
 @Controller('bookings')
+@RequiresFeature('BOOKING')
+@SuspensionAccess('PUBLIC_NONE')
 export class BookingsAttachmentsController {
   private readonly jwtSecret: string;
 

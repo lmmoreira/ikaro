@@ -9,7 +9,12 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
+import {
+  CanonicalParseUUIDPipe,
+  RequiresFeature,
+  SuspensionAccess,
+  ZodValidationPipe,
+} from '@ikaro/nestjs-http';
 import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-manager-role.guard';
 import { RequestContext } from '../../../../shared/request/request-context';
 import {
@@ -52,6 +57,8 @@ import { mapBookingError } from '../http/booking-error.mapper';
 // — see booking-lifecycle.controller.ts, same 'bookings' route prefix — to satisfy
 // docs/CODE_STANDARDS.md's file-length limit. This controller keeps read + creation only.
 @Controller('bookings')
+@RequiresFeature('BOOKING')
+@SuspensionAccess('DEFAULT_DENY')
 export class BookingController {
   constructor(
     private readonly ctx: RequestContext,
@@ -63,6 +70,7 @@ export class BookingController {
   ) {}
 
   @Get()
+  @SuspensionAccess('CUSTOMER_HISTORY')
   list(
     @Query(new ZodValidationPipe(ListBookingsSchema)) query: ListBookingsDto,
   ): Promise<ListBookingsUseCaseResult> {
@@ -78,7 +86,9 @@ export class BookingController {
       .catch(mapBookingError);
   }
 
+  // Opening a booking's detail is blocked while suspended (UC-121): explicit, not an omission.
   @Get(':id')
+  @SuspensionAccess('DEFAULT_DENY')
   getOne(@Param('id', CanonicalParseUUIDPipe) id: string): Promise<GetBookingByIdUseCaseResult> {
     const { tenantId, actorType, actorId, settings } = this.ctx;
     return this.getBooking
@@ -97,6 +107,7 @@ export class BookingController {
   }
 
   @Post()
+  @SuspensionAccess('PUBLIC_NONE')
   @HttpCode(HttpStatus.CREATED)
   create(
     @Body(new ZodValidationPipe(RequestBookingSchema)) body: RequestBookingDto,

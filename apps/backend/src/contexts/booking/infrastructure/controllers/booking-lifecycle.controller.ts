@@ -1,5 +1,10 @@
 import { Body, Controller, HttpCode, HttpStatus, Param, Patch, UseGuards } from '@nestjs/common';
-import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
+import {
+  CanonicalParseUUIDPipe,
+  RequiresFeature,
+  SuspensionAccess,
+  ZodValidationPipe,
+} from '@ikaro/nestjs-http';
 import { RequestContext } from '../../../../shared/request/request-context';
 import {
   ApproveBookingDto,
@@ -47,6 +52,8 @@ import { staffActorRole } from './staff-actor-role';
 // cancel/reschedule/complete moved to booking-completion.controller.ts (still too many combined
 // for one file under the limit).
 @Controller('bookings')
+@RequiresFeature('BOOKING')
+@SuspensionAccess('DEFAULT_DENY')
 export class BookingLifecycleController {
   constructor(
     private readonly ctx: RequestContext,
@@ -142,6 +149,7 @@ export class BookingLifecycleController {
   }
 
   @Patch(':id/submit-info/guest')
+  @SuspensionAccess('PUBLIC_NONE')
   @HttpCode(HttpStatus.OK)
   submitInfoGuest(
     @Param('id') id: string,

@@ -3,7 +3,7 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
 import { Test, TestingModule, TestingModuleBuilder } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import type { ModuleMetadata } from '@nestjs/common';
+import type { ModuleMetadata, Provider } from '@nestjs/common';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
 import { EventBusModule } from '../../shared/infrastructure/event-bus/event-bus.module';
 import { InboxModule } from '../../shared/infrastructure/inbox/inbox.module';
@@ -58,6 +58,8 @@ import { testConfigModule } from './test-config-module';
 
 export interface BookingIntegrationAppOptions {
   extraModules?: NonNullable<ModuleMetadata['imports']>;
+  /** Extra root providers, e.g. an `APP_GUARD` a spec wants to run for real. */
+  extraProviders?: Provider[];
   overrideProviders?: Array<{ provide: symbol | string; useValue: unknown }>;
 }
 
@@ -69,7 +71,7 @@ export async function createBookingIntegrationApp(
   eventBus: RoutingInMemoryEventBus;
   moduleRef: TestingModule;
 }> {
-  const { extraModules = [], overrideProviders = [] } = options;
+  const { extraModules = [], extraProviders = [], overrideProviders = [] } = options;
 
   const routingBus = new RoutingInMemoryEventBus();
 
@@ -124,6 +126,7 @@ export async function createBookingIntegrationApp(
     providers: [
       { provide: APP_INTERCEPTOR, useClass: RequestInterceptor },
       { provide: TENANT_SETTINGS_PORT, useClass: InMemoryTenantSettingsPort },
+      ...extraProviders,
     ],
   })
     .overrideProvider(EVENT_BUS_TRANSPORT)

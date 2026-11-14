@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Query } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { BffErrorCode, GuestBookingReadResponse } from '@ikaro/types';
-import { ZodValidationPipe } from '@ikaro/nestjs-http';
+import { RequiresFeature, SuspensionAccess, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { Public } from '../../shared/decorators/public.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { throwProblemDetail } from '../../shared/http/problem-detail';
@@ -14,6 +14,8 @@ import { SubmitGuestBookingInfoBody, SubmitGuestBookingInfoBodySchema } from './
 // guest-token-gated (@Public()) endpoints under the same /bookings resource path. Same
 // @Controller('bookings') base and routes as before the split, so no URL changes.
 @Controller('bookings')
+@RequiresFeature('BOOKING')
+@SuspensionAccess('PUBLIC_NONE')
 export class BookingsGuestController {
   private readonly jwtSecret: string;
 

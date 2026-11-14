@@ -8,7 +8,12 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
+import {
+  CanonicalParseUUIDPipe,
+  RequiresFeature,
+  SuspensionAccess,
+  ZodValidationPipe,
+} from '@ikaro/nestjs-http';
 import { RequestContext } from '../../../../shared/request/request-context';
 import {
   CancelBookingAsCustomerUseCase,
@@ -70,6 +75,8 @@ import { staffActorRole } from './staff-actor-role';
 // Split from booking-lifecycle.controller.ts — same 'bookings' route prefix — to satisfy
 // docs/CODE_STANDARDS.md's file-length limit. Cancel/reschedule/complete/no-show endpoints live here.
 @Controller('bookings')
+@RequiresFeature('BOOKING')
+@SuspensionAccess('DEFAULT_DENY')
 export class BookingCompletionController {
   constructor(
     private readonly ctx: RequestContext,
@@ -83,6 +90,7 @@ export class BookingCompletionController {
   ) {}
 
   @Patch(':id/cancel-customer')
+  @SuspensionAccess('CUSTOMER_HISTORY')
   @HttpCode(HttpStatus.OK)
   cancelAsCustomer(
     @Param('id', CanonicalParseUUIDPipe) id: string,
