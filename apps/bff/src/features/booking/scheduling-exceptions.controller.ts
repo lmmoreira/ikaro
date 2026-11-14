@@ -1,5 +1,10 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
-import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
+import {
+  CanonicalParseUUIDPipe,
+  ZodValidationPipe,
+  RequiresFeature,
+  SuspensionAccess,
+} from '@ikaro/nestjs-http';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import {
@@ -22,6 +27,8 @@ export * from './scheduling-exceptions.schemas';
 // (docs/API_CONTRACTS.md § Future Commitment Exceptions), and every rule — the best-effort
 // bulk, the per-entry outcomes — is the backend's. Bulk-only: a single entry is a list of one.
 @Controller('scheduling-exceptions')
+@RequiresFeature('BOOKING')
+@SuspensionAccess('DEFAULT_DENY')
 @Roles('MANAGER')
 export class SchedulingExceptionsController {
   constructor(private readonly backendHttp: BackendHttpService) {}

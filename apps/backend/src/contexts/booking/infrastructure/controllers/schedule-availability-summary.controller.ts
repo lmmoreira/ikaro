@@ -1,5 +1,5 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { ZodValidationPipe } from '@ikaro/nestjs-http';
+import { ZodValidationPipe, RequiresFeature, SuspensionAccess } from '@ikaro/nestjs-http';
 import { RequestContext } from '../../../../shared/request/request-context';
 import {
   GetAvailabilitySummaryDto,
@@ -9,6 +9,8 @@ import { GetAvailabilitySummaryUseCase } from '../../application/use-cases/get-a
 import { mapBookingError } from '../http/booking-error.mapper';
 
 @Controller('schedule/availability/summary')
+@RequiresFeature('BOOKING')
+@SuspensionAccess('PUBLIC_NONE')
 export class ScheduleAvailabilitySummaryController {
   constructor(
     private readonly ctx: RequestContext,

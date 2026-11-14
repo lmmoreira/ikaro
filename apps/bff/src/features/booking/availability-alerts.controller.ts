@@ -9,7 +9,12 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
-import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
+import {
+  CanonicalParseUUIDPipe,
+  ZodValidationPipe,
+  RequiresFeature,
+  SuspensionAccess,
+} from '@ikaro/nestjs-http';
 import {
   AvailabilityAlertListResponse,
   AvailabilityAlertResponse,
@@ -28,6 +33,8 @@ import {
 // from the forwarded actor headers and every ownership decision (own alerts only) is made there,
 // matching docs/BFF_ARCHITECTURE.md's "BFF orchestrates, backend decides" split.
 @Controller('availability-alerts')
+@RequiresFeature('BOOKING')
+@SuspensionAccess('DEFAULT_DENY')
 @Roles('CUSTOMER')
 export class AvailabilityAlertsController {
   constructor(private readonly backendHttp: BackendHttpService) {}

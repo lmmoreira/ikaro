@@ -1,5 +1,5 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { ZodValidationPipe } from '@ikaro/nestjs-http';
+import { ZodValidationPipe, RequiresFeature, SuspensionAccess } from '@ikaro/nestjs-http';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { ManagerRoleGuard } from '../../../../shared/guards/manager-role.guard';
 import {
@@ -13,6 +13,8 @@ import {
 import { mapBookingError } from '../http/booking-error.mapper';
 
 @Controller('schedule/day-grid')
+@RequiresFeature('BOOKING')
+@SuspensionAccess('DEFAULT_DENY')
 @UseGuards(ManagerRoleGuard)
 export class ScheduleDayGridController {
   constructor(

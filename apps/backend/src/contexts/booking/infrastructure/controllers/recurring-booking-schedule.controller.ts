@@ -9,7 +9,12 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
+import {
+  CanonicalParseUUIDPipe,
+  ZodValidationPipe,
+  RequiresFeature,
+  SuspensionAccess,
+} from '@ikaro/nestjs-http';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { AnyAuthenticatedRoleGuard } from '../../../../shared/guards/any-authenticated-role.guard';
 import {
@@ -48,6 +53,8 @@ import {
 import { mapBookingError } from '../http/booking-error.mapper';
 
 @Controller('recurring-booking-schedules')
+@RequiresFeature('BOOKING')
+@SuspensionAccess('DEFAULT_DENY')
 @UseGuards(AnyAuthenticatedRoleGuard)
 export class RecurringBookingScheduleController {
   constructor(

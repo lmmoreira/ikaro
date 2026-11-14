@@ -11,7 +11,12 @@ import {
   Put,
   UseGuards,
 } from '@nestjs/common';
-import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
+import {
+  CanonicalParseUUIDPipe,
+  ZodValidationPipe,
+  RequiresFeature,
+  SuspensionAccess,
+} from '@ikaro/nestjs-http';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { CreateServiceDto, CreateServiceSchema } from '../../application/dtos/create-service.dto';
 import { UpdateServiceDto, UpdateServiceSchema } from '../../application/dtos/update-service.dto';
@@ -79,6 +84,8 @@ import { StaffOrManagerRoleGuard } from '../../../../shared/guards/staff-or-mana
 import { mapBookingError } from '../http/booking-error.mapper';
 
 @Controller('services')
+@RequiresFeature('BOOKING')
+@SuspensionAccess('DEFAULT_DENY')
 export class ServiceController {
   constructor(
     private readonly tenantContext: RequestContext,

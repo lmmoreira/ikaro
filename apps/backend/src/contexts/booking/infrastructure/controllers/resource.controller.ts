@@ -11,7 +11,12 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
+import {
+  CanonicalParseUUIDPipe,
+  ZodValidationPipe,
+  RequiresFeature,
+  SuspensionAccess,
+} from '@ikaro/nestjs-http';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { ManagerRoleGuard } from '../../../../shared/guards/manager-role.guard';
 import {
@@ -46,6 +51,8 @@ import {
 import { mapBookingError } from '../http/booking-error.mapper';
 
 @Controller('resources')
+@RequiresFeature('BOOKING')
+@SuspensionAccess('DEFAULT_DENY')
 @UseGuards(ManagerRoleGuard)
 export class ResourceController {
   constructor(

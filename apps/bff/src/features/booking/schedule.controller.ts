@@ -10,7 +10,12 @@ import {
   Query,
 } from '@nestjs/common';
 import { Roles } from '../../shared/decorators/roles.decorator';
-import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
+import {
+  CanonicalParseUUIDPipe,
+  ZodValidationPipe,
+  RequiresFeature,
+  SuspensionAccess,
+} from '@ikaro/nestjs-http';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { ScheduleClosureListResponse, ScheduleClosureResponse } from './schedule.types';
 import {
@@ -25,6 +30,8 @@ import {
 export * from './schedule.schemas';
 
 @Controller('schedule/closures')
+@RequiresFeature('BOOKING')
+@SuspensionAccess('DEFAULT_DENY')
 @Roles('MANAGER', 'STAFF')
 export class ScheduleController {
   constructor(private readonly backendHttp: BackendHttpService) {}
