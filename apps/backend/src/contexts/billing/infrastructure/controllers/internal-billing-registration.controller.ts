@@ -1,5 +1,5 @@
 import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
-import { ZodValidationPipe } from '@ikaro/nestjs-http';
+import { NoFeatureGate, SuspensionAccess, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { InternalApiGuard } from '../../../../shared/guards/internal-api.guard';
 import {
   ReserveSignupRegistrationDto,
@@ -15,6 +15,8 @@ import { mapBillingError } from '../http/billing-error.mapper';
 // Tenant-less by design: `/internal/*` skips the RequestInterceptor, and the registration exists
 // before the tenant does. Called by the BFF (self-signup) and `scripts/provision-tenant.sh`.
 @UseGuards(InternalApiGuard)
+@NoFeatureGate()
+@SuspensionAccess('ANY_AUTHENTICATED')
 @Controller('internal/billing/registrations')
 export class InternalBillingRegistrationController {
   constructor(private readonly reserveRegistration: ReserveSignupRegistrationUseCase) {}

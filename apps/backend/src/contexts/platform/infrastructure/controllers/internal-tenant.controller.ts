@@ -1,5 +1,5 @@
 import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
-import { ZodValidationPipe } from '@ikaro/nestjs-http';
+import { NoFeatureGate, SuspensionAccess, ZodValidationPipe } from '@ikaro/nestjs-http';
 import {
   ProvisionTenantDto,
   ProvisionTenantSchema,
@@ -12,6 +12,8 @@ import {
 import { PlatformAdminGuard } from '../../../../shared/guards/platform-admin.guard';
 import { mapPlatformError } from '../http/platform-error.mapper';
 
+@NoFeatureGate()
+@SuspensionAccess('ANY_AUTHENTICATED')
 @Controller('internal/tenants')
 @UseGuards(PlatformAdminGuard)
 export class InternalTenantController {

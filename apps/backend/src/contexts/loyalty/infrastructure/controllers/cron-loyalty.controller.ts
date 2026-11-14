@@ -4,6 +4,7 @@ import {
   CRON_LOYALTY_EXPIRY_TRIGGER,
   CRON_LOYALTY_EXPIRY_WARNING_TRIGGER,
 } from '../events/cron-trigger-names.constants';
+import { NoFeatureGate, SuspensionAccess } from '@ikaro/nestjs-http';
 
 // Thin publisher (M17-S03): publishes cron triggers onto the same channels Cloud Scheduler
 // publishes to in prod. Still behind the global InternalApiGuard (not PubSubPushGuard) — these
@@ -13,6 +14,8 @@ import {
 // to a week) vs. weekly warning (cron-loyalty-expiry-warning, PointsExpiringSoon heads-up). The
 // jobs actually run via ExpirePointsTriggerHandler / NotifyExpiringPointsTriggerHandler, each
 // subscribed to its own trigger and dispatched through the shared /pubsub/push receiver in prod.
+@NoFeatureGate()
+@SuspensionAccess('ANY_AUTHENTICATED')
 @Controller('cron')
 export class CronLoyaltyController {
   constructor(@Inject(TRIGGER_BUS) private readonly triggerBus: ITriggerBus) {}

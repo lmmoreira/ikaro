@@ -1,5 +1,10 @@
 import { Controller, Get, HttpStatus, Param, Query } from '@nestjs/common';
-import { CanonicalParseUUIDPipe, throwProblemDetail } from '@ikaro/nestjs-http';
+import {
+  CanonicalParseUUIDPipe,
+  NoFeatureGate,
+  SuspensionAccess,
+  throwProblemDetail,
+} from '@ikaro/nestjs-http';
 import { GenericErrorCode } from '@ikaro/types/protocol/errors';
 import { parseCommaSeparatedIds } from '../../../../shared/utils/parse-comma-separated-ids';
 import {
@@ -20,6 +25,8 @@ import {
 } from '../../application/use-cases/list-published-hotsites.use-case';
 import { mapPlatformError } from '../http/platform-error.mapper';
 
+@NoFeatureGate()
+@SuspensionAccess('ANY_AUTHENTICATED')
 @Controller('internal/tenants')
 export class InternalTenantReadController {
   constructor(

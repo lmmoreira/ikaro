@@ -6,7 +6,7 @@ import { CurrentUser, CurrentUserPayload } from '../../shared/decorators/current
 import { Public } from '../../shared/decorators/public.decorator';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
-import { ZodValidationPipe } from '@ikaro/nestjs-http';
+import { NoFeatureGate, SuspensionAccess, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { DevLoginDto, DevLoginResponse, DevLoginSchema } from './dtos/dev-login.dto';
 import { SwitchStaffTenantDto, SwitchStaffTenantSchema } from './dtos/switch-staff-tenant.dto';
 import { SwitchTenantDto, SwitchTenantSchema } from './dtos/switch-tenant.dto';
@@ -27,6 +27,8 @@ export class AuthController {
   ) {}
 
   @Public()
+  @NoFeatureGate()
+  @SuspensionAccess('PUBLIC_ALWAYS')
   @UseGuards(GoogleAuthGuard)
   @Get('google')
   login(): void {
@@ -34,6 +36,8 @@ export class AuthController {
   }
 
   @Public()
+  @NoFeatureGate()
+  @SuspensionAccess('PUBLIC_ALWAYS')
   @UseGuards(GoogleCallbackGuard)
   @Get('google/callback')
   async handleGoogleCallback(@Req() req: Request, @Res() res: Response): Promise<void> {
@@ -41,6 +45,8 @@ export class AuthController {
   }
 
   @Public()
+  @NoFeatureGate()
+  @SuspensionAccess('PUBLIC_ALWAYS')
   @Get('logout')
   logout(@Query('tenantSlug') tenantSlug: string | undefined, @Res() res: Response): void {
     this.authFlow.logout(tenantSlug, res);
@@ -51,6 +57,8 @@ export class AuthController {
   // hotsite's HotsiteAuthBar via the web app's same-origin GET /api/session proxy — orchestration
   // (which single lookup to make, how to shape the combined result) belongs here in the BFF, not
   // in web, per the "BFF orchestration" preference for cross-context reads.
+  @NoFeatureGate()
+  @SuspensionAccess('ANY_AUTHENTICATED')
   @Get('session')
   async getSession(@CurrentUser() user: CurrentUserPayload): Promise<SessionResponse> {
     if (user.role === 'STAFF' || user.role === 'MANAGER') {
@@ -61,12 +69,16 @@ export class AuthController {
     return { staff: null, customer: { customerId: customer.customerId, name: customer.name } };
   }
 
+  @NoFeatureGate()
+  @SuspensionAccess('AUTH_TENANT_SWITCH')
   @Get('staff-tenants')
   @Roles('STAFF', 'MANAGER')
   getStaffTenants(): Promise<StaffTenantOption[]> {
     return this.authFlow.getStaffTenants();
   }
 
+  @NoFeatureGate()
+  @SuspensionAccess('AUTH_TENANT_SWITCH')
   @Post('switch-staff-tenant')
   @HttpCode(200)
   @Roles('STAFF', 'MANAGER')
@@ -78,6 +90,8 @@ export class AuthController {
     return this.authFlow.switchStaffTenant(dto, currentUser, res);
   }
 
+  @NoFeatureGate()
+  @SuspensionAccess('AUTH_TENANT_SWITCH')
   @Post('switch-tenant')
   @Roles('CUSTOMER')
   @HttpCode(200)
@@ -94,6 +108,8 @@ export class AuthController {
   // AuthControllerFlowService.devLogin) — it's never reachable by real users, only by
   // local/staging dev tooling and E2E test harnesses that call it repeatedly per run.
   @Public()
+  @NoFeatureGate()
+  @SuspensionAccess('PUBLIC_ALWAYS')
   @SkipThrottle()
   @Post('dev-login')
   @HttpCode(200)
