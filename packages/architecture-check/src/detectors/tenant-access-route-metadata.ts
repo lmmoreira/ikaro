@@ -1,5 +1,5 @@
 import { Decorator, Node, Project, SourceFile } from 'ts-morph';
-import type { DetectorMode, Finding, ScanResult } from '../model';
+import type { Finding, ScanResult } from '../model';
 import { sourceLine } from '../project';
 
 export const TENANT_ACCESS_ROUTE_RULE = 'tenant-access-route-metadata';
@@ -10,7 +10,6 @@ export const TENANT_ACCESS_ROUTE_RULE = 'tenant-access-route-metadata';
  * `applyDecorators`) is one policy entry and no change to the detector.
  */
 export interface TenantAccessRoutePolicy {
-  mode: DetectorMode;
   /** `@RequiresFeature` or `@NoFeatureGate`: the route's entitlement declaration. */
   entitlementDecorators: string[];
   /** `@SuspensionAccess`: the route's explicit suspended-state policy (`DEFAULT_DENY` is the explicit default). */

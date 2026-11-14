@@ -1526,7 +1526,6 @@
     }
   },
   "tenantAccessRouteMetadata": {
-    "mode": "warn",
     "entitlementDecorators": ["RequiresFeature", "NoFeatureGate"],
     "suspensionDecorators": ["SuspensionAccess"]
   },

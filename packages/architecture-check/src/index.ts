@@ -58,4 +58,4 @@ export type {
   DocTagDefinition,
 } from './doc-tags';
 export { classifyScanResults, mergeScanResults } from './model';
-export type { DetectorMode, Finding, ScanResult } from './model';
+export type { Finding, ScanResult } from './model';

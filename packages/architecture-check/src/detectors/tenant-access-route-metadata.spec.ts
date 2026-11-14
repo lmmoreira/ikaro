@@ -2,7 +2,6 @@ import { checkTenantAccessRouteMetadata, classifyScanResults } from '../index';
 import { expectScannedTargets, expectZeroTargets, fixtureProject } from '../testing/fixtures';
 
 const POLICY = {
-  mode: 'warn' as const,
   entitlementDecorators: ['RequiresFeature', 'NoFeatureGate'],
   suspensionDecorators: ['SuspensionAccess'],
 };
@@ -245,35 +244,34 @@ describe('classifyScanResults (the CLI exit-code contract)', () => {
     { rule: 'tenant-access-route-metadata', scannedTargets: 1, findings: [finding] },
   ];
 
-  it('warn mode: the finding is reported as a warning and the run does not fail', () => {
-    const outcome = classifyScanResults(results, new Set(['tenant-access-route-metadata']));
-    expect(outcome.warnings).toEqual([finding]);
-    expect(outcome.errors).toEqual([]);
-    expect(outcome.failed).toBe(false);
-  });
-
-  it('error mode: the same finding is an error and the run fails', () => {
-    const outcome = classifyScanResults(results, new Set());
-    expect(outcome.warnings).toEqual([]);
+  it('a missing-annotation finding is an error and the run fails', () => {
+    const outcome = classifyScanResults(results);
     expect(outcome.errors).toEqual([finding]);
     expect(outcome.failed).toBe(true);
   });
 
-  it('a result that scanned zero targets fails even in warn mode', () => {
-    const outcome = classifyScanResults(
-      [{ rule: 'tenant-access-route-metadata', scannedTargets: 0, findings: [] }],
-      new Set(['tenant-access-route-metadata']),
-    );
+  it('a run with every route annotated has no error and passes', () => {
+    const outcome = classifyScanResults([
+      { rule: 'tenant-access-route-metadata', scannedTargets: 1, findings: [] },
+    ]);
+    expect(outcome.errors).toEqual([]);
+    expect(outcome.failed).toBe(false);
+  });
+
+  it('a result that scanned zero targets fails', () => {
+    const outcome = classifyScanResults([
+      { rule: 'tenant-access-route-metadata', scannedTargets: 0, findings: [] },
+    ]);
     expect(outcome.failed).toBe(true);
   });
 
-  it('keeps every other rule an error while one rule is in warn mode', () => {
+  it('reports the findings of every rule together', () => {
     const other = { rule: 'transactional-save', file: 'b.ts', line: 2, message: 'm' };
-    const outcome = classifyScanResults(
-      [...results, { rule: 'transactional-save', scannedTargets: 1, findings: [other] }],
-      new Set(['tenant-access-route-metadata']),
-    );
-    expect(outcome.errors).toEqual([other]);
+    const outcome = classifyScanResults([
+      ...results,
+      { rule: 'transactional-save', scannedTargets: 1, findings: [other] },
+    ]);
+    expect(outcome.errors).toEqual([finding, other]);
     expect(outcome.failed).toBe(true);
   });
 });
