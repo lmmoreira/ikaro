@@ -1810,19 +1810,31 @@ Behaviour, in this order: (1) list the active tenants through a new narrow share
 
 **Agent:** `backend-ts`
 **Complexity:** S
-**Docs to load:** `docs/ENGINEERING_RULES_SHARED.md` § Tenant access enforcement (item 2), `docs/TESTING_STRATEGY.md` § Mandatory Patterns, `packages/architecture-check/architecture-policy.json` (the detector `mode` setting), `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md` § Billing interaction
+**Docs to load:** `docs/ENGINEERING_RULES_SHARED.md` § Tenant access enforcement (item 2), `docs/TESTING_STRATEGY.md` § Mandatory Patterns, `packages/architecture-check/architecture-policy.json` (the `tenantAccessRouteMetadata` entry), `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md` § Billing interaction
 **Dependencies:** M25-S05 (no tenant may lack a subscription when the detector enforces), M25-S17, M25-S18a, M25-S18b, M25-S19, M25-S20
-**Pattern:** plain composition — a one-line policy change plus the non-regression sweep. Deliberately its own story so the flip can be reverted alone.
+**Pattern:** plain composition — remove the detector's warn mode so a missing annotation is an ordinary error, plus the non-regression sweep. Deliberately its own story so the whole change reverts alone with one PR revert.
 
 **Description:**
-After S17–S20 the detector reports zero warnings across the repo. This story changes its policy `mode` from `warn` to **enforcing** — from now on a tenant-scoped route without explicit entitlement and suspension metadata fails CI — and runs the **whole existing backend, BFF and web test suite plus the existing Playwright smoke set with enforcement enforcing** as the non-regression proof for **route gating only** (every tenant-scoped route is gate-aware, with every existing tenant exempt). Its scope is exactly that: the other behaviour changes (event gate S21a, hotsite S25, tenant switching S26) each own their own named "exempt tenant unaffected" test and are not S24's. Any route the detector still flags (added by a branch merged since S17–S20, including M24 routes) is annotated here under the shared rules, not in a separate story. It also records, in `plan/M24-…` § Billing interaction, that the detector is now enforcing (the note says it "warns until" the flip) — a one-sentence factual sync.
+After S17–S20 the detector reports zero warnings across the repo. This story **removes the warn mode**: the policy's `mode` field and the code that supports it go away, so from now on a tenant-scoped route without explicit entitlement and suspension metadata is an ordinary `architecture-check` error that fails CI like every other detector. It also runs the **whole existing backend, BFF and web test suite plus the existing Playwright smoke set with the detector failing CI** as the non-regression proof for **route gating only** (every tenant-scoped route is gate-aware, with every existing tenant exempt). Its scope is exactly that: the other behaviour changes (event gate S21a, hotsite S25, tenant switching S26) each own their own named "exempt tenant unaffected" test and are not S24's. Any route the detector still flags (added by a branch merged since S17–S20, including M24 routes) is annotated here under the shared rules, not in a separate story. It also records, in `plan/M24-…` § Billing interaction, that the detector is now enforcing (the note says it "warns until" the flip) — a one-sentence factual sync.
+
+**Decisions locked at discovery (2026-11-14).**
+- **There is no `"enforcing"` value to set:** `DetectorMode` is `'warn' | 'error'` (`packages/architecture-check/src/model.ts`), and the CLI only branches on `'warn'`. Flipping to `"error"` would leave an unused warn path behind, so the story **removes warn mode entirely** instead. After S20 it has no consumer, the one detector added since (S21a's `event-handler-suspension-declaration`) skipped it and fails CI from its first commit, and a PR revert of this story restores the old behaviour in full.
+- **What goes:** the policy's `mode` field and `TenantAccessRoutePolicy.mode`; `DetectorMode`, the `warnRules` set and the warnings-only output branch in `cli.ts` (including its "N warning(s) from rule(s) in warn mode" line); the `warnRules` argument and `warnings` result of `classifyScanResults` in `model.ts` (the function stays: a result that scanned zero targets still fails) and its `DetectorMode` export in `index.ts`; the two warn/error-mode cases of `tenant-access-route-metadata.spec.ts` and the spec's `mode: 'warn'` policy constant.
+- **The enforcing proof is the real-CLI spec, rewritten:** `cli-regression.spec.ts` (`M25-S16: a rule in warn mode reports through the real CLI without failing it`) runs the real `pnpm architecture-check` against the real policy file and asserts an unannotated fixture route exits 0 today. It becomes `a route with no tenant-access metadata fails the real CLI`: the fixture `gate-probe.controller.ts` exits **1** with the finding naming `gate-probe.controller.ts` and `GateProbeController.list` under `[tenant-access-route-metadata]`, and exits **0** once the fixture carries `@NoFeatureGate()` and `@SuspensionAccess('DEFAULT_DENY')`. Mutation check at implementation: strip the fixture's annotations and see the exit code change.
+- **Measured at discovery:** the detector reports **0 warnings across 267 routes** on `main` (M25-S20 merged), and there are **no open PRs**, so no in-flight branch breaks when this lands.
+- **The non-regression ACs (integration, tenant isolation, Playwright smoke) are proven by this PR's own CI**, which runs those suites. The change alters CI strictness only, not runtime behaviour, so no extra local run is needed beyond `/pre-pr`.
+- **Doc sync rides the implementation PR:** `docs/ENGINEERING_RULES_SHARED.md` § Tenant access enforcement (the PARTLY BUILT line says "the route detector in warn mode", and item 2 says the detector starts in warn mode and becomes enforcing later: both now say it is enforcing since M25-S24), and the M24 § Billing interaction sentence "Until the route detector is enforcing it only warns; after that an unannotated M24 route fails CI" becomes "The route detector is enforcing (M25-S24), so an unannotated M24 route fails CI". `.copilot/context.md` already lists the detector as CI-enforced and needs no edit.
 
 **Backend use case steps:** none.
 **Backend HTTP surface:** none.
 **New migration / i18n keys / env vars / feature flags:** none.
 
 **Files to create/modify:**
-- `packages/architecture-check/architecture-policy.json` (modify — detector `mode: "enforcing"`)
+- `packages/architecture-check/architecture-policy.json` (modify — remove the `mode` field from the `tenantAccessRouteMetadata` entry)
+- `packages/architecture-check/src/cli.ts`, `src/model.ts`, `src/index.ts` (modify — remove warn mode, see the decisions above)
+- `packages/architecture-check/src/detectors/tenant-access-route-metadata.spec.ts` (modify — drop the `mode` constant and the two warn/error-mode cases)
+- `packages/architecture-check/src/cli-regression.spec.ts` (modify — rewrite the S16 warn-mode block as the enforcing proof)
+- `docs/ENGINEERING_RULES_SHARED.md` (modify — § Tenant access enforcement: the PARTLY BUILT line and item 2)
 - any controller the detector still flags (modify — annotation only)
 - `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md` (modify — § Billing interaction: one sentence)
 
@@ -1832,13 +1844,14 @@ After S17–S20 the detector reports zero warnings across the repo. This story c
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] The detector's enforcing-mode test fails on a fixture route with no metadata and passes with it
+  - [ ] The real-CLI spec fails (exit 1, naming the route) on a fixture route with no metadata and passes (exit 0) once it is annotated
+  - [ ] No `mode`, `warnRules` or warn-mode text remains in `packages/architecture-check` (grep)
 - Integration:
   - [ ] The full existing integration suite passes unchanged with enforcement enforcing (this story's evidence, run in CI)
 - Tenant isolation: [ ] the existing tenant-isolation specs pass unchanged
 - E2E:
   - [ ] The existing Playwright smoke set (login, dashboard, booking flow) passes unchanged
-- [ ] `architecture-check` passes in enforcing mode with zero findings
+- [ ] `pnpm architecture-check` exits 0 with zero findings and no warning line
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
