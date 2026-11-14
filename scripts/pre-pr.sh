@@ -104,7 +104,8 @@ grep_into_tmp "$ts_use_cases" "throw new HttpException"
 run_check "22. No throw new HttpException in use-case files (belongs in mapXxxError)"
 
 # 24. No useExisting adapter token anti-pattern in module providers
-grep_into_tmp "$ts_modules" "useExisting:"
+# A class target only (CamelCase): a token-to-token alias of an upper-case Symbol token is not the anti-pattern.
+grep_into_tmp "$ts_modules" "useExisting: *[A-Z][a-z]"
 run_check "24. No useExisting in module providers — use useClass (CLAUDE.md §8)"
 
 # 18. No barrel imports from ports/ or shared/domain/

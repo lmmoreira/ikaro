@@ -728,6 +728,40 @@ The image binaries reach the public bucket through the deploy pipelines, not Ter
 
 ---
 
+## Loyalty — Completing a booking: earn and settle (M25-S21a)
+
+### Why this exists
+
+`BookingCompleted` has two effects on one customer balance: it **earns** points for the booked lines, and it **settles** the points a discount already spent (`discountByPoints`, applied to the booking when staff completed it, UC-003 A6). Both are one use case, one transaction and one write of the balance row. The tenant's access matters to only one of them, and the declarative event gate can skip a whole handler, not half of a transaction. This section records the decision so it is not re-derived (or "fixed" back into a gate).
+
+### The decision
+
+```mermaid
+flowchart TD
+  E["BookingCompleted (handler always runs: skipWhenSuspended false)"] --> G{"guest booking<br/>or already processed?"}
+  G -- yes --> X["skip"]
+  G -- no --> A{"may earn?<br/>operational AND LOYALTY entitled<br/>(a lookup error counts as yes)"}
+  A -- no --> D{"discount spent?"}
+  D -- no --> M["mark event processed, record nothing"]
+  D -- yes --> S["one transaction: decrement balance, record LoyaltyRedemption, mark processed"]
+  A -- yes --> T["one transaction: entries + increment, decrement and LoyaltyRedemption if a discount was spent, ServicePointsEarned, mark processed"]
+```
+
+### Rules worth not re-deriving
+
+- **The handler is never gated.** `BookingCompletedHandler` declares `{ skipWhenSuspended: false }`; `CompleteBookingLoyaltyEffectsUseCase` reads `TenantAccessPort` **before** `txManager.run()` (no cross-service call inside a transaction) and fails open, like the gate.
+- **Settlement never depends on access.** The discount is already on the booking; dropping the settlement would leave the customer with the discount and the points. A delayed delivery is real, not a race of seconds: a failed inline dispatch stays in the outbox until the relay sweep retries it.
+- **A suppressed event is still marked processed**, so a duplicate delivered after access is restored cannot earn for an event that was suppressed.
+- **`ServicePointsEarned` is emitted only when points were earned**, and its `currentBalance` is read after the same transaction's redemption, as before.
+- **Why not two consumers (earn gated, settle ungated):** the balance is saved by an unlocked read-modify-write upsert, so two consumers on one event would lose an update; it would also need a new Pub/Sub subscription and a rule for `currentBalance`.
+
+### Known limitations
+
+- A suspended tenant's in-flight `BookingCompleted` earns nothing and is not replayed on reactivation.
+- The access answer comes from a per-instance cache, so a tenant suspended seconds ago can still earn for up to about five minutes on another instance.
+
+---
+
 ## Other bounded contexts
 
-Not yet written as sections in this doc. **Loyalty is not logic-free** — points earning on `BookingCompleted`, the expiry cron, the weekly expiring-points warning and manual redemption are implemented; until a section is written here, read them from `docs/BOUNDED_CONTEXTS.md` § 2. Loyalty Context, `docs/DOMAIN_MODEL.md` § Loyalty Context (and § Expiration window), `docs/USE_CASES.md` UC-009 / UC-016 / UC-016b, and the code under `apps/backend/src/contexts/loyalty/`. Likewise there is no booking status-machine section here: the transition table is CLAUDE.md §5 / `.copilot/context.md` §5 and the aggregate (`booking-status-transition.ts`). Platform has one section above (the hotsite template catalogue); add another here the next time a story in Customer, Staff, Loyalty, Notification, or Platform introduces business logic complex enough to earn one — see this doc's own header for the "incremental, not upfront" rule, and `/story-discovery`'s checklist item that flags the decision at discovery time.
+Not yet written as sections in this doc. **Loyalty is not logic-free** — points earning and redemption on `BookingCompleted` (the section above), the expiry cron, the weekly expiring-points warning and manual redemption are implemented; until a section is written here, read them from `docs/BOUNDED_CONTEXTS.md` § 2. Loyalty Context, `docs/DOMAIN_MODEL.md` § Loyalty Context (and § Expiration window), `docs/USE_CASES.md` UC-009 / UC-016 / UC-016b, and the code under `apps/backend/src/contexts/loyalty/`. Likewise there is no booking status-machine section here: the transition table is CLAUDE.md §5 / `.copilot/context.md` §5 and the aggregate (`booking-status-transition.ts`). Platform has one section above (the hotsite template catalogue); add another here the next time a story in Customer, Staff, Loyalty, Notification, or Platform introduces business logic complex enough to earn one — see this doc's own header for the "incremental, not upfront" rule, and `/story-discovery`'s checklist item that flags the decision at discovery time.

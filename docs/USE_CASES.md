@@ -2968,7 +2968,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 
 ### **UC-123: Suspended Tenants Send No Notifications (Billing Emails Exempt)**
 
-- **Actor:** System (the event dispatcher)
+- **Actor:** System (the event delivery gate, `GatedEventBus`)
 - **Preconditions:** None.
 - **Trigger:** A domain event reaches a Notification handler.
 - **Main Flow:** Every email Notification sends is triggered by an event subscription, so the one gate is the event-subscription option of UC-125, not a second check in the send path. Notification's send handlers declare `skipWhenSuspended: true`: the dispatcher asks the access port (UC-120) for the event's `tenantId` at delivery time and, if the tenant is not operational, acknowledges the message and logs the skip (`tenantId`, `eventId`) without running the handler. An `exempt` tenant is never suspended, so its events are never skipped. Handlers that must run for a suspended tenant declare `skipWhenSuspended: false`: Billing's manager-email handlers (UC-124), the tenant-unavailable customer notice (UC-121 O-B1), the audit-log, state-sync and dead-letter handlers, `staff-invited` (an operator / provisioning action) and `tenant-provisioned` (the template seed). A skipped event is not replayed on reactivation. **Decided (M25-S23, dropped at story discovery, 2026-11-13):** no second gate in `BaseNotificationUseCase`, no `SKIPPED_TENANT_SUSPENDED` status and no `bypassSuspensionGate` template flag. The subscription gate runs at delivery time, so a gate in the send path would check the same fact milliseconds later; the skip is logged rather than stored in `notification_logs`, and `notification_logs.status` stays `PENDING | SENT | FAILED`.
@@ -3499,12 +3499,12 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 | UC-117 | Manager views the billing page *(planned, not built)* | Manager | Read-only: status, features, total, open charge, history; the only reachable page while suspended (identity is edited in the Dados tab, UC-118) |
 | UC-118 | Manager updates the billing identity *(planned, not built)* | Manager | Country-driven identity and address saved; synced to the provider customer at the next charge |
 | UC-119 | Manager pays an open charge *(planned, not built)* | Manager | Provider-hosted payment URL; on return an on-demand refresh; webhook confirms |
-| UC-120 | System resolves a tenant's access, `TenantAccessPort` *(planned, not built)* | System | Explicit `tenantId`; cached, fails open on a lookup error; batch method for crons |
+| UC-120 | System resolves a tenant's access, `TenantAccessPort` *(built, M25-S13)* | System | Explicit `tenantId`; cached, fails open on a lookup error; batch method for crons |
 | UC-121 | Login routing by role when suspended *(planned, not built)* | Manager / Staff / Customer | Login never blocked; manager → billing only, staff → notice, customer → "Empresa inativa" account |
 | UC-122 | Hotsite is effectively unpublished when suspended *(planned, not built)* | Visitor | `isPublished && operational` everywhere; the same reason-neutral page as any unpublished hotsite |
-| UC-123 | Suspended tenants send no notifications *(planned, not built)* | System | The event-subscription gate (`skipWhenSuspended`, UC-125) stops the send handlers; Billing and notice handlers declare `false` |
+| UC-123 | Suspended tenants send no notifications *(built, M25-S21a)* | System | The event-subscription gate (`skipWhenSuspended`, UC-125) stops the send handlers; Billing and notice handlers declare `false` |
 | UC-124 | Billing emails to the manager *(planned, not built)* | System | One handler per event; billing email else managers; exempt tenants skipped |
-| UC-125 | Entitlement enforcement per feature and locked UI *(planned, not built)* | Any user / API caller | Declarative metadata, typed denial, locked dashboard items, preference preserved |
+| UC-125 | Entitlement enforcement per feature and locked UI *(partly built: HTTP gate M25-S16, cron runner S22, event gate S21a; web enforcement planned)* | Any user / API caller | Declarative metadata, typed denial, locked dashboard items, preference preserved |
 | UC-126 | Backfill existing tenants at the Billing release *(planned, not built)* | System | Every tenant without a subscription gets an `ACTIVE`, `exempt` one |
 | UC-127 | Visitor signs up for a trial *(planned, not built)* | Guest | Turnstile, Google sign-in, business details and tax id; registration reserved under a lock; tenant provisioned; trial rule |
 | UC-128 | Visitor reads public prices and checks a slug *(planned, not built)* | Guest | `GET /v1/public/billing/prices`, `GET /v1/public/signup/slug-availability`; throttled |
