@@ -67,6 +67,16 @@ export interface IBookingRepository {
   // (tenant_id, hold_expires_at) WHERE lock_state = 'HOLD' index. A REQUESTED (degenerate) row has
   // no deadline and an AUTO_CONFIRM booking is never PENDING, so neither is ever returned.
   findPendingWithExpiredHold(tenantId: string, now: Date): Promise<Booking[]>;
+  // M25-S28 — one keyset page of the distinct logged-in customers (a booking with a customerId;
+  // a guest booking has none) holding an APPROVED booking that starts after `after`, ordered by
+  // customerId and strictly after `afterCustomerId` (null for the first page). Ids only, never the
+  // bookings: a tenant can have thousands of customers. Tenant-scoped.
+  findCustomerIdsWithApprovedBookingsAfter(
+    tenantId: string,
+    after: Date,
+    afterCustomerId: string | null,
+    limit: number,
+  ): Promise<string[]>;
   findAllByTenant(tenantId: string, filters?: BookingFilters): Promise<Booking[]>;
   findAllByTenantPaginated(
     tenantId: string,

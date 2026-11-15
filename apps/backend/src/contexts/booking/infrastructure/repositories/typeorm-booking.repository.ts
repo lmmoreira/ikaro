@@ -1,15 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
-import {
-  Between,
-  EntityManager,
-  FindOptionsWhere,
-  In,
-  LessThanOrEqual,
-  MoreThanOrEqual,
-  Repository,
-} from 'typeorm';
+import { EntityManager, In, MoreThanOrEqual, Repository } from 'typeorm';
 import { drainDomainEvents } from '../../../../shared/infrastructure/outbox/drain-domain-events';
 import { runInNewTransaction } from '../../../../shared/infrastructure/run-in-new-transaction';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
@@ -40,6 +32,8 @@ import { BookingEntity } from '../entities/booking.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
 import { BookingLineResourceAssignmentEntity } from '../entities/booking-line-resource-assignment.entity';
 import { queryPendingBookingIdsWithExpiredHold } from './typeorm-booking-expired-hold.queries';
+import { queryCustomerIdsWithApprovedBookingsAfter } from './typeorm-booking-customer-ids.queries';
+import { buildBookingWhere } from './typeorm-booking-where.helpers';
 import { toDomain, toEntity, toUpdateSet } from './typeorm-booking.mapper';
 import {
   groupByBookingId,
@@ -102,6 +96,21 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     return this.findByIds(ids, tenantId);
   }
 
+  findCustomerIdsWithApprovedBookingsAfter(
+    tenantId: string,
+    after: Date,
+    afterCustomerId: string | null,
+    limit: number,
+  ): Promise<string[]> {
+    return queryCustomerIdsWithApprovedBookingsAfter(
+      this.repo,
+      tenantId,
+      after,
+      afterCustomerId,
+      limit,
+    );
+  }
+
   private async hydrateOne(entity: BookingEntity, tenantId: string): Promise<Booking> {
     const lineEntities = await this.lineRepo.find({ where: { bookingId: entity.id, tenantId } });
     const attendeeEntities = await this.attendeeRepo.find({
@@ -124,7 +133,7 @@ export class TypeOrmBookingRepository implements IBookingRepository {
   }
 
   async findAllByTenant(tenantId: string, filters: BookingFilters = {}): Promise<Booking[]> {
-    const where = this.buildWhere(tenantId, filters);
+    const where = buildBookingWhere(tenantId, filters);
     const entities = await this.repo.find({ where, order: { scheduledAt: 'ASC' } });
     return entities.length ? this.hydrateMany(entities, tenantId) : [];
   }
@@ -133,7 +142,7 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     tenantId: string,
     filters: BookingListFilters,
   ): Promise<BookingPaginatedResult> {
-    const where = this.buildWhere(tenantId, filters);
+    const where = buildBookingWhere(tenantId, filters);
     // `id` is a tie-breaker, not just `scheduledAt`: Postgres has no defined order among rows with
     // equal ORDER BY keys, so two bookings sharing a scheduledAt could otherwise land on either
     // side of a page boundary non-deterministically between two sequential offset-paginated
@@ -161,22 +170,6 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     // SelectQueryBuilder.executeCountQuery()) — it would scan/count every matching row instead of
     // stopping at the first one. existsBy() runs a real EXISTS(...) LIMIT 1 query.
     return this.lineRepo.existsBy({ serviceId, tenantId });
-  }
-
-  private buildWhere(tenantId: string, filters: BookingFilters): FindOptionsWhere<BookingEntity> {
-    const where: FindOptionsWhere<BookingEntity> = { tenantId };
-    if (filters.status?.length === 1) where.status = filters.status[0];
-    else if (filters.status?.length) where.status = In(filters.status);
-    if (filters.customerId) where.customerId = filters.customerId;
-    if (filters.recurringScheduleId) where.recurringScheduleId = filters.recurringScheduleId;
-    if (filters.scheduledAfter && filters.scheduledBefore) {
-      where.scheduledAt = Between(filters.scheduledAfter, filters.scheduledBefore);
-    } else if (filters.scheduledAfter) {
-      where.scheduledAt = MoreThanOrEqual(filters.scheduledAfter);
-    } else if (filters.scheduledBefore) {
-      where.scheduledAt = LessThanOrEqual(filters.scheduledBefore);
-    }
-    return where;
   }
 
   private async findLinesByBookingId(

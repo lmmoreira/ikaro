@@ -177,6 +177,16 @@
         "reviewBy": "2026-09-30"
       },
       {
+        "source": "apps/backend/src/contexts/booking/infrastructure/events/subscription-suspended-tenant-unavailable.handler.ts",
+        "target": "billing",
+        "targetPaths": [
+          "apps/backend/src/contexts/billing/domain/events/subscription-suspended.event.ts"
+        ],
+        "rationale": "Booking owns the customers, so it consumes SubscriptionSuspended and raises one reason-neutral notice command per affected customer (M25-S28, UC-121 O-B1).",
+        "owner": "booking",
+        "reviewBy": "2027-05-15"
+      },
+      {
         "source": "apps/backend/src/contexts/platform/infrastructure/events/subscription-suspended-hotsite-revalidation.handler.ts",
         "target": "billing",
         "targetPaths": [

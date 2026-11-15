@@ -87,12 +87,13 @@ describe('declared skipWhenSuspended values (UC-123)', () => {
       expect(declarations('booking', file)).toEqual(['skipWhenSuspended true']);
     });
 
-    it.each(['staff-deactivated.handler.ts', 'tenant-provisioned.handler.ts'])(
-      '%s is state sync or seeding: skipWhenSuspended false',
-      (file) => {
-        expect(declarations('booking', file)).toEqual(['skipWhenSuspended false']);
-      },
-    );
+    it.each([
+      'staff-deactivated.handler.ts',
+      'tenant-provisioned.handler.ts',
+      'subscription-suspended-tenant-unavailable.handler.ts', // runs because of the suspension (UC-123)
+    ])('%s is state sync, seeding or caused by the suspension: skipWhenSuspended false', (file) => {
+      expect(declarations('booking', file)).toEqual(['skipWhenSuspended false']);
+    });
 
     it('keeps every audit-log subscription running while suspended', () => {
       const declared = declarations('booking', 'booking-audit-log.handler.ts');
