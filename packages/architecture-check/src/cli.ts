@@ -8,8 +8,10 @@ import {
   checkAggregatePropsUseSharedValueObjects,
   checkBffTypesLiveInModuleFiles,
   checkClosedEnumRegistry,
+  checkDocDetectorCitations,
   checkDocLinkIntegrity,
   checkDocOrientation,
+  checkDocSizeAnnotations,
   checkDomainEventsHaveAuditLogSubscription,
   checkEntityBuilderPrimaryKeyDefaults,
   checkErrorMapperCoverage,
@@ -222,6 +224,25 @@ const results = [
   checkTenantAccessRouteMetadata([backend], tenantAccessRouteMetadata),
   checkEventHandlerSuspensionDeclaration(backend),
 ];
+// Documentation that names a detector or a doc size is checked against what this run just computed.
+const KNOWN_RULE_IDS = new Set([
+  ...results.map((result) => result.rule),
+  'doc-detector-citations',
+  'doc-size-annotations',
+]);
+const AGENT_CONTEXT_FILE = '.copilot/context.md';
+const docFilesCitingDetectors = repositoryFiles.filter(
+  (file) =>
+    file.endsWith('.md') &&
+    (file.startsWith('docs/') ||
+      file.startsWith('.claude/commands/') ||
+      file === AGENT_CONTEXT_FILE) &&
+    !file.startsWith('docs/discovery/'),
+);
+results.push(
+  checkDocDetectorCitations(root, docFilesCitingDetectors, KNOWN_RULE_IDS),
+  checkDocSizeAnnotations(root, AGENT_CONTEXT_FILE),
+);
 const zeroTargetResults = results.filter((result) => result.scannedTargets === 0);
 const { errors, failed } = classifyScanResults(results);
 

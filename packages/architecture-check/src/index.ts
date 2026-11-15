@@ -21,6 +21,10 @@ export type {
 export { checkDocLinkIntegrity } from './detectors/doc-link-integrity';
 export type { DocLinkAllowlistEntry, DocLinkIntegrityPolicy } from './detectors/doc-link-integrity';
 export { checkDocOrientation } from './detectors/doc-orientation';
+export {
+  checkDocDetectorCitations,
+  checkDocSizeAnnotations,
+} from './detectors/doc-reference-values';
 export { checkDomainEventsHaveAuditLogSubscription } from './detectors/domain-event-audit-coverage';
 export { checkEntityBuilderPrimaryKeyDefaults } from './detectors/entity-builder-pk-default';
 export { checkErrorMapperCoverage } from './detectors/error-mappers';
