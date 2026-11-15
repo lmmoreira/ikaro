@@ -1,6 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
 import type { BillingAccessResponse } from '@ikaro/types';
-import { NoFeatureGate, SuspensionAccess } from '@ikaro/nestjs-http';
 import { CurrentUser, CurrentUserPayload } from '../../shared/decorators/current-user.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { AppLogger } from '../../shared/observability/app-logger';
@@ -21,8 +20,6 @@ export class BillingController {
   // redirect), so it must answer for a suspended tenant: no feature owns it, and every
   // authenticated role may read it while suspended.
   @Get('access')
-  @NoFeatureGate()
-  @SuspensionAccess('ANY_AUTHENTICATED')
   async getAccess(@CurrentUser() user: CurrentUserPayload): Promise<BillingAccessResponse> {
     const access = await this.readAccess(user.tenantId);
     return toBillingAccessResponse(user.role, access);

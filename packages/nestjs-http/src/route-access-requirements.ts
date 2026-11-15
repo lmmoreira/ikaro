@@ -7,7 +7,7 @@ import { readTenantAccessRequirement, type RouteMetadataReader } from './tenant-
 export interface RouteAccessRequirement {
   /** The handler's method name on the controller. */
   handler: string;
-  /** What the route declares, read exactly the way the tenant-access guards read it. */
+  /** What the route declares, read exactly the way the backend tenant-access guard reads it. */
   requirement: TenantAccessRequirement;
 }
 

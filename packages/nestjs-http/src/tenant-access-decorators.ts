@@ -7,7 +7,7 @@ import {
 } from './tenant-access-metadata';
 
 /**
- * Declares the sellable feature a route belongs to (UC-125). `TenantAccessGuard` refuses a tenant
+ * Declares the sellable feature a route belongs to (UC-125). The backend `TenantAccessGuard` refuses a tenant
  * whose access answer does not list the feature with `BILLING_FEATURE_NOT_ENTITLED`. The guard
  * knows no feature by name: a new feature is a new `FeatureKey` and a decorated controller.
  */
@@ -16,8 +16,8 @@ export const RequiresFeature = (feature: FeatureKey) => SetMetadata(REQUIRES_FEA
 /**
  * Declares who may reach a route while the tenant is `SUSPENDED` (UC-125). The policy set and the
  * roles each one admits live in `SUSPENSION_POLICIES` (`@ikaro/types`); a route without this
- * decorator is `DEFAULT_DENY`. The role comes from `X-Actor-Role` in the backend and the JWT in the
- * BFF.
+ * decorator is `DEFAULT_DENY`. The role comes from `X-Actor-Role` (the BFF forwards it from the JWT).
+ * Backend routes only: the BFF carries no annotation and forwards the backend's denial unchanged.
  */
 export const SuspensionAccess = (policy: SuspensionAccessPolicy) =>
   SetMetadata(SUSPENSION_ACCESS_KEY, policy);

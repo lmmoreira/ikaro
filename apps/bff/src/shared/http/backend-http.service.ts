@@ -6,9 +6,7 @@ import { BffErrorCode } from '@ikaro/types';
 import { AxiosError, AxiosResponse } from 'axios';
 import { Request } from 'express';
 import { Observable, firstValueFrom } from 'rxjs';
-import type { BffCache } from '../cache/bff-cache.port';
 import { buildBackendHeaders } from './backend-headers';
-import { BACKEND_RESPONSE_CACHE, readThrough, type BackendReadOptions } from './backend-read-cache';
 import { throwProblemDetail } from './problem-detail';
 
 @Injectable({ scope: Scope.REQUEST })
@@ -19,26 +17,17 @@ export class BackendHttpService {
     private readonly http: HttpService,
     private readonly config: ConfigService,
     @Inject(REQUEST) private readonly req: Request,
-    @Inject(BACKEND_RESPONSE_CACHE) private readonly store: BffCache<unknown>,
   ) {
     this.baseUrl = this.config.getOrThrow<string>('BACKEND_INTERNAL_URL');
   }
 
-  // Never cached unless the call passes `options.cache` (see `readThrough`): the cache is shared by
-  // every caller, so the key must carry whatever the response varies by.
-  async get<T>(
-    path: string,
-    params?: Record<string, unknown>,
-    options?: BackendReadOptions<T>,
-  ): Promise<T> {
-    return readThrough(this.store, options?.cache, () =>
-      this.call(
-        this.http.get<T>(`${this.baseUrl}${path}`, {
-          headers: this.headers(),
-          params,
-          timeout: 10_000,
-        }),
-      ),
+  async get<T>(path: string, params?: Record<string, unknown>): Promise<T> {
+    return this.call(
+      this.http.get<T>(`${this.baseUrl}${path}`, {
+        headers: this.headers(),
+        params,
+        timeout: 10_000,
+      }),
     );
   }
 

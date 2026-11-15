@@ -86,7 +86,7 @@ The BFF mapper (not the backend) builds display strings (e.g. the auto-billing l
 |---|---|---|
 | `GET /v1/billing/access` | role-reduced `{ status, operational, features: [{ key, tier }] }` for the caller's tenant | 15, 16, 20 |
 
-Used by the web layouts / `proxy.ts` (routing by role when suspended), the dashboard (locked items) and the customer account (badge). Cached (operational answers 60 s/30 s, `SUSPENDED` answers 10 s, explicit invalidation on suspend/reactivate; the billing page bypasses the BFF cache); **fails open** on error. The BFF global guard calls the backend's internal access endpoint (§5) through the shared `TenantAccessPort` consumer, not this route.
+Used by the web layouts / `proxy.ts` (routing by role when suspended), the dashboard (locked items) and the customer account (badge). Cached (operational answers 60 s/30 s, `SUSPENDED` answers 10 s, explicit invalidation on suspend/reactivate; the billing page bypasses the BFF cache); **fails open** on error. The BFF global guard calls the backend's internal access endpoint (§5) through the shared `TenantAccessPort` consumer, not this route. *[Superseded by M25-S33, 2026-11-15: the BFF holds no gate and no access cache; the backend guard is the only enforcement point, and the staleness bound is the backend cache alone, 300 s operational and 10 s suspended.]*
 
 ## 3. Public (BFF, `@Public()`, no JWT)
 
@@ -138,7 +138,7 @@ POST /v1/public/signup/tenant
 
 | Method / path | Purpose | CAND |
 |---|---|---|
-| `GET /internal/tenants/{tenantId}/access` | the access answer for BFF guards | 15 |
+| `GET /internal/tenants/{tenantId}/access` | the access answer for BFF guards | 15 | *[Superseded by M25-S33, 2026-11-15: the BFF holds no gate and no access cache; the backend guard is the only enforcement point, and the staleness bound is the backend cache alone, 300 s operational and 10 s suspended.]*
 | `POST /internal/billing/registrations` | creates the provisioning registration `{ source, googleSub?, taxId?, terms? }` and, for `SELF_SIGNUP`, runs the trial-eligibility check under the advisory lock → `{ registrationId, trialAvailable }`; used by the BFF (self-signup) and by `provision-tenant.sh` (operator, `source = OPERATOR`); replaces the old GET-with-side-effect `signup-trial-eligibility` (decisions 96, 120) | 22, 01 |
 | `GET /internal/tenants/{tenantId}/billing/tenant-info` | not an endpoint: the read-only tenant-info **port** used by self-heal/backfill only (decision 119) | 35, 21 |
 | `GET /internal/billing/suspended-tenant-ids` | batch for the rare cross-tenant scan | 15 |
@@ -238,7 +238,7 @@ Names follow the existing per-context convention in `packages/types/src/error-co
 
 ## 9. Declarative gating metadata
 
-Tenant-scoped routes declare `@RequiresFeature(FeatureKey.X)` where applicable and `@SuspensionAccess(...)` (`MANAGER_BILLING`, `STAFF_NOTICE`, `CUSTOMER_HISTORY`, `AUTH_TENANT_SWITCH`, `PUBLIC_NONE`, `DEFAULT_DENY`). `@NoFeatureGate()` is only for health, auth and webhooks. One global `TenantAccessGuard` enforces metadata; an architecture check makes omission fail. Record-dependent Booking policy remains in Booking. The staff tenant-selection endpoint returns `operational: boolean` and never filters suspended tenants; switching must not reject one.
+Tenant-scoped routes declare `@RequiresFeature(FeatureKey.X)` where applicable and `@SuspensionAccess(...)` (`MANAGER_BILLING`, `STAFF_NOTICE`, `CUSTOMER_HISTORY`, `AUTH_TENANT_SWITCH`, `PUBLIC_NONE`, `DEFAULT_DENY`). `@NoFeatureGate()` is only for health, auth and webhooks. One global `TenantAccessGuard` enforces metadata; an architecture check makes omission fail. Record-dependent Booking policy remains in Booking. The staff tenant-selection endpoint returns `operational: boolean` and never filters suspended tenants; switching must not reject one. *[Superseded by M25-S33, 2026-11-15: the BFF holds no gate and no access cache; the backend guard is the only enforcement point, and the staleness bound is the backend cache alone, 300 s operational and 10 s suspended.]*
 
 Verified placement: the backend `TenantAccessGuard` runs before `RequestInterceptor`, so it reads the `x-tenant-id` header itself (never `RequestContext`); `/internal/*`, `/cron/*`, `/pubsub/*` and `/health` bypass the interceptor, so the tenant-less signup/registration routes live under `/internal/*`; the staff-tenant list (`GET /auth/staff-tenants`, `StaffTenantOption` has no status field today) gains `operational` and both `switch-staff-tenant` and the customer `switch-tenant` must accept a suspended tenant.
 

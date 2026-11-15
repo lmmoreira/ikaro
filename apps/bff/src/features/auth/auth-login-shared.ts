@@ -13,7 +13,7 @@ export async function findTenantBySlug(
   tenantSlug: string,
 ): Promise<TenantInfoResponse | null> {
   return backendHttp
-    .get<TenantInfoResponse>(`/internal/tenants/by-slug/${tenantSlug}`)
+    .get<TenantInfoResponse>(`/internal/tenants/by-slug/${encodeURIComponent(tenantSlug)}`)
     .catch((err: unknown) => {
       if (err instanceof HttpException && err.getStatus() === HttpStatus.NOT_FOUND) return null;
       throw err;

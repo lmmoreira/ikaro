@@ -219,7 +219,7 @@ const results = [
   checkBffTypesLiveInModuleFiles(bff, bffInlineTypeExceptions),
   checkIkaroTypesDrift(web, types, ikaroTypesDriftExceptions),
   checkClosedEnumRegistry([validation, types], closedEnumRegistry),
-  checkTenantAccessRouteMetadata([backend, bff], tenantAccessRouteMetadata),
+  checkTenantAccessRouteMetadata([backend], tenantAccessRouteMetadata),
   checkEventHandlerSuspensionDeclaration(backend),
 ];
 const zeroTargetResults = results.filter((result) => result.scannedTargets === 0);

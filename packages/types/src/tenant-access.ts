@@ -2,7 +2,7 @@ import type { ActorRole } from './enums';
 
 /**
  * Who may reach a route while the tenant is `SUSPENDED` (UC-125, docs/ENGINEERING_RULES_SHARED.md
- * § Tenant access enforcement). One table, one evaluator: the backend and BFF guards, and the web
+ * § Tenant access enforcement). One table, one evaluator: the backend guard and the web
  * registry later, read this and never switch on a policy name, so a new policy is one entry here
  * (a spec fails if an entry has no evaluated behaviour) and no guard changes.
  *
@@ -22,9 +22,6 @@ export const SUSPENSION_POLICIES = {
   AUTH_TENANT_SWITCH: { admits: 'AUTHENTICATED' },
   ANY_AUTHENTICATED: { admits: 'AUTHENTICATED' },
   PUBLIC_MANIFEST: { admits: 'EVERYONE' },
-  // A public route no suspension may refuse (BFF login, logout, health): reachable by any caller,
-  // authenticated or not, even if a request names a suspended tenant's slug.
-  PUBLIC_ALWAYS: { admits: 'EVERYONE' },
   PUBLIC_NONE: { admits: 'NONE' },
 } as const satisfies Record<string, { admits: SuspensionAdmits }>;
 
@@ -66,7 +63,7 @@ export function isAdmittedWhileSuspended(
 }
 
 /**
- * The one decision both guards apply. A suspended tenant is decided by the route's suspension
+ * The one decision the backend guard applies. A suspended tenant is decided by the route's suspension
  * policy alone: a policy that does not admit the caller refuses with `TENANT_SUSPENDED`, and a
  * policy that admits the caller makes the route reachable, so the entitlement check is skipped. A
  * suspended tenant holds no entitled feature (`Subscription.entitledAt` returns none), which would

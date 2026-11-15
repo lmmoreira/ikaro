@@ -9,12 +9,7 @@ import {
   PaginatedLoyaltyRedemptionsResponse,
   StaffCustomerLoyaltyDetailResponse,
 } from '@ikaro/types';
-import {
-  CanonicalParseUUIDPipe,
-  RequiresFeature,
-  SuspensionAccess,
-  ZodValidationPipe,
-} from '@ikaro/nestjs-http';
+import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import {
@@ -61,8 +56,6 @@ function toPaginatedResponse<TSource, TResult>(
 }
 
 @Controller()
-@RequiresFeature('LOYALTY')
-@SuspensionAccess('DEFAULT_DENY')
 export class LoyaltyController {
   constructor(private readonly backendHttp: BackendHttpService) {}
 
@@ -81,14 +74,12 @@ export class LoyaltyController {
   // ── Customer routes ────────────────────────────────────────────────────────
 
   @Get('loyalty/balance')
-  @SuspensionAccess('CUSTOMER_HISTORY')
   @Roles('CUSTOMER')
   async getBalance(): Promise<CustomerLoyaltyBalanceResponse> {
     return this.getEnrichedBalance('/loyalty/balance');
   }
 
   @Get('loyalty/entries')
-  @SuspensionAccess('CUSTOMER_HISTORY')
   @Roles('CUSTOMER')
   async getEntries(
     @Query(new ZodValidationPipe(PaginationSchema)) query: PaginationQuery,
@@ -101,7 +92,6 @@ export class LoyaltyController {
   }
 
   @Get('loyalty/redemptions')
-  @SuspensionAccess('CUSTOMER_HISTORY')
   @Roles('CUSTOMER')
   async getRedemptions(
     @Query(new ZodValidationPipe(PaginationSchema)) query: PaginationQuery,

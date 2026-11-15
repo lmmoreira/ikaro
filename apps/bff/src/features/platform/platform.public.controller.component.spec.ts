@@ -146,11 +146,7 @@ describe('PlatformPublicController (component)', () => {
       expect(res.status).toBe(200);
       expect(res.body).toEqual({ tenant: tenantInfo, ...hotsiteResponse });
       expect(res.headers['cache-control']).toBe('public, max-age=300');
-      expect(backendHttpService.get).toHaveBeenCalledWith(
-        '/internal/tenants/by-slug/lavacar-bh',
-        undefined,
-        expect.anything(),
-      );
+      expect(backendHttpService.get).toHaveBeenCalledWith('/internal/tenants/by-slug/lavacar-bh');
       expect(backendHttpService.getForPublic).toHaveBeenCalledWith('/hotsite', tenantInfo.id);
     });
 

@@ -10,12 +10,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import {
-  CanonicalParseUUIDPipe,
-  ZodValidationPipe,
-  RequiresFeature,
-  SuspensionAccess,
-} from '@ikaro/nestjs-http';
+import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { ResourceStaffOptionsResponse } from '@ikaro/types';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
@@ -38,8 +33,6 @@ import {
 export * from './resource.schemas';
 
 @Controller('resources')
-@RequiresFeature('BOOKING')
-@SuspensionAccess('DEFAULT_DENY')
 @Roles('MANAGER')
 export class ResourceController {
   constructor(private readonly backendHttp: BackendHttpService) {}

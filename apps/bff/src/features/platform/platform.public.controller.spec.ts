@@ -2,7 +2,6 @@ import { ConfigService } from '@nestjs/config';
 import * as jwt from 'jsonwebtoken';
 import { makeBackendHttp } from '../../test/backend-http.mock';
 import { ClientIpRequest } from '../../shared/http/client-ip';
-import { tenantBySlugRead } from '../../shared/http/public-tenant';
 import {
   CHATBOT_MESSAGE_TIMEOUT_MS,
   LEAD_FORM_SUBMISSION_TIMEOUT_MS,
@@ -121,9 +120,7 @@ const unpublishedHotsiteResponse: HotsiteResponse & {
 };
 
 describe('PlatformPublicController', () => {
-  afterEach(() => {
-    jest.resetAllMocks();
-  });
+  afterEach(() => jest.resetAllMocks());
 
   describe('getManifest()', () => {
     it('resolves slug to tenant then composes the hotsite manifest', async () => {
@@ -135,11 +132,24 @@ describe('PlatformPublicController', () => {
 
       const result = await controller.getManifest('lavacar-bh');
 
-      // The same by-slug read (and cache entry) the access guard and `withPublicTenant` use.
-      const { path, cache } = tenantBySlugRead('lavacar-bh');
-      expect(backendHttp.get).toHaveBeenCalledWith(path, undefined, { cache });
+      expect(backendHttp.get).toHaveBeenCalledWith('/internal/tenants/by-slug/lavacar-bh');
       expect(backendHttp.getForPublic).toHaveBeenCalledWith('/hotsite', 'tenant-uuid');
       expect(result).toEqual({ tenant: tenantInfo, ...hotsiteResponse });
+    });
+
+    it('encodes the slug as one path segment, so an encoded slash cannot reach the by-id route', async () => {
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockResolvedValue(tenantInfo),
+        getForPublic: jest.fn().mockResolvedValue(hotsiteResponse),
+      });
+      const controller = new PlatformPublicController(backendHttp, makeConfigService());
+
+      // Express hands the handler the decoded parameter: `..%2f<uuid>` arrives as `../<uuid>`.
+      await controller.getManifest('../10000000-0000-4000-8000-000000000001');
+
+      expect(backendHttp.get).toHaveBeenCalledWith(
+        '/internal/tenants/by-slug/..%2F10000000-0000-4000-8000-000000000001',
+      );
     });
 
     it('propagates 404 when the slug does not resolve to a tenant', async () => {
@@ -188,9 +198,7 @@ describe('PlatformPublicController', () => {
 
       const result = await controller.getChatbotStatus('lavacar-bh');
 
-      // The same by-slug read (and cache entry) the access guard and `withPublicTenant` use.
-      const { path, cache } = tenantBySlugRead('lavacar-bh');
-      expect(backendHttp.get).toHaveBeenCalledWith(path, undefined, { cache });
+      expect(backendHttp.get).toHaveBeenCalledWith('/internal/tenants/by-slug/lavacar-bh');
       expect(backendHttp.getForPublic).toHaveBeenCalledWith(
         '/platform/chatbot/status',
         'tenant-uuid',
@@ -376,9 +384,7 @@ describe('PlatformPublicController', () => {
 
       const result = await controller.getLeadFormConfig('lavacar-bh', 'lavacar-bh');
 
-      // The same by-slug read (and cache entry) the access guard and `withPublicTenant` use.
-      const { path, cache } = tenantBySlugRead('lavacar-bh');
-      expect(backendHttp.get).toHaveBeenCalledWith(path, undefined, { cache });
+      expect(backendHttp.get).toHaveBeenCalledWith('/internal/tenants/by-slug/lavacar-bh');
       expect(backendHttp.getForPublic).toHaveBeenCalledWith(
         '/platform/lead-form/config',
         'tenant-uuid',

@@ -30,12 +30,7 @@ import {
   StaffBookingDetailResponse,
   StaffBookingListResponse,
 } from '@ikaro/types';
-import {
-  CanonicalParseUUIDPipe,
-  RequiresFeature,
-  SuspensionAccess,
-  ZodValidationPipe,
-} from '@ikaro/nestjs-http';
+import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import {
   toBookingListResponse,
   toCustomerBookingDetail,
@@ -77,15 +72,12 @@ import {
 export * from './bookings.schemas';
 
 @Controller('bookings')
-@RequiresFeature('BOOKING')
-@SuspensionAccess('DEFAULT_DENY')
 export class BookingsController {
   private readonly logger = new AppLogger(BookingsController.name);
 
   constructor(private readonly backendHttp: BackendHttpService) {}
 
   @Get()
-  @SuspensionAccess('CUSTOMER_HISTORY')
   @Roles('CUSTOMER', 'MANAGER', 'STAFF')
   async list(
     @Query(new ZodValidationPipe(StaffListBookingsQuerySchema)) query: StaffListBookingsQuery,
@@ -100,7 +92,6 @@ export class BookingsController {
 
   // Opening a booking's detail is blocked while suspended (UC-121): explicit, not an omission.
   @Get(':id')
-  @SuspensionAccess('DEFAULT_DENY')
   @Roles('CUSTOMER', 'MANAGER', 'STAFF')
   async getOne(
     @Param('id', CanonicalParseUUIDPipe) id: string,
@@ -127,7 +118,6 @@ export class BookingsController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @Public()
-  @SuspensionAccess('PUBLIC_NONE')
   async create(
     @Headers('x-tenant-slug') tenantSlug: string | undefined,
     @Body(new ZodValidationPipe(RequestBookingBodySchema)) body: RequestBookingBody,
@@ -158,7 +148,6 @@ export class BookingsController {
   }
 
   @Patch(':id/cancel')
-  @SuspensionAccess('CUSTOMER_HISTORY')
   @HttpCode(HttpStatus.OK)
   @Roles('CUSTOMER', 'MANAGER', 'STAFF')
   cancel(
