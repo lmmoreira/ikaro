@@ -1,6 +1,5 @@
 import {
   ILoyaltyEntryRepository,
-  NextExpiry,
   PaginatedLoyaltyEntries,
 } from '../../../contexts/loyalty/application/ports/loyalty-entry-repository.port';
 import { LoyaltyEntry } from '../../../contexts/loyalty/domain/loyalty-entry.aggregate';
@@ -8,6 +7,8 @@ import { LoyaltyEntry } from '../../../contexts/loyalty/domain/loyalty-entry.agg
 export class InMemoryLoyaltyEntryRepository implements ILoyaltyEntryRepository {
   readonly entries: LoyaltyEntry[] = [];
   private readonly deletedIds = new Set<string>();
+  /** Entries the expiry sweep already processed (the `balance_expiry_log` rows). */
+  readonly processedIds = new Set<string>();
 
   async save(entry: LoyaltyEntry): Promise<void> {
     this.entries.push(entry);
@@ -26,8 +27,8 @@ export class InMemoryLoyaltyEntryRepository implements ILoyaltyEntryRepository {
     return this.entries.filter((e) => e.expiresAt < date);
   }
 
-  async findExpiringSoon(from: Date, to: Date): Promise<LoyaltyEntry[]> {
-    return this.entries.filter((e) => e.expiresAt >= from && e.expiresAt <= to);
+  async findUnprocessedExpiringBefore(to: Date): Promise<LoyaltyEntry[]> {
+    return this.entries.filter((e) => e.expiresAt < to && !this.processedIds.has(e.id));
   }
 
   async findByCustomerPaginated(
@@ -43,24 +44,15 @@ export class InMemoryLoyaltyEntryRepository implements ILoyaltyEntryRepository {
     return { items: filtered.slice(start, start + limit), total: filtered.length };
   }
 
-  async findNextExpiry(tenantId: string, customerId: string): Promise<NextExpiry | null> {
-    const now = new Date();
-    const active = this.entries
-      .filter((e) => e.tenantId === tenantId && e.customerId === customerId && e.expiresAt > now)
-      .sort((a, b) => a.expiresAt.getTime() - b.expiresAt.getTime());
-
-    if (!active.length) return null;
-
-    const minExpiry = active[0].expiresAt;
-    const points = active
-      .filter((e) => e.expiresAt.getTime() === minExpiry.getTime())
-      .reduce((sum, e) => sum + e.points, 0);
-
-    return { expiryDate: minExpiry, points };
+  async findUnprocessedByCustomer(tenantId: string, customerId: string): Promise<LoyaltyEntry[]> {
+    return this.entries.filter(
+      (e) => e.tenantId === tenantId && e.customerId === customerId && !this.processedIds.has(e.id),
+    );
   }
 
   clear(): void {
     this.entries.length = 0;
     this.deletedIds.clear();
+    this.processedIds.clear();
   }
 }

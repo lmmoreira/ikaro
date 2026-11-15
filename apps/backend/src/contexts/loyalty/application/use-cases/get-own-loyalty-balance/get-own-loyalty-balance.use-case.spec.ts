@@ -1,3 +1,5 @@
+import { EntryEffectiveExpiryService } from '../../services/entry-effective-expiry.service';
+import { InMemoryTenantExpiryPauseRepository } from '../../../../../test/repositories/loyalty/in-memory-tenant-expiry-pause.repository';
 import { InMemoryLoyaltyBalanceRepository } from '../../../../../test/repositories/loyalty/in-memory-loyalty-balance.repository';
 import { InMemoryLoyaltyEntryRepository } from '../../../../../test/repositories/loyalty/in-memory-loyalty-entry.repository';
 import { InMemoryLoyaltyCustomerPort } from '../../../../../test/infrastructure/in-memory-loyalty-customer.port';
@@ -22,7 +24,11 @@ describe('GetOwnLoyaltyBalanceUseCase', () => {
     entryRepo = new InMemoryLoyaltyEntryRepository();
     loyaltyCustomer = new InMemoryLoyaltyCustomerPort();
     useCase = new GetOwnLoyaltyBalanceUseCase(
-      new LoyaltyBalanceReaderService(balanceRepo, entryRepo),
+      new LoyaltyBalanceReaderService(
+        balanceRepo,
+        entryRepo,
+        new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+      ),
       loyaltyCustomer,
     );
   });

@@ -28,6 +28,7 @@ import { AvailabilityAlertNotificationAttemptEntity } from '../contexts/booking/
 import { BookingStatusTransitionEntity } from '../contexts/booking/infrastructure/entities/booking-status-transition.entity';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
 import { BalanceExpiryLogEntity } from '../contexts/loyalty/infrastructure/entities/balance-expiry-log.entity';
+import { TenantExpiryPauseEntity } from '../contexts/loyalty/infrastructure/entities/tenant-expiry-pause.entity';
 import { LoyaltyBalanceEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-balance.entity';
 import { LoyaltyEntryEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-entry.entity';
 import { LoyaltyRedemptionEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-redemption.entity';
@@ -100,6 +101,7 @@ export async function createTestDataSource(): Promise<DataSource> {
       LoyaltyBalanceEntity,
       LoyaltyRedemptionEntity,
       BalanceExpiryLogEntity,
+      TenantExpiryPauseEntity,
       InboxRecordEntity,
       OutboxEventEntity,
       ChatbotSessionEntity,

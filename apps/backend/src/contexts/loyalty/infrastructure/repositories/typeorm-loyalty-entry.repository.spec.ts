@@ -15,6 +15,16 @@ describe('TypeOrmLoyaltyEntryRepository', () => {
   let repo: TypeOrmLoyaltyEntryRepository;
   let ormRepo: jest.Mocked<Repository<LoyaltyEntryEntity>>;
 
+  function mockQueryBuilder(entities: LoyaltyEntryEntity[]) {
+    const qb = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue(entities),
+    };
+    (ormRepo.createQueryBuilder as jest.Mock).mockReturnValue(qb);
+    return qb;
+  }
+
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -27,6 +37,7 @@ describe('TypeOrmLoyaltyEntryRepository', () => {
             find: jest.fn(),
             findAndCount: jest.fn(),
             query: jest.fn(),
+            createQueryBuilder: jest.fn(),
           },
         },
       ],
@@ -90,25 +101,27 @@ describe('TypeOrmLoyaltyEntryRepository', () => {
     });
   });
 
-  describe('findNextExpiry()', () => {
-    it('returns null when no active entries', async () => {
-      (ormRepo.query as jest.Mock).mockResolvedValue([]);
-
-      const result = await repo.findNextExpiry(TENANT_ID, 'customer-id');
-
-      expect(result).toBeNull();
-    });
-
-    it('returns earliest expiry date and sum of points', async () => {
-      const futureDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-      (ormRepo.query as jest.Mock).mockResolvedValue([
-        { expiryDate: futureDate.toISOString(), points: '10' },
+  describe('findUnprocessedByCustomer()', () => {
+    it('returns the customer entries the expiry sweep has not processed, scoped by tenant', async () => {
+      const qb = mockQueryBuilder([
+        new LoyaltyEntryEntityBuilder().withTenantId(TENANT_ID).build(),
       ]);
 
-      const result = await repo.findNextExpiry(TENANT_ID, 'customer-id');
+      const result = await repo.findUnprocessedByCustomer(TENANT_ID, 'customer-id');
 
-      expect(result).not.toBeNull();
-      expect(result!.points).toBe(10);
+      expect(result).toHaveLength(1);
+      expect(result[0]).toBeInstanceOf(LoyaltyEntry);
+      expect(qb.where).toHaveBeenCalledWith(
+        'e.tenantId = :tenantId AND e.customerId = :customerId',
+        { tenantId: TENANT_ID, customerId: 'customer-id' },
+      );
+      expect(qb.andWhere).toHaveBeenCalledWith(expect.stringContaining('balance_expiry_log'));
+    });
+
+    it('returns an empty array when the customer has no entries', async () => {
+      mockQueryBuilder([]);
+
+      expect(await repo.findUnprocessedByCustomer(TENANT_ID, 'customer-id')).toEqual([]);
     });
   });
 
@@ -134,29 +147,27 @@ describe('TypeOrmLoyaltyEntryRepository', () => {
     });
   });
 
-  describe('findExpiringSoon()', () => {
-    it('returns empty array when no entries in window', async () => {
-      ormRepo.find.mockResolvedValue([]);
+  describe('findUnprocessedExpiringBefore()', () => {
+    it('returns an empty array when nothing expires before the bound', async () => {
+      mockQueryBuilder([]);
 
-      const from = new Date();
-      const to = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-      const result = await repo.findExpiringSoon(from, to);
-
-      expect(result).toEqual([]);
+      expect(await repo.findUnprocessedExpiringBefore(new Date())).toEqual([]);
     });
 
-    it('maps entries within the window to LoyaltyEntry domain objects', async () => {
-      const soonDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
-      ormRepo.find.mockResolvedValue([
-        new LoyaltyEntryEntityBuilder().withExpiresAt(soonDate).build(),
+    it('maps unprocessed entries to LoyaltyEntry domain objects, excluding the processed ones', async () => {
+      const qb = mockQueryBuilder([
+        new LoyaltyEntryEntityBuilder()
+          .withExpiresAt(new Date(Date.now() + 3 * 24 * 60 * 60 * 1000))
+          .build(),
       ]);
-
-      const from = new Date();
       const to = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-      const result = await repo.findExpiringSoon(from, to);
+
+      const result = await repo.findUnprocessedExpiringBefore(to);
 
       expect(result).toHaveLength(1);
       expect(result[0]).toBeInstanceOf(LoyaltyEntry);
+      expect(qb.where).toHaveBeenCalledWith('e.expiresAt < :to', { to });
+      expect(qb.andWhere).toHaveBeenCalledWith(expect.stringContaining('balance_expiry_log'));
     });
   });
 });

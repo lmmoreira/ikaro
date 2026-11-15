@@ -1,3 +1,5 @@
+import { EntryEffectiveExpiryService } from '../services/entry-effective-expiry.service';
+import { InMemoryTenantExpiryPauseRepository } from '../../../../test/repositories/loyalty/in-memory-tenant-expiry-pause.repository';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryLoyaltyEntryRepository } from '../../../../test/repositories/loyalty/in-memory-loyalty-entry.repository';
@@ -19,9 +21,11 @@ describe('NotifyExpiringPointsJob', () => {
   let entryRepo: InMemoryLoyaltyEntryRepository;
   let outboxPublisher: InMemoryEventBus;
   let settingsPort: InMemoryLoyaltyPlatformPort;
+  let pauseRepo: InMemoryTenantExpiryPauseRepository;
 
   beforeEach(() => {
     entryRepo = new InMemoryLoyaltyEntryRepository();
+    pauseRepo = new InMemoryTenantExpiryPauseRepository();
     outboxPublisher = new InMemoryEventBus();
     settingsPort = new InMemoryLoyaltyPlatformPort();
     job = new NotifyExpiringPointsJob(
@@ -29,6 +33,7 @@ describe('NotifyExpiringPointsJob', () => {
       outboxPublisher,
       settingsPort,
       new InMemoryTransactionManager(),
+      new EntryEffectiveExpiryService(pauseRepo),
     );
   });
 
@@ -242,5 +247,73 @@ describe('NotifyExpiringPointsJob', () => {
       (e) => e.eventName === 'PointsExpiringSoon',
     ) as PointsExpiringSoon[];
     expect(events[0].data.customerId).toBe(CUSTOMER_2);
+  });
+
+  describe('with suspension pauses (M25-S27)', () => {
+    const DAY = 24 * 60 * 60 * 1000;
+    const TENANT = '00000000-0000-7000-8000-0000000000aa';
+    const CUSTOMER = '00000000-0000-7000-8000-0000000000cc';
+
+    function entryExpiring(daysFromNow: number, earnedDaysAgo = 60) {
+      return new LoyaltyEntryBuilder()
+        .withTenantId(TENANT)
+        .withCustomerId(CUSTOMER)
+        .withPoints(10)
+        .withEarnedAt(new Date(Date.now() - earnedDaysAgo * DAY))
+        .withExpiresAt(new Date(Date.now() + daysFromNow * DAY))
+        .build();
+    }
+
+    it('warns for an entry whose effective expiry, not its stored one, falls in the window', async () => {
+      // Stored expiry was 5 days ago; a 10-day pause that ended 1 day ago moves it to 5 days from now.
+      await entryRepo.save(entryExpiring(-5));
+      await pauseRepo.recordClosed(
+        TENANT,
+        new Date(Date.now() - 11 * DAY),
+        new Date(Date.now() - 1 * DAY),
+      );
+
+      const result = await job.run();
+
+      expect(result.customersNotified).toBe(1);
+    });
+
+    it('does not warn for an entry the pause moved out of the window', async () => {
+      // Stored expiry in 3 days, but a 20-day pause around now pushes it far past the 7-day window.
+      await entryRepo.save(entryExpiring(3, 20));
+      await pauseRepo.recordClosed(
+        TENANT,
+        new Date(Date.now() - 1 * DAY),
+        new Date(Date.now() + 19 * DAY),
+      );
+
+      const result = await job.run();
+
+      expect(result.customersNotified).toBe(0);
+    });
+
+    it('does not warn while an open pause holds the entry', async () => {
+      await entryRepo.save(entryExpiring(3, 20));
+      await pauseRepo.recordOpen(TENANT, new Date(Date.now() - 1 * DAY));
+
+      const result = await job.run();
+
+      expect(result.customersNotified).toBe(0);
+    });
+
+    it('does not warn for an entry the expiry sweep already processed', async () => {
+      const entry = entryExpiring(-5);
+      await entryRepo.save(entry);
+      entryRepo.processedIds.add(entry.id);
+      await pauseRepo.recordClosed(
+        TENANT,
+        new Date(Date.now() - 11 * DAY),
+        new Date(Date.now() - 1 * DAY),
+      );
+
+      const result = await job.run();
+
+      expect(result.customersNotified).toBe(0);
+    });
   });
 });

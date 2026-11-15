@@ -73,6 +73,7 @@ import { CreateBillingSchema1748500000039 } from '../contexts/billing/infrastruc
 import { SeedFeaturePrices1748500000040 } from '../contexts/billing/infrastructure/migrations/1748500000040-SeedFeaturePrices';
 import { BackfillExemptSubscriptions1748500000041 } from '../contexts/billing/infrastructure/migrations/1748500000041-BackfillExemptSubscriptions';
 import { AllowEinTaxIdType1748500000042 } from '../contexts/billing/infrastructure/migrations/1748500000042-AllowEinTaxIdType';
+import { CreateLoyaltyTenantExpiryPauses1748500000044 } from '../contexts/loyalty/infrastructure/migrations/1748500000044-CreateLoyaltyTenantExpiryPauses';
 import { AddExemptToSignupRegistrations1748500000043 } from '../contexts/billing/infrastructure/migrations/1748500000043-AddExemptToSignupRegistrations';
 import { FeaturePriceVersionEntity } from '../contexts/billing/infrastructure/entities/feature-price-version.entity';
 import { FeaturePriceEntity } from '../contexts/billing/infrastructure/entities/feature-price.entity';
@@ -85,6 +86,7 @@ import { CustomerEntity } from '../contexts/customer/infrastructure/entities/cus
 import { CreateCustomerCustomers1716600000001 } from '../contexts/customer/infrastructure/migrations/1716600000001-CreateCustomerCustomers';
 import { AddCustomerTenantOAuthUniqueConstraint1748000000002 } from '../contexts/customer/infrastructure/migrations/1748000000002-AddCustomerTenantOAuthUniqueConstraint';
 import { BalanceExpiryLogEntity } from '../contexts/loyalty/infrastructure/entities/balance-expiry-log.entity';
+import { TenantExpiryPauseEntity } from '../contexts/loyalty/infrastructure/entities/tenant-expiry-pause.entity';
 import { LoyaltyBalanceEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-balance.entity';
 import { LoyaltyEntryEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-entry.entity';
 import { LoyaltyRedemptionEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-redemption.entity';
@@ -173,6 +175,7 @@ export default async function globalSetup(): Promise<void> {
       LoyaltyBalanceEntity,
       LoyaltyRedemptionEntity,
       BalanceExpiryLogEntity,
+      TenantExpiryPauseEntity,
       InboxRecordEntity,
       OutboxEventEntity,
       ChatbotSessionEntity,
@@ -281,6 +284,7 @@ export default async function globalSetup(): Promise<void> {
       BackfillExemptSubscriptions1748500000041,
       AllowEinTaxIdType1748500000042,
       AddExemptToSignupRegistrations1748500000043,
+      CreateLoyaltyTenantExpiryPauses1748500000044,
     ],
     synchronize: false,
     migrationsRun: false,

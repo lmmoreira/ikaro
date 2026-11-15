@@ -1,3 +1,5 @@
+import { EntryEffectiveExpiryService } from '../../services/entry-effective-expiry.service';
+import { InMemoryTenantExpiryPauseRepository } from '../../../../../test/repositories/loyalty/in-memory-tenant-expiry-pause.repository';
 import { InMemoryLoyaltyBalanceRepository } from '../../../../../test/repositories/loyalty/in-memory-loyalty-balance.repository';
 import { InMemoryLoyaltyEntryRepository } from '../../../../../test/repositories/loyalty/in-memory-loyalty-entry.repository';
 import {
@@ -18,7 +20,13 @@ describe('GetLoyaltyBalanceUseCase', () => {
   beforeEach(() => {
     balanceRepo = new InMemoryLoyaltyBalanceRepository();
     entryRepo = new InMemoryLoyaltyEntryRepository();
-    useCase = new GetLoyaltyBalanceUseCase(new LoyaltyBalanceReaderService(balanceRepo, entryRepo));
+    useCase = new GetLoyaltyBalanceUseCase(
+      new LoyaltyBalanceReaderService(
+        balanceRepo,
+        entryRepo,
+        new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+      ),
+    );
   });
 
   it('returns zero balance and no expiry when customer has no data', async () => {

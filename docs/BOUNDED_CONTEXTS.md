@@ -229,7 +229,7 @@ Notification Context subscribes:
 - Listen to `BookingCompleted` from Booking Context. When the booking has a `customerId`, insert a `LoyaltyEntry` and increment `LoyaltyBalance` in one transaction.
 - **M24 Cluster 4:** also listens to `ClassSessionBookingCompleted` — same insert-and-increment transaction, sourced from `class_session_booking_id` instead of `booking_line_id`. Not consumed for a guest attendee (no `customerId`) or a `NO_SHOW` outcome.
 - Allow admin to record a redemption via `POST /v1/loyalty/redeem` — insert `LoyaltyRedemption` and decrement `LoyaltyBalance` atomically.
-- Run a **daily expiry cron** at 02:00 UTC: compute points from `loyalty_entries` that expired that day and decrement `loyalty_balances.current_points` accordingly. Idempotent via `balance_expiry_log`. *(Planned with Billing: effective expiry accounts for the tenant's recorded suspension pauses, `loyalty.tenant_expiry_pauses`, written by handlers on `SubscriptionSuspended` / `SubscriptionReactivated`; `LoyaltyEntry` stays append-only — `docs/DOMAIN_MODEL.md` § Expiration window.)*
+- Run a **daily expiry cron** at 02:00 UTC: compute points from `loyalty_entries` that expired that day and decrement `loyalty_balances.current_points` accordingly. Idempotent via `balance_expiry_log`. *(Effective expiry accounts for the tenant's recorded suspension pauses, `loyalty.tenant_expiry_pauses`, written by handlers on `SubscriptionSuspended` / `SubscriptionReactivated`; `LoyaltyEntry` stays append-only — `docs/DOMAIN_MODEL.md` § Expiration window.)*
 - Run a **weekly cron** (Mondays 06:00 UTC) to emit `PointsExpiringSoon` warnings for entries expiring within the next 7 days.
 
 **Database:** `loyalty` schema
@@ -246,7 +246,7 @@ Notification Context subscribes:
 
 **Consumed Events:**
 - `TenantPurgeRequested` *(slice G, deferred; UC-132, UC-141)* → this context is a purge participant: it deletes its own tenant data idempotently and then publishes `TenantPurgeContextCompleted` (see Communication Patterns § 1)
-- *(Planned with Billing, M25-S27)* `SubscriptionSuspended` / `SubscriptionReactivated` (from Billing) → open / close a `loyalty.tenant_expiry_pauses` row so points do not expire while a tenant is suspended (consumers `pause-loyalty-expiry-on-suspension` / `resume-loyalty-expiry-after-suspension`).
+- `SubscriptionSuspended` / `SubscriptionReactivated` (from Billing) → open / close a `loyalty.tenant_expiry_pauses` row so points do not expire while a tenant is suspended (consumers `pause-loyalty-expiry-on-suspension` / `resume-loyalty-expiry-after-suspension`).
 - `BookingCompleted` (from Booking) — **the only Booking event Loyalty subscribes to** (today, its only event). For each line in `data.lines[]`, insert one `LoyaltyEntry` when `customerId != null`.
 
 **Tech Stack:**

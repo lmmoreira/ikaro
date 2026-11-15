@@ -1095,6 +1095,7 @@ One immutable row per `BookingLine` completed for an authenticated customer. App
 | **INDEX** | (tenant_id) — `IDX_loyalty_entries_tenant_id` | Tenant base filter |
 | **INDEX** | (tenant_id, customer_id) — `IDX_loyalty_entries_tenant_customer` | A customer's entries |
 | **INDEX** | (tenant_id, customer_id, expires_at) — `IDX_loyalty_entries_tenant_customer_expires` | Active balance query |
+| **INDEX** | (expires_at) — `IDX_loyalty_entries_expires_at` | The cross-tenant expiry sweep and expiry warning filter by `expires_at` with no tenant (M25-S27); the composite above leads with `tenant_id` and cannot serve them |
 
 **Rules:**
 - INSERT only. No UPDATE, no DELETE.
@@ -1170,7 +1171,7 @@ ON CONFLICT DO NOTHING;
 
 Partial-failure safe: if the cron crashes after processing 5 of 10 entries, the next run only reprocesses the remaining 5.
 
-### `loyalty.tenant_expiry_pauses` *(planned, M25-S27 — Billing enforcement)*
+### `loyalty.tenant_expiry_pauses` *(M25-S27 — Billing enforcement)*
 One row per span during which a tenant was `SUSPENDED`; the expiry code reads a tenant's spans and computes each entry's effective expiry in non-suspended time (`docs/DOMAIN_MODEL.md` § Expiration window; `loyalty_entries.expires_at` is never rewritten — the ledger stays append-only). Written by two Loyalty handlers (`pause-loyalty-expiry-on-suspension` inserts it open, `resume-loyalty-expiry-after-suspension` upserts it closed), both keyed by the span's start, so delivery order does not matter and a redelivery is a no-op.
 
 | Column | Type | Constraints |

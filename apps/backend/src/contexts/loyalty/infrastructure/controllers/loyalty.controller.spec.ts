@@ -1,3 +1,5 @@
+import { EntryEffectiveExpiryService } from '../../application/services/entry-effective-expiry.service';
+import { InMemoryTenantExpiryPauseRepository } from '../../../../test/repositories/loyalty/in-memory-tenant-expiry-pause.repository';
 import { InMemoryLoyaltyBalanceRepository } from '../../../../test/repositories/loyalty/in-memory-loyalty-balance.repository';
 import { InMemoryLoyaltyEntryRepository } from '../../../../test/repositories/loyalty/in-memory-loyalty-entry.repository';
 import { InMemoryLoyaltyRedemptionRepository } from '../../../../test/repositories/loyalty/in-memory-loyalty-redemption.repository';
@@ -50,14 +52,28 @@ describe('LoyaltyController', () => {
         .withActorRole('CUSTOMER')
         .build();
       controller = new LoyaltyController(
-        new GetLoyaltyBalanceUseCase(new LoyaltyBalanceReaderService(balanceRepo, entryRepo)),
+        new GetLoyaltyBalanceUseCase(
+          new LoyaltyBalanceReaderService(
+            balanceRepo,
+            entryRepo,
+            new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+          ),
+        ),
         new GetLoyaltyBalancesUseCase(balanceRepo),
         new GetOwnLoyaltyBalanceUseCase(
-          new LoyaltyBalanceReaderService(balanceRepo, entryRepo),
+          new LoyaltyBalanceReaderService(
+            balanceRepo,
+            entryRepo,
+            new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+          ),
           loyaltyCustomer,
         ),
         new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
-        new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
+        new GetLoyaltyEntriesUseCase(
+          entryRepo,
+          serviceCatalog,
+          new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+        ),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
@@ -99,14 +115,28 @@ describe('LoyaltyController', () => {
         )
         .build();
       const customerController = new LoyaltyController(
-        new GetLoyaltyBalanceUseCase(new LoyaltyBalanceReaderService(balanceRepo, entryRepo)),
+        new GetLoyaltyBalanceUseCase(
+          new LoyaltyBalanceReaderService(
+            balanceRepo,
+            entryRepo,
+            new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+          ),
+        ),
         new GetLoyaltyBalancesUseCase(balanceRepo),
         new GetOwnLoyaltyBalanceUseCase(
-          new LoyaltyBalanceReaderService(balanceRepo, entryRepo),
+          new LoyaltyBalanceReaderService(
+            balanceRepo,
+            entryRepo,
+            new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+          ),
           loyaltyCustomer,
         ),
         new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
-        new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
+        new GetLoyaltyEntriesUseCase(
+          entryRepo,
+          serviceCatalog,
+          new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+        ),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
@@ -184,14 +214,28 @@ describe('LoyaltyController', () => {
         .withActorRole('CUSTOMER')
         .build();
       controller = new LoyaltyController(
-        new GetLoyaltyBalanceUseCase(new LoyaltyBalanceReaderService(balanceRepo, entryRepo)),
+        new GetLoyaltyBalanceUseCase(
+          new LoyaltyBalanceReaderService(
+            balanceRepo,
+            entryRepo,
+            new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+          ),
+        ),
         new GetLoyaltyBalancesUseCase(balanceRepo),
         new GetOwnLoyaltyBalanceUseCase(
-          new LoyaltyBalanceReaderService(balanceRepo, entryRepo),
+          new LoyaltyBalanceReaderService(
+            balanceRepo,
+            entryRepo,
+            new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+          ),
           loyaltyCustomer,
         ),
         new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
-        new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
+        new GetLoyaltyEntriesUseCase(
+          entryRepo,
+          serviceCatalog,
+          new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+        ),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
@@ -260,14 +304,28 @@ describe('LoyaltyController', () => {
         .withActorRole('CUSTOMER')
         .build();
       controller = new LoyaltyController(
-        new GetLoyaltyBalanceUseCase(new LoyaltyBalanceReaderService(balanceRepo, entryRepo)),
+        new GetLoyaltyBalanceUseCase(
+          new LoyaltyBalanceReaderService(
+            balanceRepo,
+            entryRepo,
+            new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+          ),
+        ),
         new GetLoyaltyBalancesUseCase(balanceRepo),
         new GetOwnLoyaltyBalanceUseCase(
-          new LoyaltyBalanceReaderService(balanceRepo, entryRepo),
+          new LoyaltyBalanceReaderService(
+            balanceRepo,
+            entryRepo,
+            new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+          ),
           loyaltyCustomer,
         ),
         new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
-        new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
+        new GetLoyaltyEntriesUseCase(
+          entryRepo,
+          serviceCatalog,
+          new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+        ),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
@@ -310,14 +368,28 @@ describe('LoyaltyController', () => {
         .withActorRole('CUSTOMER')
         .build();
       controller = new LoyaltyController(
-        new GetLoyaltyBalanceUseCase(new LoyaltyBalanceReaderService(balanceRepo, entryRepo)),
+        new GetLoyaltyBalanceUseCase(
+          new LoyaltyBalanceReaderService(
+            balanceRepo,
+            entryRepo,
+            new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+          ),
+        ),
         new GetLoyaltyBalancesUseCase(balanceRepo),
         new GetOwnLoyaltyBalanceUseCase(
-          new LoyaltyBalanceReaderService(balanceRepo, entryRepo),
+          new LoyaltyBalanceReaderService(
+            balanceRepo,
+            entryRepo,
+            new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+          ),
           loyaltyCustomer,
         ),
         new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
-        new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
+        new GetLoyaltyEntriesUseCase(
+          entryRepo,
+          serviceCatalog,
+          new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+        ),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
@@ -358,14 +430,28 @@ describe('LoyaltyController', () => {
         .withActorRole('MANAGER')
         .build();
       controller = new LoyaltyController(
-        new GetLoyaltyBalanceUseCase(new LoyaltyBalanceReaderService(balanceRepo, entryRepo)),
+        new GetLoyaltyBalanceUseCase(
+          new LoyaltyBalanceReaderService(
+            balanceRepo,
+            entryRepo,
+            new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+          ),
+        ),
         new GetLoyaltyBalancesUseCase(balanceRepo),
         new GetOwnLoyaltyBalanceUseCase(
-          new LoyaltyBalanceReaderService(balanceRepo, entryRepo),
+          new LoyaltyBalanceReaderService(
+            balanceRepo,
+            entryRepo,
+            new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+          ),
           loyaltyCustomer,
         ),
         new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
-        new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
+        new GetLoyaltyEntriesUseCase(
+          entryRepo,
+          serviceCatalog,
+          new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+        ),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
@@ -415,14 +501,28 @@ describe('LoyaltyController', () => {
         )
         .build();
       const managerController = new LoyaltyController(
-        new GetLoyaltyBalanceUseCase(new LoyaltyBalanceReaderService(balanceRepo, entryRepo)),
+        new GetLoyaltyBalanceUseCase(
+          new LoyaltyBalanceReaderService(
+            balanceRepo,
+            entryRepo,
+            new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+          ),
+        ),
         new GetLoyaltyBalancesUseCase(balanceRepo),
         new GetOwnLoyaltyBalanceUseCase(
-          new LoyaltyBalanceReaderService(balanceRepo, entryRepo),
+          new LoyaltyBalanceReaderService(
+            balanceRepo,
+            entryRepo,
+            new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+          ),
           loyaltyCustomer,
         ),
         new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
-        new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
+        new GetLoyaltyEntriesUseCase(
+          entryRepo,
+          serviceCatalog,
+          new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+        ),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
@@ -450,14 +550,28 @@ describe('LoyaltyController', () => {
         .withActorRole('MANAGER')
         .build();
       controller = new LoyaltyController(
-        new GetLoyaltyBalanceUseCase(new LoyaltyBalanceReaderService(balanceRepo, entryRepo)),
+        new GetLoyaltyBalanceUseCase(
+          new LoyaltyBalanceReaderService(
+            balanceRepo,
+            entryRepo,
+            new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+          ),
+        ),
         new GetLoyaltyBalancesUseCase(balanceRepo),
         new GetOwnLoyaltyBalanceUseCase(
-          new LoyaltyBalanceReaderService(balanceRepo, entryRepo),
+          new LoyaltyBalanceReaderService(
+            balanceRepo,
+            entryRepo,
+            new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+          ),
           loyaltyCustomer,
         ),
         new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
-        new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
+        new GetLoyaltyEntriesUseCase(
+          entryRepo,
+          serviceCatalog,
+          new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+        ),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
@@ -524,14 +638,28 @@ describe('LoyaltyController', () => {
         .withActorRole('STAFF')
         .build();
       controller = new LoyaltyController(
-        new GetLoyaltyBalanceUseCase(new LoyaltyBalanceReaderService(balanceRepo, entryRepo)),
+        new GetLoyaltyBalanceUseCase(
+          new LoyaltyBalanceReaderService(
+            balanceRepo,
+            entryRepo,
+            new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+          ),
+        ),
         new GetLoyaltyBalancesUseCase(balanceRepo),
         new GetOwnLoyaltyBalanceUseCase(
-          new LoyaltyBalanceReaderService(balanceRepo, entryRepo),
+          new LoyaltyBalanceReaderService(
+            balanceRepo,
+            entryRepo,
+            new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+          ),
           loyaltyCustomer,
         ),
         new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
-        new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
+        new GetLoyaltyEntriesUseCase(
+          entryRepo,
+          serviceCatalog,
+          new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+        ),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
@@ -568,14 +696,28 @@ describe('LoyaltyController', () => {
         .withActorRole('STAFF')
         .build();
       controller = new LoyaltyController(
-        new GetLoyaltyBalanceUseCase(new LoyaltyBalanceReaderService(balanceRepo, entryRepo)),
+        new GetLoyaltyBalanceUseCase(
+          new LoyaltyBalanceReaderService(
+            balanceRepo,
+            entryRepo,
+            new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+          ),
+        ),
         new GetLoyaltyBalancesUseCase(balanceRepo),
         new GetOwnLoyaltyBalanceUseCase(
-          new LoyaltyBalanceReaderService(balanceRepo, entryRepo),
+          new LoyaltyBalanceReaderService(
+            balanceRepo,
+            entryRepo,
+            new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+          ),
           loyaltyCustomer,
         ),
         new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
-        new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
+        new GetLoyaltyEntriesUseCase(
+          entryRepo,
+          serviceCatalog,
+          new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+        ),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,
@@ -611,14 +753,28 @@ describe('LoyaltyController', () => {
         .withActorRole('MANAGER')
         .build();
       controller = new LoyaltyController(
-        new GetLoyaltyBalanceUseCase(new LoyaltyBalanceReaderService(balanceRepo, entryRepo)),
+        new GetLoyaltyBalanceUseCase(
+          new LoyaltyBalanceReaderService(
+            balanceRepo,
+            entryRepo,
+            new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+          ),
+        ),
         new GetLoyaltyBalancesUseCase(balanceRepo),
         new GetOwnLoyaltyBalanceUseCase(
-          new LoyaltyBalanceReaderService(balanceRepo, entryRepo),
+          new LoyaltyBalanceReaderService(
+            balanceRepo,
+            entryRepo,
+            new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+          ),
           loyaltyCustomer,
         ),
         new GetOwnLoyaltyBalancesUseCase(balanceRepo, loyaltyCustomer),
-        new GetLoyaltyEntriesUseCase(entryRepo, serviceCatalog),
+        new GetLoyaltyEntriesUseCase(
+          entryRepo,
+          serviceCatalog,
+          new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
+        ),
         new GetLoyaltyRedemptionsUseCase(redemptionRepo, serviceCatalog),
         new RedeemPointsUseCase(balanceRepo, redemptionRepo, txManager),
         ctx,

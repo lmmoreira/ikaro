@@ -9,6 +9,7 @@ import { utcDateString } from '../../../../shared/utils/calendar-date';
 import { mapSequentially } from '../../../../shared/utils/sequential';
 import { PointsExpiringSoon } from '../../domain/commands/points-expiring-soon.command';
 import { LoyaltyEntry } from '../../domain/loyalty-entry.aggregate';
+import { EntryEffectiveExpiryService } from '../services/entry-effective-expiry.service';
 import { ILoyaltyPlatformPort, LOYALTY_PLATFORM_PORT } from '../ports/loyalty-platform.port';
 import {
   ILoyaltyEntryRepository,
@@ -28,6 +29,7 @@ export class NotifyExpiringPointsJob {
     @Inject(OUTBOX_PUBLISHER) private readonly outboxPublisher: IOutboxPublisher,
     @Inject(LOYALTY_PLATFORM_PORT) private readonly settingsPort: ILoyaltyPlatformPort,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
+    private readonly effectiveExpiry: EntryEffectiveExpiryService,
   ) {}
 
   async run(
@@ -38,12 +40,20 @@ export class NotifyExpiringPointsJob {
     const runDate = utcDateString(now);
     const to = new Date(now.getTime() + warningDays * 24 * 60 * 60 * 1000);
 
-    const entries = await this.entryRepo.findExpiringSoon(now, to);
+    // The stored expiry is never later than the effective one, so every entry that expires in the
+    // window is among those before `to`; the tenants' suspension pauses (M25-S27) then decide
+    // which of them really expire inside it.
+    const candidates = await this.entryRepo.findUnprocessedExpiringBefore(to);
+    const effectiveByEntry = await this.effectiveExpiry.resolve(candidates);
+    const entries = candidates.filter((entry) => {
+      const expiresAt = effectiveByEntry.get(entry.id);
+      return expiresAt != null && expiresAt >= now && expiresAt <= to;
+    });
     if (entries.length === 0) return { customersNotified: 0 };
 
     const groupsByTenant = this.groupByTenant(entries);
     const counts = await mapSequentially([...groupsByTenant], ([tenantId, tenantGroups]) =>
-      this.processTenant(tenantId, tenantGroups, correlationId, runDate),
+      this.processTenant(tenantId, tenantGroups, effectiveByEntry, correlationId, runDate),
     );
 
     return { customersNotified: counts.reduce((sum, count) => sum + count, 0) };
@@ -53,6 +63,7 @@ export class NotifyExpiringPointsJob {
   private async processTenant(
     tenantId: string,
     tenantGroups: LoyaltyEntry[][],
+    effectiveByEntry: ReadonlyMap<string, Date | null>,
     correlationId: string,
     runDate: string,
   ): Promise<number> {
@@ -64,9 +75,9 @@ export class NotifyExpiringPointsJob {
       const pointsExpiringSoon = group.reduce((sum, e) => sum + e.points, 0);
       if (pointsExpiringSoon < notificationMinPoints) continue;
 
-      const earliestExpiresAt = group
-        .map((e) => e.expiresAt)
-        .reduce((min, d) => new Date(Math.min(d.getTime(), min.getTime())), group[0].expiresAt);
+      const earliestExpiresAt = new Date(
+        Math.min(...group.map((e) => (effectiveByEntry.get(e.id) as Date).getTime())),
+      );
 
       toPublish.push(
         new PointsExpiringSoon(

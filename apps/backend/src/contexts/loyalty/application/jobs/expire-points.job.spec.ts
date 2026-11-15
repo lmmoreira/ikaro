@@ -1,3 +1,5 @@
+import { EntryEffectiveExpiryService } from '../services/entry-effective-expiry.service';
+import { InMemoryTenantExpiryPauseRepository } from '../../../../test/repositories/loyalty/in-memory-tenant-expiry-pause.repository';
 import { InMemoryBalanceExpiryLogRepository } from '../../../../test/repositories/loyalty/in-memory-balance-expiry-log.repository';
 import { InMemoryLoyaltyBalanceRepository } from '../../../../test/repositories/loyalty/in-memory-loyalty-balance.repository';
 import { InMemoryLoyaltyEntryRepository } from '../../../../test/repositories/loyalty/in-memory-loyalty-entry.repository';
@@ -19,6 +21,7 @@ describe('ExpirePointsJob', () => {
   let balanceRepo: InMemoryLoyaltyBalanceRepository;
   let expiryLogRepo: InMemoryBalanceExpiryLogRepository;
   let txManager: InMemoryTransactionManager;
+  let pauseRepo: InMemoryTenantExpiryPauseRepository;
   let job: ExpirePointsJob;
 
   beforeEach(() => {
@@ -26,7 +29,14 @@ describe('ExpirePointsJob', () => {
     balanceRepo = new InMemoryLoyaltyBalanceRepository();
     expiryLogRepo = new InMemoryBalanceExpiryLogRepository();
     txManager = new InMemoryTransactionManager();
-    job = new ExpirePointsJob(entryRepo, balanceRepo, expiryLogRepo, txManager);
+    pauseRepo = new InMemoryTenantExpiryPauseRepository();
+    job = new ExpirePointsJob(
+      entryRepo,
+      balanceRepo,
+      expiryLogRepo,
+      txManager,
+      new EntryEffectiveExpiryService(pauseRepo),
+    );
   });
 
   it('returns zero counts when no entries have expired', async () => {
@@ -260,5 +270,76 @@ describe('ExpirePointsJob', () => {
     const balB = await balanceRepo.findByCustomer(TENANT_ID, CUSTOMER_B);
     expect(balA?.currentPoints).toBe(40);
     expect(balB?.currentPoints).toBe(40);
+  });
+
+  describe('while a tenant is suspended (M25-S27)', () => {
+    const OTHER_TENANT_ID = '00000000-0000-7000-8000-0000000000bb';
+    const DAY = 24 * 60 * 60 * 1000;
+    const daysAgo = (n: number): Date => new Date(Date.now() - n * DAY);
+
+    async function seedEntry(tenantId: string, earnedDaysAgo: number, expiredDaysAgo: number) {
+      const entry = new LoyaltyEntryBuilder()
+        .withTenantId(tenantId)
+        .withCustomerId(CUSTOMER_ID)
+        .withPoints(10)
+        .withEarnedAt(daysAgo(earnedDaysAgo))
+        .withExpiresAt(daysAgo(expiredDaysAgo))
+        .build();
+      await entryRepo.save(entry);
+      await balanceRepo.upsert(
+        new LoyaltyBalanceBuilder()
+          .withTenantId(tenantId)
+          .withCustomerId(CUSTOMER_ID)
+          .withCurrentPoints(100)
+          .build(),
+      );
+      return entry;
+    }
+
+    it('expires only the active tenant due points when another tenant has an open pause', async () => {
+      const held = await seedEntry(TENANT_ID, 40, 10);
+      const due = await seedEntry(OTHER_TENANT_ID, 40, 10);
+      await pauseRepo.recordOpen(TENANT_ID, daysAgo(20));
+
+      const result = await job.run();
+
+      expect(result.processedEntries).toBe(1);
+      expect(await expiryLogRepo.hasBeenProcessed(held.id)).toBe(false);
+      expect(await expiryLogRepo.hasBeenProcessed(due.id)).toBe(true);
+      expect((await balanceRepo.findByCustomer(TENANT_ID, CUSTOMER_ID))?.currentPoints).toBe(100);
+    });
+
+    it('does not expire an entry whose raw expiry fell inside a closed pause until the pause length is added', async () => {
+      // Raw expiry 10 days ago; a 15-day pause ended 2 days ago, so it really expires 5 days from now.
+      const shifted = await seedEntry(TENANT_ID, 40, 10);
+      await pauseRepo.recordClosed(TENANT_ID, daysAgo(25), daysAgo(10));
+
+      const early = await job.run();
+      const later = await job.run(new Date(Date.now() + 6 * DAY));
+
+      expect(early.processedEntries).toBe(0);
+      expect(later.processedEntries).toBe(1);
+      expect(await expiryLogRepo.hasBeenProcessed(shifted.id)).toBe(true);
+    });
+
+    it('resumes normal expiry for an entry a pause never touched', async () => {
+      const untouched = await seedEntry(TENANT_ID, 5, 1);
+      await pauseRepo.recordClosed(TENANT_ID, daysAgo(40), daysAgo(30));
+
+      const result = await job.run();
+
+      expect(result.processedEntries).toBe(1);
+      expect(await expiryLogRepo.hasBeenProcessed(untouched.id)).toBe(true);
+    });
+
+    it('leaves the stored expires_at unchanged', async () => {
+      const held = await seedEntry(TENANT_ID, 40, 10);
+      const storedExpiry = held.expiresAt;
+      await pauseRepo.recordOpen(TENANT_ID, daysAgo(20));
+
+      await job.run();
+
+      expect(held.expiresAt).toEqual(storedExpiry);
+    });
   });
 });

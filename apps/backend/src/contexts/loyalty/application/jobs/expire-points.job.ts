@@ -4,6 +4,7 @@ import {
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
 import { LoyaltyEntry } from '../../domain/loyalty-entry.aggregate';
+import { EntryEffectiveExpiryService } from '../services/entry-effective-expiry.service';
 import {
   BALANCE_EXPIRY_LOG_REPOSITORY,
   IBalanceExpiryLogRepository,
@@ -31,6 +32,7 @@ export class ExpirePointsJob {
     @Inject(BALANCE_EXPIRY_LOG_REPOSITORY)
     private readonly expiryLogRepo: IBalanceExpiryLogRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
+    private readonly effectiveExpiry: EntryEffectiveExpiryService,
   ) {}
 
   async run(now: Date = new Date()): Promise<ExpirePointsJobResult> {
@@ -52,7 +54,14 @@ export class ExpirePointsJob {
   }
 
   private async findUnprocessedExpired(now: Date): Promise<LoyaltyEntry[]> {
-    const expired = await this.entryRepo.findExpiringBefore(now);
+    // The stored expiry is never later than the effective one, so it is a safe superset: the
+    // tenants' suspension pauses then drop the entries that are held or shifted (M25-S27).
+    const rawDue = await this.entryRepo.findExpiringBefore(now);
+    const effective = await this.effectiveExpiry.resolve(rawDue);
+    const expired = rawDue.filter((entry) => {
+      const expiresAt = effective.get(entry.id);
+      return expiresAt != null && expiresAt < now;
+    });
     const unprocessed: LoyaltyEntry[] = [];
     for (const entry of expired) {
       if (await this.expiryLogRepo.hasBeenProcessed(entry.id)) continue;

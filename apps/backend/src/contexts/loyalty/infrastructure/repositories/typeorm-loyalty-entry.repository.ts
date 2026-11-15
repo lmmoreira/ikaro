@@ -1,10 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, LessThan, Repository } from 'typeorm';
+import { LessThan, Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import {
   ILoyaltyEntryRepository,
-  NextExpiry,
   PaginatedLoyaltyEntries,
 } from '../../application/ports/loyalty-entry-repository.port';
 import { LoyaltyEntry } from '../../domain/loyalty-entry.aggregate';
@@ -38,10 +37,12 @@ export class TypeOrmLoyaltyEntryRepository implements ILoyaltyEntryRepository {
     return entities.map((e) => this.toDomain(e));
   }
 
-  async findExpiringSoon(from: Date, to: Date): Promise<LoyaltyEntry[]> {
-    const entities = await this.repo.find({
-      where: { expiresAt: Between(from, to) },
-    });
+  async findUnprocessedExpiringBefore(to: Date): Promise<LoyaltyEntry[]> {
+    const entities = await this.repo
+      .createQueryBuilder('e')
+      .where('e.expiresAt < :to', { to })
+      .andWhere(`NOT EXISTS (SELECT 1 FROM loyalty.balance_expiry_log l WHERE l.entry_id = e.id)`)
+      .getMany();
     return entities.map((e) => this.toDomain(e));
   }
 
@@ -60,19 +61,13 @@ export class TypeOrmLoyaltyEntryRepository implements ILoyaltyEntryRepository {
     return { items: entities.map((e) => this.toDomain(e)), total };
   }
 
-  async findNextExpiry(tenantId: string, customerId: string): Promise<NextExpiry | null> {
-    const rows = await this.repo.query<{ expiryDate: string; points: string }[]>(
-      `SELECT expires_at AS "expiryDate", SUM(points)::int AS points
-       FROM loyalty.loyalty_entries
-       WHERE tenant_id = $1 AND customer_id = $2 AND expires_at > NOW()
-       GROUP BY expires_at
-       ORDER BY expires_at ASC
-       LIMIT 1`,
-      [tenantId, customerId],
-    );
-
-    if (!rows.length || !rows[0].expiryDate) return null;
-    return { expiryDate: new Date(rows[0].expiryDate), points: Number(rows[0].points) };
+  async findUnprocessedByCustomer(tenantId: string, customerId: string): Promise<LoyaltyEntry[]> {
+    const entities = await this.repo
+      .createQueryBuilder('e')
+      .where('e.tenantId = :tenantId AND e.customerId = :customerId', { tenantId, customerId })
+      .andWhere(`NOT EXISTS (SELECT 1 FROM loyalty.balance_expiry_log l WHERE l.entry_id = e.id)`)
+      .getMany();
+    return entities.map((e) => this.toDomain(e));
   }
 
   private toDomain(entity: LoyaltyEntryEntity): LoyaltyEntry {

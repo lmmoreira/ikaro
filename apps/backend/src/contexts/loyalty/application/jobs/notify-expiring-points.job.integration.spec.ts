@@ -1,3 +1,5 @@
+import { EntryEffectiveExpiryService } from '../services/entry-effective-expiry.service';
+import { InMemoryTenantExpiryPauseRepository } from '../../../../test/repositories/loyalty/in-memory-tenant-expiry-pause.repository';
 import { DataSource } from 'typeorm';
 import { TypeOrmTransactionManager } from '../../../../shared/infrastructure/typeorm-transaction-manager';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
@@ -53,6 +55,7 @@ describe('NotifyExpiringPointsJob (integration, TD24-S03 cron double-send fix)',
       makeRealOutboxPublisher(outboxRepo, eventBus),
       new InMemoryLoyaltyPlatformPort(),
       txManager,
+      new EntryEffectiveExpiryService(new InMemoryTenantExpiryPauseRepository()),
     );
 
     const now = new Date();

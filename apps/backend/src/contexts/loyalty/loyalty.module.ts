@@ -7,11 +7,15 @@ import { CustomerModule } from '../customer/customer.module';
 import { PlatformModule } from '../platform/platform.module';
 import { BALANCE_EXPIRY_LOG_REPOSITORY } from './application/ports/balance-expiry-log-repository.port';
 import { LOYALTY_BALANCE_REPOSITORY } from './application/ports/loyalty-balance-repository.port';
+import { TENANT_EXPIRY_PAUSE_REPOSITORY } from './application/ports/tenant-expiry-pause-repository.port';
 import { LOYALTY_ENTRY_REPOSITORY } from './application/ports/loyalty-entry-repository.port';
 import { LOYALTY_REDEMPTION_REPOSITORY } from './application/ports/loyalty-redemption-repository.port';
 import { LOYALTY_PLATFORM_PORT } from './application/ports/loyalty-platform.port';
 import { LOYALTY_BOOKING_PORT } from './application/ports/loyalty-booking.port';
 import { LOYALTY_CUSTOMER_PORT } from './application/ports/loyalty-customer.port';
+import { EntryEffectiveExpiryService } from './application/services/entry-effective-expiry.service';
+import { RecordTenantExpiryPauseUseCase } from './application/use-cases/record-tenant-expiry-pause/record-tenant-expiry-pause.use-case';
+import { CloseTenantExpiryPauseUseCase } from './application/use-cases/close-tenant-expiry-pause/close-tenant-expiry-pause.use-case';
 import { GetLoyaltyBalanceUseCase } from './application/use-cases/get-loyalty-balance/get-loyalty-balance.use-case';
 import { LoyaltyBalanceReaderService } from './application/services/loyalty-balance-reader.service';
 import { GetLoyaltyBalancesUseCase } from './application/use-cases/get-loyalty-balances/get-loyalty-balances.use-case';
@@ -26,6 +30,7 @@ import { NotifyExpiringPointsJob } from './application/jobs/notify-expiring-poin
 import { BalanceExpiryLogEntity } from './infrastructure/entities/balance-expiry-log.entity';
 import { LoyaltyBalanceEntity } from './infrastructure/entities/loyalty-balance.entity';
 import { LoyaltyEntryEntity } from './infrastructure/entities/loyalty-entry.entity';
+import { TenantExpiryPauseEntity } from './infrastructure/entities/tenant-expiry-pause.entity';
 import { LoyaltyRedemptionEntity } from './infrastructure/entities/loyalty-redemption.entity';
 import { LoyaltyPlatformAdapter } from './infrastructure/cross-context/loyalty-platform.adapter';
 import { LoyaltyBookingAdapter } from './infrastructure/cross-context/loyalty-booking.adapter';
@@ -34,11 +39,14 @@ import { LoyaltyController } from './infrastructure/controllers/loyalty.controll
 import { CronLoyaltyController } from './infrastructure/controllers/cron-loyalty.controller';
 import { CustomerRoleGuard } from '../../shared/guards/customer-role.guard';
 import { BookingCompletedHandler } from './infrastructure/events/booking-completed.handler';
+import { SubscriptionSuspendedLoyaltyHandler } from './infrastructure/events/subscription-suspended-loyalty.handler';
+import { SubscriptionReactivatedLoyaltyHandler } from './infrastructure/events/subscription-reactivated-loyalty.handler';
 import { ExpirePointsTriggerHandler } from './infrastructure/events/expire-points-trigger.handler';
 import { NotifyExpiringPointsTriggerHandler } from './infrastructure/events/notify-expiring-points-trigger.handler';
 import { TypeOrmBalanceExpiryLogRepository } from './infrastructure/repositories/typeorm-balance-expiry-log.repository';
 import { TypeOrmLoyaltyBalanceRepository } from './infrastructure/repositories/typeorm-loyalty-balance.repository';
 import { TypeOrmLoyaltyEntryRepository } from './infrastructure/repositories/typeorm-loyalty-entry.repository';
+import { TypeOrmTenantExpiryPauseRepository } from './infrastructure/repositories/typeorm-tenant-expiry-pause.repository';
 import { TypeOrmLoyaltyRedemptionRepository } from './infrastructure/repositories/typeorm-loyalty-redemption.repository';
 import { LoyaltyAuditLogHandler } from './infrastructure/events/loyalty-audit-log.handler';
 import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.module';
@@ -51,6 +59,7 @@ import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.
       LoyaltyBalanceEntity,
       LoyaltyRedemptionEntity,
       BalanceExpiryLogEntity,
+      TenantExpiryPauseEntity,
     ]),
     TransactionManagerModule,
     RequestModule,
@@ -64,11 +73,15 @@ import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.
     { provide: LOYALTY_BALANCE_REPOSITORY, useClass: TypeOrmLoyaltyBalanceRepository },
     { provide: LOYALTY_REDEMPTION_REPOSITORY, useClass: TypeOrmLoyaltyRedemptionRepository },
     { provide: BALANCE_EXPIRY_LOG_REPOSITORY, useClass: TypeOrmBalanceExpiryLogRepository },
+    { provide: TENANT_EXPIRY_PAUSE_REPOSITORY, useClass: TypeOrmTenantExpiryPauseRepository },
     { provide: LOYALTY_PLATFORM_PORT, useClass: LoyaltyPlatformAdapter },
     { provide: LOYALTY_BOOKING_PORT, useClass: LoyaltyBookingAdapter },
     { provide: LOYALTY_CUSTOMER_PORT, useClass: LoyaltyCustomerAdapter },
     CustomerRoleGuard,
     LoyaltyBalanceReaderService,
+    EntryEffectiveExpiryService,
+    RecordTenantExpiryPauseUseCase,
+    CloseTenantExpiryPauseUseCase,
     GetLoyaltyBalanceUseCase,
     GetLoyaltyBalancesUseCase,
     GetOwnLoyaltyBalanceUseCase,
@@ -80,6 +93,8 @@ import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.
     NotifyExpiringPointsJob,
     CompleteBookingLoyaltyEffectsUseCase,
     BookingCompletedHandler,
+    SubscriptionSuspendedLoyaltyHandler,
+    SubscriptionReactivatedLoyaltyHandler,
     ExpirePointsTriggerHandler,
     NotifyExpiringPointsTriggerHandler,
     LoyaltyAuditLogHandler,

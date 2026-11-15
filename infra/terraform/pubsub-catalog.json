@@ -223,6 +223,7 @@
     "event": "SubscriptionReactivated",
     "consumers": [
       "audit-log",
+      "resume-loyalty-expiry-after-suspension",
       "revalidate-hotsite-on-reactivation"
     ]
   },
@@ -230,6 +231,7 @@
     "event": "SubscriptionSuspended",
     "consumers": [
       "audit-log",
+      "pause-loyalty-expiry-on-suspension",
       "revalidate-hotsite-on-suspension"
     ]
   },

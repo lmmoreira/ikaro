@@ -134,54 +134,78 @@ describe('TypeOrmLoyaltyEntryRepository (integration)', () => {
     });
   });
 
-  describe('findNextExpiry()', () => {
-    it('returns earliest expiry date and sum of points expiring on that date', async () => {
+  describe('findUnprocessedByCustomer()', () => {
+    it('returns only the customer entries the expiry sweep has not processed, tenant-scoped', async () => {
       const customerId = uuidv7();
-      const sooner = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-      const later = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+      const open = new LoyaltyEntryBuilder()
+        .withTenantId(TENANT_A)
+        .withCustomerId(customerId)
+        .build();
+      const processed = new LoyaltyEntryBuilder()
+        .withTenantId(TENANT_A)
+        .withCustomerId(customerId)
+        .build();
+      const otherTenant = new LoyaltyEntryBuilder()
+        .withTenantId(TENANT_B)
+        .withCustomerId(customerId)
+        .build();
+      await repo.save(open);
+      await repo.save(processed);
+      await repo.save(otherTenant);
+      await dataSource.query(`INSERT INTO "loyalty"."balance_expiry_log" (entry_id) VALUES ($1)`, [
+        processed.id,
+      ]);
 
-      await repo.save(
-        new LoyaltyEntryBuilder()
-          .withTenantId(TENANT_A)
-          .withCustomerId(customerId)
-          .withPoints(10)
-          .withExpiresAt(sooner)
-          .build(),
-      );
-      await repo.save(
-        new LoyaltyEntryBuilder()
-          .withTenantId(TENANT_A)
-          .withCustomerId(customerId)
-          .withPoints(20)
-          .withExpiresAt(later)
-          .build(),
-      );
+      const result = await repo.findUnprocessedByCustomer(TENANT_A, customerId);
 
-      const result = await repo.findNextExpiry(TENANT_A, customerId);
-      expect(result).not.toBeNull();
-      expect(result!.points).toBe(10);
-      expect(result!.expiryDate.getTime()).toBeCloseTo(sooner.getTime(), -3);
+      expect(result.map((e) => e.id)).toEqual([open.id]);
     });
 
-    it('returns null when customer has no active entries', async () => {
-      const customerId = uuidv7();
-      const past = new Date(Date.now() - 1000);
+    it('returns an empty array when the customer has no entries at all', async () => {
+      expect(await repo.findUnprocessedByCustomer(TENANT_A, uuidv7())).toEqual([]);
+    });
+  });
 
-      await repo.save(
-        new LoyaltyEntryBuilder()
-          .withTenantId(TENANT_A)
-          .withCustomerId(customerId)
-          .withExpiresAt(past)
-          .build(),
+  describe('findUnprocessedExpiringBefore()', () => {
+    it('returns unprocessed entries expiring before the bound, across tenants', async () => {
+      const soon = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+      const far = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+      const a = new LoyaltyEntryBuilder().withTenantId(TENANT_A).withExpiresAt(soon).build();
+      const b = new LoyaltyEntryBuilder().withTenantId(TENANT_B).withExpiresAt(soon).build();
+      const beyond = new LoyaltyEntryBuilder().withTenantId(TENANT_A).withExpiresAt(far).build();
+      const processed = new LoyaltyEntryBuilder()
+        .withTenantId(TENANT_A)
+        .withExpiresAt(soon)
+        .build();
+      for (const entry of [a, b, beyond, processed]) await repo.save(entry);
+      await dataSource.query(`INSERT INTO "loyalty"."balance_expiry_log" (entry_id) VALUES ($1)`, [
+        processed.id,
+      ]);
+
+      const result = await repo.findUnprocessedExpiringBefore(
+        new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       );
 
-      const result = await repo.findNextExpiry(TENANT_A, customerId);
-      expect(result).toBeNull();
+      const ids = result.map((e) => e.id);
+      expect(ids).toEqual(expect.arrayContaining([a.id, b.id]));
+      expect(ids).not.toContain(beyond.id);
+      expect(ids).not.toContain(processed.id);
     });
 
-    it('returns null when customer has no entries at all', async () => {
-      const result = await repo.findNextExpiry(TENANT_A, uuidv7());
-      expect(result).toBeNull();
+    it('seeks the standalone expires_at index instead of scanning the table', async () => {
+      await dataSource.query(`SET enable_seqscan = off`);
+      try {
+        const plan = (await dataSource.query(
+          `EXPLAIN SELECT e.id FROM "loyalty"."loyalty_entries" e
+           WHERE e.expires_at < now()
+             AND NOT EXISTS (SELECT 1 FROM "loyalty"."balance_expiry_log" l WHERE l.entry_id = e.id)`,
+        )) as { 'QUERY PLAN': string }[];
+        expect(plan.map((row) => row['QUERY PLAN']).join('\n')).toContain(
+          'IDX_loyalty_entries_expires_at',
+        );
+      } finally {
+        await dataSource.query(`RESET enable_seqscan`);
+      }
     });
   });
 

@@ -15,6 +15,7 @@ import { STORAGE_SERVICE } from '../../shared/ports/storage.service.port';
 import { RequestInterceptor } from '../../shared/request/request.interceptor';
 import { RequestModule } from '../../shared/request/request.module';
 import { BalanceExpiryLogEntity } from '../../contexts/loyalty/infrastructure/entities/balance-expiry-log.entity';
+import { TenantExpiryPauseEntity } from '../../contexts/loyalty/infrastructure/entities/tenant-expiry-pause.entity';
 import { LoyaltyBalanceEntity } from '../../contexts/loyalty/infrastructure/entities/loyalty-balance.entity';
 import { LoyaltyEntryEntity } from '../../contexts/loyalty/infrastructure/entities/loyalty-entry.entity';
 import { LoyaltyRedemptionEntity } from '../../contexts/loyalty/infrastructure/entities/loyalty-redemption.entity';
@@ -67,6 +68,7 @@ export async function createLoyaltyIntegrationApp(
           LoyaltyBalanceEntity,
           LoyaltyRedemptionEntity,
           BalanceExpiryLogEntity,
+          TenantExpiryPauseEntity,
           InboxRecordEntity,
         ],
         synchronize: false,

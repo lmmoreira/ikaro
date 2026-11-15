@@ -4,6 +4,7 @@ import { Column, Entity, Index, PrimaryColumn, Unique } from 'typeorm';
 @Index('IDX_loyalty_entries_tenant_id', ['tenantId'])
 @Index('IDX_loyalty_entries_tenant_customer', ['tenantId', 'customerId'])
 @Index('IDX_loyalty_entries_tenant_customer_expires', ['tenantId', 'customerId', 'expiresAt'])
+@Index('IDX_loyalty_entries_expires_at', ['expiresAt'])
 @Unique('UQ_loyalty_entries_tenant_booking_line', ['tenantId', 'bookingLineId'])
 export class LoyaltyEntryEntity {
   @PrimaryColumn({ type: 'uuid' })

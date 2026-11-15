@@ -197,6 +197,26 @@
         "reviewBy": "2027-02-28"
       },
       {
+        "source": "apps/backend/src/contexts/loyalty/infrastructure/events/subscription-suspended-loyalty.handler.ts",
+        "target": "billing",
+        "targetPaths": [
+          "apps/backend/src/contexts/billing/domain/events/subscription-suspended.event.ts"
+        ],
+        "rationale": "Loyalty pauses point expiry while its tenant is suspended (M25-S27, UC-121 O-L1).",
+        "owner": "loyalty",
+        "reviewBy": "2027-02-28"
+      },
+      {
+        "source": "apps/backend/src/contexts/loyalty/infrastructure/events/subscription-reactivated-loyalty.handler.ts",
+        "target": "billing",
+        "targetPaths": [
+          "apps/backend/src/contexts/billing/domain/events/subscription-reactivated.event.ts"
+        ],
+        "rationale": "Loyalty resumes point expiry once its tenant is reactivated (M25-S27, UC-121 O-L1).",
+        "owner": "loyalty",
+        "reviewBy": "2027-02-28"
+      },
+      {
         "source": "apps/backend/src/contexts/loyalty/infrastructure/events/booking-completed.handler.ts",
         "target": "booking",
         "targetPaths": [
@@ -806,6 +826,7 @@
         "LoyaltyBalanceEntity",
         "LoyaltyRedemptionEntity",
         "BalanceExpiryLogEntity",
+        "TenantExpiryPauseEntity",
         "InboxRecordEntity",
         "OutboxEventEntity",
         "ChatbotSessionEntity",
@@ -917,6 +938,7 @@
         "LoyaltyBalanceEntity",
         "LoyaltyRedemptionEntity",
         "BalanceExpiryLogEntity",
+        "TenantExpiryPauseEntity",
         "InboxRecordEntity"
       ],
       "rationale": "Loyalty context integration app — scoped to loyalty's own aggregates plus its platform/customer read dependencies."

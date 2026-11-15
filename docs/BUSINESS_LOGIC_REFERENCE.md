@@ -762,6 +762,44 @@ flowchart TD
 
 ---
 
+## Loyalty — Point expiry and suspension pauses (M25-S27)
+
+### Why this exists
+
+The daily `ExpirePointsJob` and the weekly expiry warning are system-wide sweeps: they load no tenant, so a suspended business's customers would keep losing points for the business's non-payment (UC-121 O-L1). The fix must not rewrite `loyalty_entries.expires_at` (the ledger is append-only), so Loyalty keeps its own ledger of suspension spans and computes an *effective* expiry from it.
+
+### The decision
+
+```mermaid
+flowchart TD
+  S["SubscriptionSuspended (consumer pause-loyalty-expiry-on-suspension)"] --> O["recordOpen(tenant, suspendedAt): insert, ignore if the span exists"]
+  R["SubscriptionReactivated (consumer resume-loyalty-expiry-after-suspension)"] --> C["recordClosed(tenant, suspendedAt, reactivatedAt): upsert resumed_at"]
+  O --> L[("loyalty.tenant_expiry_pauses<br/>PK (tenant_id, paused_at)")]
+  C --> L
+  J["sweep / warning / customer reads"] --> Q["entries raw-due or unprocessed<br/>(standalone expires_at index)"]
+  Q --> F["effectiveExpiry(entry, the tenant's pauses)"]
+  L --> F
+  F --> D{"effective expiry"}
+  D -- "null: an open pause holds it" --> H["not expired, still active"]
+  D -- "later than now" --> H
+  D -- "not later than now" --> X["expire it / warn once"]
+```
+
+### Rules worth not re-deriving
+
+- **Active-time lifetime.** `effectiveExpiry` measures `expiresAt - earnedAt` in non-suspended time, walking the tenant's pauses from `earnedAt`, so a pause inside an earlier pause's extension counts too. It is a pure function in `loyalty/domain/effective-expiry.ts`; the SQL never does overlap arithmetic.
+- **An open pause holds the entry; a pause that starts at or after the raw expiry never rescues one that was already due.**
+- **The stored expiry is a safe lower bound.** The effective expiry is never earlier than `expires_at`, so the sweep keeps `findExpiringBefore(now)` (raw filter, index seek) and drops, in memory, the entries that are held or shifted; the warning reads unprocessed entries expiring before the window end for the same reason.
+- **Order of events cannot matter.** Both handlers write the same row, keyed by the span's start (`SubscriptionReactivated` carries `suspendedAt` for this). The suspend insert ignores an existing row, the reactivate upsert closes it, so a late suspend never reopens a closed span and a redelivery changes nothing. No lock: the primary key is the dedupe.
+- **The customer-facing reads agree with the sweep.** `nextExpiryDate`, the entries list's `expiresAt` and `isActive`, and the warning's `earliestExpiresAt` all use the effective expiry; an entry held by an open pause shows active.
+
+### Known limitations
+
+- A sweep that runs between the true `suspendedAt` and the suspend handler's write can still expire a due entry (the daily sweep is at 02:00 UTC and the handler fires within seconds; accepted, not engineered away).
+- A held entry whose raw expiry is already past is shown with its stored `expiresAt` in the entries list while the pause is open.
+
+---
+
 ## Other bounded contexts
 
 Not yet written as sections in this doc. **Loyalty is not logic-free** — points earning and redemption on `BookingCompleted` (the section above), the expiry cron, the weekly expiring-points warning and manual redemption are implemented; until a section is written here, read them from `docs/BOUNDED_CONTEXTS.md` § 2. Loyalty Context, `docs/DOMAIN_MODEL.md` § Loyalty Context (and § Expiration window), `docs/USE_CASES.md` UC-009 / UC-016 / UC-016b, and the code under `apps/backend/src/contexts/loyalty/`. Likewise there is no booking status-machine section here: the transition table is CLAUDE.md §5 / `.copilot/context.md` §5 and the aggregate (`booking-status-transition.ts`). Platform has one section above (the hotsite template catalogue); add another here the next time a story in Customer, Staff, Loyalty, Notification, or Platform introduces business logic complex enough to earn one — see this doc's own header for the "incremental, not upfront" rule, and `/story-discovery`'s checklist item that flags the decision at discovery time.
