@@ -25,8 +25,7 @@ export interface BackendClientConfig {
  * it holds the incoming request to forward its correlation and actor headers, and Nest cannot inject
  * a request-scoped provider into a singleton. This client takes the request as an argument instead
  * and builds the same headers with `buildBackendHeaders(req)` plus the internal key. It throws the
- * raw transport error; each caller decides what a failure means. It never caches: a call that needs
- * a cached read goes through `BackendHttpService`.
+ * raw transport error; each caller decides what a failure means. The BFF caches no responses.
  */
 @Injectable()
 export class BackendInternalClient {
