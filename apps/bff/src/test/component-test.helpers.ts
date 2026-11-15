@@ -5,10 +5,13 @@ import * as path from 'node:path';
 import supertest from 'supertest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { REQUEST } from '@nestjs/core';
 import { HttpService } from '@nestjs/axios';
 import { JwtService } from '@nestjs/jwt';
 import { AppModule } from '../app.module';
 import { applySecurityHeaders } from '../shared/http/security-headers';
+import { Request } from 'express';
 import { BackendHttpService } from '../shared/http/backend-http.service';
 import { MockBackendHttpService } from './backend-http.mock';
 
@@ -34,7 +37,10 @@ export function makeObservableError(error: unknown): Observable<never> {
   return throwError(() => error);
 }
 
-export async function createTestApp(): Promise<{
+// `realBackendHttp: true` keeps the real request-scoped `BackendHttpService` over the mocked
+// `HttpService`, so a spec can assert the headers the BFF forwards (`X-Tenant-ID`, the actor
+// headers). The default replaces it with `backendHttpService`, which sees no headers.
+export async function createTestApp(options: { realBackendHttp?: boolean } = {}): Promise<{
   app: INestApplication;
   jwtService: JwtService;
   // httpService is used directly by ActiveStaffGuard — returns Observables
@@ -62,7 +68,7 @@ export async function createTestApp(): Promise<{
     patchForPublic: jest.fn(),
   };
 
-  const module: TestingModule = await Test.createTestingModule({
+  const overridden = Test.createTestingModule({
     imports: [AppModule],
   })
     // ActiveStaffGuard uses HttpService directly (singleton, AppModule scope).
@@ -73,9 +79,16 @@ export async function createTestApp(): Promise<{
     // sidesteps the module-scoped HttpService deduplication issue in test modules.
     // BackendHttpService is REQUEST-scoped but useValue makes it a shared singleton
     // in tests — safe because jest.resetAllMocks() clears state between tests.
-    .overrideProvider(BackendHttpService)
-    .useValue(backendHttpService)
-    .compile();
+    .overrideProvider(BackendHttpService);
+  const module: TestingModule = await (
+    options.realBackendHttp
+      ? overridden.useFactory({
+          factory: (config: ConfigService, req: Request) =>
+            new BackendHttpService(httpService as unknown as HttpService, config, req),
+          inject: [ConfigService, REQUEST],
+        })
+      : overridden.useValue(backendHttpService)
+  ).compile();
 
   const app = module.createNestApplication();
   applySecurityHeaders(app);

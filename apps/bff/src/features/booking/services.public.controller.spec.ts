@@ -32,11 +32,7 @@ describe('ServicesPublicController', () => {
 
       const result = await controller.list('lavacar-bh');
 
-      expect(backendHttp.get).toHaveBeenCalledWith(
-        '/internal/tenants/by-slug/lavacar-bh',
-        undefined,
-        expect.anything(),
-      );
+      expect(backendHttp.get).toHaveBeenCalledWith('/internal/tenants/by-slug/lavacar-bh');
       expect(backendHttp.getForPublic).toHaveBeenCalledWith('/services', 'tenant-uuid');
       expect(result).toEqual(mockList);
     });

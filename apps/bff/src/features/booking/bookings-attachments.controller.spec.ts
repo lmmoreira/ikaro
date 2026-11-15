@@ -72,11 +72,7 @@ describe('BookingsAttachmentsController', () => {
         tenantSlug: TENANT_SLUG,
       });
 
-      expect(backendHttp.get).toHaveBeenCalledWith(
-        `/internal/tenants/by-slug/${TENANT_SLUG}`,
-        undefined,
-        expect.anything(),
-      );
+      expect(backendHttp.get).toHaveBeenCalledWith(`/internal/tenants/by-slug/${TENANT_SLUG}`);
       expect(backendHttp.postForPublic).toHaveBeenCalledWith(
         '/bookings/attachments/signed-url',
         { fileName: 'car.jpg', contentType: 'image/jpeg' },

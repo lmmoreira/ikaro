@@ -1,4 +1,5 @@
 import { HttpException, INestApplication } from '@nestjs/common';
+import { AxiosError } from 'axios';
 import { JwtService } from '@nestjs/jwt';
 import { BillingErrorCode } from '@ikaro/types';
 import {
@@ -9,6 +10,8 @@ import {
   createTestApp,
   makeCustomerJwt,
   makeManagerJwt,
+  makeObservableError,
+  makeObservableResponse,
   request,
   setupActiveGuardMock,
 } from '../../test/component-test.helpers';
@@ -81,6 +84,12 @@ const denialBody = (code: string, detail: string) => ({
   detail,
 });
 
+// The BFF's error filter adds the request's `correlationId` to every error body and nothing else.
+const withCorrelationId = (body: object): object => ({
+  ...body,
+  correlationId: expect.any(String),
+});
+
 describe('BFF tenant-access denial pass-through (component)', () => {
   let app: INestApplication;
   let jwtService: JwtService;
@@ -132,22 +141,20 @@ describe('BFF tenant-access denial pass-through (component)', () => {
           .set('Authorization', bearer(route));
 
         expect(res.status).toBe(403);
-        expect(res.body.code).toBe(code);
-        expect(res.body).toMatchObject({ status: 403, detail });
+        expect(res.body).toEqual(withCorrelationId(body));
         expect(accessLookups()).toEqual([]);
       },
     );
 
     it('forwards it unchanged on a public slug route', async () => {
       backendHttpService.get.mockResolvedValueOnce({ id: TENANT_ID, slug: 'autospa', name: 'A' });
-      backendHttpService.getForPublic.mockRejectedValueOnce(
-        new HttpException(denialBody(code, detail), 403),
-      );
+      const body = denialBody(code, detail);
+      backendHttpService.getForPublic.mockRejectedValueOnce(new HttpException(body, 403));
 
       const res = await request(app.getHttpServer()).get('/v1/public/platform/manifest/autospa');
 
       expect(res.status).toBe(403);
-      expect(res.body.code).toBe(code);
+      expect(res.body).toEqual(withCorrelationId(body));
       expect(accessLookups()).toEqual([]);
     });
   });
@@ -162,6 +169,7 @@ describe('BFF tenant-access denial pass-through (component)', () => {
         .set('Authorization', bearer(route));
 
       expect(res.status).toBe(200);
+      expect(res.body).toEqual(route.okBody);
       expect(accessLookups()).toEqual([]);
     });
   });
@@ -215,29 +223,6 @@ describe('BFF tenant-access denial pass-through (component)', () => {
   });
 
   describe('tenant isolation', () => {
-    it('a denial for tenant A never reaches tenant B, which is served normally', async () => {
-      const [routeA] = FAMILY_ROUTES;
-      setupActiveGuardMock(httpService);
-      backendHttpService.get.mockRejectedValueOnce(
-        new HttpException(
-          denialBody(BillingErrorCode.TENANT_SUSPENDED, 'The tenant is suspended'),
-          403,
-        ),
-      );
-      const denied = await request(app.getHttpServer())
-        .get(routeA.path)
-        .set('Authorization', bearer(routeA, TENANT_ID));
-
-      setupActiveGuardMock(httpService);
-      backendHttpService.get.mockResolvedValueOnce(routeA.okBody);
-      const served = await request(app.getHttpServer())
-        .get(routeA.path)
-        .set('Authorization', bearer(routeA, TENANT_ID_2));
-
-      expect(denied.status).toBe(403);
-      expect(served.status).toBe(200);
-    });
-
     it('a public route sends the slug-resolved tenant id to the backend', async () => {
       backendHttpService.get.mockResolvedValueOnce({
         id: TENANT_ID_2,
@@ -253,5 +238,69 @@ describe('BFF tenant-access denial pass-through (component)', () => {
       expect(res.status).toBe(200);
       expect(backendHttpService.getForPublic).toHaveBeenCalledWith('/hotsite', TENANT_ID_2);
     });
+  });
+});
+
+// The real request-scoped `BackendHttpService` over a mocked `HttpService`, so the headers the BFF
+// forwards are visible: each caller's JWT tenant, and only that, becomes `X-Tenant-ID`.
+describe('BFF tenant binding on the backend call (component)', () => {
+  let app: INestApplication;
+  let jwtService: JwtService;
+  let httpService: MockHttpService;
+  let restoreEnv: () => void;
+
+  beforeAll(async () => {
+    ({ app, jwtService, httpService, restoreEnv } = await createTestApp({
+      realBackendHttp: true,
+    }));
+  });
+
+  afterAll(async () => {
+    await app.close();
+    restoreEnv();
+  });
+
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  const backendCallHeaders = (): Record<string, string> =>
+    (httpService.get.mock.calls[0][1] as { headers: Record<string, string> }).headers;
+
+  it("forwards each caller's own tenant, and a denial for tenant A never reaches tenant B", async () => {
+    const denial = denialBody(BillingErrorCode.TENANT_SUSPENDED, 'The tenant is suspended');
+    httpService.get.mockReturnValueOnce(
+      makeObservableError(
+        new AxiosError('forbidden', '403', undefined, undefined, {
+          data: denial,
+          status: 403,
+          statusText: 'Forbidden',
+          headers: {},
+          config: {} as never,
+        }),
+      ),
+    );
+    const denied = await request(app.getHttpServer())
+      .get('/v1/loyalty/balance')
+      .set('Authorization', `Bearer ${makeCustomerJwt(jwtService, { tenantId: TENANT_ID })}`);
+    expect(backendCallHeaders()['X-Tenant-ID']).toBe(TENANT_ID);
+    expect(denied.status).toBe(403);
+    expect(denied.body).toEqual(withCorrelationId(denial));
+
+    httpService.get.mockReset();
+    httpService.get.mockReturnValueOnce(
+      makeObservableResponse({
+        currentPoints: 5,
+        nextExpiryDate: null,
+        nextExpiryPoints: null,
+        conversionRate: 1,
+      }),
+    );
+    const served = await request(app.getHttpServer())
+      .get('/v1/loyalty/balance')
+      .set('Authorization', `Bearer ${makeCustomerJwt(jwtService, { tenantId: TENANT_ID_2 })}`);
+
+    expect(served.status).toBe(200);
+    expect(backendCallHeaders()['X-Tenant-ID']).toBe(TENANT_ID_2);
   });
 });

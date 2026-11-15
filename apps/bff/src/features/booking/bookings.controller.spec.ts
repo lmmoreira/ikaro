@@ -89,11 +89,7 @@ describe('BookingsController', () => {
 
       const result = await controller.create(TENANT_SLUG, validBody);
 
-      expect(backendHttp.get).toHaveBeenCalledWith(
-        `/internal/tenants/by-slug/${TENANT_SLUG}`,
-        undefined,
-        expect.anything(),
-      );
+      expect(backendHttp.get).toHaveBeenCalledWith(`/internal/tenants/by-slug/${TENANT_SLUG}`);
       expect(backendHttp.postForPublic).toHaveBeenCalledWith('/bookings', validBody, TENANT_ID);
       expect(result).toBe(mockBookingResponse);
     });

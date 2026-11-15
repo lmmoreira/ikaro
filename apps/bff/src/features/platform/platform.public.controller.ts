@@ -26,7 +26,8 @@ import { Public } from '../../shared/decorators/public.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { ClientIpRequest, getClientIp } from '../../shared/http/client-ip';
 import { throwProblemDetail } from '../../shared/http/problem-detail';
-import { resolvePublicTenantViaBackend, withPublicTenant } from '../../shared/http/public-tenant';
+import { withPublicTenant } from '../../shared/http/public-tenant';
+import { TenantInfoResponse } from '../../shared/types/backend-responses';
 import { getBusinessContext, getServicesContext } from './chatbot-context';
 import { buildSystemPrompt } from './chatbot.mapper';
 import {
@@ -73,8 +74,9 @@ export class PlatformPublicController {
   @Public()
   @Header('Cache-Control', 'public, max-age=300')
   async getManifest(@Param('slug') slug: string): Promise<HotsiteManifestResponse> {
-    // The by-slug read is cached per TTL window and shared with `withPublicTenant`.
-    const tenant = await resolvePublicTenantViaBackend(this.backendHttp, slug);
+    const tenant = await this.backendHttp.get<TenantInfoResponse>(
+      `/internal/tenants/by-slug/${slug}`,
+    );
     const hotsite = await this.backendHttp.getForPublic<BackendHotsiteManifestResponse>(
       '/hotsite',
       tenant.id,
