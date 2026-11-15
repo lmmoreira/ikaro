@@ -1,7 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import request from 'supertest';
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import {
   HotsiteConfigEntityBuilder,
   TenantEntityBuilder,
@@ -138,27 +138,12 @@ describe('InternalTenantReadController (integration)', () => {
       expect(items.find((i) => i.slug === 'read-integ-unpublished-11')).toBeUndefined();
     });
 
-    it('excludes a suspended tenant, keeps the others, and lists it again once reactivated', async () => {
+    describe('with a suspended tenant (M25-S25)', () => {
       const suspendedId = 'a1b2c3d4-0000-0000-0000-000000000013';
       const otherId = 'a1b2c3d4-0000-0000-0000-000000000014';
-      for (const [id, slug, configId] of [
-        [suspendedId, 'read-integ-suspended-13', 'a1b2c3d4-0000-0000-0000-0000000000a3'],
-        [otherId, 'read-integ-operational-14', 'a1b2c3d4-0000-0000-0000-0000000000a4'],
-      ]) {
-        await ds
-          .getRepository(TenantEntity)
-          .save(new TenantEntityBuilder().withId(id).withSlug(slug).build());
-        await ds
-          .getRepository(HotsiteConfigEntity)
-          .save(
-            new HotsiteConfigEntityBuilder()
-              .withId(configId)
-              .withTenantId(id)
-              .withIsPublished(true)
-              .build(),
-          );
-      }
-      const list = async () =>
+      const fixtureIds = [suspendedId, otherId];
+
+      const list = async (): Promise<string[]> =>
         (
           (
             await request(app.getHttpServer())
@@ -168,14 +153,61 @@ describe('InternalTenantReadController (integration)', () => {
           ).body.items as PublishedHotsiteItem[]
         ).map((i) => i.slug);
 
-      access.seedSuspended(suspendedId);
-      const whileSuspended = await list();
-      access.reactivate(suspendedId);
-      const afterReactivation = await list();
+      // FK-safe order (the config row references the tenant), run before seeding and as the whole
+      // teardown so a reused Testcontainers database never carries these fixed-UUID rows over.
+      const cleanupFixtures = async (): Promise<void> => {
+        await ds.getRepository(HotsiteConfigEntity).delete({ tenantId: In(fixtureIds) });
+        await ds.getRepository(TenantEntity).delete({ id: In(fixtureIds) });
+      };
 
-      expect(whileSuspended).not.toContain('read-integ-suspended-13');
-      expect(whileSuspended).toContain('read-integ-operational-14');
-      expect(afterReactivation).toContain('read-integ-suspended-13');
+      beforeAll(async () => {
+        await cleanupFixtures();
+        for (const [id, slug, configId] of [
+          [suspendedId, 'read-integ-suspended-13', 'a1b2c3d4-0000-0000-0000-0000000000a3'],
+          [otherId, 'read-integ-operational-14', 'a1b2c3d4-0000-0000-0000-0000000000a4'],
+        ]) {
+          await ds
+            .getRepository(TenantEntity)
+            .save(new TenantEntityBuilder().withId(id).withSlug(slug).build());
+          await ds
+            .getRepository(HotsiteConfigEntity)
+            .save(
+              new HotsiteConfigEntityBuilder()
+                .withId(configId)
+                .withTenantId(id)
+                .withIsPublished(true)
+                .build(),
+            );
+        }
+      });
+
+      afterAll(cleanupFixtures);
+
+      afterEach(() => {
+        access.reactivate(suspendedId);
+        access.batchReadError = null;
+      });
+
+      it('excludes the suspended tenant, keeps the others, and lists it again once reactivated', async () => {
+        access.seedSuspended(suspendedId);
+        const whileSuspended = await list();
+        access.reactivate(suspendedId);
+        const afterReactivation = await list();
+
+        expect(whileSuspended).not.toContain('read-integ-suspended-13');
+        expect(whileSuspended).toContain('read-integ-operational-14');
+        expect(afterReactivation).toContain('read-integ-suspended-13');
+      });
+
+      it('fails open when the suspended-ids lookup throws: still 200, every published tenant listed', async () => {
+        access.seedSuspended(suspendedId);
+        access.batchReadError = new Error('billing down');
+
+        const slugs = await list();
+
+        expect(slugs).toContain('read-integ-suspended-13');
+        expect(slugs).toContain('read-integ-operational-14');
+      });
     });
 
     it('excludes an inactive tenant even when its hotsite is published', async () => {
