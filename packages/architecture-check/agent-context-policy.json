@@ -48,7 +48,7 @@
   "budgets": {
     "file": {
       "maxLines": 465,
-      "maxChars": 55201
+      "maxChars": 55266
     },
     "sections": {
       "0": {
@@ -85,7 +85,7 @@
       },
       "8": {
         "maxLines": 20,
-        "maxChars": 3051
+        "maxChars": 3108
       },
       "9": {
         "maxLines": 53,

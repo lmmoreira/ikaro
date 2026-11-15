@@ -36,7 +36,7 @@ A change to the file also ratchets the budgets in `packages/architecture-check/a
 
 | Pattern | Backstop |
 |---|---|
-| `useExisting` when a class is also registered as its own provider | `di-alias` detector (`packages/architecture-check`) |
+| `useExisting` when a class is also registered as its own provider | `unsafe-use-existing` and `reverse-di-alias` detectors (`packages/architecture-check`) |
 | Hardcoded `'pt-BR'` in a protected-area layout | ESLint `LOCALE_LITERAL_SELECTOR` |
 | Network I/O inside `txManager.run()` | `transactional-io` detector + ESLint `TX_MANAGER_PUBLISH_SELECTOR`/`RUN_IN_TRANSACTION_SELECTOR` |
 | A new `eventBus.subscribe()` with no `skipWhenSuspended` declaration, or a handler that injects `EVENT_BUS_TRANSPORT` | `event-handler-suspension-declaration` detector; the dependency loop is guarded by `event-bus.module.integration.spec.ts` |

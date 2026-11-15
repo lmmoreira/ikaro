@@ -262,16 +262,16 @@ Full list (narrower single-incident precedents included) in `docs/ANTI_PATTERNS.
 
 | Pattern | Fix |
 |---|---|
-| `useExisting` when registering adapter token | Use `useClass` — `useExisting` still instantiates the class even when the token is overridden in tests. **CI-enforced**: `di-alias` detector |
+| `useExisting` when registering adapter token | Use `useClass` — `useExisting` still instantiates the class even when the token is overridden in tests. **CI-enforced**: `unsafe-use-existing` and `reverse-di-alias` detectors |
 | New cross-context Port+Adapter when one already exists for the same context pair | Grep `infrastructure/cross-context/` first; add a method to the existing adapter instead |
-| Shared VO `create()` throws plain `Error` for validation it owns | Give VO a typed domain error; add `instanceof` branch to every calling `mapXxxError`. **CI-enforced**: `vo-bare-error` detector |
+| Shared VO `create()` throws plain `Error` for validation it owns | Give VO a typed domain error; add `instanceof` branch to every calling `mapXxxError`. **CI-enforced**: `vo-create-no-bare-error` detector |
 | New interface in `apps/web/features/**/api/**`, `apps/web/shared/lib/api/**`, or `apps/web/shared/types/**` without checking `@ikaro/types` | Grep `@ikaro/types` first — either side may be stale; verify against live BFF schema if shapes differ. **CI-enforced** by `packages/architecture-check`'s `ikaro-types-drift` detector — full-codebase, every PR, not diff-scoped |
 | Inline mapper functions accumulating in a BFF `*.controller.ts` | Extract to `<module>.mapper.ts` (plain functions, not a class) once a second mapper appears |
 | Duplicate read endpoints/use cases for projections of the same aggregate/config | Keep one canonical read endpoint/use case; derive caller-specific values in the BFF mapper or web helper |
 | Dashboard/account component uses `--ba-*` | Hotsite tree only; use Tailwind + shadcn. Exception: tenant-branded customer flows (`docs/ENGINEERING_RULES_FRONTEND.md` § The `--ba-*` exception) |
 | Fixed a Zod/DTO validation rule in one layer (BFF or backend) without checking the other for a duplicate schema | Grep the field name in both layers — BFF and backend often maintain independent copies of the same schema |
 | A non-repository class (service, publisher, handler) contains raw SQL, `@InjectRepository`, or TypeORM `Repository<T>` directly | Extract `IXxxRepository` (`shared/ports/` for cross-cutting, `<ctx>/application/ports/` for a bounded context) + `TypeOrmXxxRepository` adapter; the class depends on the port only — see `docs/AGENT_PATTERNS.md` Pattern #1 |
-| A module is marked `@Global()` (or re-marked when a token gains new consumers) without adding that token to `exports:` | `@Global()` only waives the *importing* module's need for an `imports:` entry — it never substitutes for `exports:`. A provider left out of `exports:` stays unresolvable everywhere. **CI-enforced**: `di-alias` detector |
+| A module is marked `@Global()` (or re-marked when a token gains new consumers) without adding that token to `exports:` | `@Global()` only waives the *importing* module's need for an `imports:` entry — it never substitutes for `exports:`. A provider left out of `exports:` stays unresolvable everywhere. **CI-enforced**: `global-module-export-pairing` detector |
 | New error code added to `@ikaro/types` without a translation entry in both locale files | Add the entry to both `packages/i18n/locales/pt-BR/errors.json` and `.../en/errors.json` in the same commit — **CI-enforced**: `apps/web`'s exhaustiveness test (TD23 Story 17) fails CI on a missing one |
 
 ---
