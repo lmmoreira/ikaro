@@ -1,3 +1,5 @@
+import { Envelope } from '../../../../shared/domain/envelope';
+import { IOutboxPublisher } from '../../../../shared/ports/outbox-publisher.port';
 import { OUTBOX_PUBLISH_CHUNK_SIZE } from '../../../../shared/utils/publish-to-outbox-in-chunks';
 import { BookingBuilder } from '../../../../test/builders/booking';
 import { InMemoryOutboxPublisher } from '../../../../test/infrastructure/in-memory-outbox-publisher';
@@ -15,6 +17,25 @@ const CUSTOMER_3 = 'cccccccc-0003-4000-8000-000000000028';
 const EVENT_ID = 'eeeeeeee-0001-4000-8000-000000000028';
 const CORRELATION_ID = 'corr-suspended-28';
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Fails the first write of one customer's command, like an outbox insert that errors mid-run.
+class FailOnceOnCustomerPublisher implements IOutboxPublisher {
+  private failed = false;
+
+  constructor(
+    private readonly inner: InMemoryOutboxPublisher,
+    private readonly customerId: string,
+  ) {}
+
+  async publish(event: Envelope): Promise<void> {
+    const command = event as TenantUnavailableNoticeDue;
+    if (!this.failed && command.data.customerId === this.customerId) {
+      this.failed = true;
+      throw new Error('outbox insert failed');
+    }
+    await this.inner.publish(event);
+  }
+}
 
 // Relative to now, never a calendar date (docs/ENGINEERING_RULES_TESTING.md).
 const SUSPENDED_AT = new Date(Date.now() - 60_000);
@@ -198,6 +219,32 @@ describe('RaiseTenantUnavailableNoticesUseCase', () => {
 
     expect(result.noticesPublished).toBe(OUTBOX_PUBLISH_CHUNK_SIZE);
     expect(txManager.runCallCount).toBe(1);
+  });
+
+  it('finishes the rest on a retry after a first run stopped between pages, writing no customer twice', async () => {
+    const customerIds = Array.from(
+      { length: OUTBOX_PUBLISH_CHUNK_SIZE + 1 },
+      (_, i) => `cccccccc-0003-4000-8000-${String(i).padStart(12, '0')}`,
+    );
+    for (const customerId of customerIds) await seed(customerId);
+    const lastCustomerId = customerIds[customerIds.length - 1];
+    useCase = new RaiseTenantUnavailableNoticesUseCase(
+      bookingRepo,
+      new FailOnceOnCustomerPublisher(outbox, lastCustomerId),
+      txManager,
+    );
+
+    await expect(run()).rejects.toThrow('outbox insert failed');
+    // The first page committed before the second one failed.
+    expect(commands()).toHaveLength(OUTBOX_PUBLISH_CHUNK_SIZE);
+
+    await run();
+
+    // The retry re-derives page one with the same keys (a no-op conflict in the real outbox) and
+    // adds the missing customer: every customer ends up with exactly one distinct key.
+    const keys = commands().map((c) => c.dedupKey);
+    expect(new Set(keys).size).toBe(customerIds.length);
+    expect(new Set(commands().map((c) => c.data.customerId))).toEqual(new Set(customerIds));
   });
 
   it('reads the customers before it opens a transaction', async () => {
