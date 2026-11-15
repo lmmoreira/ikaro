@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { FeatureKey } from '@ikaro/validation';
+import { HOTSITE_MODULE_FEATURE } from '@ikaro/types';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import {
   TENANT_ACCESS_PORT,
@@ -8,7 +8,6 @@ import {
 } from '../../../../shared/ports/tenant-access.port';
 import { TenantNotFoundError } from '../../domain/errors/platform-domain.error';
 import { HotsiteBranding, HotsiteModule, HotsiteSeo } from '../../domain/hotsite-config.aggregate';
-import type { HotsiteModuleType } from '../../domain/hotsite-config.types';
 import { BookingSettings, BusinessInfo } from '../../domain/value-objects/tenant-settings.vo';
 import { ITenantRepository, TENANT_REPOSITORY } from '../ports/tenant-repository.port';
 import { HotsiteContentReader } from '../services/hotsite-content-reader.service';
@@ -78,13 +77,6 @@ export interface GetHotsiteManifestUseCaseResult {
   localization: HotsiteLocalization;
   booking: HotsiteBookingSettings;
 }
-
-// The only module types that need a feature of their own; every other module is covered by the
-// page's HOTSITE feature (docs/HOTSITE_DYNAMIC_ARCHITECTURE.md § Unpublished state).
-const MODULE_FEATURE: Partial<Record<HotsiteModuleType, FeatureKey>> = {
-  LEAD_FORM: 'LEAD_FORM',
-  CHATBOT: 'CHATBOT',
-};
 
 function emptyBusinessInfo(): HotsiteBusinessInfo {
   return {
@@ -167,7 +159,7 @@ export class GetHotsiteManifestUseCase {
   ): HotsiteModule[] {
     if (!access) return layout;
     return layout.filter((module) => {
-      const feature = MODULE_FEATURE[module.type];
+      const feature = HOTSITE_MODULE_FEATURE[module.type];
       return !feature || access.features.some((entitled) => entitled.key === feature);
     });
   }

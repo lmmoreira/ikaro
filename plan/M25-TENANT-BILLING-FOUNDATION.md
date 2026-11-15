@@ -1908,6 +1908,7 @@ Two subscriptions, so the first two rows apply to each. No new principal; the to
 - `apps/backend/src/contexts/platform/application/use-cases/get-hotsite-manifest.use-case.ts` (+ `.spec.ts`) (modify)
 - `apps/backend/src/contexts/platform/application/use-cases/list-published-hotsites.use-case.ts` (+ `.spec.ts`) (modify — injects `TENANT_ACCESS_PORT`, suspended ids filtered in memory, fail-open)
 - `apps/backend/src/contexts/platform/platform.module.ts` (modify — providers for `RevalidateTenantHotsiteUseCase` and the two handlers)
+- `packages/types/src/enums.ts` (modify — `HOTSITE_MODULE_FEATURE`, the module-type to `FeatureKey` map, moved out of the use case at PR review) and `packages/types/src/hotsite-module-feature.spec.ts` (new)
 - `apps/backend/src/contexts/platform/infrastructure/controllers/internal-tenant-read.controller.ts` — verify only (no change expected)
 - `apps/backend/src/contexts/platform/application/use-cases/revalidate-tenant-hotsite.use-case.ts` (+ `.spec.ts`) (new)
 - `apps/backend/src/contexts/platform/infrastructure/events/subscription-suspended-hotsite-revalidation.handler.ts` and `subscription-reactivated-hotsite-revalidation.handler.ts` (+ specs) (new)
