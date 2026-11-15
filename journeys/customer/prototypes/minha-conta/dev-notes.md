@@ -376,7 +376,7 @@ The customer area had **no reschedule screen** (only the staff `RescheduleBookin
 
 # Billing — tenant suspended (planned, UC-121)
 
-> Moved as-is from the tenant-billing discovery (screens `16`, `16b`, `16c`); Draft, to be reshaped at story discovery. The operational state is decided: `GET /v1/billing/access` (role-reduced for CUSTOMER, exposing only `operational`) is the single canonical read; no separate flag or route; anonymous visitors only get the effective `isPublished` from the manifest. Customer behaviour while suspended is UC-121; the two open policies (loyalty expiry, customer email) are named open items there.
+> Moved as-is from the tenant-billing discovery (screens `16`, `16b`, `16c`); Draft, to be reshaped at story discovery. The operational state is decided: `GET /v1/billing/access` (role-reduced for CUSTOMER, exposing only `operational`) is the single canonical read; no separate flag or route; anonymous visitors only get the effective `isPublished` from the manifest. Customer behaviour while suspended is UC-121; loyalty expiry keeps running while suspended (decided, UC-121 O-L1, M25-S27) and the customer email is a named open item there (O-B1).
 
 ## Billing — account with an inactive company (`16-agendamentos-empresa-inativa.html`)
 

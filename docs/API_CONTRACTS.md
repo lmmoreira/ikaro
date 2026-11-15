@@ -1328,7 +1328,7 @@ All three endpoints require JWT with `CUSTOMER` role. The `customerId` is inferr
     ```
   - **`conversionRate` (M13-S06/M13-S12):** attached by the **backend** from the request tenant's settings (`pointsPerCurrencyUnit`; `0` = redemption disabled), and `null` when the balance was read cross-tenant (`?tenantId=`). The BFF (`GET /v1/loyalty/balance` returns `CustomerLoyaltyBalanceResponse`) forwards it, mapping `null` to `0`; it does not fetch tenant settings itself (that route is STAFF/MANAGER-only).
   - `currentPoints`: read from `loyalty_balances.current_points` (O(1) — no SUM).
-  - `nextExpiryDate`: ISO-8601 datetime string (`Date.toISOString()`) of the earliest **effective** expiry among active entries (`expires_at` shifted by the tenant's suspension pauses, `docs/DOMAIN_MODEL.md` § Expiration window); `null` if no active entries.
+  - `nextExpiryDate`: ISO-8601 datetime string (`Date.toISOString()`) of the earliest `expires_at` among active entries; `null` if no active entries.
   - `nextExpiryPoints`: sum of points expiring on `nextExpiryDate`; `null` if no active entries.
   - Returns `{ currentPoints: 0, nextExpiryDate: null, nextExpiryPoints: null }` when customer has no balance row.
   - **Cross-tenant switch (TD20):** accepts optional `?tenantId=X`. When present and different from the JWT's own tenant, the backend resolves the calling customer's record in tenant X itself (via `ILoyaltyCustomerPort`, matched by Google OAuth ID) — the client never supplies a `customerId` for this path. Returns `404` (`LOYALTY_CUSTOMER_NOT_FOUND_IN_TENANT`) if the customer has no record in tenant X. Used by the BFF's `GET /customers/tenants` (switch-tenant screen, UC-023) — one call per tenant the customer belongs to.
@@ -1351,7 +1351,7 @@ All three endpoints require JWT with `CUSTOMER` role. The `customerId` is inferr
       "pagination": { "page": 1, "limit": 20, "total": 45 }
     }
     ```
-  - `expiresAt`: the entry's **effective** expiry (the stored `expires_at` shifted by the tenant's suspension pauses); `isActive`: `true` when that effective expiry is later than `now()`.
+  - `expiresAt`: the entry's stored `expires_at`; `isActive`: `true` when it is later than `now()`.
   - `serviceName`: resolved via `IServiceCatalogPort` (cross-context adapter queries `booking.services`).
 
 - `GET /loyalty/redemptions?page=1&limit=20`
