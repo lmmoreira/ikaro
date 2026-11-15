@@ -353,3 +353,23 @@ A feature entitlement or the `SUSPENDED` state is checked at a few **declarative
 ## A rule the story calls "rejected" is enforced by the use case itself, with the same schema the HTTP route uses
 
 An acceptance criterion such as "negative, fractional, zero and empty input are rejected" holds for a direct caller only if the **use case** checks it. A route-level Zod schema alone leaves every other caller (a job, a handler, a spec) unguarded; Codex raised exactly this as a Critical in M25-S12. Parse the input with the route's own exported schema inside `execute()` and throw a typed domain error, so one definition covers both. Use `z.number().multipleOf(1)`, not `.int()`, when a fraction must derive `VALUE_OUT_OF_RANGE`: `.int()` produces a different issue code. A domain error shared by a route and a direct caller maps in `src/shared/http/<name>-error.mapper.ts` (see `docs/CI_TRAPS.md` § A shared domain error needs its mapper in `shared/http/`).
+
+## architecture-check detectors — the rules an agent trips while writing code
+
+`pnpm architecture-check` runs these detectors on every CI run, over the whole codebase. Each fails with its own message; the list is here so the rule is known before the first failure. (Moved here verbatim from `.copilot/context.md` §7 so that file keeps one line.)
+
+- **`entity-builder-pk-uuidv7-default`:** every TypeORM UUID-PK entity's builder defaults the key to `uuidv7()`.
+- **`test-builder-coverage`:** every TypeORM entity has a builder in `src/test/builders/<context>/`.
+- **`use-case-input-naming`, `use-case-result-naming`:** a use case's `execute()` input and output types are named `{ClassName}Input` and `{ClassName}Result`. `ClassName` includes the `UseCase` suffix (`GetFooUseCaseInput`, never `GetFooInput`).
+- **`bff-controller-inline-type`:** BFF response types and Zod schemas live in sibling `.types.ts` / `.schemas.ts` files, never inline in the controller.
+- **`no-jest-fn-for-repository-or-port`:** never stub a port-typed constructor parameter with `jest.fn()`; use an `InMemoryXxx` double.
+- **`vo-construction-validation`, `closed-enum-registry`:** value-object normalization is reachable, and closed-enum mirrors stay consistent.
+- **`error-mapper-coverage`, `shared-vo-error-mapper-coverage`, `error-prototype-chain`:** every domain error maps to an HTTP status, and `instanceof` stays safe.
+- **`aggregate-primitive-vo`:** shared value objects replace primitive aggregate fields.
+- **`test-harness-registration`:** the integration test-data harness stays in sync with entities and migrations.
+- **`tenant-access-route-metadata`:** every backend route declares its entitlement and suspension policy.
+- **`event-handler-suspension-declaration`:** every `eventBus.subscribe()` passes a literal `{ skipWhenSuspended }`: `true` on a handler that sends something outbound, `false` on audit-log, state-sync and Billing handlers.
+- **`lock-catalog-coverage`:** every lock port method is catalogued in `docs/LOCK_CATALOG.md`.
+- **`occupancy-release-choke-point`:** resource occupancy is released only through its choke point.
+- **`doc-link-integrity`, `doc-orientation`:** doc pointers resolve, and every doc has its `When to load` / `Tags` header.
+- **`agent-context-file`:** guards `.copilot/context.md` itself (deleted gate, broken pointer, PR number or ISO-date literal, section budget, divergent `CLAUDE.md` / `AGENTS.md` / `gemini.md` symlink).
