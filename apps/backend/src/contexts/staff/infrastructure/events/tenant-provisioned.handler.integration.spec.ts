@@ -15,6 +15,7 @@ import { TransactionManagerModule } from '../../../../shared/infrastructure/tran
 import { RoutingInMemoryEventBus } from '../../../../test/infrastructure/routing-in-memory-event-bus';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { testCacheModule } from '../../../../test/utils/test-cache-module';
+import { testTenantAccessModule } from '../../../../test/utils/test-tenant-access-module';
 import { HotsiteConfigEntity } from '../../../platform/infrastructure/entities/hotsite-config.entity';
 import { TenantEntity } from '../../../platform/infrastructure/entities/tenant.entity';
 import { PlatformModule } from '../../../platform/platform.module';
@@ -37,6 +38,7 @@ describe('Story: POST /internal/tenants → event bus → staff MANAGER created 
       imports: [
         testConfigModule(),
         testCacheModule(),
+        testTenantAccessModule(),
         TypeOrmModule.forRoot({
           type: 'postgres',
           url: process.env['TEST_DATABASE_URL'],

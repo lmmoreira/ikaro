@@ -177,6 +177,26 @@
         "reviewBy": "2026-09-30"
       },
       {
+        "source": "apps/backend/src/contexts/platform/infrastructure/events/subscription-suspended-hotsite-revalidation.handler.ts",
+        "target": "billing",
+        "targetPaths": [
+          "apps/backend/src/contexts/billing/domain/events/subscription-suspended.event.ts"
+        ],
+        "rationale": "Platform revalidates the hotsite when its tenant is suspended (M25-S25, UC-122).",
+        "owner": "platform",
+        "reviewBy": "2027-02-28"
+      },
+      {
+        "source": "apps/backend/src/contexts/platform/infrastructure/events/subscription-reactivated-hotsite-revalidation.handler.ts",
+        "target": "billing",
+        "targetPaths": [
+          "apps/backend/src/contexts/billing/domain/events/subscription-reactivated.event.ts"
+        ],
+        "rationale": "Platform revalidates the hotsite when its tenant is reactivated (M25-S25, UC-122).",
+        "owner": "platform",
+        "reviewBy": "2027-02-28"
+      },
+      {
         "source": "apps/backend/src/contexts/loyalty/infrastructure/events/booking-completed.handler.ts",
         "target": "booking",
         "targetPaths": [

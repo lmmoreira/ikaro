@@ -1,6 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
+import type { FeatureKey } from '@ikaro/validation';
+import { AppLogger } from '../../../../shared/observability/app-logger';
+import {
+  TENANT_ACCESS_PORT,
+  type TenantAccess,
+  type TenantAccessPort,
+} from '../../../../shared/ports/tenant-access.port';
 import { TenantNotFoundError } from '../../domain/errors/platform-domain.error';
 import { HotsiteBranding, HotsiteModule, HotsiteSeo } from '../../domain/hotsite-config.aggregate';
+import type { HotsiteModuleType } from '../../domain/hotsite-config.types';
 import { BookingSettings, BusinessInfo } from '../../domain/value-objects/tenant-settings.vo';
 import { ITenantRepository, TENANT_REPOSITORY } from '../ports/tenant-repository.port';
 import { HotsiteContentReader } from '../services/hotsite-content-reader.service';
@@ -71,6 +79,13 @@ export interface GetHotsiteManifestUseCaseResult {
   booking: HotsiteBookingSettings;
 }
 
+// The only module types that need a feature of their own; every other module is covered by the
+// page's HOTSITE feature (docs/HOTSITE_DYNAMIC_ARCHITECTURE.md § Unpublished state).
+const MODULE_FEATURE: Partial<Record<HotsiteModuleType, FeatureKey>> = {
+  LEAD_FORM: 'LEAD_FORM',
+  CHATBOT: 'CHATBOT',
+};
+
 function emptyBusinessInfo(): HotsiteBusinessInfo {
   return {
     phone: null,
@@ -82,9 +97,12 @@ function emptyBusinessInfo(): HotsiteBusinessInfo {
 
 @Injectable()
 export class GetHotsiteManifestUseCase {
+  private readonly logger = new AppLogger(GetHotsiteManifestUseCase.name);
+
   constructor(
     @Inject(TENANT_REPOSITORY) private readonly tenantRepo: ITenantRepository,
     private readonly hotsiteContentReader: HotsiteContentReader,
+    @Inject(TENANT_ACCESS_PORT) private readonly tenantAccess: TenantAccessPort,
   ) {}
 
   async execute({
@@ -95,7 +113,11 @@ export class GetHotsiteManifestUseCase {
     const tenant = await this.tenantRepo.findById(tenantId);
     if (!tenant) throw new TenantNotFoundError(tenantId);
 
-    if (!content.isPublished) {
+    // Billing never mutates the manager's flag: a suspended tenant simply reads as unpublished.
+    const access = await this.readAccess(tenantId);
+    const isPublished = content.isPublished && (access?.operational ?? true);
+
+    if (!isPublished) {
       return {
         branding: content.branding,
         layout: [],
@@ -112,9 +134,9 @@ export class GetHotsiteManifestUseCase {
 
     return {
       branding: content.branding,
-      layout: content.layout,
+      layout: this.filterEntitledModules(content.layout, access),
       seo: content.seo,
-      isPublished: content.isPublished,
+      isPublished,
       business: this.mapBusinessInfo(tenant.settings.businessInfo),
       localization: this.mapLocalization(
         tenant.settings.resolveLocalization(),
@@ -122,6 +144,32 @@ export class GetHotsiteManifestUseCase {
       ),
       booking: this.mapBookingSettings(tenant.settings.booking),
     };
+  }
+
+  // A failed lookup fails open: the page renders as it did before Billing existed.
+  private async readAccess(tenantId: string): Promise<TenantAccess | null> {
+    try {
+      return await this.tenantAccess.getAccess(tenantId);
+    } catch (err) {
+      this.logger.warn('Tenant access lookup failed; serving the hotsite as published', {
+        tenantId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return null;
+    }
+  }
+
+  // Omits (never deletes) a module whose feature the tenant lacks: its stored settings stay in
+  // the config and the module returns once the entitlement does.
+  private filterEntitledModules(
+    layout: HotsiteModule[],
+    access: TenantAccess | null,
+  ): HotsiteModule[] {
+    if (!access) return layout;
+    return layout.filter((module) => {
+      const feature = MODULE_FEATURE[module.type];
+      return !feature || access.features.some((entitled) => entitled.key === feature);
+    });
   }
 
   private mapLocalization(

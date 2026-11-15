@@ -31,6 +31,7 @@ import { InMemoryTenantSettingsPort } from '../infrastructure/in-memory-tenant-s
 import { TENANT_SETTINGS_PORT } from '../../shared/ports/tenant-settings.port';
 import { testCacheModule } from './test-cache-module';
 import { testConfigModule } from './test-config-module';
+import { testTenantAccessModule } from './test-tenant-access-module';
 
 export interface PlatformIntegrationAppOptions {
   extraProviders?: Provider[];
@@ -55,6 +56,7 @@ export async function createPlatformIntegrationApp(
     imports: [
       testConfigModule(),
       testCacheModule(),
+      testTenantAccessModule(),
       TypeOrmModule.forRoot({
         type: 'postgres',
         url: process.env['TEST_DATABASE_URL'],

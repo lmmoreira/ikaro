@@ -9,6 +9,8 @@ import {
 import { HotsiteConfigEntity } from '../entities/hotsite-config.entity';
 import { TenantEntity } from '../entities/tenant.entity';
 import { InternalApiGuard } from '../../../../shared/guards/internal-api.guard';
+import { TENANT_ACCESS_PORT } from '../../../../shared/ports/tenant-access.port';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
 import { createPlatformIntegrationApp } from '../../../../test/utils/platform-integration-app';
 
 interface PublishedHotsiteItem {
@@ -21,10 +23,13 @@ const INTERNAL_KEY = 'integ-read-key-integ-read-key-xx'; // exactly 32 chars
 describe('InternalTenantReadController (integration)', () => {
   let app: INestApplication;
   let ds: DataSource;
+  let access: InMemoryTenantAccessPort;
 
   beforeAll(async () => {
     process.env['INTERNAL_API_KEY'] = INTERNAL_KEY;
+    access = new InMemoryTenantAccessPort();
     ({ app, ds } = await createPlatformIntegrationApp({
+      overrideProviders: [{ provide: TENANT_ACCESS_PORT, useValue: access }],
       extraProviders: [{ provide: APP_GUARD, useClass: InternalApiGuard }],
     }));
   });
@@ -131,6 +136,46 @@ describe('InternalTenantReadController (integration)', () => {
 
       const items = body.items as PublishedHotsiteItem[];
       expect(items.find((i) => i.slug === 'read-integ-unpublished-11')).toBeUndefined();
+    });
+
+    it('excludes a suspended tenant, keeps the others, and lists it again once reactivated', async () => {
+      const suspendedId = 'a1b2c3d4-0000-0000-0000-000000000013';
+      const otherId = 'a1b2c3d4-0000-0000-0000-000000000014';
+      for (const [id, slug, configId] of [
+        [suspendedId, 'read-integ-suspended-13', 'a1b2c3d4-0000-0000-0000-0000000000a3'],
+        [otherId, 'read-integ-operational-14', 'a1b2c3d4-0000-0000-0000-0000000000a4'],
+      ]) {
+        await ds
+          .getRepository(TenantEntity)
+          .save(new TenantEntityBuilder().withId(id).withSlug(slug).build());
+        await ds
+          .getRepository(HotsiteConfigEntity)
+          .save(
+            new HotsiteConfigEntityBuilder()
+              .withId(configId)
+              .withTenantId(id)
+              .withIsPublished(true)
+              .build(),
+          );
+      }
+      const list = async () =>
+        (
+          (
+            await request(app.getHttpServer())
+              .get('/internal/tenants/published-hotsites')
+              .set('X-Internal-Key', INTERNAL_KEY)
+              .expect(200)
+          ).body.items as PublishedHotsiteItem[]
+        ).map((i) => i.slug);
+
+      access.seedSuspended(suspendedId);
+      const whileSuspended = await list();
+      access.reactivate(suspendedId);
+      const afterReactivation = await list();
+
+      expect(whileSuspended).not.toContain('read-integ-suspended-13');
+      expect(whileSuspended).toContain('read-integ-operational-14');
+      expect(afterReactivation).toContain('read-integ-suspended-13');
     });
 
     it('excludes an inactive tenant even when its hotsite is published', async () => {

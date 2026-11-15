@@ -222,13 +222,15 @@
   {
     "event": "SubscriptionReactivated",
     "consumers": [
-      "audit-log"
+      "audit-log",
+      "revalidate-hotsite-on-reactivation"
     ]
   },
   {
     "event": "SubscriptionSuspended",
     "consumers": [
-      "audit-log"
+      "audit-log",
+      "revalidate-hotsite-on-suspension"
     ]
   },
   {
