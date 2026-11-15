@@ -9,6 +9,7 @@ import { EventBusModule } from '../../shared/infrastructure/event-bus/event-bus.
 import { InboxModule } from '../../shared/infrastructure/inbox/inbox.module';
 import { InboxRecordEntity } from '../../shared/infrastructure/inbox/inbox-record.entity';
 import { OutboxModule } from '../../shared/infrastructure/outbox/outbox.module';
+import { OutboxEventEntity } from '../../shared/infrastructure/outbox/outbox-event.entity';
 import { EVENT_BUS_TRANSPORT } from '../../shared/ports/event-bus.port';
 import { OUTBOX_PUBLISHER } from '../../shared/ports/outbox-publisher.port';
 import { RequestInterceptor } from '../../shared/request/request.interceptor';
@@ -61,7 +62,17 @@ export interface BookingIntegrationAppOptions {
   /** Extra root providers, e.g. an `APP_GUARD` a spec wants to run for real. */
   extraProviders?: Provider[];
   overrideProviders?: Array<{ provide: symbol | string; useValue: unknown }>;
+  /** Entities a spec's extra modules need on top of the Booking ones. */
+  extraEntities?: EntityClass[];
+  /**
+   * Keep the real `OutboxPublisher` (backed by a real `shared.outbox` row, so a command's
+   * `dedupKey` really collapses a duplicate) instead of routing publishes straight to the bus.
+   * Only for a spec proving the production pipeline shape; default false.
+   */
+  useRealOutbox?: boolean;
 }
+
+type EntityClass = abstract new (...args: unknown[]) => unknown;
 
 export async function createBookingIntegrationApp(
   options: BookingIntegrationAppOptions = {},
@@ -71,7 +82,13 @@ export async function createBookingIntegrationApp(
   eventBus: RoutingInMemoryEventBus;
   moduleRef: TestingModule;
 }> {
-  const { extraModules = [], extraProviders = [], overrideProviders = [] } = options;
+  const {
+    extraModules = [],
+    extraProviders = [],
+    overrideProviders = [],
+    extraEntities = [],
+    useRealOutbox = false,
+  } = options;
 
   const routingBus = new RoutingInMemoryEventBus();
 
@@ -112,6 +129,8 @@ export async function createBookingIntegrationApp(
           AvailabilityAlertNotificationAttemptEntity,
           StaffEntity,
           InboxRecordEntity,
+          ...(useRealOutbox ? [OutboxEventEntity] : []),
+          ...extraEntities,
         ],
         synchronize: false,
       }),
@@ -131,12 +150,12 @@ export async function createBookingIntegrationApp(
   })
     .overrideProvider(EVENT_BUS_TRANSPORT)
     .useValue(routingBus)
-    .overrideProvider(OUTBOX_PUBLISHER)
-    .useValue(routingBus)
     .overrideProvider(STORAGE_SERVICE)
     .useValue(new InMemoryStorageService())
     .overrideProvider(FRONTEND_REVALIDATION_PORT)
     .useValue(new InMemoryFrontendRevalidationPort());
+
+  if (!useRealOutbox) builder = builder.overrideProvider(OUTBOX_PUBLISHER).useValue(routingBus);
 
   for (const { provide, useValue } of overrideProviders) {
     builder = builder.overrideProvider(provide).useValue(useValue);
