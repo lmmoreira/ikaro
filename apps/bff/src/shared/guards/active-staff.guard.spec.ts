@@ -6,7 +6,6 @@ import { of, throwError } from 'rxjs';
 import { AxiosError } from 'axios';
 import { AuthErrorCode, BffErrorCode, StaffErrorCode } from '@ikaro/types';
 import { makeExecutionContext } from '../../test/execution-context.factory';
-import { InMemoryBffCache } from '../cache/in-memory-bff-cache';
 import { BackendInternalClient } from '../http/backend-internal-client';
 import { ActiveStaffGuard } from './active-staff.guard';
 
@@ -33,10 +32,7 @@ function makeConfigService(): ConfigService {
 function makeGuard(http: HttpService, isPublic = false): ActiveStaffGuard {
   const reflector = new Reflector();
   jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(isPublic);
-  return new ActiveStaffGuard(
-    new BackendInternalClient(http, makeConfigService(), new InMemoryBffCache({ maxEntries: 10 })),
-    reflector,
-  );
+  return new ActiveStaffGuard(new BackendInternalClient(http, makeConfigService()), reflector);
 }
 
 const activeUser = { sub: STAFF_ID, tenantId: TENANT_ID, tenantSlug: 'slug', role: 'MANAGER' };

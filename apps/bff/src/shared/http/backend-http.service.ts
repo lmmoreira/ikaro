@@ -29,7 +29,7 @@ export class BackendHttpService {
   async get<T>(
     path: string,
     params?: Record<string, unknown>,
-    options?: BackendReadOptions<T>,
+    options?: BackendReadOptions,
   ): Promise<T> {
     return readThrough(this.store, options?.cache, () =>
       this.call(

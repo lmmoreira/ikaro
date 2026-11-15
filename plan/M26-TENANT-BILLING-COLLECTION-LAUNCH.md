@@ -438,7 +438,7 @@ Define the Billing events M26's use cases publish, **before** any use case publi
 **Description:**
 Make the provider's word the source of truth, safely.
 
-**BFF** (`billing.webhook.public.controller.ts`, in the existing `features/billing` module but its own controller per the BFF naming rule — it is public and provider-called, never mixed with the authenticated `billing.controller.ts`): `POST /v1/public/billing/webhooks/asaas` with `@Public()` **and** `@BypassWebOnlyGuard()` (the provider sends no web key) **and** `@SkipThrottle()` **and** `@NoFeatureGate()` + `@SuspensionAccess(ANY_AUTHENTICATED)` (no tenant slug arrives, so the access guard passes it untouched; the annotations satisfy the enforcing route-completeness detector, M25-S16/S24), and `@HttpCode(200)` (Nest's default `201` for `POST` would make Asaas count a failure). It verifies the `asaas-access-token` header with a **timing-safe** comparison against `ASAAS_WEBHOOK_TOKEN` (wrong / missing → `401`, nothing stored — **authenticity is the BFF's job and its unit test; the backend never sees the token** and `parseWebhook` only normalises), then forwards the already-parsed JSON body to `POST /internal/billing/webhooks/asaas` through a **dedicated tenant-less call** (`BackendHttpService.postWithoutTenant`, new: `BackendHttpService.post()` always sends `X-Tenant-ID: ''` for a caller without a user). The body is not kept as raw bytes: Asaas authenticates with a static token header, not a body signature, and the BFF's JSON parser re-serialises the object (raw-body preservation is Stripe's need, M28, and is not built here). While `FEATURE_FLAG_BILLING_PROVIDER_LIVE` is `false` (production before S39) the route answers exactly `200` as a logged no-op after the token check and calls no backend.
+**BFF** (`billing.webhook.public.controller.ts`, in the existing `features/billing` module but its own controller per the BFF naming rule — it is public and provider-called, never mixed with the authenticated `billing.controller.ts`): `POST /v1/public/billing/webhooks/asaas` with `@Public()` **and** `@BypassWebOnlyGuard()` (the provider sends no web key) **and** `@SkipThrottle()` (no tenant slug arrives, and the BFF carries no tenant-access annotation, M25-S33; the backend route below carries the annotations), and `@HttpCode(200)` (Nest's default `201` for `POST` would make Asaas count a failure). It verifies the `asaas-access-token` header with a **timing-safe** comparison against `ASAAS_WEBHOOK_TOKEN` (wrong / missing → `401`, nothing stored — **authenticity is the BFF's job and its unit test; the backend never sees the token** and `parseWebhook` only normalises), then forwards the already-parsed JSON body to `POST /internal/billing/webhooks/asaas` through a **dedicated tenant-less call** (`BackendHttpService.postWithoutTenant`, new: `BackendHttpService.post()` always sends `X-Tenant-ID: ''` for a caller without a user). The body is not kept as raw bytes: Asaas authenticates with a static token header, not a body signature, and the BFF's JSON parser re-serialises the object (raw-body preservation is Stripe's need, M28, and is not built here). While `FEATURE_FLAG_BILLING_PROVIDER_LIVE` is `false` (production before S39) the route answers exactly `200` as a logged no-op after the token check and calls no backend.
 
 **Backend** (`InternalApiGuard`, `@NoFeatureGate()` + `@SuspensionAccess(ANY_AUTHENTICATED)`): `ProcessProviderWebhookUseCase`. **Provider resolution** (every M26 use case obtains the adapter from `BillingProviderRegistry.resolve(merchantProfileKey)`, never a bare port): before the tenant is known the adapter is resolved from the provider in the route plus `resolveMerchantProfileKey(APP_ENV, 'BR')` (M25-S07) and used only for `parseWebhook` (local, no network); once the tenant is known, `fetchChargeStatus` uses the registry entry of the **subscription's own** `merchant_profile_key`. The use case resolves the tenant from the provider customer id and, when that customer is not yet known locally, from the payment's `externalReference` (our charge id, which exists locally as a `PENDING` charge before the provider is ever called; the field's presence in the webhook payload was observed in the sandbox (`docs/ASAAS_PROVIDER.md` § 2, check 11) and is re-checked in S37) so a webhook that outruns S05's customer save is not dropped (neither resolves → `200`, logged, no state change — A2), normalises the event (the M25-S14 normaliser emits `PaymentConfirmed`, `PaymentOverdue`, `PaymentCancelled`, `PaymentRefunded`, `PaymentPartiallyRefunded`, `PaymentChargeback` and `Ignored`; this story applies `PaymentConfirmed`, `PaymentOverdue`, `PaymentRefunded` and `PaymentChargeback`, and acknowledges `PaymentCancelled`, `PaymentPartiallyRefunded` and `Ignored` with `200` and no state change unless its `/story-discovery` decides otherwise; auto-billing events are not handled in M26) and, in **one transaction**: `ProviderEvent.insertIfAbsent` (duplicate → `200`, no-op), then `ApplyChargeFactUseCase` — which loads the subscription `findByTenantIdForUpdate` (B-R1) **first**, then the charge, applies the fact and writes the outbox rows (`ChargePaid`, `SubscriptionReactivated`, `SubscriptionSuspended` as applicable). **Any event the adapter does not normalise** (Asaas also sends `PAYMENT_CREATED`, `PAYMENT_UPDATED` and more; `PAYMENT_DELETED` is normalised to `PaymentCancelled`), an unknown customer **and** unknown `externalReference`, and an amount mismatch after the re-read all end in **exactly `200`**, logged, with no state change — a non-2xx would count toward Asaas's documented pause rule (15 consecutive failures, `docs/ASAAS_PROVIDER.md` G3) for events that are not failures.
 
@@ -500,7 +500,7 @@ After commit: invalidate the access cache. Response: **exactly `200`** after the
   - [ ] The transaction contains no provider I/O (`transactional-io` detector passes; the re-read happens before)
   - [ ] A webhook that arrives before the customer id was stored, or before the charge is `READY`, is resolved through `externalReference` and applied
   - [ ] Unknown customer **and** unknown `externalReference` → `200`; missing `InternalApiGuard` key → `401`
-  - [ ] Both controllers carry `@NoFeatureGate()` and an explicit `@SuspensionAccess(...)` (the route-completeness detector passes)
+  - [ ] The backend controller carries `@NoFeatureGate()` and an explicit `@SuspensionAccess(...)` (the route-completeness detector passes); the BFF controller carries none (M25-S33)
 - Tenant isolation: [ ] a webhook resolves exactly one tenant from the customer id and never touches another tenant's charges; two tenants with the same amount and due date are not confused
 - E2E: none — covered by integration (the full money loop E2E is S35)
 - [ ] Coverage ≥80% on changed code
@@ -989,14 +989,14 @@ Let a developer or operator drive every billing state without a provider account
 
 ## Wave 2 — Manager backend / BFF
 
-> The manager endpoints share one BFF controller (`apps/bff/src/features/billing/billing.controller.ts`, created in M25-S13 for `GET /v1/billing/access`) with sibling `billing.schemas.ts` / `billing.types.ts` / `billing.mapper.ts`, and one backend controller family under `contexts/billing/infrastructure/controllers/`. Every BFF route is `@Roles('MANAGER')`, `@NoFeatureGate()` (no sellable feature owns the billing surface) and `@SuspensionAccess(MANAGER_BILLING)` (M25-S16), so a suspended manager can reach it. **The backend `billing.controller.ts` carries the same `@NoFeatureGate()` + `@SuspensionAccess(MANAGER_BILLING)` on every route** (the M25-S16 global `TenantAccessGuard` also runs in the backend and defaults an unannotated route to suspension-denied; the `tenant-access-route-metadata` detector is enforcing after M25-S24) and reads the actor role from `X-Actor-Role`; each story below therefore lists the decorator specs in its AC. Tenant scope comes from the JWT and `RequestContext`, never a request field. **Error-code ownership (M26 rule):** the story that first throws a `BILLING_*` code owns its `packages/types/src/error-codes.ts` member, both `packages/i18n/locales/{pt-BR,en}/errors.json` entries, the error mapper and, for BFF-thrown codes, `BffThrowableCode` (`apps/bff/src/shared/http/problem-detail.ts`); M25-S06 translated only `SIGNUP_TAX_ID_REQUIRED`, `SIGNUP_TAX_ID_INVALID` and `BILLING_IDENTITY_TAX_ID_INVALID`. Because they edit the same BFF files, **the Wave 2 BFF stories are sequential in practice** (see `## Run-batch preview`).
+> The manager endpoints share one BFF controller (`apps/bff/src/features/billing/billing.controller.ts`, created in M25-S13 for `GET /v1/billing/access`) with sibling `billing.schemas.ts` / `billing.types.ts` / `billing.mapper.ts`, and one backend controller family under `contexts/billing/infrastructure/controllers/`. Every BFF route is `@Roles('MANAGER')` and **carries no tenant-access annotation: the BFF has no gate (M25-S33), it forwards the backend's typed denial unchanged**. **The backend `billing.controller.ts` carries `@NoFeatureGate()` (no sellable feature owns the billing surface) + `@SuspensionAccess(MANAGER_BILLING)` (M25-S16) on every route, so a suspended manager can reach it** (the M25-S16 global `TenantAccessGuard` runs in the backend and defaults an unannotated route to suspension-denied; the `tenant-access-route-metadata` detector is enforcing after M25-S24) and reads the actor role from `X-Actor-Role`; each story below therefore lists the decorator specs in its AC. Tenant scope comes from the JWT and `RequestContext`, never a request field. **Error-code ownership (M26 rule):** the story that first throws a `BILLING_*` code owns its `packages/types/src/error-codes.ts` member, both `packages/i18n/locales/{pt-BR,en}/errors.json` entries, the error mapper and, for BFF-thrown codes, `BffThrowableCode` (`apps/bff/src/shared/http/problem-detail.ts`); M25-S06 translated only `SIGNUP_TAX_ID_REQUIRED`, `SIGNUP_TAX_ID_INVALID` and `BILLING_IDENTITY_TAX_ID_INVALID`. Because they edit the same BFF files, **the Wave 2 BFF stories are sequential in practice** (see `## Run-batch preview`).
 
 ### M26-S14 — Manager reads — summary and charge history (UC-117), plus the operator list's Charge-derived fields (UC-111)
 
 **Agent:** `backend-ts + bff-ts`
 **Complexity:** M
 **Docs to load:** `docs/USE_CASES.md` UC-117 (all), UC-130 (banner states), `docs/API_CONTRACTS.md` § Billing — Manager API (BFF, role MANAGER) (summary response, charge history item, placement and gating), `docs/DOMAIN_MODEL.md` § Context 7: Billing Context (`suspendsAt`, `purgeAt`, `paymentConfirmationPending`), `docs/BFF_ARCHITECTURE.md` § Module & Controller Naming Conventions, `docs/API_CONTRACTS.md` § Base Standards (Pattern A pagination, money)
-**Dependencies:** M26-S02 (charge repository, listing), M25-S13 (BFF billing module and `@NoFeatureGate`/suspension-policy wiring), M25-S16 (`@SuspensionAccess`)
+**Dependencies:** M26-S02 (charge repository, listing), M25-S13 (BFF billing module), M25-S16 (`@SuspensionAccess`)
 **Pattern:** Query use cases (read models) + BFF mapper shaping the response (enums, no display strings); Pattern A pagination.
 
 **Description:**
@@ -1007,7 +1007,7 @@ The read side of the billing page. `GET /v1/billing/summary` returns the documen
 **Backend use case steps:**
 1. **`GetBillingSummaryUseCase`**, 2. **`ListBillingChargesUseCase`**, 3. **the existing M25 operator tenants-list use case** (modified to add the Charge-derived fields above).
 **Backend HTTP surface:** new controller `apps/backend/src/contexts/billing/infrastructure/controllers/billing.controller.ts` — `GET /billing/summary`, `GET /billing/charges` (tenant from `RequestContext`; exact prefix mirrors the nearest sibling, e.g. `TenantSettingsController`, confirmed at story discovery).
-**BFF endpoint spec:** extends `apps/bff/src/features/billing/billing.controller.ts` — `GET /v1/billing/summary`, `GET /v1/billing/charges?limit=&offset=` (`@Roles('MANAGER')`, `@NoFeatureGate()`, `@SuspensionAccess(MANAGER_BILLING)`); response types in `packages/types/src/billing.dto.ts`. The backend routes carry `@NoFeatureGate()` + `@SuspensionAccess(MANAGER_BILLING)` too (Wave 2 note).
+**BFF endpoint spec:** extends `apps/bff/src/features/billing/billing.controller.ts` — `GET /v1/billing/summary`, `GET /v1/billing/charges?limit=&offset=` (`@Roles('MANAGER')`); response types in `packages/types/src/billing.dto.ts`. The backend routes carry `@NoFeatureGate()` + `@SuspensionAccess(MANAGER_BILLING)`; the BFF routes carry no annotation (Wave 2 note, M25-S33).
 **New migration / i18n keys / env vars / feature flags:** none (no new error code is thrown here; labels are web locale keys added by S27).
 
 **Files to create/modify:**
@@ -1032,7 +1032,7 @@ The read side of the billing page. `GET /v1/billing/summary` returns the documen
   - [ ] Mapper: `exempt` flag, enum status, never a URL in `openCharge`; `timezone`, `nextCycle` / `nextCycleFrom` (null) present
   - [ ] A `TRIALING` summary lists the first-paid-period items priced at the version in force on that period's start; `upcomingPriceChanges` excludes a version with `announced_at` null or `superseded_at` set
 - Integration:
-  - [ ] Both backend and BFF routes carry `@NoFeatureGate()` + `@SuspensionAccess(MANAGER_BILLING)` (decorator spec; a suspended manager reaches them)
+  - [ ] The backend routes carry `@NoFeatureGate()` + `@SuspensionAccess(MANAGER_BILLING)` (decorator spec; a suspended manager reaches them); the BFF routes carry no annotation (M25-S33)
   - [ ] Pagination order/limit/offset and `total`/`hasMore`; the query uses the `(tenant_id, due_date DESC)` index (`EXPLAIN`)
   - [ ] Summary of a suspended tenant returns the open `RECOVERY` charge, not the stale period charge
   - [ ] `STAFF` and `CUSTOMER` tokens → `403`; reachable for a `SUSPENDED` tenant's manager
@@ -1058,7 +1058,7 @@ Let the manager pay. `POST /v1/billing/charges/{chargeId}/payment-link` → `200
 **Backend use case steps:**
 1. **`GetOrRegenerateChargePaymentLinkUseCase`**, 2. **`RecordPaymentReturnUseCase`** (record, then refresh).
 **Backend HTTP surface:** extends `billing.controller.ts` — `POST /billing/charges/:chargeId/payment-link`, `POST /billing/charges/:chargeId/payment-return`.
-**BFF endpoint spec:** extends the BFF billing controller — `POST /v1/billing/charges/{chargeId}/payment-link` and `…/payment-return` (`@Roles('MANAGER')`, `@NoFeatureGate()`, `@SuspensionAccess(MANAGER_BILLING)`; `chargeId` through `CanonicalParseUUIDPipe`); request: none; responses as above. The backend routes carry the same decorators.
+**BFF endpoint spec:** extends the BFF billing controller — `POST /v1/billing/charges/{chargeId}/payment-link` and `…/payment-return` (`@Roles('MANAGER')`; `chargeId` through `CanonicalParseUUIDPipe`); request: none; responses as above. The backend routes carry the same decorators.
 **New migration / i18n keys / env vars / feature flags:** error codes first thrown here: `BILLING_CHARGE_NOT_PAYABLE`, `BILLING_ADDRESS_REQUIRED`, `BILLING_PROVIDER_UNAVAILABLE` — each added to `BillingErrorCode` and to both `errors.json` files (M26 rule, Wave 2 note).
 
 **Files to create/modify:**
@@ -1084,7 +1084,7 @@ Let the manager pay. `POST /v1/billing/charges/{chargeId}/payment-link` → `200
   - [ ] The provider calls (link regeneration, the on-demand refresh) are outside any transaction (`transactional-io` passes)
   - [ ] A sweep-held recovery charge (incomplete address) → `BILLING_ADDRESS_REQUIRED`, no provider call; a `PENDING`-creation charge with no provider id (not held) → `BILLING_PROVIDER_UNAVAILABLE`, no provider call
   - [ ] **Race:** a webhook marking the charge `PAID` between the provider call and the link store is not overwritten (status stays `PAID`, link stored); the same for `payment-return` racing a webhook
-  - [ ] Backend and BFF routes carry `@NoFeatureGate()` + `@SuspensionAccess(MANAGER_BILLING)` (decorator spec)
+  - [ ] Backend routes carry `@NoFeatureGate()` + `@SuspensionAccess(MANAGER_BILLING)` (decorator spec); the BFF routes carry no annotation (M25-S33)
   - [ ] Another tenant's charge id → not found; a `STAFF` token → `403`
 - Tenant isolation: [ ] a manager can only generate links for and mark returns on their own tenant's charges
 - E2E: none — covered by integration; the pay flow E2E is S35
@@ -1107,7 +1107,7 @@ Let the manager pay. `POST /v1/billing/charges/{chargeId}/payment-link` → `200
 **Backend use case steps:**
 1. **`GetBillingIdentityUseCase`**, 2. **`UpdateBillingIdentityUseCase`** (partial update; BR tax-id blanking rejected).
 **Backend HTTP surface:** extends `billing.controller.ts` — `GET /billing/identity`, `PUT /billing/identity`.
-**BFF endpoint spec:** extends the BFF billing controller — `GET /v1/billing/identity`, `PUT /v1/billing/identity` (`@Roles('MANAGER')`, `@SuspensionAccess(MANAGER_BILLING)`); the Zod body schema lives in `billing.schemas.ts` and **mirrors the backend validation by construction** (CLAUDE.md §8: grep both layers for duplicate schemas).
+**BFF endpoint spec:** extends the BFF billing controller — `GET /v1/billing/identity`, `PUT /v1/billing/identity` (`@Roles('MANAGER')`); the Zod body schema lives in `billing.schemas.ts` and **mirrors the backend validation by construction** (CLAUDE.md §8: grep both layers for duplicate schemas).
 **New migration / i18n keys / env vars / feature flags:** **`BILLING_IDENTITY_TAX_ID_INVALID` and `BILLING_IDENTITY_EMAIL_INVALID` are first thrown here and are added by this story** (M25-S06 deferred the former: the `TaxId` VO throws `SIGNUP_TAX_ID_*`, and this story's use case catches `TaxIdValidationError` and throws its own `BILLING_IDENTITY_TAX_ID_INVALID`) (`BillingErrorCode`, both `errors.json`, mapper). Tax id, legal name and billing email are PII/financial data: never written to logs, span attributes or domain events by this story.
 
 **Files to create/modify:**
@@ -1128,7 +1128,7 @@ Let the manager pay. `POST /v1/billing/charges/{chargeId}/payment-link` → `200
   - [ ] Each of A1–A6; BR blanking rejected; partial update leaves untouched fields; US optional tax id
   - [ ] Partial `address` PUT: merged over the stored address and validated whole for BR and US field sets; an incomplete merge stores nothing and returns the `Address` field errors
   - [ ] No tax id / legal name / billing email in any log line or event payload (spy on the logger in the integration test)
-  - [ ] Backend and BFF routes carry `@NoFeatureGate()` + `@SuspensionAccess(MANAGER_BILLING)` (decorator spec)
+  - [ ] Backend routes carry `@NoFeatureGate()` + `@SuspensionAccess(MANAGER_BILLING)` (decorator spec); the BFF routes carry no annotation (M25-S33)
 - Integration:
   - [ ] Save → read round trip; invalid values return the documented codes and statuses (422) through the error mapper
   - [ ] **Hold release:** a subscription held by missing address (S05 fake) is issued on the next job run after the address is saved
@@ -1154,7 +1154,7 @@ The read side of the Plano tab. `GET /v1/billing/plan` returns the catalog for t
 **Backend use case steps:**
 1. **`GetPlanCatalogUseCase`**, 2. **`PreviewPlanSelectionUseCase`**.
 **Backend HTTP surface:** extends `billing.controller.ts` — `GET /billing/plan`, `POST /billing/plan/preview`.
-**BFF endpoint spec:** extends the BFF billing controller — `GET /v1/billing/plan`, `POST /v1/billing/plan/preview` (`@Roles('MANAGER')`, `@NoFeatureGate()`, `@SuspensionAccess(MANAGER_BILLING)`); preview body `{ items: [{ featureKey, tier }] }` (unique `featureKey`s; a duplicate is a `400` from the Zod schema). Backend routes carry the same decorators.
+**BFF endpoint spec:** extends the BFF billing controller — `GET /v1/billing/plan`, `POST /v1/billing/plan/preview` (`@Roles('MANAGER')`); preview body `{ items: [{ featureKey, tier }] }` (unique `featureKey`s; a duplicate is a `400` from the Zod schema). Backend routes carry the same decorators.
 **New migration / i18n keys / env vars / feature flags:** error codes first thrown here (raised by the aggregate's `validateSelection` / `previewSelection` from M25-S08 and surfaced by this story's routes): `BILLING_FEATURE_DEPENDENCY_UNMET`, `BILLING_FEATURE_HAS_DEPENDENTS`, `BILLING_PLAN_EMPTY` (default `422` each; confirm at story discovery) — this story adds them to `BillingErrorCode` and to both `errors.json` files (unless M25-S08 already did; grep first).
 
 **Files to create/modify:**
@@ -1176,7 +1176,7 @@ The read side of the Plano tab. `GET /v1/billing/plan` returns the catalog for t
   - [ ] Preview for add / remove / tier change with effective dates (UTC-3 and DST tenants); dependency and dependents rejections; empty selection; unavailable price
   - [ ] Read-only flags for `PAST_DUE`, `SUSPENDED`, scheduled cancel and `exempt`; trial reports first-paid-period semantics
   - [ ] `nextPeriodPaid = true` moves every effective date to the following period start and sets `deferredBecauseNextInvoicePaid` (UC-136 A7)
-  - [ ] Backend and BFF routes carry `@NoFeatureGate()` + `@SuspensionAccess(MANAGER_BILLING)` (decorator spec)
+  - [ ] Backend routes carry `@NoFeatureGate()` + `@SuspensionAccess(MANAGER_BILLING)` (decorator spec); the BFF routes carry no annotation (M25-S33)
 - Integration:
   - [ ] Catalog and preview through the HTTP layer; preview persists nothing (row counts unchanged)
   - [ ] `STAFF`/`CUSTOMER` → `403`
@@ -1252,7 +1252,7 @@ Persist the manager's plan choice. **`PUT /v1/billing/plan`** `{ items: [{ featu
 **Backend use case steps:**
 1. **`SavePlanUseCase`**, 2. **`ConfirmPlanUseCase`**; both end with the after-commit provider re-issue/issue hook. `SavePlanUseCase` runs the S18 three-step order for a BOOKING removal: guard, commit the scheduled removal, post-commit re-count with revert on a new blocker.
 **Backend HTTP surface:** extends `billing.controller.ts` — `PUT /billing/plan`, `POST /billing/plan/confirm`.
-**BFF endpoint spec:** extends the BFF billing controller — `PUT /v1/billing/plan` (body as preview), `POST /v1/billing/plan/confirm` (`@Roles('MANAGER')`, `@NoFeatureGate()`, `@SuspensionAccess(MANAGER_BILLING)`); the backend routes carry the same decorators.
+**BFF endpoint spec:** extends the BFF billing controller — `PUT /v1/billing/plan` (body as preview), `POST /v1/billing/plan/confirm` (`@Roles('MANAGER')`); the backend routes carry the same decorators.
 **New migration / i18n keys / env vars / feature flags:** error codes first thrown here, each added to `BillingErrorCode` and both `errors.json` files: `BILLING_FEATURE_IN_USE`, `BILLING_PLAN_CHANGE_NOT_ALLOWED`, `BILLING_NO_PRICE_FOR_COUNTRY` (unless M25-S10 already added it — grep first), `BILLING_PLAN_ALREADY_CONFIRMED`. `BILLING_ADDRESS_REQUIRED` is S15's; `BILLING_FEATURE_DEPENDENCY_UNMET` / `…_HAS_DEPENDENTS` / `…_PLAN_EMPTY` are S17's.
 
 **Files to create/modify:**
@@ -1281,7 +1281,7 @@ Persist the manager's plan choice. **`PUT /v1/billing/plan`** `{ items: [{ featu
   - [ ] **Race:** a plan save cancelling a charge whose provider creation is in flight leaves the orphan provider charge marked `provider_cancel_pending` and cancelled by S07's retry
   - [ ] **Pre-commit booking race (S18):** a booking beyond the effective date committed between the guard's count and the save commit → post-commit re-count reverts the scheduled removal and returns `BILLING_FEATURE_IN_USE`
   - [ ] `exempt` → `BILLING_PLAN_CHANGE_NOT_ALLOWED`; the access cache is invalidated after commit and the manifest revalidated when a cap is set or cleared
-  - [ ] Backend and BFF routes carry `@NoFeatureGate()` + `@SuspensionAccess(MANAGER_BILLING)` (decorator spec)
+  - [ ] Backend routes carry `@NoFeatureGate()` + `@SuspensionAccess(MANAGER_BILLING)` (decorator spec); the BFF routes carry no annotation (M25-S33)
   - [ ] Paid invoice never changed; `PlanChanged` published once per save that changes the selection (`added[]` / `removed[]` relative to the previously effective-or-scheduled selection); `POST /plan/confirm` of the untouched default publishes **no** `PlanChanged` (nothing changed); confirm idempotency (second → 409)
   - [ ] No provider I/O inside the transaction (`transactional-io`)
 - Tenant isolation: [ ] a save affects only the caller's tenant's items and charges
@@ -1305,7 +1305,7 @@ Persist the manager's plan choice. **`PUT /v1/billing/plan`** `{ items: [{ featu
 **Backend use case steps:**
 1. **`CancelSubscriptionUseCase`**, 2. **`ReactivateSubscriptionUseCase`**.
 **Backend HTTP surface:** extends `billing.controller.ts` — `POST /billing/cancel`, `POST /billing/reactivate`.
-**BFF endpoint spec:** extends the BFF billing controller — `POST /v1/billing/cancel`, `POST /v1/billing/reactivate` (`@Roles('MANAGER')`, `@NoFeatureGate()`, `@SuspensionAccess(MANAGER_BILLING)`); no request body. The backend routes carry the same decorators.
+**BFF endpoint spec:** extends the BFF billing controller — `POST /v1/billing/cancel`, `POST /v1/billing/reactivate` (`@Roles('MANAGER')`); no request body. The backend routes carry the same decorators.
 **New migration / i18n keys / env vars / feature flags:** error codes first thrown here, each added to `BillingErrorCode` and both `errors.json` files: `BILLING_ALREADY_CANCELLING`, `BILLING_CANCEL_NOT_ALLOWED`, `BILLING_REACTIVATE_NOT_ALLOWED`. `BILLING_ADDRESS_REQUIRED` and `BILLING_PROVIDER_UNAVAILABLE` are S15's. Docs: `docs/ERROR_CATALOG.md` entries for `BILLING_CANCEL_NOT_ALLOWED` and `BILLING_REACTIVATE_NOT_ALLOWED` (both `409`) are added in the audit fix; confirm status at discovery.
 
 **Files to create/modify:**
@@ -1338,7 +1338,7 @@ Persist the manager's plan choice. **`PUT /v1/billing/plan`** `{ items: [{ featu
   - [ ] **Cancel then reactivate inside the paid period** with the next period's invoice already issued and cancelled: `clearCancel` re-creates that period's charge (same `period_start`, no `next_due_date` advance) — the period is invoiced exactly once
   - [ ] **Race:** a cancel of a charge whose provider creation is in flight leaves the orphan provider charge marked `provider_cancel_pending` and cancelled by S07's retry
   - [ ] A sweep-held recovery charge (S06) is created at the provider by S05's retry once the address is saved, and a manager `reactivate` meanwhile returns that same open charge (no second recovery charge)
-  - [ ] Backend and BFF routes carry `@NoFeatureGate()` + `@SuspensionAccess(MANAGER_BILLING)` (decorator spec)
+  - [ ] Backend routes carry `@NoFeatureGate()` + `@SuspensionAccess(MANAGER_BILLING)` (decorator spec); the BFF routes carry no annotation (M25-S33)
   - [ ] `seed` now also creates `ACTIVE` with a scheduled cancel and `SUSPENDED` for `CANCELED`, through the normal cancel use case
   - [ ] Setting a tenant `exempt` (operator) cancels its open charge locally and at the provider through `CancelOpenChargesUseCase` (UC-137 step 1)
   - [ ] No provider call inside a transaction (`transactional-io` passes)
@@ -1511,7 +1511,7 @@ Anyone can start a free trial. **Session (Google step).** The visitor signs in w
 **Backend HTTP surface:**
 - new `apps/backend/src/contexts/platform/infrastructure/controllers/internal-signup.controller.ts` — `POST /internal/signup/validate` (new here) and `POST /internal/signup/tenant` (path fixed in `docs/API_CONTRACTS.md`), both `InternalApiGuard` alone.
 - extends the Billing registration controller (M25-S09, `internal-billing-registration.controller.ts`) — `GET /internal/billing/registrations/eligibility?googleSub=` and `POST /internal/billing/registrations/{id}/release`; `POST /internal/billing/registrations` is reused.
-- Every new route carries `@NoFeatureGate()` and the explicit `@SuspensionAccess(...)` the M25 route-completeness detector requires for tenant-less internal routes (read M25-S16/S20/S24 for the exact decorator).
+- Every new **backend** route carries `@NoFeatureGate()` and the explicit `@SuspensionAccess(...)` the M25 route-completeness detector requires for tenant-less internal routes (a BFF route carries none, M25-S33) (read M25-S16/S20/S24 for the exact decorator).
 **BFF endpoint spec:** extends `apps/bff/src/features/platform/signup.public.controller.ts` — `GET /v1/public/signup/session`, `POST /v1/public/signup/tenant` (`@Public()`, throttles as above, `503 SIGNUP_CLOSED` when `FEATURE_FLAG_SIGNUP_ENABLED` is off); the cookie service in `signup-session.service.ts`; `GET /auth/google?type=signup` and the callback branch in the auth feature; `POST /auth/dev-signup-session` (dev/test only).
 **New migration / i18n keys / env vars / feature flags:**
 - env: the current Terms version `SIGNUP_TERMS_VERSION` (backend only; added to backend `env.validation.ts` and the env contract; required when `FEATURE_FLAG_SIGNUP_ENABLED` is true) and the flag `FEATURE_FLAG_SIGNUP_ENABLED` (default `false` in production until S39, `true` in local/CI/staging; backend and BFF read it). `TURNSTILE_SECRET_KEY` is the existing backend variable the lead form already uses. **No new secret.**

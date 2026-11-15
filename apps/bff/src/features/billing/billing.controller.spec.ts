@@ -1,6 +1,4 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import { NO_FEATURE_GATE_KEY, SUSPENSION_ACCESS_KEY } from '@ikaro/nestjs-http';
 import { FEATURE_KEYS } from '@ikaro/validation';
 import { makeBackendHttp } from '../../test/backend-http.mock';
 import type { CurrentUserPayload } from '../../shared/decorators/current-user.decorator';
@@ -26,14 +24,6 @@ const BACKEND_ANSWER = {
 };
 
 describe('BillingController', () => {
-  it('declares the access read reachable while a tenant is suspended, so the web can learn that it is', () => {
-    const reflector = new Reflector();
-    const handler = BillingController.prototype.getAccess;
-
-    expect(reflector.get(NO_FEATURE_GATE_KEY, handler)).toBe(true);
-    expect(reflector.get(SUSPENSION_ACCESS_KEY, handler)).toBe('ANY_AUTHENTICATED');
-  });
-
   it('reads the access of the tenant in the JWT from the backend internal endpoint', async () => {
     const backendHttp = makeBackendHttp();
     backendHttp.get.mockResolvedValueOnce(BACKEND_ANSWER);

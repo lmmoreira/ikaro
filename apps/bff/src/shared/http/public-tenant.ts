@@ -11,14 +11,14 @@ export const PUBLIC_TENANT_TTL_MS = 300_000;
 
 /**
  * The one by-slug read every public route starts from, as the path and the cache declaration its
- * callers pass to a backend client. `TenantAccessGuard`, `withPublicTenant` and the hotsite
- * manifest all use it, so they share one cache entry per slug: a public request costs one by-slug
- * hop per TTL window instead of two or more. The key is the slug alone because the answer is the
+ * callers pass to a backend client. `withPublicTenant` and the hotsite manifest both use it,
+ * so they share one cache entry per slug: a public request costs one by-slug hop per TTL window
+ * instead of two. The key is the slug alone because the answer is the
  * same for every caller.
  */
 export function tenantBySlugRead(tenantSlug: string): {
   path: string;
-  cache: BackendCacheOption<TenantInfoResponse>;
+  cache: BackendCacheOption;
 } {
   return {
     path: `/internal/tenants/by-slug/${encodeURIComponent(tenantSlug)}`,

@@ -9,6 +9,7 @@ import { join, resolve } from 'node:path';
 // block / TD37-S18's eslint-next-plugin.eslint.spec.ts.
 const repoRoot = resolve(__dirname, '../../..');
 const backendContextsDir = resolve(repoRoot, 'apps/backend/src/contexts');
+const bffFeaturesDir = resolve(repoRoot, 'apps/bff/src/features');
 
 function runArchitectureCheck(): { status: number; output: string } {
   try {
@@ -156,6 +157,34 @@ describe('M25-S24: a route with no tenant-access metadata fails the real CLI', (
       const annotated = runArchitectureCheck();
       expect(annotated.status).toBe(0);
       expect(annotated.output).not.toContain('GateProbeController.list');
+    } finally {
+      rmSync(fixtureDir, { recursive: true, force: true });
+    }
+  }, 180_000);
+});
+
+describe('M25-S33: the BFF is out of the tenant-access scan', () => {
+  it('exits 0 for an unannotated BFF controller (the backend is the only enforcement point)', () => {
+    const fixtureDir = mkdtempSync(join(bffFeaturesDir, '__m25s33-fixture-'));
+
+    try {
+      writeFileSync(
+        join(fixtureDir, 'gate-probe.controller.ts'),
+        [
+          "import { Controller, Get } from '@nestjs/common';",
+          '',
+          "@Controller('gate-probe')",
+          'export class BffGateProbeController {',
+          '  @Get()',
+          '  list(): void {}',
+          '}',
+          '',
+        ].join('\n'),
+      );
+
+      const result = runArchitectureCheck();
+      expect(result.status).toBe(0);
+      expect(result.output).not.toContain('BffGateProbeController');
     } finally {
       rmSync(fixtureDir, { recursive: true, force: true });
     }

@@ -40,35 +40,6 @@ describe('readThrough', () => {
     expect(load).toHaveBeenCalledTimes(2);
   });
 
-  it('takes the TTL from the response when it is a function', async () => {
-    const { store, clock } = makeStore();
-    const load = jest.fn().mockResolvedValueOnce({ operational: false });
-    load.mockResolvedValue({ operational: true });
-    const option = {
-      key: 'k',
-      ttlMs: (body: { operational: boolean }) => (body.operational ? 300_000 : 10_000),
-    };
-
-    await readThrough(store, option, load);
-    clock.advance(9_999);
-    await readThrough(store, option, load);
-    expect(load).toHaveBeenCalledTimes(1);
-    clock.advance(1);
-    await readThrough(store, option, load);
-    expect(load).toHaveBeenCalledTimes(2);
-  });
-
-  it('does not store an answer whose TTL function returns undefined', async () => {
-    const { store } = makeStore();
-    const load = jest.fn().mockResolvedValue({ degraded: true });
-    const option = { key: 'k', ttlMs: () => undefined };
-
-    await readThrough(store, option, load);
-    await readThrough(store, option, load);
-
-    expect(load).toHaveBeenCalledTimes(2);
-  });
-
   it('never stores a failed load', async () => {
     const { store } = makeStore();
     const load = jest.fn().mockRejectedValueOnce(new Error('404')).mockResolvedValue('body');
@@ -85,7 +56,7 @@ describe('readThrough', () => {
     const load = jest.fn().mockResolvedValueOnce('a').mockResolvedValueOnce('b');
 
     await readThrough(store, { key: 'tenant-by-slug:x', ttlMs: 1_000 }, load);
-    const other = await readThrough(store, { key: 'tenant-access:x', ttlMs: 1_000 }, load);
+    const other = await readThrough(store, { key: 'tenant-by-id:x', ttlMs: 1_000 }, load);
 
     expect(other).toBe('b');
   });

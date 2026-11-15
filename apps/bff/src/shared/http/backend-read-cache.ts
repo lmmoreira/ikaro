@@ -8,19 +8,18 @@ export const BACKEND_RESPONSE_CACHE = Symbol('BackendResponseCache');
  *
  * `key` is required and is a **tenant-isolation boundary**: the cache is shared by every caller, so
  * a response that varies by tenant or actor must carry the tenant or actor in its key. Only
- * tenant-independent reads (a slug → tenant lookup, a tenant's own access answer keyed by its id)
- * use a plain key. Namespace the key (`tenant-by-slug:<slug>`) so two reads never collide.
+ * tenant-independent reads (a slug → tenant lookup) use a plain key. Namespace the key
+ * (`tenant-by-slug:<slug>`) so two reads never collide.
  *
- * `ttlMs` is a number, or a function of the response for an answer whose lifetime depends on its
- * content; returning `undefined` means "do not cache this one" (a fail-open answer must not be pinned).
+ * `ttlMs` is the entry's lifetime in milliseconds.
  */
-export interface BackendCacheOption<T> {
+export interface BackendCacheOption {
   readonly key: string;
-  readonly ttlMs: number | ((body: T) => number | undefined);
+  readonly ttlMs: number;
 }
 
-export interface BackendReadOptions<T> {
-  readonly cache?: BackendCacheOption<T>;
+export interface BackendReadOptions {
+  readonly cache?: BackendCacheOption;
 }
 
 /**
@@ -30,7 +29,7 @@ export interface BackendReadOptions<T> {
  */
 export async function readThrough<T>(
   store: BffCache<unknown>,
-  option: BackendCacheOption<T> | undefined,
+  option: BackendCacheOption | undefined,
   load: () => Promise<T>,
 ): Promise<T> {
   if (!option) return load();
@@ -39,7 +38,6 @@ export async function readThrough<T>(
   if (hit !== undefined) return hit as T;
 
   const body = await load();
-  const ttlMs = typeof option.ttlMs === 'function' ? option.ttlMs(body) : option.ttlMs;
-  if (ttlMs !== undefined && ttlMs > 0) await store.set(option.key, body, ttlMs);
+  if (option.ttlMs > 0) await store.set(option.key, body, option.ttlMs);
   return body;
 }
