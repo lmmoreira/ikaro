@@ -3,6 +3,7 @@ import { RequestContextBuilder } from '../../../../test/factories/request-contex
 import { HotsiteConfigBuilder, TenantBuilder } from '../../../../test/builders/platform';
 import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/platform/in-memory-hotsite-config.repository';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { HotsiteImageUrlResolver } from '../../domain/services/hotsite-image-url-resolver.service';
 import { HotsiteContentReader } from '../../application/services/hotsite-content-reader.service';
@@ -23,7 +24,7 @@ describe('HotsiteController', () => {
     await tenantRepo.save(new TenantBuilder().withId(TENANT_A).build());
     controller = new HotsiteController(
       new RequestContextBuilder().withTenantId(TENANT_A).build(),
-      new GetHotsiteManifestUseCase(tenantRepo, reader),
+      new GetHotsiteManifestUseCase(tenantRepo, reader, new InMemoryTenantAccessPort()),
     );
   });
 

@@ -59,6 +59,7 @@ import { ListPublishedHotsitesUseCase } from './application/use-cases/list-publi
 import { ProvisionTenantUseCase } from './application/use-cases/provision-tenant.use-case';
 import { PublishHotsiteUseCase } from './application/use-cases/publish-hotsite.use-case';
 import { RenameTenantUseCase } from './application/use-cases/rename-tenant.use-case';
+import { RevalidateTenantHotsiteUseCase } from './application/use-cases/revalidate-tenant-hotsite.use-case';
 import { SendChatMessageUseCase } from './application/use-cases/send-chat-message.use-case';
 import { UnpublishHotsiteUseCase } from './application/use-cases/unpublish-hotsite.use-case';
 import { UpdateHotsiteContentUseCase } from './application/use-cases/update-hotsite-content.use-case';
@@ -109,6 +110,8 @@ import { TypeOrmLeadFormConfigRepository } from './infrastructure/repositories/t
 import { TypeOrmLeadFormSubmissionRepository } from './infrastructure/repositories/typeorm-lead-form-submission.repository';
 import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-tenant.repository';
 import { PlatformAuditLogHandler } from './infrastructure/events/platform-audit-log.handler';
+import { SubscriptionReactivatedHotsiteRevalidationHandler } from './infrastructure/events/subscription-reactivated-hotsite-revalidation.handler';
+import { SubscriptionSuspendedHotsiteRevalidationHandler } from './infrastructure/events/subscription-suspended-hotsite-revalidation.handler';
 import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.module';
 
 @Module({
@@ -209,6 +212,9 @@ import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.
     LeadFormRetentionPurgeJob,
     LeadFormRetentionPurgeTriggerHandler,
     PlatformAuditLogHandler,
+    RevalidateTenantHotsiteUseCase,
+    SubscriptionSuspendedHotsiteRevalidationHandler,
+    SubscriptionReactivatedHotsiteRevalidationHandler,
     CreateLeadFormSubmissionUseCase,
     GetChatbotCapStatusUseCase,
     GetChatbotStatusUseCase,

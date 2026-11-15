@@ -122,8 +122,9 @@ describe('Platform routes — tenant access (integration)', () => {
     process.env['INTERNAL_API_KEY'] = INTERNAL_KEY;
     access = new InMemoryTenantAccessPort();
     ({ app, ds } = await createPlatformIntegrationApp({
+      // One instance for the guard and for the use cases (the manifest reads the same answer).
+      overrideProviders: [{ provide: TENANT_ACCESS_PORT, useValue: access }],
       extraProviders: [
-        { provide: TENANT_ACCESS_PORT, useValue: access },
         { provide: APP_FILTER, useClass: ErrorFilter },
         { provide: APP_GUARD, useClass: InternalApiGuard },
         { provide: APP_GUARD, useClass: TenantAccessGuard },
@@ -202,7 +203,102 @@ describe('Platform routes — tenant access (integration)', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.branding).toBeDefined();
+      expect(res.body.isPublished).toBe(false);
+      expect(res.body.layout).toEqual([]);
     });
+
+    it("never hides another tenant's hotsite, and reactivation restores the suspended one", async () => {
+      access.seedSuspended(TENANT_A);
+
+      const other = await call({ method: 'get', path: '/hotsite' }, TENANT_B);
+      const suspended = await call({ method: 'get', path: '/hotsite' }, TENANT_A);
+      access.reactivate(TENANT_A);
+      const restored = await call({ method: 'get', path: '/hotsite' }, TENANT_A);
+
+      expect(other.body.isPublished).toBe(true);
+      expect(suspended.body.isPublished).toBe(false);
+      expect(restored.body.isPublished).toBe(true);
+    });
+
+    it('leaves the stored manager flag published: suspension only changes the computed answer', async () => {
+      access.seedSuspended(TENANT_A);
+
+      await call({ method: 'get', path: '/hotsite' }, TENANT_A);
+
+      const row = await ds
+        .getRepository(HotsiteConfigEntity)
+        .findOneByOrFail({ tenantId: TENANT_A });
+      expect(row.isPublished).toBe(true);
+    });
+
+    it('fails open when the access lookup throws: the page still renders as published', async () => {
+      access.getAccessError = new Error('billing down');
+
+      const res = await call({ method: 'get', path: '/hotsite' }, TENANT_B);
+      access.getAccessError = null;
+
+      expect(res.status).toBe(200);
+      expect(res.body.isPublished).toBe(true);
+    });
+  });
+
+  describe('module filtering by entitlement (M25-S25)', () => {
+    const layout = [
+      {
+        type: 'HERO' as const,
+        enabled: true,
+        data: { variant: 'centered', title: 'T', ctaLabel: 'C', ctaTarget: 'booking-form' },
+      },
+      { type: 'CHATBOT' as const, enabled: true, data: { variant: 'bubble' } },
+      {
+        type: 'LEAD_FORM' as const,
+        enabled: true,
+        data: { title: 'Fale conosco', ctaLabel: 'Enviar' },
+      },
+    ];
+
+    async function seedLayout(): Promise<void> {
+      await ds.getRepository(HotsiteConfigEntity).update({ tenantId: TENANT_A }, { layout });
+    }
+
+    async function restoreLayout(): Promise<void> {
+      const original = new HotsiteConfigEntityBuilder().build().layout;
+      await ds
+        .getRepository(HotsiteConfigEntity)
+        .update({ tenantId: TENANT_A }, { layout: original });
+    }
+
+    afterEach(restoreLayout);
+
+    it.each(['LEAD_FORM', 'CHATBOT'] as const)(
+      'omits the %s module without the feature and returns it untouched once entitled again',
+      async (feature) => {
+        await seedLayout();
+        access.seed(TENANT_A, {
+          status: 'ACTIVE',
+          suspensionReason: null,
+          operational: true,
+          features: withoutFeature(feature),
+        });
+
+        const without = await call({ method: 'get', path: '/hotsite' }, TENANT_A);
+        const stored = await ds.getRepository(HotsiteConfigEntity).findOneByOrFail({
+          tenantId: TENANT_A,
+        });
+        access.reactivate(TENANT_A);
+        const restored = await call({ method: 'get', path: '/hotsite' }, TENANT_A);
+
+        const typesWithout = (without.body.layout as Array<{ type: string }>).map((m) => m.type);
+        expect(typesWithout).not.toContain(feature);
+        expect(typesWithout).toContain('HERO');
+        expect(stored.layout.map((m) => m.type)).toContain(feature);
+        expect(
+          (restored.body.layout as Array<{ type: string; data: unknown }>).find(
+            (m) => m.type === feature,
+          ),
+        ).toEqual(layout.find((m) => m.type === feature));
+      },
+    );
   });
 
   describe('an entitled tenant', () => {

@@ -44,3 +44,12 @@ export type HotsiteModuleType =
   | 'FOOTER'
   | 'CHATBOT'
   | 'LEAD_FORM';
+
+// The hotsite modules that need a Billing feature of their own. Every other module type rides on
+// the page's `HOTSITE` feature, so it has no entry. A tenant without the feature gets the module
+// omitted from the manifest layout (its stored settings are kept); the backend manifest use case
+// is the one reader today (docs/HOTSITE_DYNAMIC_ARCHITECTURE.md § Unpublished state).
+export const HOTSITE_MODULE_FEATURE: Readonly<Partial<Record<HotsiteModuleType, FeatureKey>>> = {
+  LEAD_FORM: 'LEAD_FORM',
+  CHATBOT: 'CHATBOT',
+};

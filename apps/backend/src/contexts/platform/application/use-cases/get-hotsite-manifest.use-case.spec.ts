@@ -5,6 +5,7 @@ import {
 } from '../../../../test/builders/platform';
 import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/platform/in-memory-hotsite-config.repository';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import {
   HotsiteNotFoundError,
@@ -23,18 +24,26 @@ import { GetHotsiteManifestUseCase } from './get-hotsite-manifest.use-case';
 const TENANT_A = '10000000-0000-4000-8000-000000000001';
 const TENANT_B = '10000000-0000-4000-8000-000000000002';
 
+const HERO: HotsiteModule = {
+  type: 'HERO',
+  enabled: true,
+  data: { variant: 'centered', title: 'T', ctaLabel: 'C', ctaTarget: 'booking-form' },
+};
+
 describe('GetHotsiteManifestUseCase', () => {
   let repo: InMemoryHotsiteConfigRepository;
   let tenantRepo: InMemoryTenantRepository;
   let storageService: InMemoryStorageService;
+  let access: InMemoryTenantAccessPort;
   let useCase: GetHotsiteManifestUseCase;
 
   beforeEach(async () => {
     repo = new InMemoryHotsiteConfigRepository();
     tenantRepo = new InMemoryTenantRepository();
     storageService = new InMemoryStorageService();
+    access = new InMemoryTenantAccessPort();
     const reader = new HotsiteContentReader(repo, storageService, new HotsiteImageUrlResolver());
-    useCase = new GetHotsiteManifestUseCase(tenantRepo, reader);
+    useCase = new GetHotsiteManifestUseCase(tenantRepo, reader, access);
     await tenantRepo.save(new TenantBuilder().withId(TENANT_A).build());
   });
 
@@ -139,7 +148,7 @@ describe('GetHotsiteManifestUseCase', () => {
     const config = new HotsiteConfigBuilder().withTenantId(TENANT_B).buildPublished();
     await repo.save(config);
     const reader = new HotsiteContentReader(repo, storageService, new HotsiteImageUrlResolver());
-    const useCaseForB = new GetHotsiteManifestUseCase(tenantRepo, reader);
+    const useCaseForB = new GetHotsiteManifestUseCase(tenantRepo, reader, access);
 
     await expect(useCaseForB.execute({ tenantId: TENANT_B })).rejects.toBeInstanceOf(
       TenantNotFoundError,
@@ -260,5 +269,161 @@ describe('GetHotsiteManifestUseCase', () => {
     await expect(useCase.execute({ tenantId: TENANT_A })).rejects.toBeInstanceOf(
       HotsiteNotFoundError,
     );
+  });
+
+  describe('effective published (UC-122)', () => {
+    it.each([
+      { flag: true, operational: true, expected: true },
+      { flag: true, operational: false, expected: false },
+      { flag: false, operational: true, expected: false },
+      { flag: false, operational: false, expected: false },
+    ])(
+      'effective isPublished is the manager flag && operational (%j)',
+      async ({ flag, operational, expected }) => {
+        const builder = new HotsiteConfigBuilder().withTenantId(TENANT_A);
+        await repo.save(flag ? builder.buildPublished() : builder.buildWithContent());
+        if (!operational) access.seedSuspended(TENANT_A);
+
+        const result = await useCase.execute({ tenantId: TENANT_A });
+
+        expect(result.isPublished).toBe(expected);
+      },
+    );
+
+    it('a suspended tenant keeps its branding and gets the minimal unpublished payload', async () => {
+      const branding: HotsiteBranding = { ...DEFAULT_HOTSITE_BRANDING, primaryColor: '#123456' };
+      await repo.save(new HotsiteConfigBuilder().withTenantId(TENANT_A).buildPublished(branding));
+      access.seedSuspended(TENANT_A);
+
+      const result = await useCase.execute({ tenantId: TENANT_A });
+
+      expect(result.isPublished).toBe(false);
+      expect(result.branding.primaryColor).toBe('#123456');
+      expect(result.layout).toEqual([]);
+      expect(result.business).toEqual({
+        phone: null,
+        email: null,
+        address: null,
+        socialLinks: null,
+      });
+    });
+
+    it('never changes the manager flag: the stored config stays published while suspended', async () => {
+      await repo.save(new HotsiteConfigBuilder().withTenantId(TENANT_A).buildPublished());
+      access.seedSuspended(TENANT_A);
+
+      await useCase.execute({ tenantId: TENANT_A });
+
+      expect((await repo.findByTenantId(TENANT_A))?.isPublished).toBe(true);
+    });
+
+    it('keeps the unknown-tenant path distinct: TenantNotFoundError, never an unpublished 200', async () => {
+      await repo.save(new HotsiteConfigBuilder().withTenantId(TENANT_B).buildPublished());
+      access.seedSuspended(TENANT_B);
+
+      await expect(useCase.execute({ tenantId: TENANT_B })).rejects.toBeInstanceOf(
+        TenantNotFoundError,
+      );
+    });
+
+    it('fails open when the access lookup throws: the hotsite is served as published', async () => {
+      await repo.save(new HotsiteConfigBuilder().withTenantId(TENANT_A).buildPublished());
+      access.getAccessError = new Error('billing down');
+
+      const result = await useCase.execute({ tenantId: TENANT_A });
+
+      expect(result.isPublished).toBe(true);
+      expect(result.layout.length).toBeGreaterThan(0);
+    });
+
+    it('an operational tenant with every feature gets the layout untouched (exempt non-regression)', async () => {
+      const layout: HotsiteModule[] = [
+        HERO,
+        { type: 'CHATBOT', enabled: true, data: { variant: 'bubble' } },
+      ];
+      await repo.save(
+        new HotsiteConfigBuilder().withTenantId(TENANT_A).buildPublished(undefined, layout),
+      );
+
+      const result = await useCase.execute({ tenantId: TENANT_A });
+
+      expect(result.layout.map((m) => m.type)).toEqual(['HERO', 'CHATBOT']);
+    });
+  });
+
+  describe('module filtering by entitlement (UC-122)', () => {
+    const layout: HotsiteModule[] = [
+      HERO,
+      { type: 'CHATBOT', enabled: true, data: { variant: 'bubble' } },
+      { type: 'LEAD_FORM', enabled: true, data: { title: 'Fale conosco', ctaLabel: 'Enviar' } },
+    ];
+
+    const withoutFeatures = (...missing: string[]) => ({
+      status: 'ACTIVE' as const,
+      suspensionReason: null,
+      operational: true,
+      features: (['HOTSITE', 'BOOKING', 'LOYALTY', 'CHATBOT', 'LEAD_FORM'] as const)
+        .filter((key) => !missing.includes(key))
+        .map((key) => ({ key, tier: 'STANDARD' as const })),
+    });
+
+    it('omits LEAD_FORM and CHATBOT modules the tenant is not entitled to, keeping the rest', async () => {
+      await repo.save(
+        new HotsiteConfigBuilder().withTenantId(TENANT_A).buildPublished(undefined, layout),
+      );
+      access.seed(TENANT_A, withoutFeatures('LEAD_FORM', 'CHATBOT'));
+
+      const result = await useCase.execute({ tenantId: TENANT_A });
+
+      expect(result.layout.map((m) => m.type)).toEqual(['HERO']);
+    });
+
+    it('omits only the module of the missing feature', async () => {
+      await repo.save(
+        new HotsiteConfigBuilder().withTenantId(TENANT_A).buildPublished(undefined, layout),
+      );
+      access.seed(TENANT_A, withoutFeatures('LEAD_FORM'));
+
+      const result = await useCase.execute({ tenantId: TENANT_A });
+
+      expect(result.layout.map((m) => m.type)).toEqual(['HERO', 'CHATBOT']);
+    });
+
+    it('preserves the stored module settings: the module returns untouched when the entitlement does', async () => {
+      await repo.save(
+        new HotsiteConfigBuilder().withTenantId(TENANT_A).buildPublished(undefined, layout),
+      );
+      access.seed(TENANT_A, withoutFeatures('LEAD_FORM'));
+      await useCase.execute({ tenantId: TENANT_A });
+      access.reactivate(TENANT_A);
+
+      const result = await useCase.execute({ tenantId: TENANT_A });
+
+      expect(result.layout.find((m) => m.type === 'LEAD_FORM')?.data).toEqual({
+        title: 'Fale conosco',
+        ctaLabel: 'Enviar',
+      });
+      expect((await repo.findByTenantId(TENANT_A))?.layout.map((m) => m.type)).toEqual([
+        'HERO',
+        'CHATBOT',
+        'LEAD_FORM',
+      ]);
+    });
+
+    it("tenant isolation: tenant B's suspension never affects tenant A", async () => {
+      await tenantRepo.save(new TenantBuilder().withId(TENANT_B).build());
+      await repo.save(
+        new HotsiteConfigBuilder().withTenantId(TENANT_A).buildPublished(undefined, layout),
+      );
+      await repo.save(
+        new HotsiteConfigBuilder().withTenantId(TENANT_B).buildPublished(undefined, layout),
+      );
+      access.seedSuspended(TENANT_B);
+
+      const result = await useCase.execute({ tenantId: TENANT_A });
+
+      expect(result.isPublished).toBe(true);
+      expect(result.layout.map((m) => m.type)).toEqual(['HERO', 'CHATBOT', 'LEAD_FORM']);
+    });
   });
 });

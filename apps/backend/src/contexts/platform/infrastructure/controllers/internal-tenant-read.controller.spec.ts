@@ -1,6 +1,7 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { HotsiteConfigBuilder, TenantBuilder } from '../../../../test/builders/platform';
 import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/platform/in-memory-hotsite-config.repository';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
 import { GetTenantByIdUseCase } from '../../application/use-cases/get-tenant-by-id.use-case';
 import { GetTenantBySlugUseCase } from '../../application/use-cases/get-tenant-by-slug.use-case';
@@ -20,7 +21,7 @@ describe('InternalTenantReadController', () => {
       new GetTenantByIdUseCase(repo),
       new GetTenantBySlugUseCase(repo),
       new GetTenantsUseCase(repo),
-      new ListPublishedHotsitesUseCase(repo, hotsiteConfigRepo),
+      new ListPublishedHotsitesUseCase(repo, hotsiteConfigRepo, new InMemoryTenantAccessPort()),
     );
   });
 
