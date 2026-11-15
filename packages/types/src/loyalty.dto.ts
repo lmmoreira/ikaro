@@ -63,7 +63,7 @@ export interface CustomerLoyaltyEntryResponse {
   pointsEarned: number;
   earnedAt: string; // ISO-8601
   expiresAt: string | null; // ISO-8601; null while a suspension pause holds the entry
-  expired: boolean; // server-computed: expiresAt < now
+  expired: boolean; // server-computed from the effective expiry; false while a suspension pause holds the entry
 }
 
 export interface CustomerLoyaltyEntriesResponse {
