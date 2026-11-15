@@ -151,7 +151,11 @@ describe('BFF tenant-access denial pass-through (component)', () => {
       const body = denialBody(code, detail);
       backendHttpService.getForPublic.mockRejectedValueOnce(new HttpException(body, 403));
 
-      const res = await request(app.getHttpServer()).get('/v1/public/platform/manifest/autospa');
+      // The lead-form config is `PUBLIC_NONE` on the backend: both denials are real outcomes there,
+      // unlike the manifest, whose `PUBLIC_MANIFEST` policy never refuses a suspended tenant.
+      const res = await request(app.getHttpServer())
+        .get('/v1/public/platform/lead-form/autospa')
+        .set('X-Tenant-Slug', 'autospa');
 
       expect(res.status).toBe(403);
       expect(res.body).toEqual(withCorrelationId(body));
