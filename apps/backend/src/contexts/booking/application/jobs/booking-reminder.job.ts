@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { DateTime } from 'luxon';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
+import { publishToOutboxInChunks } from '../../../../shared/utils/publish-to-outbox-in-chunks';
 import { mapSequentially } from '../../../../shared/utils/sequential';
 import { Booking, BookingStatus } from '../../domain/booking.aggregate';
 import { BookingReminderDue } from '../../domain/commands/booking-reminder-due.command';
@@ -65,14 +66,12 @@ export class BookingReminderJob extends BookingDayReminderJobBase {
       BookingReminderDueToday,
     );
 
-    // One transaction per tenant-batch, not one giant transaction across all tenants: a
-    // mid-run crash then retries only this tenant's un-committed facts as no-op conflicts
-    // on the next run, leaving every other tenant's already-committed rows untouched.
-    await this.txManager.run(async () => {
-      await mapSequentially([...tomorrowReminders, ...todayReminders], (reminder) =>
-        this.outboxPublisher.publish(reminder),
-      );
-    });
+    // Bounded chunks per tenant, never one giant transaction: a mid-run crash retries only the
+    // un-committed rows as no-op conflicts on the next run, leaving every committed row untouched.
+    await publishToOutboxInChunks(
+      { txManager: this.txManager, outboxPublisher: this.outboxPublisher },
+      [...tomorrowReminders, ...todayReminders],
+    );
   }
 
   private async findReminderBookings(

@@ -1,5 +1,6 @@
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
+import { OUTBOX_PUBLISH_CHUNK_SIZE } from '../../../../shared/utils/publish-to-outbox-in-chunks';
 import { InMemoryLoyaltyEntryRepository } from '../../../../test/repositories/loyalty/in-memory-loyalty-entry.repository';
 import { InMemoryLoyaltyPlatformPort } from '../../../../test/infrastructure/in-memory-loyalty-platform.port';
 import { LoyaltyEntryBuilder } from '../../../../test/builders/loyalty/index';
@@ -19,17 +20,36 @@ describe('NotifyExpiringPointsJob', () => {
   let entryRepo: InMemoryLoyaltyEntryRepository;
   let outboxPublisher: InMemoryEventBus;
   let settingsPort: InMemoryLoyaltyPlatformPort;
+  let txManager: InMemoryTransactionManager;
 
   beforeEach(() => {
     entryRepo = new InMemoryLoyaltyEntryRepository();
     outboxPublisher = new InMemoryEventBus();
     settingsPort = new InMemoryLoyaltyPlatformPort();
-    job = new NotifyExpiringPointsJob(
-      entryRepo,
-      outboxPublisher,
-      settingsPort,
-      new InMemoryTransactionManager(),
-    );
+    txManager = new InMemoryTransactionManager();
+    job = new NotifyExpiringPointsJob(entryRepo, outboxPublisher, settingsPort, txManager);
+  });
+
+  it('writes a tenant with more customers than one chunk in several transactions', async () => {
+    const customerCount = OUTBOX_PUBLISH_CHUNK_SIZE + 1;
+    for (let i = 0; i < customerCount; i++) {
+      await entryRepo.save(
+        new LoyaltyEntryBuilder()
+          .withTenantId(TENANT_A)
+          .withCustomerId(`cccccccc-0001-4000-8000-${String(i).padStart(12, '0')}`)
+          .withPoints(10)
+          .withExpiresAt(soon(3))
+          .build(),
+      );
+    }
+
+    const result = await job.run();
+
+    expect(result.customersNotified).toBe(customerCount);
+    expect(
+      outboxPublisher.published.filter((e) => e.eventName === 'PointsExpiringSoon'),
+    ).toHaveLength(customerCount);
+    expect(txManager.runCallCount).toBe(2);
   });
 
   it('returns zero when no entries are expiring soon', async () => {
