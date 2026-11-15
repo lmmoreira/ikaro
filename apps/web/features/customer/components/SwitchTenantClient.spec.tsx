@@ -20,8 +20,20 @@ vi.mock('@/features/auth/api', () => ({
   switchTenant: vi.fn(),
 }));
 
-const CURRENT = { id: 't-1', name: 'Lavacar BH', slug: 'lavacar-bh', loyaltyPoints: 120 };
-const OTHER = { id: 't-2', name: 'SuperClean', slug: 'superclean', loyaltyPoints: 8 };
+const CURRENT = {
+  id: 't-1',
+  name: 'Lavacar BH',
+  slug: 'lavacar-bh',
+  loyaltyPoints: 120,
+  operational: true,
+};
+const OTHER = {
+  id: 't-2',
+  name: 'SuperClean',
+  slug: 'superclean',
+  loyaltyPoints: 8,
+  operational: true,
+};
 
 describe('SwitchTenantClient', () => {
   afterEach(() => {

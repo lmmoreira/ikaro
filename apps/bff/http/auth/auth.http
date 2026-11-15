@@ -136,7 +136,8 @@ Authorization: Bearer paste-customer-jwt-here
 # ─────────────────────────────────────────────────────────────────────────────
 
 ### List tenants where the authenticated staff member has an active record
-# Returns StaffTenantOption[]: { staffId, tenantId, tenantSlug, tenantName, role }
+# Returns StaffTenantOption[]: { staffId, tenantId, tenantSlug, tenantName, role, operational }
+# `operational` is false for a suspended tenant: it stays listed and can still be switched into.
 GET {{bffUrl}}/v1/auth/staff-tenants
 Authorization: Bearer paste-staff-jwt-here
 

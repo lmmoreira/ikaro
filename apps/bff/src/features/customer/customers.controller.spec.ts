@@ -30,6 +30,8 @@ const TENANT_ID_B = '10000000-0000-4000-8000-000000000002';
 const CUSTOMER_ID = '20000000-0000-4000-8000-000000000001';
 const CUSTOMER_ID_B = '20000000-0000-4000-8000-000000000002';
 
+const ACTIVE_ACCESS = { status: 'ACTIVE', operational: true, features: [] };
+
 describe('CustomersController', () => {
   afterEach(() => jest.resetAllMocks());
 
@@ -168,7 +170,7 @@ describe('CustomersController', () => {
   });
 
   describe('getTenants()', () => {
-    it('includes the current tenant alongside the others, each enriched, in exactly 3 backend calls', async () => {
+    it('includes the current tenant alongside the others, each enriched, in exactly 5 backend calls (3 reads and one access read per tenant)', async () => {
       const getMock = jest
         .fn()
         .mockResolvedValueOnce([
@@ -182,17 +184,32 @@ describe('CustomersController', () => {
         .mockResolvedValueOnce([
           { tenantId: TENANT_ID, currentPoints: 120 },
           { tenantId: TENANT_ID_B, currentPoints: 8 },
-        ]);
+        ])
+        .mockResolvedValueOnce({ status: 'ACTIVE', operational: true, features: [] })
+        .mockResolvedValueOnce({ status: 'SUSPENDED', operational: false, features: [] });
       const backendHttp = makeBackendHttp({ get: getMock });
       const controller = new CustomersController(backendHttp);
 
       const result = await controller.getTenants();
 
       expect(result).toEqual([
-        { id: TENANT_ID, name: 'Lavacar BH', slug: 'lavacar-bh', loyaltyPoints: 120 },
-        { id: TENANT_ID_B, name: 'SuperClean', slug: 'superclean', loyaltyPoints: 8 },
+        {
+          id: TENANT_ID,
+          name: 'Lavacar BH',
+          slug: 'lavacar-bh',
+          loyaltyPoints: 120,
+          operational: true,
+        },
+        {
+          id: TENANT_ID_B,
+          name: 'SuperClean',
+          slug: 'superclean',
+          loyaltyPoints: 8,
+          operational: false,
+        },
       ]);
-      expect(getMock).toHaveBeenCalledTimes(3);
+      expect(getMock).toHaveBeenCalledTimes(5);
+      expect(getMock).toHaveBeenCalledWith(`/internal/billing/tenants/${TENANT_ID_B}/access`);
       expect(getMock).toHaveBeenCalledWith('/customers/me/tenants');
       // TD31 Story 18: one batch call regardless of how many tenants the customer is
       // linked to — the backend resolves the caller's own pairs itself, no client-known
@@ -206,14 +223,21 @@ describe('CustomersController', () => {
           .fn()
           .mockResolvedValueOnce([{ tenantId: TENANT_ID, customerId: CUSTOMER_ID }])
           .mockResolvedValueOnce([{ id: TENANT_ID, slug: 'lavacar-bh', name: 'Lavacar BH' }])
-          .mockResolvedValueOnce([{ tenantId: TENANT_ID, currentPoints: 120 }]),
+          .mockResolvedValueOnce([{ tenantId: TENANT_ID, currentPoints: 120 }])
+          .mockResolvedValue(ACTIVE_ACCESS),
       });
       const controller = new CustomersController(backendHttp);
 
       const result = await controller.getTenants();
 
       expect(result).toEqual([
-        { id: TENANT_ID, name: 'Lavacar BH', slug: 'lavacar-bh', loyaltyPoints: 120 },
+        {
+          id: TENANT_ID,
+          name: 'Lavacar BH',
+          slug: 'lavacar-bh',
+          loyaltyPoints: 120,
+          operational: true,
+        },
       ]);
     });
 
@@ -223,14 +247,21 @@ describe('CustomersController', () => {
           .fn()
           .mockResolvedValueOnce([{ tenantId: TENANT_ID, customerId: CUSTOMER_ID }])
           .mockResolvedValueOnce([{ id: TENANT_ID, slug: 'lavacar-bh', name: 'Lavacar BH' }])
-          .mockResolvedValueOnce([]),
+          .mockResolvedValueOnce([])
+          .mockResolvedValue(ACTIVE_ACCESS),
       });
       const controller = new CustomersController(backendHttp);
 
       const result = await controller.getTenants();
 
       expect(result).toEqual([
-        { id: TENANT_ID, name: 'Lavacar BH', slug: 'lavacar-bh', loyaltyPoints: 0 },
+        {
+          id: TENANT_ID,
+          name: 'Lavacar BH',
+          slug: 'lavacar-bh',
+          loyaltyPoints: 0,
+          operational: true,
+        },
       ]);
     });
 
@@ -240,7 +271,8 @@ describe('CustomersController', () => {
           .fn()
           .mockResolvedValueOnce([{ tenantId: TENANT_ID, customerId: CUSTOMER_ID }])
           .mockResolvedValueOnce([])
-          .mockResolvedValueOnce([{ tenantId: TENANT_ID, currentPoints: 120 }]),
+          .mockResolvedValueOnce([{ tenantId: TENANT_ID, currentPoints: 120 }])
+          .mockResolvedValue(ACTIVE_ACCESS),
       });
       const controller = new CustomersController(backendHttp);
 

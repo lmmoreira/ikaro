@@ -143,8 +143,8 @@ describe('CustomerShell', () => {
 
   it('shows "Trocar empresa" link when customer has multiple tenants', async () => {
     vi.mocked(fetchCustomerTenants).mockResolvedValueOnce([
-      { id: 'a', name: 'Tenant A', slug: 'tenant-a', loyaltyPoints: 0 },
-      { id: 'b', name: 'Tenant B', slug: 'tenant-b', loyaltyPoints: 0 },
+      { id: 'a', name: 'Tenant A', slug: 'tenant-a', loyaltyPoints: 0, operational: true },
+      { id: 'b', name: 'Tenant B', slug: 'tenant-b', loyaltyPoints: 0, operational: true },
     ]);
 
     render(<CustomerShell {...DEFAULT_PROPS}>x</CustomerShell>);
@@ -156,7 +156,7 @@ describe('CustomerShell', () => {
 
   it('hides "Trocar empresa" link when customer has only one tenant', async () => {
     vi.mocked(fetchCustomerTenants).mockResolvedValueOnce([
-      { id: 'a', name: 'Tenant A', slug: 'tenant-a', loyaltyPoints: 0 },
+      { id: 'a', name: 'Tenant A', slug: 'tenant-a', loyaltyPoints: 0, operational: true },
     ]);
 
     render(<CustomerShell {...DEFAULT_PROPS}>x</CustomerShell>);
