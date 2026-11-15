@@ -275,6 +275,16 @@
         "reviewBy": "2026-09-30"
       },
       {
+        "source": "apps/backend/src/contexts/notification/infrastructure/events/tenant-unavailable-notice.handler.ts",
+        "target": "booking",
+        "targetPaths": [
+          "apps/backend/src/contexts/booking/domain/commands/tenant-unavailable-notice-due.command.ts"
+        ],
+        "rationale": "Notification sends the reason-neutral tenant-unavailable email, one per command raised by Booking for each affected customer (M25-S28, UC-121 O-B1).",
+        "owner": "notification",
+        "reviewBy": "2027-05-15"
+      },
+      {
         "source": "apps/backend/src/contexts/notification/infrastructure/events/booking-reminder.handler.ts",
         "target": "booking",
         "targetPaths": [

@@ -154,5 +154,11 @@
       "subject": "The resource for your booking changed, but the time is the same",
       "body": "<p>Hello, {{contactName}}!</p><p>Your {{serviceNames}} booking on {{localDate}} at {{localTime}} is still confirmed for the same time, but it will now be served by a different resource.</p>{{newResourceLine}}<p>If you have questions, reply to this email to reach {{tenantName}}.</p>"
     }
+  },
+  "TenantUnavailableNoticeDue": {
+    "customer": {
+      "subject": "{{tenantName}} is temporarily unavailable",
+      "body": "<p>Hello, {{customerName}}!</p><p>{{tenantName}} is temporarily unavailable, so your upcoming bookings with them may be affected.</p><p>Please contact {{tenantName}} to confirm the details.</p>"
+    }
   }
 }

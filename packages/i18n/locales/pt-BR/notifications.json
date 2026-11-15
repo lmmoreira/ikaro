@@ -154,5 +154,11 @@
       "subject": "O recurso do seu agendamento mudou, mas o horário continua o mesmo",
       "body": "<p>Olá, {{contactName}}!</p><p>Seu agendamento de {{serviceNames}} em {{localDate}} às {{localTime}} continua confirmado no mesmo horário, mas agora será atendido por outro recurso.</p>{{newResourceLine}}<p>Se tiver dúvidas, responda este e-mail para falar com {{tenantName}}.</p>"
     }
+  },
+  "TenantUnavailableNoticeDue": {
+    "customer": {
+      "subject": "{{tenantName}} está temporariamente indisponível",
+      "body": "<p>Olá, {{customerName}}!</p><p>{{tenantName}} está temporariamente indisponível, então seus próximos agendamentos podem ser afetados.</p><p>Entre em contato com {{tenantName}} para confirmar os detalhes.</p>"
+    }
   }
 }

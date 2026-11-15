@@ -56,6 +56,8 @@ import { BookingNoShowHandler } from './infrastructure/events/booking-no-show.ha
 import { BookingRescheduledHandler } from './infrastructure/events/booking-rescheduled.handler';
 import { ServicePointsEarnedHandler } from './infrastructure/events/service-points-earned.handler';
 import { BookingReminderHandler } from './infrastructure/events/booking-reminder.handler';
+import { TenantUnavailableNoticeHandler } from './infrastructure/events/tenant-unavailable-notice.handler';
+import { SendTenantUnavailableNoticeNotificationUseCase } from './application/use-cases/send-tenant-unavailable-notice-notification/send-tenant-unavailable-notice-notification.use-case';
 import { AdminDailyScheduleReminderHandler } from './infrastructure/events/admin-daily-schedule-reminder.handler';
 import { PointsExpiringSoonHandler } from './infrastructure/events/points-expiring-soon.handler';
 import { TypeOrmNotificationLogRepository } from './infrastructure/repositories/typeorm-notification-log.repository';
@@ -131,6 +133,7 @@ import { DeadLetterHandler } from './infrastructure/events/dead-letter.handler';
     SendBookingInfoSubmittedNotificationUseCase,
     SendBookingCancelledNotificationUseCase,
     SendBookingApprovalExpiredNotificationUseCase,
+    SendTenantUnavailableNoticeNotificationUseCase,
     SendBookingNoShowNotificationUseCase,
     SendBookingResourceReassignedNotificationUseCase,
     SendResourceDeactivationImpactNotificationUseCase,
@@ -160,6 +163,7 @@ import { DeadLetterHandler } from './infrastructure/events/dead-letter.handler';
     BookingRescheduledHandler,
     ServicePointsEarnedHandler,
     BookingReminderHandler,
+    TenantUnavailableNoticeHandler,
     AdminDailyScheduleReminderHandler,
     PointsExpiringSoonHandler,
     RecurringScheduleCreatedNotificationHandler,
