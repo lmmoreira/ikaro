@@ -86,6 +86,21 @@ describe('TypeOrmTenantExpiryPauseRepository (integration)', () => {
     expect((await repo.findByTenantIds([uuidv7()])).size).toBe(0);
   });
 
+  it('reads the ledger by its leading tenant_id key instead of scanning it', async () => {
+    await dataSource.query(`SET enable_seqscan = off`);
+    try {
+      const plan = (await dataSource.query(
+        `EXPLAIN SELECT * FROM "loyalty"."tenant_expiry_pauses" WHERE tenant_id = ANY($1)`,
+        [[TENANT_A, TENANT_B]],
+      )) as { 'QUERY PLAN': string }[];
+      expect(plan.map((row) => row['QUERY PLAN']).join('\n')).toContain(
+        'PK_loyalty_tenant_expiry_pauses',
+      );
+    } finally {
+      await dataSource.query(`RESET enable_seqscan`);
+    }
+  });
+
   it('rejects a span that ends before it starts (CHECK constraint)', async () => {
     const entity = new TenantExpiryPauseEntityBuilder()
       .withTenantId(TENANT_A)
