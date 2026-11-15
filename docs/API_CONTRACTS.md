@@ -1351,7 +1351,7 @@ All three endpoints require JWT with `CUSTOMER` role. The `customerId` is inferr
       "pagination": { "page": 1, "limit": 20, "total": 45 }
     }
     ```
-  - `expiresAt`: the entry's **effective** expiry (the stored `expires_at` shifted by the tenant's suspension pauses); `isActive`: `true` when that effective expiry is later than `now()`.
+  - `expiresAt`: the entry's **effective** expiry (the stored `expires_at` shifted by the tenant's suspension pauses); **`null` while an open suspension pause holds the entry** (the tenant is suspended and the end date is unknown until it is reactivated; the customer can read their history while suspended, UC-121). `isActive`: `true` when the effective expiry is later than `now()`, and `true` while the entry is held. The customer response carries the same nullable `expiresAt` with `expired: false` while held; the staff entry list passes it through.
   - `serviceName`: resolved via `IServiceCatalogPort` (cross-context adapter queries `booking.services`).
 
 - `GET /loyalty/redemptions?page=1&limit=20`

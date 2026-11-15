@@ -49,4 +49,16 @@ describe('CloseTenantExpiryPauseUseCase', () => {
     expect(pauseRepo.rows).toHaveLength(1);
     expect(pauseRepo.rows[0].resumedAt).toEqual(REACTIVATED_AT);
   });
+
+  it('closes only the tenant it was called for when two tenants share the same suspension instant', async () => {
+    const otherTenant = '00000000-0000-7000-8000-000000000002';
+    await open.execute({ tenantId: TENANT_ID, suspendedAt: SUSPENDED_AT, correlationId: 'c' });
+
+    await close.execute({ ...CLOSE, tenantId: otherTenant });
+
+    expect(pauseRepo.rows).toEqual([
+      { tenantId: TENANT_ID, pausedAt: SUSPENDED_AT, resumedAt: null },
+      { tenantId: otherTenant, pausedAt: SUSPENDED_AT, resumedAt: REACTIVATED_AT },
+    ]);
+  });
 });

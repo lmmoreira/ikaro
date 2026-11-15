@@ -13,7 +13,7 @@ export interface BackendLoyaltyEntryItem {
   serviceName: string;
   points: number;
   earnedAt: string;
-  expiresAt: string;
+  expiresAt: string | null;
   isActive: boolean;
 }
 

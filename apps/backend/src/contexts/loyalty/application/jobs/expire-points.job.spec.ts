@@ -199,7 +199,7 @@ describe('ExpirePointsJob', () => {
     expect(await expiryLogRepo.hasBeenProcessed(entry.id)).toBe(true);
   });
 
-  it('skips an entry deleted between findExpiringBefore and processing', async () => {
+  it('skips an entry deleted between the candidate read and processing', async () => {
     const entry = new LoyaltyEntryBuilder()
       .withTenantId(TENANT_ID)
       .withCustomerId(CUSTOMER_ID)

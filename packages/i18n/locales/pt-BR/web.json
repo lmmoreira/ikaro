@@ -2819,6 +2819,7 @@
       "entryActiveBadge": "ativo",
       "entryExpiredBadge": "expirado",
       "entryExpiryLine": "expira {expiresAt}",
+      "entryExpiryPausedLine": "expiração em pausa enquanto a empresa está suspensa",
       "earnedPointsBadge": "+{count} pts",
       "redemptionDefaultTitle": "Resgate no agendamento",
       "redemptionBookingLabel": "Agendamento {bookingId}",

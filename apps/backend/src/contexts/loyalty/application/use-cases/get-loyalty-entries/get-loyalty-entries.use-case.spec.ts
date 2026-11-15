@@ -179,7 +179,7 @@ describe('GetLoyaltyEntriesUseCase', () => {
       });
 
       expect(result.entries[0].isActive).toBe(true);
-      expect(new Date(result.entries[0].expiresAt).getTime()).toBeGreaterThan(Date.now());
+      expect(new Date(result.entries[0].expiresAt as string).getTime()).toBeGreaterThan(Date.now());
     });
 
     it('keeps an entry held by an open pause active', async () => {
@@ -201,6 +201,7 @@ describe('GetLoyaltyEntriesUseCase', () => {
       });
 
       expect(result.entries[0].isActive).toBe(true);
+      expect(result.entries[0].expiresAt).toBeNull();
     });
 
     it('still reports an entry as expired when no pause touches it', async () => {

@@ -81,7 +81,12 @@ describe('LoyaltyBalanceReaderService', () => {
     const shifted = entry(10, 30);
     await entryRepo.save(shifted);
     // A 5-day pause inside the entry lifetime moves its expiry 5 days later.
-    await pauseRepo.recordClosed(TENANT_ID, inDays(-10), inDays(-5));
+    const anchor = Date.now();
+    await pauseRepo.recordClosed(
+      TENANT_ID,
+      new Date(anchor - 10 * DAY),
+      new Date(anchor - 5 * DAY),
+    );
 
     const result = await service.read(TENANT_ID, CUSTOMER_ID);
 

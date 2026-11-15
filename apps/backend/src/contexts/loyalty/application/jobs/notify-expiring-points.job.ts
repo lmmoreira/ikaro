@@ -43,7 +43,7 @@ export class NotifyExpiringPointsJob {
     // The stored expiry is never later than the effective one, so every entry that expires in the
     // window is among those before `to`; the tenants' suspension pauses (M25-S27) then decide
     // which of them really expire inside it.
-    const candidates = await this.entryRepo.findUnprocessedExpiringBefore(to);
+    const candidates = await this.entryRepo.findUnprocessedExpiringUntil(to);
     const effectiveByEntry = await this.effectiveExpiry.resolve(candidates);
     const entries = candidates.filter((entry) => {
       const expiresAt = effectiveByEntry.get(entry.id);

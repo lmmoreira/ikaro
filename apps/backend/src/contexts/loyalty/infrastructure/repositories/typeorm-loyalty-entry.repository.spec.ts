@@ -125,33 +125,11 @@ describe('TypeOrmLoyaltyEntryRepository', () => {
     });
   });
 
-  describe('findExpiringBefore()', () => {
-    it('returns empty array when no expiring entries', async () => {
-      ormRepo.find.mockResolvedValue([]);
-
-      const result = await repo.findExpiringBefore(new Date());
-
-      expect(result).toEqual([]);
-    });
-
-    it('maps expiring entries to LoyaltyEntry domain objects', async () => {
-      const pastDate = new Date(Date.now() - 1000);
-      ormRepo.find.mockResolvedValue([
-        new LoyaltyEntryEntityBuilder().withExpiresAt(pastDate).build(),
-      ]);
-
-      const result = await repo.findExpiringBefore(new Date());
-
-      expect(result).toHaveLength(1);
-      expect(result[0]).toBeInstanceOf(LoyaltyEntry);
-    });
-  });
-
-  describe('findUnprocessedExpiringBefore()', () => {
+  describe('findUnprocessedExpiringUntil()', () => {
     it('returns an empty array when nothing expires before the bound', async () => {
       mockQueryBuilder([]);
 
-      expect(await repo.findUnprocessedExpiringBefore(new Date())).toEqual([]);
+      expect(await repo.findUnprocessedExpiringUntil(new Date())).toEqual([]);
     });
 
     it('maps unprocessed entries to LoyaltyEntry domain objects, excluding the processed ones', async () => {
@@ -162,11 +140,11 @@ describe('TypeOrmLoyaltyEntryRepository', () => {
       ]);
       const to = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-      const result = await repo.findUnprocessedExpiringBefore(to);
+      const result = await repo.findUnprocessedExpiringUntil(to);
 
       expect(result).toHaveLength(1);
       expect(result[0]).toBeInstanceOf(LoyaltyEntry);
-      expect(qb.where).toHaveBeenCalledWith('e.expiresAt < :to', { to });
+      expect(qb.where).toHaveBeenCalledWith('e.expiresAt <= :to', { to });
       expect(qb.andWhere).toHaveBeenCalledWith(expect.stringContaining('balance_expiry_log'));
     });
   });

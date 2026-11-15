@@ -34,7 +34,7 @@ describe('TypeOrmLoyaltyEntryRepository (integration)', () => {
   });
 
   describe('save()', () => {
-    it('persists an entry and retrieves it via findExpiringBefore', async () => {
+    it('persists an entry and retrieves it via findUnprocessedExpiringUntil', async () => {
       const pastExpiry = new Date(Date.now() - 1000);
       const entry = new LoyaltyEntryBuilder()
         .withTenantId(TENANT_A)
@@ -44,7 +44,7 @@ describe('TypeOrmLoyaltyEntryRepository (integration)', () => {
 
       await repo.save(entry);
 
-      const expiring = await repo.findExpiringBefore(new Date());
+      const expiring = await repo.findUnprocessedExpiringUntil(new Date());
       expect(expiring.length).toBeGreaterThanOrEqual(1);
       expect(expiring[0]).toBeInstanceOf(LoyaltyEntry);
     });
@@ -72,7 +72,7 @@ describe('TypeOrmLoyaltyEntryRepository (integration)', () => {
   });
 
   describe('tenant isolation', () => {
-    it('findExpiringBefore does not return entries from another tenant when filtering by tenant', async () => {
+    it('findUnprocessedExpiringUntil does not return entries from another tenant when filtering by tenant', async () => {
       const pastExpiry = new Date(Date.now() - 1000);
 
       await repo.save(
@@ -83,7 +83,7 @@ describe('TypeOrmLoyaltyEntryRepository (integration)', () => {
           .build(),
       );
 
-      const expiringB = await repo.findExpiringBefore(new Date());
+      const expiringB = await repo.findUnprocessedExpiringUntil(new Date());
       const tenantBEntries = expiringB.filter((e) => e.tenantId === TENANT_B);
       expect(tenantBEntries).toHaveLength(0);
     });
@@ -166,7 +166,7 @@ describe('TypeOrmLoyaltyEntryRepository (integration)', () => {
     });
   });
 
-  describe('findUnprocessedExpiringBefore()', () => {
+  describe('findUnprocessedExpiringUntil()', () => {
     it('returns unprocessed entries expiring before the bound, across tenants', async () => {
       const soon = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
       const far = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
@@ -182,7 +182,7 @@ describe('TypeOrmLoyaltyEntryRepository (integration)', () => {
         processed.id,
       ]);
 
-      const result = await repo.findUnprocessedExpiringBefore(
+      const result = await repo.findUnprocessedExpiringUntil(
         new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       );
 
@@ -209,7 +209,7 @@ describe('TypeOrmLoyaltyEntryRepository (integration)', () => {
     });
   });
 
-  describe('findExpiringBefore()', () => {
+  describe('findUnprocessedExpiringUntil()', () => {
     it('returns entries whose expires_at is before the given date', async () => {
       const pastExpiry = new Date(Date.now() - 1000);
       const futureExpiry = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
@@ -221,7 +221,7 @@ describe('TypeOrmLoyaltyEntryRepository (integration)', () => {
         new LoyaltyEntryBuilder().withTenantId(TENANT_A).withExpiresAt(futureExpiry).build(),
       );
 
-      const expiring = await repo.findExpiringBefore(new Date());
+      const expiring = await repo.findUnprocessedExpiringUntil(new Date());
       expect(expiring.length).toBeGreaterThanOrEqual(1);
       expect(expiring.every((e) => e.expiresAt < new Date())).toBe(true);
     });
@@ -233,11 +233,23 @@ describe('TypeOrmLoyaltyEntryRepository (integration)', () => {
         new LoyaltyEntryBuilder().withTenantId(TENANT_A).withExpiresAt(futureExpiry).build(),
       );
 
-      // findExpiringBefore() is a global, non-tenant-scoped query (used by the daily expiry cron
+      // findUnprocessedExpiringUntil() is a global, non-tenant-scoped query (used by the daily expiry cron
       // across all tenants), so other suites' leftover/in-flight rows can appear here. Scope the
       // assertion to this test's own tenant to avoid cross-suite pollution.
-      const expiring = await repo.findExpiringBefore(new Date());
+      const expiring = await repo.findUnprocessedExpiringUntil(new Date());
       expect(expiring.filter((e) => e.tenantId === TENANT_A)).toHaveLength(0);
+    });
+  });
+
+  describe('findUnprocessedExpiringUntil() window end', () => {
+    it('includes an unprocessed entry that expires exactly at the bound', async () => {
+      const bound = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
+      const entry = new LoyaltyEntryBuilder().withTenantId(TENANT_A).withExpiresAt(bound).build();
+      await repo.save(entry);
+
+      const result = await repo.findUnprocessedExpiringUntil(bound);
+
+      expect(result.map((e) => e.id)).toContain(entry.id);
     });
   });
 });

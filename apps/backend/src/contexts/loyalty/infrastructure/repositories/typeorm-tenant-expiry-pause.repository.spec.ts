@@ -1,3 +1,5 @@
+import { Test } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TenantExpiryPauseEntityBuilder } from '../../../../test/builders/loyalty/index';
 import { TenantExpiryPauseEntity } from '../entities/tenant-expiry-pause.entity';
@@ -8,11 +10,11 @@ const PAUSED_AT = new Date('2026-11-01T10:00:00.000Z');
 const RESUMED_AT = new Date('2026-11-05T10:00:00.000Z');
 
 describe('TypeOrmTenantExpiryPauseRepository', () => {
-  let ormRepo: { find: jest.Mock; createQueryBuilder: jest.Mock };
+  let ormRepo: jest.Mocked<Repository<TenantExpiryPauseEntity>>;
   let qb: Record<string, jest.Mock>;
   let repo: TypeOrmTenantExpiryPauseRepository;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     qb = {
       insert: jest.fn().mockReturnThis(),
       into: jest.fn().mockReturnThis(),
@@ -21,10 +23,18 @@ describe('TypeOrmTenantExpiryPauseRepository', () => {
       orUpdate: jest.fn().mockReturnThis(),
       execute: jest.fn().mockResolvedValue(undefined),
     };
-    ormRepo = { find: jest.fn(), createQueryBuilder: jest.fn().mockReturnValue(qb) };
-    repo = new TypeOrmTenantExpiryPauseRepository(
-      ormRepo as unknown as Repository<TenantExpiryPauseEntity>,
-    );
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        TypeOrmTenantExpiryPauseRepository,
+        {
+          provide: getRepositoryToken(TenantExpiryPauseEntity),
+          useValue: { find: jest.fn(), createQueryBuilder: jest.fn().mockReturnValue(qb) },
+        },
+      ],
+    }).compile();
+
+    repo = moduleRef.get(TypeOrmTenantExpiryPauseRepository);
+    ormRepo = moduleRef.get(getRepositoryToken(TenantExpiryPauseEntity));
   });
 
   it('opens a pause with an insert that ignores an existing span', async () => {

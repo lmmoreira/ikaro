@@ -83,9 +83,11 @@ export function CustomerLoyaltyEntriesTab({
             meta={
               <>
                 {formatDateLong(new Date(entry.earnedAt))} ·{' '}
-                {t('entryExpiryLine', {
-                  expiresAt: formatShortDateLabel(entry.expiresAt, locale),
-                })}
+                {entry.expiresAt === null
+                  ? t('entryExpiryPausedLine')
+                  : t('entryExpiryLine', {
+                      expiresAt: formatShortDateLabel(entry.expiresAt, locale),
+                    })}
               </>
             }
             link={

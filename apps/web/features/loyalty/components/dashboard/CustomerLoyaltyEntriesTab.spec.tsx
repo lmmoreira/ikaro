@@ -132,4 +132,16 @@ describe('CustomerLoyaltyEntriesTab', () => {
 
     expect(screen.getByRole('button', { name: 'loadMoreEntries' })).toBeDisabled();
   });
+
+  it('shows the paused-expiry line instead of a date for an entry held by a suspension', () => {
+    render(
+      <CustomerLoyaltyEntriesTab
+        {...baseProps}
+        entries={makeEntries([makeEntry({ expiresAt: null })])}
+      />,
+    );
+
+    expect(screen.getByText(/entryExpiryPausedLine/)).toBeInTheDocument();
+    expect(screen.queryByText(/entryExpiryLine/)).not.toBeInTheDocument();
+  });
 });

@@ -35,4 +35,16 @@ describe('RecordTenantExpiryPauseUseCase', () => {
 
     expect(pauseRepo.rows).toHaveLength(2);
   });
+
+  it('keeps two tenants suspended at the same instant as two separate pauses', async () => {
+    const otherTenant = '00000000-0000-7000-8000-000000000002';
+
+    await useCase.execute(INPUT);
+    await useCase.execute({ ...INPUT, tenantId: otherTenant });
+
+    expect(pauseRepo.rows).toEqual([
+      { tenantId: TENANT_ID, pausedAt: SUSPENDED_AT, resumedAt: null },
+      { tenantId: otherTenant, pausedAt: SUSPENDED_AT, resumedAt: null },
+    ]);
+  });
 });

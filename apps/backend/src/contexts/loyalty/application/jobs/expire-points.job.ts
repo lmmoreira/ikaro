@@ -56,7 +56,7 @@ export class ExpirePointsJob {
   private async findUnprocessedExpired(now: Date): Promise<LoyaltyEntry[]> {
     // The stored expiry is never later than the effective one, so it is a safe superset: the
     // tenants' suspension pauses then drop the entries that are held or shifted (M25-S27).
-    const rawDue = await this.entryRepo.findExpiringBefore(now);
+    const rawDue = await this.entryRepo.findUnprocessedExpiringUntil(now);
     const effective = await this.effectiveExpiry.resolve(rawDue);
     const expired = rawDue.filter((entry) => {
       const expiresAt = effective.get(entry.id);
@@ -65,7 +65,7 @@ export class ExpirePointsJob {
     const unprocessed: LoyaltyEntry[] = [];
     for (const entry of expired) {
       if (await this.expiryLogRepo.hasBeenProcessed(entry.id)) continue;
-      // Entry could have been deleted after findExpiringBefore read it (e.g. data
+      // Entry could have been deleted after the candidate read (e.g. data
       // erasure race) — skip it rather than failing the whole batch on a FK violation.
       if (!(await this.entryRepo.existsById(entry.id))) continue;
       unprocessed.push(entry);

@@ -18,17 +18,13 @@ export class InMemoryLoyaltyEntryRepository implements ILoyaltyEntryRepository {
     return !this.deletedIds.has(id) && this.entries.some((e) => e.id === id);
   }
 
-  /** Simulates an entry being deleted after `findExpiringBefore` already returned it. */
+  /** Simulates an entry being deleted after the expiry candidate read already returned it. */
   markDeleted(id: string): void {
     this.deletedIds.add(id);
   }
 
-  async findExpiringBefore(date: Date): Promise<LoyaltyEntry[]> {
-    return this.entries.filter((e) => e.expiresAt < date);
-  }
-
-  async findUnprocessedExpiringBefore(to: Date): Promise<LoyaltyEntry[]> {
-    return this.entries.filter((e) => e.expiresAt < to && !this.processedIds.has(e.id));
+  async findUnprocessedExpiringUntil(to: Date): Promise<LoyaltyEntry[]> {
+    return this.entries.filter((e) => e.expiresAt <= to && !this.processedIds.has(e.id));
   }
 
   async findByCustomerPaginated(

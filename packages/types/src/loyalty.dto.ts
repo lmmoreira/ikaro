@@ -20,7 +20,7 @@ export interface LoyaltyEntryItem {
   readonly serviceName: string;
   readonly points: number;
   readonly earnedAt: string; // ISO-8601
-  readonly expiresAt: string; // ISO-8601
+  readonly expiresAt: string | null; // ISO-8601; null while a suspension pause holds the entry
   readonly isActive: boolean;
 }
 
@@ -62,7 +62,7 @@ export interface CustomerLoyaltyEntryResponse {
   serviceName: string;
   pointsEarned: number;
   earnedAt: string; // ISO-8601
-  expiresAt: string; // ISO-8601
+  expiresAt: string | null; // ISO-8601; null while a suspension pause holds the entry
   expired: boolean; // server-computed: expiresAt < now
 }
 

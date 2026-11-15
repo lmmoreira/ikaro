@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { LessThan, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import {
   ILoyaltyEntryRepository,
@@ -30,17 +30,10 @@ export class TypeOrmLoyaltyEntryRepository implements ILoyaltyEntryRepository {
     return this.repo.exists({ where: { id } });
   }
 
-  async findExpiringBefore(date: Date): Promise<LoyaltyEntry[]> {
-    const entities = await this.repo.find({
-      where: { expiresAt: LessThan(date) },
-    });
-    return entities.map((e) => this.toDomain(e));
-  }
-
-  async findUnprocessedExpiringBefore(to: Date): Promise<LoyaltyEntry[]> {
+  async findUnprocessedExpiringUntil(to: Date): Promise<LoyaltyEntry[]> {
     const entities = await this.repo
       .createQueryBuilder('e')
-      .where('e.expiresAt < :to', { to })
+      .where('e.expiresAt <= :to', { to })
       .andWhere(`NOT EXISTS (SELECT 1 FROM loyalty.balance_expiry_log l WHERE l.entry_id = e.id)`)
       .getMany();
     return entities.map((e) => this.toDomain(e));

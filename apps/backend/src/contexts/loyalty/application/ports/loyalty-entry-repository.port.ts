@@ -10,13 +10,13 @@ export interface PaginatedLoyaltyEntries {
 export interface ILoyaltyEntryRepository {
   save(entry: LoyaltyEntry): Promise<void>;
   existsById(id: string): Promise<boolean>;
-  /** Entries whose stored `expires_at` is before `date`. Callers apply the tenant pauses (`effectiveExpiry`). */
-  findExpiringBefore(date: Date): Promise<LoyaltyEntry[]>;
   /**
-   * Cross-tenant: entries whose stored `expires_at` is before `to` and that the expiry sweep has
-   * not processed yet. The expiry warning keeps those whose *effective* expiry falls in its window.
+   * Cross-tenant (the daily expiry sweep and the weekly warning are unscoped system jobs): entries
+   * whose stored `expires_at` is at or before `to` and that the expiry sweep has not processed yet. The
+   * stored expiry is never later than the effective one, so callers apply the tenants' suspension
+   * pauses (`effectiveExpiry`) to what this returns.
    */
-  findUnprocessedExpiringBefore(to: Date): Promise<LoyaltyEntry[]>;
+  findUnprocessedExpiringUntil(to: Date): Promise<LoyaltyEntry[]>;
   findByCustomerPaginated(
     tenantId: string,
     customerId: string,

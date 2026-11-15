@@ -20,7 +20,8 @@ export interface LoyaltyEntryItem {
   serviceName: string;
   points: number;
   earnedAt: string;
-  expiresAt: string;
+  /** The effective expiry; `null` while an open suspension pause holds the entry (M25-S27). */
+  expiresAt: string | null;
   isActive: boolean;
 }
 
@@ -61,7 +62,7 @@ export class GetLoyaltyEntriesUseCase {
         serviceName: nameMap.get(entry.serviceId) ?? entry.serviceId,
         points: entry.points,
         earnedAt: entry.earnedAt.toISOString(),
-        expiresAt: (expiresAt ?? entry.expiresAt).toISOString(),
+        expiresAt: expiresAt?.toISOString() ?? null,
         isActive: expiresAt === null || expiresAt > now,
       };
     });

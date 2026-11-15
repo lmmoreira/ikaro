@@ -2819,6 +2819,7 @@
       "entryActiveBadge": "active",
       "entryExpiredBadge": "expired",
       "entryExpiryLine": "expires {expiresAt}",
+      "entryExpiryPausedLine": "expiry paused while the business is suspended",
       "earnedPointsBadge": "+{count} pts",
       "redemptionDefaultTitle": "Booking redemption",
       "redemptionBookingLabel": "Booking {bookingId}",

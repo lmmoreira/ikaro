@@ -202,3 +202,27 @@ describe('toStaffCustomerLoyaltyDetail()', () => {
     expect(result.redemptions).toBe(redemptions);
   });
 });
+
+describe('an entry held by a suspension pause (null expiresAt)', () => {
+  const heldItem: BackendLoyaltyEntryItem = {
+    entryId: 'e1111111-0000-4000-8000-000000000002',
+    bookingId: 'bbbbbbbb-0000-4000-8000-000000000002',
+    serviceId: 'cccccccc-0000-4000-8000-000000000002',
+    serviceName: 'Lavagem Completa',
+    points: 10,
+    earnedAt: '2026-05-28T14:00:00.000Z',
+    expiresAt: null,
+    isActive: true,
+  };
+
+  it('keeps a null expiresAt and stays not expired in the customer response', () => {
+    const result = toCustomerLoyaltyEntry(heldItem);
+
+    expect(result.expiresAt).toBeNull();
+    expect(result.expired).toBe(false);
+  });
+
+  it('passes a null expiresAt through in the staff response', () => {
+    expect(toStaffLoyaltyEntry(heldItem).expiresAt).toBeNull();
+  });
+});

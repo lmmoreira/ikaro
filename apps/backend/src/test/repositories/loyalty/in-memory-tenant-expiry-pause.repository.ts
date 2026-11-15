@@ -11,7 +11,10 @@ export class InMemoryTenantExpiryPauseRepository implements ITenantExpiryPauseRe
   readonly rows: PauseRow[] = [];
 
   async recordOpen(tenantId: string, pausedAt: Date): Promise<void> {
-    if (this.find(tenantId, pausedAt)) return;
+    if (
+      this.rows.some((r) => r.tenantId === tenantId && r.pausedAt.getTime() === pausedAt.getTime())
+    )
+      return;
     this.rows.push({ tenantId, pausedAt, resumedAt: null });
   }
 
