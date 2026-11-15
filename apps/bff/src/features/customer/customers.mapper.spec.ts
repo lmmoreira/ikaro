@@ -6,13 +6,14 @@ describe('toTenantOption', () => {
   const balance = { currentPoints: 120 };
 
   it('maps tenant summary + tenant info + balance to a TenantOption', () => {
-    const result = toTenantOption(tenant, tenantInfo, balance);
+    const result = toTenantOption(tenant, tenantInfo, balance, true);
 
     expect(result).toEqual({
       id: 'tid-1',
       name: 'Lavacar BH',
       slug: 'lavacar-bh',
       loyaltyPoints: 120,
+      operational: true,
     });
   });
 
@@ -21,12 +22,17 @@ describe('toTenantOption', () => {
       { tenantId: 'tid-abc', customerId: 'cid-xyz' },
       { id: 'tid-abc', slug: 'test', name: 'Test', locale: 'pt-BR' },
       { currentPoints: 0 },
+      true,
     );
     expect(result.id).toBe('tid-abc');
   });
 
   it('reflects the balance current points as loyaltyPoints', () => {
-    const result = toTenantOption(tenant, tenantInfo, { currentPoints: 0 });
+    const result = toTenantOption(tenant, tenantInfo, { currentPoints: 0 }, true);
     expect(result.loyaltyPoints).toBe(0);
+  });
+
+  it('carries operational false for a suspended tenant', () => {
+    expect(toTenantOption(tenant, tenantInfo, balance, false).operational).toBe(false);
   });
 });

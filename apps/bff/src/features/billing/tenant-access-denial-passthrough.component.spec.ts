@@ -229,7 +229,10 @@ describe('BFF tenant-access denial pass-through (component)', () => {
       const tenant = { id: TENANT_ID_2, slug: 'lavacar-sp', name: 'Lavacar SP' };
 
       setupActiveGuardMock(httpService);
-      backendHttpService.get.mockResolvedValueOnce([staffRecord]).mockResolvedValueOnce([tenant]);
+      backendHttpService.get
+        .mockResolvedValueOnce([staffRecord])
+        .mockResolvedValueOnce([tenant])
+        .mockResolvedValueOnce({ status: 'SUSPENDED', operational: false, features: [] });
       const list = await request(app.getHttpServer())
         .get('/v1/auth/staff-tenants')
         .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
@@ -249,6 +252,7 @@ describe('BFF tenant-access denial pass-through (component)', () => {
           tenantSlug: 'lavacar-sp',
           tenantName: 'Lavacar SP',
           role: 'STAFF',
+          operational: false,
         },
       ]);
       expect(switched.status).toBe(200);
@@ -266,7 +270,9 @@ describe('BFF tenant-access denial pass-through (component)', () => {
           { id: TENANT_ID, slug: 'lavacar-bh', name: 'Lavacar BH' },
           { id: TENANT_ID_2, slug: 'lavacar-sp', name: 'Lavacar SP' },
         ])
-        .mockResolvedValueOnce([]);
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce({ status: 'ACTIVE', operational: true, features: [] })
+        .mockResolvedValueOnce({ status: 'SUSPENDED', operational: false, features: [] });
       const list = await request(app.getHttpServer())
         .get('/v1/customers/tenants')
         .set('Authorization', `Bearer ${makeCustomerJwt(jwtService)}`);
@@ -281,6 +287,10 @@ describe('BFF tenant-access denial pass-through (component)', () => {
 
       expect(list.status).toBe(200);
       expect(list.body.map((entry: { id: string }) => entry.id)).toEqual([TENANT_ID, TENANT_ID_2]);
+      expect(list.body.map((entry: { operational: boolean }) => entry.operational)).toEqual([
+        true,
+        false,
+      ]);
       expect(switched.status).toBe(200);
       expect(switched.body.tenantSlug).toBe('lavacar-sp');
     });

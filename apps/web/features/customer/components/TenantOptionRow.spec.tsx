@@ -11,6 +11,7 @@ function makeTenant(overrides?: Partial<TenantOption>): TenantOption {
     name: 'Lava Rápido BH',
     slug: 'lavacar-bh',
     loyaltyPoints: 120,
+    operational: true,
     ...overrides,
   };
 }

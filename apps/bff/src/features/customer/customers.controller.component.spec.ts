@@ -23,6 +23,10 @@ const mockProfile: CustomerProfileResponse = {
   defaultAddress: null,
 };
 
+// The backend access answer (S13): the reason stays in the backend and never reaches these specs.
+const OPERATIONAL_ACCESS = { status: 'ACTIVE', operational: true, features: [] };
+const SUSPENDED_ACCESS = { status: 'SUSPENDED', operational: false, features: [] };
+
 describe('CustomersController (component)', () => {
   let app: INestApplication;
   let jwtService: JwtService;
@@ -325,17 +329,35 @@ describe('CustomersController (component)', () => {
         .mockResolvedValueOnce([
           { tenantId: TENANT_ID, currentPoints: 120 },
           { tenantId: TENANT_ID_2, currentPoints: 8 },
-        ]);
+        ])
+        .mockResolvedValueOnce(OPERATIONAL_ACCESS)
+        .mockResolvedValueOnce(SUSPENDED_ACCESS);
 
       const res = await request(app.getHttpServer())
         .get('/v1/customers/tenants')
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
+      // The suspended tenant stays listed, marked not operational, with no reason.
       expect(res.body).toEqual([
-        { id: TENANT_ID, name: 'Lavacar BH', slug: 'lavacar-bh', loyaltyPoints: 120 },
-        { id: TENANT_ID_2, name: 'SuperClean', slug: 'superclean', loyaltyPoints: 8 },
+        {
+          id: TENANT_ID,
+          name: 'Lavacar BH',
+          slug: 'lavacar-bh',
+          loyaltyPoints: 120,
+          operational: true,
+        },
+        {
+          id: TENANT_ID_2,
+          name: 'SuperClean',
+          slug: 'superclean',
+          loyaltyPoints: 8,
+          operational: false,
+        },
       ]);
+      expect(backendHttpService.get).toHaveBeenCalledWith(
+        `/internal/billing/tenants/${TENANT_ID_2}/access`,
+      );
     });
 
     it('propagates backend error when tenant list fetch fails', async () => {
@@ -355,7 +377,8 @@ describe('CustomersController (component)', () => {
       backendHttpService.get
         .mockResolvedValueOnce([{ tenantId: TENANT_ID, customerId: CUSTOMER_ID }])
         .mockResolvedValueOnce([{ id: TENANT_ID, slug: 'lavacar-bh', name: 'Lavacar BH' }])
-        .mockResolvedValueOnce([{ tenantId: TENANT_ID, currentPoints: 120 }]);
+        .mockResolvedValueOnce([{ tenantId: TENANT_ID, currentPoints: 120 }])
+        .mockResolvedValueOnce(OPERATIONAL_ACCESS);
 
       const res = await request(app.getHttpServer())
         .get('/v1/customers/tenants')
@@ -363,8 +386,18 @@ describe('CustomersController (component)', () => {
 
       expect(res.status).toBe(200);
       expect(res.body).toEqual([
-        { id: TENANT_ID, name: 'Lavacar BH', slug: 'lavacar-bh', loyaltyPoints: 120 },
+        {
+          id: TENANT_ID,
+          name: 'Lavacar BH',
+          slug: 'lavacar-bh',
+          loyaltyPoints: 120,
+          operational: true,
+        },
       ]);
+      // Only the caller's own tenants are read: no other tenant's state is looked up.
+      expect(backendHttpService.get).not.toHaveBeenCalledWith(
+        `/internal/billing/tenants/${TENANT_ID_2}/access`,
+      );
       expect(backendHttpService.get).toHaveBeenCalledWith('/customers/me/tenants');
     });
   });

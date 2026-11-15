@@ -843,6 +843,29 @@
       "rationale": "Per-context integration app for the Billing context (M25-S04, the first Billing story with entities): it boots only BillingModule and the entities its repositories read. Every later Billing entity story adds its entities here (M25-D7). InboxRecordEntity was added by M25-S11: the TenantProvisioned consumer dedups through the shared inbox. TenantEntity and HotsiteConfigEntity were added by M25-S13: BillingModule imports PlatformSettingsModule for the access resolver's tenant-info read."
     },
     {
+      "file": "apps/backend/src/test/utils/suspended-experience-integration-app.ts",
+      "completeness": "partial",
+      "entities": [
+        "FeaturePriceEntity",
+        "FeaturePriceVersionEntity",
+        "SubscriptionEntity",
+        "SubscriptionItemEntity",
+        "BillingAccountEntity",
+        "SignupRegistrationEntity",
+        "OperatorAuditEntity",
+        "InboxRecordEntity",
+        "TenantEntity",
+        "HotsiteConfigEntity",
+        "LeadFormConfigEntity",
+        "LeadFormSubmissionEntity",
+        "LeadFormAnswerEntity",
+        "ChatbotSessionEntity",
+        "ChatbotMessageEntity",
+        "ChatbotProviderBalanceEntity"
+      ],
+      "rationale": "Integration app for the suspended-experience golden path (M25-S26): it boots the real BillingModule and PlatformModule together, with the real GatedEventBus over an in-process transport, so one spec can drive an operator suspension through the access answer, a gated route, a gated event delivery and the effective-unpublished hotsite. It carries exactly the entities those two modules' repositories read."
+    },
+    {
       "file": "apps/backend/src/test/utils/booking-integration-app.ts",
       "completeness": "partial",
       "entities": [

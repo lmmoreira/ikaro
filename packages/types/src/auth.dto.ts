@@ -19,6 +19,8 @@ export interface TenantOption {
   readonly name: string;
   readonly slug: string;
   readonly loyaltyPoints: number;
+  /** `false` while the tenant is suspended; the tenant is still listed and can be switched into. */
+  readonly operational: boolean;
 }
 
 export interface StaffTenantOption {
@@ -27,4 +29,6 @@ export interface StaffTenantOption {
   readonly tenantSlug: string;
   readonly tenantName: string;
   readonly role: 'STAFF' | 'MANAGER';
+  /** `false` while the tenant is suspended; the tenant is still listed and can be switched into. */
+  readonly operational: boolean;
 }

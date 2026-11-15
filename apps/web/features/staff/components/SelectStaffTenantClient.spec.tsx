@@ -38,6 +38,7 @@ function makeOption(overrides: Partial<StaffTenantOption> = {}): StaffTenantOpti
     tenantSlug: 'lavacar-beloauto',
     tenantName: 'Lavacar BeloAuto',
     role: 'MANAGER',
+    operational: true,
     ...overrides,
   };
 }

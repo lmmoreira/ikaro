@@ -6,11 +6,13 @@ export function toTenantOption(
   tenant: CustomerTenantSummaryResponse,
   tenantInfo: TenantInfoResponse,
   balance: { currentPoints: number },
+  operational: boolean,
 ): TenantOption {
   return {
     id: tenant.tenantId,
     name: tenantInfo.name,
     slug: tenantInfo.slug,
     loyaltyPoints: balance.currentPoints,
+    operational,
   };
 }

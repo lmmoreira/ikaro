@@ -21,7 +21,13 @@ vi.mock('@/features/auth/api', () => ({
 
 import { fetchCustomerTenants } from '@/features/auth/api';
 
-const TENANT_OPTION = { id: 't-1', name: 'Lavacar BH', slug: 'lavacar-bh', loyaltyPoints: 10 };
+const TENANT_OPTION = {
+  id: 't-1',
+  name: 'Lavacar BH',
+  slug: 'lavacar-bh',
+  loyaltyPoints: 10,
+  operational: true,
+};
 
 afterEach(() => {
   vi.mocked(fetchCustomerTenants).mockReset();
@@ -59,7 +65,7 @@ describe('HotsiteAuthBarDropdown', () => {
   it('shows "Trocar empresa" when the customer has 2+ tenants', async () => {
     vi.mocked(fetchCustomerTenants).mockResolvedValue([
       TENANT_OPTION,
-      { id: 't-2', name: 'SuperClean', slug: 'superclean', loyaltyPoints: 5 },
+      { id: 't-2', name: 'SuperClean', slug: 'superclean', loyaltyPoints: 5, operational: true },
     ]);
 
     render(<HotsiteAuthBarDropdown name="Ana" slug="lavacar-bh" />);

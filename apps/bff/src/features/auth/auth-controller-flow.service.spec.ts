@@ -505,7 +505,8 @@ describe('AuthControllerFlowService', () => {
             { staffId: STAFF_ID_A, tenantId: TENANT_ID_A, role: 'MANAGER', isActive: true },
             { staffId: 'inactive', tenantId: TENANT_ID_B, role: 'STAFF', isActive: false },
           ])
-          .mockResolvedValueOnce([{ id: TENANT_ID_A, slug: 'lavacar-bh', name: 'Lavacar BH' }]),
+          .mockResolvedValueOnce([{ id: TENANT_ID_A, slug: 'lavacar-bh', name: 'Lavacar BH' }])
+          .mockResolvedValueOnce({ status: 'ACTIVE', operational: true, features: [] }),
       });
       const service = makeService(backendHttp);
 
@@ -518,8 +519,88 @@ describe('AuthControllerFlowService', () => {
           tenantSlug: 'lavacar-bh',
           tenantName: 'Lavacar BH',
           role: 'MANAGER',
+          operational: true,
         },
       ]);
+    });
+
+    it('lists a suspended tenant marked not operational, never filtered out, and reads only the caller tenants', async () => {
+      const get = jest.fn().mockImplementation((url: string) => {
+        if (url === '/staff/me/tenants') {
+          return Promise.resolve([
+            { staffId: STAFF_ID_A, tenantId: TENANT_ID_A, role: 'MANAGER', isActive: true },
+            { staffId: 'staff-b', tenantId: TENANT_ID_B, role: 'STAFF', isActive: true },
+          ]);
+        }
+        if (url.startsWith('/internal/tenants?ids=')) {
+          return Promise.resolve([
+            { id: TENANT_ID_A, slug: 'lavacar-bh', name: 'Lavacar BH' },
+            { id: TENANT_ID_B, slug: 'superclean', name: 'SuperClean' },
+          ]);
+        }
+        const suspended = url === `/internal/billing/tenants/${TENANT_ID_B}/access`;
+        return Promise.resolve({
+          status: suspended ? 'SUSPENDED' : 'ACTIVE',
+          operational: !suspended,
+          features: [],
+        });
+      });
+      const service = makeService(makeBackendHttp({ get }));
+
+      const result = await service.getStaffTenants();
+
+      expect(result.map((r) => [r.tenantId, r.operational])).toEqual([
+        [TENANT_ID_A, true],
+        [TENANT_ID_B, false],
+      ]);
+      expect(get).toHaveBeenCalledTimes(4);
+    });
+
+    it('non-regression: an exempt tenant is listed exactly as before, operational, with no field beyond the flag', async () => {
+      const get = jest.fn().mockImplementation((url: string) => {
+        if (url === '/staff/me/tenants') {
+          return Promise.resolve([
+            { staffId: STAFF_ID_A, tenantId: TENANT_ID_A, role: 'MANAGER', isActive: true },
+          ]);
+        }
+        if (url.startsWith('/internal/tenants?ids=')) {
+          return Promise.resolve([{ id: TENANT_ID_A, slug: 'lavacar-bh', name: 'Lavacar BH' }]);
+        }
+        // An exempt tenant is ACTIVE with every feature, and carries an `exempt` marker the BFF drops.
+        return Promise.resolve({ status: 'ACTIVE', exempt: true, operational: true, features: [] });
+      });
+      const service = makeService(makeBackendHttp({ get }));
+
+      await expect(service.getStaffTenants()).resolves.toEqual([
+        {
+          staffId: STAFF_ID_A,
+          tenantId: TENANT_ID_A,
+          tenantSlug: 'lavacar-bh',
+          tenantName: 'Lavacar BH',
+          role: 'MANAGER',
+          operational: true,
+        },
+      ]);
+    });
+
+    it('fails open to operational when the access lookup fails, and keeps the list', async () => {
+      const get = jest.fn().mockImplementation((url: string) => {
+        if (url === '/staff/me/tenants') {
+          return Promise.resolve([
+            { staffId: STAFF_ID_A, tenantId: TENANT_ID_A, role: 'MANAGER', isActive: true },
+          ]);
+        }
+        if (url.startsWith('/internal/tenants?ids=')) {
+          return Promise.resolve([{ id: TENANT_ID_A, slug: 'lavacar-bh', name: 'Lavacar BH' }]);
+        }
+        return Promise.reject(new Error('backend down'));
+      });
+      const service = makeService(makeBackendHttp({ get }));
+
+      const result = await service.getStaffTenants();
+
+      expect(result).toHaveLength(1);
+      expect(result[0].operational).toBe(true);
     });
 
     it('returns an empty list when the staff member has no active assignments', async () => {
@@ -542,7 +623,8 @@ describe('AuthControllerFlowService', () => {
           .mockResolvedValueOnce([
             { staffId: STAFF_ID_A, tenantId: TENANT_ID_A, role: 'MANAGER', isActive: true },
           ])
-          .mockResolvedValueOnce([]),
+          .mockResolvedValueOnce([])
+          .mockResolvedValue({ status: 'ACTIVE', operational: true, features: [] }),
       });
       const service = makeService(backendHttp);
 

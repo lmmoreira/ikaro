@@ -21,6 +21,7 @@ import {
   StaffTenantOption,
 } from './auth.types';
 import { authLoginLogger, findTenantBySlug } from './auth-login-shared';
+import { readOperationalByTenant } from '../billing/tenant-access.reader';
 
 // Split out of auth-controller-flow.service.ts to keep it under the file-length cap — the
 // customer half of handleGoogleCallback's Google OAuth flow, plus the logout/tenant-switching
@@ -49,6 +50,13 @@ export async function getStaffTenants(
     `/internal/tenants?ids=${tenantIds.join(',')}`,
   );
   const tenantMap = new Map(tenants.map((t) => [t.id, t]));
+  // A suspended tenant stays in the list, marked not operational, so the picker can still switch
+  // into it (UC-121); the backend decides, the BFF only attaches the answer.
+  const operationalByTenant = await readOperationalByTenant(
+    backendHttp,
+    tenantIds,
+    authLoginLogger,
+  );
 
   return activeStaff.map((s) => {
     const tenantInfo = tenantMap.get(s.tenantId);
@@ -65,6 +73,7 @@ export async function getStaffTenants(
       tenantSlug: tenantInfo.slug,
       tenantName: tenantInfo.name,
       role: s.role,
+      operational: operationalByTenant.get(s.tenantId) ?? true,
     };
   });
 }

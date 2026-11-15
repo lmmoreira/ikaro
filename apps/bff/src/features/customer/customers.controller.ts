@@ -14,6 +14,8 @@ import { toTenantOption } from './customers.mapper';
 import { CustomerSearchResponse, LoyaltyBalanceByTenantItem } from './customers.types';
 import { fetchLoyaltyBalancesForSearch } from './customers.loyalty-balances';
 import { throwProblemDetail } from '../../shared/http/problem-detail';
+import { AppLogger } from '../../shared/observability/app-logger';
+import { readOperationalByTenant } from '../billing/tenant-access.reader';
 import {
   CustomerSearchQuery,
   CustomerSearchQuerySchema,
@@ -28,6 +30,8 @@ export * from './customers.schemas';
 
 @Controller('customers')
 export class CustomersController {
+  private readonly logger = new AppLogger(CustomersController.name);
+
   constructor(private readonly backendHttp: BackendHttpService) {}
 
   @Get()
@@ -83,9 +87,10 @@ export class CustomersController {
     if (tenants.length === 0) return [];
 
     const tenantIds = tenants.map((t) => t.tenantId);
-    const [tenantInfos, balances] = await Promise.all([
+    const [tenantInfos, balances, operationalByTenant] = await Promise.all([
       this.backendHttp.get<TenantInfoResponse[]>(`/internal/tenants?ids=${tenantIds.join(',')}`),
       this.backendHttp.get<LoyaltyBalanceByTenantItem[]>('/loyalty/balances/own'),
+      readOperationalByTenant(this.backendHttp, tenantIds, this.logger),
     ]);
     const tenantMap = new Map(tenantInfos.map((t) => [t.id, t]));
     const pointsByTenant = new Map(balances.map((b) => [b.tenantId, b.currentPoints]));
@@ -99,7 +104,12 @@ export class CustomersController {
           `Tenant ${t.tenantId} missing from batch response`,
         );
       }
-      return toTenantOption(t, tenantInfo, { currentPoints: pointsByTenant.get(t.tenantId) ?? 0 });
+      return toTenantOption(
+        t,
+        tenantInfo,
+        { currentPoints: pointsByTenant.get(t.tenantId) ?? 0 },
+        operationalByTenant.get(t.tenantId) ?? true,
+      );
     });
   }
 
