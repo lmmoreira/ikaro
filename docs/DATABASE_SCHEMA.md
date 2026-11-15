@@ -1170,20 +1170,6 @@ ON CONFLICT DO NOTHING;
 
 Partial-failure safe: if the cron crashes after processing 5 of 10 entries, the next run only reprocesses the remaining 5.
 
-### `loyalty.tenant_expiry_pauses` *(planned, M25-S27 — Billing enforcement)*
-One row per span during which a tenant was `SUSPENDED`; the expiry code reads a tenant's spans and computes each entry's effective expiry in non-suspended time (`docs/DOMAIN_MODEL.md` § Expiration window; `loyalty_entries.expires_at` is never rewritten — the ledger stays append-only). Written by two Loyalty handlers (`pause-loyalty-expiry-on-suspension` inserts it open, `resume-loyalty-expiry-after-suspension` upserts it closed), both keyed by the span's start, so delivery order does not matter and a redelivery is a no-op.
-
-| Column | Type | Constraints |
-|--------|------|-------------|
-| tenant_id | UUID | NOT NULL |
-| paused_at | TIMESTAMP WITH TIME ZONE | NOT NULL — the `suspendedAt` of the `SubscriptionSuspended` event (`SubscriptionReactivated` carries it too) |
-| resumed_at | TIMESTAMP WITH TIME ZONE | NULL while the pause is open (the `reactivatedAt` of the event) |
-
-- `PRIMARY KEY (tenant_id, paused_at)` — also the dedupe key for the upserts.
-- `CHECK (resumed_at IS NULL OR resumed_at >= paused_at)`.
-- Partial index on `(tenant_id) WHERE resumed_at IS NULL` for the open-pause lookup (`tenant_id` leads, invariant 1).
-- Created by a Loyalty migration that uses `QueryRunner` (`…-CreateLoyaltyTenantExpiryPauses`), which also adds the standalone `IDX_loyalty_entries_expires_at` on `loyalty.loyalty_entries (expires_at)`: the system-wide expiry sweep and the expiry warning filter by `expires_at` without a tenant, which the existing `(tenant_id, customer_id, expires_at)` index cannot serve.
-
 ---
 
 ## Schema: `notification`
@@ -1552,9 +1538,9 @@ Types are the minimum M25-S03 needs (the discovery data model lists column names
 1. (M25-S03) Create schema `billing`, `CREATE EXTENSION IF NOT EXISTS btree_gist`, and all first-schema tables (including `signup_registrations`, `provider_health`) — expand only, no existing table touched.
 2. (M25-S04) Seed `feature_prices` and one `feature_price_versions` row each (`effective_from` = the fixed constant `2026-01-01`) from the catalog approved in the commercial-catalog story; the US list (the BR amounts plus 40%) is seeded in every environment.
 3. (M25-S05) Backfill every tenant without a subscription as `ACTIVE`, all features, `exempt = true` (idempotent; there is no production yet, so this covers local/staging tenants). Tenants created later start `TRIALING` through `TenantProvisioned`; Ikaro's own tenant (`PLATFORM_OWNER_TENANT_SLUG`) is exempt. A tenant with an unsupported country (not BR/US) or an invalid timezone aborts the whole migration with an error naming the tenant; the dev seed runs the same migration code after its tenant inserts, so seeded tenants get an exempt subscription too.
-4. Add the Notification tenant-unavailable template migration (M25-S28, `AddTenantUnavailableTemplate`: global default rows plus per-tenant rows) and the Loyalty `loyalty.tenant_expiry_pauses` migration (M25-S27); the Billing platform notification templates are M26. `notification_logs` is not changed (the status widening planned as M25-S23 was dropped, UC-123).
+4. Add the Notification tenant-unavailable template migration (M25-S28, `AddTenantUnavailableTemplate`: global default rows plus per-tenant rows); the Billing platform notification templates are M26. `notification_logs` is not changed (the status widening planned as M25-S23 was dropped, UC-123).
 5. Deploy code with transient-lookup fail-open only; the publisher and the Billing handler ship in the same release (the bus does not version-route; the handler tolerates a legacy payload without `countryCode`).
-6. Terraform. **M25 adds no cron job and no secret** — only the Billing event topics (`SubscriptionSuspended`, `SubscriptionReactivated` and the rest of Billing's events) and the Loyalty, Platform and Notification subscriptions to them, all generated from `infra/terraform/pubsub-catalog.json`, plus the plain env var `PLATFORM_OWNER_TENANT_SLUG` (M25-S07). **M26 adds** six Cloud Scheduler jobs (`ikaro-cron-billing-issue-charges`, `-status-sweep` [hourly], `-reminders`, `-reconcile` [hourly, full pass once a day], `-self-heal` [hourly], `-provider-events-purge`) plus their Pub/Sub topics and subscriptions (`infra/terraform/pubsub-catalog.json` is generated), the Asaas secrets (sandbox and live separately), the flags `FEATURE_FLAG_BILLING_PROVIDER_LIVE` and `FEATURE_FLAG_SIGNUP_ENABLED`, `SIGNUP_TERMS_VERSION` and the web's `PLATFORM_OWNER_TENANT_SLUG`, through `env.validation.ts` and the infra env contract. The seventh job, tenant purge, is M27 (slice G).
+6. Terraform. **M25 adds no cron job and no secret** — only the Billing event topics (`SubscriptionSuspended`, `SubscriptionReactivated` and the rest of Billing's events) and the Platform and Notification subscriptions to them, all generated from `infra/terraform/pubsub-catalog.json`, plus the plain env var `PLATFORM_OWNER_TENANT_SLUG` (M25-S07). **M26 adds** six Cloud Scheduler jobs (`ikaro-cron-billing-issue-charges`, `-status-sweep` [hourly], `-reminders`, `-reconcile` [hourly, full pass once a day], `-self-heal` [hourly], `-provider-events-purge`) plus their Pub/Sub topics and subscriptions (`infra/terraform/pubsub-catalog.json` is generated), the Asaas secrets (sandbox and live separately), the flags `FEATURE_FLAG_BILLING_PROVIDER_LIVE` and `FEATURE_FLAG_SIGNUP_ENABLED`, `SIGNUP_TERMS_VERSION` and the web's `PLATFORM_OWNER_TENANT_SLUG`, through `env.validation.ts` and the infra env contract. The seventh job, tenant purge, is M27 (slice G).
 
 All Billing tables are new, and M25 changes no existing table's constraints, so no `CHECK` is added to a table that already holds rows (the `NOT VALID` + `VALIDATE` split does not apply).
 
