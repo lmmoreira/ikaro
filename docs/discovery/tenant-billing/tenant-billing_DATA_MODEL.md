@@ -420,7 +420,7 @@ All carry the standard envelope (`eventId`, `tenantId`, `occurredAt`, `correlati
 | `ChargePaid` | `chargeId`, `amountMinor`, `currency`, `method`, `paidAt` | Notification (receipt) |
 | `SubscriptionPastDue` | `subscriptionId`, `pastDueSince`, `suspendsAt` | Notification |
 | `SubscriptionSuspended` | `subscriptionId`, `reason`, `suspendedAt`, `purgeAt` | Notification; hotsite revalidation |
-| `SubscriptionReactivated` | `subscriptionId`, `reactivatedAt`, `suspendedAt`, `recipientEmail?` | Notification; hotsite revalidation; Loyalty expiry resume *(the canonical `docs/DOMAIN_EVENTS.md` wins)* |
+| `SubscriptionReactivated` | `subscriptionId`, `reactivatedAt`, `suspendedAt`, `recipientEmail?` | Notification; hotsite revalidation; no Loyalty consumer (points keep expiring while suspended, M25-S27) *(the canonical `docs/DOMAIN_EVENTS.md` wins)* |
 | `SubscriptionCancelled` | `subscriptionId`, `cancelAt`, `immediate` | Notification (email to the billing email) |
 | `PlanChanged` | `subscriptionId`, `effectiveFrom`, `cycle`, `nextCycle?`, `nextCycleFrom?` *(slice H)*, `newTotalMinor` (total in the chosen cycle; `newMonthlyTotalMinor` while only monthly exists), `added[]`, `removed[]` | Notification (email to the billing email) |
 | `BillingReminderDue` | `kind` (`PLAN_CONFIRMATION` \| `TRIAL_ENDING` \| `CHARGE_DUE_SOON` \| `CHARGE_OVERDUE`), `daysOffset`, `chargeId?`, `paymentUrl?` | Notification (dunning email, CAND-34); `PLAN_CONFIRMATION` asks an unconfirmed trial tenant to confirm its first paid plan (decision 115) |

@@ -44,9 +44,9 @@ Controls how the loyalty system behaves for this tenant.
 | Key | Type | Default | Min | Max | Description |
 |-----|------|---------|-----|-----|-------------|
 | `expiryDays` | integer | 180 | 1 | 3650 | Days until loyalty points expire after earning |
-| `enableNotifications` | boolean | true | — | — | Send email when points expiring soon |
-| `expiryWarningDays` | integer | 7 | 1 | 90 | Look-ahead window for expiring-soon check (weekly cron) |
-| `notificationMinPoints` | integer | 50 | 0 | 10000 | Minimum active point balance a customer must have for the `PointsExpiringSoon` notification's threshold check (used by `notify-expiring-points.job.ts` and `loyalty-platform.port.ts`) |
+| `enableNotifications` | boolean | true | — | — | Stored and validated, **not yet read** by `notify-expiring-points.job.ts` (the weekly warning is sent regardless; a customer's email is only dropped by the suspension gate while the tenant is suspended) |
+| `expiryWarningDays` | integer | 7 | 1 | 90 | Stored and validated, **not yet read** by the weekly job: it uses a hardcoded `DEFAULT_EXPIRY_WARNING_DAYS = 7` (`notify-expiring-points.job.ts`) |
+| `notificationMinPoints` | integer | 50 | 0 | 10000 | Minimum **total of the customer's points expiring inside the warning window** for a `PointsExpiringSoon` notification to be sent (compared to the sum of expiring entries, not to the active balance; read by `notify-expiring-points.job.ts` through `loyalty-platform.port.ts`) |
 | `pointsPerCurrencyUnit` | integer | 0 | 0 | 10000 | How many points equal 1 currency unit (e.g. `10` = 10 pts → R$1 / $1). `0` = loyalty redemption feature disabled — the discount strip will not appear during booking completion (UC-009 A6). |
 
 **Example:**
@@ -64,8 +64,8 @@ Controls how the loyalty system behaves for this tenant.
 
 **Validation Rules:**
 - `expiryDays` must be between 1 and 3650 (1 year to 10 years)
-- `expiryWarningDays` must be > 0 and < `expiryDays`
-- `enableNotifications` must be boolean
+- `expiryWarningDays` must be > 0 and < `expiryDays` (validated only; the weekly job does not read it yet)
+- `enableNotifications` must be boolean (validated only; the weekly job does not read it yet)
 - `notificationMinPoints` must be 0–10000
 - `pointsPerCurrencyUnit` must be 0–10000 (`0` disables redemption)
 

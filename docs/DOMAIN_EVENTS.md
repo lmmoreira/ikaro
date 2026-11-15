@@ -578,7 +578,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 ---
 
 #### **PointsExpiringSoon** *(Command — `loyalty/domain/commands/points-expiring-soon.command.ts`, published through the outbox like the other cron-emitted commands, not a `DomainEvent`)*
-- **Trigger:** GCP Cloud Scheduler publishes to the `ikaro-cron-loyalty-expiry-warning` Pub/Sub topic once a week (Mondays 06:00 UTC); the push subscription dispatches to `NotifyExpiringPointsTriggerHandler`, which calls `NotifyExpiringPointsJob.run()` (M17-S03 — local dev: `POST /cron/loyalty-expiry-warning` publishes the same trigger). The job finds all customers across all tenants who have `LoyaltyEntry` rows whose `expires_at` falls within the configured warning window (`settings.loyalty.expiryWarningDays`, default 7).
+- **Trigger:** GCP Cloud Scheduler publishes to the `ikaro-cron-loyalty-expiry-warning` Pub/Sub topic once a week (Mondays 06:00 UTC); the push subscription dispatches to `NotifyExpiringPointsTriggerHandler`, which calls `NotifyExpiringPointsJob.run()` (M17-S03 — local dev: `POST /cron/loyalty-expiry-warning` publishes the same trigger). The job finds all customers across all tenants who have `LoyaltyEntry` rows whose `expires_at` falls within the warning window: a fixed 7 days (`DEFAULT_EXPIRY_WARNING_DAYS` in `notify-expiring-points.job.ts`; the `settings.loyalty.expiryWarningDays` setting is validated and stored but the job does not read it yet). Per tenant, a customer whose summed expiring points are below `settings.loyalty.notificationMinPoints` is skipped.
 - **Direction:** Forward-looking — this is a heads-up, not a post-mortem. Once `expires_at` actually passes, the `ikaro-cron-loyalty-expiry` topic (daily, 02:00 UTC) dispatches to `ExpirePointsTriggerHandler`, which decrements `loyalty_balances.current_points` for those entries.
 - **Aggregation:** One event per customer per tenant — all expiring entries for a customer are aggregated into a single event.
 - **State change:** None — the weekly cron does not write any DB rows. It only computes and publishes.
@@ -586,14 +586,14 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
   ```
   {
     customerId:           string
-    pointsExpiringSoon:   number    // sum of `points` from entries with expires_at in [now, now + expiryWarningDays)
+    pointsExpiringSoon:   number    // sum of `points` from entries with expires_at in [now, now + 7 days)
     earliestExpiresAt:    ISO8601   // the soonest expires_at among those entries
   }
   ```
 - **Consumers:**
   - **Notification Context** → sends one email per customer: "Você tem [X] pontos prestes a expirar em [earliestExpiresAt]. Realize um agendamento para utilizá-los."
 
-> **No `PointsExpired` event.** When points actually expire, the daily `ikaro-cron-loyalty-expiry` trigger dispatches to `ExpirePointsTriggerHandler`, which decrements `loyalty_balances.current_points` and logs the processed entry IDs in `balance_expiry_log` (idempotent). No domain event is published — the customer was already warned in advance by `PointsExpiringSoon`.
+> **No `PointsExpired` event.** When points actually expire, the daily `ikaro-cron-loyalty-expiry` trigger dispatches to `ExpirePointsTriggerHandler`, which decrements `loyalty_balances.current_points` and logs the processed entry IDs in `balance_expiry_log` (idempotent). No domain event is published — the customer was already warned in advance by `PointsExpiringSoon`, **unless** the warning was not sent: it is skipped when the customer's points sum is below `settings.loyalty.notificationMinPoints`, and it is dropped while the tenant is suspended (`skipWhenSuspended: true` on the points-expiring consumer, UC-123; dropped events are not replayed) although expiry itself keeps running (O-L1, M25-S27).
 
 > **No `PointsRedeemed` event.** Redemptions are recorded synchronously via `POST /v1/loyalty/redeem` (admin-only REST endpoint). The `loyalty_redemptions` table is the audit trail. No async event is needed — the balance decrement and redemption row are written atomically in the same HTTP transaction.
 
@@ -803,12 +803,12 @@ Ikaro charging its tenants (`docs/DOMAIN_MODEL.md` § Billing Context, `docs/USE
 
 #### **SubscriptionSuspended**
 - **Trigger:** the sweep (`NON_PAYMENT`, `CANCELED`), a full refund/lost chargeback (`PAYMENT_REVERSED`), an immediate cancel, a deactivated tenant (UC-142: reason `CANCELED`, raised together with `SubscriptionCancelled`), or the operator (`OPERATOR`; never for an `exempt` tenant, `BILLING_EXEMPT_PROTECTED`). *Built in M25-S15b for the operator path: raised by the aggregate when it becomes `SUSPENDED` and drained into the outbox by the subscription repository, in the transaction of the state change. An operator suspend of a tenant already suspended, for any reason, changes nothing: no reason change, no audit row, no event.*
-- **Data:** `subscriptionId`, `reason` (`NON_PAYMENT` | `CANCELED` | `PAYMENT_REVERSED` | `OPERATOR`), `suspendedAt`, `purgeAt`, `recipientEmail?`
+- **Data:** `subscriptionId`, `reason` (`NON_PAYMENT` | `CANCELED` | `PAYMENT_REVERSED` | `OPERATOR`), `suspendedAt`, `purgeAt` (`recipientEmail?` is *planned*, added with the billing email story: the built event class does not carry it)
 - **Consumers:** Notification (the billing email — suppressed for reason `CANCELED`, where the `SubscriptionCancelled` email is the one manager email —, plus a reason-neutral customer notice, *planned* M25-S28, consumer `notify-customers-tenant-unavailable`, sent only for reasons `OPERATOR` / `NON_PAYMENT` / `PAYMENT_REVERSED`); hotsite revalidation (Platform, consumer `revalidate-hotsite-on-suspension`, `IFrontendRevalidationPort.revalidate(slug)`, built in M25-S25: best effort, never throws into the bus, declared `skipWhenSuspended: false`); `audit-log` (the access cache is not an event consumer: the use case that changes the state invalidates it best-effort after commit, on its own instance)
 
 #### **SubscriptionReactivated**
 - **Trigger:** a recovery charge was paid, an `exempt` flag was set on a suspended tenant, or an `OPERATOR` suspension was lifted (`unsuspend`). *Built in M25-S15b for the operator paths (`unsuspend` and setting `exempt` on a suspended tenant); its consumers so far are `audit-log` (`BillingAuditLogHandler`) and, since M25-S25, Platform's hotsite revalidation (`revalidate-hotsite-on-reactivation`); the other reactions are planned below.*
-- **Data:** `subscriptionId`, `reactivatedAt`, `suspendedAt` (the start of the suspension being closed; lets a consumer pair the reactivation with its suspension without reading Billing), `recipientEmail?`
+- **Data:** `subscriptionId`, `reactivatedAt`, `suspendedAt` (the start of the suspension being closed; lets a consumer pair the reactivation with its suspension without reading Billing); `recipientEmail?` is *planned*, added with the billing email story (the built event class does not carry it)
 - **Consumers:** Notification; hotsite revalidation (Platform, consumer `revalidate-hotsite-on-reactivation`, built in M25-S25, same use case and rules); `audit-log` (the access cache is invalidated by the state-changing use case, not by a consumer)
 
 #### **SubscriptionCancelled**

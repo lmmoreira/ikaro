@@ -15,7 +15,7 @@ Single PostgreSQL instance
 ├── staff      (Staff Context)
 ├── loyalty    (Loyalty Context)
 ├── notification (Notification Context)
-└── billing    (Billing Context — schema built (M25-S03); price-list domain code built (M25-S04), the rest planned)
+└── billing    (Billing Context — schema built (M25-S03); built in M25: the price list, `Subscription` / `BillingAccount` / `SignupRegistration` / operator audit, the access read and the operator, registration and dev-clock routes; the `Charge` money loop, the provider and the crons are planned (M26))
 ```
 
 Plus a `shared` schema (not a bounded context) holding the transactional outbox/inbox transport tables (see **Schema: `shared`** below).
@@ -1075,7 +1075,7 @@ Append-only audit of a booking's status changes — who moved it, from what, to 
 Owned by: **Loyalty Context** (`src/contexts/loyalty/`)
 
 ### `loyalty.loyalty_entries`
-One immutable row per `BookingLine` completed for an authenticated customer. Append-only; expiration is query-time only.
+One immutable row per `BookingLine` completed for an authenticated customer. Append-only: the row is never updated or deleted. Expiry never touches it either; the daily `ExpirePointsJob` decrements `loyalty_balances` and records the entry in `loyalty.balance_expiry_log`, and the read side treats an entry as active while `expires_at > now()`. `expires_at` is computed once, at earn time, as `earned_at + settings.loyalty.expiryDays` (the tenant's value at that moment): changing `expiryDays` later is not retroactive. It is never shifted by a tenant suspension (M25-S27: points keep expiring while a tenant is suspended).
 
 | Column | Type | Constraints |
 |--------|------|-------------|
@@ -1116,9 +1116,9 @@ One row per `(tenant_id, customer_id)`. Maintained as a running total: increment
 | **INDEX** | (tenant_id, customer_id) | `IDX_loyalty_balances_tenant_customer` (redundant with the primary key) |
 
 **Rules:**
-- Upserted on every `LoyaltyEntry` insert: `INSERT … ON CONFLICT (tenant_id, customer_id) DO UPDATE SET current_points = current_points + excluded.current_points`.
-- Decremented atomically in `RedeemPointsUseCase` after inserting the redemption row.
-- Decremented by the daily expiry cron after computing points from entries that just expired.
+- Written by `LoyaltyBalanceRepository.upsert` (`INSERT … ON CONFLICT (tenant_id, customer_id) DO UPDATE`), always with the **absolute** `current_points` of the aggregate: the use case first reads the balance (`findByCustomer`), applies `increment` / `decrement` in memory and upserts the result. It is not a SQL `current_points = current_points + …` increment.
+- Writers: the earn and the discount settlement in `CompleteBookingLoyaltyEffectsUseCase` (on `BookingCompleted`), `RedeemPointsUseCase` (after inserting the redemption row) and the daily expiry cron (`ExpirePointsJob`).
+- **Known gap:** that read-modify-write is not locked (no `FOR UPDATE`, no version column), so two writers on the same customer at the same time can lose an update. `docs/LOCK_CATALOG.md` records it.
 - `current_points` can never go below 0 (CHECK constraint + application guard).
 
 ---
@@ -1153,7 +1153,7 @@ Idempotency guard for the daily expiry cron. One row per `loyalty_entry` whose e
 | entry_id | UUID | PRIMARY KEY — FK → `loyalty.loyalty_entries(id)` |
 | processed_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
 
-**Usage pattern (cron):**
+**Usage pattern (cron).** The SQL below is **illustrative** of the rule, not the implementation. `ExpirePointsJob` (`expire-points.job.ts`) loads every entry with `expires_at < now` through `findExpiringBefore` (a plain `LessThan` read; the processed history is loaded too), skips each entry for which `hasBeenProcessed` (a `count` on this table) is true or whose row no longer exists (`existsById`), groups the rest by `(tenant_id, customer_id)` and, per customer, in one transaction: upserts the balance decremented by `Math.min(expired points, current_points)` (it clamps, it never throws) and calls `markProcessed` for each entry (an upsert on `entry_id`, so a re-run overwrites `processed_at`). The sweep is system-wide and ignores the tenant's suspension (decision O-L1, M25-S27: points keep expiring while a tenant is suspended). Its `expires_at` scans are cross-tenant and the only index on the column is `(tenant_id, customer_id, expires_at)`, so there is no standalone `expires_at` index for them yet.
 ```sql
 -- Find expired entries not yet processed
 SELECT le.* FROM loyalty.loyalty_entries le
@@ -1162,13 +1162,13 @@ WHERE le.expires_at < now()
     SELECT 1 FROM loyalty.balance_expiry_log bel WHERE bel.entry_id = le.id
   );
 
--- After decrementing balance, mark entries as processed
+-- In the same transaction as the balance decrement, mark entries as processed
 INSERT INTO loyalty.balance_expiry_log (entry_id)
 VALUES ($1), ($2), ...
-ON CONFLICT DO NOTHING;
+ON CONFLICT (entry_id) DO UPDATE SET processed_at = now();
 ```
 
-Partial-failure safe: if the cron crashes after processing 5 of 10 entries, the next run only reprocesses the remaining 5.
+Partial-failure safe: each customer's decrement and its log rows commit together, so if the cron crashes after 5 of 10 customers the next run only reprocesses the rest.
 
 ---
 
@@ -1235,7 +1235,7 @@ Replaced by `shared.inbox` (see **Schema: `shared`** below). Pre-production, so 
 
 ## Schema: `billing`
 
-> **Schema built (M25-S03); domain code for the price list (M25-S04) and for subscriptions and billing accounts (M25-S08).** The first migration (`CreateBillingSchema`, `apps/backend/src/contexts/billing/infrastructure/migrations/`) creates every table below except the ones marked *slice E/F2/H*. Entities, aggregates, repositories and use cases arrive with their own M25 stories, so a table described here may not yet have code reading or writing it; today `feature_prices` and `feature_price_versions` have an entity and a read-only repository, and `subscriptions`, `subscription_items` and `billing_accounts` have an entity and a read-write repository.
+> **Schema built (M25-S03); domain code for the price list (M25-S04) and for subscriptions and billing accounts (M25-S08).** The first migration (`CreateBillingSchema`, `apps/backend/src/contexts/billing/infrastructure/migrations/`) creates every table below except the ones marked *slice E/F2/H*. Entities, aggregates, repositories and use cases arrive with their own M25 stories, so a table described here may not yet have code reading or writing it. Today (M25 stories S01 to S27 and S33 done): `feature_prices` and `feature_price_versions` have an entity and a read-only repository; `subscriptions` and `subscription_items` have entities and a read-write repository (decorated by `CachingSubscriptionRepository` for the access read); `billing_accounts`, `signup_registrations` (`SignupRegistrationEntity`, `typeorm-signup-registration.repository.ts`) and `operator_audit` (`OperatorAuditEntity`, `typeorm-operator-audit.repository.ts`) have an entity and a read-write repository. `charges`, `charge_lines`, `provider_events`, `provider_health` and `tenant_purge_*` have no entity or code yet (M26 and M27).
 
 Owned by: **Billing Context** (`src/contexts/billing/`) — Ikaro charging its tenants (`docs/DOMAIN_MODEL.md` § Billing Context, `docs/USE_CASES.md` UC-110–UC-145). A new schema; the first migration touches no existing table (**expand only**). `tenant_id` is a plain NOT NULL UUID with **no** FK to `platform.tenants` (§2), which is also what lets the billing history outlive a purged tenant. Every composite FK is `(tenant_id, id)`.
 
@@ -1424,7 +1424,7 @@ Created **before** the tenant exists, by every provisioning path (self-signup th
 | id | UUID | PRIMARY KEY — the reservation id |
 | tenant_id | UUID | NULLABLE, UNIQUE when not null (`UNIQUE(tenant_id)`, Postgres allows many NULLs) — NULL until completed: set when the `TenantProvisioned` handler completes it. A tenant-id exemption (the row exists before the tenant) |
 | source | VARCHAR(12) | NOT NULL — `SELF_SIGNUP` \| `OPERATOR` |
-| status | VARCHAR(10) | NOT NULL — `RESERVED` \| `COMPLETED`; a `RESERVED` row older than one hour is released by the sweep |
+| status | VARCHAR(10) | NOT NULL — `RESERVED` \| `COMPLETED`; a `RESERVED` row older than one hour is released by the release sweep *(planned, M26-S08; nothing deletes it today)* |
 | google_sub | VARCHAR(100) | NULLABLE — NOT NULL for `SELF_SIGNUP` |
 | tax_id_type / tax_id | VARCHAR(10) / VARCHAR(32) | NULLABLE (same types as `billing_accounts`) — copied to `billing_accounts` by the handler and **cleared from this row on completion** |
 | exempt | BOOLEAN | NOT NULL DEFAULT false — the tenant is provisioned free (`ACTIVE`, exempt subscription); only an `OPERATOR` registration may set it (the aggregate refuses it for `SELF_SIGNUP`); an exempt registration needs no tax id |
@@ -1499,14 +1499,14 @@ Types are the minimum M25-S03 needs (the discovery data model lists column names
 | Column | Allowed values |
 |---|---|
 | `subscriptions.status` | `TRIALING`, `ACTIVE`, `PAST_DUE`, `SUSPENDED` |
-| `subscriptions.suspension_reason` | `NON_PAYMENT`, `CANCELED`, `PAYMENT_REVERSED`, `OPERATOR` (NOT NULL iff `status = 'SUSPENDED'`) |
+| `subscriptions.suspension_reason` | `NON_PAYMENT`, `CANCELED`, `PAYMENT_REVERSED`, `OPERATOR` (`CHK_billing_subscriptions_suspension_reason_value`); NOT NULL iff `status = 'SUSPENDED'` (`CHK_billing_subscriptions_suspension_reason`) |
 | `subscriptions.cycle`, `feature_prices.cycle` | `MONTHLY` |
 | `subscription_items.feature_key`, `charge_lines.feature_key`, `feature_prices.feature_key` | the `FeatureKey` set (`closed-enum-registry` mirror) |
 | `charges.kind` | `PERIOD`, `RECOVERY` |
 | `charges.status` | `PENDING`, `PAID`, `OVERDUE`, `FAILED`, `CANCELED`, `REFUNDED`, `CHARGEBACK` |
 | `charges.method` | `CARD`, `PIX`, `BOLETO` |
 | `charges.provider_creation_status` | `PENDING`, `READY`, `FAILED` (`READY` ⇒ `provider_charge_id` NOT NULL) |
-| `charges.period_start` / `period_end` | NOT NULL for `PERIOD`, NULL for `RECOVERY` |
+| `charges.period_start` / `period_end` | NOT NULL for `PERIOD`, NULL for `RECOVERY` (`CHK_billing_charges_period_dates`) |
 | `billing_accounts.provider`, `charges.provider`, `provider_events.provider` | `ASAAS`, `STRIPE` |
 | `billing_accounts.tax_id_type`, `signup_registrations.tax_id_type` | `CNPJ`, `CPF`, `EIN`, `OTHER` |
 | `billing_accounts.auto_billing` | `NONE`, `PIX_AUTOMATICO`, `CARD_RECURRING` |
@@ -1537,10 +1537,10 @@ Types are the minimum M25-S03 needs (the discovery data model lists column names
 ### Billing migration ordering
 1. (M25-S03) Create schema `billing`, `CREATE EXTENSION IF NOT EXISTS btree_gist`, and all first-schema tables (including `signup_registrations`, `provider_health`) — expand only, no existing table touched.
 2. (M25-S04) Seed `feature_prices` and one `feature_price_versions` row each (`effective_from` = the fixed constant `2026-01-01`) from the catalog approved in the commercial-catalog story; the US list (the BR amounts plus 40%) is seeded in every environment.
-3. (M25-S05) Backfill every tenant without a subscription as `ACTIVE`, all features, `exempt = true` (idempotent; there is no production yet, so this covers local/staging tenants). Tenants created later start `TRIALING` through `TenantProvisioned`; Ikaro's own tenant (`PLATFORM_OWNER_TENANT_SLUG`) is exempt. A tenant with an unsupported country (not BR/US) or an invalid timezone aborts the whole migration with an error naming the tenant; the dev seed runs the same migration code after its tenant inserts, so seeded tenants get an exempt subscription too.
-4. Add the Notification tenant-unavailable template migration (M25-S28, `AddTenantUnavailableTemplate`: global default rows plus per-tenant rows); the Billing platform notification templates are M26. `notification_logs` is not changed (the status widening planned as M25-S23 was dropped, UC-123).
-5. Deploy code with transient-lookup fail-open only; the publisher and the Billing handler ship in the same release (the bus does not version-route; the handler tolerates a legacy payload without `countryCode`).
-6. Terraform. **M25 adds no cron job and no secret** — only the Billing event topics (`SubscriptionSuspended`, `SubscriptionReactivated` and the rest of Billing's events) and the Platform and Notification subscriptions to them, all generated from `infra/terraform/pubsub-catalog.json`, plus the plain env var `PLATFORM_OWNER_TENANT_SLUG` (M25-S07). **M26 adds** six Cloud Scheduler jobs (`ikaro-cron-billing-issue-charges`, `-status-sweep` [hourly], `-reminders`, `-reconcile` [hourly, full pass once a day], `-self-heal` [hourly], `-provider-events-purge`) plus their Pub/Sub topics and subscriptions (`infra/terraform/pubsub-catalog.json` is generated), the Asaas secrets (sandbox and live separately), the flags `FEATURE_FLAG_BILLING_PROVIDER_LIVE` and `FEATURE_FLAG_SIGNUP_ENABLED`, `SIGNUP_TERMS_VERSION` and the web's `PLATFORM_OWNER_TENANT_SLUG`, through `env.validation.ts` and the infra env contract. The seventh job, tenant purge, is M27 (slice G).
+3. (M25-S05) Backfill every tenant without a subscription as `ACTIVE`, all features, `exempt = true` (idempotent; there is no production yet, so this covers local/staging tenants). It also inserts an empty `billing_accounts` row (no tax id, no provider customer) for each of those tenants (migration `1748500000041`). Tenants created later start `TRIALING` through `TenantProvisioned`; Ikaro's own tenant (`PLATFORM_OWNER_TENANT_SLUG`) is exempt. A tenant with an unsupported country (not BR/US) or an invalid timezone aborts the whole migration with an error naming the tenant; the dev seed runs the same migration code after its tenant inserts, so seeded tenants get an exempt subscription too.
+4. Add the Notification tenant-unavailable template migration (*planned, M25-S28, not built*: `AddTenantUnavailableTemplate`, global default rows plus per-tenant rows); the Billing platform notification templates are M26. `notification_logs` is not changed (the status widening planned as M25-S23 was dropped, UC-123).
+5. Deploy code with transient-lookup fail-open only; the publisher and the Billing handler ship in the same release (the bus does not version-route). The handler does **not** tolerate a legacy payload: `CreateTrialSubscriptionUseCase` calls `CountryCode.create(input.countryCode)`, which throws on a missing value, and the handler rethrows so the message is retried (decision of M25-S11, 2026-11-12: there is no production data, so no `TenantProvisioned` without `countryCode` and `registrationId` can exist; `docs/DOMAIN_EVENTS.md` § `TenantProvisioned`).
+6. Terraform. **M25 adds no cron job and no secret** — only the two Billing event topics that have a class today (`SubscriptionSuspended`, `SubscriptionReactivated`; the other Billing events and their topics are planned, M26) and the Platform subscriptions to them (the Notification subscription is planned, M25-S28), all generated from `infra/terraform/pubsub-catalog.json`, plus the plain env var `PLATFORM_OWNER_TENANT_SLUG` (M25-S07). **M26 adds** six Cloud Scheduler jobs (`ikaro-cron-billing-issue-charges`, `-status-sweep` [hourly], `-reminders`, `-reconcile` [hourly, full pass once a day], `-self-heal` [hourly], `-provider-events-purge`) plus their Pub/Sub topics and subscriptions (`infra/terraform/pubsub-catalog.json` is generated), the Asaas secrets (sandbox and live separately), the flags `FEATURE_FLAG_BILLING_PROVIDER_LIVE` and `FEATURE_FLAG_SIGNUP_ENABLED`, `SIGNUP_TERMS_VERSION` and the web's `PLATFORM_OWNER_TENANT_SLUG`, through `env.validation.ts` and the infra env contract. The seventh job, tenant purge, is M27 (slice G).
 
 All Billing tables are new, and M25 changes no existing table's constraints, so no `CHECK` is added to a table that already holds rows (the `NOT VALID` + `VALIDATE` split does not apply).
 
