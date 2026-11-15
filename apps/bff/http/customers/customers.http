@@ -217,7 +217,8 @@ Authorization: Bearer {{managerToken}}
 # ─────────────────────────────────────────────────────────────────────────────
 # GET /v1/customers/tenants — UC-023: tenants this customer belongs to, for the
 # switch-tenant screen (includes the current tenant — the client can't read it from the
-# httpOnly JWT cookie; enriches each with name/slug/loyaltyPoints)
+# httpOnly JWT cookie; enriches each with name/slug/loyaltyPoints and `operational`, false for a
+# suspended tenant, which stays listed and can still be switched into)
 # ─────────────────────────────────────────────────────────────────────────────
 
 ###
