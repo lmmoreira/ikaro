@@ -1171,7 +1171,7 @@ ON CONFLICT DO NOTHING;
 Partial-failure safe: if the cron crashes after processing 5 of 10 entries, the next run only reprocesses the remaining 5.
 
 ### `loyalty.tenant_expiry_pauses` *(planned, M25-S27 — Billing enforcement)*
-One row per span during which a tenant was `SUSPENDED`; the expiry job treats a tenant with an open span as paused and adds the overlap of its closed spans to every entry's expiry (`loyalty_entries.expires_at` is never rewritten — the ledger stays append-only). Written by two Loyalty handlers (`pause-loyalty-expiry-on-suspension` inserts it open, `resume-loyalty-expiry-after-suspension` upserts it closed), both keyed by the span's start, so delivery order does not matter and a redelivery is a no-op.
+One row per span during which a tenant was `SUSPENDED`; the expiry code reads a tenant's spans and computes each entry's effective expiry in non-suspended time (`docs/DOMAIN_MODEL.md` § Expiration window; `loyalty_entries.expires_at` is never rewritten — the ledger stays append-only). Written by two Loyalty handlers (`pause-loyalty-expiry-on-suspension` inserts it open, `resume-loyalty-expiry-after-suspension` upserts it closed), both keyed by the span's start, so delivery order does not matter and a redelivery is a no-op.
 
 | Column | Type | Constraints |
 |--------|------|-------------|
@@ -1182,7 +1182,7 @@ One row per span during which a tenant was `SUSPENDED`; the expiry job treats a 
 - `PRIMARY KEY (tenant_id, paused_at)` — also the dedupe key for the upserts.
 - `CHECK (resumed_at IS NULL OR resumed_at >= paused_at)`.
 - Partial index on `(tenant_id) WHERE resumed_at IS NULL` for the open-pause lookup (`tenant_id` leads, invariant 1).
-- Created by a Loyalty migration that uses `QueryRunner` (`…-CreateLoyaltyTenantExpiryPauses`).
+- Created by a Loyalty migration that uses `QueryRunner` (`…-CreateLoyaltyTenantExpiryPauses`), which also adds the standalone `IDX_loyalty_entries_expires_at` on `loyalty.loyalty_entries (expires_at)`: the system-wide expiry sweep and the expiry warning filter by `expires_at` without a tenant, which the existing `(tenant_id, customer_id, expires_at)` index cannot serve.
 
 ---
 
