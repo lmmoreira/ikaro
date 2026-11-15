@@ -218,6 +218,81 @@ describe('BFF tenant-access denial pass-through (component)', () => {
       expect(res.body).toEqual({ status: 'SUSPENDED', operational: false, features: [] });
     });
 
+    it('lists the staff tenants and switches to one of them', async () => {
+      const STAFF_ID_2 = '30000000-0000-4000-8000-000000000002';
+      const staffRecord = {
+        staffId: STAFF_ID_2,
+        tenantId: TENANT_ID_2,
+        role: 'STAFF',
+        isActive: true,
+      };
+      const tenant = { id: TENANT_ID_2, slug: 'lavacar-sp', name: 'Lavacar SP' };
+
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce([staffRecord]).mockResolvedValueOnce([tenant]);
+      const list = await request(app.getHttpServer())
+        .get('/v1/auth/staff-tenants')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce([staffRecord]).mockResolvedValueOnce(tenant);
+      const switched = await request(app.getHttpServer())
+        .post('/v1/auth/switch-staff-tenant')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
+        .send({ staffId: STAFF_ID_2 });
+
+      expect(list.status).toBe(200);
+      expect(list.body).toEqual([
+        {
+          staffId: STAFF_ID_2,
+          tenantId: TENANT_ID_2,
+          tenantSlug: 'lavacar-sp',
+          tenantName: 'Lavacar SP',
+          role: 'STAFF',
+        },
+      ]);
+      expect(switched.status).toBe(200);
+      expect(switched.body.tenantSlug).toBe('lavacar-sp');
+    });
+
+    it('lists the customer tenants and switches to one of them', async () => {
+      const tenants = [
+        { tenantId: TENANT_ID, customerId: 'c1' },
+        { tenantId: TENANT_ID_2, customerId: 'c2' },
+      ];
+      backendHttpService.get
+        .mockResolvedValueOnce(tenants)
+        .mockResolvedValueOnce([
+          { id: TENANT_ID, slug: 'lavacar-bh', name: 'Lavacar BH' },
+          { id: TENANT_ID_2, slug: 'lavacar-sp', name: 'Lavacar SP' },
+        ])
+        .mockResolvedValueOnce([]);
+      const list = await request(app.getHttpServer())
+        .get('/v1/customers/tenants')
+        .set('Authorization', `Bearer ${makeCustomerJwt(jwtService)}`);
+
+      backendHttpService.get
+        .mockResolvedValueOnce(tenants)
+        .mockResolvedValueOnce({ id: TENANT_ID_2, slug: 'lavacar-sp', name: 'Lavacar SP' });
+      const switched = await request(app.getHttpServer())
+        .post('/v1/auth/switch-tenant')
+        .set('Authorization', `Bearer ${makeCustomerJwt(jwtService)}`)
+        .send({ targetTenantId: TENANT_ID_2 });
+
+      expect(list.status).toBe(200);
+      expect(list.body.map((entry: { id: string }) => entry.id)).toEqual([TENANT_ID, TENANT_ID_2]);
+      expect(switched.status).toBe(200);
+      expect(switched.body.tenantSlug).toBe('lavacar-sp');
+    });
+
+    it('starts the Google sign-in for a suspended tenant slug without any backend call', async () => {
+      const res = await request(app.getHttpServer()).get('/v1/auth/google?tenantSlug=autospa');
+
+      expect(res.status).toBeLessThan(400);
+      expect(res.body.code).not.toBe(BillingErrorCode.TENANT_SUSPENDED);
+      expect(backendHttpService.get).not.toHaveBeenCalled();
+    });
+
     it('signs out without any tenant lookup', async () => {
       const res = await request(app.getHttpServer()).get('/v1/auth/logout?tenantSlug=autospa');
 
