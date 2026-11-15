@@ -2124,7 +2124,7 @@ No new principal; the topic exists from S15b.
 
 ---
 
-### M25-S33 — Remove the BFF tenant-access gate: the backend is the only enforcement point (UC-125)
+### M25-S33 — Remove the BFF tenant-access gate: the backend is the only enforcement point (UC-125) ✅ Done
 
 **Agent:** `bff-ts + backend-ts`
 **Complexity:** M (breadth, not logic: about 55 files, mostly deletions)
