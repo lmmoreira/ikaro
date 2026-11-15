@@ -312,6 +312,8 @@ Browser
 
 The `BackendHttpService` is the single class that all BFF modules use to call the backend. It prevents tenant headers from being forgotten on any call.
 
+**A caller-supplied value interpolated into a backend path is encoded:** `` `/internal/tenants/by-slug/${encodeURIComponent(slug)}` ``. Express decodes `%2f` in a route param, so an unencoded slug such as `../<uuid>` walks to another route (M25-S33: a Critical in the manifest handler and in `findTenantBySlug`). Pin it with a spec that passes `../<uuid>` and asserts the encoded path. `docs/ANTI_PATTERNS.md` carries the row.
+
 ```typescript
 // apps/bff/src/shared/http/backend-http.service.ts
 @Injectable({ scope: Scope.REQUEST })
