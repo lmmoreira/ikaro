@@ -45,6 +45,8 @@ Run type-check, lint and the tests for every app the change touches, plus `pnpm 
 
 Before committing, list every `Acceptance criteria — technical` bullet of the story and name the spec, test or command that proves it (a line that holds only by construction, such as "imports nothing from X" or "exempt", needs a test that pins it, see `/story-discovery` check 4q). A bullet with no proof is a gap to close now, not one for `/mark-done` to find after the merge.
 
+Also, before committing, run the story's stale-reference sweep while the change is fresh, not only at `/pre-pr`: when the story adds, renames or changes a field, route, response shape or behaviour, grep `docs/*.md` (above all `docs/API_CONTRACTS.md`), `journeys/**` and `plan/*_IMPLEMENTATION_DETAILS_*.md` for wording that still says it is planned, "gains", "has no X today" or "decided at story discovery", and fix it in the same commit (`docs/DEFINITION_OF_DONE.md` § Stale-reference sweep). M25-S26: `docs/API_CONTRACTS.md` still called the new `operational` field planned in four places, and only the round-1 review caught it.
+
 Do not start a dev server or the compose stack to look at the app without asking the user first (CLAUDE.md §0, local verification gate). Local Playwright E2E is allowed without asking, only from the story's worktree: `pnpm infra:e2e` before (ask first if a compose stack is already running, it replaces it), then the apps; after, stop them by PID, delete the generated `AGENTS.md`/`CLAUDE.md` and run `pnpm infra:e2e:down` (`docs/TESTING_STRATEGY.md` § Running Playwright locally).
 
 ---
