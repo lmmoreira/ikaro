@@ -75,7 +75,7 @@ export class PlatformPublicController {
   @Header('Cache-Control', 'public, max-age=300')
   async getManifest(@Param('slug') slug: string): Promise<HotsiteManifestResponse> {
     const tenant = await this.backendHttp.get<TenantInfoResponse>(
-      `/internal/tenants/by-slug/${slug}`,
+      `/internal/tenants/by-slug/${encodeURIComponent(slug)}`,
     );
     const hotsite = await this.backendHttp.getForPublic<BackendHotsiteManifestResponse>(
       '/hotsite',
