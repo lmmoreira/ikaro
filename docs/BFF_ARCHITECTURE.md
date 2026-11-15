@@ -16,6 +16,8 @@ The BFF (Backend-for-Frontend) is a **separate NestJS service** (`apps/bff/`) th
 - Translate errors to RFC 9457 Problem Details
 - Apply rate limiting on all public endpoints
 
+**Not responsibilities:** the BFF does not decide business rules (entitlement, suspension, pricing, status). The backend owns the data and decides; the BFF forwards its typed denial unchanged. A BFF guard, interceptor or cache that reads backend data to make a decision the backend also makes is a design error: it adds no independent safety and costs duplicate annotations, a second cache and stacked staleness (M25-S16 added one, M25-S33 removed it). A new BFF route carries no entitlement annotation; the backend route it calls does.
+
 ---
 
 ## NestJS Module Structure
