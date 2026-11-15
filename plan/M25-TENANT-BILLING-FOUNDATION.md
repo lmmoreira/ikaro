@@ -1870,7 +1870,8 @@ After S17–S20 the detector reports zero warnings across the repo. This story *
 
 ---
 
-### M25-S25 — Hotsite effective-published — manifest, published list, module filtering, revalidation (UC-122)
+### M25-S25 — Hotsite effective-published — manifest, published list, module filtering, revalidation (UC-122) ✅ Done
+  - ⚠️ Live delivery of SubscriptionSuspended / SubscriptionReactivated to the two new consumers was not exercised (staging round trip waived by the owner; subscriptions and IAM verified from the Infra and Foundation CI logs) — 2026-11-15
 
 **Agent:** `backend-ts + bff-ts + devops`
 **Complexity:** M
