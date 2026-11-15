@@ -70,10 +70,31 @@ describe('checkDocDetectorCitations', () => {
     expect(result.findings).toEqual([]);
   });
 
+  it('reports every id in a list written after the word detectors', () => {
+    const result = scan('The detectors: `unsafe-use-existing` and `retired-rule` catch it.\n');
+
+    expect(result.findings.map((f) => f.message)).toEqual([
+      expect.stringContaining('`retired-rule`'),
+    ]);
+  });
+
   it('ignores a fenced code block', () => {
     const result = scan('```\n`di-alias` detector\n```\n');
 
     expect(result.findings).toEqual([]);
+  });
+
+  it('keeps a four-backtick block open across a three-backtick example inside it', () => {
+    const result = scan('````\n```\nexample\n```\n`di-alias` detector\n````\n');
+
+    expect(result.findings).toEqual([]);
+  });
+
+  it('resumes scanning after a block closes, and a closing fence of another character does not close it', () => {
+    const result = scan('```\n~~~\n`di-alias` detector\n```\n`old-name` detector\n');
+
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0].line).toBe(5);
   });
 
   it('skips a file that does not exist without counting it', () => {
@@ -123,13 +144,24 @@ describe('checkDocSizeAnnotations', () => {
     });
 
     expect(result.findings).toEqual([]);
-    expect(result.scannedTargets).toBe(2);
   });
 
   it('ignores a figure with no doc path before it, and a path that does not exist', () => {
     const result = scan('a 40 KB note\n`docs/GONE.md` (30 KB)\n', {});
 
     expect(result.findings).toEqual([]);
+  });
+
+  it('counts the context file as the target even when it holds no size figures', () => {
+    const result = scan('# Context\n\nNo figures here.\n', {});
+
+    expect(result.findings).toEqual([]);
+    expect(result.scannedTargets).toBe(1);
+  });
+
+  it('reports zero targets when the context file is missing', () => {
+    const result = checkDocSizeAnnotations(tree({}), '.copilot/context.md');
+
     expect(result.scannedTargets).toBe(0);
   });
 });

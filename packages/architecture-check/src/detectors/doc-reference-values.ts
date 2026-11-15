@@ -13,10 +13,14 @@ const NOT_A_DETECTOR_ID = new Set(['architecture-check']);
 // slash, and then the word "detector" or "detectors": `a` detector, `a` and `b` detectors.
 const ID = '`([a-z0-9]+(?:-[a-z0-9]+)+)`';
 const ID_LIST_BEFORE_WORD = new RegExp(`${ID}(?:\\s*(?:,|and|/)\\s*${ID})*\\s+detectors?\\b`, 'gi');
-// "detector `a`" or "detectors: `a`".
-const WORD_BEFORE_ID = new RegExp(`detectors?:?\\s+${ID}`, 'gi');
+// "detector `a`" or "detectors: `a`, `b` and `c`": the whole list after the word is checked.
+const WORD_BEFORE_ID_LIST = new RegExp(`detectors?:?\\s+${ID}(?:\\s*(?:,|and|/)\\s*${ID})*`, 'gi');
 const ANY_ID = /`([a-z0-9]+(?:-[a-z0-9]+)+)`/g;
-const FENCE_REGEX = /^\s*(```|~~~)/;
+// A fence opens with 3+ backticks or tildes and closes only with the same character, at least as
+// many of them, and nothing else on the line (CommonMark), so a three-backtick example inside a
+// four-backtick block does not end the block.
+const FENCE_OPEN_REGEX = /^\s{0,3}(`{3,}|~{3,})/;
+const FENCE_CLOSE_REGEX = /^\s{0,3}(`{3,}|~{3,})\s*$/;
 
 /**
  * Every detector id a doc names must be a rule `pnpm architecture-check` really runs. A doc that
@@ -35,15 +39,23 @@ export function checkDocDetectorCitations(
     const absolute = resolve(root, file);
     if (!existsSync(absolute)) continue;
     scanned += 1;
-    let inFence = false;
+    let fence: string | undefined;
     readFileSync(absolute, 'utf8')
       .split('\n')
       .forEach((line, index) => {
-        if (FENCE_REGEX.test(line)) {
-          inFence = !inFence;
+        if (fence === undefined) {
+          const opening = FENCE_OPEN_REGEX.exec(line);
+          if (opening) {
+            fence = opening[1];
+            return;
+          }
+        } else {
+          const closing = FENCE_CLOSE_REGEX.exec(line);
+          if (closing && closing[1][0] === fence[0] && closing[1].length >= fence.length) {
+            fence = undefined;
+          }
           return;
         }
-        if (inFence) return;
         for (const id of citedIds(line)) {
           if (knownRuleIds.has(id) || NOT_A_DETECTOR_ID.has(id)) continue;
           findings.push({
@@ -63,7 +75,9 @@ function citedIds(line: string): Set<string> {
   for (const match of line.matchAll(ID_LIST_BEFORE_WORD)) {
     for (const token of match[0].matchAll(ANY_ID)) ids.add(token[1]);
   }
-  for (const match of line.matchAll(WORD_BEFORE_ID)) ids.add(match[1]);
+  for (const match of line.matchAll(WORD_BEFORE_ID_LIST)) {
+    for (const token of match[0].matchAll(ANY_ID)) ids.add(token[1]);
+  }
   return ids;
 }
 
@@ -82,7 +96,9 @@ const SIZE_TOLERANCE_MIN_KB = 2;
 export function checkDocSizeAnnotations(root: string, file: string): ScanResult {
   const absolute = resolve(root, file);
   const findings: Finding[] = [];
-  let scanned = 0;
+  // The target is the file: a context file with no size figures is clean, not a silent glob.
+  const scanned = existsSync(absolute) ? 1 : 0;
+  if (scanned === 0) return { rule: SIZE_ANNOTATIONS_RULE, scannedTargets: 0, findings };
   readFileSync(absolute, 'utf8')
     .split('\n')
     .forEach((line, index) => {
@@ -95,7 +111,6 @@ export function checkDocSizeAnnotations(root: string, file: string): ScanResult 
         if (!owner) continue;
         const target = resolve(root, owner.path);
         if (!existsSync(target)) continue;
-        scanned += 1;
         const claimed = Number(size[1]);
         const actual = statSync(target).size / 1024;
         const tolerance = Math.max(SIZE_TOLERANCE_MIN_KB, actual * SIZE_TOLERANCE_RATIO);
