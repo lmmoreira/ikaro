@@ -1,7 +1,8 @@
-import { ExecutionContext, INestApplication } from '@nestjs/common';
+import { HttpException, INestApplication, Type } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, Reflector } from '@nestjs/core';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
+import { StubExecutionContext } from '@ikaro/nestjs-http';
 import { BillingErrorCode } from '@ikaro/types';
 import { Envelope } from '../../shared/domain/envelope';
 import { uuidv7 } from '../../shared/domain/uuid-v7';
@@ -149,26 +150,28 @@ describe('Suspended experience — golden path (M25-S26, backend half)', () => {
   };
 
   // The gate's verdict for a real route handler, from its real metadata and the real access answer.
+  // Only a billing denial the guard itself throws counts as a verdict; anything else is a defect and
+  // is rethrown, so an unexpected error can never pass for the expected denial.
   const gateVerdict = async (
-    controller: { prototype: object; name: string },
+    controller: Type<object>,
     handler: string,
     tenantId: string,
     role: string,
   ): Promise<'allowed' | BillingErrorCode> => {
     const guard = new TenantAccessGuard(new Reflector(), access);
-    const context = {
-      getHandler: () => (controller.prototype as Record<string, () => void>)[handler],
-      getClass: () => controller,
-      switchToHttp: () => ({
-        getRequest: () => ({ headers: { 'x-tenant-id': tenantId, 'x-actor-role': role } }),
-      }),
-    } as unknown as ExecutionContext;
+    const route = (controller.prototype as Record<string, () => void>)[handler];
+    const context = new StubExecutionContext(route, controller, {
+      headers: { 'x-tenant-id': tenantId, 'x-actor-role': role },
+    });
     try {
       await guard.canActivate(context);
       return 'allowed';
     } catch (err) {
-      const response = (err as { getResponse?: () => { code?: BillingErrorCode } }).getResponse?.();
-      return response?.code ?? BillingErrorCode.TENANT_SUSPENDED;
+      const code =
+        err instanceof HttpException ? (err.getResponse() as { code?: string }).code : undefined;
+      const billingCode = Object.values(BillingErrorCode).find((known) => known === code);
+      if (billingCode === undefined) throw err;
+      return billingCode;
     }
   };
 
