@@ -1995,7 +1995,7 @@ Make a suspended tenant **reachable** (so the notice and badge can render) witho
 
 ---
 
-### M25-S27 — Loyalty — loyalty expiry while suspended (O-L1): decided, keep expiring
+### M25-S27 — Loyalty — loyalty expiry while suspended (O-L1): decided, keep expiring ✅ Done
 
 **Agent:** `docs`
 **Complexity:** XS
