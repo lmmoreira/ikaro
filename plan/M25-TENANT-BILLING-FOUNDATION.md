@@ -1946,7 +1946,7 @@ Two subscriptions, so the first two rows apply to each. No new principal; the to
 
 ---
 
-### M25-S26 — Suspended experience, backend / BFF — staff-tenants, tenant switching, customer flag (UC-121)
+### M25-S26 — Suspended experience, backend / BFF — staff-tenants, tenant switching, customer flag (UC-121) ✅ Done
 
 **Agent:** `backend-ts + bff-ts`
 **Complexity:** M
