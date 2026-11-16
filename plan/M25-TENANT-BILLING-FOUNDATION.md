@@ -2276,7 +2276,7 @@ The web has no concept of entitlement today. Add **one route-to-feature registry
 
 ---
 
-### M25-S30 — `Unavailable` page and hotsite login bar (UC-122)
+### M25-S30 — `Unavailable` page and hotsite login bar (UC-122) ✅ Done
 
 **Agent:** `frontend-ts`
 **Complexity:** S
