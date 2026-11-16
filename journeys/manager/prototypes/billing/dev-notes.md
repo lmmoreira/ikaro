@@ -355,5 +355,5 @@ File: `03b-locked-feature-direct-url.html` — Status: GAP.
 Props: `feature: FeatureKey`. Rendered by the route guard of each feature route (HTTP 200 with the upsell, not 404 or redirect); API calls for the feature are rejected by the backend (`BILLING_FEATURE_NOT_ENTITLED`, 403, M25-S16).
 BFF: `GET /v1/billing/access`.
 States: loaded-locked (this file); loading / load-error as for any dashboard route.
-Single primary: **"Contratar este recurso"** -> `08-plan-edit.html`; "Ver minha assinatura" secondary; "Falar com a gente" small text link only. Copy: "Recurso não contratado", "Seus clientes e pontos já registrados foram mantidos…", "← Voltar à Agenda".
-Mobile: single column; aside note collapses (desktop aside only, per `detail-layout`).
+Single primary: **"Contratar este recurso"** -> `08-plan-edit.html`; "Ver minha assinatura" secondary; "Falar com a gente" small text link only. Copy: "Recurso não contratado", "Seus clientes e pontos já registrados foram mantidos…". Same clean single-card layout as `03` (no `detail-layout`, no action pane, no "Voltar" button, no section label above the card): the sidebar and bottom nav are the way out.
+Mobile: single column, card stacks icon above text.
