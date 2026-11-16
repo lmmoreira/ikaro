@@ -8,6 +8,7 @@ import {
   TENANT_DIRECTORY_PORT,
 } from '../../ports/tenant-directory.port';
 import { mapSequentially } from '../../utils/sequential';
+import { mapSequentiallyIsolated } from '../../utils/sequential-isolated';
 
 export interface TenantJobOptions {
   label: string;
@@ -24,8 +25,6 @@ interface Exclusions {
   suspended: ReadonlySet<string>;
   notEntitled: ReadonlyMap<FeatureKey, ReadonlySet<string>>;
 }
-
-type Outcome<R> = { ok: true; value: R } | { ok: false; tenantId: string };
 
 const NO_EXCLUSIONS: Exclusions = { suspended: new Set(), notEntitled: new Map() };
 
@@ -109,23 +108,16 @@ export class TenantJobRunner {
     tenants: readonly ActiveTenant[],
     work: (tenant: ActiveTenant) => Promise<R>,
   ): Promise<R[]> {
-    const outcomes = await mapSequentially(tenants, async (tenant): Promise<Outcome<R>> => {
-      try {
-        return { ok: true, value: await work(tenant) };
-      } catch (err) {
+    return mapSequentiallyIsolated(tenants, work, {
+      onFailure: (tenant, err) =>
         this.logger.error(
           `${label} failed for a tenant — the run will be retried`,
           err instanceof Error ? err.stack : String(err),
           { tenantId: tenant.id },
-        );
-        return { ok: false, tenantId: tenant.id };
-      }
+        ),
+      summarize: (failed) =>
+        `${label} failed for tenant(s): ${failed.map((tenant) => tenant.id).join(', ')}`,
     });
-    const failed = outcomes.flatMap((outcome) => (outcome.ok ? [] : [outcome.tenantId]));
-    if (failed.length > 0) {
-      throw new Error(`${label} failed for tenant(s): ${failed.join(', ')}`);
-    }
-    return outcomes.flatMap((outcome) => (outcome.ok ? [outcome.value] : []));
   }
 }
 

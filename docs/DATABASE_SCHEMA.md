@@ -20,7 +20,7 @@ Single PostgreSQL instance
 
 Plus a `shared` schema (not a bounded context) holding the transactional outbox/inbox transport tables (see **Schema: `shared`** below).
 
-**Multi-tenant isolation within each schema** is enforced by a `tenant_id` column on every table (exemptions: `shared.inbox`, which carries none; `platform.chatbot_provider_balance`, platform-operator data; `loyalty.balance_expiry_log`, keyed by `entry_id` alone; `platform.tenants`, which is the tenant itself; and the Billing platform-wide tables `billing.feature_prices`, `billing.feature_price_versions` and `billing.provider_health`, plus the primary key of `billing.provider_events`, and `billing.signup_registrations.tenant_id`, which is NULL until the registration completes — see `docs/TENANT_ISOLATION_STRATEGY.md`), composite indexes starting with `tenant_id`, and composite FK constraints within a context.
+**Multi-tenant isolation within each schema** is enforced by a `tenant_id` column on every table (exemptions: `shared.inbox`, which carries none; `platform.chatbot_provider_balance`, platform-operator data; `loyalty.balance_expiry_log`, keyed by `entry_id` alone; `loyalty.expiry_sweep_state`, the expiry sweep's single system-wide row; `platform.tenants`, which is the tenant itself; and the Billing platform-wide tables `billing.feature_prices`, `billing.feature_price_versions` and `billing.provider_health`, plus the primary key of `billing.provider_events`, and `billing.signup_registrations.tenant_id`, which is NULL until the registration completes — see `docs/TENANT_ISOLATION_STRATEGY.md`), composite indexes starting with `tenant_id`, and composite FK constraints within a context.
 
 ---
 
@@ -1095,6 +1095,7 @@ One immutable row per `BookingLine` completed for an authenticated customer. App
 | **INDEX** | (tenant_id) — `IDX_loyalty_entries_tenant_id` | Tenant base filter |
 | **INDEX** | (tenant_id, customer_id) — `IDX_loyalty_entries_tenant_customer` | A customer's entries |
 | **INDEX** | (tenant_id, customer_id, expires_at) — `IDX_loyalty_entries_tenant_customer_expires` | Active balance query |
+| **INDEX** | (expires_at) — `IDX_loyalty_entries_expires_at` | Standalone (no `tenant_id` first), TD60-S01: the daily expiry sweep's slice and the weekly warning job's seven-day window read across every tenant with no `tenant_id` predicate, which no composite index above can seek |
 
 **Rules:**
 - INSERT only. No UPDATE, no DELETE.
@@ -1153,22 +1154,38 @@ Idempotency guard for the daily expiry cron. One row per `loyalty_entry` whose e
 | entry_id | UUID | PRIMARY KEY — FK → `loyalty.loyalty_entries(id)` |
 | processed_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
 
-**Usage pattern (cron).** The SQL below is **illustrative** of the rule, not the implementation. `ExpirePointsJob` (`expire-points.job.ts`) loads every entry with `expires_at < now` through `findExpiringBefore` (a plain `LessThan` read; the processed history is loaded too), skips each entry for which `hasBeenProcessed` (a `count` on this table) is true or whose row no longer exists (`existsById`), groups the rest by `(tenant_id, customer_id)` and, per customer, in one transaction: upserts the balance decremented by `Math.min(expired points, current_points)` (it clamps, it never throws) and calls `markProcessed` for each entry (an upsert on `entry_id`, so a re-run overwrites `processed_at`). The sweep is system-wide and ignores the tenant's suspension (decision O-L1, M25-S27: points keep expiring while a tenant is suspended). Its `expires_at` scans are cross-tenant and the only index on the column is `(tenant_id, customer_id, expires_at)`, so there is no standalone `expires_at` index for them yet.
+**Usage pattern (cron).** `ExpirePointsJob` (`expire-points.job.ts`) reads a bounded slice, never the whole history. It captures `runStart = now`, reads the watermark (`loyalty.expiry_sweep_state`, next section) and loads through `findUnprocessedDueBetween(watermark - 1 day, runStart)` the entries due in that slice that are not yet in this table (the `NOT EXISTS` below, served by `IDX_loyalty_entries_expires_at`; with no watermark the lower bound is dropped). It groups them by `(tenant_id, customer_id)` and runs each group, one after another, in its own transaction through the shared `mapSequentiallyIsolated`: lock the balance row (R6), re-check the group against this table (`findProcessedEntryIds`), upsert the balance decremented by `Math.min(expired points, current_points)` (it clamps, it never throws) and write every mark of the group with one `markProcessedMany` (`INSERT … ON CONFLICT DO NOTHING`, so a re-run keeps the original `processed_at`). A group that fails is logged with its tenant and customer ids and does not stop the others; when any group failed the run throws once at the end so the trigger is redelivered, and the watermark stays where it was. The sweep is system-wide and ignores the tenant's suspension (decision O-L1, M25-S27: points keep expiring while a tenant is suspended).
 ```sql
--- Find expired entries not yet processed
+-- The sweep's read: due in (watermark - 1 day, runStart] and not yet processed
 SELECT le.* FROM loyalty.loyalty_entries le
-WHERE le.expires_at < now()
+WHERE le.expires_at <= $runStart
+  AND le.expires_at > $watermarkMinusOneDay
   AND NOT EXISTS (
     SELECT 1 FROM loyalty.balance_expiry_log bel WHERE bel.entry_id = le.id
   );
 
--- In the same transaction as the balance decrement, mark entries as processed
+-- In the same transaction as the balance decrement, mark the customer's entries as processed
 INSERT INTO loyalty.balance_expiry_log (entry_id)
 VALUES ($1), ($2), ...
-ON CONFLICT (entry_id) DO UPDATE SET processed_at = now();
+ON CONFLICT (entry_id) DO NOTHING;
 ```
 
 Partial-failure safe: each customer's decrement and its log rows commit together, so if the cron crashes after 5 of 10 customers the next run only reprocesses the rest.
+
+### `loyalty.expiry_sweep_state`
+The expiry sweep's watermark (TD60-S01): one row (keyed by job name, `loyalty-expiry-sweep`) whose `processed_through` is the run start of the last fully successful sweep. **Invariant:** after a run that did not throw, every entry with `expires_at <= processed_through` is in `loyalty.balance_expiry_log`. The sweep therefore reads only `(processed_through - 1 day, runStart]`, and the cost of its read depends on the entries due since the last good run, not on how much history exists. The table has no `tenant_id` (the sweep is system-wide, like `balance_expiry_log`) and is keyed by a descriptive name rather than a UUID because its rows are not entities, the same way `platform.chatbot_provider_balance` is keyed by provider.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| job_name | VARCHAR(64) | PRIMARY KEY — `'loyalty-expiry-sweep'` |
+| processed_through | TIMESTAMP WITH TIME ZONE | NOT NULL |
+| updated_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
+
+**Rules:**
+- Advanced only after a run in which every customer group succeeded or was already processed by an overlapping run. A failing run leaves it where it was, so the retry (and the next night's run) re-reads the same slice and only the still-unprocessed entries come back. `advanceTo` writes `GREATEST(stored, new)`, so it never moves backwards and overlapping runs cannot undo each other.
+- The lower bound starts one day before the watermark. The expiry log filters what is already done, so the overlap costs nothing; it absorbs clock skew between instances. A new entry cannot land behind the watermark, because `tenants.settings.loyalty.expiryDays` has a minimum of 1.
+- **Reset:** deleting the row forces one full re-read from the beginning (the first run has no watermark either). The `NOT EXISTS` keeps that correct.
+- **Not built, the next step:** the slice is read into memory at once, so after a very long outage it could be large. When that matters, read it in chunks ordered by `(expires_at, id)` and cap the batch.
 
 ---
 
@@ -1643,7 +1660,7 @@ Every event/command consumer — each domain-event handler (including the per-co
 
 ## Indexing Strategy
 
-Every index **MUST** start with `tenant_id` to ensure query plans use tenant isolation first, **except** a standalone index that exists specifically to support a system-triggered, cross-tenant retention-purge job's own unscoped scan (`chatbot_messages.IDX_platform_chatbot_messages_created_at`/`ChatbotRetentionPurgeJob`; `lead_form_submissions.IDX_platform_lead_form_submissions_expires_at`/`LeadFormRetentionPurgeJob`, M20-S04) — these jobs deliberately delete across every tenant in one pass (no tenant_id predicate, matching `ExpirePointsJob`'s own precedent), so a tenant_id-leading composite index can't be seeked for that query; the Billing cross-tenant jobs follow the same rule with standalone partial indexes (`billing.subscriptions` on `next_due_date` / `trial_ends_at` / `cancel_at` / `suspended_at`, `billing.charges` on open status and on provider creation status, `billing.provider_events` on `received_at`, `billing.signup_registrations` on `google_sub`) because no tenant id arrives with a Cloud Scheduler trigger; per-tenant queries on the same column continue to use their own composite index as normal (Codex review finding, PR #422 — documented here to avoid future confusion, not itself a new pattern):
+Every index **MUST** start with `tenant_id` to ensure query plans use tenant isolation first, **except** a standalone index that exists specifically to support a system-triggered, cross-tenant retention-purge job's own unscoped scan (`chatbot_messages.IDX_platform_chatbot_messages_created_at`/`ChatbotRetentionPurgeJob`; `lead_form_submissions.IDX_platform_lead_form_submissions_expires_at`/`LeadFormRetentionPurgeJob`, M20-S04; `loyalty_entries.IDX_loyalty_entries_expires_at`/`ExpirePointsJob` and `NotifyExpiringPointsJob`, TD60-S01) — these jobs deliberately delete across every tenant in one pass (no tenant_id predicate, matching `ExpirePointsJob`'s own precedent), so a tenant_id-leading composite index can't be seeked for that query; the Billing cross-tenant jobs follow the same rule with standalone partial indexes (`billing.subscriptions` on `next_due_date` / `trial_ends_at` / `cancel_at` / `suspended_at`, `billing.charges` on open status and on provider creation status, `billing.provider_events` on `received_at`, `billing.signup_registrations` on `google_sub`) because no tenant id arrives with a Cloud Scheduler trigger; per-tenant queries on the same column continue to use their own composite index as normal (Codex review finding, PR #422 — documented here to avoid future confusion, not itself a new pattern):
 
 Representative indexes, under the names the migrations create (the authoritative list is each table's `INDEX` rows above and its migration):
 

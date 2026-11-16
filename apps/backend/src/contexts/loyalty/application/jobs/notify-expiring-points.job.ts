@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
+import { AppLogger } from '../../../../shared/observability/app-logger';
 import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
 import {
   ITransactionManager,
@@ -7,7 +8,7 @@ import {
 } from '../../../../shared/ports/transaction-manager.port';
 import { utcDateString } from '../../../../shared/utils/calendar-date';
 import { publishToOutboxInChunks } from '../../../../shared/utils/publish-to-outbox-in-chunks';
-import { mapSequentially } from '../../../../shared/utils/sequential';
+import { mapSequentiallyIsolated } from '../../../../shared/utils/sequential-isolated';
 import { PointsExpiringSoon } from '../../domain/commands/points-expiring-soon.command';
 import { LoyaltyEntry } from '../../domain/loyalty-entry.aggregate';
 import { ILoyaltyPlatformPort, LOYALTY_PLATFORM_PORT } from '../ports/loyalty-platform.port';
@@ -24,6 +25,8 @@ export interface NotifyExpiringPointsJobResult {
 
 @Injectable()
 export class NotifyExpiringPointsJob {
+  private readonly logger = new AppLogger(NotifyExpiringPointsJob.name);
+
   constructor(
     @Inject(LOYALTY_ENTRY_REPOSITORY) private readonly entryRepo: ILoyaltyEntryRepository,
     @Inject(OUTBOX_PUBLISHER) private readonly outboxPublisher: IOutboxPublisher,
@@ -43,8 +46,23 @@ export class NotifyExpiringPointsJob {
     if (entries.length === 0) return { customersNotified: 0 };
 
     const groupsByTenant = this.groupByTenant(entries);
-    const counts = await mapSequentially([...groupsByTenant], ([tenantId, tenantGroups]) =>
-      this.processTenant(tenantId, tenantGroups, correlationId, runDate),
+    // One tenant's failure (its settings read, its publish) does not stop the tenants after it; the
+    // helper throws once at the end so the trigger is redelivered, and the outbox dedup keys make
+    // the tenants that already published a no-op on the retry.
+    const counts = await mapSequentiallyIsolated(
+      [...groupsByTenant],
+      ([tenantId, tenantGroups]) =>
+        this.processTenant(tenantId, tenantGroups, correlationId, runDate),
+      {
+        onFailure: ([tenantId], err) =>
+          this.logger.error(
+            'NotifyExpiringPointsJob failed for a tenant — the run will be retried',
+            err instanceof Error ? err.stack : String(err),
+            { tenantId },
+          ),
+        summarize: (failed) =>
+          `NotifyExpiringPointsJob failed for tenant(s): ${failed.map(([tenantId]) => tenantId).join(', ')}`,
+      },
     );
 
     return { customersNotified: counts.reduce((sum, count) => sum + count, 0) };

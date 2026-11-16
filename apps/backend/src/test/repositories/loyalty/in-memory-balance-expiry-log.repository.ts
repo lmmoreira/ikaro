@@ -3,7 +3,8 @@ import { IBalanceExpiryLogRepository } from '../../../contexts/loyalty/applicati
 export class InMemoryBalanceExpiryLogRepository implements IBalanceExpiryLogRepository {
   private readonly processed = new Set<string>();
 
-  async hasBeenProcessed(entryId: string): Promise<boolean> {
+  /** Test-only synchronous probe: what `InMemoryLoyaltyEntryRepository.linkExpiryLog` and specs read. */
+  isProcessed(entryId: string): boolean {
     return this.processed.has(entryId);
   }
 
@@ -11,8 +12,8 @@ export class InMemoryBalanceExpiryLogRepository implements IBalanceExpiryLogRepo
     return new Set(entryIds.filter((id) => this.processed.has(id)));
   }
 
-  async markProcessed(entryId: string): Promise<void> {
-    this.processed.add(entryId);
+  async markProcessedMany(entryIds: string[]): Promise<void> {
+    for (const id of entryIds) this.processed.add(id);
   }
 
   clear(): void {

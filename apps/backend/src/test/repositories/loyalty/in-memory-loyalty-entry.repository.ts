@@ -7,23 +7,27 @@ import { LoyaltyEntry } from '../../../contexts/loyalty/domain/loyalty-entry.agg
 
 export class InMemoryLoyaltyEntryRepository implements ILoyaltyEntryRepository {
   readonly entries: LoyaltyEntry[] = [];
-  private readonly deletedIds = new Set<string>();
+  /** Every `findUnprocessedDueBetween` call, so a spec can assert the bounds the sweep asked for. */
+  readonly dueBetweenCalls: { from: Date | null; to: Date }[] = [];
+  private expiryLog: { isProcessed(entryId: string): boolean } | null = null;
 
   async save(entry: LoyaltyEntry): Promise<void> {
     this.entries.push(entry);
   }
 
-  async existsById(id: string): Promise<boolean> {
-    return !this.deletedIds.has(id) && this.entries.some((e) => e.id === id);
+  /** Models the real read's NOT EXISTS against `balance_expiry_log`: without a link nothing is excluded. */
+  linkExpiryLog(log: { isProcessed(entryId: string): boolean }): void {
+    this.expiryLog = log;
   }
 
-  /** Simulates an entry being deleted after `findExpiringBefore` already returned it. */
-  markDeleted(id: string): void {
-    this.deletedIds.add(id);
-  }
-
-  async findExpiringBefore(date: Date): Promise<LoyaltyEntry[]> {
-    return this.entries.filter((e) => e.expiresAt < date);
+  async findUnprocessedDueBetween(from: Date | null, to: Date): Promise<LoyaltyEntry[]> {
+    this.dueBetweenCalls.push({ from, to });
+    return this.entries.filter(
+      (e) =>
+        e.expiresAt <= to &&
+        (from === null || e.expiresAt > from) &&
+        !this.expiryLog?.isProcessed(e.id),
+    );
   }
 
   async findExpiringSoon(from: Date, to: Date): Promise<LoyaltyEntry[]> {
@@ -61,6 +65,6 @@ export class InMemoryLoyaltyEntryRepository implements ILoyaltyEntryRepository {
 
   clear(): void {
     this.entries.length = 0;
-    this.deletedIds.clear();
+    this.dueBetweenCalls.length = 0;
   }
 }

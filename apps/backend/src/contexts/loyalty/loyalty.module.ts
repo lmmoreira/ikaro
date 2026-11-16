@@ -6,6 +6,7 @@ import { BookingModule } from '../booking/booking.module';
 import { CustomerModule } from '../customer/customer.module';
 import { PlatformModule } from '../platform/platform.module';
 import { BALANCE_EXPIRY_LOG_REPOSITORY } from './application/ports/balance-expiry-log-repository.port';
+import { EXPIRY_SWEEP_STATE_REPOSITORY } from './application/ports/expiry-sweep-state-repository.port';
 import { LOYALTY_BALANCE_REPOSITORY } from './application/ports/loyalty-balance-repository.port';
 import { LOYALTY_ENTRY_REPOSITORY } from './application/ports/loyalty-entry-repository.port';
 import { LOYALTY_REDEMPTION_REPOSITORY } from './application/ports/loyalty-redemption-repository.port';
@@ -24,6 +25,7 @@ import { CompleteBookingLoyaltyEffectsUseCase } from './application/use-cases/co
 import { ExpirePointsJob } from './application/jobs/expire-points.job';
 import { NotifyExpiringPointsJob } from './application/jobs/notify-expiring-points.job';
 import { BalanceExpiryLogEntity } from './infrastructure/entities/balance-expiry-log.entity';
+import { ExpirySweepStateEntity } from './infrastructure/entities/expiry-sweep-state.entity';
 import { LoyaltyBalanceEntity } from './infrastructure/entities/loyalty-balance.entity';
 import { LoyaltyEntryEntity } from './infrastructure/entities/loyalty-entry.entity';
 import { LoyaltyRedemptionEntity } from './infrastructure/entities/loyalty-redemption.entity';
@@ -37,6 +39,7 @@ import { BookingCompletedHandler } from './infrastructure/events/booking-complet
 import { ExpirePointsTriggerHandler } from './infrastructure/events/expire-points-trigger.handler';
 import { NotifyExpiringPointsTriggerHandler } from './infrastructure/events/notify-expiring-points-trigger.handler';
 import { TypeOrmBalanceExpiryLogRepository } from './infrastructure/repositories/typeorm-balance-expiry-log.repository';
+import { TypeOrmExpirySweepStateRepository } from './infrastructure/repositories/typeorm-expiry-sweep-state.repository';
 import { TypeOrmLoyaltyBalanceRepository } from './infrastructure/repositories/typeorm-loyalty-balance.repository';
 import { TypeOrmLoyaltyEntryRepository } from './infrastructure/repositories/typeorm-loyalty-entry.repository';
 import { TypeOrmLoyaltyRedemptionRepository } from './infrastructure/repositories/typeorm-loyalty-redemption.repository';
@@ -51,6 +54,7 @@ import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.
       LoyaltyBalanceEntity,
       LoyaltyRedemptionEntity,
       BalanceExpiryLogEntity,
+      ExpirySweepStateEntity,
     ]),
     TransactionManagerModule,
     RequestModule,
@@ -64,6 +68,7 @@ import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.
     { provide: LOYALTY_BALANCE_REPOSITORY, useClass: TypeOrmLoyaltyBalanceRepository },
     { provide: LOYALTY_REDEMPTION_REPOSITORY, useClass: TypeOrmLoyaltyRedemptionRepository },
     { provide: BALANCE_EXPIRY_LOG_REPOSITORY, useClass: TypeOrmBalanceExpiryLogRepository },
+    { provide: EXPIRY_SWEEP_STATE_REPOSITORY, useClass: TypeOrmExpirySweepStateRepository },
     { provide: LOYALTY_PLATFORM_PORT, useClass: LoyaltyPlatformAdapter },
     { provide: LOYALTY_BOOKING_PORT, useClass: LoyaltyBookingAdapter },
     { provide: LOYALTY_CUSTOMER_PORT, useClass: LoyaltyCustomerAdapter },

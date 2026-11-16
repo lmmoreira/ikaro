@@ -86,12 +86,14 @@ import { CustomerEntity } from '../contexts/customer/infrastructure/entities/cus
 import { CreateCustomerCustomers1716600000001 } from '../contexts/customer/infrastructure/migrations/1716600000001-CreateCustomerCustomers';
 import { AddCustomerTenantOAuthUniqueConstraint1748000000002 } from '../contexts/customer/infrastructure/migrations/1748000000002-AddCustomerTenantOAuthUniqueConstraint';
 import { BalanceExpiryLogEntity } from '../contexts/loyalty/infrastructure/entities/balance-expiry-log.entity';
+import { ExpirySweepStateEntity } from '../contexts/loyalty/infrastructure/entities/expiry-sweep-state.entity';
 import { LoyaltyBalanceEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-balance.entity';
 import { LoyaltyEntryEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-entry.entity';
 import { LoyaltyRedemptionEntity } from '../contexts/loyalty/infrastructure/entities/loyalty-redemption.entity';
 import { CreateLoyaltyLoyaltyEntries1748000000016 } from '../contexts/loyalty/infrastructure/migrations/1748000000016-CreateLoyaltyLoyaltyEntries';
 import { CreateLoyaltyBalancesRedemptionsExpiryLog1748000000017 } from '../contexts/loyalty/infrastructure/migrations/1748000000017-CreateLoyaltyBalancesRedemptionsExpiryLog';
 import { AddLoyaltyRedemptionPointsPerCurrencyUnit1748400000003 } from '../contexts/loyalty/infrastructure/migrations/1748400000003-AddLoyaltyRedemptionPointsPerCurrencyUnit';
+import { AddLoyaltyExpirySweepStateAndEntriesExpiresAtIndex1748500000045 } from '../contexts/loyalty/infrastructure/migrations/1748500000045-AddLoyaltyExpirySweepStateAndEntriesExpiresAtIndex';
 import { NotificationLogEntity } from '../contexts/notification/infrastructure/entities/notification-log.entity';
 import { NotificationTemplateEntity } from '../contexts/notification/infrastructure/entities/notification-template.entity';
 import { CreateNotificationLogs1748000000010 } from '../contexts/notification/infrastructure/migrations/1748000000010-CreateNotificationLogs';
@@ -174,6 +176,7 @@ export default async function globalSetup(): Promise<void> {
       LoyaltyBalanceEntity,
       LoyaltyRedemptionEntity,
       BalanceExpiryLogEntity,
+      ExpirySweepStateEntity,
       InboxRecordEntity,
       OutboxEventEntity,
       ChatbotSessionEntity,
@@ -283,6 +286,7 @@ export default async function globalSetup(): Promise<void> {
       AllowEinTaxIdType1748500000042,
       AddExemptToSignupRegistrations1748500000043,
       AddTenantUnavailableCustomerTemplate1748500000044,
+      AddLoyaltyExpirySweepStateAndEntriesExpiresAtIndex1748500000045,
     ],
     synchronize: false,
     migrationsRun: false,

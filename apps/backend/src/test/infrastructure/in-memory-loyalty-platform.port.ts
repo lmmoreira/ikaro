@@ -10,6 +10,7 @@ export class InMemoryLoyaltyPlatformPort implements ILoyaltyPlatformPort {
     pointsPerCurrencyUnit: 0,
   };
   private readonly pointsPerCurrencyUnitByTenant = new Map<string, number>();
+  private readonly failureByTenant = new Map<string, Error>();
 
   withExpiryDays(days: number): this {
     this.settings = { ...this.settings, expiryDays: days };
@@ -31,7 +32,15 @@ export class InMemoryLoyaltyPlatformPort implements ILoyaltyPlatformPort {
     return this;
   }
 
+  /** Makes the settings read for one tenant throw, like a transient Platform failure. */
+  withFailureForTenant(tenantId: string, error: Error = new Error('settings read failed')): this {
+    this.failureByTenant.set(tenantId, error);
+    return this;
+  }
+
   async getLoyaltySettings(tenantId: string): Promise<LoyaltyTenantSettings> {
+    const failure = this.failureByTenant.get(tenantId);
+    if (failure) throw failure;
     const tenantRate = this.pointsPerCurrencyUnitByTenant.get(tenantId);
     return {
       ...this.settings,

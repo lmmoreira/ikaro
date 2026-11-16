@@ -8,6 +8,7 @@ import { LoyaltyEntryBuilder } from '../../../test/builders/loyalty/index';
 import { InMemoryEventBus } from '../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryLoyaltyPlatformPort } from '../../../test/infrastructure/in-memory-loyalty-platform.port';
 import { InMemoryTenantAccessPort } from '../../../test/infrastructure/in-memory-tenant-access.port';
+import { InMemoryExpirySweepStateRepository } from '../../../test/repositories/loyalty/in-memory-expiry-sweep-state.repository';
 import { createTestDataSource } from '../../../test/test-datasource';
 import { LoyaltyInsufficientPointsError } from '../domain/errors/loyalty-domain.error';
 import { LoyaltyBalance } from '../domain/loyalty-balance.aggregate';
@@ -214,7 +215,14 @@ describe('Loyalty balance row lock (integration, H7)', () => {
   }
 
   function expireJob(balanceRepo: TypeOrmLoyaltyBalanceRepository): ExpirePointsJob {
-    return new ExpirePointsJob(entryRepo, balanceRepo, expiryLogRepo, txManager);
+    // An in-memory watermark: the real one is a single global row that unrelated suites would share.
+    return new ExpirePointsJob(
+      entryRepo,
+      balanceRepo,
+      expiryLogRepo,
+      new InMemoryExpirySweepStateRepository(),
+      txManager,
+    );
   }
 
   async function seedDueEntry(tenantId: string, customerId: string, points: number) {

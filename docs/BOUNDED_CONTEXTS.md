@@ -233,7 +233,7 @@ Notification Context subscribes:
 - **M24 Cluster 4:** also listens to `ClassSessionBookingCompleted` — same insert-and-increment transaction, sourced from `class_session_booking_id` instead of `booking_line_id`. Not consumed for a guest attendee (no `customerId`) or a `NO_SHOW` outcome.
 - Allow admin to record a redemption via `POST /v1/loyalty/redeem` — insert `LoyaltyRedemption` and decrement `LoyaltyBalance` atomically.
 - On `BookingCompleted`, also settle a discount already applied with points (`discountByPoints`): decrement `LoyaltyBalance` and insert a `LoyaltyRedemption` in the same transaction as the earn. The handler is never gated by the tenant's suspension, so a discount already spent is still settled for a suspended tenant (`docs/BUSINESS_LOGIC_REFERENCE.md`).
-- Run a **daily expiry cron** at 02:00 UTC: take every `loyalty_entries` row with `expires_at < now` that is not yet in `balance_expiry_log` (not only the ones that expired that day, so a missed run is caught up) and, per customer, in one transaction decrement `loyalty_balances.current_points` by the expired total (clamped to the balance) and record the entries in `balance_expiry_log`. Idempotent via `balance_expiry_log`. The sweep is system-wide and does not load the tenant, so points keep expiring while a tenant is suspended (M25-S27 decision, `docs/DOMAIN_MODEL.md` § Expiration window).
+- Run a **daily expiry cron** at 02:00 UTC: take every `loyalty_entries` row due since the sweep's stored watermark (`expiry_sweep_state`, moved only after a fully successful run) that is not yet in `balance_expiry_log` (not only the ones that expired that day, so a missed or failed run is caught up) and, per customer, in one transaction decrement `loyalty_balances.current_points` by the expired total (clamped to the balance) and record the entries in `balance_expiry_log`. Idempotent via `balance_expiry_log`. The sweep is system-wide and does not load the tenant, so points keep expiring while a tenant is suspended (M25-S27 decision, `docs/DOMAIN_MODEL.md` § Expiration window).
 - Run a **weekly cron** (Mondays 06:00 UTC) to emit `PointsExpiringSoon` warnings for entries expiring within the next 7 days.
 
 **Database:** `loyalty` schema
@@ -241,6 +241,7 @@ Notification Context subscribes:
 - `loyalty_balances` — UNIQUE(tenant_id, customer_id); current_points CHECK >= 0
 - `loyalty_redemptions` — INSERT-only
 - `balance_expiry_log` — PK(entry_id), no `tenant_id` column — idempotency for cron
+- `expiry_sweep_state` — PK(job_name), no `tenant_id` column — the sweep's watermark
 - Event consumer dedup lives in `shared.inbox` (TD24-S04) — not a per-context table
 - See `docs/DATABASE_SCHEMA.md` for full column definitions.
 

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, LessThan, Repository } from 'typeorm';
+import { Between, Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import {
   ILoyaltyEntryRepository,
@@ -27,14 +27,16 @@ export class TypeOrmLoyaltyEntryRepository implements ILoyaltyEntryRepository {
     }
   }
 
-  async existsById(id: string): Promise<boolean> {
-    return this.repo.exists({ where: { id } });
-  }
-
-  async findExpiringBefore(date: Date): Promise<LoyaltyEntry[]> {
-    const entities = await this.repo.find({
-      where: { expiresAt: LessThan(date) },
-    });
+  // The expiry sweep's read. `expires_at > from` is the sweep's watermark (null on its first run);
+  // the NOT EXISTS keeps it correct whatever the watermark says. Cross-tenant by design, served
+  // by IDX_loyalty_entries_expires_at.
+  async findUnprocessedDueBetween(from: Date | null, to: Date): Promise<LoyaltyEntry[]> {
+    const query = this.repo
+      .createQueryBuilder('e')
+      .where('e.expiresAt <= :to', { to })
+      .andWhere(`NOT EXISTS (SELECT 1 FROM loyalty.balance_expiry_log l WHERE l.entry_id = e.id)`);
+    if (from) query.andWhere('e.expiresAt > :from', { from });
+    const entities = await query.getMany();
     return entities.map((e) => this.toDomain(e));
   }
 
