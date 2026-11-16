@@ -44,6 +44,7 @@ Not drawn as a separate node (small, same-page state per README's "minor conditi
 |---|---|---|---|
 | `/dashboard/hotsite` (Layout tab, new row) | `HotsiteEditor` (wired via `ModuleConfigPreviewScreen` / `hotsite-editor-lazy-panels`) | M20-S08 | ✅ Shipped |
 | Lead Form config drill-down | `LeadFormConfigPanel` | M20-S08 | ✅ Shipped |
+| Lead Form config drill-down, tenant without the `LEAD_FORM` feature | `LockedFeatureCard` (section variant) in place of the panel, in the visual inspector and in "Configurar"; the config read is not made (UC-125) | M25-S29 | ✅ Shipped |
 
 ## Open questions / gaps
 

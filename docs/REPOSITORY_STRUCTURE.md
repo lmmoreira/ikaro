@@ -166,7 +166,7 @@ apps/web/
 ├── proxy.ts                 # route protection (Next.js 16 proxy, formerly middleware)
 ├── features/
 │   ├── auth/
-│   ├── billing/              # planned: the manager billing page, banner, locked-feature UI
+│   ├── billing/              # partly built (M25-S29): components/ FeatureGate, LockedFeaturePage, LockedFeatureCard, ManagerSuspendedNotice; the manager billing page and banner are planned (M26)
 │   ├── booking/
 │   ├── customer/
 │   ├── loyalty/
