@@ -198,7 +198,7 @@ Add `findUnprocessedDueBetween(from, to)` to `ILoyaltyEntryRepository` (query bu
 
 ---
 
-### TD60 Story 2 — Stop the loyalty settings read from fabricating defaults
+### TD60 Story 2 — Stop the loyalty settings read from fabricating defaults ✅ Done
 
 **Agent:** backend-ts
 **Complexity:** XS
