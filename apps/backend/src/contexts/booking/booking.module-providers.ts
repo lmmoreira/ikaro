@@ -36,11 +36,12 @@ import { ExpireRecurringScheduleApprovalsTriggerHandler } from './infrastructure
 import { RecurringScheduleRenewalReminderTriggerHandler } from './infrastructure/events/recurring-schedule-renewal-reminder-trigger.handler';
 import { ExpireAvailabilityAlertsTriggerHandler } from './infrastructure/events/expire-availability-alerts-trigger.handler';
 import { availabilityAlertMatchingProviders } from './availability-alert-matching.module-providers';
-import { tenantUnavailableNoticeProviders } from './tenant-unavailable-notice.module-providers';
 import { AdminScheduleReminderTriggerHandler } from './infrastructure/events/admin-schedule-reminder-trigger.handler';
 import { ResourceOccupancyRetentionPurgeTriggerHandler } from './infrastructure/events/resource-occupancy-retention-purge-trigger.handler';
 import { StaffDeactivatedHandler } from './infrastructure/events/staff-deactivated.handler';
 import { TenantProvisionedBookingHandler } from './infrastructure/events/tenant-provisioned.handler';
+import { SubscriptionSuspendedTenantUnavailableHandler } from './infrastructure/events/subscription-suspended-tenant-unavailable.handler';
+import { RaiseTenantUnavailableNoticesUseCase } from './application/use-cases/raise-tenant-unavailable-notices.use-case';
 import { CreateTenantLocationResourceUseCase } from './application/use-cases/create-tenant-location-resource.use-case';
 import { CloseScheduleUseCase } from './application/use-cases/close-schedule.use-case';
 import { ActivateServiceUseCase } from './application/use-cases/activate-service.use-case';
@@ -227,6 +228,8 @@ export const bookingModuleProviders: Provider[] = [
   StaffDeactivatedHandler,
   CreateTenantLocationResourceUseCase,
   TenantProvisionedBookingHandler,
+  RaiseTenantUnavailableNoticesUseCase,
+  SubscriptionSuspendedTenantUnavailableHandler,
   RequestRecurringBookingScheduleUseCase,
   EndRecurringBookingScheduleUseCase,
   ApproveRecurringBookingScheduleUseCase,
@@ -240,7 +243,6 @@ export const bookingModuleProviders: Provider[] = [
   CancelAvailabilityAlertUseCase,
   RecordAvailabilityAlertOutcomeUseCase,
   ...availabilityAlertMatchingProviders,
-  ...tenantUnavailableNoticeProviders,
   RaiseFutureCommitmentExceptionsForResourceService,
   ListFutureCommitmentExceptionsUseCase,
   CountFutureCommitmentExceptionsUseCase,
