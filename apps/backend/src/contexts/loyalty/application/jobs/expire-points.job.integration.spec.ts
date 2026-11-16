@@ -2,10 +2,12 @@ import { DataSource } from 'typeorm';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import { TypeOrmTransactionManager } from '../../../../shared/infrastructure/typeorm-transaction-manager';
-import { LoyaltyEntryBuilder } from '../../../../test/builders/loyalty/index';
+import {
+  LoyaltyBalanceBuilder,
+  LoyaltyEntryBuilder,
+} from '../../../../test/builders/loyalty/index';
 import { InMemoryExpirySweepStateRepository } from '../../../../test/repositories/loyalty/in-memory-expiry-sweep-state.repository';
 import { createTestDataSource } from '../../../../test/test-datasource';
-import { LoyaltyBalance } from '../../domain/loyalty-balance.aggregate';
 import { BalanceExpiryLogEntity } from '../../infrastructure/entities/balance-expiry-log.entity';
 import { LoyaltyBalanceEntity } from '../../infrastructure/entities/loyalty-balance.entity';
 import { LoyaltyEntryEntity } from '../../infrastructure/entities/loyalty-entry.entity';
@@ -96,9 +98,13 @@ describe('ExpirePointsJob (integration, TD60-S01)', () => {
   }
 
   async function seedBalance(tenantId: string, customerId: string, points: number) {
-    const balance = LoyaltyBalance.create(tenantId, customerId);
-    balance.increment(points);
-    await balanceRepo.upsert(balance);
+    await balanceRepo.upsert(
+      new LoyaltyBalanceBuilder()
+        .withTenantId(tenantId)
+        .withCustomerId(customerId)
+        .withCurrentPoints(points)
+        .build(),
+    );
   }
 
   async function pointsOf(tenantId: string, customerId: string): Promise<number | undefined> {

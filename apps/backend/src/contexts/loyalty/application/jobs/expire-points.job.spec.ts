@@ -295,21 +295,22 @@ describe('ExpirePointsJob', () => {
     });
 
     it('writes every processed mark of a customer in one call', async () => {
-      await seedDueEntry(20, 50);
-      await entryRepo.save(
-        new LoyaltyEntryBuilder()
-          .withTenantId(TENANT_ID)
-          .withCustomerId(CUSTOMER_ID)
-          .withPoints(5)
-          .withExpiresAt(PAST)
-          .build(),
-      );
+      const first = await seedDueEntry(20, 50);
+      const second = new LoyaltyEntryBuilder()
+        .withTenantId(TENANT_ID)
+        .withCustomerId(CUSTOMER_ID)
+        .withPoints(5)
+        .withExpiresAt(PAST)
+        .build();
+      await entryRepo.save(second);
       const markSpy = jest.spyOn(expiryLogRepo, 'markProcessedMany');
 
       await job.run();
 
       expect(markSpy).toHaveBeenCalledTimes(1);
-      expect(markSpy.mock.calls[0][0]).toHaveLength(2);
+      expect([...markSpy.mock.calls[0][0]].sort()).toEqual([first.id, second.id].sort());
+      expect(expiryLogRepo.isProcessed(first.id)).toBe(true);
+      expect(expiryLogRepo.isProcessed(second.id)).toBe(true);
     });
   });
 
