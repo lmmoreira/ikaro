@@ -61,6 +61,7 @@ describe('Sidebar', () => {
         userName="Ana Pereira"
         role={STAFF}
         leadFormEnabled={false}
+        lockedFeatures={[]}
       />,
     );
 
@@ -75,6 +76,7 @@ describe('Sidebar', () => {
         userName="Ana Pereira"
         role={STAFF}
         leadFormEnabled={false}
+        lockedFeatures={[]}
       />,
     );
 
@@ -90,6 +92,7 @@ describe('Sidebar', () => {
         userName="Carlos Gomes"
         role={STAFF}
         leadFormEnabled={false}
+        lockedFeatures={[]}
       />,
     );
 
@@ -104,6 +107,7 @@ describe('Sidebar', () => {
         userName="Ana"
         role={STAFF}
         leadFormEnabled={false}
+        lockedFeatures={[]}
       />,
     );
 
@@ -121,6 +125,7 @@ describe('Sidebar', () => {
         userName="Carlos"
         role={MANAGER}
         leadFormEnabled={false}
+        lockedFeatures={[]}
       />,
     );
 
@@ -139,6 +144,7 @@ describe('Sidebar', () => {
         userName="Ana"
         role={STAFF}
         leadFormEnabled={false}
+        lockedFeatures={[]}
       />,
     );
 
@@ -155,6 +161,7 @@ describe('Sidebar', () => {
         userName="Ana"
         role={STAFF}
         leadFormEnabled={false}
+        lockedFeatures={[]}
       />,
     );
 
@@ -174,6 +181,7 @@ describe('Sidebar', () => {
         userName="Ana"
         role={STAFF}
         leadFormEnabled={false}
+        lockedFeatures={[]}
       />,
     );
 
@@ -192,6 +200,7 @@ describe('Sidebar', () => {
         userName={null}
         role={STAFF}
         leadFormEnabled={false}
+        lockedFeatures={[]}
       />,
     );
 
@@ -206,6 +215,7 @@ describe('Sidebar', () => {
         userName="Ana"
         role={STAFF}
         leadFormEnabled={false}
+        lockedFeatures={[]}
       />,
     );
     expect(screen.queryByText('Leads')).not.toBeInTheDocument();
@@ -217,6 +227,7 @@ describe('Sidebar', () => {
         userName="Carlos"
         role={MANAGER}
         leadFormEnabled={false}
+        lockedFeatures={[]}
       />,
     );
     expect(screen.queryByText('Leads')).not.toBeInTheDocument();
@@ -230,6 +241,7 @@ describe('Sidebar', () => {
         userName="Ana"
         role={STAFF}
         leadFormEnabled={true}
+        lockedFeatures={[]}
       />,
     );
     expect(screen.getByText('Leads').closest('a')).toHaveAttribute('href', '/dashboard/leads');
@@ -241,6 +253,7 @@ describe('Sidebar', () => {
         userName="Carlos"
         role={MANAGER}
         leadFormEnabled={true}
+        lockedFeatures={[]}
       />,
     );
     const leadsLink = screen.getByText('Leads').closest('a');
@@ -261,6 +274,7 @@ describe('Sidebar', () => {
           userName="Ana Pereira"
           role={role}
           leadFormEnabled={false}
+          lockedFeatures={[]}
         />,
       );
     }
@@ -300,6 +314,84 @@ describe('Sidebar', () => {
       renderSidebar(MANAGER);
 
       expect(screen.getByTestId('sidebar-nav-scheduling-exceptions')).toHaveClass('bg-blue-600');
+    });
+  });
+});
+
+describe('Sidebar — locked items (UC-125)', () => {
+  function renderLocked(
+    role: 'STAFF' | 'MANAGER',
+    lockedFeatures: readonly ('HOTSITE' | 'BOOKING' | 'LOYALTY' | 'CHATBOT' | 'LEAD_FORM')[],
+    leadFormEnabled = false,
+  ) {
+    return render(
+      <Sidebar
+        tenantName="Lavacar BH"
+        tenantSlug="lavacar-bh"
+        userName="Ana Pereira"
+        role={role}
+        leadFormEnabled={leadFormEnabled}
+        lockedFeatures={lockedFeatures}
+      />,
+    );
+  }
+
+  it('shows a locked feature as a padlocked item that keeps its real href, never hidden', () => {
+    renderLocked(MANAGER, ['LOYALTY']);
+
+    const item = screen.getByRole('link', { name: /Fidelidade/ });
+    expect(item).toHaveAttribute('href', '/dashboard/loyalty');
+    expect(item).toHaveAttribute('data-locked', 'true');
+    // The label keeps the colour of any inactive item; only the icon is dimmed.
+    expect(item).not.toHaveClass('opacity-60');
+    expect(screen.getAllByTestId('nav-lock')).toHaveLength(1);
+  });
+
+  it('draws no padlock when nothing is locked (a failed lookup fails open)', () => {
+    renderLocked(MANAGER, []);
+
+    expect(screen.queryByTestId('nav-lock')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Fidelidade' })).not.toHaveAttribute('data-locked');
+  });
+
+  it('locks the same items for STAFF, who see the padlock too', () => {
+    renderLocked(STAFF, ['LOYALTY']);
+
+    expect(screen.getByRole('link', { name: /Fidelidade/ })).toHaveAttribute('data-locked', 'true');
+  });
+
+  it('locks the manager-only items by their feature and mounts no count query for a locked BOOKING', () => {
+    renderLocked(MANAGER, ['BOOKING']);
+
+    expect(screen.getByTestId('sidebar-nav-resources')).toHaveAttribute('data-locked', 'true');
+    expect(screen.getByTestId('sidebar-nav-scheduling-exceptions')).toHaveAttribute(
+      'data-locked',
+      'true',
+    );
+    expect(screen.queryByTestId('scheduling-exceptions-badge')).not.toBeInTheDocument();
+    expect(countQuery).not.toHaveBeenCalled();
+    expect(screen.getByRole('link', { name: /Equipe/ })).not.toHaveAttribute('data-locked');
+  });
+
+  describe('Leads has three states', () => {
+    it('shows it normally when entitled and enabled', () => {
+      renderLocked(MANAGER, [], true);
+
+      expect(screen.getByTestId('sidebar-nav-leads')).not.toHaveAttribute('data-locked');
+    });
+
+    it('hides it when entitled but not enabled by the manager (as before billing)', () => {
+      renderLocked(MANAGER, [], false);
+
+      expect(screen.queryByTestId('sidebar-nav-leads')).not.toBeInTheDocument();
+    });
+
+    it.each([MANAGER, STAFF])('shows it locked for %s when the tenant is not entitled', (role) => {
+      renderLocked(role, ['LEAD_FORM'], false);
+
+      const leads = screen.getByTestId('sidebar-nav-leads');
+      expect(leads).toHaveAttribute('href', '/dashboard/leads');
+      expect(leads).toHaveAttribute('data-locked', 'true');
     });
   });
 });

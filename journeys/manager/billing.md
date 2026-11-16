@@ -3,7 +3,7 @@
 **Actor(s):** MANAGER
 **Goal:** See what the tenant pays Ikaro and why, pay an open charge in one click, keep the billing identity valid, choose the plan for the next paid period, cancel or reactivate — all self-service, without contacting Ikaro
 **UCs covered:** UC-117 (billing page), UC-118 (billing identity), UC-119 (pay an open charge), UC-130 (trial banner and first charge), UC-133 (cancel), UC-134 (reactivate), UC-136 (change plan), UC-125 (locked features: upsell to the Plano tab); deferred: UC-141 (discard a never-paid tenant, slice G), UC-135 (Pix Automático), UC-143 (automatic card collection, slice F2), UC-144 (billing cycle, slice H), UC-145 (annual add-on, slice H)
-**Status:** Planned in M26 (stories S22-S34; manager screens S27-S32) — not yet shipped. Every screen is a ❓ GAP until its story ships.
+**Status:** Planned in M26 (stories S22-S34; manager screens S27-S32) — the billing screens are not yet shipped. Every billing screen is a ❓ GAP until its story ships; the locked-feature screens (`03`, `03b`) and the interim manager suspended notice shipped earlier, in M25-S29, without the buy actions M26 adds.
 
 > Promoted from `docs/discovery/tenant-billing/` via `/discovery-to-milestone`. The permanent *why* (research, decisions, operating model) stays in `docs/discovery/tenant-billing/tenant-billing.md`. The prototype is **illustrative**: prices, dates, tier names and the Ikaro URL are invented (fictional tenants Lavacar BeloAuto — BR — and Sunrise Auto Spa — US). Where a screen and the docs differ, the docs win. The other billing screens — locked features and the suspended experience of staff, customers and the public hotsite (UC-120–UC-125), the self-signup flow (UC-127–UC-131) and the discard / purge screens (UC-132, UC-141, UC-142) — are promoted with their own journeys: locked features (`03`, `03b`) and the discard page (`10`) are in this folder; the staff, customer, public-hotsite and signup screens are in `staff/prototypes/login`, `customer/prototypes/minha-conta`, `guest/prototypes/unpublished-hotsite` and `guest/prototypes/ikaro-trial`.
 >
@@ -18,7 +18,7 @@ flowchart TD
 
     Banner["❓ GAP: SubscriptionBanner on every dashboard page<br/>trial / past due / address missing (UC-130)"]:::gap -->|"Confirmar plano / Pagar agora"| Billing
     Nav(["Sidebar: Assinatura (manager only)"]) --> Billing
-    Locked["❓ GAP: locked feature — Configurações Chatbot / direct URL (03, 03b)<br/>settings preserved (UC-125)"]:::gap -->|"Contratar este recurso"| Plan
+    Locked["locked feature — Configurações Chatbot / direct URL (03, 03b), built M25-S29 without the CTA<br/>settings preserved (UC-125)"] -.->|"Contratar este recurso (M26)"| Plan
     Billing["❓ GAP: /dashboard/billing<br/>Assinatura — tabs: Resumo · Plano · Cobranças · Dados · Automática (UC-117)"]:::gap
 
     Billing -->|"Pagar agora (UC-119)"| Hosted(("Provider-hosted payment page"))
@@ -65,7 +65,7 @@ flowchart TD
 |---|---|---|---|
 | `/dashboard/billing` (tabs, `?tab=`) | `BillingPage`, `BillingTabs`, `ResumoTab`, `PlanoTab`, `CobrancasTab`, `DadosCobrancaTab` (`BillingIdentityForm`), `CobrancaAutomaticaTab` | M26-S27 (shell, Resumo, Cobranças), S28 (Pagar agora), S29 (Dados), S30 (Plano); Cobrança automática is a deferred preview | ❓ GAP |
 | `/dashboard/billing/cancel` — cancel confirmation (a separate page: `app/dashboard/billing/cancel/page.tsx`; S27 hides `BottomNav` there and the suspended-redirect helper skips it) | `CancelSubscriptionPage`, `CancelOutcome`, `ReactivateAction` (prototype name `CancelSubscriptionConfirm`) | M26-S31 | ❓ GAP |
-| A feature the tenant has not bought (its settings section, or its route opened by URL) | `FeatureGate` locked state (settings section) and `LockedFeaturePage` (route opened by URL) (HTTP 200 with the upsell; the API answers `BILLING_FEATURE_NOT_ENTITLED`, 403, M25-S16) | M25 (feature gate) | ❓ GAP |
+| A feature the tenant has not bought (its settings section, or its route opened by URL) | `FeatureGate` locked state (settings section) and `LockedFeaturePage` (route opened by URL) (HTTP 200 with the explanation; the API answers `BILLING_FEATURE_NOT_ENTITLED`, 403, M25-S16; the "Contratar este recurso" action is added by M26) | M25-S29 | ✅ Done |
 | Every `/dashboard/**` page | `SubscriptionBanner` (manager-only; trial, past due, address missing) | M26-S32 | ❓ GAP |
 | `Sidebar` / `BottomNav` / `MoreSheet` | New manager-only "Assinatura" item | M26-S27 | ❓ GAP |
 
@@ -95,7 +95,7 @@ Folder: `manager/prototypes/billing/` — relocated from `docs/discovery/tenant-
 | `01-billing-active`, `01b`–`01e`, `01h`, `01k`, `01l`, `01m`, `01n` | Resumo by state: ACTIVE, trial (not confirmed), past due, suspended (non-payment / cancelled / payment reversed / by Ikaro), trial with the first invoice issued, price-change notice, exempt | UC-117, UC-119, UC-130, UC-134 | ❓ GAP |
 | `01f`, `01g`, `01i`, `01j`, `01o` | Loading, load error, payment received (reactivating), link expired, payment not confirmed (`01o`: not a distinct state — M26-S28 folds it into the "ainda processando" state after the polling window) | UC-117, UC-119 | ❓ GAP |
 | `02`, `02b`, `02c`, `02d`, `02e`, `02f` | Dados de cobrança: BR, validation errors, US, saved, US / BR address required | UC-118 | ❓ GAP |
-| `03`, `03b` | Locked feature: Configurações → Chatbot not contracted (padlocked nav entries, "Contratar este recurso" → `08`), and a locked route opened by URL | UC-125 | ❓ GAP |
+| `03`, `03b` | Locked feature: Configurações → Chatbot not contracted (padlocked nav entries, "Contratar este recurso" → `08`), and a locked route opened by URL (built without the buy actions; M26 adds them) | UC-125 | ✅ Done (M25-S29) |
 | `04`, `04b` | Agenda with the trial banner / the past-due banner | UC-130 | ❓ GAP |
 | `06`, `06b`–`06e` | Cancel: confirm, scheduled, error, immediate (trial or past due), trial with the first invoice paid | UC-133 | ❓ GAP |
 | `07`, `07b`–`07d` | Cobrança automática (preview only, "prévia – ainda não disponível"): activate, active, pending, error | UC-135 | ❓ Deferred |

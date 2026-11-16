@@ -23,6 +23,7 @@ import { fetchServicesClient } from '@/features/platform/hotsite/api/services';
 import { ApiError } from '@/shared/lib/api/errors';
 import { materializeLayout } from '@/features/platform/hotsite/default-layout';
 import { HotsiteEditor } from './HotsiteEditor';
+import { LockedModulePanelsProvider } from './locked-module-panels-context';
 import { makeTemplateSummaries } from './templates-controller.fixture';
 
 vi.mock('@/features/platform/api/tenant-settings', () => ({
@@ -1535,6 +1536,87 @@ describe('HotsiteEditor', () => {
       await user.click(screen.getByRole('tab', { name: 'Manifesto' }));
       const reseeded = screen.getByTestId('hotsite-manifest-textarea') as HTMLTextAreaElement;
       expect(reseeded.value).toContain('"primaryColor": "#2563eb"');
+    });
+  });
+
+  describe('locked module panels (UC-125)', () => {
+    const LOCKED = {
+      LEAD_FORM: <div data-testid="locked-lead-form">Recurso não contratado</div>,
+      CHATBOT: <div data-testid="locked-chatbot">Recurso não contratado</div>,
+    };
+
+    function renderLocked(): ReturnType<typeof renderWithIntl> {
+      return renderWithIntl(
+        withQueryClient(
+          <LockedModulePanelsProvider value={LOCKED}>
+            <HotsiteEditor initial={INITIAL} />
+          </LockedModulePanelsProvider>,
+        ),
+      );
+    }
+
+    async function openInVisualEditor(user: ReturnType<typeof userEvent.setup>, type: string) {
+      const configure = screen
+        .getAllByTestId('layout-row-configure')
+        .find((el) => el.dataset.moduleType === type);
+      await user.click(configure!);
+    }
+
+    it('shows the locked card in the visual inspector for a locked lead form, without reading its config', async () => {
+      const user = userEvent.setup();
+      renderLocked();
+
+      await openInVisualEditor(user, 'LEAD_FORM');
+
+      expect(await screen.findByTestId('locked-lead-form')).toBeInTheDocument();
+      expect(mockGetLeadFormConfig).not.toHaveBeenCalled();
+      expect(
+        screen.queryByText(/We couldn.t load|Não foi possível carregar/),
+      ).not.toBeInTheDocument();
+    });
+
+    it('shows the locked card in the visual inspector for a locked Chatbot', async () => {
+      const user = userEvent.setup();
+      renderLocked();
+
+      await openInVisualEditor(user, 'CHATBOT');
+
+      expect(await screen.findByTestId('locked-chatbot')).toBeInTheDocument();
+    });
+
+    it('shows the locked card in the detailed "Configurar" view too', async () => {
+      const user = userEvent.setup();
+      renderLocked();
+      fireEvent.click(visualCommand('detail'));
+
+      await user.click(screen.getByRole('tab', { name: 'Layout' }));
+      await user.click(
+        screen
+          .getAllByTestId('layout-row-configure')
+          .find((el) => el.dataset.moduleType === 'LEAD_FORM')!,
+      );
+
+      expect(await screen.findByTestId('locked-lead-form')).toBeInTheDocument();
+      expect(mockGetLeadFormConfig).not.toHaveBeenCalled();
+    });
+
+    it('still reads the lead form config and shows the real panel for an entitled tenant', async () => {
+      const user = userEvent.setup();
+      renderVisualEditor();
+
+      await openInVisualEditor(user, 'LEAD_FORM');
+
+      await waitFor(() => expect(mockGetLeadFormConfig).toHaveBeenCalled());
+      expect(screen.queryByTestId('locked-lead-form')).not.toBeInTheDocument();
+    });
+
+    it('leaves a module that is not locked on its own panel', async () => {
+      const user = userEvent.setup();
+      renderLocked();
+
+      await openInVisualEditor(user, 'CONTACT');
+
+      expect(await screen.findByTestId('contact-show-address')).toBeInTheDocument();
     });
   });
 

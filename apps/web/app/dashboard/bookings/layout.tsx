@@ -2,6 +2,7 @@ import { headers } from 'next/headers';
 import { getAccessToken } from '@/features/auth/get-access-token';
 import { notFound } from 'next/navigation';
 import { decodeJwtPayload } from '@/features/auth/decode-jwt';
+import { FeatureGate } from '@/features/billing/components/FeatureGate';
 import { LocaleProvider } from '@/providers/locale-provider';
 import { FormattingProvider } from '@/providers/formatting-provider';
 import { TenantProvider } from '@/providers/tenant-provider';
@@ -14,6 +15,7 @@ import {
 import { matchBookingDetailRoute } from '@/shells/dashboard/model/booking-route';
 import type { BookingStatus } from '@ikaro/types';
 import {
+  isShellRouteLocked,
   loadDashboardShellContext,
   resolveDashboardDateFormat,
 } from '@/shells/dashboard/model/dashboard-shell-context';
@@ -34,7 +36,9 @@ export default async function ProtectedLayout({
   let bookingStatus: BookingStatus | null = null;
 
   const shell = await loadDashboardShellContext(token, payload);
-  if (bookingRouteMatch) {
+  // A tenant without BOOKING gets the locked page: the detail read would be refused and its
+  // error would replace the page the gate renders.
+  if (bookingRouteMatch && !isShellRouteLocked(shell)) {
     try {
       const booking = await fetchStaffBookingDetail(token, bookingRouteMatch.bookingId);
       bookingStatus = booking.status;
@@ -66,8 +70,11 @@ export default async function ProtectedLayout({
               userName={shell.userName}
               role={shell.role}
               leadFormEnabled={shell.leadFormEnabled}
+              lockedFeatures={shell.lockedFeatures}
             >
-              {children}
+              <FeatureGate feature={shell.routeFeature} lockedFeatures={shell.lockedFeatures}>
+                {children}
+              </FeatureGate>
             </DashboardShell>
           </DashboardTopbarStatusProvider>
         </TenantProvider>

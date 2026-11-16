@@ -33,8 +33,13 @@ export async function fetchTenantSettingsFresh(token: string): Promise<TenantSet
 // Server-side, uncached — called on every dashboard page load (loadDashboardShellContext) to
 // gate the "Leads" nav item. A manager who just enabled the module should see it on the very
 // next navigation, not after a stale-cache delay (M20-S10).
+//
+// A 403 here is the backend guard's typed denial (BILLING_FEATURE_NOT_ENTITLED, or
+// BILLING_TENANT_SUSPENDED between the access read and this one): the lead form is not usable, so
+// it reads as "not enabled" instead of failing the whole layout (M25-S29).
 export async function fetchLeadFormStatus(token: string): Promise<LeadFormStatusResponse> {
   const res = await bffServerFetch(token, '/tenants/lead-form/status', { cache: 'no-store' });
+  if (res.status === 403) return { enabled: false };
   if (!res.ok) throw new Error(`Failed to fetch lead form status (${res.status})`);
   return res.json() as Promise<LeadFormStatusResponse>;
 }

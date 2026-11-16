@@ -3076,6 +3076,45 @@
         "backToAgenda": "Voltar à agenda",
         "createAnother": "Criar outra"
       }
+    },
+    "billing": {
+      "locked": {
+        "badge": "Não contratado",
+        "title": "Recurso não contratado",
+        "body": "Este recurso não está incluído no seu plano.",
+        "deferredStart": "O recurso passa a valer no próximo período de cobrança, não imediatamente.",
+        "settingsKept": "Suas configurações foram mantidas. O que você já salvou continua guardado e volta a valer assim que o recurso for contratado.",
+        "padlockLabel": "Recurso não contratado",
+        "features": {
+          "HOTSITE": {
+            "description": "O Hotsite é a página pública do seu negócio, onde seus clientes conhecem os serviços e entram para agendar."
+          },
+          "BOOKING": {
+            "description": "O Agendamento permite que seus clientes reservem horários online e que a equipe gerencie a agenda, os serviços e os recursos."
+          },
+          "LOYALTY": {
+            "description": "A Fidelidade permite acumular pontos a cada serviço concluído e trocar por benefícios. Clientes que acumulam pontos voltam mais vezes."
+          },
+          "CHATBOT": {
+            "description": "O Chatbot responde dúvidas dos seus clientes no hotsite, 24 horas por dia: horários, preços e serviços. Ele alivia o atendimento da equipe e ajuda a transformar visitas em agendamentos."
+          },
+          "LEAD_FORM": {
+            "description": "O Formulário de contato recebe pedidos de orçamento e contatos de quem visita o hotsite, para a equipe responder depois."
+          }
+        },
+        "directUrl": {
+          "title": "Recurso não contratado",
+          "body": "Seus dados já registrados foram mantidos e voltam a aparecer assim que o recurso for contratado."
+        }
+      },
+      "suspended": {
+        "manager": {
+          "title": "Sua conta está suspensa",
+          "body": "O acesso ao painel fica indisponível enquanto a assinatura estiver suspensa. Seus dados e configurações foram mantidos.",
+          "billingHint": "O próximo passo é a área de assinatura, onde você regulariza a conta para reativá-la.",
+          "signOut": "Sair"
+        }
+      }
     }
   }
 }

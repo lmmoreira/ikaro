@@ -1,8 +1,12 @@
+import { FeatureGate } from '@/features/billing/components/FeatureGate';
 import { LocaleProvider } from '@/providers/locale-provider';
 import { FormattingProvider } from '@/providers/formatting-provider';
 import { TenantProvider } from '@/providers/tenant-provider';
 import type { DashboardShellContext } from '@/shells/dashboard/model/dashboard-shell-context';
-import { resolveDashboardDateFormat } from '@/shells/dashboard/model/dashboard-shell-context';
+import {
+  isShellRouteLocked,
+  resolveDashboardDateFormat,
+} from '@/shells/dashboard/model/dashboard-shell-context';
 import {
   DashboardTopbarStatusProvider,
   type DashboardTopbarStatusProviderProps,
@@ -42,9 +46,13 @@ export function DashboardLayoutShell({
               userName={shell.userName}
               role={shell.role}
               leadFormEnabled={shell.leadFormEnabled}
-              topbarAction={topbarAction ?? null}
+              lockedFeatures={shell.lockedFeatures}
+              // A locked route shows the locked page, so the section's create action goes with it.
+              topbarAction={isShellRouteLocked(shell) ? null : (topbarAction ?? null)}
             >
-              {children}
+              <FeatureGate feature={shell.routeFeature} lockedFeatures={shell.lockedFeatures}>
+                {children}
+              </FeatureGate>
             </DashboardShell>
           </DashboardTopbarStatusProvider>
         </TenantProvider>

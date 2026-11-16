@@ -38,7 +38,7 @@ describe('BottomNav', () => {
   ])('hides itself on %s', (_label, pathname) => {
     vi.mocked(usePathname).mockReturnValue(pathname);
     const { container } = render(
-      <BottomNav role={STAFF} leadFormEnabled={false} onOpenSheet={vi.fn()} />,
+      <BottomNav role={STAFF} leadFormEnabled={false} lockedFeatures={[]} onOpenSheet={vi.fn()} />,
     );
 
     expect(container).toBeEmptyDOMElement();
@@ -84,7 +84,12 @@ describe('BottomNav', () => {
   ])('hides itself on %s', (_label, pathname) => {
     vi.mocked(usePathname).mockReturnValue(pathname);
     const { container } = render(
-      <BottomNav role={MANAGER} leadFormEnabled={false} onOpenSheet={vi.fn()} />,
+      <BottomNav
+        role={MANAGER}
+        leadFormEnabled={false}
+        lockedFeatures={[]}
+        onOpenSheet={vi.fn()}
+      />,
     );
 
     expect(container).toBeEmptyDOMElement();
@@ -99,7 +104,14 @@ describe('BottomNav', () => {
     ],
   ])('still renders on %s', (_label, pathname) => {
     vi.mocked(usePathname).mockReturnValue(pathname);
-    render(<BottomNav role={MANAGER} leadFormEnabled={false} onOpenSheet={vi.fn()} />);
+    render(
+      <BottomNav
+        role={MANAGER}
+        leadFormEnabled={false}
+        lockedFeatures={[]}
+        onOpenSheet={vi.fn()}
+      />,
+    );
 
     expect(screen.getByText('Mais')).toBeInTheDocument();
   });
@@ -114,14 +126,23 @@ describe('BottomNav', () => {
     'still renders on %s (own action bar sits above it, not hidden behind it)',
     (_label, pathname) => {
       vi.mocked(usePathname).mockReturnValue(pathname);
-      render(<BottomNav role={MANAGER} leadFormEnabled={false} onOpenSheet={vi.fn()} />);
+      render(
+        <BottomNav
+          role={MANAGER}
+          leadFormEnabled={false}
+          lockedFeatures={[]}
+          onOpenSheet={vi.fn()}
+        />,
+      );
 
       expect(screen.getByText('Mais')).toBeInTheDocument();
     },
   );
 
   it('renders the 4 core nav items for STAFF, no "Mais" when leadFormEnabled is false', () => {
-    render(<BottomNav role={STAFF} leadFormEnabled={false} onOpenSheet={vi.fn()} />);
+    render(
+      <BottomNav role={STAFF} leadFormEnabled={false} lockedFeatures={[]} onOpenSheet={vi.fn()} />,
+    );
 
     expect(screen.getByText('Agenda')).toBeInTheDocument();
     expect(screen.getByText('Horários')).toBeInTheDocument();
@@ -131,20 +152,36 @@ describe('BottomNav', () => {
   });
 
   it('renders a "Mais" button for STAFF once leadFormEnabled is true', () => {
-    render(<BottomNav role={STAFF} leadFormEnabled={true} onOpenSheet={vi.fn()} />);
+    render(
+      <BottomNav role={STAFF} leadFormEnabled={true} lockedFeatures={[]} onOpenSheet={vi.fn()} />,
+    );
 
     expect(screen.getByText('Mais')).toBeInTheDocument();
   });
 
   it('renders a "Mais" button for MANAGER regardless of leadFormEnabled', () => {
-    render(<BottomNav role={MANAGER} leadFormEnabled={false} onOpenSheet={vi.fn()} />);
+    render(
+      <BottomNav
+        role={MANAGER}
+        leadFormEnabled={false}
+        lockedFeatures={[]}
+        onOpenSheet={vi.fn()}
+      />,
+    );
 
     expect(screen.getByText('Mais')).toBeInTheDocument();
   });
 
   it('calls onOpenSheet when "Mais" is clicked', async () => {
     const onOpenSheet = vi.fn();
-    render(<BottomNav role={MANAGER} leadFormEnabled={false} onOpenSheet={onOpenSheet} />);
+    render(
+      <BottomNav
+        role={MANAGER}
+        leadFormEnabled={false}
+        lockedFeatures={[]}
+        onOpenSheet={onOpenSheet}
+      />,
+    );
 
     await userEvent.click(screen.getByText('Mais'));
 
@@ -153,12 +190,104 @@ describe('BottomNav', () => {
 
   it('applies active class to the item matching the current pathname', () => {
     vi.mocked(usePathname).mockReturnValue('/dashboard/bookings');
-    render(<BottomNav role={STAFF} leadFormEnabled={false} onOpenSheet={vi.fn()} />);
+    render(
+      <BottomNav role={STAFF} leadFormEnabled={false} lockedFeatures={[]} onOpenSheet={vi.fn()} />,
+    );
 
     const agendaLink = screen.getByText('Agenda').closest('a');
     expect(agendaLink?.className).toContain('text-blue-600');
 
     const horarioLink = screen.getByText('Horários').closest('a');
     expect(horarioLink?.className).not.toContain('text-blue-600');
+  });
+});
+
+describe('BottomNav — locked items (UC-125)', () => {
+  it('shows a locked feature as a padlocked tab that keeps its href', () => {
+    render(
+      <BottomNav
+        role={STAFF}
+        leadFormEnabled={false}
+        lockedFeatures={['LOYALTY']}
+        onOpenSheet={vi.fn()}
+      />,
+    );
+
+    const tab = screen.getByRole('link', { name: /Fidelidade/ });
+    expect(tab).toHaveAttribute('href', '/dashboard/loyalty');
+    expect(tab).toHaveAttribute('data-locked', 'true');
+    expect(screen.getAllByTestId('nav-lock')).toHaveLength(1);
+  });
+
+  it('draws no padlock when nothing is locked', () => {
+    render(
+      <BottomNav role={STAFF} leadFormEnabled={false} lockedFeatures={[]} onOpenSheet={vi.fn()} />,
+    );
+
+    expect(screen.queryByTestId('nav-lock')).not.toBeInTheDocument();
+  });
+
+  it('offers "Mais" to STAFF when Leads is shown locked, since the sheet holds it', () => {
+    render(
+      <BottomNav
+        role={STAFF}
+        leadFormEnabled={false}
+        lockedFeatures={['LEAD_FORM']}
+        onOpenSheet={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Mais opções' })).toBeInTheDocument();
+  });
+
+  it('keeps STAFF without "Mais" when Leads is entitled but not enabled', () => {
+    render(
+      <BottomNav role={STAFF} leadFormEnabled={false} lockedFeatures={[]} onOpenSheet={vi.fn()} />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Mais opções' })).not.toBeInTheDocument();
+  });
+});
+
+describe('BottomNav — locked drill-down route (UC-125)', () => {
+  it('stays visible on a loyalty detail route while LOYALTY is locked, as the way out on mobile', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/loyalty/c-1');
+
+    const { container } = render(
+      <BottomNav
+        role={STAFF}
+        leadFormEnabled={false}
+        lockedFeatures={['LOYALTY']}
+        onOpenSheet={vi.fn()}
+      />,
+    );
+
+    expect(container).not.toBeEmptyDOMElement();
+    expect(screen.getByRole('link', { name: /Agenda/ })).toBeInTheDocument();
+  });
+
+  it('still hides on that route when LOYALTY is entitled', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/loyalty/c-1');
+
+    const { container } = render(
+      <BottomNav role={STAFF} leadFormEnabled={false} lockedFeatures={[]} onOpenSheet={vi.fn()} />,
+    );
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('still hides on a booking detail route when only another feature is locked', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/bookings/booking-123');
+
+    const { container } = render(
+      <BottomNav
+        role={STAFF}
+        leadFormEnabled={false}
+        lockedFeatures={['LOYALTY']}
+        onOpenSheet={vi.fn()}
+      />,
+    );
+
+    expect(container).toBeEmptyDOMElement();
   });
 });

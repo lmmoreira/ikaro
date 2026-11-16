@@ -574,6 +574,39 @@ describe('SettingsForm', () => {
     );
   });
 
+  it('renders the locked Chatbot card in place of the section while CHATBOT is not entitled', () => {
+    renderWithIntl(
+      <SettingsForm
+        initial={buildTenant()}
+        lockedChatbotSection={<div data-testid="locked-chatbot">Recurso não contratado</div>}
+      />,
+    );
+
+    expect(screen.getByTestId('locked-chatbot')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Sobre o seu negócio')).not.toBeInTheDocument();
+    // The other sections stay editable.
+    expect(screen.getByLabelText('Nome do estabelecimento *')).toBeInTheDocument();
+  });
+
+  it('sends no chatbot.* key in a save while the Chatbot section is locked, leaving the stored values', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(
+      <SettingsForm
+        initial={buildTenant()}
+        lockedChatbotSection={<div data-testid="locked-chatbot">Recurso não contratado</div>}
+      />,
+    );
+
+    await user.click(screen.getByTestId('settings-submit-desktop'));
+
+    expect(await screen.findByTestId('form-feedback')).toBeInTheDocument();
+    expect(mockUpdateTenantSettings).toHaveBeenCalledTimes(1);
+    const payload = mockUpdateTenantSettings.mock.calls[0][0] as { settings: object };
+    expect(payload.settings).not.toHaveProperty('chatbot');
+    expect(payload.settings).toHaveProperty('booking');
+    expect(payload.settings).toHaveProperty('leadForm');
+  });
+
   it('marks and focuses the knowledge text input for the server error, mapped from its backend path', async () => {
     mockUpdateTenantSettings.mockRejectedValueOnce(
       new ApiError(400, 'Bad request', {

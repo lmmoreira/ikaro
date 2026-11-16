@@ -3,8 +3,11 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import type { FeatureKey } from '@ikaro/types';
 import { Calendar, Clock, Wrench, Star, MoreHorizontal } from 'lucide-react';
+import { isRouteLocked } from '@/shared/lib/billing/feature-registry';
 import { cn } from '@/shared/utils/cn';
+import { NavLockMark } from './NavLockMark';
 import {
   isBookingCreateRoute,
   matchBookingDetailRoute,
@@ -21,6 +24,7 @@ import { isTeamInviteRoute, matchTeamRoute } from '@/shells/dashboard/model/team
 interface BottomNavProps {
   readonly role: 'STAFF' | 'MANAGER';
   readonly leadFormEnabled: boolean;
+  readonly lockedFeatures: readonly FeatureKey[];
   readonly onOpenSheet: () => void;
 }
 
@@ -34,6 +38,7 @@ const NAV_ITEM_KEYS = [
 export function BottomNav({
   role,
   leadFormEnabled,
+  lockedFeatures,
   onOpenSheet,
 }: BottomNavProps): React.JSX.Element | null {
   const t = useTranslations('dashboard');
@@ -48,31 +53,41 @@ export function BottomNav({
   const isSchedulingExceptionReschedule =
     matchSchedulingExceptionRescheduleRoute(pathname) !== null;
 
+  // A locked route renders the locked page instead of the drill-down page, so no back arrow
+  // exists there and the tabs are the only way out on mobile.
+  const routeLocked = isRouteLocked(pathname, lockedFeatures);
+
   // /dashboard/settings and /dashboard/hotsite are deliberately NOT in this list (unlike the
   // drill-down routes above) — they're top-level sections with no topbar back arrow, so hiding
   // BottomNav there leaves mobile users with zero way to reach any other section. Both pages'
   // own mobile action bars are offset above BottomNav instead (see their own `bottom-[calc(...)]`
   // class) so the two don't overlap.
   if (
-    isBookingDetail ||
-    isRecurringScheduleDetail ||
-    isBookingCreateRoute(pathname) ||
-    isServiceDetailAction ||
-    isServiceCreateRoute(pathname) ||
-    isLoyaltyDetail ||
-    isTeamInviteRoute(pathname) ||
-    isTeamDetailRoute ||
-    isResourceCreateRoute(pathname) ||
-    isResourceDetailRoute ||
-    isSchedulingExceptionReschedule
+    !routeLocked &&
+    (isBookingDetail ||
+      isRecurringScheduleDetail ||
+      isBookingCreateRoute(pathname) ||
+      isServiceDetailAction ||
+      isServiceCreateRoute(pathname) ||
+      isLoyaltyDetail ||
+      isTeamInviteRoute(pathname) ||
+      isTeamDetailRoute ||
+      isResourceCreateRoute(pathname) ||
+      isResourceDetailRoute ||
+      isSchedulingExceptionReschedule)
   )
     return null;
 
+  // A locked tab keeps the label colour of any inactive tab: dimming the whole link would stack on
+  // the already muted label and fall below readable contrast. The padlock and the dimmed icon carry
+  // the locked cue.
   const itemClass = (active: boolean) =>
     cn(
-      'flex flex-1 flex-col items-center justify-center gap-1 px-1 py-2 text-[0.625rem] font-semibold tracking-[0.02em] transition-colors',
+      'relative flex flex-1 flex-col items-center justify-center gap-1 px-1 py-2 text-[0.625rem] font-semibold tracking-[0.02em] transition-colors',
       active ? 'text-blue-600' : 'text-gray-900/40',
     );
+  // The "Mais" sheet holds Leads, so a tenant whose Leads item is shown locked still opens it.
+  const leadsVisible = leadFormEnabled || lockedFeatures.includes('LEAD_FORM');
 
   return (
     <nav
@@ -81,15 +96,22 @@ export function BottomNav({
     >
       {NAV_ITEM_KEYS.map(({ href, labelKey, Icon }) => {
         const isActive = pathname.startsWith(href);
+        const locked = isRouteLocked(href, lockedFeatures);
         return (
-          <Link key={href} href={href} className={itemClass(isActive)}>
-            <Icon className="h-[1.375rem] w-[1.375rem] shrink-0" />
+          <Link
+            key={href}
+            href={href}
+            data-locked={locked ? 'true' : undefined}
+            className={itemClass(isActive)}
+          >
+            <Icon className={cn('h-[1.375rem] w-[1.375rem] shrink-0', locked && 'opacity-60')} />
             {t(labelKey)}
+            {locked ? <NavLockMark className="absolute right-3 top-1" /> : null}
           </Link>
         );
       })}
 
-      {(role === 'MANAGER' || (role === 'STAFF' && leadFormEnabled)) && (
+      {(role === 'MANAGER' || (role === 'STAFF' && leadsVisible)) && (
         <button
           type="button"
           onClick={onOpenSheet}

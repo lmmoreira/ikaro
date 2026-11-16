@@ -4,6 +4,7 @@ import { Fragment } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import type { FeatureKey } from '@ikaro/types';
 import {
   Calendar,
   Clock,
@@ -17,8 +18,10 @@ import {
   LogOut,
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/shared/components/ui/avatar';
+import { isRouteLocked } from '@/shared/lib/billing/feature-registry';
 import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 import { cn } from '@/shared/utils/cn';
+import { NavLockMark } from './NavLockMark';
 import { SchedulingExceptionsSidebarItem } from './SchedulingExceptionsNavItem';
 import { getInitials } from '@/shared/utils/initials';
 
@@ -28,6 +31,8 @@ interface SidebarProps {
   readonly userName: string | null;
   readonly role: 'STAFF' | 'MANAGER';
   readonly leadFormEnabled: boolean;
+  // The features the tenant does not hold: their items render locked (UC-125).
+  readonly lockedFeatures: readonly FeatureKey[];
 }
 
 const MAIN_NAV_KEYS = [
@@ -46,6 +51,9 @@ const MANAGER_NAV_KEYS = [
   { href: '/dashboard/hotsite', labelKey: 'nav.hotsite', Icon: Globe },
 ] as const;
 
+// A locked item keeps the label colour of any inactive item: dimming the whole link would stack
+// on the already muted label and fall below readable contrast. The padlock and the dimmed icon
+// carry the locked cue.
 function navItemClass(active: boolean): string {
   return cn(
     'flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition-colors',
@@ -59,12 +67,16 @@ export function Sidebar({
   userName,
   role,
   leadFormEnabled,
+  lockedFeatures,
 }: SidebarProps): React.JSX.Element {
   const t = useTranslations('dashboard');
   const pathname = usePathname();
   const initials = getInitials(userName);
   const logoutUrl = `${getPublicEnv('NEXT_PUBLIC_BFF_URL')}/auth/logout?tenantSlug=${tenantSlug}`;
-  const mainNavKeys = leadFormEnabled ? [...MAIN_NAV_KEYS, LEADS_NAV_ITEM] : MAIN_NAV_KEYS;
+  // Leads has three states: shown (entitled and enabled), hidden (entitled, not enabled by the
+  // manager) and locked (not entitled).
+  const leadsVisible = leadFormEnabled || lockedFeatures.includes('LEAD_FORM');
+  const mainNavKeys = leadsVisible ? [...MAIN_NAV_KEYS, LEADS_NAV_ITEM] : MAIN_NAV_KEYS;
 
   return (
     <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col overflow-y-auto bg-sidebar lg:flex">
@@ -81,20 +93,29 @@ export function Sidebar({
 
       {/* Main nav */}
       <nav className="mt-2 flex flex-col gap-0.5 px-2">
-        {mainNavKeys.map(({ href, labelKey, Icon }, index) => (
-          <Fragment key={href}>
-            <Link
-              href={href}
-              data-testid={href === LEADS_NAV_ITEM.href ? 'sidebar-nav-leads' : undefined}
-              className={navItemClass(pathname.startsWith(href))}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              {t(labelKey)}
-            </Link>
-            {/* "Reservas a resolver": MANAGER only, right below "Agenda" (M23-S14) */}
-            {index === 0 && role === 'MANAGER' ? <SchedulingExceptionsSidebarItem /> : null}
-          </Fragment>
-        ))}
+        {mainNavKeys.map(({ href, labelKey, Icon }, index) => {
+          const locked = isRouteLocked(href, lockedFeatures);
+          return (
+            <Fragment key={href}>
+              <Link
+                href={href}
+                data-testid={href === LEADS_NAV_ITEM.href ? 'sidebar-nav-leads' : undefined}
+                data-locked={locked ? 'true' : undefined}
+                className={navItemClass(pathname.startsWith(href))}
+              >
+                <Icon className={cn('h-4 w-4 shrink-0', locked && 'opacity-60')} />
+                {t(labelKey)}
+                {locked ? <NavLockMark className="ml-auto" /> : null}
+              </Link>
+              {/* "Reservas a resolver": MANAGER only, right below "Agenda" (M23-S14) */}
+              {index === 0 && role === 'MANAGER' ? (
+                <SchedulingExceptionsSidebarItem
+                  locked={isRouteLocked('/dashboard/scheduling-exceptions', lockedFeatures)}
+                />
+              ) : null}
+            </Fragment>
+          );
+        })}
       </nav>
 
       {/* Manager-only section */}
@@ -104,17 +125,24 @@ export function Sidebar({
             {t('nav.managerOnly')}
           </p>
           <nav className="flex flex-col gap-0.5 px-2">
-            {MANAGER_NAV_KEYS.map(({ href, labelKey, Icon }) => (
-              <Link
-                key={href}
-                href={href}
-                data-testid={href === '/dashboard/resources' ? 'sidebar-nav-resources' : undefined}
-                className={navItemClass(pathname.startsWith(href))}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                {t(labelKey)}
-              </Link>
-            ))}
+            {MANAGER_NAV_KEYS.map(({ href, labelKey, Icon }) => {
+              const locked = isRouteLocked(href, lockedFeatures);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  data-testid={
+                    href === '/dashboard/resources' ? 'sidebar-nav-resources' : undefined
+                  }
+                  data-locked={locked ? 'true' : undefined}
+                  className={navItemClass(pathname.startsWith(href))}
+                >
+                  <Icon className={cn('h-4 w-4 shrink-0', locked && 'opacity-60')} />
+                  {t(labelKey)}
+                  {locked ? <NavLockMark className="ml-auto" /> : null}
+                </Link>
+              );
+            })}
           </nav>
         </>
       )}

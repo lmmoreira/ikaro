@@ -14,7 +14,7 @@ All paths are new files under `apps/web` unless the Action says modify; each com
 |---|---|---|
 | `app/dashboard/billing/page.tsx`, `loading.tsx`, `error.tsx` | GAP | Create, thin routes (M26-S27) |
 | `app/dashboard/billing/cancel/page.tsx` | GAP | Create, thin (M26-S31) |
-| `app/dashboard/suspended/page.tsx` | GAP | Create, suspended notice: manager variant (M25-S29) and staff variant (M25-S31a) |
+| `app/dashboard/suspended/page.tsx` | EXISTS | Created (M25-S29) with the manager notice (`ManagerSuspendedNotice`); the staff variant is added by M25-S31a (GAP) |
 | `features/billing/api/billing.server.ts`, `billing.ts` | GAP | Create (M26-S27); modify in S28, S29, S30, S31 |
 | `features/billing/components/BillingPage.tsx`, `BillingTabs.tsx`, `BillingSummaryTab.tsx`, `BillingChargesTab.tsx`, `BillingStatusBadge.tsx`, `AutoBillingComingSoon.tsx`, `ExemptNotice.tsx` | GAP | Create (M26-S27); `BillingSummaryTab.tsx` modified in S28 |
 | `features/billing/components/PayNowButton.tsx`, `PaymentPendingBanner.tsx`, `PaymentLinkExpiredNotice.tsx`, `PaymentFailedNotice.tsx` | GAP | Create (M26-S28) |
@@ -22,7 +22,7 @@ All paths are new files under `apps/web` unless the Action says modify; each com
 | `features/billing/components/BillingPlanTab.tsx`, `PlanFeatureRow.tsx`, `PlanTierSelect.tsx`, `PlanTotalBar.tsx`, `PlanChangePreview.tsx`, `PlanRemovalBlockedNotice.tsx`, `ConfirmPlanPrompt.tsx` | GAP | Create (M26-S30) |
 | `features/billing/components/CancelSubscriptionPage.tsx`, `CancelOutcome.tsx`, `ReactivateAction.tsx` | GAP | Create (M26-S31) |
 | `features/billing/components/SubscriptionBanner.tsx`, `SubscriptionBannerProvider.tsx` | GAP | Create (M26-S32); mount point chosen at story discovery |
-| `features/billing/components/FeatureGate.tsx`, `LockedFeaturePage.tsx` | GAP | Create (M25-S29) |
+| `features/billing/components/FeatureGate.tsx`, `LockedFeaturePage.tsx`, `LockedFeatureCard.tsx`, `ManagerSuspendedNotice.tsx` | EXISTS | Created (M25-S29). The locked card ships without "Contratar este recurso", "Ver minha assinatura" and "Falar com a gente": M26 adds them (their targets are M26's pages and config) |
 | `features/billing/components/StaffSuspendedNotice.tsx` | GAP | Create (M25-S31a) |
 | `features/billing/hooks/useBillingSummary.ts`, `useBillingCharges.ts` | GAP | Create (M26-S27) |
 | `features/billing/hooks/usePayCharge.ts`, `usePaymentConfirmationPolling.ts` | GAP | Create (M26-S28) |
@@ -33,9 +33,9 @@ All paths are new files under `apps/web` unless the Action says modify; each com
 | `features/billing/model/identity-form.ts` | GAP | Create, Zod schema and country field mapping (M26-S29) |
 | `features/billing/model/plan-selection.ts` | GAP | Create, pure selection and dependency hints (M26-S30) |
 | `features/billing/model/banner-state.ts` | GAP | Create, pure status to banner variant (M26-S32) |
-| `shared/lib/billing/feature-registry.ts`, `access.server.ts` | GAP | Create (M25-S29); registry modified in M26-S27, S32 |
-| `shells/dashboard/components/Sidebar.tsx`, `BottomNav.tsx`, `MoreSheet.tsx` | EXISTS | Modify: manager-only "Assinatura" entry (M26-S27); locked-item rendering (M25-S29) |
-| `apps/web/shells/dashboard/model/dashboard-shell-context.ts` (`loadDashboardShellContext`) | EXISTS | Modify: fetch the access answer first (before the shell's other reads) and call the shared suspended-redirect helper (M25-S29; `app/dashboard/layout.tsx` stays a passthrough and `proxy.ts` is untouched, the JWT carries no tenant status); M25 interim target is `/dashboard/suspended`, M26-S32 repoints a suspended manager to the billing page |
+| `shared/lib/billing/feature-registry.ts`, `access.server.ts`, `tenant-access.ts`, `suspended-redirect.ts` | EXISTS | Created (M25-S29); registry modified in M26-S27, S32 |
+| `shells/dashboard/components/Sidebar.tsx`, `BottomNav.tsx`, `MoreSheet.tsx` | EXISTS | Modify: manager-only "Assinatura" entry (M26-S27); locked-item rendering (M25-S29, done: padlocked items via `NavLockMark`, Leads shown locked when not entitled) |
+| `apps/web/shells/dashboard/model/dashboard-shell-context.ts` (`loadDashboardShellContext`) | EXISTS | Modified in M25-S29 (done): fetch the access answer first (before the shell's other reads) and call the shared suspended-redirect helper (M25-S29; `app/dashboard/layout.tsx` stays a passthrough and `proxy.ts` is untouched, the JWT carries no tenant status); M25 interim target is `/dashboard/suspended`, M26-S32 repoints a suspended manager to the billing page |
 | `e2e/billing-money-loop.spec.ts`, `e2e/billing-suspended-experience.spec.ts`, `e2e/helpers/billing/` | GAP | Create (M26-S35) |
 
 Screens `03`/`03b` map to `FeatureGate` / `LockedFeaturePage`; the public signup files (`features/billing/components/public/*`) belong to `guest/prototypes/ikaro-trial`.
@@ -341,7 +341,7 @@ New screens: `11-billing-active-annual`, `12-addon-midyear-confirm`, `13-cancel-
 
 ## Locked feature — Configurações, Chatbot não contratado (`03-locked-feature.html`; `SettingsForm` Chatbot section + `FeatureGate` locked state)
 
-File: `03-locked-feature.html` — Status: `SettingsForm` EXISTS (Chatbot section is a GAP in journeys 01d); `FeatureGate` (locked state), `DashboardSidebar`/bottom-nav lock state = GAP.
+File: `03-locked-feature.html` — Status: EXISTS (M25-S29): `SettingsForm` swaps its Chatbot section for the locked card (`LockedFeatureCard`, passed in by the settings page), and the sidebar, bottom nav and "Mais" sheet draw the padlock (`NavLockMark`). Built **without** the "Contratar este recurso", "Ver minha assinatura" and "Falar com a gente" actions: M26 adds them.
 Props: `feature: 'CHATBOT'`, `tier?: 'BASIC'|'PLUS'` (copy mentions tiers), `lockedFeatures: FeatureKey[]` on sidebar/bottom nav.
 BFF: `GET /v1/billing/access`. No settings write while locked; stored `chatbot.*` settings are kept untouched.
 Behaviour: locked sidebar / bottom-nav entries keep their real href and show a padlock (never hidden); the Fidelidade entry here points to `03b-locked-feature-direct-url.html`. Chatbot form fields are not rendered while locked.
@@ -351,7 +351,7 @@ Mobile: padlock on the tab icon; card stacks icon above text; "Mais" sheet uncha
 
 ## Locked feature — recurso bloqueado por URL direta (`03b-locked-feature-direct-url.html`; `LockedFeaturePage`)
 
-File: `03b-locked-feature-direct-url.html` — Status: GAP.
+File: `03b-locked-feature-direct-url.html` — Status: EXISTS (M25-S29): `FeatureGate` renders `LockedFeaturePage` instead of `{children}` in each section layout, on the server. Built **without** the buy actions (M26 adds them).
 Props: `feature: FeatureKey`. Rendered by the route guard of each feature route (HTTP 200 with the upsell, not 404 or redirect); API calls for the feature are rejected by the backend (`BILLING_FEATURE_NOT_ENTITLED`, 403, M25-S16).
 BFF: `GET /v1/billing/access`.
 States: loaded-locked (this file); loading / load-error as for any dashboard route.

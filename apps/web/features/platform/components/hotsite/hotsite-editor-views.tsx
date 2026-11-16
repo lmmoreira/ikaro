@@ -7,6 +7,7 @@ import type {
 } from '@ikaro/types';
 import { ModuleConfigShell } from '@/features/platform/components/hotsite/modules/ModuleConfigShell';
 import { MODULE_CONFIG_PANELS } from './hotsite-editor-lazy-panels';
+import { useLockedModulePanel } from './locked-module-panels-context';
 import type { ActionBanner } from './useHotsiteActionFeedback';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { hasQuestionValidationError } from './modules/LeadFormSortableQuestion';
@@ -185,6 +186,7 @@ export function ModuleConfigView({
   readonly onChange: (data: Record<string, unknown>) => void;
 }): React.JSX.Element {
   const Panel = MODULE_CONFIG_PANELS[type];
+  const lockedPanel = useLockedModulePanel(type);
   if (!Panel) return <></>;
   return (
     <ModuleConfigShell
@@ -196,7 +198,7 @@ export function ModuleConfigView({
       onConfirmDiscard={onConfirmDiscard}
       onCancelDiscard={onCancelDiscard}
     >
-      <Panel data={localData} onChange={onChange} layout={layout} />
+      {lockedPanel ?? <Panel data={localData} onChange={onChange} layout={layout} />}
     </ModuleConfigShell>
   );
 }

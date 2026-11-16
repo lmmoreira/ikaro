@@ -3076,6 +3076,45 @@
         "backToAgenda": "Back to the agenda",
         "createAnother": "Create another"
       }
+    },
+    "billing": {
+      "locked": {
+        "badge": "Not included",
+        "title": "Feature not included",
+        "body": "This feature is not included in your plan.",
+        "deferredStart": "The feature takes effect at the next billing period, not immediately.",
+        "settingsKept": "Your settings were kept. Everything you already saved stays stored and applies again as soon as the feature is added to your plan.",
+        "padlockLabel": "Feature not included",
+        "features": {
+          "HOTSITE": {
+            "description": "The Hotsite is your business’s public page, where customers learn about your services and sign in to book."
+          },
+          "BOOKING": {
+            "description": "Booking lets your customers reserve time slots online and lets your team manage the schedule, services and resources."
+          },
+          "LOYALTY": {
+            "description": "Loyalty lets customers earn points for every completed service and redeem them for rewards. Customers who earn points come back more often."
+          },
+          "CHATBOT": {
+            "description": "The Chatbot answers your customers’ questions on the hotsite around the clock: hours, prices and services. It eases the load on your team and helps turn visits into bookings."
+          },
+          "LEAD_FORM": {
+            "description": "The contact form collects quote requests and messages from hotsite visitors, so your team can reply later."
+          }
+        },
+        "directUrl": {
+          "title": "Feature not included",
+          "body": "Your existing data was kept and shows up again as soon as the feature is added to your plan."
+        }
+      },
+      "suspended": {
+        "manager": {
+          "title": "Your account is suspended",
+          "body": "Access to the dashboard is unavailable while the subscription is suspended. Your data and settings were kept.",
+          "billingHint": "The next step is the subscription area, where you settle the account to reactivate it.",
+          "signOut": "Sign out"
+        }
+      }
     }
   }
 }

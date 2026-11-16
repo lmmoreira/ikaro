@@ -5,12 +5,33 @@ import type { DashboardShellContext } from '@/shells/dashboard/model/dashboard-s
 import { useDashboardTopbarStatus } from './topbar-status-context';
 import { DashboardLayoutShell } from './DashboardLayoutShell';
 
+vi.mock('@/features/billing/components/FeatureGate', () => ({
+  FeatureGate: ({
+    feature,
+    lockedFeatures,
+    children,
+  }: {
+    readonly feature: string | null;
+    readonly lockedFeatures: readonly string[];
+    readonly children: React.ReactNode;
+  }) => (
+    <div
+      data-testid="feature-gate"
+      data-feature={feature ?? ''}
+      data-locked-features={lockedFeatures.join(',')}
+    >
+      {children}
+    </div>
+  ),
+}));
+
 vi.mock('./DashboardShell', () => ({
   DashboardShell: ({
     tenantName,
     userName,
     role: dashboardRole,
     leadFormEnabled,
+    lockedFeatures,
     topbarAction,
     children,
   }: {
@@ -18,6 +39,7 @@ vi.mock('./DashboardShell', () => ({
     readonly userName: string | null;
     readonly role: string;
     readonly leadFormEnabled: boolean;
+    readonly lockedFeatures: readonly string[];
     readonly topbarAction: React.ReactNode;
     readonly children: React.ReactNode;
   }) => (
@@ -27,6 +49,7 @@ vi.mock('./DashboardShell', () => ({
       data-user-name={userName ?? ''}
       data-role={dashboardRole}
       data-lead-form-enabled={String(leadFormEnabled)}
+      data-nav-locked-features={lockedFeatures.join(',')}
     >
       <div data-testid="topbar-action-slot">{topbarAction}</div>
       {children}
@@ -56,6 +79,8 @@ const SHELL: DashboardShellContext = {
     timeFormat: '24h',
   },
   leadFormEnabled: false,
+  lockedFeatures: [],
+  routeFeature: null,
 };
 
 describe('DashboardLayoutShell', () => {
@@ -92,6 +117,24 @@ describe('DashboardLayoutShell', () => {
     expect(screen.getByTestId('dashboard-shell')).toHaveAttribute('data-lead-form-enabled', 'true');
   });
 
+  it('gates the children on the route feature and forwards the locked features to the nav', () => {
+    render(
+      <DashboardLayoutShell
+        shell={{ ...SHELL, routeFeature: 'BOOKING', lockedFeatures: ['BOOKING'] }}
+      >
+        <p>children</p>
+      </DashboardLayoutShell>,
+    );
+
+    const gate = screen.getByTestId('feature-gate');
+    expect(gate).toHaveAttribute('data-feature', 'BOOKING');
+    expect(gate).toHaveAttribute('data-locked-features', 'BOOKING');
+    expect(screen.getByTestId('dashboard-shell')).toHaveAttribute(
+      'data-nav-locked-features',
+      'BOOKING',
+    );
+  });
+
   it('forwards topbarAction into the topbar action slot', () => {
     render(
       <DashboardLayoutShell shell={SHELL} topbarAction={<button>+ Convidar membro</button>}>
@@ -100,6 +143,32 @@ describe('DashboardLayoutShell', () => {
     );
 
     expect(screen.getByTestId('topbar-action-slot')).toHaveTextContent('+ Convidar membro');
+  });
+
+  it('drops the topbar action while the route is locked, with the page it belongs to', () => {
+    render(
+      <DashboardLayoutShell
+        shell={{ ...SHELL, routeFeature: 'BOOKING', lockedFeatures: ['BOOKING'] }}
+        topbarAction={<button>+ Novo serviço</button>}
+      >
+        <p>children</p>
+      </DashboardLayoutShell>,
+    );
+
+    expect(screen.getByTestId('topbar-action-slot')).toBeEmptyDOMElement();
+  });
+
+  it('keeps the topbar action when the route feature is entitled', () => {
+    render(
+      <DashboardLayoutShell
+        shell={{ ...SHELL, routeFeature: 'BOOKING', lockedFeatures: ['LOYALTY'] }}
+        topbarAction={<button>+ Novo serviço</button>}
+      >
+        <p>children</p>
+      </DashboardLayoutShell>,
+    );
+
+    expect(screen.getByTestId('topbar-action-slot')).toHaveTextContent('+ Novo serviço');
   });
 
   it('seeds the topbar status provider from topbarStatusProps', () => {

@@ -104,6 +104,16 @@ function collectSchemaErrors(
   }
 }
 
+// A tenant without the CHATBOT feature cannot use its settings, and a save must never write
+// `chatbot.*` over what the manager already stored (UC-125 A2: preserved, inert until the feature
+// is back). The whole `chatbot` key is left out of the PATCH, which the backend merges, so the
+// stored values stay untouched (M25-S29).
+export function withoutChatbotSettings(
+  settings: NormalizedSettingsForm['settings'],
+): NormalizedSettingsForm['settings'] {
+  return Object.fromEntries(Object.entries(settings).filter(([key]) => key !== 'chatbot'));
+}
+
 function buildNormalizedSettings(
   parsed: z.infer<typeof SettingsFormSchema>,
   values: SettingsFormValues,

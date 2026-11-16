@@ -41,6 +41,7 @@ import { executeHotsitePublish } from './hotsite-editor-publish';
 import { applyModuleConfig } from './hotsite-module-buffer';
 import { useHotsiteTemplateApplication } from './useHotsiteTemplateApplication';
 import { useModuleConfigDiscard } from './useModuleConfigDiscard';
+import { useLockedModulePanel } from './locked-module-panels-context';
 
 interface HotsiteEditorProps {
   readonly initial: HotsiteAdminContentResponse;
@@ -83,7 +84,10 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
   const unpublishHotsite = useUnpublishHotsite();
   const isPublishing = updateConfig.isPending || publishHotsite.isPending;
   const [leadFormConfigDraft, setLeadFormConfigDraft] = useState<LeadFormConfigDraft | null>(null);
-  const leadFormConfig = useLeadFormConfig();
+  // A tenant without LEAD_FORM gets a locked card in place of the panel (UC-125), and the backend
+  // would refuse this read, so it is not made.
+  const leadFormLocked = useLockedModulePanel('LEAD_FORM') !== undefined;
+  const leadFormConfig = useLeadFormConfig(!leadFormLocked);
   // The dirty-check baseline for LEAD_FORM: the same shape LeadFormConfigPanel's own draft
   // converges to once its GET fetch resolves (audienceMode/questions, sans hasSubmissions — a
   // read-only annotation, never something the manager edits). Without this, cancelModuleConfig's
