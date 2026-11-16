@@ -38,6 +38,12 @@ export class InMemoryLoyaltyPlatformPort implements ILoyaltyPlatformPort {
     return this;
   }
 
+  /** Lets the settings read for one tenant succeed again, like Platform recovering before a redelivery. */
+  clearFailureForTenant(tenantId: string): this {
+    this.failureByTenant.delete(tenantId);
+    return this;
+  }
+
   async getLoyaltySettings(tenantId: string): Promise<LoyaltyTenantSettings> {
     const failure = this.failureByTenant.get(tenantId);
     if (failure) throw failure;

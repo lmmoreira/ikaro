@@ -1,33 +1,23 @@
 import { Injectable } from '@nestjs/common';
 import { GetTenantByIdUseCase } from '../../../platform/application/use-cases/get-tenant-by-id.use-case';
-import { TenantNotFoundError } from '../../../platform/domain/errors/platform-domain.error';
 import {
   ILoyaltyPlatformPort,
   LoyaltyTenantSettings,
 } from '../../application/ports/loyalty-platform.port';
 
-const DEFAULTS: LoyaltyTenantSettings = {
-  expiryDays: 180,
-  notificationMinPoints: 50,
-  pointsPerCurrencyUnit: 0,
-};
-
+// Fails closed: every failure of the tenant read, a missing tenant included, propagates to the caller
+// (the BookingCompleted handler nacks and Pub/Sub retries; the warning job isolates that tenant). It
+// never substitutes default settings, which would store a wrong expiry or a zero conversion rate.
 @Injectable()
 export class LoyaltyPlatformAdapter implements ILoyaltyPlatformPort {
   constructor(private readonly getTenantById: GetTenantByIdUseCase) {}
 
   async getLoyaltySettings(tenantId: string): Promise<LoyaltyTenantSettings> {
-    try {
-      const result = await this.getTenantById.execute({ tenantId });
-      return {
-        expiryDays: result.settings.loyalty.expiryDays,
-        notificationMinPoints: result.settings.loyalty.notificationMinPoints,
-        pointsPerCurrencyUnit: result.settings.loyalty.pointsPerCurrencyUnit,
-      };
-    } catch (err) {
-      // Only a genuine "no such tenant" falls back to the defaults; any other failure must propagate.
-      if (err instanceof TenantNotFoundError) return { ...DEFAULTS };
-      throw err;
-    }
+    const result = await this.getTenantById.execute({ tenantId });
+    return {
+      expiryDays: result.settings.loyalty.expiryDays,
+      notificationMinPoints: result.settings.loyalty.notificationMinPoints,
+      pointsPerCurrencyUnit: result.settings.loyalty.pointsPerCurrencyUnit,
+    };
   }
 }

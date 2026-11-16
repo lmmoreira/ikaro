@@ -134,4 +134,53 @@ describe('CompleteBookingLoyaltyEffectsUseCase (integration, TD24-S03 §12.3 re-
     const entriesAfterRetry = await entryRepo.findByCustomerPaginated(tenantId, customerId, 1, 20);
     expect(entriesAfterRetry.total).toBe(1);
   });
+
+  // TD60-S02: the settings read fails closed. Before it, a missing tenant fell back to made-up defaults
+  // (180 days, rate 0); now a failed read nacks the event and the redelivery uses the tenant's own values.
+  it('writes nothing while the settings read fails, then the redelivery stores the tenant expiryDays and leaves another tenant alone', async () => {
+    const tenantId = uuidv7();
+    const otherTenantId = uuidv7();
+    const customerId = uuidv7();
+    const dto = makeDto(tenantId, customerId);
+    const otherDto = makeDto(otherTenantId, customerId);
+    const settings = new InMemoryLoyaltyPlatformPort()
+      .withExpiryDays(90)
+      .withPointsPerCurrencyUnit(10)
+      .withFailureForTenant(tenantId);
+    const useCase = new CompleteBookingLoyaltyEffectsUseCase(
+      entryRepo,
+      balanceRepo,
+      redemptionRepo,
+      inboxRepo,
+      settings,
+      new InMemoryEventBus(),
+      txManager,
+      new InMemoryTenantAccessPort(),
+    );
+
+    await expect(useCase.execute(dto)).rejects.toThrow('settings read failed');
+
+    expect(await balanceRepo.findByCustomer(tenantId, customerId)).toBeNull();
+    expect(
+      await inboxRepo.hasBeenProcessed(
+        dto.eventId,
+        CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME,
+      ),
+    ).toBe(false);
+    expect((await entryRepo.findByCustomerPaginated(tenantId, customerId, 1, 20)).total).toBe(0);
+    expect((await redemptionRepo.findByCustomer(tenantId, customerId, 1, 20)).items).toHaveLength(
+      0,
+    );
+
+    await useCase.execute(otherDto);
+    settings.clearFailureForTenant(tenantId);
+    await useCase.execute(dto);
+
+    const { items } = await entryRepo.findByCustomerPaginated(tenantId, customerId, 1, 20);
+    expect(items).toHaveLength(1);
+    const days = (items[0].expiresAt.getTime() - items[0].earnedAt.getTime()) / 86_400_000;
+    expect(days).toBe(90);
+    const other = await entryRepo.findByCustomerPaginated(otherTenantId, customerId, 1, 20);
+    expect(other.total).toBe(1);
+  });
 });
