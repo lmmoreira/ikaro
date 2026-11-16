@@ -51,11 +51,13 @@ const MANAGER_NAV_KEYS = [
   { href: '/dashboard/hotsite', labelKey: 'nav.hotsite', Icon: Globe },
 ] as const;
 
-function navItemClass(active: boolean, locked: boolean): string {
+// A locked item keeps the label colour of any inactive item: dimming the whole link would stack
+// on the already muted label and fall below readable contrast. The padlock and the dimmed icon
+// carry the locked cue.
+function navItemClass(active: boolean): string {
   return cn(
     'flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition-colors',
     active ? 'bg-blue-600 text-white' : 'text-white/60 hover:bg-white/[0.07] hover:text-white/90',
-    locked && 'opacity-60',
   );
 }
 
@@ -99,9 +101,9 @@ export function Sidebar({
                 href={href}
                 data-testid={href === LEADS_NAV_ITEM.href ? 'sidebar-nav-leads' : undefined}
                 data-locked={locked ? 'true' : undefined}
-                className={navItemClass(pathname.startsWith(href), locked)}
+                className={navItemClass(pathname.startsWith(href))}
               >
-                <Icon className="h-4 w-4 shrink-0" />
+                <Icon className={cn('h-4 w-4 shrink-0', locked && 'opacity-60')} />
                 {t(labelKey)}
                 {locked ? <NavLockMark className="ml-auto" /> : null}
               </Link>
@@ -133,9 +135,9 @@ export function Sidebar({
                     href === '/dashboard/resources' ? 'sidebar-nav-resources' : undefined
                   }
                   data-locked={locked ? 'true' : undefined}
-                  className={navItemClass(pathname.startsWith(href), locked)}
+                  className={navItemClass(pathname.startsWith(href))}
                 >
-                  <Icon className="h-4 w-4 shrink-0" />
+                  <Icon className={cn('h-4 w-4 shrink-0', locked && 'opacity-60')} />
                   {t(labelKey)}
                   {locked ? <NavLockMark className="ml-auto" /> : null}
                 </Link>

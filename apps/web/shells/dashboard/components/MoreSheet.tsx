@@ -84,10 +84,7 @@ export function MoreSheet({
             href="/dashboard/leads"
             onClick={onClose}
             data-locked={leadsLocked ? 'true' : undefined}
-            className={cn(
-              'mt-2 flex items-center gap-[0.875rem] px-5 py-[0.875rem] text-[0.9375rem] font-medium text-gray-900 transition-colors active:bg-blue-50',
-              leadsLocked && 'opacity-60',
-            )}
+            className="mt-2 flex items-center gap-[0.875rem] px-5 py-[0.875rem] text-[0.9375rem] font-medium text-gray-900 transition-colors active:bg-blue-50"
           >
             <FileText className="h-5 w-5 shrink-0 opacity-60" />
             {t('nav.leads')}
@@ -115,10 +112,7 @@ export function MoreSheet({
                   href={href}
                   onClick={onClose}
                   data-locked={locked ? 'true' : undefined}
-                  className={cn(
-                    'flex items-center gap-[0.875rem] px-5 py-[0.875rem] text-[0.9375rem] font-medium text-gray-900 transition-colors active:bg-blue-50',
-                    locked && 'opacity-60',
-                  )}
+                  className="flex items-center gap-[0.875rem] px-5 py-[0.875rem] text-[0.9375rem] font-medium text-gray-900 transition-colors active:bg-blue-50"
                 >
                   <Icon className="h-5 w-5 shrink-0 opacity-60" />
                   {t(labelKey)}

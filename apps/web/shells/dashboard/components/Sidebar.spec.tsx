@@ -342,7 +342,8 @@ describe('Sidebar — locked items (UC-125)', () => {
     const item = screen.getByRole('link', { name: /Fidelidade/ });
     expect(item).toHaveAttribute('href', '/dashboard/loyalty');
     expect(item).toHaveAttribute('data-locked', 'true');
-    expect(item).toHaveClass('opacity-60');
+    // The label keeps the colour of any inactive item; only the icon is dimmed.
+    expect(item).not.toHaveClass('opacity-60');
     expect(screen.getAllByTestId('nav-lock')).toHaveLength(1);
   });
 

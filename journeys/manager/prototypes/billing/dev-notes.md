@@ -341,7 +341,7 @@ New screens: `11-billing-active-annual`, `12-addon-midyear-confirm`, `13-cancel-
 
 ## Locked feature — Configurações, Chatbot não contratado (`03-locked-feature.html`; `SettingsForm` Chatbot section + `FeatureGate` locked state)
 
-File: `03-locked-feature.html` — Status: `SettingsForm` EXISTS (Chatbot section is a GAP in journeys 01d); `FeatureGate` (locked state), `DashboardSidebar`/bottom-nav lock state = GAP.
+File: `03-locked-feature.html` — Status: EXISTS (M25-S29): `SettingsForm` swaps its Chatbot section for the locked card (`LockedFeatureCard`, passed in by the settings page), and the sidebar, bottom nav and "Mais" sheet draw the padlock (`NavLockMark`). Built **without** the "Contratar este recurso", "Ver minha assinatura" and "Falar com a gente" actions: M26 adds them.
 Props: `feature: 'CHATBOT'`, `tier?: 'BASIC'|'PLUS'` (copy mentions tiers), `lockedFeatures: FeatureKey[]` on sidebar/bottom nav.
 BFF: `GET /v1/billing/access`. No settings write while locked; stored `chatbot.*` settings are kept untouched.
 Behaviour: locked sidebar / bottom-nav entries keep their real href and show a padlock (never hidden); the Fidelidade entry here points to `03b-locked-feature-direct-url.html`. Chatbot form fields are not rendered while locked.
@@ -351,7 +351,7 @@ Mobile: padlock on the tab icon; card stacks icon above text; "Mais" sheet uncha
 
 ## Locked feature — recurso bloqueado por URL direta (`03b-locked-feature-direct-url.html`; `LockedFeaturePage`)
 
-File: `03b-locked-feature-direct-url.html` — Status: GAP.
+File: `03b-locked-feature-direct-url.html` — Status: EXISTS (M25-S29): `FeatureGate` renders `LockedFeaturePage` instead of `{children}` in each section layout, on the server. Built **without** the buy actions (M26 adds them).
 Props: `feature: FeatureKey`. Rendered by the route guard of each feature route (HTTP 200 with the upsell, not 404 or redirect); API calls for the feature are rejected by the backend (`BILLING_FEATURE_NOT_ENTITLED`, 403, M25-S16).
 BFF: `GET /v1/billing/access`.
 States: loaded-locked (this file); loading / load-error as for any dashboard route.

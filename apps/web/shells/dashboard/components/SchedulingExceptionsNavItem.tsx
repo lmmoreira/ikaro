@@ -53,10 +53,9 @@ function SidebarLink({
         active
           ? 'bg-blue-600 text-white'
           : 'text-white/60 hover:bg-white/[0.07] hover:text-white/90',
-        locked && 'opacity-60',
       )}
     >
-      <AlertTriangle className="h-4 w-4 shrink-0" />
+      <AlertTriangle className={cn('h-4 w-4 shrink-0', locked && 'opacity-60')} />
       {t('nav.schedulingExceptions')}
       {locked ? <NavLockMark className="ml-auto" /> : null}
       {count > 0 ? (
@@ -112,10 +111,7 @@ function SheetLink({
       onClick={onClose}
       data-testid="more-sheet-scheduling-exceptions"
       data-locked={locked ? 'true' : undefined}
-      className={cn(
-        'flex items-center gap-[0.875rem] px-5 py-[0.875rem] text-[0.9375rem] font-medium text-gray-900 transition-colors active:bg-blue-50',
-        locked && 'opacity-60',
-      )}
+      className="flex items-center gap-[0.875rem] px-5 py-[0.875rem] text-[0.9375rem] font-medium text-gray-900 transition-colors active:bg-blue-50"
     >
       <AlertTriangle className="h-5 w-5 shrink-0 opacity-60" />
       {t('nav.schedulingExceptions')}

@@ -78,11 +78,13 @@ export function BottomNav({
   )
     return null;
 
-  const itemClass = (active: boolean, locked = false) =>
+  // A locked tab keeps the label colour of any inactive tab: dimming the whole link would stack on
+  // the already muted label and fall below readable contrast. The padlock and the dimmed icon carry
+  // the locked cue.
+  const itemClass = (active: boolean) =>
     cn(
       'relative flex flex-1 flex-col items-center justify-center gap-1 px-1 py-2 text-[0.625rem] font-semibold tracking-[0.02em] transition-colors',
       active ? 'text-blue-600' : 'text-gray-900/40',
-      locked && 'opacity-60',
     );
   // The "Mais" sheet holds Leads, so a tenant whose Leads item is shown locked still opens it.
   const leadsVisible = leadFormEnabled || lockedFeatures.includes('LEAD_FORM');
@@ -100,9 +102,9 @@ export function BottomNav({
             key={href}
             href={href}
             data-locked={locked ? 'true' : undefined}
-            className={itemClass(isActive, locked)}
+            className={itemClass(isActive)}
           >
-            <Icon className="h-[1.375rem] w-[1.375rem] shrink-0" />
+            <Icon className={cn('h-[1.375rem] w-[1.375rem] shrink-0', locked && 'opacity-60')} />
             {t(labelKey)}
             {locked ? <NavLockMark className="absolute right-3 top-1" /> : null}
           </Link>
