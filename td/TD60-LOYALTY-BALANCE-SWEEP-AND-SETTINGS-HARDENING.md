@@ -52,7 +52,7 @@ Story 1 builds on Story 0: Story 0 adds the batched, transaction-aware processed
 
 ---
 
-### TD60 Story 0 — Lock the loyalty balance row in all three writers (H7)
+### TD60 Story 0 — Lock the loyalty balance row in all three writers (H7) ✅ Done
 
 **Agent:** backend-ts
 **Complexity:** M
