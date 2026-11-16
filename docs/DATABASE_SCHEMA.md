@@ -1173,11 +1173,11 @@ ON CONFLICT (entry_id) DO NOTHING;
 Partial-failure safe: each customer's decrement and its log rows commit together, so if the cron crashes after 5 of 10 customers the next run only reprocesses the rest.
 
 ### `loyalty.expiry_sweep_state`
-The expiry sweep's watermark (TD60-S01): a single row whose `processed_through` is the run start of the last fully successful sweep. **Invariant:** after a run that did not throw, every entry with `expires_at <= processed_through` is in `loyalty.balance_expiry_log`. The sweep therefore reads only `(processed_through - 1 day, runStart]`, and the cost of its read depends on the entries due since the last good run, not on how much history exists. The row has no `tenant_id` (the sweep is system-wide, like `balance_expiry_log`).
+The expiry sweep's watermark (TD60-S01): one row (keyed by job name, `loyalty-expiry-sweep`) whose `processed_through` is the run start of the last fully successful sweep. **Invariant:** after a run that did not throw, every entry with `expires_at <= processed_through` is in `loyalty.balance_expiry_log`. The sweep therefore reads only `(processed_through - 1 day, runStart]`, and the cost of its read depends on the entries due since the last good run, not on how much history exists. The table has no `tenant_id` (the sweep is system-wide, like `balance_expiry_log`) and is keyed by a descriptive name rather than a UUID because its rows are not entities, the same way `platform.chatbot_provider_balance` is keyed by provider.
 
 | Column | Type | Constraints |
 |--------|------|-------------|
-| id | SMALLINT | PRIMARY KEY, DEFAULT 1, `CHK_expiry_sweep_state_single_row` CHECK (id = 1) |
+| job_name | VARCHAR(64) | PRIMARY KEY — `'loyalty-expiry-sweep'` |
 | processed_through | TIMESTAMP WITH TIME ZONE | NOT NULL |
 | updated_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
 

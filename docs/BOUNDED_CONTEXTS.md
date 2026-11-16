@@ -241,7 +241,7 @@ Notification Context subscribes:
 - `loyalty_balances` — UNIQUE(tenant_id, customer_id); current_points CHECK >= 0
 - `loyalty_redemptions` — INSERT-only
 - `balance_expiry_log` — PK(entry_id), no `tenant_id` column — idempotency for cron
-- `expiry_sweep_state` — single row, no `tenant_id` column — the sweep's watermark
+- `expiry_sweep_state` — PK(job_name), no `tenant_id` column — the sweep's watermark
 - Event consumer dedup lives in `shared.inbox` (TD24-S04) — not a per-context table
 - See `docs/DATABASE_SCHEMA.md` for full column definitions.
 

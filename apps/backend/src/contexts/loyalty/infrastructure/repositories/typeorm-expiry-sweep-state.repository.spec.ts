@@ -3,7 +3,10 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ExpirySweepStateEntityBuilder } from '../../../../test/builders/loyalty/index';
 import { ExpirySweepStateEntity } from '../entities/expiry-sweep-state.entity';
-import { TypeOrmExpirySweepStateRepository } from './typeorm-expiry-sweep-state.repository';
+import {
+  EXPIRY_SWEEP_JOB_NAME,
+  TypeOrmExpirySweepStateRepository,
+} from './typeorm-expiry-sweep-state.repository';
 
 describe('TypeOrmExpirySweepStateRepository', () => {
   let repo: TypeOrmExpirySweepStateRepository;
@@ -29,7 +32,9 @@ describe('TypeOrmExpirySweepStateRepository', () => {
       ormRepo.findOne.mockResolvedValue(null);
 
       expect(await repo.getProcessedThrough()).toBeNull();
-      expect(ormRepo.findOne).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(ormRepo.findOne).toHaveBeenCalledWith({
+        where: { jobName: EXPIRY_SWEEP_JOB_NAME },
+      });
     });
 
     it('returns the stored instant', async () => {
@@ -49,9 +54,9 @@ describe('TypeOrmExpirySweepStateRepository', () => {
       await repo.advanceTo(next);
 
       const [sql, params] = (ormRepo.query as jest.Mock).mock.calls[0] as [string, unknown[]];
-      expect(sql).toContain('ON CONFLICT (id) DO UPDATE');
+      expect(sql).toContain('ON CONFLICT (job_name) DO UPDATE');
       expect(sql).toContain('GREATEST');
-      expect(params).toEqual([1, next]);
+      expect(params).toEqual([EXPIRY_SWEEP_JOB_NAME, next]);
     });
   });
 });

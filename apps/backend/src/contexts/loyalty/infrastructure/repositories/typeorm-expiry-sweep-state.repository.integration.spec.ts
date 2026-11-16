@@ -1,10 +1,14 @@
 import { DataSource } from 'typeorm';
+import { ExpirySweepStateEntityBuilder } from '../../../../test/builders/loyalty/index';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { ExpirySweepStateEntity } from '../entities/expiry-sweep-state.entity';
-import { TypeOrmExpirySweepStateRepository } from './typeorm-expiry-sweep-state.repository';
+import {
+  EXPIRY_SWEEP_JOB_NAME,
+  TypeOrmExpirySweepStateRepository,
+} from './typeorm-expiry-sweep-state.repository';
 
-// loyalty.expiry_sweep_state is one global row, so this is the only suite that touches the real
-// table: every other spec that runs the sweep uses the in-memory double. The row is deleted before
+// loyalty.expiry_sweep_state holds the sweep's one global watermark row, so this is the only suite
+// that touches the real table: every other spec that runs the sweep uses the in-memory double. The row is deleted before
 // and after each test so a reused database never carries a watermark into another run.
 describe('TypeOrmExpirySweepStateRepository (integration)', () => {
   let dataSource: DataSource;
@@ -55,22 +59,28 @@ describe('TypeOrmExpirySweepStateRepository (integration)', () => {
     expect(await repo.getProcessedThrough()).toEqual(later);
   });
 
-  it('keeps a single row however many times it advances', async () => {
+  it('keeps a single row for the job however many times it advances', async () => {
     await repo.advanceTo(new Date('2031-06-01T02:00:00.000Z'));
     await repo.advanceTo(new Date('2031-06-02T02:00:00.000Z'));
 
     const [{ count }] = await dataSource.query<{ count: string }[]>(
-      `SELECT count(*) FROM "loyalty"."expiry_sweep_state"`,
+      `SELECT count(*) FROM "loyalty"."expiry_sweep_state" WHERE job_name = $1`,
+      [EXPIRY_SWEEP_JOB_NAME],
     );
     expect(Number(count)).toBe(1);
   });
 
-  it('refuses a second row (the table is a singleton)', async () => {
-    await expect(
-      dataSource.query(
-        `INSERT INTO "loyalty"."expiry_sweep_state" (id, processed_through) VALUES (2, now())`,
-      ),
-    ).rejects.toThrow();
+  it("does not read another job's row as the sweep's watermark", async () => {
+    await dataSource
+      .getRepository(ExpirySweepStateEntity)
+      .insert(
+        new ExpirySweepStateEntityBuilder()
+          .withJobName('some-other-job')
+          .withProcessedThrough(new Date('2031-06-05T02:00:00.000Z'))
+          .build(),
+      );
+
+    expect(await repo.getProcessedThrough()).toBeNull();
   });
 
   it('resets to a full rescan when the row is deleted', async () => {

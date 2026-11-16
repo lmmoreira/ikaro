@@ -1,10 +1,11 @@
 import { Column, Entity, PrimaryColumn } from 'typeorm';
 
-// A single fixed row (id = 1): the expiry sweep's watermark. No tenant_id, the sweep is system-wide.
+// The expiry sweep's watermark, one row per job (keyed by name, like
+// platform.chatbot_provider_balance is keyed by provider). No tenant_id: the sweep is system-wide.
 @Entity('expiry_sweep_state', { schema: 'loyalty' })
 export class ExpirySweepStateEntity {
-  @PrimaryColumn({ type: 'smallint' })
-  id!: number;
+  @PrimaryColumn({ name: 'job_name', type: 'varchar', length: 64 })
+  jobName!: string;
 
   @Column({ name: 'processed_through', type: 'timestamptz' })
   processedThrough!: Date;
