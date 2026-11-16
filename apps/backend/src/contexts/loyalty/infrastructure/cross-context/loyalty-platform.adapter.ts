@@ -5,7 +5,7 @@ import {
   LoyaltyTenantSettings,
 } from '../../application/ports/loyalty-platform.port';
 
-// Fails closed: any failure of the tenant read, a missing tenant included, propagates to the caller
+// Fails closed: every failure of the tenant read, a missing tenant included, propagates to the caller
 // (the BookingCompleted handler nacks and Pub/Sub retries; the warning job isolates that tenant). It
 // never substitutes default settings, which would store a wrong expiry or a zero conversion rate.
 @Injectable()
