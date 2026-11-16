@@ -225,6 +225,12 @@ export const NOTIFICATION_TEMPLATE_KEY_MAPPING = {
       'tenantName',
     ],
   },
+  // M25-S28: sent when a tenant becomes unavailable; the wording never says why (UC-121 O-B1).
+  [NotificationTemplateKey.TENANT_UNAVAILABLE_CUSTOMER]: {
+    eventName: 'TenantUnavailableNoticeDue',
+    recipientType: 'customer',
+    variables: ['customerName', 'tenantName'],
+  },
 } as const satisfies Record<NotificationTemplateKey, NotificationTemplateKeyMapping>;
 
 // The variables object a use case must supply for one or more templates: every placeholder of each

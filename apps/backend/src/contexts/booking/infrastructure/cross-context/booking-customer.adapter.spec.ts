@@ -53,4 +53,10 @@ describe('BookingCustomerAdapter', () => {
 
     expect(result).toBeNull();
   });
+
+  it('rethrows an unexpected failure instead of reporting the customer missing', async () => {
+    getCustomerById.execute.mockRejectedValue(new Error('DB error'));
+
+    await expect(adapter.findById(CUSTOMER_ID, TENANT_ID)).rejects.toThrow('DB error');
+  });
 });

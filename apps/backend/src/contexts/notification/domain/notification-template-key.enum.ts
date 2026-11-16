@@ -27,4 +27,5 @@ export enum NotificationTemplateKey {
   RECURRING_SCHEDULE_RENEWAL_DUE_CUSTOMER = 'recurring-schedule-renewal-due-customer',
   RESOURCE_DEACTIVATION_IMPACT_ADMIN = 'resource-deactivation-impact-admin',
   BOOKING_RESOURCE_REASSIGNED_CUSTOMER = 'booking-resource-reassigned-customer',
+  TENANT_UNAVAILABLE_CUSTOMER = 'tenant-unavailable-customer',
 }

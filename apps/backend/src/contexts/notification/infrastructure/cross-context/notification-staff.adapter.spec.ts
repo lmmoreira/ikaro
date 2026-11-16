@@ -49,12 +49,10 @@ describe('NotificationStaffAdapter', () => {
     expect(result).toBeNull();
   });
 
-  it('returns null when any error is thrown', async () => {
+  it('rethrows an unexpected failure instead of reporting the staff member missing', async () => {
     getStaffById.execute.mockRejectedValue(new Error('DB error'));
 
-    const result = await adapter.getStaffInfo(STAFF_ID, TENANT_ID);
-
-    expect(result).toBeNull();
+    await expect(adapter.getStaffInfo(STAFF_ID, TENANT_ID)).rejects.toThrow('DB error');
   });
 
   it('maps manager staff results to email addresses', async () => {

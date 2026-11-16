@@ -2,6 +2,7 @@ import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-even
 import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
 import { TenantJobRunner } from '../../../../shared/application/jobs/tenant-job-runner';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
+import { OUTBOX_PUBLISH_CHUNK_SIZE } from '../../../../shared/utils/publish-to-outbox-in-chunks';
 import { InMemoryTenantDirectoryPort } from '../../../../test/infrastructure/in-memory-tenant-directory.port';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryBookingCustomerPort } from '../../../../test/infrastructure/in-memory-booking-customer.port';
@@ -38,6 +39,7 @@ describe('BookingReminderJob', () => {
   let bookingRepo: InMemoryBookingRepository;
   let customerProfilePort: InMemoryBookingCustomerPort;
   let outboxPublisher: InMemoryEventBus;
+  let txManager: InMemoryTransactionManager;
   let job: BookingReminderJob;
 
   beforeEach(() => {
@@ -46,16 +48,39 @@ describe('BookingReminderJob', () => {
     bookingRepo = new InMemoryBookingRepository();
     customerProfilePort = new InMemoryBookingCustomerPort();
     outboxPublisher = new InMemoryEventBus();
+    txManager = new InMemoryTransactionManager();
     job = new BookingReminderJob(
       new TenantJobRunner(directory, access),
       bookingRepo,
       customerProfilePort,
       outboxPublisher,
-      new InMemoryTransactionManager(),
+      txManager,
     );
   });
 
   afterEach(() => jest.resetAllMocks());
+
+  it('writes a tenant with more bookings than one chunk in several transactions', async () => {
+    directory.seed([{ id: TENANT_IN, timezone: 'UTC' }]);
+    const bookingCount = OUTBOX_PUBLISH_CHUNK_SIZE + 1;
+    for (let i = 0; i < bookingCount; i++) {
+      await bookingRepo.save(
+        new BookingBuilder()
+          .withTenantId(TENANT_IN)
+          .withStatus(BookingStatus.APPROVED)
+          .withScheduledAt(TOMORROW)
+          .withLines([new BookingLineBuilder().withServiceId(SERVICE_ID).build()])
+          .build(),
+      );
+    }
+
+    await job.run(NOW_IN);
+
+    expect(
+      outboxPublisher.published.filter((e) => e.eventName === 'BookingReminderDue'),
+    ).toHaveLength(bookingCount);
+    expect(txManager.runCallCount).toBe(2);
+  });
 
   it('emits BookingReminderDue for APPROVED booking scheduled tomorrow', async () => {
     directory.seed([{ id: TENANT_IN, timezone: 'UTC' }]);

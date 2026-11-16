@@ -57,7 +57,8 @@
         "source": "apps/backend/src/contexts/booking/infrastructure/cross-context/booking-customer.adapter.ts",
         "target": "customer",
         "targetPaths": [
-          "apps/backend/src/contexts/customer/application/use-cases/get-customer-by-id.use-case.ts"
+          "apps/backend/src/contexts/customer/application/use-cases/get-customer-by-id.use-case.ts",
+          "apps/backend/src/contexts/customer/domain/errors/customer-domain.error.ts"
         ],
         "rationale": "Booking reads customer data through the existing cross-context adapter.",
         "owner": "booking"
@@ -91,7 +92,8 @@
         "target": "booking",
         "targetPaths": [
           "apps/backend/src/contexts/booking/application/use-cases/get-booking-by-id.use-case.ts",
-          "apps/backend/src/contexts/booking/application/use-cases/get-services.use-case.ts"
+          "apps/backend/src/contexts/booking/application/use-cases/get-services.use-case.ts",
+          "apps/backend/src/contexts/booking/domain/errors/booking-domain.error.ts"
         ],
         "rationale": "Loyalty consumes booking facts through the existing adapter.",
         "owner": "loyalty"
@@ -109,7 +111,8 @@
         "source": "apps/backend/src/contexts/loyalty/infrastructure/cross-context/loyalty-platform.adapter.ts",
         "target": "platform",
         "targetPaths": [
-          "apps/backend/src/contexts/platform/application/use-cases/get-tenant-by-id.use-case.ts"
+          "apps/backend/src/contexts/platform/application/use-cases/get-tenant-by-id.use-case.ts",
+          "apps/backend/src/contexts/platform/domain/errors/platform-domain.error.ts"
         ],
         "rationale": "Loyalty reads platform settings through the existing adapter.",
         "owner": "loyalty"
@@ -127,7 +130,8 @@
         "source": "apps/backend/src/contexts/notification/infrastructure/cross-context/notification-customer.adapter.ts",
         "target": "customer",
         "targetPaths": [
-          "apps/backend/src/contexts/customer/application/use-cases/get-customer-by-id.use-case.ts"
+          "apps/backend/src/contexts/customer/application/use-cases/get-customer-by-id.use-case.ts",
+          "apps/backend/src/contexts/customer/domain/errors/customer-domain.error.ts"
         ],
         "rationale": "Notification reads customer contact data through the existing adapter.",
         "owner": "notification"
@@ -136,7 +140,8 @@
         "source": "apps/backend/src/contexts/notification/infrastructure/cross-context/notification-platform.adapter.ts",
         "target": "platform",
         "targetPaths": [
-          "apps/backend/src/contexts/platform/application/use-cases/get-tenant-by-id.use-case.ts"
+          "apps/backend/src/contexts/platform/application/use-cases/get-tenant-by-id.use-case.ts",
+          "apps/backend/src/contexts/platform/domain/errors/platform-domain.error.ts"
         ],
         "rationale": "Notification reads platform settings through the existing adapter.",
         "owner": "notification"
@@ -146,7 +151,8 @@
         "target": "staff",
         "targetPaths": [
           "apps/backend/src/contexts/staff/application/use-cases/get-staff.use-case.ts",
-          "apps/backend/src/contexts/staff/application/use-cases/get-staff-by-id.use-case.ts"
+          "apps/backend/src/contexts/staff/application/use-cases/get-staff-by-id.use-case.ts",
+          "apps/backend/src/contexts/staff/domain/errors/staff-domain.error.ts"
         ],
         "rationale": "Notification reads staff contact data through the existing adapter.",
         "owner": "notification"
@@ -175,6 +181,16 @@
         "rationale": "Booking reacts to the staff-deactivated domain event to cascade-deactivate the wrapping Resource (M21-S01, UC-048).",
         "owner": "booking",
         "reviewBy": "2026-09-30"
+      },
+      {
+        "source": "apps/backend/src/contexts/booking/infrastructure/events/subscription-suspended-tenant-unavailable.handler.ts",
+        "target": "billing",
+        "targetPaths": [
+          "apps/backend/src/contexts/billing/domain/events/subscription-suspended.event.ts"
+        ],
+        "rationale": "Booking owns the customers, so it consumes SubscriptionSuspended and raises one reason-neutral notice command per affected customer (M25-S28, UC-121 O-B1).",
+        "owner": "booking",
+        "reviewBy": "2027-05-15"
       },
       {
         "source": "apps/backend/src/contexts/platform/infrastructure/events/subscription-suspended-hotsite-revalidation.handler.ts",
@@ -263,6 +279,16 @@
         "rationale": "Notification reacts to the booking-requested domain event.",
         "owner": "notification",
         "reviewBy": "2026-09-30"
+      },
+      {
+        "source": "apps/backend/src/contexts/notification/infrastructure/events/tenant-unavailable-notice.handler.ts",
+        "target": "booking",
+        "targetPaths": [
+          "apps/backend/src/contexts/booking/domain/commands/tenant-unavailable-notice-due.command.ts"
+        ],
+        "rationale": "Notification sends the reason-neutral tenant-unavailable email, one per command raised by Booking for each affected customer (M25-S28, UC-121 O-B1).",
+        "owner": "notification",
+        "reviewBy": "2027-05-15"
       },
       {
         "source": "apps/backend/src/contexts/notification/infrastructure/events/booking-reminder.handler.ts",

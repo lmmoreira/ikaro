@@ -40,6 +40,8 @@ import { AdminScheduleReminderTriggerHandler } from './infrastructure/events/adm
 import { ResourceOccupancyRetentionPurgeTriggerHandler } from './infrastructure/events/resource-occupancy-retention-purge-trigger.handler';
 import { StaffDeactivatedHandler } from './infrastructure/events/staff-deactivated.handler';
 import { TenantProvisionedBookingHandler } from './infrastructure/events/tenant-provisioned.handler';
+import { SubscriptionSuspendedTenantUnavailableHandler } from './infrastructure/events/subscription-suspended-tenant-unavailable.handler';
+import { RaiseTenantUnavailableNoticesUseCase } from './application/use-cases/raise-tenant-unavailable-notices.use-case';
 import { CreateTenantLocationResourceUseCase } from './application/use-cases/create-tenant-location-resource.use-case';
 import { CloseScheduleUseCase } from './application/use-cases/close-schedule.use-case';
 import { ActivateServiceUseCase } from './application/use-cases/activate-service.use-case';
@@ -226,6 +228,8 @@ export const bookingModuleProviders: Provider[] = [
   StaffDeactivatedHandler,
   CreateTenantLocationResourceUseCase,
   TenantProvisionedBookingHandler,
+  RaiseTenantUnavailableNoticesUseCase,
+  SubscriptionSuspendedTenantUnavailableHandler,
   RequestRecurringBookingScheduleUseCase,
   EndRecurringBookingScheduleUseCase,
   ApproveRecurringBookingScheduleUseCase,

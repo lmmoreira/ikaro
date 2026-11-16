@@ -74,6 +74,7 @@ import { SeedFeaturePrices1748500000040 } from '../contexts/billing/infrastructu
 import { BackfillExemptSubscriptions1748500000041 } from '../contexts/billing/infrastructure/migrations/1748500000041-BackfillExemptSubscriptions';
 import { AllowEinTaxIdType1748500000042 } from '../contexts/billing/infrastructure/migrations/1748500000042-AllowEinTaxIdType';
 import { AddExemptToSignupRegistrations1748500000043 } from '../contexts/billing/infrastructure/migrations/1748500000043-AddExemptToSignupRegistrations';
+import { AddTenantUnavailableCustomerTemplate1748500000044 } from '../contexts/notification/infrastructure/migrations/1748500000044-AddTenantUnavailableCustomerTemplate';
 import { FeaturePriceVersionEntity } from '../contexts/billing/infrastructure/entities/feature-price-version.entity';
 import { FeaturePriceEntity } from '../contexts/billing/infrastructure/entities/feature-price.entity';
 import { BillingAccountEntity } from '../contexts/billing/infrastructure/entities/billing-account.entity';
@@ -281,6 +282,7 @@ export default async function globalSetup(): Promise<void> {
       BackfillExemptSubscriptions1748500000041,
       AllowEinTaxIdType1748500000042,
       AddExemptToSignupRegistrations1748500000043,
+      AddTenantUnavailableCustomerTemplate1748500000044,
     ],
     synchronize: false,
     migrationsRun: false,

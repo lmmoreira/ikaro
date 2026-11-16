@@ -230,6 +230,7 @@
     "event": "SubscriptionSuspended",
     "consumers": [
       "audit-log",
+      "fan-out-tenant-unavailable-notice",
       "revalidate-hotsite-on-suspension"
     ]
   },
@@ -241,6 +242,12 @@
       "create-trial-subscription",
       "notification-template-seed",
       "staff"
+    ]
+  },
+  {
+    "event": "TenantUnavailableNoticeDue",
+    "consumers": [
+      "notify-customer-tenant-unavailable"
     ]
   },
   {

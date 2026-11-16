@@ -52,3 +52,4 @@ export { AvailabilityAlertUpdatedEventBuilder } from './availability-alert-updat
 export { AvailabilityAlertCancelledEventBuilder } from './availability-alert-cancelled-event.builder';
 export { AvailabilityAlertExpiredEventBuilder } from './availability-alert-expired-event.builder';
 export { AvailabilityAlertMatchedEventBuilder } from './availability-alert-matched-event.builder';
+export { TenantUnavailableNoticeDueCommandBuilder } from './tenant-unavailable-notice-due-command.builder';

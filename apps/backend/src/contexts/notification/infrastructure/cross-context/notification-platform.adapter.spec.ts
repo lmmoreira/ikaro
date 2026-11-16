@@ -75,4 +75,10 @@ describe('NotificationPlatformAdapter', () => {
 
     expect(result).toBeNull();
   });
+
+  it('rethrows an unexpected failure instead of reporting the tenant missing', async () => {
+    getTenantById.execute.mockRejectedValue(new Error('DB error'));
+
+    await expect(adapter.getTenantInfo(TENANT_ID)).rejects.toThrow('DB error');
+  });
 });

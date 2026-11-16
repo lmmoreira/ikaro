@@ -7,7 +7,7 @@ import {
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
 import { addDaysUTC, utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
-import { mapSequentially } from '../../../../shared/utils/sequential';
+import { publishToOutboxInChunks } from '../../../../shared/utils/publish-to-outbox-in-chunks';
 import { RecurringScheduleRenewalDue } from '../../domain/commands/recurring-schedule-renewal-due.command';
 import { isRenewalReminderDue } from '../services/recurring-schedule-renewal.rules';
 import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
@@ -74,10 +74,11 @@ export class RecurringScheduleRenewalReminderJob extends WindowedTenantJob {
           ),
       );
 
-    // One transaction per tenant batch: a mid-run crash retries only this tenant's un-committed
-    // rows as no-op conflicts on the next tick. Every read above ran before it opened.
-    await this.txManager.run(async () => {
-      await mapSequentially(commands, (command) => this.outboxPublisher.publish(command));
-    });
+    // Bounded chunks per tenant: a mid-run crash retries only the un-committed rows as no-op
+    // conflicts on the next tick. Every read above ran before the first chunk opened.
+    await publishToOutboxInChunks(
+      { txManager: this.txManager, outboxPublisher: this.outboxPublisher },
+      commands,
+    );
   }
 }

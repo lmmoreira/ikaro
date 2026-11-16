@@ -43,11 +43,9 @@ describe('NotificationCustomerAdapter', () => {
     expect(result).toBeNull();
   });
 
-  it('returns null when use case throws', async () => {
+  it('rethrows an unexpected failure instead of reporting the customer missing', async () => {
     getCustomerById.execute.mockRejectedValue(new Error('DB error'));
 
-    const result = await adapter.getCustomerInfo(CUSTOMER_ID, TENANT_ID);
-
-    expect(result).toBeNull();
+    await expect(adapter.getCustomerInfo(CUSTOMER_ID, TENANT_ID)).rejects.toThrow('DB error');
   });
 });

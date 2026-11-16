@@ -31,6 +31,7 @@ describe('declared skipWhenSuspended values (UC-123)', () => {
     'dead-letter.handler.ts', // its envelope may lack a tenantId and it must always run
     'staff-invited.handler.ts', // inviting staff to a suspended tenant is an operator action
     'tenant-provisioned.handler.ts', // template seed
+    'tenant-unavailable-notice.handler.ts', // the tenant is already suspended when each notice arrives (UC-123)
   ]);
 
   describe('Notification', () => {
@@ -56,10 +57,10 @@ describe('declared skipWhenSuspended values (UC-123)', () => {
       },
     );
 
-    it('has 21 send subscriptions declared true and 3 declared false (24 sites)', () => {
+    it('has 21 send subscriptions declared true and 4 declared false (25 sites)', () => {
       const all = files.flatMap((file) => declarations('notification', file));
       expect(all.filter((value) => value === 'skipWhenSuspended true')).toHaveLength(21);
-      expect(all.filter((value) => value === 'skipWhenSuspended false')).toHaveLength(3);
+      expect(all.filter((value) => value === 'skipWhenSuspended false')).toHaveLength(4);
     });
   });
 
@@ -87,12 +88,13 @@ describe('declared skipWhenSuspended values (UC-123)', () => {
       expect(declarations('booking', file)).toEqual(['skipWhenSuspended true']);
     });
 
-    it.each(['staff-deactivated.handler.ts', 'tenant-provisioned.handler.ts'])(
-      '%s is state sync or seeding: skipWhenSuspended false',
-      (file) => {
-        expect(declarations('booking', file)).toEqual(['skipWhenSuspended false']);
-      },
-    );
+    it.each([
+      'staff-deactivated.handler.ts',
+      'tenant-provisioned.handler.ts',
+      'subscription-suspended-tenant-unavailable.handler.ts', // runs because of the suspension (UC-123)
+    ])('%s is state sync, seeding or caused by the suspension: skipWhenSuspended false', (file) => {
+      expect(declarations('booking', file)).toEqual(['skipWhenSuspended false']);
+    });
 
     it('keeps every audit-log subscription running while suspended', () => {
       const declared = declarations('booking', 'booking-audit-log.handler.ts');

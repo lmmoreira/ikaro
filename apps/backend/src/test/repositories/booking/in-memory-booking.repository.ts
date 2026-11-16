@@ -9,7 +9,7 @@ import {
   IBookingRepository,
 } from '../../../contexts/booking/application/ports/booking-repository.port';
 import { IBookingStatusTransitionRepository } from '../../../contexts/booking/application/ports/booking-status-transition-repository.port';
-import { Booking } from '../../../contexts/booking/domain/booking.aggregate';
+import { Booking, BookingStatus } from '../../../contexts/booking/domain/booking.aggregate';
 import { InMemoryBookingStatusTransitionRepository } from './in-memory-booking-status-transition.repository';
 
 export class InMemoryBookingRepository implements IBookingRepository {
@@ -102,6 +102,32 @@ export class InMemoryBookingRepository implements IBookingRepository {
           holdExpiresAt.getTime() <= now.getTime()
         );
       }),
+    );
+  }
+
+  findCustomerIdsWithApprovedBookingsAfter(
+    tenantId: string,
+    after: Date,
+    afterCustomerId: string | null,
+    limit: number,
+  ): Promise<string[]> {
+    const customerIds = new Set<string>();
+    for (const booking of this.store.values()) {
+      if (
+        booking.tenantId === tenantId &&
+        booking.status === BookingStatus.APPROVED &&
+        booking.customerId !== null &&
+        booking.scheduledAt.getTime() > after.getTime()
+      ) {
+        customerIds.add(booking.customerId);
+      }
+    }
+    // Codepoint order, the same as the `>` keyset filter and as Postgres's uuid order for lowercase ids.
+    return Promise.resolve(
+      Array.from(customerIds)
+        .filter((id) => afterCustomerId === null || id > afterCustomerId)
+        .sort((a, b) => Number(a > b) - Number(a < b))
+        .slice(0, limit),
     );
   }
 

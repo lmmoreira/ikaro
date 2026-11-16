@@ -82,7 +82,9 @@ Notification Context subscribes:
 │  │             BookingResourceReassigned,                            │ │
 │  │             BookingReminderDue(Today) / AdminDailyScheduleReminder│ │
 │  │             (commands, not events)                                │ │
-│  │  Consumes:  StaffDeactivated (Staff), TenantProvisioned (Platform)│ │
+│  │  Consumes:  StaffDeactivated (Staff),                             │ │
+│  │             TenantProvisioned (Platform),                         │ │
+│  │             SubscriptionSuspended (Billing)                       │ │
 │  └──────────┬──────────────────────────────────────────┬─────────────┘ │
 │             │ BookingCompleted only                    │ most events    │
 │             ▼                                          ▼               │
@@ -177,7 +179,7 @@ Notification Context subscribes:
 - `BookingCompleted` → consumed by **Loyalty** (inserts LoyaltyEntry per line); **no Notification consumer** (a customer with an account gets the `ServicePointsEarned` email instead)
 - `BookingCancelled` → consumed by Notification and by Booking's own `availability-alert-matching`
 - `BookingRescheduled` → consumed by Notification and by Booking's own `availability-alert-matching`
-- Cron-emitted reminder **commands** (not domain events — `booking/domain/commands/`): `BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder`, `RecurringScheduleRenewalDue` (M23-S21, the renewal reminder for an ending recurring schedule) → all consumed by Notification
+- Cron-emitted reminder **commands** (not domain events — `booking/domain/commands/`): `BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder`, `RecurringScheduleRenewalDue` (M23-S21, the renewal reminder for an ending recurring schedule) → all consumed by Notification; and `TenantUnavailableNoticeDue` (M25-S28, raised by Booking from Billing's `SubscriptionSuspended`, one per affected customer; carries the customer id only) → consumed by Notification
 - `RecurringBookingScheduleCreated`/`ApprovalRequested`/`Rejected`/`Ended` (M23 Cluster 3) → consumed by Notification
 - `AvailabilityAlertCreated`/`Updated`/`Cancelled`/`Expired`/`Matched` (M23 Cluster 3) → `Matched` consumed by Notification; the rest only by the shared `audit-log` consumer
 - `FutureCommitmentExceptionRaised`/`Resolved`/`Dismissed` (M23 Cluster 3) → only the shared `audit-log` consumer, by design. M23-S23 adds two events instead: `ResourceDeactivationImpactRaised` (one manager alert per deactivation) and `BookingResourceReassigned` (customer message on a reassign), each consumed by Notification and the shared `audit-log` consumer
@@ -196,6 +198,7 @@ Notification Context subscribes:
 - `TenantPurgeRequested` *(slice G, deferred; UC-132, UC-141)* → this context is a purge participant: it deletes its own tenant data idempotently and then publishes `TenantPurgeContextCompleted` (see Communication Patterns § 1)
 - `StaffDeactivated` (Staff Context) → UC-048, cascades to the wrapping `STAFF`-type `Resource` (M21 Cluster 1)
 - `TenantProvisioned` (Platform Context) → creates the tenant's `LOCATION` resource (`create-tenant-location-resource`)
+- `SubscriptionSuspended` (Billing Context) → `fan-out-tenant-unavailable-notice` (M25-S28) raises one `TenantUnavailableNoticeDue` command per logged-in customer with an upcoming approved booking, for the reasons `OPERATOR` / `NON_PAYMENT` / `PAYMENT_REVERSED` only; the subscription declares `skipWhenSuspended: false`
 - Its own `BookingCancelled`/`BookingRejected`/`BookingRescheduled` (`availability-alert-matching`, M23-S07) and the `cron-reminders` trigger (alert sweep/expiry, recurring-schedule approval expiry, manual-approval booking hold expiry — TD51)
 
 **Dependencies:**
@@ -322,8 +325,9 @@ TENANT B (completely separate):
 - Booking: `BookingRequested`, `BookingApproved`, `BookingRejected`, `BookingInfoRequested`, `BookingInfoSubmitted`, `BookingCancelled`, `BookingRescheduled`, `BookingNoShow`, `RecurringBookingScheduleCreated`/`ApprovalRequested`/`Rejected`/`Ended`, `AvailabilityAlertMatched`, and the reminder/daily-schedule commands. **Not** `BookingCompleted`.
 - Loyalty: `ServicePointsEarned`, `PointsExpiringSoon`.
 - Booking (resource impact, M23-S23): `ResourceDeactivationImpactRaised`, `BookingResourceReassigned`.
+- Booking (command, M25-S28): `TenantUnavailableNoticeDue` → consumer `notify-customer-tenant-unavailable`, one reason-neutral email per command; declared `skipWhenSuspended: false`.
 - Staff: `StaffInvited`. Platform: `TenantProvisioned` (seeds the default templates).
-- Billing *(planned, § 7)*: `ChargeIssued`, `ChargePaid`, `SubscriptionPastDue`, `SubscriptionSuspended`, `SubscriptionReactivated`, `SubscriptionCancelled`, `PlanChanged`, `BillingReminderDue`, `TenantPurgeWarning`, `SubscriptionPriceChangeAnnounced` — `SubscriptionSuspended` also drives a reason-neutral **customer** notice (planned, M25-S28, consumer `notify-customers-tenant-unavailable`: one email to customers with upcoming approved bookings, never saying why, sent only for reasons `OPERATOR` / `NON_PAYMENT` / `PAYMENT_REVERSED`, a documented exception to the suspended-tenant event-subscription gate: its handler declares `skipWhenSuspended: false`); each of these events sends a manager email from a **platform-level** (`tenant_id IS NULL`) Billing template, read through a global-template lookup Notification gains for these send use cases (today's template lookup is tenant-strict). Billing's email handlers are exempt from the suspension gate (they declare `skipWhenSuspended: false`, UC-123).
+- Billing *(planned, § 7)*: `ChargeIssued`, `ChargePaid`, `SubscriptionPastDue`, `SubscriptionSuspended`, `SubscriptionReactivated`, `SubscriptionCancelled`, `PlanChanged`, `BillingReminderDue`, `TenantPurgeWarning`, `SubscriptionPriceChangeAnnounced` — `SubscriptionSuspended` also drives a reason-neutral **customer** notice (built, M25-S28: Booking's `fan-out-tenant-unavailable-notice` publishes one `TenantUnavailableNoticeDue` command per logged-in customer with an upcoming approved booking, and Notification's `notify-customer-tenant-unavailable` sends one email per command, never saying why, only for reasons `OPERATOR` / `NON_PAYMENT` / `PAYMENT_REVERSED`; a documented exception to the suspended-tenant event-subscription gate: both handlers declare `skipWhenSuspended: false`); each of these events sends a manager email from a **platform-level** (`tenant_id IS NULL`) Billing template, read through a global-template lookup Notification gains for these send use cases (today's template lookup is tenant-strict). Billing's email handlers are exempt from the suspension gate (they declare `skipWhenSuspended: false`, UC-123).
 
 **Event-to-Email Mapping:**
 ```
@@ -359,6 +363,8 @@ BookingReminderDueToday → Email: Customer/guest "Reminder: your appointment is
 AdminDailyScheduleReminder → Email: Admin "Today's schedule: [X] appointments, see details below"
 
 RecurringScheduleRenewalDue → Email: Customer "Your recurring reservation ends on [date]", with a link that opens the pre-filled renewal form
+
+TenantUnavailableNoticeDue → Email: Customer "[Business] is temporarily unavailable", asking them to contact the business; never says why, no link
 
 ServicePointsEarned → (Notification may batch per booking) Email: Customer "You earned [total] points across [N] services in your last visit."
 

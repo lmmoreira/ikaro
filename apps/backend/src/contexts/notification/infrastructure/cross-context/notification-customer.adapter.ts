@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { GetCustomerByIdUseCase } from '../../../customer/application/use-cases/get-customer-by-id.use-case';
+import { CustomerNotFoundError } from '../../../customer/domain/errors/customer-domain.error';
 import {
   INotificationCustomerPort,
   NotificationCustomerInfo,
@@ -16,8 +17,10 @@ export class NotificationCustomerAdapter implements INotificationCustomerPort {
     try {
       const customer = await this.getCustomerById.execute({ customerId, tenantId });
       return { email: customer.email, name: customer.name };
-    } catch {
-      return null;
+    } catch (err) {
+      // Only a genuine "no such customer" collapses to null; any other failure must propagate.
+      if (err instanceof CustomerNotFoundError) return null;
+      throw err;
     }
   }
 }

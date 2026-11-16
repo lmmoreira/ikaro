@@ -5,6 +5,7 @@ import { InMemoryTenantDirectoryPort } from '../../../../test/infrastructure/in-
 import { TenantJobRunner } from '../../../../shared/application/jobs/tenant-job-runner';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
+import { OUTBOX_PUBLISH_CHUNK_SIZE } from '../../../../shared/utils/publish-to-outbox-in-chunks';
 import { InMemoryRecurringBookingScheduleRepository } from '../../../../test/repositories/booking/in-memory-recurring-booking-schedule.repository';
 import { RecurringScheduleRenewalReminderJob } from './recurring-schedule-renewal-reminder.job';
 
@@ -31,6 +32,7 @@ describe('RecurringScheduleRenewalReminderJob', () => {
   let runner: TenantJobRunner;
   let repo: InMemoryRecurringBookingScheduleRepository;
   let outbox: InMemoryEventBus;
+  let txManager: InMemoryTransactionManager;
   let job: RecurringScheduleRenewalReminderJob;
 
   const seed = (
@@ -75,13 +77,18 @@ describe('RecurringScheduleRenewalReminderJob', () => {
     });
     repo = new InMemoryRecurringBookingScheduleRepository();
     outbox = new InMemoryEventBus();
-    job = new RecurringScheduleRenewalReminderJob(
-      runner,
-      platform,
-      repo,
-      outbox,
-      new InMemoryTransactionManager(),
-    );
+    txManager = new InMemoryTransactionManager();
+    job = new RecurringScheduleRenewalReminderJob(runner, platform, repo, outbox, txManager);
+  });
+
+  it('writes a tenant with more schedules than one chunk in several transactions', async () => {
+    const scheduleCount = OUTBOX_PUBLISH_CHUNK_SIZE + 1;
+    for (let i = 0; i < scheduleCount; i++) seed(`customer-${i}`, IN_SEVEN_DAYS);
+
+    await job.run(NOW_IN);
+
+    expect(renewals()).toHaveLength(scheduleCount);
+    expect(txManager.runCallCount).toBe(2);
   });
 
   it('raises one Command for an ACTIVE schedule ending exactly lead-time days from today', async () => {

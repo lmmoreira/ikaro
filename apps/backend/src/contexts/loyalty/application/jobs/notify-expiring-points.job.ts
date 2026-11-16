@@ -6,6 +6,7 @@ import {
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
 import { utcDateString } from '../../../../shared/utils/calendar-date';
+import { publishToOutboxInChunks } from '../../../../shared/utils/publish-to-outbox-in-chunks';
 import { mapSequentially } from '../../../../shared/utils/sequential';
 import { PointsExpiringSoon } from '../../domain/commands/points-expiring-soon.command';
 import { LoyaltyEntry } from '../../domain/loyalty-entry.aggregate';
@@ -78,10 +79,11 @@ export class NotifyExpiringPointsJob {
       );
     }
 
-    // One transaction per tenant-batch (see booking-reminder.job.ts for the rationale).
-    await this.txManager.run(async () => {
-      await mapSequentially(toPublish, (event) => this.outboxPublisher.publish(event));
-    });
+    // Bounded chunks per tenant (see booking-reminder.job.ts for the rationale).
+    await publishToOutboxInChunks(
+      { txManager: this.txManager, outboxPublisher: this.outboxPublisher },
+      toPublish,
+    );
 
     return toPublish.length;
   }
