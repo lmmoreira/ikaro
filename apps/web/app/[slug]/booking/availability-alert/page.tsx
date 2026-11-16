@@ -10,7 +10,7 @@ import {
   parseAvailabilityAlertParams,
 } from '@/features/booking/model/availability-alert-link';
 import { HotsiteAuthBar } from '@/shells/hotsite/components/HotsiteAuthBar';
-import { Unavailable } from '@/shells/hotsite/components/Unavailable';
+import { UnavailablePage } from '@/shells/hotsite/components/UnavailablePage';
 import { buildHotsiteMetadata } from '@/features/platform/hotsite/seo';
 import {
   resolveHotsiteDisplayName,
@@ -35,7 +35,7 @@ export async function generateMetadata({ params }: AvailabilityAlertRouteProps):
     ...(await buildHotsiteMetadata({ manifest, slug, path: '/booking/availability-alert' })),
     title: manifest.isPublished
       ? tBooking('availabilityAlert.title')
-      : `${tHotsite('unavailable.label')} — Ikaro`,
+      : `${tHotsite('unavailable.title')} — Ikaro`,
     robots: { index: false, follow: false },
   };
 }
@@ -52,7 +52,7 @@ export default async function AvailabilityAlertRoute({
   const manifest = await fetchManifest(slug);
 
   if (!manifest.isPublished) {
-    return <Unavailable />;
+    return <UnavailablePage slug={slug} manifest={manifest} />;
   }
 
   const services = await fetchServices(slug);

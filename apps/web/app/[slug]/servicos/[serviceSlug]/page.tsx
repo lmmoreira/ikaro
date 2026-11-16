@@ -18,7 +18,7 @@ import { Footer } from '@/shells/hotsite/components/Footer';
 import { HotsiteAuthBar } from '@/shells/hotsite/components/HotsiteAuthBar';
 import { ServiceDetailPage } from '@/shells/hotsite/components/ServiceDetailPage';
 import { ServiceDetailUnavailable } from '@/shells/hotsite/components/ServiceDetailUnavailable';
-import { Unavailable } from '@/shells/hotsite/components/Unavailable';
+import { UnavailablePage } from '@/shells/hotsite/components/UnavailablePage';
 
 // Next.js statically analyses segment config exports — imported variables are not resolved.
 // Must be a literal. Keep in sync with HOTSITE_REVALIDATE_SECONDS in lib/hotsite/revalidate.ts.
@@ -62,7 +62,7 @@ export default async function ServiceDetailRoute({ params }: ServiceDetailRouteP
   const { slug, serviceSlug } = await params;
   const manifest = await fetchManifest(slug);
 
-  if (!manifest.isPublished) return <Unavailable />;
+  if (!manifest.isPublished) return <UnavailablePage slug={slug} manifest={manifest} />;
 
   const service = await fetchServiceBySlug(slug, serviceSlug);
   if (!service) return <ServiceDetailUnavailable slug={slug} />;

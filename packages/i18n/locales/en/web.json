@@ -567,8 +567,8 @@
       "copyrightDefault": "All rights reserved."
     },
     "unavailable": {
-      "label": "Coming soon",
-      "body": "We're preparing something special. Check back soon!"
+      "title": "Page unavailable",
+      "body": "This page isn't available right now. Please check back soon."
     },
     "chatbot": {
       "titleSuffix": "— AI Assistant",

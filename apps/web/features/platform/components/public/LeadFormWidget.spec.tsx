@@ -531,7 +531,9 @@ describe('LeadFormWidget — config fetch failure', () => {
 
     renderWithIntl(<LeadFormWidget slug={SLUG} title="Quer um orçamento?" phonePrefix="+55" />);
 
-    await screen.findByText('Em breve');
+    await screen.findByText('Página indisponível');
+    // The page already draws the one top bar; the widget swaps in the message only (no second bar).
+    expect(screen.queryByTestId('hotsite-auth-bar')).not.toBeInTheDocument();
     expect(screen.queryByTestId('lead-form-terminal-card')).not.toBeInTheDocument();
     expect(screen.queryByTestId('lead-form-name')).not.toBeInTheDocument();
   });

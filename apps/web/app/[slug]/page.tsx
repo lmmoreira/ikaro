@@ -4,7 +4,7 @@ import { fetchManifest } from '@/features/platform/api.server';
 import { JsonLdScript } from '@/shells/hotsite/components/JsonLdScript';
 import { HotsiteAuthBar } from '@/shells/hotsite/components/HotsiteAuthBar';
 import { HotsiteModuleView } from '@/shells/hotsite/components/HotsiteModuleView';
-import { Unavailable } from '@/shells/hotsite/components/Unavailable';
+import { UnavailablePage } from '@/shells/hotsite/components/UnavailablePage';
 import {
   buildHotsiteModuleRenderPlan,
   resolveHotsiteDisplayName,
@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: HotsitePageProps): Promise<Me
 
   if (!manifest.isPublished) {
     const t = await getTranslations('hotsite');
-    return { title: `${t('unavailable.label')} — Ikaro`, robots: { index: false, follow: false } };
+    return { title: `${t('unavailable.title')} — Ikaro`, robots: { index: false, follow: false } };
   }
 
   return await buildHotsiteMetadata({ manifest, slug });
@@ -40,7 +40,7 @@ export default async function HotsitePage({ params }: HotsitePageProps) {
   const manifest = await fetchManifest(slug);
 
   if (!manifest.isPublished) {
-    return <Unavailable />;
+    return <UnavailablePage slug={slug} manifest={manifest} />;
   }
 
   const localBusinessJsonLd = buildLocalBusinessJsonLd({ manifest, slug });

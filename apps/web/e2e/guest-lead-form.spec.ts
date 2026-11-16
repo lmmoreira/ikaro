@@ -197,7 +197,11 @@ test.describe.serial('lead-form public page (GUEST) — M20-S09', () => {
     await page.goto(`/${MANAGER_TENANT_SLUG}/lead-form`);
 
     await expect(page.getByTestId('lead-form-name')).not.toBeVisible();
-    await expect(page.locator('h1')).toContainText(/Em breve|Coming soon/);
+    await expect(page.locator('h1')).toContainText(/Página indisponível|Page unavailable/);
+    await expect(page).toHaveTitle(/(Página indisponível|Page unavailable) — Ikaro/);
+    // M25-S30: the same neutral page as an unpublished hotsite, with one top bar and working logins.
+    await expect(page.getByTestId('hotsite-staff-link')).toBeVisible();
+    await expect(page.getByTestId('hotsite-login-link')).toBeVisible();
   });
 });
 
