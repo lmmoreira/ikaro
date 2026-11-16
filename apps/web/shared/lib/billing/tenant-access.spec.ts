@@ -22,6 +22,18 @@ describe('toTenantAccess', () => {
     });
   });
 
+  it('ignores a feature key this build does not know, keeping the known ones', () => {
+    expect(
+      toTenantAccess({
+        operational: true,
+        features: [
+          { key: 'HOTSITE', tier: 'STANDARD' },
+          { key: 'BOGUS', tier: 'STANDARD' },
+        ],
+      } as never),
+    ).toEqual({ operational: true, features: ['HOTSITE'] });
+  });
+
   it('returns null for a customer answer, which carries no features', () => {
     expect(toTenantAccess({ operational: true })).toBeNull();
   });

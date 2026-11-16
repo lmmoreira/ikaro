@@ -16,7 +16,11 @@ export function toTenantAccess(response: BillingAccessResponse): TenantAccess | 
   if (typeof response.operational !== 'boolean') return null;
   return {
     operational: response.operational,
-    features: response.features.map((feature) => feature.key),
+    // A key this build does not know (a feature the backend added first) is ignored, never read
+    // as a lock on a known feature.
+    features: response.features
+      .map((feature) => feature.key)
+      .filter((key) => ALL_FEATURES.includes(key)),
   };
 }
 

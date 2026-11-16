@@ -145,6 +145,32 @@ describe('DashboardLayoutShell', () => {
     expect(screen.getByTestId('topbar-action-slot')).toHaveTextContent('+ Convidar membro');
   });
 
+  it('drops the topbar action while the route is locked, with the page it belongs to', () => {
+    render(
+      <DashboardLayoutShell
+        shell={{ ...SHELL, routeFeature: 'BOOKING', lockedFeatures: ['BOOKING'] }}
+        topbarAction={<button>+ Novo serviço</button>}
+      >
+        <p>children</p>
+      </DashboardLayoutShell>,
+    );
+
+    expect(screen.getByTestId('topbar-action-slot')).toBeEmptyDOMElement();
+  });
+
+  it('keeps the topbar action when the route feature is entitled', () => {
+    render(
+      <DashboardLayoutShell
+        shell={{ ...SHELL, routeFeature: 'BOOKING', lockedFeatures: ['LOYALTY'] }}
+        topbarAction={<button>+ Novo serviço</button>}
+      >
+        <p>children</p>
+      </DashboardLayoutShell>,
+    );
+
+    expect(screen.getByTestId('topbar-action-slot')).toHaveTextContent('+ Novo serviço');
+  });
+
   it('seeds the topbar status provider from topbarStatusProps', () => {
     render(
       <DashboardLayoutShell shell={SHELL} topbarStatusProps={{ initialStaffRoleStatus: 'STAFF' }}>
