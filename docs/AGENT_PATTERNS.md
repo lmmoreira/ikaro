@@ -1076,6 +1076,47 @@ export class GetAvailabilityUseCase {
 
 A second caller (`AvailabilityAlertMatchingService`) injects `AvailabilityQueryService` directly. A type or enum another file needs goes in a sibling `*.types.ts`. Helpers used by both jobs and use cases live in `application/helpers/`. Full placement rules: `docs/ENGINEERING_RULES_BACKEND.md` § Layering inside `application/`. CI: `pnpm dep-cruise` (blocking).
 
+### 27. Fan-out then send — one event becomes one small command per recipient
+
+One event must reach a number of recipients that grows with a tenant's data (every customer with an upcoming booking, every member of a list): never one handler that reads them all and sends. Split it in two, each half small, sequential where it must be and idempotent where it can be redelivered. Built in M25-S28 (the customer notice when a tenant becomes unavailable); the three reminder jobs use the same write half.
+
+```typescript
+// 1. The command: ids only, deterministic dedupKey keyed on the SOURCE event, so a redelivery of
+//    that event writes nothing twice and a later event (a new eventId) notifies again.
+export class TenantUnavailableNoticeDue extends Command<{ customerId: string }> {
+  constructor(tenantId: string, correlationId: string, data: { customerId: string }, sourceEventId: string) {
+    super(tenantId, correlationId, `TenantUnavailableNoticeDue:${tenantId}:${sourceEventId}:${data.customerId}`);
+    this.data = data;
+  }
+}
+
+// 2. The fan-out use case (producer context): keyset pages, one chunk per page. The read runs
+//    before the page's transaction opens; the next page starts after the last id of this one.
+private async publishNotices(input: Input, cursor: string | null = null, sofar = 0): Promise<number> {
+  const page = await this.repo.findRecipientIdsAfter(input.tenantId, input.since, cursor, OUTBOX_PUBLISH_CHUNK_SIZE);
+  await publishToOutboxInChunks(
+    { txManager: this.txManager, outboxPublisher: this.outboxPublisher },
+    page.map((id) => new TenantUnavailableNoticeDue(input.tenantId, input.correlationId, { customerId: id }, input.eventId)),
+  );
+  const last = page.at(-1);
+  return page.length === OUTBOX_PUBLISH_CHUNK_SIZE && last !== undefined
+    ? this.publishNotices(input, last, sofar + page.length)
+    : sofar + page.length;
+}
+// 3. The send half (consumer context): a normal notification handler and use case for ONE
+//    recipient. It resolves the contact at send time and skips quietly when the recipient is gone.
+```
+
+- **Why this shape:** the first handler's delivery stays short and constant-memory, a failure costs one page not the whole list, and the send half is the same single-recipient code every other notification already uses. The Pub/Sub subscriptions are push subscriptions to the shared `ikaro-backend` service with no flow control, a 60 s ack deadline and 5 delivery attempts, so an unbounded handler is the thing that overruns.
+- **Ids only in the command:** no email and no name, so no personal data sits in the outbox, in Pub/Sub or in a dead-letter queue. The consumer reads the contact when it sends.
+- **Idempotency lives in the `dedupKey`**, not in a "sent" table: `publishToOutboxInChunks` commits one chunk per transaction, so a crash between pages leaves the first pages committed and the retry inserts them again as no-op conflicts and finishes the rest. Test it with a publisher double that fails once between pages (`raise-tenant-unavailable-notices.use-case.spec.ts`) and, for the end-to-end claim, with the real outbox (`tenant-unavailable-notice.integration.spec.ts`).
+- **Both handlers declare `skipWhenSuspended` explicitly** (it is a literal on every `subscribe()`); a notice that must go out because of a suspension declares `false` on both, and a mutation check (flip one to `true`, watch the integration spec go red) proves the gate does not drop it.
+- **Registrations a new fan-out needs:** a `permittedEdges` entry for each cross-context import, the regenerated `infra/terraform/pubsub-catalog.json`, and a Foundation apply from `main` with the IAM read-back before the story is done.
+- **Use it when** the recipient count scales with tenant data. A job that publishes one row per tenant, or an aggregate that raises a handful of events, does not need it.
+- **Not yet measured:** the largest recipient count one event can safely fan out to. The outbox still publishes row by row after each commit, so the ceiling is the relay's throughput and the shared service's capacity, not the chunk size. M25-S28 shipped without a load test (no load tooling exists, TD08 AUD-041); measure it before relying on this for a very large list.
+
+Canonical files: `apps/backend/src/shared/utils/publish-to-outbox-in-chunks.ts`, `apps/backend/src/contexts/booking/application/use-cases/raise-tenant-unavailable-notices.use-case.ts`, `apps/backend/src/contexts/booking/infrastructure/events/subscription-suspended-tenant-unavailable.handler.ts`, `apps/backend/src/contexts/notification/infrastructure/events/tenant-unavailable-notice.handler.ts`. Rule: `docs/ENGINEERING_RULES_BACKEND.md` § Transactions.
+
 ---
 
 ## Web Patterns

@@ -335,7 +335,7 @@ A doc with a `§` or "only" is read at that section (`grep -n '^## ' <doc>` for 
 
 | Task | Docs to load |
 |---|---|
-| Writing any code | `docs/CODE_STANDARDS.md` (19 KB) + `docs/AGENT_PATTERNS.md` (52 KB) + `docs/ENGINEERING_RULES_SHARED.md` (52 KB) — read whole |
+| Writing any code | `docs/CODE_STANDARDS.md` (19 KB) + `docs/AGENT_PATTERNS.md` (57 KB) + `docs/ENGINEERING_RULES_SHARED.md` (52 KB) — read whole |
 | Finishing a story / before PR | `docs/DEFINITION_OF_DONE.md` (16 KB) |
 | CI failure / pre-PR | `docs/CI_TRAPS.md` (119 KB) — the failing tool's own section only: `grep -n '^## ' docs/CI_TRAPS.md` |
 | Implement a UC | `docs/USE_CASES.md` (366 KB) — the UC's own section only: `grep -n 'UC-0NN'` + `docs/DOMAIN_MODEL.md` § Aggregates, Entities, and Value Objects (the aggregate's subsection) + `docs/DOMAIN_EVENTS.md` § Event Categories (the event's entry) |
