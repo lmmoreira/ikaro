@@ -2020,7 +2020,7 @@ Make a suspended tenant **reachable** (so the notice and badge can render) witho
 
 ---
 
-### M25-S28 — Booking — reason-neutral customer email when a tenant becomes unavailable (O-B1)
+### M25-S28 — Booking — reason-neutral customer email when a tenant becomes unavailable (O-B1) ✅ Done
 
 **Agent:** `backend-ts + devops`
 **Complexity:** L, a large one (two handlers across two contexts, a new command topic and a Foundation apply, plus a shared chunked-outbox helper that three existing jobs move onto; raised from M at discovery, 2026-11-15)
