@@ -33,6 +33,24 @@ describe('TypeOrmInboxRepository', () => {
     });
   });
 
+  describe('hasBeenProcessed() inside a transaction', () => {
+    it('counts on the ambient transaction manager, not a second pooled connection', async () => {
+      const mockManager = {
+        count: jest.fn().mockResolvedValue(1),
+      } as unknown as jest.Mocked<EntityManager>;
+
+      const result = await runWithEntityManager(mockManager, () =>
+        repo.hasBeenProcessed('event-1', 'consumer-a'),
+      );
+
+      expect(result).toBe(true);
+      expect(mockManager.count).toHaveBeenCalledWith(InboxRecordEntity, {
+        where: { eventId: 'event-1', consumerName: 'consumer-a' },
+      });
+      expect(mockRepo.count).not.toHaveBeenCalled();
+    });
+  });
+
   describe('markProcessed()', () => {
     it('upserts via the ambient transaction manager when one is active', async () => {
       const mockManager = {

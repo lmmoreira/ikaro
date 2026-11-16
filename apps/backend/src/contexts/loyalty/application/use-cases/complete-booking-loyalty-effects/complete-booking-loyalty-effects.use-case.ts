@@ -29,6 +29,7 @@ import {
   TENANT_ACCESS_PORT,
   type TenantAccessPort,
 } from '../../../../../shared/ports/tenant-access.port';
+import { buildServicePointsEarnedEvent } from '../../helpers/service-points-earned.helpers';
 import { AppLogger } from '../../../../../shared/observability/app-logger';
 
 export interface BookingCompletedLine {
@@ -62,6 +63,26 @@ const SKIPPED_RESULT: CompleteBookingLoyaltyEffectsUseCaseResult = {
   pointsRedeemed: 0,
 };
 
+// Thrown inside the settlement transaction to roll it back when the event turns out to be already
+// processed: the balance row ensured for a first earn must not be committed by a skipped event.
+class EventAlreadyProcessedError extends Error {
+  constructor() {
+    super('BookingCompleted already processed');
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+interface SettlementPlan {
+  dto: CompleteBookingLoyaltyEffectsUseCaseInput;
+  customerId: string;
+  entries: LoyaltyEntry[];
+  totalPointsEarned: number;
+  mayEarn: boolean;
+  pointsRedeemed: number;
+  pointsPerCurrencyUnit: number;
+}
+
+@Injectable()
 /**
  * The single, self-contained reaction to `BookingCompleted`: records earned points
  * and — if a loyalty discount was applied at completion — redeems points, all in
@@ -73,7 +94,6 @@ const SKIPPED_RESULT: CompleteBookingLoyaltyEffectsUseCaseResult = {
  * when it completed, so the redemption is always settled; points are earned only while the tenant
  * is operational and entitled to LOYALTY (the lookup fails open, like the gate).
  */
-@Injectable()
 export class CompleteBookingLoyaltyEffectsUseCase {
   static readonly CONSUMER_NAME = 'complete-booking-loyalty-effects';
 
@@ -109,18 +129,72 @@ export class CompleteBookingLoyaltyEffectsUseCase {
 
     const entries = mayEarn ? this.buildEntries(dto, customerId, expiryDays) : [];
     const totalPointsEarned = entries.reduce((sum, entry) => sum + entry.points, 0);
-    const balance = await this.findOrCreateBalance(dto.tenantId, customerId);
-    if (mayEarn) balance.increment(totalPointsEarned);
 
+    const applied = await this.settle({
+      dto,
+      customerId,
+      entries,
+      totalPointsEarned,
+      mayEarn,
+      pointsRedeemed,
+      pointsPerCurrencyUnit,
+    });
+    if (!applied) return SKIPPED_RESULT;
+
+    return { skipped: false, entriesCreated: entries.length, totalPointsEarned, pointsRedeemed };
+  }
+
+  // One transaction. The balance row is locked first (docs/LOCK_CATALOG.md R6), then the inbox is
+  // checked again: a concurrent delivery of this event may have committed while this one waited
+  // for the lock. Returns false when the event was already processed (the transaction is rolled
+  // back, so nothing is written, not even the ensured balance row). TD08 §12.3: the re-emit and
+  // the idempotency mark are one atomic fact: a crash between this transaction and a
+  // separately-published event used to leave ServicePointsEarned lost forever, since
+  // hasBeenProcessed() short-circuits any redelivery of BookingCompleted.
+  private async settle(plan: SettlementPlan): Promise<boolean> {
+    const { dto, customerId, entries } = plan;
+    try {
+      return await this.txManager.run(async () => {
+        const balance = await this.balanceRepo.findOrCreateByCustomerForUpdate(
+          dto.tenantId,
+          customerId,
+        );
+        if (await this.isAlreadyProcessed(dto.eventId)) throw new EventAlreadyProcessedError();
+        const { redemption, servicePointsEarned } = this.applyToBalance(balance, plan);
+
+        for (const entry of entries) {
+          await this.entryRepo.save(entry);
+        }
+        await this.balanceRepo.upsert(balance);
+        if (redemption) await this.redemptionRepo.save(redemption);
+        await this.inboxRepo.markProcessed(
+          dto.eventId,
+          CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME,
+        );
+        if (servicePointsEarned) await this.outboxPublisher.publish(servicePointsEarned);
+        return true;
+      });
+    } catch (error) {
+      if (error instanceof EventAlreadyProcessedError) return false;
+      throw error;
+    }
+  }
+
+  private applyToBalance(
+    balance: LoyaltyBalance,
+    plan: SettlementPlan,
+  ): { redemption: LoyaltyRedemption | null; servicePointsEarned: ServicePointsEarned | null } {
+    const { dto, customerId, entries, totalPointsEarned, mayEarn } = plan;
+    if (mayEarn) balance.increment(totalPointsEarned);
     const redemption = this.applyRedemption(
       balance,
       dto,
       customerId,
-      pointsRedeemed,
-      pointsPerCurrencyUnit,
+      plan.pointsRedeemed,
+      plan.pointsPerCurrencyUnit,
     );
     const servicePointsEarned = mayEarn
-      ? this.buildServicePointsEarnedEvent(
+      ? buildServicePointsEarnedEvent(
           dto,
           customerId,
           totalPointsEarned,
@@ -128,10 +202,7 @@ export class CompleteBookingLoyaltyEffectsUseCase {
           balance.currentPoints,
         )
       : null;
-
-    await this.persist(entries, balance, redemption, dto, servicePointsEarned);
-
-    return { skipped: false, entriesCreated: entries.length, totalPointsEarned, pointsRedeemed };
+    return { redemption, servicePointsEarned };
   }
 
   // Earning is not allowed and no discount was spent: nothing to record. The event is still marked
@@ -175,13 +246,6 @@ export class CompleteBookingLoyaltyEffectsUseCase {
     );
   }
 
-  private async findOrCreateBalance(tenantId: string, customerId: string): Promise<LoyaltyBalance> {
-    return (
-      (await this.balanceRepo.findByCustomer(tenantId, customerId)) ??
-      LoyaltyBalance.create(tenantId, customerId)
-    );
-  }
-
   private buildEntries(
     dto: CompleteBookingLoyaltyEffectsUseCaseInput,
     customerId: string,
@@ -216,52 +280,6 @@ export class CompleteBookingLoyaltyEffectsUseCase {
       pointsPerCurrencyUnit,
       redeemedBy: dto.completedBy,
       bookingId: dto.bookingId,
-    });
-  }
-
-  private buildServicePointsEarnedEvent(
-    dto: CompleteBookingLoyaltyEffectsUseCaseInput,
-    customerId: string,
-    totalPointsEarned: number,
-    entries: LoyaltyEntry[],
-    currentBalance: number,
-  ): ServicePointsEarned {
-    return new ServicePointsEarned(dto.tenantId, dto.correlationId, {
-      customerId,
-      bookingId: dto.bookingId,
-      totalPointsEarned,
-      earnedAt: entries[0].earnedAt.toISOString(),
-      lines: entries.map((e) => ({
-        entryId: e.id,
-        serviceId: e.serviceId,
-        pointsEarned: e.points,
-        expiresAt: e.expiresAt.toISOString(),
-      })),
-      currentBalance,
-    });
-  }
-
-  // TD08 §12.3: the re-emit and the idempotency mark are one atomic fact — a crash between
-  // this transaction and a separately-published event used to leave ServicePointsEarned lost
-  // forever, since hasBeenProcessed() short-circuits any redelivery of BookingCompleted.
-  private async persist(
-    entries: LoyaltyEntry[],
-    balance: LoyaltyBalance,
-    redemption: LoyaltyRedemption | null,
-    dto: CompleteBookingLoyaltyEffectsUseCaseInput,
-    servicePointsEarned: ServicePointsEarned | null,
-  ): Promise<void> {
-    await this.txManager.run(async () => {
-      for (const entry of entries) {
-        await this.entryRepo.save(entry);
-      }
-      await this.balanceRepo.upsert(balance);
-      if (redemption) await this.redemptionRepo.save(redemption);
-      await this.inboxRepo.markProcessed(
-        dto.eventId,
-        CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME,
-      );
-      if (servicePointsEarned) await this.outboxPublisher.publish(servicePointsEarned);
     });
   }
 }

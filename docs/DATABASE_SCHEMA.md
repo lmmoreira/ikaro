@@ -1116,9 +1116,9 @@ One row per `(tenant_id, customer_id)`. Maintained as a running total: increment
 | **INDEX** | (tenant_id, customer_id) | `IDX_loyalty_balances_tenant_customer` (redundant with the primary key) |
 
 **Rules:**
-- Written by `LoyaltyBalanceRepository.upsert` (`INSERT … ON CONFLICT (tenant_id, customer_id) DO UPDATE`), always with the **absolute** `current_points` of the aggregate: the use case first reads the balance (`findByCustomer`), applies `increment` / `decrement` in memory and upserts the result. It is not a SQL `current_points = current_points + …` increment.
+- Written by `LoyaltyBalanceRepository.upsert` (`INSERT … ON CONFLICT (tenant_id, customer_id) DO UPDATE`), always with the **absolute** `current_points` of the aggregate: the writer first reads the balance under the row lock (`findByCustomerForUpdate`, or `findOrCreateByCustomerForUpdate` for the earn), applies `increment` / `decrement` in memory and upserts the result. It is not a SQL `current_points = current_points + …` increment.
 - Writers: the earn and the discount settlement in `CompleteBookingLoyaltyEffectsUseCase` (on `BookingCompleted`), `RedeemPointsUseCase` (after inserting the redemption row) and the daily expiry cron (`ExpirePointsJob`).
-- **Known gap:** that read-modify-write is not locked (no `FOR UPDATE`, no version column), so two writers on the same customer at the same time can lose an update. `docs/LOCK_CATALOG.md` records it.
+- **Locking:** every writer takes the balance row lock (`SELECT … FOR UPDATE`, `docs/LOCK_CATALOG.md` R6) before it reads, inside its transaction, so two writers on the same customer serialise; there is no version column. A first earn with no row inserts it with `ON CONFLICT DO NOTHING` and then locks it.
 - `current_points` can never go below 0 (CHECK constraint + application guard).
 
 ---

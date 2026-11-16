@@ -42,24 +42,30 @@ export class RedeemPointsUseCase {
   ) {}
 
   async execute(input: RedeemPointsUseCaseInput): Promise<RedeemPointsUseCaseResult> {
-    const balance = await this.balanceRepo.findByCustomer(input.tenantId, input.customerId);
-    if (!balance) throw new LoyaltyBalanceNotFoundError();
+    // The balance row is locked for the whole transaction (docs/LOCK_CATALOG.md H7), so the
+    // balance read here is the committed value of every earlier writer, never a stale one.
+    const { balance, redemption } = await this.txManager.run(async () => {
+      const locked = await this.balanceRepo.findByCustomerForUpdate(
+        input.tenantId,
+        input.customerId,
+      );
+      if (!locked) throw new LoyaltyBalanceNotFoundError();
 
-    balance.decrement(input.pointsToRedeem);
+      locked.decrement(input.pointsToRedeem);
 
-    const redemption = LoyaltyRedemption.record({
-      tenantId: input.tenantId,
-      customerId: input.customerId,
-      pointsRedeemed: input.pointsToRedeem,
-      pointsPerCurrencyUnit: input.pointsPerCurrencyUnit,
-      redeemedBy: input.redeemedBy,
-      notes: input.notes,
-      bookingId: input.bookingId,
-    });
+      const recorded = LoyaltyRedemption.record({
+        tenantId: input.tenantId,
+        customerId: input.customerId,
+        pointsRedeemed: input.pointsToRedeem,
+        pointsPerCurrencyUnit: input.pointsPerCurrencyUnit,
+        redeemedBy: input.redeemedBy,
+        notes: input.notes,
+        bookingId: input.bookingId,
+      });
 
-    await this.txManager.run(async () => {
-      await this.balanceRepo.upsert(balance);
-      await this.redemptionRepo.save(redemption);
+      await this.balanceRepo.upsert(locked);
+      await this.redemptionRepo.save(recorded);
+      return { balance: locked, redemption: recorded };
     });
 
     return {

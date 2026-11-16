@@ -36,7 +36,13 @@ export class TypeOrmInboxRepository implements IInboxRepository {
   ) {}
 
   async hasBeenProcessed(eventId: string, consumerName: string): Promise<boolean> {
-    const count = await this.repo.count({ where: { eventId, consumerName } });
+    // On the active transaction's connection when there is one, so a re-check made under a lock
+    // neither takes a second pooled connection nor misses a row committed while it waited.
+    const manager = getActiveEntityManager();
+    const where = { eventId, consumerName };
+    const count = manager
+      ? await manager.count(InboxRecordEntity, { where })
+      : await this.repo.count({ where });
     return count > 0;
   }
 

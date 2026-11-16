@@ -89,7 +89,8 @@ To be verified at `/story-discovery` and fixed here when real: `inboxRepo.markPr
 - `apps/backend/src/contexts/loyalty/application/use-cases/redeem-points/redeem-points.use-case.ts` (+ `.spec.ts`) (modify)
 - `apps/backend/src/contexts/loyalty/application/jobs/expire-points.job.ts` (+ `.spec.ts`) (modify)
 - `apps/backend/src/contexts/loyalty/application/ports/balance-expiry-log-repository.port.ts`, `…/infrastructure/repositories/typeorm-balance-expiry-log.repository.ts` (+ `.spec.ts`, `.integration.spec.ts`) and its in-memory double under `apps/backend/src/test/repositories/loyalty/` (modify — batched `findProcessedEntryIds`)
-- `apps/backend/src/shared/infrastructure/inbox/typeorm-inbox.repository.ts` (+ `.spec.ts`) and the in-memory inbox double (modify — `hasBeenProcessed` reads on the active transaction's manager)
+- `apps/backend/src/shared/infrastructure/inbox/typeorm-inbox.repository.ts` (+ `.spec.ts`) (modify — `hasBeenProcessed` reads on the active transaction's manager; the in-memory inbox double needs no change, it has no transaction)
+- `apps/backend/src/contexts/loyalty/application/loyalty-balance-lock.integration.spec.ts` (new — all seven concurrent scenarios in one spec with a shared gated-repository helper, instead of one integration spec per writer; they need the same helper and the same cleanup)
 - `docs/LOCK_CATALOG.md` (modify — new Loyalty level in § 3 and § 4, name both `*ForUpdate` port methods (the `lock-catalog-coverage` detector requires it), state that the level is self-contained and takes nothing from L0–L6 first, close H7 in § 5), `docs/BUSINESS_LOGIC_REFERENCE.md` (modify — the "unlocked read-modify-write" sentence), `docs/DATABASE_SCHEMA.md` (modify — the known-gap note on the balance upsert)
 
 **Acceptance criteria — product:**

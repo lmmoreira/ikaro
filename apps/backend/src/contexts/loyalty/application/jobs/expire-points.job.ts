@@ -78,24 +78,29 @@ export class ExpirePointsJob {
   /** Expires one customer's due points, returning the amount actually decremented. */
   private async processGroup(entries: LoyaltyEntry[]): Promise<number> {
     const { tenantId, customerId } = entries[0];
-    const expiredPoints = entries.reduce((sum, e) => sum + e.points, 0);
 
-    const balance = await this.balanceRepo.findByCustomer(tenantId, customerId);
-    const pointsToDecrement = balance ? Math.min(expiredPoints, balance.currentPoints) : 0;
+    return this.txManager.run(async () => {
+      // The balance row is locked first (docs/LOCK_CATALOG.md H7). What was decided before the
+      // lock (which entries are due and unprocessed) is re-checked after it: an overlapping run
+      // may have expired the same entries while this one waited, and markProcessed never conflicts.
+      const balance = await this.balanceRepo.findByCustomerForUpdate(tenantId, customerId);
+      const alreadyProcessed = await this.expiryLogRepo.findProcessedEntryIds(
+        entries.map((entry) => entry.id),
+      );
+      const due = entries.filter((entry) => !alreadyProcessed.has(entry.id));
+      if (due.length === 0) return 0;
 
-    if (balance && pointsToDecrement > 0) {
-      balance.decrement(pointsToDecrement);
-    }
+      const expiredPoints = due.reduce((sum, e) => sum + e.points, 0);
+      const pointsToDecrement = balance ? Math.min(expiredPoints, balance.currentPoints) : 0;
 
-    await this.txManager.run(async () => {
       if (balance && pointsToDecrement > 0) {
+        balance.decrement(pointsToDecrement);
         await this.balanceRepo.upsert(balance);
       }
-      for (const entry of entries) {
+      for (const entry of due) {
         await this.expiryLogRepo.markProcessed(entry.id);
       }
+      return pointsToDecrement;
     });
-
-    return pointsToDecrement;
   }
 }
