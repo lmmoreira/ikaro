@@ -121,7 +121,7 @@ To be verified at `/story-discovery` and fixed here when real: `inboxRepo.markPr
 
 ---
 
-### TD60 Story 1 — Make the expiry sweep and warning job cost-bounded and failure-isolated
+### TD60 Story 1 — Make the expiry sweep and warning job cost-bounded and failure-isolated ✅ Done
 
 **Agent:** backend-ts
 **Complexity:** M
