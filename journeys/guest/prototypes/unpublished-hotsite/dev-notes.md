@@ -1,6 +1,6 @@
 # Dev Notes — GUEST: Página indisponível
 
-> **Status: Draft (planned Billing milestone, UC-122, M25-S30).** The page is the shared root state for every public hotsite route that is unavailable: the manifest's effective `isPublished` is false (unpublished, never published or tenant `SUSPENDED`), or the hotsite is published but its lead-form module is disabled (UC-039 A6). It is a different case from an unknown slug (`app/not-found.tsx`). The page has no form, so there is no validation table.
+> **Status: Shipped (UC-122, M25-S30).** The page is the shared root state for every public hotsite route that is unavailable: the manifest's effective `isPublished` is false (unpublished, never published or tenant `SUSPENDED`), or the hotsite is published but its lead-form module is disabled (UC-039 A6). It is a different case from an unknown slug (`app/not-found.tsx`). The page has no form, so there is no validation table.
 
 ## Overview
 

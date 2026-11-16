@@ -30,7 +30,7 @@ flowchart TD
 
 | Page / Route | Component | Story | Status |
 |---|---|---|---|
-| every public hotsite route (`/{slug}`, `/booking`, `/booking/availability-alert`, `/lead-form`, `/servicos/{serviceSlug}`) | `Unavailable` (`apps/web/shells/hotsite/components/Unavailable.tsx`) | M12-S08 (placeholder) | ✅ Existing — today a bare "Em breve" placeholder with no top bar |
+| every public hotsite route (`/{slug}`, `/booking`, `/booking/availability-alert`, `/lead-form`, `/servicos/{serviceSlug}`) | `Unavailable` (`apps/web/shells/hotsite/components/Unavailable.tsx`) | M12-S08 (placeholder) | ✅ Existing — was a bare "Em breve" placeholder with no top bar; now the message only, under `UnavailablePage` (M25-S30) |
 | the same routes, with the top bar and the neutral copy | `UnavailablePage` (new) = `HotsiteAuthBar` + `Unavailable` (message only), "Página indisponível" | M25-S30 | ✅ Shipped — `UnavailablePage` draws the bar over the message-only `Unavailable` |
 | unknown slug | `app/not-found.tsx` | M12-S08 | ✅ Existing — a different case, unchanged |
 
@@ -40,7 +40,7 @@ flowchart TD
 - [ ] **Customer sign-in on an unpublished hotsite:** `[slug]/login` and `[slug]/my-account` never check `isPublished`, so customers and the team keep a working sign-in path — intentional, it is what makes the customer "Empresa inativa" badge (`customer/minha-conta.md`) and the staff notice (`staff/login.md`) reachable.
 - [x] **Copy scope (decided at M25-S30 discovery):** one neutral page and copy for every case, including a published hotsite whose lead-form module is disabled (UC-039 A6) and the stale cached page (the widget keeps the message-only `Unavailable` under the bar the page already draws). "Em breve" is removed; nothing links to a disabled lead-form, so that page is reached by URL, a cached page up to 5 minutes old, or the widget's live check.
 - [x] **Copy:** "Página indisponível" and "Esta página não está disponível no momento. Volte em breve." are new (en: "Page unavailable" / "This page isn't available right now. Please check back soon."); today's placeholder says "Em breve" / "Estamos preparando algo especial". The browser tab reads "Página indisponível — Ikaro". Both need pt-BR and en entries.
-- [ ] **Existing journey lines:** `guest/submit-lead-form.md` and `guest/service-detail.md` already point at the generic `Unavailable` for a hotsite that is not published; they now also point here.
+- [x] **Existing journey lines:** `guest/submit-lead-form.md` and `guest/service-detail.md` already point at the generic `Unavailable` for a hotsite that is not published; they now also point here.
 
 ## Prototype
 
@@ -48,8 +48,8 @@ Folder: `guest/prototypes/unpublished-hotsite/` — hub: `index.html`.
 
 | File | Screen | UC | Status |
 |---|---|---|---|
-| `index.html` | Navigation hub + dry-run checklist | — | ❓ Draft |
-| `01-page-not-published.html` | "Página indisponível" with the top bar (team login + customer login) | UC-122 | ❓ Draft |
-| `dev-notes.md` | Implementation handoff (moved as-is from the billing discovery; reshape at story discovery) | — | ❓ Draft |
+| `index.html` | Navigation hub + dry-run checklist | — | ✅ Shipped (M25-S30) |
+| `01-page-not-published.html` | "Página indisponível" with the top bar (team login + customer login) | UC-122 | ✅ Shipped (M25-S30) |
+| `dev-notes.md` | Implementation handoff | — | ✅ Shipped (M25-S30) |
 
 The page is reached from any published-looking hotsite link, so the hub links to `../../../shared/hotsite.html` for the published look; there is no `00-hotsite.html` because the journey does not start on a working hotsite.
