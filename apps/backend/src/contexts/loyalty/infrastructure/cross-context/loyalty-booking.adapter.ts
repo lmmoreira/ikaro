@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { GetBookingByIdUseCase } from '../../../booking/application/use-cases/get-booking-by-id.use-case';
 import { GetServicesUseCase } from '../../../booking/application/use-cases/get-services.use-case';
+import { BookingNotFoundError } from '../../../booking/domain/errors/booking-domain.error';
 import { ILoyaltyBookingPort, ServiceSummary } from '../../application/ports/loyalty-booking.port';
 
 @Injectable()
@@ -29,8 +30,10 @@ export class LoyaltyBookingAdapter implements ILoyaltyBookingPort {
         serviceId: line.serviceId,
         serviceName: line.serviceNameAtBooking,
       }));
-    } catch {
-      return [];
+    } catch (err) {
+      // Only a genuine "no such booking" collapses to an empty list; any other failure must propagate.
+      if (err instanceof BookingNotFoundError) return [];
+      throw err;
     }
   }
 }

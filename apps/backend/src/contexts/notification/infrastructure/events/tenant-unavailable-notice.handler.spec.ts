@@ -16,57 +16,50 @@ import { TenantUnavailableNoticeHandler } from './tenant-unavailable-notice.hand
 const TENANT_ID = 'aaaaaaaa-0028-4000-8000-0000000000d1';
 const CUSTOMER_ID = 'cccccccc-0028-4000-8000-0000000000d1';
 
-function makeHandler(): {
-  handler: TenantUnavailableNoticeHandler;
-  useCase: SendTenantUnavailableNoticeNotificationUseCase;
-  dispatcher: InMemoryNotificationDispatcher;
-  eventBus: InMemoryEventBus;
-} {
-  const dispatcher = new InMemoryNotificationDispatcher();
-  const tenantPort = new InMemoryNotificationPlatformPort();
-  tenantPort.setTenantInfo(TENANT_ID, {
-    id: TENANT_ID,
-    name: 'Lava Rápido Central',
-    slug: 'lava-rapido',
-    hotsiteUrl: 'https://app.example.com/lava-rapido',
-    timezone: 'America/Sao_Paulo',
-    locale: 'pt-BR',
-    replyToEmail: null,
-    dateFormat: 'DD/MM/YYYY',
-    timeFormat: '24h',
-  });
-  const customerPort = new InMemoryNotificationCustomerPort();
-  customerPort.setCustomer(TENANT_ID, CUSTOMER_ID, { email: 'maria@example.com', name: 'Maria' });
-  const templateRepo = new InMemoryNotificationTemplateRepository();
-  templateRepo.seed(
-    new NotificationTemplateBuilder()
-      .withTenantId(TENANT_ID)
-      .withTriggerEvent(NotificationTemplateKey.TENANT_UNAVAILABLE_CUSTOMER)
-      .build(),
-  );
-  const useCase = new SendTenantUnavailableNoticeNotificationUseCase(
-    new InMemoryNotificationLogRepository(),
-    new InMemoryInboxRepository(),
-    dispatcher,
-    customerPort,
-    new InMemoryTransactionManager(),
-    templateRepo,
-    tenantPort,
-    new JsonLocalizationAdapter(),
-  );
-  const eventBus = new InMemoryEventBus();
-  return {
-    handler: new TenantUnavailableNoticeHandler(useCase, eventBus),
-    useCase,
-    dispatcher,
-    eventBus,
-  };
-}
-
 describe('TenantUnavailableNoticeHandler', () => {
-  it('delegates one command to the use case and sends one email', async () => {
-    const { handler, dispatcher } = makeHandler();
+  let dispatcher: InMemoryNotificationDispatcher;
+  let useCase: SendTenantUnavailableNoticeNotificationUseCase;
+  let eventBus: InMemoryEventBus;
+  let handler: TenantUnavailableNoticeHandler;
 
+  beforeEach(() => {
+    dispatcher = new InMemoryNotificationDispatcher();
+    const tenantPort = new InMemoryNotificationPlatformPort();
+    tenantPort.setTenantInfo(TENANT_ID, {
+      id: TENANT_ID,
+      name: 'Lava Rápido Central',
+      slug: 'lava-rapido',
+      hotsiteUrl: 'https://app.example.com/lava-rapido',
+      timezone: 'America/Sao_Paulo',
+      locale: 'pt-BR',
+      replyToEmail: null,
+      dateFormat: 'DD/MM/YYYY',
+      timeFormat: '24h',
+    });
+    const customerPort = new InMemoryNotificationCustomerPort();
+    customerPort.setCustomer(TENANT_ID, CUSTOMER_ID, { email: 'maria@example.com', name: 'Maria' });
+    const templateRepo = new InMemoryNotificationTemplateRepository();
+    templateRepo.seed(
+      new NotificationTemplateBuilder()
+        .withTenantId(TENANT_ID)
+        .withTriggerEvent(NotificationTemplateKey.TENANT_UNAVAILABLE_CUSTOMER)
+        .build(),
+    );
+    useCase = new SendTenantUnavailableNoticeNotificationUseCase(
+      new InMemoryNotificationLogRepository(),
+      new InMemoryInboxRepository(),
+      dispatcher,
+      customerPort,
+      new InMemoryTransactionManager(),
+      templateRepo,
+      tenantPort,
+      new JsonLocalizationAdapter(),
+    );
+    eventBus = new InMemoryEventBus();
+    handler = new TenantUnavailableNoticeHandler(useCase, eventBus);
+  });
+
+  it('delegates one command to the use case and sends one email', async () => {
     await handler.handle(
       new TenantUnavailableNoticeDueCommandBuilder()
         .withTenantId(TENANT_ID)
@@ -78,7 +71,6 @@ describe('TenantUnavailableNoticeHandler', () => {
   });
 
   it('calls the use case exactly once and rethrows on failure so Pub/Sub can nack and retry', async () => {
-    const { handler, useCase } = makeHandler();
     const executeSpy = jest.spyOn(useCase, 'execute').mockRejectedValueOnce(new Error('boom'));
 
     await expect(
@@ -91,8 +83,6 @@ describe('TenantUnavailableNoticeHandler', () => {
   });
 
   it('subscribes to TenantUnavailableNoticeDue under its own consumer name', () => {
-    const { handler, eventBus } = makeHandler();
-
     handler.onModuleInit();
 
     expect(eventBus.subscriptions).toEqual([

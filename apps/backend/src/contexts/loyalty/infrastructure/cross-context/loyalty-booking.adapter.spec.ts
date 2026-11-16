@@ -144,4 +144,10 @@ describe('LoyaltyBookingAdapter', () => {
 
     expect(result).toEqual([]);
   });
+
+  it('rethrows an unexpected failure instead of reporting an empty booking', async () => {
+    getBookingById.execute.mockRejectedValue(new Error('DB error'));
+
+    await expect(adapter.findBookingServices(TENANT_ID, BOOKING_ID)).rejects.toThrow('DB error');
+  });
 });

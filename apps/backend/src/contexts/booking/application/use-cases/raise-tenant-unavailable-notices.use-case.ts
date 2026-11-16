@@ -75,30 +75,31 @@ export class RaiseTenantUnavailableNoticesUseCase {
   }
 
   // One page of customer ids at a time: the read runs before the page's transaction opens, the page
-  // is written as one chunk, and the next page starts after the last id of this one.
-  private async publishNotices(input: RaiseTenantUnavailableNoticesUseCaseInput): Promise<number> {
+  // is written as one chunk, and the next page starts after the last id of this one. A page needs
+  // the previous page's last id, so the pages are inherently sequential.
+  private async publishNotices(
+    input: RaiseTenantUnavailableNoticesUseCaseInput,
+    cursor: string | null = null,
+    publishedSoFar = 0,
+  ): Promise<number> {
     const { tenantId, eventId, correlationId } = input;
-    const after = new Date(input.suspendedAt);
-    let published = 0;
-    let cursor: string | null = null;
-    let page: string[];
-    do {
-      page = await this.bookingRepo.findCustomerIdsWithApprovedBookingsAfter(
-        tenantId,
-        after,
-        cursor,
-        OUTBOX_PUBLISH_CHUNK_SIZE,
-      );
-      await publishToOutboxInChunks(
-        { txManager: this.txManager, outboxPublisher: this.outboxPublisher },
-        page.map(
-          (customerId) =>
-            new TenantUnavailableNoticeDue(tenantId, correlationId, { customerId }, eventId),
-        ),
-      );
-      published += page.length;
-      cursor = page.length > 0 ? page[page.length - 1] : cursor;
-    } while (page.length === OUTBOX_PUBLISH_CHUNK_SIZE);
-    return published;
+    const page = await this.bookingRepo.findCustomerIdsWithApprovedBookingsAfter(
+      tenantId,
+      new Date(input.suspendedAt),
+      cursor,
+      OUTBOX_PUBLISH_CHUNK_SIZE,
+    );
+    await publishToOutboxInChunks(
+      { txManager: this.txManager, outboxPublisher: this.outboxPublisher },
+      page.map(
+        (customerId) =>
+          new TenantUnavailableNoticeDue(tenantId, correlationId, { customerId }, eventId),
+      ),
+    );
+    const published = publishedSoFar + page.length;
+    const lastCustomerId = page.at(-1);
+    return page.length === OUTBOX_PUBLISH_CHUNK_SIZE && lastCustomerId !== undefined
+      ? this.publishNotices(input, lastCustomerId, published)
+      : published;
   }
 }

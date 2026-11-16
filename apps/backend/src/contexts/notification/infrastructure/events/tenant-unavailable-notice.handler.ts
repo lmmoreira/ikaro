@@ -1,6 +1,7 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import { EVENT_BUS, IEventBus } from '../../../../shared/ports/event-bus.port';
+import { redactEmailForLogging } from '../../../../shared/utils/redact-email-for-logging';
 import { TenantUnavailableNoticeDue } from '../../../booking/domain/commands/tenant-unavailable-notice-due.command';
 import { SendTenantUnavailableNoticeNotificationUseCase } from '../../application/use-cases/send-tenant-unavailable-notice-notification/send-tenant-unavailable-notice-notification.use-case';
 
@@ -42,7 +43,8 @@ export class TenantUnavailableNoticeHandler implements OnModuleInit {
     } catch (err) {
       this.logger.error(
         'TenantUnavailableNoticeHandler failed — will nack for retry',
-        err instanceof Error ? err.stack : String(err),
+        // A dispatcher error can carry the recipient's address (e.g. "550 mailbox not found: <email>").
+        redactEmailForLogging(err instanceof Error ? (err.stack ?? err.message) : String(err)),
         { tenantId: event.tenantId, correlationId: event.correlationId, eventId: event.eventId },
       );
       throw err;

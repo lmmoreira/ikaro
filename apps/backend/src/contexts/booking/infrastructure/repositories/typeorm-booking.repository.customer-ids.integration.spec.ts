@@ -46,6 +46,17 @@ describe('TypeOrmBookingRepository.findCustomerIdsWithApprovedBookingsAfter (int
     await repo.save(builder.build());
   };
 
+  // The tenants' ids are fixed and CI reuses one Postgres container across runs, so rows an earlier
+  // aborted run left behind are cleared before seeding, and again at the end.
+  const cleanup = async (): Promise<void> => {
+    const tenantIds = [TENANT_A, TENANT_B];
+    await dataSource.query(
+      `DELETE FROM booking.booking_status_transitions WHERE tenant_id = ANY($1)`,
+      [tenantIds],
+    );
+    await dataSource.query(`DELETE FROM booking.bookings WHERE tenant_id = ANY($1)`, [tenantIds]);
+  };
+
   const wholeRead = async (tenantId: string, limit: number): Promise<string[]> => {
     const collected: string[] = [];
     let cursor: string | null = null;
@@ -60,6 +71,7 @@ describe('TypeOrmBookingRepository.findCustomerIdsWithApprovedBookingsAfter (int
 
   beforeAll(async () => {
     dataSource = await createTestDataSource();
+    await cleanup();
     repo = new TypeOrmBookingRepository(
       dataSource.getRepository(BookingEntity),
       dataSource.getRepository(BookingLineEntity),
@@ -94,7 +106,11 @@ describe('TypeOrmBookingRepository.findCustomerIdsWithApprovedBookingsAfter (int
   });
 
   afterAll(async () => {
-    await dataSource.destroy();
+    try {
+      await cleanup();
+    } finally {
+      await dataSource.destroy();
+    }
   });
 
   it('returns each customer once, ordered by id, however many bookings they hold', async () => {

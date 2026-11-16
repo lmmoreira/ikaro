@@ -67,4 +67,10 @@ describe('LoyaltyPlatformAdapter', () => {
       pointsPerCurrencyUnit: 0,
     });
   });
+
+  it('rethrows an unexpected failure instead of silently using the defaults', async () => {
+    getTenantById.execute.mockRejectedValue(new Error('DB error'));
+
+    await expect(adapter.getLoyaltySettings(TENANT_ID)).rejects.toThrow('DB error');
+  });
 });

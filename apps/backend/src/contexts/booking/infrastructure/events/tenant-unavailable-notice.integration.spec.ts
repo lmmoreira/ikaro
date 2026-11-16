@@ -3,7 +3,6 @@ import { TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 import { EVENT_BUS, IEventBus } from '../../../../shared/ports/event-bus.port';
 import { TENANT_ACCESS_PORT } from '../../../../shared/ports/tenant-access.port';
-import type { SubscriptionSuspended } from '../../../billing/domain/events/subscription-suspended.event';
 import { SubscriptionSuspendedEventBuilder } from '../../../../test/builders/billing/subscription-suspended-event.builder';
 import { BookingBuilder } from '../../../../test/builders/booking';
 import { CustomerEntityBuilder } from '../../../../test/builders/customer/customer-entity.builder';
@@ -12,7 +11,6 @@ import { TenantEntityBuilder } from '../../../../test/builders/platform';
 import { InMemoryNotificationDispatcher } from '../../../../test/infrastructure/in-memory-notification-dispatcher';
 import type { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
 import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
-import { waitFor } from '../../../../test/utils/wait-for';
 import { CustomerEntity } from '../../../customer/infrastructure/entities/customer.entity';
 import { NOTIFICATION_DISPATCHER } from '../../../notification/application/ports/notification-dispatcher.port';
 import { NotificationTemplateKey } from '../../../notification/domain/notification-template-key.enum';
@@ -29,8 +27,14 @@ import { BookingStatus } from '../../domain/booking.aggregate';
 // The whole chain, through the real gate and the real outbox: Billing's SubscriptionSuspended →
 // Booking's fan-out → one command per customer in shared.outbox → Notification → one email each,
 // while the tenant is suspended (UC-121 O-B1, UC-123).
+//
+// `bus.publish()` resolves once the routing bus has delivered the event and everything it queued
+// (the outbox relay's commands included), so each test asserts right after it, with no waiting.
+// Every test publishes its own events and reads its own results: the fixtures are seeded once, the
+// per-test state (the recorded emails and the tenant's outbox rows) is reset before each test.
 const TENANT = '00000000-0000-7000-8000-0000000028a1';
 const OTHER_TENANT = '00000000-0000-7000-8000-0000000028a2';
+const FIXTURE_TENANTS = [TENANT, OTHER_TENANT];
 const APPROVER = '00000000-0000-7000-8000-0000000028f1';
 const CUSTOMER_1 = '00000000-0000-7000-8000-00000028c101';
 const CUSTOMER_2 = '00000000-0000-7000-8000-00000028c102';
@@ -46,9 +50,19 @@ describe('Tenant unavailable notice, end to end (M25-S28)', () => {
   let access: InMemoryTenantAccessPort;
   let bookingRepo: IBookingRepository;
   const dispatcher = new InMemoryNotificationDispatcher();
-  let laterEvent: SubscriptionSuspended;
 
   const recipients = (): string[] => dispatcher.dispatched.map((m) => m.to).sort();
+
+  const suspensionEvent = () =>
+    new SubscriptionSuspendedEventBuilder().withTenantId(TENANT).build();
+
+  const commandKeys = async (): Promise<string[]> => {
+    const rows: Array<{ dedup_key: string }> = await ds.query(
+      `SELECT dedup_key FROM shared.outbox WHERE tenant_id = $1 AND event_name = 'TenantUnavailableNoticeDue' ORDER BY dedup_key`,
+      [TENANT],
+    );
+    return rows.map((row) => row.dedup_key);
+  };
 
   const seedBooking = async (
     tenantId: string,
@@ -80,6 +94,24 @@ describe('Tenant unavailable notice, end to end (M25-S28)', () => {
           .build(),
       );
 
+  // The tenants' ids are fixed and CI reuses one Postgres container across runs, so rows an earlier
+  // aborted run left behind are cleared before seeding, and again at the end.
+  const cleanup = async (): Promise<void> => {
+    await ds.query(`DELETE FROM notification.notification_logs WHERE tenant_id = ANY($1)`, [
+      FIXTURE_TENANTS,
+    ]);
+    await ds.query(`DELETE FROM shared.outbox WHERE tenant_id = ANY($1)`, [FIXTURE_TENANTS]);
+    await ds.query(`DELETE FROM notification.notification_templates WHERE tenant_id = ANY($1)`, [
+      FIXTURE_TENANTS,
+    ]);
+    await ds.query(`DELETE FROM booking.booking_status_transitions WHERE tenant_id = ANY($1)`, [
+      FIXTURE_TENANTS,
+    ]);
+    await ds.query(`DELETE FROM booking.bookings WHERE tenant_id = ANY($1)`, [FIXTURE_TENANTS]);
+    await ds.query(`DELETE FROM customer.customers WHERE tenant_id = ANY($1)`, [FIXTURE_TENANTS]);
+    await ds.query(`DELETE FROM platform.tenants WHERE id = ANY($1)`, [FIXTURE_TENANTS]);
+  };
+
   beforeAll(async () => {
     ({ app, ds, moduleRef } = await createBookingIntegrationApp({
       extraModules: [NotificationModule],
@@ -91,6 +123,7 @@ describe('Tenant unavailable notice, end to end (M25-S28)', () => {
     access = moduleRef.get<InMemoryTenantAccessPort>(TENANT_ACCESS_PORT);
     bookingRepo = moduleRef.get<IBookingRepository>(BOOKING_REPOSITORY);
 
+    await cleanup();
     for (const [id, slug] of [
       [TENANT, 'notice-a'],
       [OTHER_TENANT, 'notice-b'],
@@ -127,60 +160,55 @@ describe('Tenant unavailable notice, end to end (M25-S28)', () => {
     access.seedSuspended(TENANT);
   });
 
-  afterAll(async () => {
-    const tenants = [TENANT, OTHER_TENANT];
-    await ds.query(`DELETE FROM notification.notification_logs WHERE tenant_id = ANY($1)`, [
-      tenants,
-    ]);
-    await ds.query(`DELETE FROM shared.outbox WHERE tenant_id = ANY($1)`, [tenants]);
-    await ds.query(`DELETE FROM notification.notification_templates WHERE tenant_id = ANY($1)`, [
-      tenants,
-    ]);
-    await ds.query(`DELETE FROM booking.booking_status_transitions WHERE tenant_id = ANY($1)`, [
-      tenants,
-    ]);
-    await ds.query(`DELETE FROM booking.bookings WHERE tenant_id = ANY($1)`, [tenants]);
-    await ds.query(`DELETE FROM customer.customers WHERE tenant_id = ANY($1)`, [tenants]);
-    await ds.query(`DELETE FROM platform.tenants WHERE id = ANY($1)`, [tenants]);
-    await app.close();
+  beforeEach(async () => {
+    dispatcher.clear();
+    await ds.query(`DELETE FROM shared.outbox WHERE tenant_id = ANY($1)`, [FIXTURE_TENANTS]);
   });
 
-  const suspensionEvent = () =>
-    new SubscriptionSuspendedEventBuilder().withTenantId(TENANT).build();
+  afterAll(async () => {
+    try {
+      await cleanup();
+    } finally {
+      await app.close();
+    }
+  });
 
   it('emails each customer with an approved booking once, while the tenant is suspended', async () => {
     expect((await access.getAccess(TENANT)).operational).toBe(false);
 
     await bus.publish(suspensionEvent());
-    await waitFor(async () => dispatcher.dispatched.length >= 2);
 
     expect(recipients()).toEqual(['dois@example.com', 'um@example.com']);
-    const body = dispatcher.dispatched[0].body;
-    expect(body).toContain('temporariamente indisponível');
-    expect(body).not.toContain('{{');
+    expect(dispatcher.dispatched[0].body).toContain('temporariamente indisponível');
+    expect(dispatcher.dispatched[0].body).not.toContain('{{');
   });
 
   it('emails nobody else: not the guest, the pending customer or another tenant customer', async () => {
+    await bus.publish(suspensionEvent());
+
     expect(recipients()).not.toContain('pendente@example.com');
     expect(recipients()).not.toContain('outro@example.com');
     expect(dispatcher.dispatched).toHaveLength(2);
+    expect(await commandKeys()).toHaveLength(2);
   });
 
   it('writes exactly one outbox command per customer, keyed on the suspension event', async () => {
-    const rows: Array<{ dedup_key: string }> = await ds.query(
-      `SELECT dedup_key FROM shared.outbox WHERE tenant_id = $1 AND event_name = 'TenantUnavailableNoticeDue'`,
-      [TENANT],
-    );
+    const event = suspensionEvent();
 
-    expect(rows).toHaveLength(2);
-    expect(new Set(rows.map((r) => r.dedup_key)).size).toBe(2);
+    await bus.publish(event);
+
+    const keys = await commandKeys();
+    expect(keys).toHaveLength(2);
+    expect(keys.every((key) => key.includes(event.eventId))).toBe(true);
+    expect(keys).toEqual([
+      `TenantUnavailableNoticeDue:${TENANT}:${event.eventId}:${CUSTOMER_1}`,
+      `TenantUnavailableNoticeDue:${TENANT}:${event.eventId}:${CUSTOMER_2}`,
+    ]);
   });
 
   it('notifies again for a later suspension event: it is a new unavailability', async () => {
-    laterEvent = suspensionEvent();
-
-    await bus.publish(laterEvent);
-    await waitFor(async () => dispatcher.dispatched.length >= 4);
+    await bus.publish(suspensionEvent());
+    await bus.publish(suspensionEvent());
 
     expect(recipients()).toEqual([
       'dois@example.com',
@@ -188,22 +216,16 @@ describe('Tenant unavailable notice, end to end (M25-S28)', () => {
       'um@example.com',
       'um@example.com',
     ]);
-    expect(await countCommands()).toBe(4);
+    expect(await commandKeys()).toHaveLength(4);
   });
 
-  it('writes no second command and sends no second email when that event is redelivered', async () => {
-    await bus.publish(laterEvent);
-    await new Promise((resolve) => setTimeout(resolve, 600));
+  it('writes no second command and sends no second email when the same event is redelivered', async () => {
+    const event = suspensionEvent();
 
-    expect(await countCommands()).toBe(4);
-    expect(dispatcher.dispatched).toHaveLength(4);
+    await bus.publish(event);
+    await bus.publish(event);
+
+    expect(await commandKeys()).toHaveLength(2);
+    expect(recipients()).toEqual(['dois@example.com', 'um@example.com']);
   });
-
-  async function countCommands(): Promise<number> {
-    const [{ n }] = await ds.query(
-      `SELECT count(*)::int AS n FROM shared.outbox WHERE tenant_id = $1 AND event_name = 'TenantUnavailableNoticeDue'`,
-      [TENANT],
-    );
-    return n;
-  }
 });

@@ -12,25 +12,23 @@ import { SubscriptionSuspendedTenantUnavailableHandler } from './subscription-su
 const TENANT_ID = 'aaaaaaaa-0028-4000-8000-0000000000c1';
 const CUSTOMER_ID = 'cccccccc-0001-4000-8000-0000000028c1';
 
-function makeHandler(): {
-  handler: SubscriptionSuspendedTenantUnavailableHandler;
-  useCase: RaiseTenantUnavailableNoticesUseCase;
-  bookingRepo: InMemoryBookingRepository;
-  outbox: InMemoryOutboxPublisher;
-  eventBus: InMemoryEventBus;
-} {
-  const txManager = new InMemoryTransactionManager();
-  const bookingRepo = new InMemoryBookingRepository();
-  const outbox = new InMemoryOutboxPublisher(txManager);
-  const useCase = new RaiseTenantUnavailableNoticesUseCase(bookingRepo, outbox, txManager);
-  const eventBus = new InMemoryEventBus();
-  const handler = new SubscriptionSuspendedTenantUnavailableHandler(useCase, eventBus);
-  return { handler, useCase, bookingRepo, outbox, eventBus };
-}
-
 describe('SubscriptionSuspendedTenantUnavailableHandler', () => {
+  let bookingRepo: InMemoryBookingRepository;
+  let outbox: InMemoryOutboxPublisher;
+  let useCase: RaiseTenantUnavailableNoticesUseCase;
+  let eventBus: InMemoryEventBus;
+  let handler: SubscriptionSuspendedTenantUnavailableHandler;
+
+  beforeEach(() => {
+    const txManager = new InMemoryTransactionManager();
+    bookingRepo = new InMemoryBookingRepository();
+    outbox = new InMemoryOutboxPublisher(txManager);
+    useCase = new RaiseTenantUnavailableNoticesUseCase(bookingRepo, outbox, txManager);
+    eventBus = new InMemoryEventBus();
+    handler = new SubscriptionSuspendedTenantUnavailableHandler(useCase, eventBus);
+  });
+
   it('delegates to the use case and publishes one command carrying the event correlation id', async () => {
-    const { handler, bookingRepo, outbox } = makeHandler();
     await bookingRepo.save(
       new BookingBuilder()
         .withTenantId(TENANT_ID)
@@ -54,7 +52,6 @@ describe('SubscriptionSuspendedTenantUnavailableHandler', () => {
   });
 
   it('calls the use case exactly once and rethrows on failure so Pub/Sub can nack and retry', async () => {
-    const { handler, useCase } = makeHandler();
     const executeSpy = jest.spyOn(useCase, 'execute').mockRejectedValueOnce(new Error('boom'));
 
     await expect(handler.handle(new SubscriptionSuspendedEventBuilder().build())).rejects.toThrow(
@@ -65,8 +62,6 @@ describe('SubscriptionSuspendedTenantUnavailableHandler', () => {
   });
 
   it('subscribes to SubscriptionSuspended under its own consumer name', () => {
-    const { handler, eventBus } = makeHandler();
-
     handler.onModuleInit();
 
     expect(eventBus.subscriptions).toEqual([

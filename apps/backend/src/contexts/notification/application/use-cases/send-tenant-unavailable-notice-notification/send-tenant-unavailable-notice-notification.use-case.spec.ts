@@ -160,7 +160,22 @@ describe('SendTenantUnavailableNoticeNotificationUseCase', () => {
     expect(dispatcher.dispatched).toHaveLength(0);
   });
 
-  it('never reads a customer of another tenant: the same id under another tenant gets no email', async () => {
+  it('cannot read another tenant customer: tenant B asking for a tenant A customer gets no email', async () => {
+    setTenant(OTHER_TENANT_ID);
+    seedTemplate(OTHER_TENANT_ID);
+
+    const result = await useCase.execute(
+      new SendTenantUnavailableNoticeNotificationDtoBuilder()
+        .withTenantId(OTHER_TENANT_ID)
+        .withCustomerId(CUSTOMER_ID)
+        .build(),
+    );
+
+    expect(result).toEqual({ emailSent: false });
+    expect(dispatcher.dispatched).toHaveLength(0);
+  });
+
+  it('resolves the same customer id per tenant: each tenant email goes to its own customer', async () => {
     customerPort.setCustomer(OTHER_TENANT_ID, CUSTOMER_ID, {
       email: 'other@example.com',
       name: 'Outra Pessoa',

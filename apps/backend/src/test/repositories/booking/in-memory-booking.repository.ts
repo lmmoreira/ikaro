@@ -122,10 +122,11 @@ export class InMemoryBookingRepository implements IBookingRepository {
         customerIds.add(booking.customerId);
       }
     }
+    // Codepoint order, the same as the `>` keyset filter and as Postgres's uuid order for lowercase ids.
     return Promise.resolve(
       Array.from(customerIds)
         .filter((id) => afterCustomerId === null || id > afterCustomerId)
-        .sort()
+        .sort((a, b) => Number(a > b) - Number(a < b))
         .slice(0, limit),
     );
   }

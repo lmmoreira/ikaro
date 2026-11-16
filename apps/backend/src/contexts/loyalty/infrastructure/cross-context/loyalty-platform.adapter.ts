@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { GetTenantByIdUseCase } from '../../../platform/application/use-cases/get-tenant-by-id.use-case';
+import { TenantNotFoundError } from '../../../platform/domain/errors/platform-domain.error';
 import {
   ILoyaltyPlatformPort,
   LoyaltyTenantSettings,
@@ -23,8 +24,10 @@ export class LoyaltyPlatformAdapter implements ILoyaltyPlatformPort {
         notificationMinPoints: result.settings.loyalty.notificationMinPoints,
         pointsPerCurrencyUnit: result.settings.loyalty.pointsPerCurrencyUnit,
       };
-    } catch {
-      return { ...DEFAULTS };
+    } catch (err) {
+      // Only a genuine "no such tenant" falls back to the defaults; any other failure must propagate.
+      if (err instanceof TenantNotFoundError) return { ...DEFAULTS };
+      throw err;
     }
   }
 }

@@ -5,6 +5,7 @@ import {
   IApplicationConfig,
 } from '../../../../shared/ports/application-config.port';
 import { GetTenantByIdUseCase } from '../../../platform/application/use-cases/get-tenant-by-id.use-case';
+import { TenantNotFoundError } from '../../../platform/domain/errors/platform-domain.error';
 import {
   INotificationPlatformPort,
   NotificationTenantInfo,
@@ -34,8 +35,10 @@ export class NotificationPlatformAdapter implements INotificationPlatformPort {
         dateFormat: spec.dateFormat,
         timeFormat: spec.timeFormat,
       };
-    } catch {
-      return null;
+    } catch (err) {
+      // Only a genuine "no such tenant" collapses to null; any other failure must propagate.
+      if (err instanceof TenantNotFoundError) return null;
+      throw err;
     }
   }
 }

@@ -18,12 +18,27 @@ const EVENT_ID = 'eeeeeeee-0001-4000-8000-000000000028';
 const CORRELATION_ID = 'corr-suspended-28';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+// Mirrors the real outbox's `UNIQUE(dedup_key)` + `ON CONFLICT DO NOTHING`: a command whose key was
+// already written is dropped, so a retry that re-derives the same commands records nothing twice.
+class DedupingOutboxPublisher implements IOutboxPublisher {
+  private readonly seenKeys = new Set<string>();
+
+  constructor(private readonly inner: InMemoryOutboxPublisher) {}
+
+  async publish(event: Envelope): Promise<void> {
+    const { dedupKey } = event as TenantUnavailableNoticeDue;
+    if (this.seenKeys.has(dedupKey)) return;
+    this.seenKeys.add(dedupKey);
+    await this.inner.publish(event);
+  }
+}
+
 // Fails the first write of one customer's command, like an outbox insert that errors mid-run.
 class FailOnceOnCustomerPublisher implements IOutboxPublisher {
   private failed = false;
 
   constructor(
-    private readonly inner: InMemoryOutboxPublisher,
+    private readonly inner: IOutboxPublisher,
     private readonly customerId: string,
   ) {}
 
@@ -230,7 +245,7 @@ describe('RaiseTenantUnavailableNoticesUseCase', () => {
     const lastCustomerId = customerIds[customerIds.length - 1];
     useCase = new RaiseTenantUnavailableNoticesUseCase(
       bookingRepo,
-      new FailOnceOnCustomerPublisher(outbox, lastCustomerId),
+      new FailOnceOnCustomerPublisher(new DedupingOutboxPublisher(outbox), lastCustomerId),
       txManager,
     );
 
@@ -240,11 +255,10 @@ describe('RaiseTenantUnavailableNoticesUseCase', () => {
 
     await run();
 
-    // The retry re-derives page one with the same keys (a no-op conflict in the real outbox) and
-    // adds the missing customer: every customer ends up with exactly one distinct key.
-    const keys = commands().map((c) => c.dedupKey);
-    expect(new Set(keys).size).toBe(customerIds.length);
-    expect(new Set(commands().map((c) => c.data.customerId))).toEqual(new Set(customerIds));
+    // The retry re-derives page one with the same keys (dropped as conflicts, as in the real outbox)
+    // and adds the missing customer: exactly one command per customer, none twice.
+    expect(commands()).toHaveLength(customerIds.length);
+    expect(commands().map((c) => c.data.customerId)).toEqual(customerIds);
   });
 
   it('reads the customers before it opens a transaction', async () => {

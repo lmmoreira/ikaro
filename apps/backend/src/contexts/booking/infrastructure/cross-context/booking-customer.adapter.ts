@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Address } from '../../../../shared/value-objects/address';
 import { GetCustomerByIdUseCase } from '../../../customer/application/use-cases/get-customer-by-id.use-case';
+import { CustomerNotFoundError } from '../../../customer/domain/errors/customer-domain.error';
 import {
   CustomerProfileDto,
   IBookingCustomerPort,
@@ -21,8 +22,10 @@ export class BookingCustomerAdapter implements IBookingCustomerPort {
           ? Address.reconstitute(customer.defaultAddress)
           : null,
       };
-    } catch {
-      return null;
+    } catch (err) {
+      // Only a genuine "no such customer" collapses to null; any other failure must propagate.
+      if (err instanceof CustomerNotFoundError) return null;
+      throw err;
     }
   }
 }
