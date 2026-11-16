@@ -1152,7 +1152,8 @@ LoyaltyBalance {
 
 **Methods:**
 - `increment(points: number): void` — called after a `LoyaltyEntry` is persisted.
-- `decrement(points: number): void` — called on redemption, on the discount settlement and on point expiry; throws `LoyaltyInsufficientPointsError` if `currentPoints < points`. `ExpirePointsJob` never relies on the throw: it clamps the amount first (`Math.min(expired points, currentPoints)`) and skips the decrement at zero. The discount settlement does not clamp: if the balance is already below the points the discount used (for example after an expiry sweep), `decrement` throws, the `BookingCompleted` handler rethrows and the message is retried.
+- `decrement(points: number): void` — called on redemption, on the discount settlement and on point expiry; throws `LoyaltyInsufficientPointsError` if `currentPoints < points`. `ExpirePointsJob` never relies on the throw: it clamps the amount first (`Math.min(expired points, currentPoints)`) and skips the decrement at zero. The discount settlement uses `decrementUpTo` instead.
+- `decrementUpTo(points: number): number` — takes what the balance can give, never below zero, and returns the amount taken (`0` at a zero balance); throws `LoyaltyInvalidPointsError` for a non-positive amount. Used by the discount settlement: if the balance is already below the points the discount used (for example after an expiry sweep, or another completion for the same customer, between the completion screen loading the balance and the event being processed), the redemption records the points actually taken, the earn on the same event is still recorded, and one `WARN` log carries the shortfall. The customer keeps the discount and the business absorbs the difference. `decrement` stays strict, so the manual redeem still refuses with `LoyaltyInsufficientPointsError`.
 
 **Invariant:** `currentPoints >= 0` always. The DB `CHECK (current_points >= 0)` enforces this at persistence level.
 
@@ -1177,7 +1178,7 @@ LoyaltyRedemption {
 }
 ```
 
-**Rules:** The redemption row and the `LoyaltyBalance` decrement are written in the same transaction. If the customer has insufficient points, `RedeemPointsUseCase` throws `LoyaltyInsufficientPointsError` before touching the DB.
+**Rules:** The redemption row and the `LoyaltyBalance` decrement are written in the same transaction. If the customer has insufficient points, `RedeemPointsUseCase` throws `LoyaltyInsufficientPointsError` before touching the DB. A redemption written by the booking-completion settlement can record fewer points than the discount used (the points the balance still covered); when it covers nothing, no redemption row is written (`points_redeemed` must be positive).
 
 ---
 

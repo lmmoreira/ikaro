@@ -750,6 +750,7 @@ flowchart TD
 ### Rules worth not re-deriving
 
 - **The handler is never gated.** `BookingCompletedHandler` declares `{ skipWhenSuspended: false }`; `CompleteBookingLoyaltyEffectsUseCase` reads `TenantAccessPort` **before** `txManager.run()` (no cross-service call inside a transaction) and fails open, like the gate.
+- **A discount larger than the balance is settled for what the balance covers.** `LoyaltyBalance.decrementUpTo` takes the points the balance still has (after this event's earn is added), the redemption records that amount (none is written when it is 0, `points_redeemed` must be positive), the earn is always recorded, the event is marked processed, and one `WARN` log carries tenant, customer, booking, points used, covered and shortfall. The customer keeps the discount and the business absorbs the difference. It never retries and never loses the earn. The manual redeem still refuses an amount above the balance (`decrement` is strict).
 - **Settlement never depends on access.** The discount is already on the booking; dropping the settlement would leave the customer with the discount and the points. A delayed delivery is real, not a race of seconds: a failed inline dispatch stays in the outbox until the relay sweep retries it.
 - **A failed settings read never earns or settles.** `getLoyaltySettings` is read before the transaction and fails closed (a missing tenant included): the handler nacks, nothing is written and no inbox mark exists. The redelivery then uses the tenant's real `expiryDays` and `pointsPerCurrencyUnit`, so an entry never gets a wrong expiry and a redemption never a zero rate.
 - **A suppressed event is still marked processed**, so a duplicate delivered after access is restored cannot earn for an event that was suppressed.
@@ -759,6 +760,7 @@ flowchart TD
 ### Known limitations
 
 - A suspended tenant's in-flight `BookingCompleted` earns nothing and is not replayed on reactivation.
+- The server never re-checks the balance when a booking is completed (`validateDiscount` only reconciles `pointsUsed ÷ rate` with `amountDeducted`). The completion screen loads the balance with the booking and caps the discount to it, so a shortfall needs a balance that changed after the page opened (the sweep, another completion for the same customer) or a request that did not come from the screen. It is accepted: the business absorbs the difference and the shortfall is only logged, not persisted.
 - The access answer comes from a per-instance cache, so a tenant suspended seconds ago can still earn for up to about five minutes on another instance.
 
 ---

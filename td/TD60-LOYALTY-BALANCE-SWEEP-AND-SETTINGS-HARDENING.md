@@ -7,7 +7,7 @@
 - **Context**: Loyalty bounded context — backend only (`apps/backend/src/contexts/loyalty`), plus one new Loyalty migration. No BFF, web, infra or `@ikaro/types` change.
 - **Created**: 2026-11-15
 - **Discovered**: M25/M26 docs-audit pass after the M25-S27 decision (points keep expiring while a tenant is suspended, PR #789 / #790). The audit re-read the Loyalty code against its docs and found three real code gaps; the docs now describe them (`docs/LOCK_CATALOG.md` hazard H7, `docs/DATABASE_SCHEMA.md` Loyalty section).
-- **Decision status**: Ready for discovery in the dependency order below; each story still begins with `/story-discovery`. Story 3 needs a product decision first (see its Description).
+- **Decision status**: Ready for discovery in the dependency order below; each story still begins with `/story-discovery`. Story 3's product decision is locked (option a, see its "Locked at `/story-discovery`" note).
 - **Related**: `docs/LOCK_CATALOG.md` § H7; `docs/BUSINESS_LOGIC_REFERENCE.md` (the earn and settle section); `docs/DATABASE_SCHEMA.md` § Schema: `loyalty`; `docs/ENGINEERING_RULES_BACKEND.md` § Choosing a race-condition primitive, § Adding a cron-published event, § Event Handlers; closed PR #788 / branch `feat/m25-s27-loyalty-pause-expiry-while-suspended` (reference for Story 1 only, see below); M25-S27 (product decision O-L1: points keep expiring while a tenant is suspended, so none of this changes expiry semantics).
 
 ## Problem
@@ -35,7 +35,7 @@ Points are money-like to customers and a discount in the business's books. A sil
 - **Gap 1: row lock, not an atomic delta.** Primitive 2 of `docs/ENGINEERING_RULES_BACKEND.md` § Choosing a race-condition primitive ("a row exists, must be read-then-written consistently"): a `findByCustomerForUpdate` port method (`SELECT … FOR UPDATE`) taken **inside** `txManager.run()` in all three writers, with the balance read moved inside the transaction. The first-earn case is closed by ensuring the row first (`INSERT … ON CONFLICT DO NOTHING`, query builder, real column names) and then locking it; the lock is a new self-contained Loyalty level taken first in the Loyalty transaction (nothing in Loyalty takes any L0–L6 lock today, so no cross-ladder ordering is needed). `docs/LOCK_CATALOG.md` is updated in the same story (§ 3 entry, § 4 sequence row, close H7), and the story ships a **concurrent integration test** per `docs/ENGINEERING_RULES_TESTING.md`.
 - **Gap 2: a stored watermark plus a standalone index plus failure isolation (revised at `/story-discovery`, 2026-11-16).** An unprocessed-only anti-join (closed PR #788's `findUnprocessedExpiringUntil`) is one query but still walks every processed entry, so the sweep stores a watermark (`loyalty.expiry_sweep_state`) and reads only `(watermark - 1 day, runStart]`, advancing it only after a fully successful run; the warning job keeps its seven-day between-dates read. Both use a new standalone index `IDX_loyalty_entries_expires_at` (same index and plan-assertion test as PR #788; the branch is **not merged** and also carries the dropped pause design, so copy only the index and its tests and re-timestamp the migration). Per-customer and per-tenant failure isolation goes through one shared helper extracted from `TenantJobRunner`. Full decisions and rejected alternatives: Story 1's "Locked at `/story-discovery`" block.
 - **Gap 3: fail closed.** The adapter stops swallowing: `TenantNotFoundError` and transient errors propagate. For the earn path this follows `docs/ENGINEERING_RULES_BACKEND.md` § Event Handlers ("rethrow; Pub/Sub nacks and retries; never swallow"), and the inbox makes the retry safe.
-- **Gap 4: a product decision, then the fix** (Story 3). The code cannot choose between recording a partial settlement and refusing it; that is a business rule.
+- **Gap 4: the decision is made, then the fix** (Story 3). The code could not choose between recording a partial settlement and refusing it, which is a business rule; the owner chose to settle what the balance covers and log the shortfall.
 
 ## Stories
 
@@ -249,42 +249,49 @@ Add `findUnprocessedDueBetween(from, to)` to `ILoyaltyEntryRepository` (query bu
 
 ---
 
-### TD60 Story 3 — Decide and fix what happens when a discount settlement exceeds the balance ⚪
+### TD60 Story 3 — Settle what the balance covers when a discount settlement exceeds it
 
 **Agent:** backend-ts
-**Complexity:** M
-**Docs to load:** `docs/BUSINESS_LOGIC_REFERENCE.md` (the Loyalty earn and settle section, "settlement is always settled"); `docs/DOMAIN_MODEL.md` § Aggregate: LoyaltyBalance, § Aggregate: LoyaltyRedemption; `docs/DOMAIN_EVENTS.md` § `BookingCompleted` consumers; `docs/ENGINEERING_RULES_BACKEND.md` § Event Handlers; `docs/USE_CASES.md` (UC-009, UC-016)
+**Complexity:** S
+**Docs to load:** `docs/BUSINESS_LOGIC_REFERENCE.md` (the Loyalty earn and settle section); `docs/DOMAIN_MODEL.md` § Aggregate: LoyaltyBalance, § Aggregate: LoyaltyRedemption; `docs/DOMAIN_EVENTS.md` § `BookingCompleted` consumers; `docs/ENGINEERING_RULES_BACKEND.md` § Event Handlers; `docs/USE_CASES.md` (UC-009, UC-016)
 **Dependencies:** TD60 Story 0 (this story changes the same locked settle path)
-**Pattern:** Domain rule on the aggregate/use case (a documented shortfall policy), not an error swallowed at the handler.
+**Pattern:** A domain rule on the `LoyaltyBalance` aggregate (a clamped decrement that reports what it took), called by the use case; not an error swallowed at the handler.
 
 **Discovered:** 2026-11-15, M25/M26 docs-audit (traced in code, no incident yet).
 **Root cause:** `complete-booking-loyalty-effects.use-case.ts` line 211 calls `balance.decrement`, which throws `LoyaltyInsufficientPointsError` (`loyalty-balance.aggregate.ts` line 40) before `persist` (line 132), rolling back the earn, the redemption, the inbox mark and `ServicePointsEarned`; `booking-completed.handler.ts` lines 54-60 rethrow; the booking side never checks the balance (`complete-booking.use-case.ts` lines 119-133 only reconcile `pointsUsed / rate` with `amountDeducted`).
 
-**Description:**
-When a `BookingCompleted` carries `discountByPoints` greater than the customer's balance plus what the same event earns (for example the daily sweep expired points between the booking's discount being agreed and its completion), the settlement fails deterministically: five delivery attempts, then the alert-only DLQ, with the discount already granted and nothing recorded, and the customer's earned points lost with it. The code's own documentation promises the opposite ("settlement is always settled"). **This needs a product decision before implementation**, so this story starts with `/story-discovery` asking the owner, and the options are:
-- **(a) Settle what is available:** record a redemption for the points the balance can cover (balance goes to 0), still record the earn, and store the uncovered points on the redemption (or log and emit a metric) so the business can see a shortfall happened. The customer keeps the discount, the business absorbs the difference.
-- **(b) Settle in full and allow the balance to go negative:** needs a schema change (the `CHECK (current_points >= 0)` would have to change), so it is the most invasive and is listed only for completeness.
-- **(c) Keep refusing, but make it recoverable:** treat the shortfall as a non-retryable domain error (ack, do not retry), record nothing but the earn, and raise an operator-visible record so someone resolves the discount manually.
-Recommendation to put to the owner: (a), because it matches "settlement is always settled", needs no schema change and loses no earned points. Whatever is chosen, the earn on the same event must not be lost, the retry storm must stop, and the sweep's `Math.min(expired, balance)` non-FIFO clamp is documented as the cause of the possible shortfall (a FIFO redesign is out of scope and is not decided here).
+**Locked at `/story-discovery` (2026-11-16):**
+- **Option (a), settle what the balance covers.** The owner chose it. The earn on the event is always recorded and, as today, counts toward covering its own discount (the earn is added first, then the settle).
+- **The clamp is a domain rule: `LoyaltyBalance.decrementUpTo(points): number`** takes what the balance can give (never below zero) and returns the amount taken. `decrement` stays strict, so the manual redeem (`POST /v1/loyalty/redeem`) still refuses with 422. The sweep's own `Math.min` clamp is not touched (a later change could adopt `decrementUpTo`).
+- **The redemption records the points actually covered.** When nothing is covered (balance 0 and nothing earned) no redemption row is written, because `loyalty_redemptions.points_redeemed` has `CHECK (> 0)`; the event is still marked processed so it is not retried.
+- **The shortfall is made visible by one `WARN` log only, with no schema change.** It carries tenant, customer, booking, `pointsUsed`, covered and shortfall, and is emitted only when there is a shortfall. It can be turned into a log-based alert later; the booking already holds `pointsUsed`, so the gap is also derivable from the two contexts. A persisted shortfall column was rejected (a migration and a second path for the zero-covered case, for an edge case).
+- **Known limitation, accepted by the owner:** the server never re-checks the balance at completion (`validateDiscount` is arithmetic only). The completion screen loads the balance with the booking and caps the discount to it (`useMarkCompleteLoyalty.ts`), so a shortfall needs a balance that changes after the page opened (the sweep, another completion for the same customer) or a request that does not come from the screen. In those cases the business absorbs the difference.
+- **Corrected:** the story's earlier claim that the docs promise "settlement is always settled" was wrong. `docs/DOMAIN_MODEL.md` documented the throw and retry as the intended behaviour; that line is rewritten.
 
-**Backend use case steps:** decided at `/story-discovery` after the product decision (state the chosen option's steps here).
+**Description:**
+When a `BookingCompleted` carries `discountByPoints` greater than the customer's balance plus what the same event earns (for example the daily sweep expired points after the completion screen loaded the balance), the settlement used to fail deterministically: five delivery attempts, then the alert-only DLQ, with the discount already granted and nothing recorded, and the customer's earned points lost with it. The settlement now takes what the balance covers: `balance.decrementUpTo(pointsUsed)` (after the earn is added) returns the points actually taken, the redemption records that amount (none is written when it is 0), the earn is recorded as before, the event is marked processed, and a `WARN` log carries the shortfall. The customer keeps the discount and the business absorbs the difference. Whatever the amounts, the earn on the same event is never lost and there is no retry storm. The sweep's `Math.min(expired, balance)` non-FIFO clamp, the documented cause of the possible shortfall, is not changed (a FIFO redesign is out of scope).
+
+**Backend use case steps:**
+1. `LoyaltyBalance.decrementUpTo(points)`: throws `LoyaltyInvalidPointsError` for a non-positive amount, otherwise decrements by `min(points, currentPoints)` and returns that amount.
+2. `CompleteBookingLoyaltyEffectsUseCase.applyRedemption`: take `decrementUpTo(pointsRedeemed)`; when the amount taken is 0 return no redemption; otherwise record the redemption for the amount taken; when it is below `pointsRedeemed`, log one `WARN` with tenant, customer, booking, `pointsUsed`, covered and shortfall.
+3. The rest of the transaction (entries, balance upsert, redemption save, inbox mark, `ServicePointsEarned`) is unchanged; no handler change.
 **Backend HTTP surface:** none.
-**New migration / i18n keys / env vars / feature flags:** none for option (a) or (c); a migration for option (b).
+**New migration / i18n keys / env vars / feature flags:** none (no schema change).
 
 **Files to create/modify:**
 - `apps/backend/src/contexts/loyalty/application/use-cases/complete-booking-loyalty-effects/complete-booking-loyalty-effects.use-case.ts` (+ `.spec.ts`, `.integration.spec.ts`) (modify)
-- `apps/backend/src/contexts/loyalty/domain/loyalty-balance.aggregate.ts` and `…/loyalty-redemption.aggregate.ts` (+ specs) (modify — only if the chosen option adds a domain rule or a field)
-- `apps/backend/src/contexts/loyalty/infrastructure/events/booking-completed.handler.ts` (+ `.spec.ts`) (modify — only for option (c))
-- `docs/BUSINESS_LOGIC_REFERENCE.md`, `docs/DOMAIN_MODEL.md`, `docs/USE_CASES.md` UC-009 (modify — state the chosen shortfall rule)
+- `apps/backend/src/contexts/loyalty/domain/loyalty-balance.aggregate.ts` (+ spec) (modify: add `decrementUpTo`)
+- `docs/BUSINESS_LOGIC_REFERENCE.md` (the earn and settle rule and the known limitation), `docs/DOMAIN_MODEL.md` (the `LoyaltyBalance` `decrement` paragraph and the redemption rules), `docs/USE_CASES.md` UC-009 A6 step 5 (modify)
 
 **Acceptance criteria — product:**
-- [ ] A completed booking whose points discount exceeds the balance is settled by the rule the owner chose, never silently dropped, and the customer's earned points from that booking are always recorded.
+- [ ] A completed booking whose points discount exceeds the balance is settled for the points the balance covers, never silently dropped (the shortfall is logged), and the customer's earned points from that booking are always recorded.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] The shortfall case, the exact-balance case and the surplus case each have a named spec for the chosen rule.
+  - [ ] `LoyaltyBalance.decrementUpTo` takes everything when the balance covers it, takes only the balance when it does not, takes nothing at a zero balance and rejects a non-positive amount (named aggregate specs); `decrement` still throws when the balance is short.
+  - [ ] `CompleteBookingLoyaltyEffectsUseCase` has a named spec each for the shortfall (redemption for the covered points, balance 0, earn recorded, one `WARN`), the exact balance and the surplus (no `WARN`), and nothing covered (no redemption row, earn recorded when allowed, event marked processed).
 - Integration:
-  - [ ] `BookingCompleted` with `discountByPoints` above the balance (the sweep ran in between) produces the chosen outcome in one transaction and no retry storm; a redelivery is a no-op.
+  - [ ] `BookingCompleted` with `discountByPoints` above the balance (the sweep ran in between) produces the clamped settlement and the earn in one transaction and no retry storm; a redelivery is a no-op.
 - Tenant isolation:
   - [ ] A shortfall for tenant A's customer never reads or changes tenant B's balance.
 - E2E: none — covered by integration

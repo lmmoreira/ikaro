@@ -331,7 +331,7 @@ UC-XXX: [Use Case Name]
     2. Staff enters how many points to use, or clicks "Usar todos". Points capped at `min(currentPoints, totalActualPrice × pointsPerCurrencyUnit)` so the discount never exceeds the booking total.
     3. System shows live discount: "Desconto (200 pts): − R$ 20,00 · Total a cobrar: R$ 40,00".
     4. Staff clicks "Confirmar conclusão". System calls a single `PATCH /bookings/:id/complete` (body includes `discountByPoints: { pointsUsed, amountDeducted }`) — the booking is saved as COMPLETED with the discount already applied to `totalActualPrice`; no second HTTP call is made by the client.
-    5. The `BookingCompleted` event (carrying `discountByPoints`) triggers the Loyalty Context asynchronously: the customer's balance is decremented and a `LoyaltyRedemption` is recorded, linked to the booking.
+    5. The `BookingCompleted` event (carrying `discountByPoints`) triggers the Loyalty Context asynchronously: the customer's balance is decremented and a `LoyaltyRedemption` is recorded, linked to the booking. If the balance no longer covers the discount when the event is processed (for example the expiry sweep ran after the screen loaded it), the redemption records the points that were available, the earn is still recorded and the difference is logged; the customer keeps the discount.
     6. The `PATCH` response is the flat `{ bookingId, status, completedAt, totalActualPrice }` (`totalActualPrice` already net of the discount); it carries no per-line charges or discount row.
     - Only shown when `customerId != null` AND `pointsPerCurrencyUnit > 0`. Not available for guest bookings (A4).
     - `amountDeducted` exceeding the booking's actual total → `422 Unprocessable` — discount cannot exceed the amount charged.
