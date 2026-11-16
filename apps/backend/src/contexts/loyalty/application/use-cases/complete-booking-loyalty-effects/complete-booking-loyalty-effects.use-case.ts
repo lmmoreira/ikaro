@@ -29,6 +29,7 @@ import {
   TENANT_ACCESS_PORT,
   type TenantAccessPort,
 } from '../../../../../shared/ports/tenant-access.port';
+import { buildServicePointsEarnedEvent } from '../../helpers/service-points-earned.helpers';
 import { AppLogger } from '../../../../../shared/observability/app-logger';
 
 export interface BookingCompletedLine {
@@ -62,17 +63,15 @@ const SKIPPED_RESULT: CompleteBookingLoyaltyEffectsUseCaseResult = {
   pointsRedeemed: 0,
 };
 
-/**
- * The single, self-contained reaction to `BookingCompleted`: records earned points
- * and — if a loyalty discount was applied at completion — redeems points, all in
- * one transaction with one idempotency check against the triggering event.
- *
- * Earning and settlement are one atomic write of the customer's balance, so this is the one place
- * the tenant's access is read instead of the declarative event gate (UC-121, UC-125): the gate can
- * skip a whole handler, not half of one transaction. A discount was already applied to the booking
- * when it completed, so the redemption is always settled; points are earned only while the tenant
- * is operational and entitled to LOYALTY (the lookup fails open, like the gate).
- */
+// Thrown inside the settlement transaction to roll it back when the event turns out to be already
+// processed: the balance row ensured for a first earn must not be committed by a skipped event.
+class EventAlreadyProcessedError extends Error {
+  constructor() {
+    super('BookingCompleted already processed');
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
 interface SettlementPlan {
   dto: CompleteBookingLoyaltyEffectsUseCaseInput;
   customerId: string;
@@ -84,6 +83,17 @@ interface SettlementPlan {
 }
 
 @Injectable()
+/**
+ * The single, self-contained reaction to `BookingCompleted`: records earned points
+ * and — if a loyalty discount was applied at completion — redeems points, all in
+ * one transaction with one idempotency check against the triggering event.
+ *
+ * Earning and settlement are one atomic write of the customer's balance, so this is the one place
+ * the tenant's access is read instead of the declarative event gate (UC-121, UC-125): the gate can
+ * skip a whole handler, not half of one transaction. A discount was already applied to the booking
+ * when it completed, so the redemption is always settled; points are earned only while the tenant
+ * is operational and entitled to LOYALTY (the lookup fails open, like the gate).
+ */
 export class CompleteBookingLoyaltyEffectsUseCase {
   static readonly CONSUMER_NAME = 'complete-booking-loyalty-effects';
 
@@ -136,32 +146,38 @@ export class CompleteBookingLoyaltyEffectsUseCase {
 
   // One transaction. The balance row is locked first (docs/LOCK_CATALOG.md R6), then the inbox is
   // checked again: a concurrent delivery of this event may have committed while this one waited
-  // for the lock. Returns false when the event was already processed. TD08 §12.3: the re-emit and
+  // for the lock. Returns false when the event was already processed (the transaction is rolled
+  // back, so nothing is written, not even the ensured balance row). TD08 §12.3: the re-emit and
   // the idempotency mark are one atomic fact: a crash between this transaction and a
   // separately-published event used to leave ServicePointsEarned lost forever, since
   // hasBeenProcessed() short-circuits any redelivery of BookingCompleted.
   private async settle(plan: SettlementPlan): Promise<boolean> {
     const { dto, customerId, entries } = plan;
-    return this.txManager.run(async () => {
-      const balance = await this.balanceRepo.findOrCreateByCustomerForUpdate(
-        dto.tenantId,
-        customerId,
-      );
-      if (await this.isAlreadyProcessed(dto.eventId)) return false;
-      const { redemption, servicePointsEarned } = this.applyToBalance(balance, plan);
+    try {
+      return await this.txManager.run(async () => {
+        const balance = await this.balanceRepo.findOrCreateByCustomerForUpdate(
+          dto.tenantId,
+          customerId,
+        );
+        if (await this.isAlreadyProcessed(dto.eventId)) throw new EventAlreadyProcessedError();
+        const { redemption, servicePointsEarned } = this.applyToBalance(balance, plan);
 
-      for (const entry of entries) {
-        await this.entryRepo.save(entry);
-      }
-      await this.balanceRepo.upsert(balance);
-      if (redemption) await this.redemptionRepo.save(redemption);
-      await this.inboxRepo.markProcessed(
-        dto.eventId,
-        CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME,
-      );
-      if (servicePointsEarned) await this.outboxPublisher.publish(servicePointsEarned);
-      return true;
-    });
+        for (const entry of entries) {
+          await this.entryRepo.save(entry);
+        }
+        await this.balanceRepo.upsert(balance);
+        if (redemption) await this.redemptionRepo.save(redemption);
+        await this.inboxRepo.markProcessed(
+          dto.eventId,
+          CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME,
+        );
+        if (servicePointsEarned) await this.outboxPublisher.publish(servicePointsEarned);
+        return true;
+      });
+    } catch (error) {
+      if (error instanceof EventAlreadyProcessedError) return false;
+      throw error;
+    }
   }
 
   private applyToBalance(
@@ -178,7 +194,7 @@ export class CompleteBookingLoyaltyEffectsUseCase {
       plan.pointsPerCurrencyUnit,
     );
     const servicePointsEarned = mayEarn
-      ? this.buildServicePointsEarnedEvent(
+      ? buildServicePointsEarnedEvent(
           dto,
           customerId,
           totalPointsEarned,
@@ -264,28 +280,6 @@ export class CompleteBookingLoyaltyEffectsUseCase {
       pointsPerCurrencyUnit,
       redeemedBy: dto.completedBy,
       bookingId: dto.bookingId,
-    });
-  }
-
-  private buildServicePointsEarnedEvent(
-    dto: CompleteBookingLoyaltyEffectsUseCaseInput,
-    customerId: string,
-    totalPointsEarned: number,
-    entries: LoyaltyEntry[],
-    currentBalance: number,
-  ): ServicePointsEarned {
-    return new ServicePointsEarned(dto.tenantId, dto.correlationId, {
-      customerId,
-      bookingId: dto.bookingId,
-      totalPointsEarned,
-      earnedAt: entries[0].earnedAt.toISOString(),
-      lines: entries.map((e) => ({
-        entryId: e.id,
-        serviceId: e.serviceId,
-        pointsEarned: e.points,
-        expiresAt: e.expiresAt.toISOString(),
-      })),
-      currentBalance,
     });
   }
 }

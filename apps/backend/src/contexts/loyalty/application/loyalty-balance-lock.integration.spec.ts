@@ -31,11 +31,13 @@ import { RedeemPointsUseCase } from './use-cases/redeem-points/redeem-points.use
 // then lets A commit. The final state must equal the serial outcome. Without the lock B would
 // never park and waitForBlockedRowLock fails the test, so each one fails when the lock is removed.
 
+// Scoped to the balance table: only the competing writer of these tests can be parked on it.
 async function waitForBlockedLock(dataSource: DataSource): Promise<void> {
   for (let attempt = 0; attempt < 500; attempt++) {
     const [{ waiting }] = await dataSource.query<{ waiting: number }[]>(
       `SELECT count(*)::int AS waiting FROM pg_stat_activity
-        WHERE datname = current_database() AND wait_event_type = 'Lock'`,
+        WHERE datname = current_database() AND wait_event_type = 'Lock'
+          AND query LIKE '%loyalty_balances%'`,
     );
     if (waiting > 0) return;
     await dataSource.query('SELECT pg_sleep(0.01)');
@@ -84,6 +86,20 @@ class GatedBalanceRepository extends TypeOrmLoyaltyBalanceRepository {
     this.signalLocked();
     await this.released;
     return balance;
+  }
+}
+
+// Reports "not processed" on its first read (the use case's pre-transaction check) and tells the
+// truth afterwards (the re-check under the lock).
+class StalePreCheckInboxRepository extends TypeOrmInboxRepository {
+  private firstRead = true;
+
+  override async hasBeenProcessed(eventId: string, consumerName: string): Promise<boolean> {
+    if (this.firstRead) {
+      this.firstRead = false;
+      return false;
+    }
+    return super.hasBeenProcessed(eventId, consumerName);
   }
 }
 
@@ -355,5 +371,30 @@ describe('Loyalty balance row lock (integration, H7)', () => {
 
     expect(await pointsOf(tenantA, customer)).toBe(90);
     expect(await pointsOf(tenantB, customer)).toBe(80);
+  });
+
+  it('an event processed after the lock leaves no balance row behind', async () => {
+    const tenant = newTenant();
+    const customer = uuidv7();
+    const dto = earnDto(tenant, customer);
+    await inboxRepo.markProcessed(dto.eventId, CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME);
+    // The pre-transaction check misses it (a concurrent delivery committed after it ran); only the
+    // re-check under the lock sees it, after the first-earn ensure already inserted the row.
+    const staleInbox = new StalePreCheckInboxRepository(ds.getRepository(InboxRecordEntity));
+    const useCase = new CompleteBookingLoyaltyEffectsUseCase(
+      entryRepo,
+      plainBalanceRepo,
+      redemptionRepo,
+      staleInbox,
+      new InMemoryLoyaltyPlatformPort().withPointsPerCurrencyUnit(10),
+      new InMemoryEventBus(),
+      txManager,
+      new InMemoryTenantAccessPort(),
+    );
+
+    const result = await useCase.execute(dto);
+
+    expect(result.skipped).toBe(true);
+    expect(await pointsOf(tenant, customer)).toBeNull();
   });
 });
