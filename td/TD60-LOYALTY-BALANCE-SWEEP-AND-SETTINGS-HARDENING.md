@@ -201,19 +201,24 @@ Add `findUnprocessedDueBetween(from, to)` to `ILoyaltyEntryRepository` (query bu
 ### TD60 Story 2 — Stop the loyalty settings read from fabricating defaults
 
 **Agent:** backend-ts
-**Complexity:** S
+**Complexity:** XS
 **Docs to load:** `docs/ENGINEERING_RULES_BACKEND.md` § Event Handlers, § Backend read use cases for cross-context access; `docs/BOUNDED_CONTEXTS.md` § 2. Loyalty Context (the platform adapter); `docs/ENGINEERING_RULES_TESTING.md` (adapter specs); `docs/TENANTS_SETTINGS_SCHEMA.md` § 1. Loyalty Settings
 **Dependencies:** TD60 Story 1 (the warning job's per-tenant failure isolation, so a settings failure for one tenant does not abort the others)
 **Pattern:** Fail closed at the anti-corruption adapter; let the handler's existing rethrow and the inbox drive the retry.
 
 **Discovered:** 2026-11-15, M25/M26 docs-audit.
-**Root cause:** `loyalty-platform.adapter.ts` lines 26-28: a bare `catch { return { ...DEFAULTS } }` around `GetTenantByIdUseCase` (line 25), with `DEFAULTS` at lines 8-12.
+**Root cause:** The bare `catch { return { ...DEFAULTS } }` this story was written against was narrowed by M25-S28 (#791) before discovery: a transient failure already propagates. What is left in `loyalty-platform.adapter.ts` is the `TenantNotFoundError` branch, which returns `DEFAULTS` (`pointsPerCurrencyUnit: 0`, `expiryDays: 180`) for a tenant that does not exist, and no test where the earn path's settings read fails.
+
+**Locked at `/story-discovery` (2026-11-16):**
+- **`TenantNotFoundError` propagates too.** No Platform tenant delete path exists, so the event is nacked, retried and dead-lettered (alert-only DLQ), which is better than a fabricated zero rate. The `DEFAULTS` constant is deleted (nothing else reads it).
+- **The warning job's per-tenant settings failure is verify-only:** Story 1 already shipped and tested it (`notify-expiring-points.job.spec.ts`, the two tenant-isolation tests that use `withFailureForTenant`, and `notify-expiring-points.job.integration.spec.ts`).
+- **`InMemoryLoyaltyPlatformPort` gains a way to clear a tenant's failure**, so the integration test can model the read recovering before the redelivery.
 
 **Description:**
-`LoyaltyPlatformAdapter.getLoyaltySettings` no longer swallows errors. A transient failure propagates to its caller; `TenantNotFoundError` is handled explicitly (the caller decides: for earn and settle the tenant must exist, so it propagates too). `CompleteBookingLoyaltyEffectsUseCase` reads the settings outside its transaction (line 103) and the handler already rethrows (`booking-completed.handler.ts` lines 54-60), so the message is nacked and retried instead of storing an entry with a wrong, permanent `expiresAt` or a redemption with `pointsPerCurrencyUnit = 0`; the inbox makes the retry safe. `NotifyExpiringPointsJob` (line 59) treats a settings failure as that tenant's failure under Story 1's isolation (that tenant is skipped this run and the failure is reported when the run rethrows; the warning job is weekly and recomputes, so no state is lost). The documented `DEFAULTS` stay as the **tenant-settings schema defaults** applied by the settings VO when a tenant has never set a key, which is a different thing from a read failure; the adapter must not use them to hide an error. `RedeemPointsUseCase` and the controller do not use this adapter (the rate comes from the request's tenant settings), so they are unaffected.
+`LoyaltyPlatformAdapter.getLoyaltySettings` has no fallback at all. Every failure, `TenantNotFoundError` included, propagates to its caller (for earn and settle the tenant must exist). `CompleteBookingLoyaltyEffectsUseCase` reads the settings outside its transaction (line 103) and the handler already rethrows (`booking-completed.handler.ts` lines 54-60), so the message is nacked and retried instead of storing an entry with a wrong, permanent `expiresAt` or a redemption with `pointsPerCurrencyUnit = 0`; the inbox makes the retry safe. `NotifyExpiringPointsJob` (line 59) treats a settings failure as that tenant's failure under Story 1's isolation (that tenant is skipped this run and the failure is reported when the run rethrows; the warning job is weekly and recomputes, so no state is lost). The documented `DEFAULTS` stay as the **tenant-settings schema defaults** applied by the settings VO when a tenant has never set a key, which is a different thing from a read failure; the adapter must not use them to hide an error. `RedeemPointsUseCase` and the controller do not use this adapter (the rate comes from the request's tenant settings), so they are unaffected.
 
 **Backend use case steps:**
-1. Adapter: remove the catch; log nothing extra (the caller logs); keep the mapping from tenant settings to `LoyaltyTenantSettings`.
+1. Adapter: remove the `TenantNotFoundError` branch and the `DEFAULTS` constant; log nothing extra (the caller logs); keep the mapping from tenant settings to `LoyaltyTenantSettings`.
 2. `CompleteBookingLoyaltyEffectsUseCase`: no code change expected beyond the spec; verify the failure path nacks before any write.
 3. `NotifyExpiringPointsJob`: a settings failure marks that tenant failed (Story 1).
 
@@ -223,7 +228,7 @@ Add `findUnprocessedDueBetween(from, to)` to `ILoyaltyEntryRepository` (query bu
 **Files to create/modify:**
 - `apps/backend/src/contexts/loyalty/infrastructure/cross-context/loyalty-platform.adapter.ts` (+ `.spec.ts`) (modify)
 - `apps/backend/src/contexts/loyalty/application/use-cases/complete-booking-loyalty-effects/complete-booking-loyalty-effects.use-case.spec.ts` and `…/complete-booking-loyalty-effects.use-case.integration.spec.ts` (modify)
-- `apps/backend/src/contexts/loyalty/application/jobs/notify-expiring-points.job.spec.ts` (modify)
+- `apps/backend/src/test/infrastructure/in-memory-loyalty-platform.port.ts` (modify: a way to clear a tenant's `withFailureForTenant`)
 - `apps/backend/src/contexts/loyalty/infrastructure/events/booking-completed.handler.spec.ts` (modify)
 - `docs/BOUNDED_CONTEXTS.md` (modify — the platform adapter is fail-closed), `docs/BUSINESS_LOGIC_REFERENCE.md` (modify — one sentence on the settings read)
 
@@ -234,7 +239,7 @@ Add `findUnprocessedDueBetween(from, to)` to `ILoyaltyEntryRepository` (query bu
 - Unit:
   - [ ] The adapter propagates a transient error and `TenantNotFoundError` (no defaults returned).
   - [ ] `CompleteBookingLoyaltyEffectsUseCase` writes nothing and the handler rethrows when the settings read fails.
-  - [ ] `NotifyExpiringPointsJob` skips only the tenant whose settings read failed and still notifies the others.
+  - [ ] `NotifyExpiringPointsJob` skips only the tenant whose settings read failed and still notifies the others. Verify-only: shipped and tested by Story 1.
 - Integration:
   - [ ] `BookingCompleted` with a failing settings read leaves no entry, no redemption and no inbox mark; the redelivery after the read recovers writes the entry with the tenant's configured `expiryDays`.
 - Tenant isolation:

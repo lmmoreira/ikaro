@@ -751,6 +751,7 @@ flowchart TD
 
 - **The handler is never gated.** `BookingCompletedHandler` declares `{ skipWhenSuspended: false }`; `CompleteBookingLoyaltyEffectsUseCase` reads `TenantAccessPort` **before** `txManager.run()` (no cross-service call inside a transaction) and fails open, like the gate.
 - **Settlement never depends on access.** The discount is already on the booking; dropping the settlement would leave the customer with the discount and the points. A delayed delivery is real, not a race of seconds: a failed inline dispatch stays in the outbox until the relay sweep retries it.
+- **A failed settings read never earns or settles.** `getLoyaltySettings` is read before the transaction and fails closed (a missing tenant included): the handler nacks, nothing is written and no inbox mark exists. The redelivery then uses the tenant's real `expiryDays` and `pointsPerCurrencyUnit`, so an entry never gets a wrong expiry and a redemption never a zero rate.
 - **A suppressed event is still marked processed**, so a duplicate delivered after access is restored cannot earn for an event that was suppressed.
 - **`ServicePointsEarned` is emitted only when points were earned**, and its `currentBalance` is read after the same transaction's redemption, as before.
 - **Why not two consumers (earn gated, settle ungated):** the balance is a read-modify-write of one row (locked since TD60-S00, `docs/LOCK_CATALOG.md` R6), and two consumers would each need that lock plus the inbox re-check; it would also need a new Pub/Sub subscription and a rule for `currentBalance`.
