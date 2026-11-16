@@ -107,10 +107,13 @@ export function useChatbotCapStatus() {
   });
 }
 
-export function useLeadFormConfig() {
+// `enabled` is false while the tenant does not hold LEAD_FORM: the backend refuses the read, and
+// the editor shows the locked card instead of the panel that would have shown the load error.
+export function useLeadFormConfig(enabled = true) {
   const { tenantId } = useTenant();
   return useQuery({
     queryKey: ['lead-form-config', tenantId],
     queryFn: getLeadFormConfig,
+    enabled,
   });
 }

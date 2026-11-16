@@ -7,6 +7,7 @@ import { Button } from '@/shared/components/ui/button';
 import { DiscardChangesDialog } from '@/shared/components/DiscardChangesDialog';
 import { LayoutTab } from './LayoutTab';
 import { MODULE_CONFIG_PANELS } from './hotsite-editor-lazy-panels';
+import { useLockedModulePanel } from './locked-module-panels-context';
 import type { ModuleBuffer } from './hotsite-module-buffer';
 
 interface VisualModuleInspectorProps {
@@ -77,6 +78,7 @@ export function VisualModuleInspector({
       ?.focus({ preventScroll: true });
   }, [openType]);
 
+  const lockedPanel = useLockedModulePanel(buffer?.type);
   if (!buffer) {
     return (
       <div ref={structureRef} className="space-y-3" data-testid="visual-structure">
@@ -116,7 +118,14 @@ export function VisualModuleInspector({
           {t('visual.moduleDisabledNote')}
         </p>
       )}
-      <Panel key={buffer.type} data={buffer.localData} onChange={onBufferChange} layout={layout} />
+      {lockedPanel ?? (
+        <Panel
+          key={buffer.type}
+          data={buffer.localData}
+          onChange={onBufferChange}
+          layout={layout}
+        />
+      )}
       <div className="flex gap-3">
         <Button
           type="button"
