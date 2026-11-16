@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trocar empresa — BeloAuto</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="../../../shared/feedback-pane.css">
+  <style>[hidden] { display: none !important; }</style>
+</head>
+<body>
+
+  <!--
+    UC-121 VARIANT (M25-S31a, GAP): SuperClean is suspended. It stays listed and selectable (same rule as staff, 03-select-tenant-suspended); the row gets a neutral "Empresa inativa" marker (TenantOptionRow, branded tree: --ba-* tokens). Driven by `operational` on GET /customers/tenants (TenantOption.operational, M25-S26). Never a reason.
+    PAGE (GAP): UC-023 — in-app tenant switch.
+    Same visual pattern as /select-tenant (UC-021 Case B login) for consistency.
+
+    Implementation options (decide before M124-S02):
+      a) Full page: apps/web/app/switch-tenant/page.tsx (same shell as /select-tenant)
+      b) Modal/sheet: rendered over the current page — no URL change
+
+    BFF call on tenant card click:
+      POST /v1/auth/switch-tenant { targetTenantId }
+      → { accessToken, expiresIn } → update httpOnly cookie → redirect to /{newSlug}
+
+    OPEN QUESTION: endpoint to list customer's other tenants not confirmed.
+    Likely: GET /v1/customers/tenants → [{ id, name, slug, loyaltyPoints }]
+    Verify before M124-S02.
+
+    DIFFERENCE vs. /select-tenant (UC-021):
+      - Current tenant shown first, marked "Atual" and non-clickable
+      - "Cancelar" link at bottom to return without switching
+      - No phone-completion step after selection (customer already onboarded)
+  -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;
+               font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — UC-121 — trocar empresa com uma empresa inativa (mesmo padrão visual do /select-tenant) · Estado: <a href="?">normal</a> · <a href="?estado=fetch">falha ao carregar</a> · <a href="?estado=switch">falha ao trocar</a>
+  </div>
+
+  <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center;
+              background: var(--ba-background); padding: 1.5rem;">
+    <div style="width: 100%; max-width: 28rem;">
+
+      <!-- Header — same as select-tenant -->
+      <div style="text-align: center; margin-bottom: 2rem;">
+        <div style="
+          width: 3rem; height: 3rem;
+          background: var(--ba-primary); border-radius: var(--ba-radius);
+          margin: 0 auto 1.25rem;
+          display: flex; align-items: center; justify-content: center;
+        ">
+          <span style="color: white; font-weight: 700; font-size: 1.25rem;">B</span>
+        </div>
+        <h1 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.375rem; color: var(--ba-text)">
+          Trocar empresa
+        </h1>
+        <p style="font-size: 0.875rem; opacity: 0.6; color: var(--ba-text)">
+          Sua conta está vinculada a mais de um estabelecimento.
+        </p>
+      </div>
+
+      <!-- Load failure (TD57-S11): page-level message with retry, replaces the list -->
+      <div data-s="fetch" hidden>
+        <div class="fb-ba fb-ba-error" role="alert" data-testid="switch-tenant-fetch-error">
+          <span class="fb-title">Não foi possível carregar os estabelecimentos.</span><br>
+          <button type="button" style="margin-top:.5rem;border:1px solid #dc2626;background:#fff;color:#991b1b;border-radius:var(--ba-radius);padding:.375rem .875rem;font:inherit;font-weight:600;font-size:.875rem;cursor:pointer;">Tente novamente</button>
+        </div>
+      </div>
+      <!-- Tenant list -->
+      <div data-list style="display: flex; flex-direction: column; gap: 0.75rem;">
+
+        <!-- Current tenant — non-clickable, "Atual" badge -->
+        <div style="
+          display: flex; align-items: center; gap: 1rem;
+          padding: 1rem 1.25rem;
+          border: 2px solid var(--ba-primary);
+          border-radius: var(--ba-radius);
+          background: var(--ba-secondary);
+          opacity: 0.7;
+          cursor: default;
+        ">
+          <div style="
+            width: 2.5rem; height: 2.5rem; flex-shrink: 0;
+            background: var(--ba-primary); border-radius: var(--ba-radius);
+            display: flex; align-items: center; justify-content: center;
+          ">
+            <span style="color: white; font-weight: 700; font-size: 1rem;">B</span>
+          </div>
+          <div style="flex: 1; min-width: 0;">
+            <p style="font-weight: 600; font-size: 0.9375rem; margin-bottom: 0.125rem;">BeloAuto Demo</p>
+            <p style="font-size: 0.8125rem; opacity: 0.6;">120 pontos ativos</p>
+          </div>
+          <span style="
+            font-size: 0.6875rem; font-weight: 700; padding: 0.2rem 0.625rem;
+            border-radius: 999px; background: var(--ba-primary); color: white;
+            white-space: nowrap; flex-shrink: 0;
+          ">Atual</span>
+        </div>
+
+        <!-- Other tenant A — clickable, same card pattern as select-tenant -->
+        <a
+          href="../../../shared/hotsite-logged-in.html"
+          style="
+            display: flex; align-items: center; gap: 1rem;
+            padding: 1rem 1.25rem;
+            border: 2px solid var(--ba-secondary);
+            border-radius: var(--ba-radius);
+            text-decoration: none; color: var(--ba-text);
+            background: white; box-shadow: var(--ba-shadow);
+            transition: border-color 0.15s;
+          "
+        >
+          <div style="
+            width: 2.5rem; height: 2.5rem; flex-shrink: 0;
+            background: #7c3aed; border-radius: var(--ba-radius);
+            display: flex; align-items: center; justify-content: center;
+          ">
+            <span style="color: white; font-weight: 700; font-size: 1rem;">A</span>
+          </div>
+          <div style="flex: 1; min-width: 0;">
+            <p style="font-weight: 600; font-size: 0.9375rem; margin-bottom: 0.125rem;">AutoWash Pro</p>
+            <p style="font-size: 0.8125rem; opacity: 0.6;">50 pontos ativos</p>
+          </div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.4; flex-shrink: 0;">
+            <path d="m9 18 6-6-6-6"/>
+          </svg>
+        </a>
+
+        <!-- Other tenant B -->
+        <a
+          href="../../../shared/hotsite-logged-in.html"
+          style="
+            display: flex; align-items: center; gap: 1rem;
+            padding: 1rem 1.25rem;
+            border: 2px solid var(--ba-secondary);
+            border-radius: var(--ba-radius);
+            text-decoration: none; color: var(--ba-text);
+            background: white; box-shadow: var(--ba-shadow);
+          "
+        >
+          <div style="
+            width: 2.5rem; height: 2.5rem; flex-shrink: 0;
+            background: #059669; border-radius: var(--ba-radius);
+            display: flex; align-items: center; justify-content: center;
+          ">
+            <span style="color: white; font-weight: 700; font-size: 1rem;">S</span>
+          </div>
+          <div style="flex: 1; min-width: 0;">
+            <p style="font-weight: 600; font-size: 0.9375rem; margin-bottom: 0.125rem;">SuperClean</p>
+            <p style="font-size: 0.8125rem; opacity: 0.6;">8 pontos ativos</p>
+          </div>
+          <span style="font-size:0.6875rem;font-weight:700;padding:0.2rem 0.625rem;border-radius:999px;background:#f3f4f6;color:#4b5563;border:1px solid #d1d5db;white-space:nowrap;flex-shrink:0;">Empresa inativa</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.4; flex-shrink: 0;">
+            <path d="m9 18 6-6-6-6"/>
+          </svg>
+        </a>
+
+      </div>
+
+      <!-- Switch failure (TD57-S11): inline message under the list -->
+      <div data-s="switch" hidden style="margin-top: 1rem;">
+        <div class="fb-ba fb-ba-error" role="alert" data-testid="switch-tenant-error">
+          <span class="fb-title">Não foi possível trocar de empresa. Tente novamente.</span>
+        </div>
+      </div>
+      <!-- Cancel link — key difference vs. login select-tenant -->
+      <p style="margin-top: 1.75rem; text-align: center;">
+        <a href="01-minha-conta.html"
+           style="font-size: 0.875rem; color: var(--ba-primary); font-weight: 500; text-decoration: none;">
+          ← Voltar sem trocar
+        </a>
+      </p>
+
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var st = new URLSearchParams(location.search).get('estado') || '';
+      document.querySelectorAll('[data-s]').forEach(function (el) { el.hidden = el.getAttribute('data-s') !== st; });
+      var list = document.querySelector('[data-list]'); if (list && st === 'fetch') list.hidden = true;
+    })();
+  </script>
+</body>
+</html>

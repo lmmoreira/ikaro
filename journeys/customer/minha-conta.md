@@ -208,29 +208,40 @@ flowchart TD
     classDef existing fill:#e6ffe6,stroke:#3a3
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
-    Login(["Customer signs in (never blocked)"]) --> List["✅ /{slug}/my-account/bookings<br/>❓ GAP: 'Empresa inativa' badge on open bookings<br/>(16-agendamentos-empresa-inativa)"]
+    Login(["Customer signs in (never blocked)"]) --> List["✅ /{slug}/my-account/bookings<br/>❓ GAP: 'Empresa inativa' badge, three sections (entry rows hidden: their reads are refused)<br/>(16-agendamentos-empresa-inativa)"]
+    Login --> Switch["✅ /switch-tenant<br/>❓ GAP: 'Empresa inativa' marker on a suspended tenant, still selectable<br/>(05b-trocar-empresa-inativa)"]
     List -->|"history row (not a link, aria-disabled)"| Hist["History is readable in the list only: the booking detail is denied for every status"]
     List -.->|"direct URL only (rows are not links)"| Blocked["❓ GAP: BookingBlockedNotice — BILLING_TENANT_SUSPENDED (403)<br/>(16b-detalhe-bloqueado)"]
-    List -->|"Novo agendamento (disabled)"| NewBlocked["❓ GAP: new booking refused — BILLING_TENANT_SUSPENDED (403)<br/>(16c-novo-agendamento-bloqueado)"]
-    List -->|"Cancelar link on an open future row"| Cancel["❓ GAP: CancelFromListConfirm dialog rendered from the row data (M25-S31a); Booking decides the record-dependent rules"]
+    List -->|"Novo agendamento (disabled, inert)"| NewBlocked["✅ /{slug}/booking already renders UnavailablePage while suspended (M25-S25/S30) — no screen of its own"]
+    List -->|"Cancelar on an open future row"| Cancel["❓ GAP: CancelFromListConfirm dialog from the row data (16d-cancelar-da-lista); Booking decides the record-dependent rules"]
+    Cancel -->|"old .../cancel route opened by URL"| Blocked
+    Detail15["Reschedule page, by direct URL"] -.-> RBlocked["❓ GAP: reschedule blocked notice<br/>(16e-reagendar-bloqueado)"]
+    Loy["✅ /{slug}/my-account/loyalty"] --> LoyRO["❓ GAP: read-only banner, balance and history visible<br/>(16f-fidelidade-somente-leitura)"]
 
-    class Login existing
-    class List,Hist,Blocked,NewBlocked,Cancel gap
+    class Login,NewBlocked,Loy existing
+    class List,Switch,Hist,Blocked,Cancel,RBlocked,LoyRO,Detail15 gap
 ```
 
-**Behaviour.** Open bookings (`PENDING`, `INFO_REQUESTED`, `APPROVED`) stay listed with the "Empresa inativa" badge and are not links, but each open future row carries a secondary "Cancelar" action that opens the `CancelFromListConfirm` dialog (M25-S31a), rendered from the row's own data and built on the repo's dialog primitive — not the existing cancel page (`03-cancel-confirm` is only a stand-in in the prototype) — because UC-121 allows cancelling an existing future booking while the booking detail read (`16b`) is denied for every status (`GET /bookings/:id` is `DEFAULT_DENY`, M25-S18a), so the cancel page, which loads it, cannot work; history rows are listed but are **not openable** either (UC-121 "history stays readable" means the list only; the rows are not links, `aria-disabled`; `16b` is reachable only by direct URL); "Novo agendamento" is rendered disabled; rescheduling an existing booking is blocked as well (the shipped reschedule page, `15`, is not reachable while suspended); cancelling an existing future booking stays allowed (entered from the "Cancelar" link on the list row, not from the blocked detail; Booking, not the web, decides the record-dependent rules such as the cancellation deadline, `docs/USE_CASES.md` UC-121). The loyalty page is read-only: balance and history are visible, earning and redemption are blocked. The badge is driven by `operational`, read from the customer-reduced `GET /v1/billing/access` for the current tenant and from the per-tenant `operational` flag on the customer tenant-switch list (`GET /customers/tenants`); no separate customer flag or route is added. The loyalty expiry clock keeps running while suspended, by decision (UC-121 O-L1, M25-S27); a reason-neutral email to customers with approved future bookings remains a named open item of UC-121 (O-B1).
+**Behaviour.** Open bookings (`PENDING`, `INFO_REQUESTED`, `APPROVED`) stay listed with the "Empresa inativa" badge and are not links, but each open future row carries a secondary "Cancelar" action that opens the `CancelFromListConfirm` dialog (M25-S31a, `16d`), a feature component composing the `alert-dialog` primitive and rendered from the row's own data — not the existing cancel page — because UC-121 allows cancelling an existing future booking while the booking detail read (`16b`) is denied for every status (`GET /bookings/:id` is `DEFAULT_DENY`, M25-S18a), so the cancel page, which loads it, cannot work; history rows are listed but are **not openable** either (UC-121 "history stays readable" means the list only; the rows are not links, `aria-disabled`; `16b` is reachable only by direct URL); "Novo agendamento" is rendered disabled and inert, with no screen of its own (a suspended tenant's `/{slug}/booking` already renders the neutral `UnavailablePage`, M25-S25/S30, so the old `16c` is dropped); rescheduling an existing booking is blocked as well (the shipped reschedule page, `15`, shows a blocked notice, `16e`, when opened by URL); the list keeps its real three sections (upcoming, pending, history) while the "Reservas recorrentes" / "Meus avisos" entry rows disappear on their own, because their summary reads are refused while suspended (M25-S18b) and the list renders an entry row only when its summary is non-null — and the account's tenant-switch list marks a suspended tenant "Empresa inativa" (`05b`); cancelling an existing future booking stays allowed (entered from the "Cancelar" link on the list row, not from the blocked detail; Booking, not the web, decides the record-dependent rules such as the cancellation deadline, `docs/USE_CASES.md` UC-121). The loyalty page is read-only (`16f`): balance and history are visible under a short banner, earning and redemption are blocked. The badge is driven by `operational`, read from the customer-reduced `GET /v1/billing/access` for the current tenant and from the per-tenant `operational` flag on the customer tenant-switch list (`GET /customers/tenants`); no separate customer flag or route is added. The loyalty expiry clock keeps running while suspended, by decision (UC-121 O-L1, M25-S27); a reason-neutral email to customers with approved future bookings remains a named open item of UC-121 (O-B1).
 
 | Page / Route | Component | Story | Status |
 |---|---|---|---|
 | `/{slug}/my-account/bookings` | booking list rows with the "Empresa inativa" badge (`tenantOperational` prop) | planned Billing milestone | ❓ Gap (list exists) |
 | `/{slug}/my-account/bookings/:id` (open booking) | `BookingBlockedNotice` | planned Billing milestone | ❓ Gap (route exists) |
-| `/{slug}/booking` (suspended) | variant of `BookingBlockedNotice` | planned Billing milestone | ❓ Gap (route exists) |
+| `/{slug}/my-account/bookings/:id/cancel` and `.../reschedule` (suspended) | `BookingBlockedNotice` (reschedule: `16e`) | planned Billing milestone | ❓ Gap (routes exist) |
+| `/{slug}/my-account/loyalty` (suspended) | read-only banner (`16f`) | planned Billing milestone | ❓ Gap (route exists) |
+| `/switch-tenant` | `SwitchTenantClient` + "Empresa inativa" marker (`05b`) | planned Billing milestone | ❓ Gap (marker only) |
+| `/{slug}/booking` (suspended) | none — `UnavailablePage` already renders (M25-S25/S30) | M25-S30 | ✅ Done |
 
 | File | Screen | UC | Story | Status |
 |---|---|---|---|---|
 | `16-agendamentos-empresa-inativa.html` | Account list with the "Empresa inativa" badge, history visible | UC-121 | planned Billing milestone | ❓ Draft |
 | `16b-detalhe-bloqueado.html` | An open booking's detail is blocked (opened from the list, or by direct URL — UC-121 A1) | UC-121, A1 | planned Billing milestone | ❓ Draft |
-| `16c-novo-agendamento-bloqueado.html` | A new booking is blocked (the disabled "Novo agendamento" button and the refused `/{slug}/booking` request) | UC-121 | planned Billing milestone | ❓ Draft |
+| `16d-cancelar-da-lista.html` | The `CancelFromListConfirm` dialog open over the list, from the row's own data | UC-121 | M25-S31a | ❓ Draft |
+| `16e-reagendar-bloqueado.html` | Reschedule opened by URL while suspended | UC-121 | M25-S31a | ❓ Draft |
+| `16f-fidelidade-somente-leitura.html` | Loyalty read-only: banner, balance and history | UC-121 | M25-S31a | ❓ Draft |
+| `05b-trocar-empresa-inativa.html` | Tenant-switch list with the "Empresa inativa" marker | UC-121 | M25-S31a | ❓ Draft |
+| ~~`16c-novo-agendamento-bloqueado.html`~~ | Superseded 2026-11-16: a suspended tenant's `/{slug}/booking` renders `UnavailablePage` (M25-S25/S30); file removed with the prototypes | UC-121 | M25-S31a | Removed |
 | `17-erro-de-rota.html` | Erro ao carregar a conta: `my-account/error.tsx` como mensagem de página com "Tentar novamente" | — | TD57-S11 | ✅ Done (TD57-S11) |
 
 ---

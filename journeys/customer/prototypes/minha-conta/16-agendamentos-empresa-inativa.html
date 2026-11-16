@@ -15,7 +15,7 @@
     .list-item-info { flex: 1; min-width: 0; }
     .list-item-name { font-weight: 600; font-size: 0.9375rem; color: var(--ik-text); }
     .list-item-meta { font-size: 0.8125rem; opacity: 0.55; color: var(--ik-text); margin-top: 0.125rem; }
-    .list-item.disabled { cursor: not-allowed; }
+    .list-item.disabled { cursor: default; }
     .list-item.disabled .list-item-info, .list-item.disabled .list-item-icon { opacity: 0.55; }
     .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.625rem; margin-top: 1.25rem; }
     .section-label { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: rgba(17,24,39,0.4); margin: 0; }
@@ -39,10 +39,10 @@
   <!--
     DRAFT PROTOTYPE (planned Billing milestone) -- illustrative only: tenant names, prices and dates are invented.
     Grounds the SUSPENDED behaviour for CUSTOMERS (UC-121): the customer can still log in and open my-account (Agendamentos tab, same layout as customer/prototypes/minha-conta/01-minha-conta.html). Bookings carry an "Empresa inativa" badge; OPEN bookings (pending / approved / info-requested, i.e. upcoming) are listed but NOT clickable; HISTORY (completed / cancelled / rejected / no-show) stays viewable. Reason-neutral: never says unpaid/canceled.
-    COMPONENT (changed, EXISTS): apps/web/features/customer/components/my-account/ list rows; new GAP prop `tenantOperational` (from the access status) renders the badge and removes the link of open rows. "Novo agendamento" is rendered disabled.
+    COMPONENT (changed, EXISTS): apps/web/features/customer/components/my-account/ BookingsList / BookingListItem; new prop `tenantOperational` (customer-reduced GET /v1/billing/access -> operational) renders the "Empresa inativa" badge, removes the row links and shows "Cancelar" on every open FUTURE row, which opens CancelFromListConfirm (16d). Same three sections as the shipped list (Próximos, Pendentes, Histórico). "+ Novo" is disabled; /{slug}/booking already renders UnavailablePage (M25-S30).
     BFF CALL: GET /v1/bookings (unchanged) + GET /v1/billing/access -> { status, operational, features: [{ key, tier }] } (customer-safe `tenantOperational` flag, route decided at story discovery; no billing reason)
     No "Falar com a gente" link here: that link points to Ikaro's own booking page and is for the paying tenant, not for its customers (to confirm at story discovery).
-    Variants: 16b-detalhe-bloqueado.html, 16c-novo-agendamento-bloqueado.html.
+    Variants: 16b-detalhe-bloqueado.html, 16d-cancelar-da-lista.html, 16e-reagendar-bloqueado.html, 16f-fidelidade-somente-leitura.html; tenant switch list: 05b-trocar-empresa-inativa.html.
   -->
 
   <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
@@ -68,52 +68,63 @@
     <main class="main-content" style="padding-bottom:5.5rem;">
       <div class="dashboard-body">
 
-        <div class="notice" role="status">
-          <svg class="" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          <div><strong>Empresa inativa.</strong> Esta empresa não está operando no momento. Você pode consultar seu histórico, mas não é possível abrir agendamentos em aberto nem criar novos.</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;margin-bottom:1rem;">
+          <h1 style="font-size:1.125rem;font-weight:700;color:var(--ik-text);margin:0;">Meus Agendamentos</h1>
+          <button type="button" class="btn-primary" disabled aria-disabled="true" style="font-size:0.8125rem;padding:0.4375rem 0.875rem;opacity:0.5;cursor:not-allowed;" title="Indisponível enquanto a empresa estiver inativa">+ Novo</button>
         </div>
 
-        <div class="section-header" style="margin-top:0;"><p class="section-label">Em aberto</p></div>
-        <div class="card" style="padding:0 1rem;">
-          <div class="list-item disabled">
-            <div class="list-item-icon"><svg class="" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+        <div class="notice" role="status">
+          <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <div><strong>Empresa inativa.</strong> Esta empresa não está operando no momento. Você pode consultar seu histórico e cancelar agendamentos futuros, mas não é possível abrir agendamentos em aberto, remarcar nem criar novos.</div>
+        </div>
+
+        <!-- No "Reservas recorrentes" / "Meus avisos" entry rows: their summary reads are refused while suspended (DEFAULT_DENY, M25-S18b), so the real list hides them. -->
+
+        <p class="section-label">Próximos <span style="opacity:.5;">(1)</span></p>
+        <div class="card" style="padding:0 1rem;margin-bottom:1.5rem;">
+          <div class="list-item disabled" aria-disabled="true">
+            <div class="list-item-icon"><svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
             <div class="list-item-info"><p class="list-item-name">Lavagem Completa</p><p class="list-item-meta">Sex, 30 out · 10:00 · R$ 120,00</p></div>
             <span class="status-badge status-approved">Aprovado</span> <span class="status-badge inactive-badge">Empresa inativa</span>
-            <a class="cancel-link" href="03-cancel-confirm.html">Cancelar</a>
-          </div>
-          <div class="list-item disabled">
-            <div class="list-item-icon"><svg class="" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
-            <div class="list-item-info"><p class="list-item-name">Polimento Completo</p><p class="list-item-meta">Ter, 03 nov · a definir · R$ 250,00</p></div>
-            <span class="status-badge status-pending">Pendente</span> <span class="status-badge inactive-badge">Empresa inativa</span>
-            <a class="cancel-link" href="03-cancel-confirm.html">Cancelar</a>
+            <a class="cancel-link" href="16d-cancelar-da-lista.html">Cancelar</a>
           </div>
         </div>
-        <p style="font-size:0.75rem;opacity:0.5;color:var(--ik-text);margin-top:0.5rem;">Agendamentos em aberto aparecem para consulta, mas não podem ser abertos enquanto a empresa estiver inativa, mas você ainda pode cancelá-los. O histórico também é só para consulta. <a href="16b-detalhe-bloqueado.html" style="color:var(--ik-primary);">(só no protótipo: ver o que acontece ao abrir por link direto)</a></p>
 
-        <div class="section-header"><p class="section-label">Histórico</p></div>
+        <p class="section-label">Pendentes <span style="opacity:.5;">(2)</span></p>
+        <div class="card" style="padding:0 1rem;margin-bottom:1.5rem;">
+          <div class="list-item disabled" aria-disabled="true">
+            <div class="list-item-icon"><svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+            <div class="list-item-info"><p class="list-item-name">Polimento Completo</p><p class="list-item-meta">Ter, 03 nov · a definir · R$ 250,00</p></div>
+            <span class="status-badge status-pending">Pendente</span> <span class="status-badge inactive-badge">Empresa inativa</span>
+            <a class="cancel-link" href="16d-cancelar-da-lista.html">Cancelar</a>
+          </div>
+          <div class="list-item disabled" aria-disabled="true">
+            <div class="list-item-icon"><svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+            <div class="list-item-info"><p class="list-item-name">Cristalização</p><p class="list-item-meta">Qui, 05 nov · 15:00 · R$ 300,00</p></div>
+            <span class="status-badge status-info">Info pedida</span> <span class="status-badge inactive-badge">Empresa inativa</span>
+            <a class="cancel-link" href="16d-cancelar-da-lista.html">Cancelar</a>
+          </div>
+        </div>
+        <p style="font-size:0.75rem;opacity:0.5;color:var(--ik-text);margin:-0.75rem 0 1.5rem;">Agendamentos em aberto aparecem para consulta e podem ser cancelados, mas não abertos enquanto a empresa estiver inativa. O histórico também é só para consulta. <a href="16b-detalhe-bloqueado.html" style="color:var(--ik-primary);">(só no protótipo: ver o que acontece ao abrir por link direto)</a></p>
+
+        <p class="section-label">Histórico <span style="opacity:.5;">(3)</span></p>
         <div class="card" style="padding:0 1rem;">
           <a aria-disabled="true" style="text-decoration:none;display:block;cursor:default;"><div class="list-item">
-            <div class="list-item-icon"><svg class="" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+            <div class="list-item-icon"><svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
             <div class="list-item-info"><p class="list-item-name">Lavagem Simples</p><p class="list-item-meta">Qua, 08 out · 09:00 · R$ 60,00</p></div>
             <span class="status-badge status-completed">Concluído</span>
           </div></a>
           <a aria-disabled="true" style="text-decoration:none;display:block;cursor:default;"><div class="list-item">
-            <div class="list-item-icon"><svg class="" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+            <div class="list-item-icon"><svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
             <div class="list-item-info"><p class="list-item-name">Lavagem Completa</p><p class="list-item-meta">Sáb, 20 set · 14:00 · R$ 120,00</p></div>
             <span class="status-badge status-completed">Concluído</span>
           </div></a>
           <a aria-disabled="true" style="text-decoration:none;display:block;cursor:default;"><div class="list-item">
-            <div class="list-item-icon"><svg class="" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+            <div class="list-item-icon"><svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
             <div class="list-item-info"><p class="list-item-name">Lavagem com Coleta</p><p class="list-item-meta">Seg, 01 set · 11:00 · R$ 90,00</p></div>
             <span class="status-badge status-cancelled">Cancelado</span>
           </div></a>
         </div>
-
-        <div style="margin-top:1.5rem;">
-          <a class="btn-primary" href="16c-novo-agendamento-bloqueado.html" style="text-decoration:none;opacity:0.5;display:inline-block;" title="Esta empresa não está aceitando agendamentos no momento">Novo agendamento</a>
-          <p style="font-size:0.75rem;opacity:0.5;color:var(--ik-text);margin-top:0.5rem;">Indisponível enquanto a empresa estiver inativa (toque para ver a mensagem).</p>
-        </div>
-
       </div>
     </main>
   </div>

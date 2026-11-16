@@ -376,33 +376,46 @@ The customer area had **no reschedule screen** (only the staff `RescheduleBookin
 
 # Billing — tenant suspended (planned, UC-121)
 
-> Moved as-is from the tenant-billing discovery (screens `16`, `16b`, `16c`); Draft, to be reshaped at story discovery. The operational state is decided: `GET /v1/billing/access` (role-reduced for CUSTOMER, exposing only `operational`) is the single canonical read; no separate flag or route; anonymous visitors only get the effective `isPublished` from the manifest. Customer behaviour while suspended is UC-121; loyalty expiry keeps running while suspended (decided, UC-121 O-L1, M25-S27) and the customer email is a named open item there (O-B1).
+> Moved as-is from the tenant-billing discovery (screens `16`, `16b`); redrawn at M25-S31a discovery (2026-11-16) as `16`, `16b`, `16d`–`16f` and `05b`; Draft. `16c` (new booking blocked) was dropped: a suspended tenant's `/{slug}/booking` already renders the neutral `UnavailablePage` (M25-S25/S30). The operational state is decided: `GET /v1/billing/access` (role-reduced for CUSTOMER, exposing only `operational`) is the single canonical read; no separate flag or route; anonymous visitors only get the effective `isPublished` from the manifest. Customer behaviour while suspended is UC-121; loyalty expiry keeps running while suspended (decided, UC-121 O-L1, M25-S27) and the customer email is a named open item there (O-B1).
 
 ## Billing — account with an inactive company (`16-agendamentos-empresa-inativa.html`)
 
 File: `16-agendamentos-empresa-inativa.html` — Status: EXISTS (`my-account` booking list rows) + GAP prop `tenantOperational`.
-Behaviour: open bookings (PENDING, INFO_REQUESTED, APPROVED) are listed with the "Empresa inativa" badge and are not links (`aria-disabled`); history (COMPLETED, CANCELLED, REJECTED, NO_SHOW) is listed but **not openable** (also not links, `aria-disabled`): the booking detail `GET /bookings/:id` is `DEFAULT_DENY` for every status (M25-S18a), so UC-121 "history stays readable" means the list only. "Novo agendamento" rendered disabled. **Cancel while suspended (UC-121 allows cancelling an existing future booking):** each open future row has a secondary red "Cancelar" text link (outside the blocked row link; the row container is not `aria-disabled`, since the link inside must stay operable) that, in the prototype, links to `03-cancel-confirm.html` as a **stand-in**. The real "Cancelar" opens the `CancelFromListConfirm` dialog (M25-S31a; built on the repo's dialog primitive) rendered from the row's own data, because the booking detail read is denied while suspended (S18a) and today's cancel page loads it; the confirmation never navigates to `02-agendamento-detail.html`, and success returns to the bookings list. `PATCH /v1/bookings/:id/cancel` is still answered by Booking, which decides the record-dependent rules (deadline, status); the web does not duplicate them. The prototype-only link under the open list and the link on the disabled button exist to reach screens 16b and 16c; in production they are inert.
+Behaviour: same three sections as the shipped list (Próximos, Pendentes, Histórico). Open bookings (APPROVED, PENDING, INFO_REQUESTED) carry the "Empresa inativa" badge and are not links (`aria-disabled`); history (COMPLETED, CANCELLED, REJECTED, NO_SHOW) is listed but **not openable** either: `GET /bookings/:id` is `DEFAULT_DENY` for every status (M25-S18a), so "history stays readable" means the list only. "+ Novo" is rendered disabled and inert (a suspended tenant's `/{slug}/booking` already shows `UnavailablePage`, so there is no screen of its own). **No "Reservas recorrentes" / "Meus avisos" entry rows:** their summary reads are refused while suspended (`DEFAULT_DENY`, M25-S18b) and `BookingsList` renders an entry row only when its summary is non-null, so they disappear on their own. **Cancel while suspended (UC-121 allows cancelling an existing future booking):** each open future row has a secondary red "Cancelar" text link (the row container is not `aria-disabled`, since the link inside must stay operable) that opens the `CancelFromListConfirm` dialog (`16d`), rendered from the row's own data, never the detail page. Booking, not the web, decides the record rules (deadline, status). Whether a row shows "Cancelar" at all follows the shipped `canCancelBooking` rule.
 BFF: `GET /v1/bookings` (unchanged) and `GET /v1/billing/access` for `operational`.
-Copy: "Empresa inativa", "Esta empresa não está operando no momento. Você pode consultar seu histórico, mas não é possível abrir agendamentos em aberto nem criar novos."
+Copy: "Empresa inativa", "Esta empresa não está operando no momento. Você pode consultar seu histórico e cancelar agendamentos futuros, mas não é possível abrir agendamentos em aberto, remarcar nem criar novos."
 States: empty history = existing empty copy; load-error = existing retry alert.
 Mobile: bottom nav (Início, Agendamentos, Fidelidade); badge wraps under status.
 
-## Billing — open booking detail blocked (`16b-detalhe-bloqueado.html`; `BookingBlockedNotice`)
+## Billing — booking detail blocked (`16b-detalhe-bloqueado.html`; `BookingBlockedNotice`)
 
 File: `16b-detalhe-bloqueado.html` — Status: GAP, route EXISTS.
 Backend: `GET /v1/bookings/:id` -> `BILLING_TENANT_SUSPENDED` (403, M25-S16) for **every** booking status (`DEFAULT_DENY`, M25-S18a); no row links here, so it is reachable only by direct URL.
-Copy: "Este agendamento não pode ser aberto agora", "Esta empresa está inativa no momento, por isso os detalhes de agendamentos em aberto não estão disponíveis.", "Voltar para Agendamentos". New error code needs translation in both `errors.json` locales.
+Copy: "Este agendamento não pode ser aberto agora", "Esta empresa está inativa no momento, por isso os detalhes de agendamentos não estão disponíveis.", "Voltar para Agendamentos". New error code needs translation in both `errors.json` locales.
 Mobile: drill-down page, bottom nav hidden.
 
-## Billing — switch list marker (`05-trocar-empresa.html`; `SwitchTenantClient`, M25-S31a)
+## Billing — switch list marker (`05b-trocar-empresa-inativa.html`; `SwitchTenantClient` + `TenantOptionRow`, M25-S31a)
 
-Decided: the customer tenant switch list (`/switch-tenant`, BFF `GET /customers/tenants`) keeps listing and allowing a suspended tenant and marks its row "Empresa inativa", driven by the per-tenant `operational` field M25-S26 adds to `TenantOption`. Work owned by M25-S31a: `SwitchTenantClient` change + the i18n key in both locales. **Owed §15 follow-up:** `05-trocar-empresa.html` does not yet draw the marked row (a new row state, not a mechanical text fix); add it under the §15 prototype workflow when S31a is discovered.
+Decided: the customer tenant switch list (`/switch-tenant`, BFF `GET /customers/tenants`) keeps listing and allowing a suspended tenant and marks its row "Empresa inativa", driven by the per-tenant `operational` field M25-S26 adds to `TenantOption`. Work owned by M25-S31a: `SwitchTenantClient` change + the i18n key in both locales. Drawn in `05b-trocar-empresa-inativa.html` (a neutral "Empresa inativa" pill on the suspended row, branded `--ba-*` tree, row stays a selectable button; the current tenant keeps its "Atual" badge and is never marked).
 
-## Billing — new booking blocked (`16c-novo-agendamento-bloqueado.html`)
+## Billing — cancel from the list (`16d-cancelar-da-lista.html`; `CancelFromListConfirm`, M25-S31a)
 
-File: `16c-novo-agendamento-bloqueado.html` — Status: GAP (variant of `BookingBlockedNotice`), booking route EXISTS.
-Backend: `POST /v1/bookings` -> `BILLING_TENANT_SUSPENDED` (403, M25-S16).
-Copy: "Esta empresa não está aceitando agendamentos no momento", "Voltar para minha conta".
+File: `16d-cancelar-da-lista.html` — Status: GAP. A feature component (`features/customer/components/my-account/`) composing the `alert-dialog` primitive (`shared/components/ui/alert-dialog.tsx`); the customer account is the SaaS tree, no `--ba-*`.
+Props: `booking` (the list row: id, service names, `scheduledAt`, price), `onCancelled`. Confirm calls `cancelBookingAsCustomer(bookingId)` (`PATCH /bookings/:id/cancel`, BFF -> `/cancel-customer`, `CUSTOMER_HISTORY`, allowed while suspended).
+States: normal; `?estado=prazo` = `422 CANCELLATION_WINDOW_EXPIRED` shown inside the dialog ("Cancelamento fora do prazo…"); any other failure reuses the dialog's error message. On success the dialog closes and the list refreshes (the row moves to Histórico as "Cancelado"). The old `.../bookings/[id]/cancel` URL opened directly while suspended shows `16b` (its detail read is refused).
+Copy: "Cancelar agendamento?", "Esta ação não pode ser desfeita.", "Manter agendamento", "Confirmar cancelamento".
+
+## Billing — reschedule blocked (`16e-reagendar-bloqueado.html`)
+
+File: `16e-reagendar-bloqueado.html` — Status: GAP, route EXISTS (`.../bookings/[id]/reschedule`). Only reachable by direct URL (the list shows no "Reagendar" while suspended). Same `BookingBlockedNotice` as `16b` with the reschedule copy: "Esta empresa está inativa no momento, por isso não é possível reagendar agora." and "Você ainda pode cancelar um agendamento futuro pela lista em Agendamentos."
+
+## Billing — loyalty read-only (`16f-fidelidade-somente-leitura.html`)
+
+File: `16f-fidelidade-somente-leitura.html` — Status: GAP, route EXISTS (`/{slug}/my-account/loyalty`). The shipped page plus a neutral notice above the balance: "Empresa inativa. Seu saldo e seu histórico continuam disponíveis para consulta, mas não é possível ganhar nem usar pontos agora. Pontos continuam vencendo na data prevista." The expiry strip stays (expiry keeps running while suspended, O-L1). The page has no redeem control to hide; earning and redemption are blocked server-side (S19).
+
+## Billing — new booking (no screen)
+
+`16c-novo-agendamento-bloqueado.html` was removed on 2026-11-16: a suspended tenant's `/{slug}/booking` renders the neutral `UnavailablePage` ("Página indisponível", M25-S25/S30), so a second blocked screen would only repeat it.
 
 ## Inline feedback in the action pane (`03c-cancel-confirm-feedback.html`, `03d-cancel-confirm-feedback-erro.html`; `CancelConfirmPage`)
 

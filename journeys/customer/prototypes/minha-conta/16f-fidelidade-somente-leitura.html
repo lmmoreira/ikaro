@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fidelidade — Empresa inativa — BeloAuto</title>
+  <link rel="stylesheet" href="../../../shared/customer-shell.css">
+  <style>
+    details summary { list-style: none; }
+    details summary::-webkit-details-marker { display: none; }
+
+    .customer-nav {
+      display: none; background: white;
+      border-bottom: 1px solid var(--ik-soft);
+      padding: 0 1.5rem; position: sticky; top: 3.375rem; z-index: 5;
+    }
+    .customer-nav-item {
+      display: inline-flex; align-items: center; gap: 0.375rem;
+      padding: 0.75rem 1rem; font-size: 0.875rem; font-weight: 500;
+      color: var(--ik-text); text-decoration: none;
+      border-bottom: 2px solid transparent; opacity: 0.5;
+    }
+    .customer-nav-item.active { color: var(--ik-primary); border-bottom-color: var(--ik-primary); opacity: 1; }
+
+    .balance-card {
+      background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 60%, #3b82f6 100%);
+      border-radius: var(--ik-radius); padding: 1.375rem 1.5rem;
+      color: white; margin-bottom: 1.25rem;
+      box-shadow: 0 4px 16px rgba(37,99,235,0.35);
+    }
+    .balance-pts { font-size: 3rem; font-weight: 800; line-height: 1; }
+    .balance-label { font-size: 0.875rem; opacity: 0.8; margin-top: 0.25rem; }
+    .balance-expiry {
+      margin-top: 0.875rem; background: rgba(255,255,255,0.15);
+      border-radius: 0.375rem; padding: 0.5rem 0.75rem;
+      font-size: 0.8125rem;
+    }
+    .balance-rate {
+      margin-top: 0.625rem; font-size: 0.8125rem; opacity: 0.75;
+    }
+
+    .tab-bar {
+      display: flex; border-bottom: 2px solid var(--ik-soft);
+      margin-bottom: 1.25rem; gap: 0;
+    }
+    .tab-btn {
+      flex: 1; text-align: center; padding: 0.75rem 0.5rem;
+      font-size: 0.875rem; font-weight: 600; cursor: pointer;
+      border: none; background: none; color: var(--ik-text);
+      opacity: 0.45; border-bottom: 2px solid transparent;
+      margin-bottom: -2px; transition: all 0.15s;
+    }
+    .tab-btn.active { opacity: 1; color: var(--ik-primary); border-bottom-color: var(--ik-primary); }
+
+    .entry-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.75rem 0; border-bottom: 1px solid var(--ik-soft);
+    }
+    .entry-row:last-child { border-bottom: none; }
+    .entry-service { font-weight: 600; font-size: 0.9375rem; color: var(--ik-text); }
+    .entry-date { font-size: 0.8125rem; opacity: 0.5; color: var(--ik-text); margin-top: 0.125rem; }
+    .pts-badge-earn { font-weight: 700; font-size: 0.9375rem; color: #16a34a; }
+    .pts-badge-redeem { font-weight: 700; font-size: 0.9375rem; color: #dc2626; }
+    .pts-status { font-size: 0.6875rem; font-weight: 700; padding: 0.125rem 0.5rem;
+                  border-radius: 999px; margin-top: 0.25rem; display: inline-block; }
+    .pts-active   { background: #dcfce7; color: #166534; }
+    .pts-expired  { background: #f3f4f6; color: #6b7280; }
+
+    @media (min-width: 1024px) {
+      .topbar-brand { display: flex !important; }
+      .topbar-user-name { display: inline !important; }
+      .customer-nav { display: flex; }
+    }
+  </style>
+</head>
+<body>
+
+  <!--
+    UC-121 VARIANT (M25-S31a, GAP): same page as 04-fidelidade.html with the tenant inactive. A neutral banner (FeedbackMessage-style notice, no role=alert) sits above the balance; balance, earning history and redemption history stay readable; earning and redemption are blocked server-side (UC-121), the page has no redeem control. The expiry warning stays: loyalty expiry keeps running while suspended (O-L1).
+    COMPONENT: MinhaFidelidadePage
+    PAGE:       apps/web/app/[slug]/my-account/loyalty/page.tsx  (EXISTS)
+    UC-016 (customer own data — balance + earning history + redemption history)
+    DATA:
+      GET /v1/loyalty/balance  → { currentPoints, nextExpiryDate, nextExpiryPoints }
+      GET /v1/loyalty/entries  → earning entries list (paginated)
+      GET /v1/loyalty/redemptions → redemption history (paginated)
+      Tenant settings: loyalty.points_per_currency_unit (for conversion rate display)
+  -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;
+               font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — UC-016 (dados próprios do cliente) · redimensione para mobile/desktop
+  </div>
+
+  <!-- TOP BAR -->
+  <div class="dashboard-topbar">
+    <div class="topbar-brand">
+      <div class="topbar-logo-mark">B</div>
+      <span class="topbar-tenant-name">BeloAuto</span>
+    </div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
+      <div style="position:relative;">
+        <details>
+          <summary style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;
+                          color:var(--ik-text);font-size:0.875rem;font-weight:500;padding:0;">
+            <div class="list-avatar" style="width:2rem;height:2rem;font-size:0.8125rem;flex-shrink:0;">JS</div>
+            <span class="topbar-user-name" style="display:none;font-weight:600;">João Silva</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </summary>
+          <div style="position:absolute;right:0;top:calc(100% + 0.5rem);background:white;
+                      border:1px solid var(--ik-soft);border-radius:var(--ik-radius);
+                      box-shadow:0 4px 12px rgba(0,0,0,.12);min-width:12rem;overflow:hidden;z-index:50;">
+            <div style="padding:0.75rem 1rem;border-bottom:1px solid var(--ik-soft);">
+              <p style="font-size:0.875rem;font-weight:600;color:var(--ik-text);margin:0;">João Silva</p>
+              <p style="font-size:0.8125rem;opacity:.5;color:var(--ik-text);margin:0.125rem 0 0;">joao@email.com</p>
+            </div>
+            <a href="../../../shared/hotsite-logged-in.html"
+               style="display:flex;align-items:center;gap:0.625rem;padding:0.625rem 1rem;
+                      font-size:0.875rem;color:var(--ik-text);text-decoration:none;opacity:.65;">
+              ← Site BeloAuto
+            </a>
+            <a href="05-trocar-empresa.html"
+               style="display:flex;align-items:center;gap:0.625rem;padding:0.625rem 1rem;
+                      font-size:0.875rem;color:var(--ik-text);text-decoration:none;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+                <path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+              </svg>
+              Trocar empresa
+            </a>
+            <hr style="border:none;border-top:1px solid var(--ik-soft);margin:0;">
+            <a href="../../../shared/hotsite.html"
+               style="display:flex;padding:0.625rem 1rem;font-size:0.875rem;
+                      color:#dc2626;text-decoration:none;font-weight:500;">
+              Sair
+            </a>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <!-- CUSTOMER TAB NAV — desktop -->
+  <div class="customer-nav">
+    <a class="customer-nav-item" href="../../../shared/customer-dashboard.html">🏠 Início</a>
+    <a class="customer-nav-item" href="01-minha-conta.html">📅 Agendamentos</a>
+    <a class="customer-nav-item active" href="04-fidelidade.html">⭐ Fidelidade</a>
+  </div>
+
+  <div class="dashboard-layout">
+    <main class="main-content">
+      <div class="dashboard-body">
+        
+
+        <h1 style="font-size:1.125rem;font-weight:700;color:var(--ik-text);margin-bottom:1rem;">
+          Minha Fidelidade
+        </h1>
+
+        <div class="notice" role="status" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:var(--ik-radius);padding:0.875rem 1rem;margin-bottom:1rem;display:flex;gap:0.625rem;font-size:0.875rem;line-height:1.5;color:var(--ik-text);">
+          <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <div><strong>Empresa inativa.</strong> Seu saldo e seu histórico continuam disponíveis para consulta, mas não é possível ganhar nem usar pontos agora. Pontos continuam vencendo na data prevista.</div>
+        </div>
+        
+        <!-- Balance card -->
+        <div class="balance-card">
+          <div class="balance-pts">120</div>
+          <div class="balance-label">pontos ativos</div>
+          <div class="balance-expiry">
+            ⚠ 12 pts expiram em 15 de agosto de 2026
+          </div>
+          <!-- Conversion rate — only shown when points_per_currency_unit > 0 -->
+          <div class="balance-rate">
+            10 pts = R$ 1,00 &nbsp;·&nbsp; Valor total: <strong>R$ 12,00</strong>
+          </div>
+        </div>
+
+        <!-- Tab bar -->
+        <div class="tab-bar">
+          <button class="tab-btn active" onclick="showTab('ganhos', this)">Histórico de ganhos</button>
+          <button class="tab-btn" onclick="showTab('resgates', this)">Resgates</button>
+        </div>
+
+        <!-- GANHOS tab -->
+        <div id="tab-ganhos">
+          <div class="card" style="padding:0 1rem;">
+
+            <div class="entry-row">
+              <div>
+                <div class="entry-service">Cristalização de Pintura</div>
+                <div class="entry-date">5 de junho de 2026</div>
+                <span class="pts-status pts-active">Ativo</span>
+              </div>
+              <div style="text-align:right;">
+                <div class="pts-badge-earn">+20 pts</div>
+              </div>
+            </div>
+
+            <div class="entry-row">
+              <div>
+                <div class="entry-service">Lavagem Completa</div>
+                <div class="entry-date">18 de maio de 2026</div>
+                <span class="pts-status pts-active">Ativo</span>
+              </div>
+              <div style="text-align:right;">
+                <div class="pts-badge-earn">+10 pts</div>
+              </div>
+            </div>
+
+            <div class="entry-row">
+              <div>
+                <div class="entry-service">Lavagem Simples</div>
+                <div class="entry-date">3 de maio de 2026</div>
+                <span class="pts-status pts-active">Ativo</span>
+              </div>
+              <div style="text-align:right;">
+                <div class="pts-badge-earn">+5 pts</div>
+              </div>
+            </div>
+
+            <!-- Expired entry — lower opacity -->
+            <div class="entry-row" style="opacity:0.4;">
+              <div>
+                <div class="entry-service">Lavagem Simples</div>
+                <div class="entry-date">10 de fevereiro de 2026</div>
+                <span class="pts-status pts-expired">Expirado</span>
+              </div>
+              <div style="text-align:right;">
+                <div class="pts-badge-earn" style="color:#6b7280;">+5 pts</div>
+              </div>
+            </div>
+
+          </div>
+
+          <p style="font-size:0.75rem;opacity:0.4;text-align:center;margin-top:0.875rem;">
+            Exibindo 4 de 4 ganhos
+          </p>
+        </div>
+
+        <!-- RESGATES tab (hidden by default) -->
+        <div id="tab-resgates" style="display:none;">
+          <div class="card" style="padding:0 1rem;">
+            <div class="entry-row">
+              <div>
+                <div class="entry-service">Resgate — Lavagem Completa</div>
+                <div class="entry-date">18 de maio de 2026</div>
+                <div style="font-size:0.8125rem;opacity:0.55;margin-top:0.125rem;">
+                  Economia: R$ 8,50
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <div class="pts-badge-redeem">−85 pts</div>
+              </div>
+            </div>
+          </div>
+          <p style="font-size:0.75rem;opacity:0.4;text-align:center;margin-top:0.875rem;">
+            1 resgate realizado
+          </p>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- BOTTOM NAV — mobile -->
+  <nav class="bottom-nav">
+    <a class="bottom-nav-item" href="../../../shared/customer-dashboard.html">
+      <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+        <polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>
+      Início
+    </a>
+    <a class="bottom-nav-item" href="01-minha-conta.html">
+      <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2"/>
+        <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+        <line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
+      Agendamentos
+    </a>
+    <a class="bottom-nav-item active" href="04-fidelidade.html">
+      <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+      </svg>
+      Fidelidade
+    </a>
+  </nav>
+
+  <script>
+    function showTab(id, btn) {
+      document.getElementById('tab-ganhos').style.display = 'none';
+      document.getElementById('tab-resgates').style.display = 'none';
+      document.getElementById('tab-' + id).style.display = 'block';
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+  </script>
+
+</body>
+</html>
