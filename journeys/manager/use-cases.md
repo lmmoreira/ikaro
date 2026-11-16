@@ -38,7 +38,7 @@ Source: `docs/USE_CASES.md`. Working checklist for journeys in this folder — u
 | UC-133 | Manager Cancels the Subscription | Same promotion. Separate confirmation page; no refund. Draft — not yet shipped. | `manager/billing.md` |
 | UC-134 | Manager Reactivates a Cancelled or Suspended Subscription | Same promotion. "Reativar assinatura" or paying the recovery charge. Draft — not yet shipped. | `manager/billing.md` |
 | UC-135 | Manager Enables or Disables Automatic Charging (Pix Automático) | Same promotion. **Deferred release gate:** the tab shows "Em breve"; the screens are a preview. | `manager/billing.md` |
-| UC-136 | Manager Changes the Plan (Self-Service) | Same promotion. Plano tab with preview; trial "Confirmar plano"; BOOKING removal guard. Draft — not yet shipped. | `manager/billing.md` |
+| UC-136 | Manager Changes the Plan (Self-Service) | Same promotion. Plano tab with preview; trial "Confirmar plano"; BOOKING removal guard; a payment-suspended tenant chooses its plan before paying (A14). Draft — not yet shipped. | `manager/billing.md` |
 | UC-141 | Manager Discards a Never-Paid Tenant | Slice G (deferred). Type-the-slug confirmation page (`10-discard-trial-confirm.html`); immediate purge; no support contact once the purge participants ship. Draft — not yet shipped. | `manager/billing.md` |
 | UC-143 | Manager Enables Automatic Card Collection | Same promotion. **Slice F2, gated:** no screens drawn yet. | `manager/billing.md` |
 | UC-144, UC-145 | Manager Chooses the Billing Cycle; Annual Subscriber Adds a Feature Mid-Year | Same promotion. **Slice H (annual billing), post-launch:** summary, add-on and cancel screens drawn; the rest specified in the dev-notes. | `manager/billing.md` |

@@ -828,7 +828,7 @@ Ikaro charging its tenants (`docs/DOMAIN_MODEL.md` § Billing Context, `docs/USE
 
 #### **PlanChanged**
 - **Trigger:** the manager saves a plan (UC-136), switches cycle (UC-144, slice H) or adds an annual add-on (UC-145, slice H)
-- **Data:** `subscriptionId`, `recipientEmail?`, `effectiveFrom`, `cycle`, `nextCycle?`, `nextCycleFrom?` *(slice H)*, `newTotalMinor` (total in the chosen cycle), `added[]`, `removed[]`
+- **Data:** `subscriptionId`, `recipientEmail?`, `effectiveFrom` (`null` for a selection saved while suspended: it takes effect at the reactivation payment, UC-136 A14), `cycle`, `nextCycle?`, `nextCycleFrom?` *(slice H)*, `newTotalMinor` (total in the chosen cycle), `added[]`, `removed[]`
 - **Consumers:** Notification (to the billing email); `audit-log`
 
 #### **BillingReminderDue** *(a Command — see the note below the Billing events; not an audited domain event)*

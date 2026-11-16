@@ -99,7 +99,7 @@ Folder: `manager/prototypes/billing/` — relocated from `docs/discovery/tenant-
 | `04`, `04b` | Agenda with the trial banner / the past-due banner | UC-130 | ❓ GAP |
 | `06`, `06b`–`06e` | Cancel: confirm, scheduled, error, immediate (trial or past due), trial with the first invoice paid | UC-133 | ❓ GAP |
 | `07`, `07b`–`07d` | Cobrança automática (preview only, "prévia – ainda não disponível"): activate, active, pending, error | UC-135 | ❓ Deferred |
-| `08`, `08b`–`08i`, `09` | Plano: edit with preview, trial review, dependency error, saved, read-only (suspended / past due), scheduled changes, save error, BOOKING in use, trial "Confirme seu plano" | UC-136, UC-130 | ❓ GAP |
+| `08`, `08b`–`08i`, `09` | Plano: edit with preview, trial review, dependency error, saved, editable suspended plan before paying (08e, UC-136 A14) and read-only (past due, operator suspension), scheduled changes, save error, BOOKING in use, trial "Confirme seu plano" | UC-136, UC-130 | ❓ GAP |
 | `10` | Discard a never-paid tenant: what is erased, irreversible, type the slug to confirm | UC-141 | ❓ Deferred (slice G) |
 | `11`, `12`, `13`, `01q` | Annual subscription (slice H): summary, mid-year add-on, cancel, suspended recovery | UC-144, UC-145, UC-133, UC-134 | ❓ Deferred |
 
