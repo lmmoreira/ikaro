@@ -32,7 +32,7 @@ flowchart TD
     SubmitError --> Form
 ```
 
-Not drawn as a separate node: a module disabled between teaser render and page load (UC-039 A6) — resolves to the existing generic `<Unavailable/>` state, same as any other disabled-module page, not a lead-form-specific screen. That page is drawn in `guest/unpublished-hotsite.md`; the planned "Página não publicada" copy there applies only to an unpublished hotsite (which reaches this route's `Unavailable` through the manifest's stubbed empty layout) — a published hotsite with the module disabled keeps the "Em breve" copy.
+Not drawn as a separate node: a module disabled between teaser render and page load (UC-039 A6) — resolves to the neutral "Página indisponível" page (`UnavailablePage`: the top bar plus the message), the same page as an unpublished hotsite (which reaches this route's page through the manifest's stubbed empty layout), not a lead-form-specific screen. That page is drawn in `guest/unpublished-hotsite.md`. If the page was cached before the module was disabled, the widget's live config check swaps the form for the same message under the bar the page already draws.
 
 ## Pages referenced
 

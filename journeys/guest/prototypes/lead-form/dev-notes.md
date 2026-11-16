@@ -16,7 +16,7 @@ A single-page public form at `/[slug]/lead-form`, reached from the `LEAD_FORM` h
 
 | File | Status | Role |
 |---|---|---|
-| `apps/web/app/[slug]/lead-form/page.tsx` | ✅ Shipped M20-S09 | Server component — reads the manifest, resolves the `LEAD_FORM` module (`Unavailable` when disabled), renders `HotsiteAuthBar` + `LeadFormWidget`; it does **not** fetch the question catalog |
+| `apps/web/app/[slug]/lead-form/page.tsx` | ✅ Shipped M20-S09 | Server component — reads the manifest, resolves the `LEAD_FORM` module (the neutral `UnavailablePage` when disabled; M25-S30), renders `HotsiteAuthBar` + `LeadFormWidget`; it does **not** fetch the question catalog |
 | `apps/web/features/platform/components/public/LeadFormWidget.tsx` | ✅ Shipped M20-S09 | Client component — fetches the question catalog (`fetchLeadFormConfigClient`), owns the state machine below and the submit |
 | `apps/web/features/platform/components/public/LeadFormTerminalCard.tsx` | ✅ Shipped M20-S09 | Shared card for the terminal error states (submission error, rate-limited) |
 | `apps/web/shells/hotsite/components/LeadFormModule.tsx` | ✅ Shipped M20-S07 | Teaser section on the hotsite itself, mirroring `BookingCtaModule.tsx` |
