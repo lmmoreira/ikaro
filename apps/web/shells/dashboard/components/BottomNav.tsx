@@ -53,23 +53,28 @@ export function BottomNav({
   const isSchedulingExceptionReschedule =
     matchSchedulingExceptionRescheduleRoute(pathname) !== null;
 
+  // A locked route renders the locked page instead of the drill-down page, so no back arrow
+  // exists there and the tabs are the only way out on mobile.
+  const routeLocked = isRouteLocked(pathname, lockedFeatures);
+
   // /dashboard/settings and /dashboard/hotsite are deliberately NOT in this list (unlike the
   // drill-down routes above) — they're top-level sections with no topbar back arrow, so hiding
   // BottomNav there leaves mobile users with zero way to reach any other section. Both pages'
   // own mobile action bars are offset above BottomNav instead (see their own `bottom-[calc(...)]`
   // class) so the two don't overlap.
   if (
-    isBookingDetail ||
-    isRecurringScheduleDetail ||
-    isBookingCreateRoute(pathname) ||
-    isServiceDetailAction ||
-    isServiceCreateRoute(pathname) ||
-    isLoyaltyDetail ||
-    isTeamInviteRoute(pathname) ||
-    isTeamDetailRoute ||
-    isResourceCreateRoute(pathname) ||
-    isResourceDetailRoute ||
-    isSchedulingExceptionReschedule
+    !routeLocked &&
+    (isBookingDetail ||
+      isRecurringScheduleDetail ||
+      isBookingCreateRoute(pathname) ||
+      isServiceDetailAction ||
+      isServiceCreateRoute(pathname) ||
+      isLoyaltyDetail ||
+      isTeamInviteRoute(pathname) ||
+      isTeamDetailRoute ||
+      isResourceCreateRoute(pathname) ||
+      isResourceDetailRoute ||
+      isSchedulingExceptionReschedule)
   )
     return null;
 

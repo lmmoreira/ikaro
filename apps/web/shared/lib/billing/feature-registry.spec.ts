@@ -6,6 +6,7 @@ import {
   ROUTE_FEATURES,
   UNGATED_ROUTES,
   featureForPath,
+  isFeatureLocked,
   isRouteLocked,
 } from './feature-registry';
 
@@ -73,5 +74,11 @@ describe('feature registry', () => {
     expect(isRouteLocked('/dashboard/loyalty', ['LEAD_FORM'])).toBe(false);
     expect(isRouteLocked('/dashboard/loyalty', [])).toBe(false);
     expect(isRouteLocked('/dashboard/suspended', ['LOYALTY'])).toBe(false);
+  });
+
+  it('reports a feature locked only when it is in the locked list', () => {
+    expect(isFeatureLocked('LOYALTY', ['LOYALTY'])).toBe(true);
+    expect(isFeatureLocked('LOYALTY', ['CHATBOT'])).toBe(false);
+    expect(isFeatureLocked(null, ['LOYALTY'])).toBe(false);
   });
 });

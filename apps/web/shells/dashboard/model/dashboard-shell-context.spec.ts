@@ -10,6 +10,7 @@ import { getMessages, resolveSupportedLocale } from '@/shared/lib/i18n/get-messa
 import { fetchTenantAccess } from '@/shared/lib/billing/access.server';
 import {
   buildDashboardShellContext,
+  isShellRouteLocked,
   loadDashboardShellContext,
   resolveDashboardDateFormat,
 } from './dashboard-shell-context';
@@ -289,6 +290,20 @@ describe('loadDashboardShellContext — billing access (M25-S29)', () => {
     const context = await loadDashboardShellContext('token', managerPayload);
 
     expect(context.routeFeature).toBeNull();
+  });
+});
+
+describe('isShellRouteLocked', () => {
+  it('is true when the route feature is among the locked features', () => {
+    expect(isShellRouteLocked({ routeFeature: 'BOOKING', lockedFeatures: ['BOOKING'] })).toBe(true);
+  });
+
+  it('is false for an entitled feature, an ungated route and a failed lookup', () => {
+    expect(isShellRouteLocked({ routeFeature: 'BOOKING', lockedFeatures: ['LOYALTY'] })).toBe(
+      false,
+    );
+    expect(isShellRouteLocked({ routeFeature: null, lockedFeatures: ['BOOKING'] })).toBe(false);
+    expect(isShellRouteLocked({ routeFeature: 'BOOKING', lockedFeatures: [] })).toBe(false);
   });
 });
 

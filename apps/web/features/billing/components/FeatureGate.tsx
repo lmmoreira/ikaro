@@ -1,4 +1,5 @@
 import type { FeatureKey } from '@ikaro/types';
+import { isFeatureLocked } from '@/shared/lib/billing/feature-registry';
 import { LockedFeaturePage } from './LockedFeaturePage';
 
 interface FeatureGateProps {
@@ -17,7 +18,7 @@ export function FeatureGate({
   lockedFeatures,
   children,
 }: FeatureGateProps): React.JSX.Element {
-  if (feature !== null && lockedFeatures.includes(feature)) {
+  if (feature !== null && isFeatureLocked(feature, lockedFeatures)) {
     return <LockedFeaturePage feature={feature} />;
   }
   return <>{children}</>;

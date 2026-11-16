@@ -51,7 +51,13 @@ export function featureForPath(pathname: string): FeatureKey | null {
   return null;
 }
 
-export function isRouteLocked(pathname: string, lockedFeatures: readonly FeatureKey[]): boolean {
-  const feature = featureForPath(pathname);
+export function isFeatureLocked(
+  feature: FeatureKey | null,
+  lockedFeatures: readonly FeatureKey[],
+): boolean {
   return feature !== null && lockedFeatures.includes(feature);
+}
+
+export function isRouteLocked(pathname: string, lockedFeatures: readonly FeatureKey[]): boolean {
+  return isFeatureLocked(featureForPath(pathname), lockedFeatures);
 }

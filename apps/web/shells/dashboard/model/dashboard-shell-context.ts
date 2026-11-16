@@ -10,7 +10,7 @@ import { resolveTenantFormatting } from '@/features/platform/model/tenant-settin
 import { getMessages, resolveSupportedLocale } from '@/shared/lib/i18n/get-messages';
 import { resolveDateFormat } from '@/shared/lib/formatting/locale-validators';
 import { fetchTenantAccess } from '@/shared/lib/billing/access.server';
-import { featureForPath } from '@/shared/lib/billing/feature-registry';
+import { featureForPath, isFeatureLocked } from '@/shared/lib/billing/feature-registry';
 import { resolveSuspendedRedirect } from '@/shared/lib/billing/suspended-redirect';
 import { lockedFeaturesOf } from '@/shared/lib/billing/tenant-access';
 
@@ -82,6 +82,15 @@ export async function loadDashboardShellContext(
     lockedFeatures,
     routeFeature: featureForPath(pathname),
   };
+}
+
+// True when the route being rendered belongs to a feature the tenant does not hold. A section
+// layout that reads a record for its topbar (a booking, a service) skips that read then: the
+// backend would refuse it and the error would replace the locked page the gate renders.
+export function isShellRouteLocked(
+  shell: Pick<DashboardShellContext, 'routeFeature' | 'lockedFeatures'>,
+): boolean {
+  return isFeatureLocked(shell.routeFeature, shell.lockedFeatures);
 }
 
 export function resolveDashboardDateFormat(

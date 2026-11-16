@@ -4,7 +4,10 @@ import { Button } from '@/shared/components/ui/button';
 import { DashboardLayoutShell } from '@/shells/dashboard/components/DashboardLayoutShell';
 import { getAccessToken } from '@/features/auth/get-access-token';
 import { decodeJwtPayload } from '@/features/auth/decode-jwt';
-import { loadDashboardShellContext } from '@/shells/dashboard/model/dashboard-shell-context';
+import {
+  isShellRouteLocked,
+  loadDashboardShellContext,
+} from '@/shells/dashboard/model/dashboard-shell-context';
 import {
   loadServiceDetailRouteData,
   loadServiceEditRouteData,
@@ -37,7 +40,9 @@ export default async function ServicesLayout({
       ? { href: '/dashboard/services/new', label: t('create') }
       : null;
 
-  if (serviceRouteMatch) {
+  // A tenant without BOOKING gets the locked page: the service read would be refused and its
+  // error would replace the page the gate renders.
+  if (serviceRouteMatch && !isShellRouteLocked(shell)) {
     // The edit page renders the intake schema too, so on that route the layout uses the same
     // composite loader (cache() dedupes it with the page's call); other routes stay service-only.
     const { service } =

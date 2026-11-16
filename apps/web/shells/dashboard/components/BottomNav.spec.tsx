@@ -248,3 +248,46 @@ describe('BottomNav — locked items (UC-125)', () => {
     expect(screen.queryByRole('button', { name: 'Mais opções' })).not.toBeInTheDocument();
   });
 });
+
+describe('BottomNav — locked drill-down route (UC-125)', () => {
+  it('stays visible on a loyalty detail route while LOYALTY is locked, as the way out on mobile', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/loyalty/c-1');
+
+    const { container } = render(
+      <BottomNav
+        role={STAFF}
+        leadFormEnabled={false}
+        lockedFeatures={['LOYALTY']}
+        onOpenSheet={vi.fn()}
+      />,
+    );
+
+    expect(container).not.toBeEmptyDOMElement();
+    expect(screen.getByRole('link', { name: /Agenda/ })).toBeInTheDocument();
+  });
+
+  it('still hides on that route when LOYALTY is entitled', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/loyalty/c-1');
+
+    const { container } = render(
+      <BottomNav role={STAFF} leadFormEnabled={false} lockedFeatures={[]} onOpenSheet={vi.fn()} />,
+    );
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('still hides on a booking detail route when only another feature is locked', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/bookings/booking-123');
+
+    const { container } = render(
+      <BottomNav
+        role={STAFF}
+        leadFormEnabled={false}
+        lockedFeatures={['LOYALTY']}
+        onOpenSheet={vi.fn()}
+      />,
+    );
+
+    expect(container).toBeEmptyDOMElement();
+  });
+});
