@@ -1,4 +1,5 @@
 import { DataSource } from 'typeorm';
+import { getActiveEntityManager } from '../../../shared/infrastructure/transaction-context';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import { InboxRecordEntity } from '../../../shared/infrastructure/inbox/inbox-record.entity';
 import { TypeOrmInboxRepository } from '../../../shared/infrastructure/inbox/typeorm-inbox.repository';
@@ -27,26 +28,50 @@ import { RedeemPointsUseCase } from './use-cases/redeem-points/redeem-points.use
 
 // docs/LOCK_CATALOG.md H7: every writer of loyalty.loyalty_balances takes the balance row lock
 // (SELECT ... FOR UPDATE) before it reads, inside its transaction. Each test holds writer A open
-// right after A takes the lock, starts writer B, waits until Postgres shows B parked on a lock,
-// then lets A commit. The final state must equal the serial outcome. Without the lock B would
-// never park and waitForBlockedRowLock fails the test, so each one fails when the lock is removed.
+// right after A takes the lock, starts writer B, waits until Postgres shows B parked behind A's
+// transaction, then lets A commit. The final state must equal the serial outcome. Without the lock
+// B never parks and the test fails, so each one fails when the lock is removed.
 
-// Scoped to the balance table: only the competing writer of these tests can be parked on it.
-async function waitForBlockedLock(dataSource: DataSource): Promise<void> {
+// True once a backend is blocked by the holder's own backend pid: nobody else's lock wait can
+// satisfy it, so the probe is scoped to the one competing writer.
+async function waitForParkedBehind(dataSource: DataSource, holderPid: number): Promise<void> {
   for (let attempt = 0; attempt < 500; attempt++) {
     const [{ waiting }] = await dataSource.query<{ waiting: number }[]>(
       `SELECT count(*)::int AS waiting FROM pg_stat_activity
-        WHERE datname = current_database() AND wait_event_type = 'Lock'
-          AND query LIKE '%loyalty_balances%'`,
+        WHERE datname = current_database() AND $1 = ANY(pg_blocking_pids(pid))`,
+      [holderPid],
     );
     if (waiting > 0) return;
     await dataSource.query('SELECT pg_sleep(0.01)');
   }
-  throw new Error('no transaction ever blocked on a lock');
+  throw new Error('the contender never parked behind the lock holder');
+}
+
+// Waits until the contender is parked behind the holder, then releases the holder. The release is
+// in a `finally`, so a failed probe (or a contender that finishes without waiting, which is what a
+// removed lock looks like) never leaves the holder's transaction open.
+async function releaseOnceParked(
+  dataSource: DataSource,
+  gate: Gate,
+  holderPid: number,
+  contender: Promise<unknown>,
+): Promise<void> {
+  const finishedEarly = (): never => {
+    throw new Error('the contender finished without waiting for the lock');
+  };
+  try {
+    await Promise.race([
+      waitForParkedBehind(dataSource, holderPid),
+      contender.then(finishedEarly, finishedEarly),
+    ]);
+  } finally {
+    gate.release();
+  }
 }
 
 interface Gate {
-  locked: Promise<void>;
+  // Resolves with the holder's backend pid once it owns the row lock.
+  locked: Promise<number>;
   release: () => void;
 }
 
@@ -54,18 +79,25 @@ interface Gate {
 // waits for `release`, keeping its transaction (and the row lock) open for as long as the test
 // needs.
 class GatedBalanceRepository extends TypeOrmLoyaltyBalanceRepository {
-  private readonly signalLocked: () => void;
+  private readonly signalLocked: (holderPid: number) => void;
   private readonly released: Promise<void>;
   readonly gate: Gate;
 
   constructor(repo: ConstructorParameters<typeof TypeOrmLoyaltyBalanceRepository>[0]) {
     super(repo);
-    let signalLocked!: () => void;
+    let signalLocked!: (holderPid: number) => void;
     let release!: () => void;
-    const locked = new Promise<void>((resolve) => (signalLocked = resolve));
+    const locked = new Promise<number>((resolve) => (signalLocked = resolve));
     this.released = new Promise<void>((resolve) => (release = resolve));
     this.signalLocked = signalLocked;
     this.gate = { locked, release };
+  }
+
+  private async holderPid(): Promise<number> {
+    const [{ pid }] = await getActiveEntityManager()!.query<{ pid: number }[]>(
+      'SELECT pg_backend_pid() AS pid',
+    );
+    return pid;
   }
 
   override async findByCustomerForUpdate(
@@ -73,7 +105,7 @@ class GatedBalanceRepository extends TypeOrmLoyaltyBalanceRepository {
     customerId: string,
   ): Promise<LoyaltyBalance | null> {
     const balance = await super.findByCustomerForUpdate(tenantId, customerId);
-    this.signalLocked();
+    this.signalLocked(await this.holderPid());
     await this.released;
     return balance;
   }
@@ -83,7 +115,7 @@ class GatedBalanceRepository extends TypeOrmLoyaltyBalanceRepository {
     customerId: string,
   ): Promise<LoyaltyBalance> {
     const balance = await super.findOrCreateByCustomerForUpdate(tenantId, customerId);
-    this.signalLocked();
+    this.signalLocked(await this.holderPid());
     await this.released;
     return balance;
   }
@@ -239,10 +271,9 @@ describe('Loyalty balance row lock (integration, H7)', () => {
     const gatedSweepRepo = new GatedBalanceRepository(ds.getRepository(LoyaltyBalanceEntity));
 
     const sweep = expireJob(gatedSweepRepo).run();
-    await gatedSweepRepo.gate.locked;
+    const holderPid = await gatedSweepRepo.gate.locked;
     const redeem = redeemUseCase(plainBalanceRepo).execute(redeemInput(tenant, customer, 30));
-    await waitForBlockedLock(ds);
-    gatedSweepRepo.gate.release();
+    await releaseOnceParked(ds, gatedSweepRepo.gate, holderPid, redeem);
     await Promise.all([sweep, redeem]);
 
     // Serial outcome: the sweep expires 60 (100 -> 40), then the redeem takes 30 (-> 10).
@@ -257,14 +288,13 @@ describe('Loyalty balance row lock (integration, H7)', () => {
     const gatedRepo = new GatedBalanceRepository(ds.getRepository(LoyaltyBalanceEntity));
 
     const first = redeemUseCase(gatedRepo).execute(redeemInput(tenant, customer, 60));
-    await gatedRepo.gate.locked;
+    const holderPid = await gatedRepo.gate.locked;
     const second = redeemUseCase(plainBalanceRepo).execute(redeemInput(tenant, customer, 60));
     const secondSettled = second.then(
       () => 'ok' as const,
       (err: unknown) => err,
     );
-    await waitForBlockedLock(ds);
-    gatedRepo.gate.release();
+    await releaseOnceParked(ds, gatedRepo.gate, holderPid, second);
     await first;
 
     expect(await secondSettled).toBeInstanceOf(LoyaltyInsufficientPointsError);
@@ -278,10 +308,9 @@ describe('Loyalty balance row lock (integration, H7)', () => {
     const gatedRepo = new GatedBalanceRepository(ds.getRepository(LoyaltyBalanceEntity));
 
     const first = earnUseCase(gatedRepo).execute(earnDto(tenant, customer));
-    await gatedRepo.gate.locked;
+    const holderPid = await gatedRepo.gate.locked;
     const second = earnUseCase(plainBalanceRepo).execute(earnDto(tenant, customer));
-    await waitForBlockedLock(ds);
-    gatedRepo.gate.release();
+    await releaseOnceParked(ds, gatedRepo.gate, holderPid, second);
     await Promise.all([first, second]);
 
     // An unlocked pair both read 10 and one earn would be lost (balance 20).
@@ -294,11 +323,10 @@ describe('Loyalty balance row lock (integration, H7)', () => {
     const gatedRepo = new GatedBalanceRepository(ds.getRepository(LoyaltyBalanceEntity));
 
     const first = earnUseCase(gatedRepo).execute(earnDto(tenant, customer));
-    await gatedRepo.gate.locked;
+    const holderPid = await gatedRepo.gate.locked;
     const second = earnUseCase(plainBalanceRepo).execute(earnDto(tenant, customer));
     // The second writer parks on the first one's uncommitted insert (unique key wait).
-    await waitForBlockedLock(ds);
-    gatedRepo.gate.release();
+    await releaseOnceParked(ds, gatedRepo.gate, holderPid, second);
     await Promise.all([first, second]);
 
     expect(await pointsOf(tenant, customer)).toBe(20);
@@ -324,10 +352,9 @@ describe('Loyalty balance row lock (integration, H7)', () => {
     const gatedRepo = new GatedBalanceRepository(ds.getRepository(LoyaltyBalanceEntity));
 
     const first = earnUseCase(gatedRepo, access).execute(dto);
-    await gatedRepo.gate.locked;
+    const holderPid = await gatedRepo.gate.locked;
     const duplicate = earnUseCase(plainBalanceRepo, access).execute(dto);
-    await waitForBlockedLock(ds);
-    gatedRepo.gate.release();
+    await releaseOnceParked(ds, gatedRepo.gate, holderPid, duplicate);
     const [firstResult, duplicateResult] = await Promise.all([first, duplicate]);
 
     expect(firstResult.skipped).toBe(false);
@@ -343,10 +370,9 @@ describe('Loyalty balance row lock (integration, H7)', () => {
     const gatedRepo = new GatedBalanceRepository(ds.getRepository(LoyaltyBalanceEntity));
 
     const first = expireJob(gatedRepo).run();
-    await gatedRepo.gate.locked;
+    const holderPid = await gatedRepo.gate.locked;
     const overlapping = expireJob(plainBalanceRepo).run();
-    await waitForBlockedLock(ds);
-    gatedRepo.gate.release();
+    await releaseOnceParked(ds, gatedRepo.gate, holderPid, overlapping);
     await Promise.all([first, overlapping]);
 
     // The second run read the entry as unprocessed before the first committed; the re-check
@@ -364,9 +390,12 @@ describe('Loyalty balance row lock (integration, H7)', () => {
 
     const holder = redeemUseCase(gatedRepo).execute(redeemInput(tenantA, customer, 10));
     await gatedRepo.gate.locked;
-    // Resolves while A's lock is still held: it is a different row.
-    await redeemUseCase(plainBalanceRepo).execute(redeemInput(tenantB, customer, 20));
-    gatedRepo.gate.release();
+    try {
+      // Resolves while A's lock is still held: it is a different row.
+      await redeemUseCase(plainBalanceRepo).execute(redeemInput(tenantB, customer, 20));
+    } finally {
+      gatedRepo.gate.release();
+    }
     await holder;
 
     expect(await pointsOf(tenantA, customer)).toBe(90);
