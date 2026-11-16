@@ -90,3 +90,32 @@ describe('SchedulingExceptionsSheetItem', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('SchedulingExceptionsNavItem — locked (UC-125)', () => {
+  it('draws a padlocked sidebar link with no badge while BOOKING is locked', () => {
+    render(<SchedulingExceptionsSidebarItem locked />);
+
+    expect(screen.getByTestId('sidebar-nav-scheduling-exceptions')).toHaveAttribute(
+      'data-locked',
+      'true',
+    );
+    expect(screen.getByTestId('nav-lock')).toBeInTheDocument();
+    expect(screen.queryByTestId('scheduling-exceptions-badge')).not.toBeInTheDocument();
+  });
+
+  it('draws a padlocked sheet link with no badge while BOOKING is locked', () => {
+    render(<SchedulingExceptionsSheetItem onClose={vi.fn()} locked />);
+
+    expect(screen.getByTestId('more-sheet-scheduling-exceptions')).toHaveAttribute(
+      'data-locked',
+      'true',
+    );
+    expect(screen.queryByTestId('scheduling-exceptions-badge')).not.toBeInTheDocument();
+  });
+
+  it('draws no padlock when entitled', () => {
+    render(<SchedulingExceptionsSidebarItem />);
+
+    expect(screen.queryByTestId('nav-lock')).not.toBeInTheDocument();
+  });
+});

@@ -4,16 +4,38 @@ import { describe, expect, it, vi } from 'vitest';
 import type { DashboardShellContext } from '../model/dashboard-shell-context';
 import { DashboardSectionShell } from './DashboardSectionShell';
 
+vi.mock('@/features/billing/components/FeatureGate', () => ({
+  FeatureGate: ({
+    feature,
+    lockedFeatures,
+    children,
+  }: {
+    readonly feature: string | null;
+    readonly lockedFeatures: readonly string[];
+    readonly children: React.ReactNode;
+  }) => (
+    <div
+      data-testid="feature-gate"
+      data-feature={feature ?? ''}
+      data-locked-features={lockedFeatures.join(',')}
+    >
+      {children}
+    </div>
+  ),
+}));
+
 vi.mock('./DashboardShell', () => ({
   DashboardShell: ({
     tenantName,
     role,
     leadFormEnabled,
+    lockedFeatures,
     children,
   }: {
     readonly tenantName: string;
     readonly role: string;
     readonly leadFormEnabled: boolean;
+    readonly lockedFeatures: readonly string[];
     readonly children: React.ReactNode;
   }) => (
     <div
@@ -21,6 +43,7 @@ vi.mock('./DashboardShell', () => ({
       data-tenant-name={tenantName}
       data-role={role}
       data-lead-form-enabled={String(leadFormEnabled)}
+      data-nav-locked-features={lockedFeatures.join(',')}
     >
       {children}
     </div>
@@ -45,6 +68,8 @@ function buildShell(overrides?: Partial<DashboardShellContext>): DashboardShellC
       timeFormat: '24h',
     },
     leadFormEnabled: false,
+    lockedFeatures: [],
+    routeFeature: null,
     ...overrides,
   };
 }
@@ -81,5 +106,33 @@ describe('DashboardSectionShell', () => {
     );
 
     expect(screen.getByTestId('dashboard-shell')).toHaveAttribute('data-lead-form-enabled', 'true');
+  });
+
+  it('gates the children on the route feature and the locked features of the shell context', () => {
+    render(
+      <DashboardSectionShell
+        shell={buildShell({ routeFeature: 'LOYALTY', lockedFeatures: ['LOYALTY', 'CHATBOT'] })}
+      >
+        <p>Conteúdo</p>
+      </DashboardSectionShell>,
+    );
+
+    const gate = screen.getByTestId('feature-gate');
+    expect(gate).toHaveAttribute('data-feature', 'LOYALTY');
+    expect(gate).toHaveAttribute('data-locked-features', 'LOYALTY,CHATBOT');
+    expect(screen.getByText('Conteúdo')).toBeInTheDocument();
+  });
+
+  it('forwards the locked features to the nav', () => {
+    render(
+      <DashboardSectionShell shell={buildShell({ lockedFeatures: ['LEAD_FORM'] })}>
+        <p>Conteúdo</p>
+      </DashboardSectionShell>,
+    );
+
+    expect(screen.getByTestId('dashboard-shell')).toHaveAttribute(
+      'data-nav-locked-features',
+      'LEAD_FORM',
+    );
   });
 });

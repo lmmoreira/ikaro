@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import type { FeatureKey } from '@ikaro/types';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 import { BottomNav } from './BottomNav';
@@ -13,6 +14,7 @@ interface DashboardShellProps {
   readonly userName: string | null;
   readonly role: 'STAFF' | 'MANAGER';
   readonly leadFormEnabled: boolean;
+  readonly lockedFeatures: readonly FeatureKey[];
   readonly topbarAction?: React.ReactNode;
 }
 
@@ -23,9 +25,12 @@ export function DashboardShell({
   userName,
   role,
   leadFormEnabled,
+  lockedFeatures,
   topbarAction,
 }: DashboardShellProps): React.JSX.Element {
   const [sheetOpen, setSheetOpen] = useState(false);
+  // Leads is shown when the manager enabled it or, locked, when the tenant is not entitled.
+  const leadsVisible = leadFormEnabled || lockedFeatures.includes('LEAD_FORM');
 
   return (
     <div className="flex min-h-screen">
@@ -35,6 +40,7 @@ export function DashboardShell({
         userName={userName}
         role={role}
         leadFormEnabled={leadFormEnabled}
+        lockedFeatures={lockedFeatures}
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -43,14 +49,16 @@ export function DashboardShell({
         <BottomNav
           role={role}
           leadFormEnabled={leadFormEnabled}
+          lockedFeatures={lockedFeatures}
           onOpenSheet={() => setSheetOpen(true)}
         />
       </div>
 
-      {(role === 'MANAGER' || leadFormEnabled) && (
+      {(role === 'MANAGER' || leadsVisible) && (
         <MoreSheet
           role={role}
           leadFormEnabled={leadFormEnabled}
+          lockedFeatures={lockedFeatures}
           open={sheetOpen}
           onClose={() => setSheetOpen(false)}
           tenantSlug={tenantSlug}

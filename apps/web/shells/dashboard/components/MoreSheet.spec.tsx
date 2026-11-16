@@ -37,6 +37,7 @@ describe('MoreSheet', () => {
         tenantSlug="lavacar-bh"
         role={MANAGER}
         leadFormEnabled={false}
+        lockedFeatures={[]}
       />,
     );
 
@@ -55,6 +56,7 @@ describe('MoreSheet', () => {
         tenantSlug="lavacar-bh"
         role={MANAGER}
         leadFormEnabled={true}
+        lockedFeatures={[]}
       />,
     );
 
@@ -71,6 +73,7 @@ describe('MoreSheet', () => {
         tenantSlug="lavacar-bh"
         role={STAFF}
         leadFormEnabled={true}
+        lockedFeatures={[]}
       />,
     );
 
@@ -90,6 +93,7 @@ describe('MoreSheet', () => {
         tenantSlug="lavacar-bh"
         role={STAFF}
         leadFormEnabled={false}
+        lockedFeatures={[]}
       />,
     );
 
@@ -107,6 +111,7 @@ describe('MoreSheet', () => {
         tenantSlug="lavacar-bh"
         role={MANAGER}
         leadFormEnabled={false}
+        lockedFeatures={[]}
       />,
     );
 
@@ -128,6 +133,7 @@ describe('MoreSheet', () => {
         tenantSlug="lavacar-bh"
         role={MANAGER}
         leadFormEnabled={false}
+        lockedFeatures={[]}
       />,
     );
 
@@ -146,6 +152,7 @@ describe('MoreSheet', () => {
         tenantSlug="lavacar-bh"
         role={MANAGER}
         leadFormEnabled={false}
+        lockedFeatures={[]}
       />,
     );
 
@@ -163,6 +170,7 @@ describe('MoreSheet', () => {
         tenantSlug="lavacar-bh"
         role={STAFF}
         leadFormEnabled={true}
+        lockedFeatures={[]}
       />,
     );
 
@@ -179,6 +187,7 @@ describe('MoreSheet', () => {
         tenantSlug="lavacar-bh"
         role={MANAGER}
         leadFormEnabled={false}
+        lockedFeatures={[]}
       />,
     );
 
@@ -194,6 +203,7 @@ describe('MoreSheet', () => {
         tenantSlug="lavacar-bh"
         role={MANAGER}
         leadFormEnabled={false}
+        lockedFeatures={[]}
       />,
     );
 
@@ -209,6 +219,7 @@ describe('MoreSheet', () => {
         tenantSlug="lavacar-bh"
         role={MANAGER}
         leadFormEnabled={false}
+        lockedFeatures={[]}
       />,
     );
 
@@ -224,6 +235,7 @@ describe('MoreSheet', () => {
         tenantSlug="lavacar-bh"
         role={MANAGER}
         leadFormEnabled={false}
+        lockedFeatures={[]}
       />,
     );
 
@@ -244,6 +256,7 @@ describe('MoreSheet', () => {
         tenantSlug="lavacar-bh"
         role={STAFF}
         leadFormEnabled={true}
+        lockedFeatures={[]}
       />,
     );
 
@@ -260,11 +273,67 @@ describe('MoreSheet', () => {
         tenantSlug="lavacar-bh"
         role={MANAGER}
         leadFormEnabled={false}
+        lockedFeatures={[]}
       />,
     );
 
     await user.click(screen.getByTestId('more-sheet-scheduling-exceptions'));
 
     expect(onClose).toHaveBeenCalled();
+  });
+});
+
+describe('MoreSheet — locked items (UC-125)', () => {
+  it('shows Leads locked for STAFF when the tenant is not entitled, keeping its href', () => {
+    render(
+      <MoreSheet
+        open={true}
+        onClose={vi.fn()}
+        tenantSlug="lavacar-bh"
+        role={STAFF}
+        leadFormEnabled={false}
+        lockedFeatures={['LEAD_FORM']}
+      />,
+    );
+
+    const leads = screen.getByRole('link', { name: /Leads/ });
+    expect(leads).toHaveAttribute('href', '/dashboard/leads');
+    expect(leads).toHaveAttribute('data-locked', 'true');
+  });
+
+  it('shows Leads normally when entitled and enabled', () => {
+    render(
+      <MoreSheet
+        open={true}
+        onClose={vi.fn()}
+        tenantSlug="lavacar-bh"
+        role={STAFF}
+        leadFormEnabled={true}
+        lockedFeatures={[]}
+      />,
+    );
+
+    expect(screen.getByRole('link', { name: 'Leads' })).not.toHaveAttribute('data-locked');
+    expect(screen.queryByTestId('nav-lock')).not.toBeInTheDocument();
+  });
+
+  it('locks the manager items by their feature, with the padlock', () => {
+    render(
+      <MoreSheet
+        open={true}
+        onClose={vi.fn()}
+        tenantSlug="lavacar-bh"
+        role={MANAGER}
+        leadFormEnabled={false}
+        lockedFeatures={['BOOKING']}
+      />,
+    );
+
+    expect(screen.getByRole('link', { name: /Recursos/ })).toHaveAttribute('data-locked', 'true');
+    expect(screen.getByTestId('more-sheet-scheduling-exceptions')).toHaveAttribute(
+      'data-locked',
+      'true',
+    );
+    expect(screen.getByRole('link', { name: /Equipe/ })).not.toHaveAttribute('data-locked');
   });
 });

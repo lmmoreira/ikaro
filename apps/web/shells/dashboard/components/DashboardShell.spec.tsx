@@ -26,6 +26,7 @@ const DEFAULT_PROPS = {
   tenantSlug: 'lavacar-bh',
   userName: 'Ana Pereira',
   leadFormEnabled: false,
+  lockedFeatures: [],
 } as const;
 
 const STAFF = 'STAFF' as const;
@@ -119,5 +120,27 @@ describe('DashboardShell', () => {
 
     await userEvent.click(screen.getByText('Fechar'));
     expect(screen.getByTestId('more-sheet')).toHaveAttribute('data-open', 'false');
+  });
+});
+
+describe('DashboardShell — locked Leads (UC-125)', () => {
+  it('renders MoreSheet for STAFF when Leads is shown locked', () => {
+    render(
+      <DashboardShell {...DEFAULT_PROPS} role={STAFF} lockedFeatures={['LEAD_FORM']}>
+        children
+      </DashboardShell>,
+    );
+
+    expect(screen.getByTestId('more-sheet')).toBeInTheDocument();
+  });
+
+  it('keeps STAFF without MoreSheet when nothing about Leads is shown', () => {
+    render(
+      <DashboardShell {...DEFAULT_PROPS} role={STAFF} lockedFeatures={['LOYALTY']}>
+        children
+      </DashboardShell>,
+    );
+
+    expect(screen.queryByTestId('more-sheet')).not.toBeInTheDocument();
   });
 });

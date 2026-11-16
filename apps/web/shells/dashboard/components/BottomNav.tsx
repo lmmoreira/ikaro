@@ -3,8 +3,11 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import type { FeatureKey } from '@ikaro/types';
 import { Calendar, Clock, Wrench, Star, MoreHorizontal } from 'lucide-react';
+import { isRouteLocked } from '@/shared/lib/billing/feature-registry';
 import { cn } from '@/shared/utils/cn';
+import { NavLockMark } from './NavLockMark';
 import {
   isBookingCreateRoute,
   matchBookingDetailRoute,
@@ -21,6 +24,7 @@ import { isTeamInviteRoute, matchTeamRoute } from '@/shells/dashboard/model/team
 interface BottomNavProps {
   readonly role: 'STAFF' | 'MANAGER';
   readonly leadFormEnabled: boolean;
+  readonly lockedFeatures: readonly FeatureKey[];
   readonly onOpenSheet: () => void;
 }
 
@@ -34,6 +38,7 @@ const NAV_ITEM_KEYS = [
 export function BottomNav({
   role,
   leadFormEnabled,
+  lockedFeatures,
   onOpenSheet,
 }: BottomNavProps): React.JSX.Element | null {
   const t = useTranslations('dashboard');
@@ -68,11 +73,14 @@ export function BottomNav({
   )
     return null;
 
-  const itemClass = (active: boolean) =>
+  const itemClass = (active: boolean, locked = false) =>
     cn(
-      'flex flex-1 flex-col items-center justify-center gap-1 px-1 py-2 text-[0.625rem] font-semibold tracking-[0.02em] transition-colors',
+      'relative flex flex-1 flex-col items-center justify-center gap-1 px-1 py-2 text-[0.625rem] font-semibold tracking-[0.02em] transition-colors',
       active ? 'text-blue-600' : 'text-gray-900/40',
+      locked && 'opacity-60',
     );
+  // The "Mais" sheet holds Leads, so a tenant whose Leads item is shown locked still opens it.
+  const leadsVisible = leadFormEnabled || lockedFeatures.includes('LEAD_FORM');
 
   return (
     <nav
@@ -81,15 +89,22 @@ export function BottomNav({
     >
       {NAV_ITEM_KEYS.map(({ href, labelKey, Icon }) => {
         const isActive = pathname.startsWith(href);
+        const locked = isRouteLocked(href, lockedFeatures);
         return (
-          <Link key={href} href={href} className={itemClass(isActive)}>
+          <Link
+            key={href}
+            href={href}
+            data-locked={locked ? 'true' : undefined}
+            className={itemClass(isActive, locked)}
+          >
             <Icon className="h-[1.375rem] w-[1.375rem] shrink-0" />
             {t(labelKey)}
+            {locked ? <NavLockMark className="absolute right-3 top-1" /> : null}
           </Link>
         );
       })}
 
-      {(role === 'MANAGER' || (role === 'STAFF' && leadFormEnabled)) && (
+      {(role === 'MANAGER' || (role === 'STAFF' && leadsVisible)) && (
         <button
           type="button"
           onClick={onOpenSheet}

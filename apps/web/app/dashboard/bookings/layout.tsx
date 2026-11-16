@@ -2,6 +2,7 @@ import { headers } from 'next/headers';
 import { getAccessToken } from '@/features/auth/get-access-token';
 import { notFound } from 'next/navigation';
 import { decodeJwtPayload } from '@/features/auth/decode-jwt';
+import { FeatureGate } from '@/features/billing/components/FeatureGate';
 import { LocaleProvider } from '@/providers/locale-provider';
 import { FormattingProvider } from '@/providers/formatting-provider';
 import { TenantProvider } from '@/providers/tenant-provider';
@@ -66,8 +67,11 @@ export default async function ProtectedLayout({
               userName={shell.userName}
               role={shell.role}
               leadFormEnabled={shell.leadFormEnabled}
+              lockedFeatures={shell.lockedFeatures}
             >
-              {children}
+              <FeatureGate feature={shell.routeFeature} lockedFeatures={shell.lockedFeatures}>
+                {children}
+              </FeatureGate>
             </DashboardShell>
           </DashboardTopbarStatusProvider>
         </TenantProvider>

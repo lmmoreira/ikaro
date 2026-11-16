@@ -4,6 +4,7 @@ import {
   resolveSettingsLocalization,
   toSettingsFormValues,
   validateSettingsForm,
+  withoutChatbotSettings,
   type SettingsFormValues,
 } from './settings-form';
 
@@ -659,5 +660,33 @@ describe('validateSettingsForm', () => {
         facebook: 'https://facebook.com/beloauto',
       });
     });
+  });
+});
+
+describe('withoutChatbotSettings', () => {
+  it('drops only the chatbot key and leaves every other settings category untouched', () => {
+    const settings = {
+      booking: { cancellationWindowHours: 24 },
+      chatbot: { knowledgeText: 'Aceitamos Pix.' },
+      leadForm: { retentionMonths: 12 },
+    } as unknown as Parameters<typeof withoutChatbotSettings>[0];
+
+    const result = withoutChatbotSettings(settings);
+
+    expect(result).not.toHaveProperty('chatbot');
+    expect(result).toEqual({
+      booking: { cancellationWindowHours: 24 },
+      leadForm: { retentionMonths: 12 },
+    });
+    // The input is not mutated, so a locked save never changes what the form still holds.
+    expect(settings).toHaveProperty('chatbot');
+  });
+
+  it('returns the same categories when there is no chatbot key', () => {
+    const settings = { booking: { cancellationWindowHours: 24 } } as unknown as Parameters<
+      typeof withoutChatbotSettings
+    >[0];
+
+    expect(withoutChatbotSettings(settings)).toEqual(settings);
   });
 });

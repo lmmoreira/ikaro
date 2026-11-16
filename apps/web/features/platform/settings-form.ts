@@ -5,7 +5,7 @@ import { digitsOnly } from '@/shared/utils/digits-only';
 // Validation logic (schema, address/phone/social-links validation, normalization) lives in the
 // colocated settings-form-validation.ts — split out to keep this file under the documented
 // file-length limit; re-exported here so existing importers are unaffected.
-export { validateSettingsForm } from './settings-form-validation';
+export { validateSettingsForm, withoutChatbotSettings } from './settings-form-validation';
 export * from './settings-form-types';
 export * from './settings-form-localization';
 import {

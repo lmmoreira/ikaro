@@ -2,9 +2,12 @@
 
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
+import type { FeatureKey } from '@ikaro/types';
 import { Boxes, Users, Settings, Globe, LogOut, FileText } from 'lucide-react';
 import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
+import { isRouteLocked } from '@/shared/lib/billing/feature-registry';
 import { cn } from '@/shared/utils/cn';
+import { NavLockMark } from './NavLockMark';
 import { SchedulingExceptionsSheetItem } from './SchedulingExceptionsNavItem';
 
 interface MoreSheetProps {
@@ -13,6 +16,7 @@ interface MoreSheetProps {
   readonly tenantSlug: string;
   readonly role: 'STAFF' | 'MANAGER';
   readonly leadFormEnabled: boolean;
+  readonly lockedFeatures: readonly FeatureKey[];
 }
 
 const MANAGER_SHEET_ITEM_KEYS = [
@@ -32,9 +36,12 @@ export function MoreSheet({
   tenantSlug,
   role,
   leadFormEnabled,
+  lockedFeatures,
 }: MoreSheetProps): React.JSX.Element {
   const t = useTranslations('dashboard');
   const logoutUrl = `${getPublicEnv('NEXT_PUBLIC_BFF_URL')}/auth/logout?tenantSlug=${tenantSlug}`;
+  const leadsLocked = lockedFeatures.includes('LEAD_FORM');
+  const leadsVisible = leadFormEnabled || leadsLocked;
 
   return (
     <>
@@ -72,14 +79,19 @@ export function MoreSheet({
         <div className="mx-auto mt-3 h-1 w-10 rounded-full bg-gray-900/15 lg:hidden" />
 
         {/* "Leads" — header-less, visible to either role once the module is enabled */}
-        {leadFormEnabled && (
+        {leadsVisible && (
           <Link
             href="/dashboard/leads"
             onClick={onClose}
-            className="mt-2 flex items-center gap-[0.875rem] px-5 py-[0.875rem] text-[0.9375rem] font-medium text-gray-900 transition-colors active:bg-blue-50"
+            data-locked={leadsLocked ? 'true' : undefined}
+            className={cn(
+              'mt-2 flex items-center gap-[0.875rem] px-5 py-[0.875rem] text-[0.9375rem] font-medium text-gray-900 transition-colors active:bg-blue-50',
+              leadsLocked && 'opacity-60',
+            )}
           >
             <FileText className="h-5 w-5 shrink-0 opacity-60" />
             {t('nav.leads')}
+            {leadsLocked ? <NavLockMark className="ml-auto" /> : null}
           </Link>
         )}
 
@@ -91,18 +103,29 @@ export function MoreSheet({
             </p>
 
             {/* Nav items */}
-            <SchedulingExceptionsSheetItem onClose={onClose} />
-            {MANAGER_SHEET_ITEM_KEYS.map(({ href, labelKey, Icon }) => (
-              <Link
-                key={href}
-                href={href}
-                onClick={onClose}
-                className="flex items-center gap-[0.875rem] px-5 py-[0.875rem] text-[0.9375rem] font-medium text-gray-900 transition-colors active:bg-blue-50"
-              >
-                <Icon className="h-5 w-5 shrink-0 opacity-60" />
-                {t(labelKey)}
-              </Link>
-            ))}
+            <SchedulingExceptionsSheetItem
+              onClose={onClose}
+              locked={isRouteLocked('/dashboard/scheduling-exceptions', lockedFeatures)}
+            />
+            {MANAGER_SHEET_ITEM_KEYS.map(({ href, labelKey, Icon }) => {
+              const locked = isRouteLocked(href, lockedFeatures);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={onClose}
+                  data-locked={locked ? 'true' : undefined}
+                  className={cn(
+                    'flex items-center gap-[0.875rem] px-5 py-[0.875rem] text-[0.9375rem] font-medium text-gray-900 transition-colors active:bg-blue-50',
+                    locked && 'opacity-60',
+                  )}
+                >
+                  <Icon className="h-5 w-5 shrink-0 opacity-60" />
+                  {t(labelKey)}
+                  {locked ? <NavLockMark className="ml-auto" /> : null}
+                </Link>
+              );
+            })}
           </>
         )}
 

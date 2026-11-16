@@ -18,6 +18,7 @@ import {
   resolveSettingsLocalization,
   toSettingsFormValues,
   validateSettingsForm,
+  withoutChatbotSettings,
   type DayHoursValue,
   type SettingsAddressValues,
   type SettingsFormErrors,
@@ -57,11 +58,15 @@ interface SettingsFormProps {
   // Injectable for tests — defaults to the real ViaCEP adapter, same pattern as the
   // booking flow's AddressFields.tsx.
   readonly addressLookup?: AddressLookup;
+  // The locked card the page renders in place of the Chatbot section while the tenant does not
+  // hold CHATBOT (UC-125): the section's fields are not rendered and a save sends no `chatbot.*`.
+  readonly lockedChatbotSection?: React.ReactNode;
 }
 
 export function SettingsForm({
   initial,
   addressLookup = viaCepAddressLookup,
+  lockedChatbotSection,
 }: SettingsFormProps): React.JSX.Element {
   const t = useTranslations('dashboard.settingsPage');
   const locale = useResolvedLocale();
@@ -155,7 +160,11 @@ export function SettingsForm({
 
     setIsSubmitting(true);
     try {
-      await updateTenantSettings({ settings: normalized.settings });
+      await updateTenantSettings({
+        settings: lockedChatbotSection
+          ? withoutChatbotSettings(normalized.settings)
+          : normalized.settings,
+      });
     } catch (err) {
       // chatbot.knowledgeText is the only settings field validated purely server-side (no
       // client-side length cap, since the resolved max can be a per-tenant Ikaro-only override
@@ -237,11 +246,13 @@ export function SettingsForm({
             }}
           />
 
-          <SettingsChatbotSection
-            knowledgeText={values.knowledgeText}
-            feedback={feedback}
-            onChange={(value) => setField('knowledgeText', value)}
-          />
+          {lockedChatbotSection ?? (
+            <SettingsChatbotSection
+              knowledgeText={values.knowledgeText}
+              feedback={feedback}
+              onChange={(value) => setField('knowledgeText', value)}
+            />
+          )}
 
           <SettingsLeadFormSection values={values} feedback={feedback} onFieldChange={setField} />
 
