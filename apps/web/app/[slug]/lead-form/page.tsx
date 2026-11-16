@@ -3,7 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { fetchManifest } from '@/features/platform/api.server';
 import { LeadFormWidget } from '@/features/platform/components/public/LeadFormWidget';
 import { HotsiteAuthBar } from '@/shells/hotsite/components/HotsiteAuthBar';
-import { Unavailable } from '@/shells/hotsite/components/Unavailable';
+import { UnavailablePage } from '@/shells/hotsite/components/UnavailablePage';
 import { buildHotsiteMetadata } from '@/features/platform/hotsite/seo';
 import { resolveLeadFormModule } from '@/features/platform/hotsite/lead-form-module';
 import {
@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: LeadFormPageProps): Promise<M
 
   return {
     ...(await buildHotsiteMetadata({ manifest, slug, path: '/lead-form' })),
-    title: available && data ? data.title : `${tHotsite('unavailable.label')} — Ikaro`,
+    title: available && data ? data.title : `${tHotsite('unavailable.title')} — Ikaro`,
     robots: { index: false, follow: false },
   };
 }
@@ -42,7 +42,7 @@ export default async function LeadFormPage({ params }: LeadFormPageProps) {
   const { available, data } = resolveLeadFormModule(manifest);
 
   if (!available || !data) {
-    return <Unavailable />;
+    return <UnavailablePage slug={slug} manifest={manifest} />;
   }
 
   const displayName = resolveHotsiteDisplayName(manifest);

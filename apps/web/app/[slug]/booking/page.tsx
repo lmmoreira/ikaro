@@ -6,7 +6,7 @@ import { fetchServices } from '@/features/platform/hotsite/api/services.server';
 import { BookingForm } from '@/features/booking/components/public/BookingForm';
 import { BookingFormWithDeepLink } from '@/features/booking/components/public/BookingFormWithDeepLink';
 import { HotsiteAuthBar } from '@/shells/hotsite/components/HotsiteAuthBar';
-import { Unavailable } from '@/shells/hotsite/components/Unavailable';
+import { UnavailablePage } from '@/shells/hotsite/components/UnavailablePage';
 import { buildHotsiteMetadata } from '@/features/platform/hotsite/seo';
 import { BookingCtaModuleDataSchema } from '@/features/platform/hotsite/module-schemas';
 import {
@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: BookingPageProps): Promise<Me
 
   return {
     ...(await buildHotsiteMetadata({ manifest, slug, path: '/booking' })),
-    title: manifest.isPublished ? tBooking('title') : `${tHotsite('unavailable.label')} — Ikaro`,
+    title: manifest.isPublished ? tBooking('title') : `${tHotsite('unavailable.title')} — Ikaro`,
     robots: { index: false, follow: false },
   };
 }
@@ -39,7 +39,7 @@ export default async function BookingPage({ params }: BookingPageProps) {
   const manifest = await fetchManifest(slug);
 
   if (!manifest.isPublished) {
-    return <Unavailable />;
+    return <UnavailablePage slug={slug} manifest={manifest} />;
   }
 
   const services = await fetchServices(slug);

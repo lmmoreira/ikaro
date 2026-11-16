@@ -733,7 +733,7 @@ The field border in the real app is `--ba-field-border`, derived by `applyBrandi
 | GUEST — Service Detail Page | `guest/service-detail.md` | `guest/prototypes/service-detail/` | Built (TD56-S03) |
 | GUEST — Responder à Solicitação de Informação | `guest/submit-info.md` | `guest/prototypes/submit-info/` | Built (M13-S38/S39/S40) |
 | GUEST — Ask Chatbot | `guest/ask-chatbot.md` | `guest/prototypes/ask-chatbot/` | Built (M19-S11) |
-| GUEST — Hotsite Não Publicada (Unpublished Hotsite) | `guest/unpublished-hotsite.md` | `guest/prototypes/unpublished-hotsite/` | Draft (planned Billing milestone) |
+| GUEST — Página Indisponível (Unavailable Hotsite Page) | `guest/unpublished-hotsite.md` | `guest/prototypes/unpublished-hotsite/` | ✅ Shipped (M25-S30) |
 | GUEST — Teste Grátis da Ikaro (Self-Service Trial Signup) | `guest/ikaro-trial.md` | `guest/prototypes/ikaro-trial/` | Draft (planned Billing milestone) |
 | CUSTOMER — Book a Service | `customer/book-a-service.md` | `customer/prototypes/book-a-service/` | Reviewed (M23 extension: ✅ built — `M23-S11a`/`S11b`; ✅ built — `M23-S31` alert button on the calendar step) |
 | CUSTOMER — Login & Tenant Selection | `customer/login.md` | `customer/prototypes/login/` | Reviewed |

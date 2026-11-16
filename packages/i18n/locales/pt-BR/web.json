@@ -567,8 +567,8 @@
       "copyrightDefault": "Todos os direitos reservados."
     },
     "unavailable": {
-      "label": "Em breve",
-      "body": "Estamos preparando algo especial. Volte em breve!"
+      "title": "Página indisponível",
+      "body": "Esta página não está disponível no momento. Volte em breve."
     },
     "chatbot": {
       "titleSuffix": "— Assistente IA",
