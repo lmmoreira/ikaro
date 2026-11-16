@@ -56,16 +56,10 @@ describe('LoyaltyPlatformAdapter', () => {
     expect(getTenantById.execute).toHaveBeenCalledWith({ tenantId: TENANT_ID });
   });
 
-  it('returns defaults when tenant is not found', async () => {
+  it('propagates TenantNotFoundError instead of returning default settings', async () => {
     getTenantById.execute.mockRejectedValue(new TenantNotFoundError(TENANT_ID));
 
-    const result = await adapter.getLoyaltySettings(TENANT_ID);
-
-    expect(result).toEqual({
-      expiryDays: 180,
-      notificationMinPoints: 50,
-      pointsPerCurrencyUnit: 0,
-    });
+    await expect(adapter.getLoyaltySettings(TENANT_ID)).rejects.toBeInstanceOf(TenantNotFoundError);
   });
 
   it('rethrows an unexpected failure instead of silently using the defaults', async () => {

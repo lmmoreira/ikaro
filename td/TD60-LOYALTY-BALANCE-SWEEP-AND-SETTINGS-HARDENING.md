@@ -229,7 +229,6 @@ Add `findUnprocessedDueBetween(from, to)` to `ILoyaltyEntryRepository` (query bu
 - `apps/backend/src/contexts/loyalty/infrastructure/cross-context/loyalty-platform.adapter.ts` (+ `.spec.ts`) (modify)
 - `apps/backend/src/contexts/loyalty/application/use-cases/complete-booking-loyalty-effects/complete-booking-loyalty-effects.use-case.spec.ts` and `…/complete-booking-loyalty-effects.use-case.integration.spec.ts` (modify)
 - `apps/backend/src/test/infrastructure/in-memory-loyalty-platform.port.ts` (modify: a way to clear a tenant's `withFailureForTenant`)
-- `apps/backend/src/contexts/loyalty/infrastructure/events/booking-completed.handler.spec.ts` (modify)
 - `docs/BOUNDED_CONTEXTS.md` (modify — the platform adapter is fail-closed), `docs/BUSINESS_LOGIC_REFERENCE.md` (modify — one sentence on the settings read)
 
 **Acceptance criteria — product:**
@@ -238,7 +237,7 @@ Add `findUnprocessedDueBetween(from, to)` to `ILoyaltyEntryRepository` (query bu
 **Acceptance criteria — technical:**
 - Unit:
   - [ ] The adapter propagates a transient error and `TenantNotFoundError` (no defaults returned).
-  - [ ] `CompleteBookingLoyaltyEffectsUseCase` writes nothing and the handler rethrows when the settings read fails.
+  - [ ] `CompleteBookingLoyaltyEffectsUseCase` writes nothing and the handler rethrows when the settings read fails. Shipped as the use-case spec's `failed settings read (TD60-S02)` block (nothing written, rejects) plus the handler spec's existing `rethrows use case errors so Pub/Sub nacks and retries` (the handler never sees the settings, so a second copy of that test would only duplicate it).
   - [ ] `NotifyExpiringPointsJob` skips only the tenant whose settings read failed and still notifies the others. Verify-only: shipped and tested by Story 1.
 - Integration:
   - [ ] `BookingCompleted` with a failing settings read leaves no entry, no redemption and no inbox mark; the redelivery after the read recovers writes the entry with the tenant's configured `expiryDays`.

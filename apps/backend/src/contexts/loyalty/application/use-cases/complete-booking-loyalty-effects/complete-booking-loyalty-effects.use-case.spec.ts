@@ -308,6 +308,54 @@ describe('CompleteBookingLoyaltyEffectsUseCase', () => {
     expect(tenantBRedemptions.items).toHaveLength(1);
   });
 
+  describe('failed settings read (TD60-S02)', () => {
+    const DISCOUNT = { pointsUsed: 100, amountDeducted: 10 };
+
+    beforeEach(() => {
+      tenantSettingsPort.withFailureForTenant(TENANT_ID, new Error('tenant read failed'));
+    });
+
+    it('rejects and writes nothing: no entry, no balance change, no redemption, no event, no inbox mark', async () => {
+      await seedBalance(500);
+
+      await expect(useCase.execute(makeDto({ discountByPoints: DISCOUNT }))).rejects.toThrow(
+        'tenant read failed',
+      );
+
+      expect(entryRepo.entries).toHaveLength(0);
+      expect((await balanceRepo.findByCustomer(TENANT_ID, CUSTOMER_ID))?.currentPoints).toBe(500);
+      expect(
+        (await redemptionRepo.findByCustomer(TENANT_ID, CUSTOMER_ID, 1, 20)).items,
+      ).toHaveLength(0);
+      expect(outboxPublisher.published).toHaveLength(0);
+      expect(
+        await inboxRepo.hasBeenProcessed(
+          EVENT_ID,
+          CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME,
+        ),
+      ).toBe(false);
+    });
+
+    it('applies the effects on the redelivery once the read recovers', async () => {
+      await expect(useCase.execute(makeDto())).rejects.toThrow();
+      tenantSettingsPort.clearFailureForTenant(TENANT_ID);
+
+      const result = await useCase.execute(makeDto());
+
+      expect(result.skipped).toBe(false);
+      expect(result.totalPointsEarned).toBe(15);
+      expect(entryRepo.entries).toHaveLength(2);
+    });
+
+    it("does not affect another tenant's delivery", async () => {
+      const result = await useCase.execute(makeDto({ tenantId: TENANT_B_ID }));
+
+      expect(result.totalPointsEarned).toBe(15);
+      expect(entryRepo.entries).toHaveLength(2);
+      expect(entryRepo.entries.every((entry) => entry.tenantId === TENANT_B_ID)).toBe(true);
+    });
+  });
+
   describe('balance row lock (docs/LOCK_CATALOG.md H7)', () => {
     it('ensures and locks the balance row inside the transaction and never reads it unlocked', async () => {
       balanceRepo.requireTransaction(() => txManager.isInTransaction);
