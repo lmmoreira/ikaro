@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { runWithEntityManager } from '../../../../shared/infrastructure/transaction-context';
+import { BalanceExpiryLogEntityBuilder } from '../../../../test/builders/loyalty/index';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { BalanceExpiryLogEntity } from '../entities/balance-expiry-log.entity';
 import { TypeOrmBalanceExpiryLogRepository } from './typeorm-balance-expiry-log.repository';
@@ -50,7 +51,9 @@ describe('TypeOrmBalanceExpiryLogRepository', () => {
     it('returns only the ids that have a log row', async () => {
       const processed = uuidv7();
       const pending = uuidv7();
-      ormRepo.find.mockResolvedValue([{ entryId: processed } as BalanceExpiryLogEntity]);
+      ormRepo.find.mockResolvedValue([
+        new BalanceExpiryLogEntityBuilder().withEntryId(processed).build(),
+      ]);
 
       const result = await repo.findProcessedEntryIds([processed, pending]);
 
@@ -60,7 +63,9 @@ describe('TypeOrmBalanceExpiryLogRepository', () => {
     it('reads on the ambient transaction manager, not a second pooled connection', async () => {
       const processed = uuidv7();
       const mockManager = {
-        find: jest.fn().mockResolvedValue([{ entryId: processed }]),
+        find: jest
+          .fn()
+          .mockResolvedValue([new BalanceExpiryLogEntityBuilder().withEntryId(processed).build()]),
       } as unknown as jest.Mocked<EntityManager>;
 
       const result = await runWithEntityManager(mockManager, () =>
