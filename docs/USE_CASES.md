@@ -2869,7 +2869,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
    - **A2: No charges yet** (trial) → empty-history message.
    - **A3: Payment just made, status not yet updated** → "pagamento recebido, reativando…" (`paymentConfirmationPending`); the page polls every 5 seconds for about a minute.
    - **A4: Payment link expired or payment failed** → regenerate or retry (UC-119).
-   - **A5: `SUSPENDED`** → this is the only page the manager can reach; every other navigation item is disabled. The page shows the reason, the open `RECOVERY` charge where one exists (UC-134), and the clean-up date (UC-132).
+   - **A5: `SUSPENDED`** → this is the only page the manager can reach; every other navigation item is disabled. The page shows the reason, the open `RECOVERY` charge where one exists (UC-134), and the clean-up date (UC-132). The Plano tab stays editable for a payment-based suspension so the manager can choose a smaller plan before paying (UC-136 A14); it is read-only for an `OPERATOR` suspension.
    - **A6: Staff or customer opens the route** → 403 or redirect; the page is manager-only.
    - **A7: Exempt account** → one notice "Conta isenta de cobrança" on every tab, no primary action, no cancel link, no plan editing.
    - **A8: Trial, plan not yet confirmed** → the page asks for "Confirmar plano" (UC-136) and states which date the default plan will be invoiced automatically.
@@ -3162,7 +3162,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 
 - **Actor:** Staff (`MANAGER`)
 - **Preconditions:** Cancelling, or `SUSPENDED` (either payment-based reason or `CANCELED`), before the purge. An `OPERATOR` suspension is lifted only by the operator (UC-111).
-- **Trigger:** The manager clicks "Reativar assinatura" (a `CANCELED` suspension or a scheduled cancel), or pays the recovery charge shown while suspended (`NON_PAYMENT` / `PAYMENT_REVERSED`, issued at suspension).
+- **Trigger:** The manager clicks "Reativar assinatura" (a `CANCELED` suspension or a scheduled cancel), or pays the recovery charge shown while suspended (`NON_PAYMENT` / `PAYMENT_REVERSED`, issued at suspension; the manager may first choose a different plan on the Plano tab, which re-issues the charge at the new amount, UC-136 A14).
 - **Main Flow:** `POST /v1/billing/reactivate`. Within the paid period, `cancelAt` is simply cleared. If suspended, any open `PERIOD` charge is cancelled (locally and at the provider, never re-dated) and one `RECOVERY` charge for one month is issued: the amount is fixed at issue from the price versions in force that day, the lines are the selected plan: the current items, or the selection the manager saved while suspended (UC-136 A14, which also re-issues an already open recovery charge at the new amount). The response carries the open charge; the web then calls `payment-link` for the URL (reactivate never returns a URL, UC-119). On payment (UC-114) the status becomes `ACTIVE`, the period starts at the payment, `anchor_day` is the payment's tenant-local day clamped to 28 (the period lives on the subscription; the recovery charge's own period stays empty), and no months are owed for the gap. Calling reactivate again while a recovery charge is open returns that charge.
 - **Alternative Flows:**
    - **A1: Data already purged** → not possible; a new signup is required (UC-127; the trial rule is explained by Ikaro on contact).
