@@ -85,7 +85,7 @@ UC-022 / UC-025 — one path (handleStaffLogin):
 ## Suspended-account notice — staff (`02-suspended-notice.html`; `StaffSuspendedNotice`)
 
 File: `02-suspended-notice.html` — Status: GAP. Visual base: staff login card (`app/dashboard/login/page.tsx`).
-Props: `role: 'STAFF'`. Component `StaffSuspendedNotice` (M25-S31a), rendered by `app/dashboard/suspended/page.tsx`, which branches on role (STAFF -> this; MANAGER -> `ManagerSuspendedNotice`, M25-S29; M26 later repoints managers to the billing page). The redirect to `/dashboard/suspended` is done by the shared helper called from `loadDashboardShellContext`, not `app/dashboard/layout.tsx`. No nav; API answers `BILLING_TENANT_SUSPENDED` (403, M25-S16).
+Props: `role: 'STAFF'`. Component `StaffSuspendedNotice` (M25-S31a), rendered by `app/dashboard/suspended/page.tsx`. **Today** the page renders only `ManagerSuspendedNotice` (M25-S29) and redirects everyone else to `/dashboard`; M25-S31a adds the role branch (STAFF -> this; MANAGER -> `ManagerSuspendedNotice`; M26 later repoints managers to the billing page). The redirect to `/dashboard/suspended` is done by the shared helper `resolveSuspendedRedirect` called from `loadDashboardShellContext`, not `app/dashboard/layout.tsx`; it redirects a `MANAGER` only until M25-S31a extends it to `STAFF`. No nav; API answers `BILLING_TENANT_SUSPENDED` (403, M25-S16).
 BFF: `GET /v1/billing/access`.
 Copy: "Conta suspensa", "Esta conta está suspensa. Fale com o gerente.", button "Sair". Reason-neutral.
 States: single static state; loading = brand mark only; no load-error state — a failed access lookup fails open (the dashboard renders as today).
@@ -96,8 +96,8 @@ Mobile: card is already full-width up to 26rem.
 **File:** `03-select-tenant-suspended.html` — `SelectStaffTenantClient` EXISTS (`apps/web/features/staff/components/SelectStaffTenantClient.tsx`, route `/select-staff-tenant`); the "Suspensa" badge is a GAP.
 **UC:** UC-121
 
-**Props:** `initialOptions: StaffTenantOption[] | null`; `StaffTenantOption` gains `operational: boolean` (`@ikaro/types`, `auth.dto.ts`).
-**BFF call:** `GET /auth/staff-tenants` (existing) must include a per-tenant `operational` flag (false when status = SUSPENDED). `POST /auth/switch-staff-tenant { staffId }` stays unchanged and must not reject a suspended tenant.
+**Props:** `initialOptions: StaffTenantOption[] | null`; `StaffTenantOption.operational: boolean` already exists (`@ikaro/types`, `auth.dto.ts`, M25-S26); the component does not read it yet.
+**BFF call:** `GET /auth/staff-tenants` (existing) already returns a per-tenant `operational` flag (false while the tenant is suspended; built in M25-S26). `POST /auth/switch-staff-tenant { staffId }` is unchanged and does not reject a suspended tenant.
 **Behaviour:** the suspended tenant is always listed and selectable; when `operational === false`, render an extra amber badge "Suspensa" before the role badge. Selecting it switches the session and `/dashboard` renders the suspended notice (`02-suspended-notice.html`). Only the badge: no reason, no payment info for staff.
 **States:** populated (this file); load error reuses the existing `selectTenantError` / `selectTenantRetry`. No new loading/validation states.
 **i18n:** new key `auth.selectTenantSuspendedBadge` = "Suspensa" (pt-BR), "Suspended" (en).

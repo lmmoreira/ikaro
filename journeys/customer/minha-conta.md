@@ -127,7 +127,7 @@ Folder: `customer/prototypes/minha-conta/`
 | `06e-pular-fora-do-prazo.html` | Erro — pular uma ocorrência fora do prazo de cancelamento (decidido em M23-S08: a ocorrência é uma reserva) | UC-070 A2 | M23-S12 | Substituída (2026-10-09): reaproveita a página de erro do cancelamento de qualquer reserva / a tela de prazo vencido de `15j` |
 | `06f-reagendar-fora-do-prazo.html` | Erro — reagendar uma ocorrência fora do prazo de reagendamento | UC-070 A2 | M23-S12 | Substituída (2026-10-09): reaproveita a página de erro do cancelamento de qualquer reserva / a tela de prazo vencido de `15j` |
 | `06g-encerrar-recorrencia.html` | Encerrar a reserva recorrente — página de confirmação (nunca um painel inline) | UC-070 A2 | M23-S12 | ✅ Criado (M23-S12) |
-| `06h-recorrencia-encerrada.html` | Reserva recorrente encerrada ou cancelada — detalhe somente leitura; painel com "Renovar" (encerrada) e "Nova reserva recorrente" (M23-S22 / M23-S17) | UC-070 A2 | M23-S12 | ✅ Criado (M23-S12) |
+| `06h-recorrencia-encerrada.html` | Reserva recorrente encerrada ou cancelada — detalhe somente leitura; painel com "Renovar" (encerrada, ✅ M23-S22) e "Nova reserva recorrente" (desenhado; ❓ não construído — `RecurringScheduleDetail` não tem esse link num estado terminal, só o CTA da lista vazia) | UC-070 A2 | M23-S12 | ✅ Criado (M23-S12) |
 | `15-reagendar.html` | Reagendar: escolher o novo horário (data e hora; duração e escolhas mantidas) | UC-069 | M23-S30 | ✅ Criado |
 | `15b-reagendar-escolhas-mantidas.html` | Reagendar: pacote / jornada / profissional escolhido (escolhas mostradas só para leitura) | UC-069 A2 | M23-S30 | ✅ Criado |
 | `15c-carregando-horarios.html` | Carregando horários | UC-069 | M23-S30 | ✅ Criado |
@@ -299,7 +299,7 @@ flowchart TD
     Lista -->|"topbar '+ Novo ▾' → 'Reserva recorrente' (any my-account screen; mobile: the same menu in the page)"| Padrao[".../recurring-schedules/new<br/>Padrão (13-nova-recorrencia)"]
     Lista -->|"'Renovar' (encerrada ou terminando) ou link do e-mail de aviso"| Renovar[".../recurring-schedules/new?renewFrom=id<br/>Pré-preenchido (13f-renovar-recorrencia)"]
     Renovar -->|"'Revisar'"| Revisar
-    Lista -->|"Clica em uma encerrada ou cancelada"| Terminal[".../recurring-schedules/[id] (status terminal)<br/>Somente leitura + Renovar / Nova reserva (06h)"]
+    Lista -->|"Clica em uma encerrada ou cancelada"| Terminal[".../recurring-schedules/[id] (status terminal)<br/>Somente leitura + Renovar (06h; o link "Nova reserva" desenhado ali ainda não existe)"]
     Lista -->|"Clica em uma reserva"| Gerenciar[".../recurring-schedules/[id]<br/>Detalhe + painel de ações (06-reserva-recorrente)"]
     Gerenciar -->|"'Encerrar recorrência'"| Encerrar[".../recurring-schedules/[id]/end<br/>Confirmação (06g-encerrar-recorrencia)"]
     Encerrar -->|"Confirma"| Lista

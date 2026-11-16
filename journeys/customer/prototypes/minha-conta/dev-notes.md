@@ -14,7 +14,7 @@ Stories: `M13-S27` (list) · `M13-S28` (detail/cancel/info-submit) · `M13-S29` 
 | `01-minha-conta.html` | `/{slug}/my-account/bookings` (Agendamentos list → `BookingsList`; the bare `/{slug}/my-account` renders `HomeDashboard`, Início) | `BookingsList` |
 | `02-*.html` | `/{slug}/my-account/bookings/[id]` | `BookingDetailPage` |
 | `03-cancel-confirm.html` | `/{slug}/my-account/bookings/[id]/cancel` — a dedicated page, not a bottom sheet | `CancelConfirmPage` |
-| `03b-cancel-error.html` | `/{slug}/my-account/bookings/[id]/cancel/error` | — |
+| `03b-cancel-error.html` | `/{slug}/my-account/bookings/[id]/cancel/error` | `CancelErrorPage` |
 | `04-*.html` | `/{slug}/my-account/loyalty` | `LoyaltyPage` |
 | `05-trocar-empresa.html` | `/switch-tenant` (not tenant-scoped — no `[slug]` prefix) | `SwitchTenantClient` |
 
@@ -119,7 +119,7 @@ Detail pages (drill-down) use `dashboard-topbar` with a back link replacing the 
 
 **Tab roles (decided 2026-10-09):** Início = glance (points, active counts, "Renovar" card, booking preview); Agendamentos = the booking list plus the "Reservas recorrentes" and "Meus avisos" entries, each shown only when the customer has ANY item of that kind in any status (the count shown is the active ones); Fidelidade = the only full points view. `01` no longer draws the loyalty strip. The two entries are rows, not tiles (they are navigation, and tiles would push the bookings down and repeat Início): the same icon as the Início tile, the title, the count as a badge on the right and a chevron.
 
-**Create actions on a detail pane (decided 2026-10-09):** a detail page offers a create action only in a terminal-status pane, the way a completed booking offers "Fazer novo agendamento": an `ENDED` recurring schedule (`06h`) has "Renovar" (primary) and "Nova reserva recorrente" (secondary); a `CANCELLED` one has "Nova reserva recorrente" only; an active or pending one has none. These buttons belong to `M23-S22` / `M23-S17`; `M23-S12` draws the read-only page without them. A pending schedule opens `06c`.
+**Create actions on a detail pane (decided 2026-10-09):** a detail page offers a create action only in a terminal-status pane, the way a completed booking offers "Fazer novo agendamento": an `ENDED` recurring schedule (`06h`) has "Renovar" (primary) and "Nova reserva recorrente" (secondary); a `CANCELLED` one has "Nova reserva recorrente" only; an active or pending one has none. These buttons belong to `M23-S22` / `M23-S17`; `M23-S12` draws the read-only page without them. **Built vs drawn (audit 2026-11-16):** "Renovar" is built (`M23-S22`); the "Nova reserva recorrente" link on an `ENDED`/`CANCELLED` detail is **not** — `RecurringScheduleDetail` renders only the end, renew and back links, and the create entry points are the "+ Novo ▾" menu and the empty-state CTA of the list. A pending schedule opens `06c`.
 
 **What `M23-S12` builds vs. what these prototypes draw (checked 2026-10-09):** the prototypes show the combined design of S12, S17 and S22. S12 itself builds **no** "Renovar" (list rows `14`, active detail `06`, terminal detail `06h`), **no** "Nova reserva recorrente" button (`06h`, the empty-state call to action in `14b`) and **no** "+ Novo ▾" menu (`14`, `14b`: today's "+ Novo agendamento" link stays); those are S22 and S17. Occurrence rows (`06`, `06h`) show no resource. `14` draws a `CANCELLED` row ("Cancelada" grey badge, opens `06h?cancelada`); `06g#falha` draws the inline end-failure message.
 
@@ -281,7 +281,7 @@ POST/GET/PATCH/DELETE  /availability-alerts[/:id]              -- UC-072, UC-076
 **Open questions / gaps:**
 - [x] Stories done: `M23-S12`, `M23-S17`, `M23-S18`, `M23-S20` (remove Pause), `M23-S21` (renewal reminder e-mail), `M23-S22` ("Renovar", `13f`) — all ✅ Done.
 - [x] **Entry point** (decided 2026-10-10 at `M23-S17`'s story discovery, built): creation is the "Reserva recorrente" item of the shared "+ Novo ▾" menu; the Agendamentos page links to the list `14` (shown only when the customer has any recurring schedule). Originally drawn as a "Reservas recorrentes" link on Agendamentos.
-- [ ] Every "known limitation" above.
+- [x] Every "known limitation" above is marked ✅ or ⚠ with its status (checked 2026-11-16).
 
 ---
 
