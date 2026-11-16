@@ -6,6 +6,7 @@ import {
   fetchLoyaltyRedemptions,
 } from '@/features/loyalty/api.server';
 import { LoyaltyPage } from '@/features/customer/components/my-account/LoyaltyPage';
+import { fetchCustomerTenantOperational } from '@/shared/lib/billing/access.server';
 
 interface MyAccountLoyaltyPageProps {
   readonly params: Promise<{ readonly slug: string }>;
@@ -17,13 +18,20 @@ export default async function MyAccountLoyaltyPage({
   const { slug } = await params;
   const token = await getAccessToken();
 
-  const [balance, entries, redemptions] = await Promise.all([
+  const [balance, entries, redemptions, operational] = await Promise.all([
     withAuthRedirect(fetchLoyaltyBalance(token), slug),
     withAuthRedirect(fetchLoyaltyEntries(token), slug),
     withAuthRedirect(fetchLoyaltyRedemptions(token), slug),
+    fetchCustomerTenantOperational(token),
   ]);
 
   return (
-    <LoyaltyPage balance={balance} entries={entries} redemptions={redemptions} tenantSlug={slug} />
+    <LoyaltyPage
+      balance={balance}
+      entries={entries}
+      redemptions={redemptions}
+      tenantSlug={slug}
+      tenantOperational={operational !== false}
+    />
   );
 }

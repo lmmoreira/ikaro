@@ -404,3 +404,34 @@ describe('LoyaltyPage', () => {
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
   });
 });
+
+describe('LoyaltyPage while the tenant is suspended (UC-121)', () => {
+  it('keeps the balance and history readable under a neutral notice', () => {
+    render(
+      <LoyaltyPage
+        balance={makeBalance()}
+        entries={makeEntries()}
+        redemptions={makeRedemptions()}
+        tenantSlug="lavacar-bh"
+        tenantOperational={false}
+      />,
+    );
+
+    expect(screen.getByTestId('loyalty-inactive-notice')).toBeInTheDocument();
+    expect(screen.getByTestId('loyalty-balance-points')).toHaveTextContent('120');
+    expect(screen.getByText('Cristalização de Pintura')).toBeInTheDocument();
+  });
+
+  it('shows no notice for an operational tenant', () => {
+    render(
+      <LoyaltyPage
+        balance={makeBalance()}
+        entries={makeEntries()}
+        redemptions={makeRedemptions()}
+        tenantSlug="lavacar-bh"
+      />,
+    );
+
+    expect(screen.queryByTestId('loyalty-inactive-notice')).not.toBeInTheDocument();
+  });
+});

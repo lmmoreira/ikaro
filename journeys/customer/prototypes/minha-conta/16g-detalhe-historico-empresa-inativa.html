@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agendamento concluído — Empresa inativa — BeloAuto</title>
+  <link rel="stylesheet" href="../../../shared/customer-shell.css">
+  <link rel="stylesheet" href="../../../shared/feedback-pane.css">
+  <style>
+    .section-label {
+      font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em;
+      text-transform: uppercase; color: rgba(17,24,39,0.4); margin: 0 0 0.625rem;
+    }
+    .detail-row {
+      display: flex; align-items: flex-start; gap: 0.75rem;
+      padding: 0.75rem 0; border-bottom: 1px solid var(--ik-soft);
+    }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-row-icon {
+      width: 1.75rem; height: 1.75rem; background: var(--ik-soft);
+      border-radius: var(--ik-radius); display: flex; align-items: center;
+      justify-content: center; flex-shrink: 0;
+    }
+    .detail-row-label { font-size: 0.75rem; opacity: 0.5; color: var(--ik-text); margin-bottom: 0.125rem; }
+    .detail-row-value { font-size: 0.9375rem; font-weight: 600; color: var(--ik-text); }
+    .detail-row-sub   { font-size: 0.8125rem; opacity: 0.6; color: var(--ik-text); margin-top: 0.125rem; }
+    .service-line {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      padding: 0.75rem 0; border-bottom: 1px solid var(--ik-soft);
+    }
+    .service-line:last-of-type { border-bottom: none; }
+    .service-name { font-size: 0.9375rem; font-weight: 600; color: var(--ik-text); }
+    .service-duration { font-size: 0.8125rem; opacity: 0.5; color: var(--ik-text); margin-top: 0.125rem; }
+    .price-compare {
+      display: flex; justify-content: space-between; align-items: flex-end;
+      padding-top: 0.75rem; border-top: 2px solid var(--ik-soft);
+    }
+    .photos-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+    .photo-thumb {
+      aspect-ratio: 1; border-radius: var(--ik-radius);
+      background: #dbeafe; display: flex; align-items: center;
+      justify-content: center; font-size: 2rem;
+    }
+    .points-banner {
+      display: flex; align-items: center; gap: 0.75rem;
+      background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: var(--ik-radius);
+      padding: 0.875rem 1rem; margin-bottom: 1.25rem;
+    }
+
+    /* Two-column layout on desktop */
+    .detail-layout { display: block; }
+    .detail-aside  { display: none; }
+    @media (min-width: 1024px) {
+      .detail-layout { display: grid; grid-template-columns: 1fr 22rem; gap: 1.5rem; align-items: start; }
+      .detail-aside  { display: block; position: sticky; top: 1.5rem; }
+      .mobile-actions { display: none !important; }
+    }
+  
+    /* Full booking detail (redraw 2026-10-15) — shape variants switched by ?forma= */
+    [hidden] { display: none !important; }
+    .fx-kv { display: flex; justify-content: space-between; gap: 1rem; padding: 0.625rem 0; border-bottom: 1px solid var(--ik-soft); font-size: 0.9375rem; color: var(--ik-text); }
+    .fx-kv:last-child { border-bottom: none; }
+    .fx-kv > span:first-child { opacity: 0.6; flex-shrink: 0; }
+    .fx-kv > span:last-child { font-weight: 600; text-align: right; }
+    .fx-kv small { display: block; font-weight: 400; font-size: 0.75rem; opacity: 0.6; margin-top: 0.125rem; }
+    .fx-tag { display: inline-block; font-size: 0.6875rem; font-weight: 600; padding: 0.0625rem 0.4375rem; border-radius: 9999px; background: var(--ik-soft); color: var(--ik-text); margin-left: 0.375rem; vertical-align: middle; }
+    .fx-note { font-size: 0.75rem; opacity: 0.55; color: var(--ik-text); margin: -0.75rem 0 1.25rem; line-height: 1.5; }
+    .fx-bar { font-size: 0.75rem; padding: 0.375rem 1rem; background: #f1f5f9; border-bottom: 1px solid #cbd5e1; color: #334155; text-align: center; line-height: 1.9; }
+    .fx-bar a { color: #1d4ed8; font-weight: 600; text-decoration: none; margin: 0 0.25rem; }
+    .fx-bar a.on { text-decoration: underline; }
+    .fx-step { display: flex; gap: 0.75rem; padding: 0.625rem 0; border-bottom: 1px solid var(--ik-soft); color: var(--ik-text); }
+    .fx-step:last-child { border-bottom: none; }
+    .fx-step b { width: 1.5rem; height: 1.5rem; border-radius: 9999px; background: var(--ik-primary); color: #fff; font-size: 0.75rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .card-title { font-size: 0.875rem; font-weight: 600; color: var(--ik-text); padding: 0.875rem 0 0.25rem; }
+    .fb-mobile-only { display: block; }
+    @media (min-width: 1024px) { .fb-mobile-only { display: none; } }
+    .fb-pane .card > p { margin: 0 0 0.75rem; }
+    .fb-deadline { font-size: .8125rem; opacity: .6; color: var(--ik-text); text-align: center; margin: .625rem 0 0; }
+    .fb-link { display: block; text-align: center; font-size: 0.875rem; font-weight: 500; color: var(--ik-primary); text-decoration: none; padding: 0.375rem; }
+  </style>
+</head>
+<!--
+    UC-121 VARIANT (M25-S31a, GAP): the booking detail of a SUSPENDED tenant. Same page as 02c-agendamento-historico.html with a neutral "Empresa inativa" notice above the detail (customer.inactiveTenant.badge / .detailNotice).
+    Omitted: "Fazer novo agendamento" (a suspended tenant's /booking is the neutral UnavailablePage). Kept: "Ver meus pontos →".
+    Reading the detail is allowed while suspended (GET /bookings/:id is CUSTOMER_HISTORY, M25-S31a); every action stays refused server-side, so the pane omits it.
+-->
+
+<body>
+
+  <!--
+    COMPONENT: AgendamentoDetailPage
+    PAGE:       apps/web/app/[slug]/my-account/bookings/[id]/page.tsx  (EXISTS)
+    UC-006 step 5 (detail) · status: COMPLETED — read-only
+    DATA: GET /v1/bookings/:id
+  -->
+
+  <div class="fx-bar">Forma do agendamento (?forma=): <a href="?forma=simples" data-f="simples">simples</a> · <a href="?forma=recurso" data-f="recurso">recurso</a> · <a href="?forma=pacote" data-f="pacote">pacote</a> · <a href="?forma=trajeto" data-f="trajeto">trajeto</a> · <a href="?forma=formulario" data-f="formulario">formulario</a> · <a href="?forma=retirada" data-f="retirada">retirada</a> · <a href="?forma=recorrente" data-f="recorrente">recorrente</a> · <a href="?forma=equipe" data-f="equipe">equipe</a> · <a href="?forma=completo" data-f="completo">completo</a></div>
+  <div class="dashboard-topbar">
+    <a href="16-agendamentos-empresa-inativa.html"
+       style="display:flex;align-items:center;gap:0.375rem;text-decoration:none;
+              color:var(--ik-text);font-size:0.9375rem;font-weight:600;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+      Agendamentos
+    </a>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
+      <span class="status-badge status-completed">Concluído</span>
+      <div class="list-avatar" style="width:2rem;height:2rem;font-size:0.8125rem;">JS</div>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+    <main class="main-content">
+      <div class="dashboard-body">
+        <div class="fb-layout">
+          <div style="min-width:0;">
+            <div class="card" data-testid="booking-inactive-notice" style="padding:0.875rem 1rem;margin-bottom:1.25rem;background:#f9fafb;border:1px solid #e5e7eb;">
+              <p style="font-weight:600;font-size:0.875rem;color:var(--ik-text);margin:0 0 0.25rem;">Empresa inativa</p>
+              <p style="font-size:0.875rem;line-height:1.5;color:var(--ik-text);opacity:.75;margin:0;">Você pode consultar este agendamento e cancelá-lo, mas não é possível remarcar nem enviar informações enquanto a empresa estiver inativa.</p>
+            </div>
+            
+            <div class="points-banner">
+              <span style="font-size:1.375rem;">⭐</span>
+              <div>
+                <div style="font-size:0.9375rem;color:#15803d;font-weight:700;">+20 pontos de fidelidade</div>
+                <div style="font-size:0.8125rem;color:#4ade80;">Adicionados em 05 jun 2026</div>
+              </div>
+            </div>
+
+            <div class="card" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Data e horário</div>
+              <div class="detail-row" style="border-bottom:none;">
+                <div class="detail-row-icon">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ik-primary)"
+                       stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                  </svg>
+                </div>
+                <div>
+                  <div class="detail-row-label">Data</div>
+                  <div class="detail-row-value">Quinta, 05 de junho de 2026</div>
+                  <div class="detail-row-sub">09h00 · 90 min realizados (cotado: 75 min)</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Serviços</div>
+              <div class="service-line">
+                <div>
+                  <div class="service-name" id="svc-name">Cristalização de Pintura</div>
+                  <div class="service-duration">75 min</div>
+                </div>
+                <span style="font-size:0.9375rem;font-weight:700;color:var(--ik-text);">R$ 280,00</span>
+              </div>
+              <div class="price-compare">
+                <span style="font-size:0.875rem;font-weight:700;opacity:0.6;color:var(--ik-text);">Valor cobrado</span>
+                <div style="text-align:right;">
+                  <div style="font-size:0.75rem;opacity:0.5;text-decoration:line-through;color:var(--ik-text);">Cotado: R$ 320,00</div>
+                  <div style="font-size:1rem;font-weight:800;color:#15803d;">R$ 280,00</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card" data-v="recurso pacote completo recorrente" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Recursos</div>
+              <div class="fx-kv" data-v="recurso pacote completo recorrente"><span>Sala</span><span>Sala Aurora</span></div>
+              <div class="fx-kv" data-v="pacote completo"><span>Equipamento</span><span>Projetor 2</span></div>
+              <div class="fx-kv" data-v="pacote completo"><span>Profissional</span><span>Marcos Lima</span></div>
+              <div class="fx-kv" data-v="pacote completo"><span>Cadeiras</span><span>Do conjunto</span></div>
+            </div>
+            <p class="fx-note" data-v="recurso pacote completo recorrente">O que você escolheu e o que o estabelecimento atribuiu. Sem requisito de recurso, o cartão não aparece.</p>
+
+            <div class="card" data-v="trajeto" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Trajeto</div>
+              <div class="fx-step"><b>1</b><div><strong>Ida · 09:00 — 09:40</strong><br><span style="font-size:0.8125rem;opacity:.6;">Van 2</span></div></div>
+              <div class="fx-step"><b>2</b><div><strong>Passeio · 09:40 — 11:10</strong><br><span style="font-size:0.8125rem;opacity:.6;">Paula Nogueira (guia), Van 2</span></div></div>
+              <div class="fx-step"><b>3</b><div><strong>Volta · 11:10 — 11:50</strong><br><span style="font-size:0.8125rem;opacity:.6;">Van 2</span></div></div>
+            </div>
+
+            <div class="card" data-v="formulario completo" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Participantes</div>
+              <div class="fx-kv" data-v="formulario completo"><span>Participantes</span><span>3</span></div>
+              <div class="fx-kv" data-v="formulario completo"><span>Maria Souza</span><span>Você</span></div>
+              <div class="fx-kv" data-v="formulario completo"><span>Pedro Souza</span><span>Menor de idade</span></div>
+              <div class="fx-kv" data-v="formulario completo"><span>Ana Souza</span><span>Participante</span></div>
+            </div>
+
+            <div class="card" data-v="formulario completo" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Suas respostas</div>
+              <div class="fx-kv" data-v="formulario completo"><span>Nível de experiência</span><span>Iniciante</span></div>
+              <div class="fx-kv" data-v="formulario completo"><span>Tem alguma restrição física?</span><span>Sim</span></div>
+              <div class="fx-kv" data-v="formulario completo"><span>Observações de saúde</span><span>Dor no joelho direito</span></div>
+              <div class="fx-kv" data-v="formulario completo"><span>Termo de responsabilidade</span><span>Aceito em 10/06/2026 às 14:02</span></div>
+            </div>
+            <p class="fx-note" data-v="formulario completo">As respostas que você deu ao reservar. Aqui não se edita; para mudar algo, fale com o estabelecimento.</p>
+
+            <div class="card" data-v="retirada completo" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Endereço</div>
+              <div class="fx-kv" data-v="retirada completo"><span>Retirada do veículo</span><span>Rua das Flores, 120 — Pinheiros, São Paulo/SP, 05422-000</span></div>
+            </div>
+
+            <div class="card" data-v="recorrente completo" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Origem</div>
+              <div class="fx-kv" data-v="recorrente completo"><span>Reserva recorrente</span><span>Toda terça, 10:00 <a href="06-reserva-recorrente.html" style="color:var(--ik-primary);">Ver recorrência</a></span></div>
+            </div>
+            <p class="fx-note" data-v="recorrente completo">Quando o agendamento é uma ocorrência de uma reserva recorrente, liga à página da recorrência (a volta preserva a página das ocorrências).</p>
+
+            <div class="card" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Fotos após o serviço</div>
+              <div class="photos-grid">
+                <div class="photo-thumb">🚗</div>
+                <div class="photo-thumb">✨</div>
+                <div class="photo-thumb">🚘</div>
+              </div>
+            </div>
+
+            <div class="card" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Suas observações</div>
+              <div class="detail-row" style="border-bottom:none;">
+                <div class="detail-row-icon">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ik-primary)"
+                       stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  </svg>
+                </div>
+                <div>
+                  <div class="detail-row-value" style="font-weight:400;">
+                    Carro com película protetora nas laterais. Evitar produtos abrasivos.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Mobile-only CTA -->
+            <div class="card fb-mobile-only" style="padding:1rem;margin-bottom:1.25rem;"><p class="fb-deadline" style="margin:0;">Pontos acumulam a cada serviço concluído.</p></div>
+            <div class="fb-mobile-clearance"></div>
+          </div>
+
+          <aside class="fb-pane" aria-label="Ações do agendamento" data-testid="action-pane-desktop">
+            <div class="card">
+              <p style="font-size:.875rem;opacity:.6;color:var(--ik-text);line-height:1.5;">Serviço concluído. Pontos de fidelidade já foram adicionados à sua conta.</p>
+              <div class="fb-buttons">
+                <a class="fb-link" href="04-fidelidade.html"
+                >
+                Ver meus pontos →
+              </a>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </main>
+  </div>
+
+
+  <script>
+    /* Shape variants via ?forma= (prototype only). Default: completo (every card; a real booking shows only the cards that have data). See the header comment. */
+    (function () {
+      var NAMES = {"simples": "Lavagem Simples", "recurso": "Reserva de sala", "pacote": "Sala + projetor + técnico", "trajeto": "Passeio de van com guia", "formulario": "Aula experimental", "retirada": "Lavagem com busca e entrega", "recorrente": "Reserva de sala", "equipe": "Aula experimental", "completo": "Sala + projetor + técnico"};
+      var q = new URLSearchParams(location.search).get('forma') || 'completo';
+      if (!(q in NAMES)) q = 'completo';
+      document.querySelectorAll('[data-v]').forEach(function (el) {
+        el.hidden = el.getAttribute('data-v').split(' ').indexOf(q) < 0;
+      });
+      var n = document.getElementById('svc-name'); if (n) n.textContent = NAMES[q];
+      document.querySelectorAll('[data-f]').forEach(function (a) { if (a.getAttribute('data-f') === q) a.className = 'on'; });
+    })();
+  </script>
+  <div class="fb-mobile-bar" data-testid="action-pane-mobile">
+    <div class="fb-buttons">
+      <a class="fb-link" href="04-fidelidade.html">Ver meus pontos →</a>
+    </div>
+  </div>
+</body>
+</html>

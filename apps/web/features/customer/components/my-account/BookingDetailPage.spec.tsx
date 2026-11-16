@@ -478,3 +478,85 @@ describe('BookingDetailPage', () => {
     expect(screen.queryByTestId('booking-no-show-notice')).not.toBeInTheDocument();
   });
 });
+
+describe('BookingDetailPage while the tenant is suspended (UC-121)', () => {
+  const WITHIN_WINDOW = () => new Date(Date.now() + 24 * 3_600_000).toISOString();
+
+  function renderSuspended(booking: CustomerBookingDetailResponse) {
+    return render(
+      <BookingDetailPage booking={booking} tenantSlug="lavacar-bh" tenantOperational={false} />,
+    );
+  }
+
+  it('shows the neutral "Empresa inativa" notice above the detail', () => {
+    renderSuspended(makeBooking({ status: 'APPROVED', cancellableUntil: WITHIN_WINDOW() }));
+
+    expect(screen.getByTestId('booking-inactive-notice')).toBeInTheDocument();
+    expect(screen.getByText('Lavagem Completa')).toBeInTheDocument();
+  });
+
+  it('keeps the cancel action for a future booking', () => {
+    renderSuspended(makeBooking({ status: 'APPROVED', cancellableUntil: WITHIN_WINDOW() }));
+
+    expect(
+      within(screen.getByTestId('action-pane-desktop')).getByRole('link', {
+        name: 'Cancelar agendamento',
+      }),
+    ).toHaveAttribute('href', '/lavacar-bh/my-account/bookings/b1/cancel');
+  });
+
+  it('offers no reschedule even when the booking is eligible', () => {
+    renderSuspended(
+      makeBooking({
+        status: 'APPROVED',
+        cancellableUntil: WITHIN_WINDOW(),
+        reschedule: {
+          eligibleUntil: WITHIN_WINDOW(),
+          serviceIds: ['s1'],
+          resourceSelections: [],
+          durationMinutes: null,
+          window: { minAdvanceHours: 2, maxAdvanceDays: 30 },
+          keptPicks: [],
+        },
+      }),
+    );
+
+    expect(screen.queryByRole('link', { name: 'Reagendar' })).not.toBeInTheDocument();
+  });
+
+  it('offers no info form on an info-requested booking, but still allows cancelling the request', () => {
+    renderSuspended(
+      makeBooking({
+        status: 'INFO_REQUESTED',
+        infoRequestMessage: 'Pode confirmar o polimento?',
+        infoResponseMessage: null,
+      }),
+    );
+
+    expect(screen.queryByLabelText('Mensagem')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Enviar resposta' })).not.toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('action-pane-desktop')).getByRole('link', {
+        name: 'Cancelar solicitação',
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it('offers no new booking on a completed booking, only the points link', () => {
+    renderSuspended(makeBooking({ status: 'COMPLETED' }));
+
+    expect(screen.queryByRole('link', { name: 'Fazer novo agendamento' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Ver meus pontos →' }).length).toBeGreaterThan(0);
+  });
+
+  it('shows no notice and the new-booking link for an operational tenant', () => {
+    render(
+      <BookingDetailPage booking={makeBooking({ status: 'COMPLETED' })} tenantSlug="lavacar-bh" />,
+    );
+
+    expect(screen.queryByTestId('booking-inactive-notice')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Fazer novo agendamento' }).length).toBeGreaterThan(
+      0,
+    );
+  });
+});

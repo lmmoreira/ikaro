@@ -76,7 +76,9 @@
     "errorNoTenantHeading": "Não foi possível entrar",
     "errorNoTenantMessage": "Nenhum estabelecimento encontrado para sua conta Google.",
     "errorFallbackHeading": "Erro de autenticação",
-    "errorFallbackMessage": "Ocorreu um erro inesperado. Tente novamente."
+    "errorFallbackMessage": "Ocorreu um erro inesperado. Tente novamente.",
+    "selectTenantSuspendedBadge": "Suspensa",
+    "switchTenantInactiveBadge": "Empresa inativa"
   },
   "booking": {
     "title": "Agendar serviço",
@@ -1061,6 +1063,14 @@
       "bookingHint": "Reservar um horário avulso",
       "recurring": "Reserva recorrente",
       "recurringHint": "Reservar o mesmo horário toda semana"
+    },
+    "inactiveTenant": {
+      "badge": "Empresa inativa",
+      "noticeTitle": "Empresa inativa.",
+      "noticeBody": "Esta empresa não está operando no momento. Você pode consultar seus agendamentos e cancelar os futuros, mas não é possível responder pedidos de informação, remarcar nem criar novos agendamentos.",
+      "newDisabledHint": "Indisponível enquanto a empresa estiver inativa",
+      "loyaltyReadOnly": "Esta empresa está inativa. Seu saldo e seu histórico continuam disponíveis para consulta, mas não é possível ganhar nem usar pontos agora. Pontos continuam vencendo na data prevista.",
+      "detailNotice": "Você pode consultar este agendamento e cancelá-lo, mas não é possível remarcar nem enviar informações enquanto a empresa estiver inativa."
     }
   },
   "dashboard": {
@@ -3112,6 +3122,11 @@
           "title": "Sua conta está suspensa",
           "body": "O acesso ao painel fica indisponível enquanto a assinatura estiver suspensa. Seus dados e configurações foram mantidos.",
           "billingHint": "O próximo passo é a área de assinatura, onde você regulariza a conta para reativá-la.",
+          "signOut": "Sair"
+        },
+        "staff": {
+          "title": "Conta suspensa",
+          "body": "Esta conta está suspensa. Fale com o gerente.",
           "signOut": "Sair"
         }
       }

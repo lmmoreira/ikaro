@@ -160,3 +160,57 @@ describe('BookingListItem', () => {
     },
   );
 });
+
+describe('BookingListItem while the tenant is suspended (UC-121)', () => {
+  function renderSuspended(item: CustomerBookingListItemDto) {
+    return render(
+      <ul>
+        <BookingListItem item={item} tenantSlug="lavacar-bh" tenantOperational={false} />
+      </ul>,
+    );
+  }
+
+  it.each(['APPROVED', 'PENDING', 'INFO_REQUESTED'] as const)(
+    'marks an open %s row with the inactive badge',
+    (status) => {
+      renderSuspended(makeItem({ status, cancellableUntil: FUTURE }));
+
+      expect(screen.getByTestId('booking-inactive-badge')).toBeInTheDocument();
+    },
+  );
+
+  it.each(['COMPLETED', 'CANCELLED', 'REJECTED', 'NO_SHOW'] as const)(
+    'does not mark a %s history row',
+    (status) => {
+      renderSuspended(makeItem({ status }));
+
+      expect(screen.queryByTestId('booking-inactive-badge')).not.toBeInTheDocument();
+    },
+  );
+
+  it('keeps the row a link to the detail and "Cancelar" a link to the cancel page', () => {
+    renderSuspended(makeItem({ status: 'APPROVED', cancellableUntil: FUTURE }));
+
+    expect(screen.getByRole('link', { name: 'Lavagem Completa, Cera' })).toHaveAttribute(
+      'href',
+      '/lavacar-bh/my-account/bookings/b1',
+    );
+    expect(screen.getByRole('link', { name: 'Cancelar' })).toHaveAttribute(
+      'href',
+      '/lavacar-bh/my-account/bookings/b1/cancel',
+    );
+  });
+
+  it('offers no "Responder" on an info-requested row (the response is refused)', () => {
+    renderSuspended(makeItem({ status: 'INFO_REQUESTED' }));
+
+    expect(screen.queryByRole('link', { name: 'Responder' })).not.toBeInTheDocument();
+  });
+
+  it('shows the same row as today for an operational tenant (no badge, "Responder" kept)', () => {
+    renderItem(makeItem({ status: 'INFO_REQUESTED' }));
+
+    expect(screen.queryByTestId('booking-inactive-badge')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Responder' })).toBeInTheDocument();
+  });
+});

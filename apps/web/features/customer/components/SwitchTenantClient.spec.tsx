@@ -45,6 +45,33 @@ describe('SwitchTenantClient', () => {
     refresh.mockReset();
   });
 
+  it('marks a suspended tenant "Empresa inativa" and still lets the customer switch into it', async () => {
+    vi.mocked(fetchCustomerTenants).mockResolvedValue([CURRENT, { ...OTHER, operational: false }]);
+    vi.mocked(switchTenant).mockResolvedValue({ tenantSlug: 'superclean' } as never);
+
+    renderWithIntl(<SwitchTenantClient currentTenantSlug="lavacar-bh" />);
+
+    const option = await screen.findByTestId('switch-tenant-option');
+    expect(within(option).getByTestId('switch-tenant-inactive-badge')).toHaveTextContent(
+      'Empresa inativa',
+    );
+    expect(screen.getByTestId('switch-tenant-current')).not.toHaveTextContent('Empresa inativa');
+
+    await userEvent.click(option);
+
+    await waitFor(() => expect(switchTenant).toHaveBeenCalledWith('t-2'));
+    expect(push).toHaveBeenCalledWith('/superclean');
+  });
+
+  it('leaves an operational tenant row unmarked', async () => {
+    vi.mocked(fetchCustomerTenants).mockResolvedValue([CURRENT, OTHER]);
+
+    renderWithIntl(<SwitchTenantClient currentTenantSlug="lavacar-bh" />);
+
+    await screen.findByTestId('switch-tenant-option');
+    expect(screen.queryByTestId('switch-tenant-inactive-badge')).not.toBeInTheDocument();
+  });
+
   it('shows a loading skeleton while the tenant list is being fetched', () => {
     vi.mocked(fetchCustomerTenants).mockReturnValue(new Promise(() => {}));
 

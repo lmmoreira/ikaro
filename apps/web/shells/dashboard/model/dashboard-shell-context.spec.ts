@@ -264,12 +264,29 @@ describe('loadDashboardShellContext — billing access (M25-S29)', () => {
     expect(redirect).not.toHaveBeenCalled();
   });
 
-  it('does not redirect a suspended staff member in M25-S29 (S31a extends it)', async () => {
+  it('redirects a staff member of a suspended tenant to the notice before any other read', async () => {
     vi.mocked(fetchTenantAccess).mockResolvedValue({
       ok: true,
       access: { operational: false, features: [] },
     });
 
+    await expect(loadDashboardShellContext('token', staffPayload)).rejects.toMatchObject({
+      url: '/dashboard/suspended',
+    });
+
+    expect(fetchTenantSettings).not.toHaveBeenCalled();
+    expect(fetchLeadFormStatus).not.toHaveBeenCalled();
+  });
+
+  it('does not redirect a staff member from the notice itself or the login page', async () => {
+    vi.mocked(fetchTenantAccess).mockResolvedValue({
+      ok: true,
+      access: { operational: false, features: [] },
+    });
+
+    headerValues.pathname = '/dashboard/suspended';
+    await expect(loadDashboardShellContext('token', staffPayload)).resolves.toBeDefined();
+    headerValues.pathname = '/dashboard/login';
     await expect(loadDashboardShellContext('token', staffPayload)).resolves.toBeDefined();
     expect(redirect).not.toHaveBeenCalled();
   });

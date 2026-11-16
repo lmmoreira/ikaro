@@ -302,3 +302,73 @@ describe('BookingsList', () => {
     expect(screen.getByText('Pendentes (1)')).toBeInTheDocument();
   });
 });
+
+describe('BookingsList while the tenant is suspended (UC-121)', () => {
+  const SUMMARY = { hasAny: true, activeCount: 2 };
+
+  function renderSuspended(bookings: CustomerBookingListItem[]) {
+    return render(
+      <BookingsList
+        bookings={bookings}
+        recurringSummary={SUMMARY}
+        alertsSummary={SUMMARY}
+        tenantSlug="lavacar-bh"
+        tenantOperational={false}
+      />,
+    );
+  }
+
+  it('shows the neutral "Empresa inativa" notice and the three real sections', () => {
+    renderSuspended([
+      makeItem({ status: 'APPROVED' }),
+      makeItem({ status: 'PENDING' }),
+      makeItem({ status: 'COMPLETED', scheduledAt: '2020-01-01T10:00:00.000Z' }),
+    ]);
+
+    expect(screen.getByTestId('inactive-tenant-notice')).toBeInTheDocument();
+    expect(screen.getByTestId('section-upcoming')).toBeInTheDocument();
+    expect(screen.getByTestId('section-pending')).toBeInTheDocument();
+    expect(screen.getByTestId('section-history')).toBeInTheDocument();
+  });
+
+  it('badges only the open rows, never the history', () => {
+    renderSuspended([
+      makeItem({ status: 'APPROVED' }),
+      makeItem({ status: 'PENDING' }),
+      makeItem({ status: 'COMPLETED', scheduledAt: '2020-01-01T10:00:00.000Z' }),
+    ]);
+
+    expect(screen.getAllByTestId('booking-inactive-badge')).toHaveLength(2);
+  });
+
+  it('disables "+ Novo" instead of offering the new-booking menu', () => {
+    renderSuspended([makeItem({ status: 'APPROVED' })]);
+
+    expect(screen.getByTestId('new-booking-disabled')).toBeDisabled();
+    expect(screen.queryByTestId('new-menu-trigger')).not.toBeInTheDocument();
+  });
+
+  it('does not offer the recurring and alerts entry rows, whose reads are refused', () => {
+    renderSuspended([makeItem({ status: 'APPROVED' })]);
+
+    expect(screen.queryByTestId('recurring-entry-row')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('alerts-entry-row')).not.toBeInTheDocument();
+  });
+
+  it('is unchanged for an operational tenant: no notice, the menu and the entry rows stay', () => {
+    render(
+      <BookingsList
+        bookings={[makeItem({ status: 'APPROVED' })]}
+        recurringSummary={SUMMARY}
+        alertsSummary={SUMMARY}
+        tenantSlug="lavacar-bh"
+      />,
+    );
+
+    expect(screen.queryByTestId('inactive-tenant-notice')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('booking-inactive-badge')).not.toBeInTheDocument();
+    expect(screen.getByTestId('new-menu-trigger')).toBeInTheDocument();
+    expect(screen.getByTestId('recurring-entry-row')).toBeInTheDocument();
+    expect(screen.getByTestId('alerts-entry-row')).toBeInTheDocument();
+  });
+});

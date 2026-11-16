@@ -14,12 +14,15 @@ import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { LoyaltyEntriesPanel } from './LoyaltyEntriesPanel';
 import { LoyaltyRedemptionsPanel } from './LoyaltyRedemptionsPanel';
 import { Button } from '@/shared/components/ui/button';
+import { Card } from '@/shared/components/ui/card';
 
 interface LoyaltyPageProps {
   readonly balance: CustomerLoyaltyBalanceResponse;
   readonly entries: CustomerLoyaltyEntriesResponse;
   readonly redemptions: CustomerLoyaltyRedemptionsResponse;
   readonly tenantSlug: string;
+  /** `false` while the tenant is suspended (UC-121): the page stays readable under a neutral notice. */
+  readonly tenantOperational?: boolean;
 }
 
 type LoyaltyTab = 'entries' | 'redemptions';
@@ -29,8 +32,10 @@ export function LoyaltyPage({
   entries,
   redemptions,
   tenantSlug,
+  tenantOperational = true,
 }: LoyaltyPageProps): React.JSX.Element {
   const t = useTranslations('customer.loyalty');
+  const tInactive = useTranslations('customer.inactiveTenant');
   const { formatDate, formatMoney } = useFormatting();
   const [activeTab, setActiveTab] = useState<LoyaltyTab>('entries');
 
@@ -41,6 +46,16 @@ export function LoyaltyPage({
   return (
     <div className="w-full">
       <PageHeader title={t('title')} />
+
+      {!tenantOperational && (
+        <Card
+          data-testid="loyalty-inactive-notice"
+          className="mt-4 flex flex-col gap-1 rounded-xl border-gray-200 bg-gray-50 p-4 shadow-none"
+        >
+          <p className="text-sm font-semibold text-gray-800">{tInactive('badge')}</p>
+          <p className="text-sm leading-relaxed text-gray-600">{tInactive('loyaltyReadOnly')}</p>
+        </Card>
+      )}
 
       <div
         className={`mt-4 flex items-center gap-4 rounded-xl p-4 text-white ${

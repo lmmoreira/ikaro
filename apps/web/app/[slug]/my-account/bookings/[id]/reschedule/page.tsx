@@ -4,6 +4,7 @@ import { fetchCustomerBookingDetailOrRedirect } from '@/features/booking/api/cus
 import { appendReturnTo, resolveReturnTo } from '@/features/customer/booking-navigation';
 import { CustomerReschedulePage } from '@/features/customer/components/my-account/CustomerReschedulePage';
 import { fetchManifest } from '@/features/platform/api.server';
+import { fetchCustomerTenantOperational } from '@/shared/lib/billing/access.server';
 
 interface RescheduleRouteProps {
   readonly params: Promise<{ readonly slug: string; readonly id: string }>;
@@ -17,10 +18,15 @@ export default async function RescheduleRoute({
   const { slug, id } = await params;
   const { returnTo } = await searchParams;
   const token = await getAccessToken();
-  const booking = await fetchCustomerBookingDetailOrRedirect(token, id, slug);
+  const [booking, operational] = await Promise.all([
+    fetchCustomerBookingDetailOrRedirect(token, id, slug),
+    fetchCustomerTenantOperational(token),
+  ]);
   const resolvedReturnTo = resolveReturnTo(returnTo, slug);
 
-  if (booking.reschedule === null || booking.scheduledAt === null) {
+  // A suspended tenant refuses the reschedule (UC-121): the detail, which stays readable, is the
+  // place to land, not a picker whose submit would be denied.
+  if (operational === false || booking.reschedule === null || booking.scheduledAt === null) {
     redirect(appendReturnTo(`/${slug}/my-account/bookings/${id}`, resolvedReturnTo));
   }
 

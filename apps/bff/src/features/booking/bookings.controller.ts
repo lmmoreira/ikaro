@@ -90,7 +90,8 @@ export class BookingsController {
     return toBookingListResponse(backend, query, isStaffOrManagerRole(user.role));
   }
 
-  // Opening a booking's detail is blocked while suspended (UC-121): explicit, not an omission.
+  // A customer can open a booking's detail while the tenant is suspended (UC-121): the backend
+  // route is `CUSTOMER_HISTORY` and decides; the BFF carries no gate of its own (M25-S33).
   @Get(':id')
   @Roles('CUSTOMER', 'MANAGER', 'STAFF')
   async getOne(

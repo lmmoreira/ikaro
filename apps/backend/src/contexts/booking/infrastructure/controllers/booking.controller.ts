@@ -86,9 +86,11 @@ export class BookingController {
       .catch(mapBookingError);
   }
 
-  // Opening a booking's detail is blocked while suspended (UC-121): explicit, not an omission.
+  // A customer can still open a booking's detail while the tenant is suspended (UC-121): the
+  // history is readable and the future-booking cancel page loads this read. Every action on the
+  // booking (reschedule, submit-info, attachments) stays refused. Explicit, not an omission.
   @Get(':id')
-  @SuspensionAccess('DEFAULT_DENY')
+  @SuspensionAccess('CUSTOMER_HISTORY')
   getOne(@Param('id', CanonicalParseUUIDPipe) id: string): Promise<GetBookingByIdUseCaseResult> {
     const { tenantId, actorType, actorId, settings } = this.ctx;
     return this.getBooking

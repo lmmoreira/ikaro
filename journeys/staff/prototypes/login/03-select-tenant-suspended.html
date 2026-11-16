@@ -13,7 +13,7 @@
     Grounds UC-121 (suspended tenant behaviour): the post-login tenant switch screen KEEPS listing a suspended tenant, marked with a "Suspensa" badge, still selectable. Never hidden.
     Only the badge is shown to staff: no reason (NON_PAYMENT/CANCELED), no payment info (they are not the payer). Selecting the row switches the session as usual and the dashboard layout then renders the suspended notice (02-suspended-notice.html).
     ROUTE: /select-staff-tenant (apps/web/app/select-staff-tenant/page.tsx)
-    COMPONENT: SelectStaffTenantClient (apps/web/features/staff/components/SelectStaffTenantClient.tsx) -- EXISTS (list, role badge Gerente/Funcionário, error state). The "Suspensa" badge is a GAP: add a conditional second badge when `operational === false`.
+    COMPONENT: SelectStaffTenantClient (apps/web/features/staff/components/SelectStaffTenantClient.tsx) -- EXISTS (list, role badge Gerente/Funcionário, error state). The "Suspensa" badge is built (M25-S31a): a conditional second badge when `operational === false`.
     BFF CALL: GET /auth/staff-tenants -> StaffTenantOption[] { staffId, tenantId, tenantSlug, tenantName, role, operational } -- the existing tenant-selection endpoint must include a per-tenant `operational` flag (false when subscription status = SUSPENDED). Selecting: POST /auth/switch-staff-tenant { staffId } (unchanged, must NOT reject a suspended tenant).
   -->
 

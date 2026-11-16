@@ -15,10 +15,27 @@ import { BookingStatusIcon } from './BookingStatusIcon';
 interface BookingListItemProps {
   readonly item: CustomerBookingListItemDto;
   readonly tenantSlug: string;
+  /**
+   * `false` while the tenant is suspended (UC-121): an open row carries the "Empresa inativa"
+   * badge and offers no "Responder" (the response is refused); the row still opens the detail and
+   * a future booking can still be cancelled. `true` (the default) is today's row.
+   */
+  readonly tenantOperational?: boolean;
 }
 
-export function BookingListItem({ item, tenantSlug }: BookingListItemProps): React.JSX.Element {
+const OPEN_STATUSES: ReadonlySet<string> = new Set([
+  BOOKING_STATUS.APPROVED,
+  BOOKING_STATUS.PENDING,
+  BOOKING_STATUS.INFO_REQUESTED,
+]);
+
+export function BookingListItem({
+  item,
+  tenantSlug,
+  tenantOperational = true,
+}: BookingListItemProps): React.JSX.Element {
   const t = useTranslations('customer.bookingItem');
+  const tInactive = useTranslations('customer.inactiveTenant');
   const { formatMoney, formatTime, formatDateLong } = useFormatting();
 
   const statusLabels = buildBookingStatusLabels(t);
@@ -27,6 +44,7 @@ export function BookingListItem({ item, tenantSlug }: BookingListItemProps): Rea
   const detailHref = `/${tenantSlug}/my-account/bookings/${item.bookingId}`;
   const cancelHref = `${detailHref}/cancel`;
   const cancellable = canCancelBooking(item);
+  const showInactiveBadge = !tenantOperational && OPEN_STATUSES.has(item.status);
 
   return (
     <li className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
@@ -61,19 +79,29 @@ export function BookingListItem({ item, tenantSlug }: BookingListItemProps): Rea
               {t('cancelRequest')}
             </Link>
           )}
-          {item.status === BOOKING_STATUS.INFO_REQUESTED && (
+          {item.status === BOOKING_STATUS.INFO_REQUESTED && tenantOperational && (
             <Link href={detailHref} className="font-medium text-blue-600 hover:underline">
               {t('respond')}
             </Link>
           )}
         </div>
       </div>
-      <span
-        data-testid="booking-status-badge"
-        className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${BOOKING_STATUS_CLASSES[item.status]}`}
-      >
-        {statusLabels[item.status]}
-      </span>
+      <div className="flex shrink-0 flex-col items-end gap-1">
+        <span
+          data-testid="booking-status-badge"
+          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${BOOKING_STATUS_CLASSES[item.status]}`}
+        >
+          {statusLabels[item.status]}
+        </span>
+        {showInactiveBadge && (
+          <span
+            data-testid="booking-inactive-badge"
+            className="rounded-full border border-gray-300 bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-600"
+          >
+            {tInactive('badge')}
+          </span>
+        )}
+      </div>
     </li>
   );
 }
