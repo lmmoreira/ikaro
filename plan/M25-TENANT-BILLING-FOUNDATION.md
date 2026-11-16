@@ -2217,7 +2217,7 @@ Since S16 a tenant request is gated twice: by a BFF guard (`TenantAccessGuard`, 
 
 ## Wave 3 — Enforcement, frontend
 
-### M25-S29 — Web enforcement — feature registry, `<FeatureGate>`, suspended-manager redirect (UC-125, UC-121)
+### M25-S29 — Web enforcement — feature registry, `<FeatureGate>`, suspended-manager redirect (UC-125, UC-121) ✅ Done
 
 **Agent:** `frontend-ts`
 **Complexity:** M
