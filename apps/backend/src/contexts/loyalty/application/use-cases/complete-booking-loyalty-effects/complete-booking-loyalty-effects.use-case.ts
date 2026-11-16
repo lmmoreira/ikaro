@@ -30,6 +30,7 @@ import {
   type TenantAccessPort,
 } from '../../../../../shared/ports/tenant-access.port';
 import { buildServicePointsEarnedEvent } from '../../helpers/service-points-earned.helpers';
+import { settleDiscount } from '../../helpers/discount-settlement.helpers';
 import { AppLogger } from '../../../../../shared/observability/app-logger';
 
 export interface BookingCompletedLine {
@@ -78,7 +79,7 @@ interface SettlementPlan {
   entries: LoyaltyEntry[];
   totalPointsEarned: number;
   mayEarn: boolean;
-  pointsRedeemed: number;
+  pointsUsed: number;
   pointsPerCurrencyUnit: number;
 }
 
@@ -91,7 +92,8 @@ interface SettlementPlan {
  * Earning and settlement are one atomic write of the customer's balance, so this is the one place
  * the tenant's access is read instead of the declarative event gate (UC-121, UC-125): the gate can
  * skip a whole handler, not half of one transaction. A discount was already applied to the booking
- * when it completed, so the redemption is always settled; points are earned only while the tenant
+ * when it completed, so the redemption is always settled, for what the balance still covers when it
+ * is larger than the balance; points are earned only while the tenant
  * is operational and entitled to LOYALTY (the lookup fails open, like the gate).
  */
 export class CompleteBookingLoyaltyEffectsUseCase {
@@ -123,35 +125,41 @@ export class CompleteBookingLoyaltyEffectsUseCase {
     const { expiryDays, pointsPerCurrencyUnit } = await this.tenantSettingsPort.getLoyaltySettings(
       dto.tenantId,
     );
-    const pointsRedeemed = dto.discountByPoints?.pointsUsed ?? 0;
+    const pointsUsed = dto.discountByPoints?.pointsUsed ?? 0;
     const mayEarn = await this.mayEarnPoints(dto);
-    if (!mayEarn && pointsRedeemed <= 0) return this.markProcessedWithoutRecording(dto);
+    if (!mayEarn && pointsUsed <= 0) return this.markProcessedWithoutRecording(dto);
 
     const entries = mayEarn ? this.buildEntries(dto, customerId, expiryDays) : [];
     const totalPointsEarned = entries.reduce((sum, entry) => sum + entry.points, 0);
 
-    const applied = await this.settle({
+    const settled = await this.settle({
       dto,
       customerId,
       entries,
       totalPointsEarned,
       mayEarn,
-      pointsRedeemed,
+      pointsUsed,
       pointsPerCurrencyUnit,
     });
-    if (!applied) return SKIPPED_RESULT;
+    if (!settled) return SKIPPED_RESULT;
 
-    return { skipped: false, entriesCreated: entries.length, totalPointsEarned, pointsRedeemed };
+    return {
+      skipped: false,
+      entriesCreated: entries.length,
+      totalPointsEarned,
+      pointsRedeemed: settled.pointsRedeemed,
+    };
   }
 
   // One transaction. The balance row is locked first (docs/LOCK_CATALOG.md R6), then the inbox is
   // checked again: a concurrent delivery of this event may have committed while this one waited
-  // for the lock. Returns false when the event was already processed (the transaction is rolled
-  // back, so nothing is written, not even the ensured balance row). TD08 §12.3: the re-emit and
+  // for the lock. Returns null when the event was already processed (the transaction is rolled
+  // back, so nothing is written, not even the ensured balance row); otherwise the points the
+  // balance actually covered (0 when the discount could not be settled at all). TD08 §12.3: the re-emit and
   // the idempotency mark are one atomic fact: a crash between this transaction and a
   // separately-published event used to leave ServicePointsEarned lost forever, since
   // hasBeenProcessed() short-circuits any redelivery of BookingCompleted.
-  private async settle(plan: SettlementPlan): Promise<boolean> {
+  private async settle(plan: SettlementPlan): Promise<{ pointsRedeemed: number } | null> {
     const { dto, customerId, entries } = plan;
     try {
       return await this.txManager.run(async () => {
@@ -172,10 +180,10 @@ export class CompleteBookingLoyaltyEffectsUseCase {
           CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME,
         );
         if (servicePointsEarned) await this.outboxPublisher.publish(servicePointsEarned);
-        return true;
+        return { pointsRedeemed: redemption?.pointsRedeemed ?? 0 };
       });
     } catch (error) {
-      if (error instanceof EventAlreadyProcessedError) return false;
+      if (error instanceof EventAlreadyProcessedError) return null;
       throw error;
     }
   }
@@ -186,12 +194,13 @@ export class CompleteBookingLoyaltyEffectsUseCase {
   ): { redemption: LoyaltyRedemption | null; servicePointsEarned: ServicePointsEarned | null } {
     const { dto, customerId, entries, totalPointsEarned, mayEarn } = plan;
     if (mayEarn) balance.increment(totalPointsEarned);
-    const redemption = this.applyRedemption(
+    const redemption = settleDiscount(
       balance,
       dto,
       customerId,
-      plan.pointsRedeemed,
+      plan.pointsUsed,
       plan.pointsPerCurrencyUnit,
+      this.logger,
     );
     const servicePointsEarned = mayEarn
       ? buildServicePointsEarnedEvent(
@@ -262,24 +271,5 @@ export class CompleteBookingLoyaltyEffectsUseCase {
         expiryDays,
       }),
     );
-  }
-
-  private applyRedemption(
-    balance: LoyaltyBalance,
-    dto: CompleteBookingLoyaltyEffectsUseCaseInput,
-    customerId: string,
-    pointsRedeemed: number,
-    pointsPerCurrencyUnit: number,
-  ): LoyaltyRedemption | null {
-    if (pointsRedeemed <= 0) return null;
-    balance.decrement(pointsRedeemed);
-    return LoyaltyRedemption.record({
-      tenantId: dto.tenantId,
-      customerId,
-      pointsRedeemed,
-      pointsPerCurrencyUnit,
-      redeemedBy: dto.completedBy,
-      bookingId: dto.bookingId,
-    });
   }
 }

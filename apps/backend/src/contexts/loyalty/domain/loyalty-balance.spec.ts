@@ -99,6 +99,43 @@ describe('LoyaltyBalance', () => {
     });
   });
 
+  describe('decrementUpTo()', () => {
+    const balanceWith = (currentPoints: number): LoyaltyBalance =>
+      LoyaltyBalance.reconstitute({ tenantId: TENANT_ID, customerId: CUSTOMER_ID, currentPoints });
+
+    it('takes the whole amount when the balance covers it', () => {
+      const balance = balanceWith(50);
+
+      expect(balance.decrementUpTo(20)).toBe(20);
+      expect(balance.currentPoints).toBe(30);
+    });
+
+    it('takes exactly the balance when the amount equals it', () => {
+      const balance = balanceWith(10);
+
+      expect(balance.decrementUpTo(10)).toBe(10);
+      expect(balance.currentPoints).toBe(0);
+    });
+
+    it('takes only what the balance has when the amount is higher', () => {
+      const balance = balanceWith(40);
+
+      expect(balance.decrementUpTo(100)).toBe(40);
+      expect(balance.currentPoints).toBe(0);
+    });
+
+    it('takes nothing at a zero balance', () => {
+      const balance = LoyaltyBalance.create(TENANT_ID, CUSTOMER_ID);
+
+      expect(balance.decrementUpTo(5)).toBe(0);
+      expect(balance.currentPoints).toBe(0);
+    });
+
+    it.each([0, -5])('throws LoyaltyInvalidPointsError when points = %i', (points) => {
+      expect(() => balanceWith(10).decrementUpTo(points)).toThrow(LoyaltyInvalidPointsError);
+    });
+  });
+
   describe('reconstitute()', () => {
     it('restores balance without events', () => {
       const balance = LoyaltyBalance.reconstitute({

@@ -1,4 +1,5 @@
 import { ServicePointsEarned } from '../../../domain/events/service-points-earned.event';
+import { AppLogger } from '../../../../../shared/observability/app-logger';
 import { InMemoryEventBus } from '../../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryLoyaltyBalanceRepository } from '../../../../../test/repositories/loyalty/in-memory-loyalty-balance.repository';
 import { InMemoryLoyaltyEntryRepository } from '../../../../../test/repositories/loyalty/in-memory-loyalty-entry.repository';
@@ -179,6 +180,117 @@ describe('CompleteBookingLoyaltyEffectsUseCase', () => {
     expect(redemptionRepo.saved).toHaveLength(1);
     const balance = await balanceRepo.findByCustomer(TENANT_ID, CUSTOMER_ID);
     expect(balance!.currentPoints).toBe(315);
+  });
+
+  describe('discount larger than the balance (TD60-S03)', () => {
+    const discount = (pointsUsed: number) => ({
+      discountByPoints: { pointsUsed, amountDeducted: pointsUsed / 10 },
+    });
+    let warnSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      warnSpy = jest.spyOn(AppLogger.prototype, 'warn').mockImplementation();
+    });
+
+    afterEach(() => jest.restoreAllMocks());
+
+    const shortfallWarnings = (): unknown[][] =>
+      warnSpy.mock.calls.filter(
+        ([message]) =>
+          message === 'Points discount exceeded the balance: settled what the balance covered',
+      );
+
+    it('settles the points the balance covers, records the earn, empties the balance and logs the shortfall', async () => {
+      await seedBalance(40);
+
+      const result = await useCase.execute(makeDto(discount(100)));
+
+      expect(result.skipped).toBe(false);
+      expect(result.totalPointsEarned).toBe(15);
+      expect(result.pointsRedeemed).toBe(55);
+      expect(entryRepo.entries).toHaveLength(2);
+      expect(redemptionRepo.saved).toHaveLength(1);
+      expect(redemptionRepo.saved[0].pointsRedeemed).toBe(55);
+      expect((await balanceRepo.findByCustomer(TENANT_ID, CUSTOMER_ID))!.currentPoints).toBe(0);
+      const earned = outboxPublisher.published.find(
+        (e): e is ServicePointsEarned => e instanceof ServicePointsEarned,
+      );
+      expect(earned?.data.currentBalance).toBe(0);
+      expect(shortfallWarnings()).toHaveLength(1);
+      expect(shortfallWarnings()[0][1]).toEqual({
+        tenantId: TENANT_ID,
+        customerId: CUSTOMER_ID,
+        bookingId: BOOKING_ID,
+        eventId: EVENT_ID,
+        pointsUsed: 100,
+        pointsRedeemed: 55,
+        pointsShortfall: 45,
+      });
+    });
+
+    it('does not retry: a redelivery of the settled event is a no-op', async () => {
+      await seedBalance(40);
+      const dto = makeDto(discount(100));
+      await useCase.execute(dto);
+
+      const second = await useCase.execute(dto);
+
+      expect(second.skipped).toBe(true);
+      expect(redemptionRepo.saved).toHaveLength(1);
+      expect((await balanceRepo.findByCustomer(TENANT_ID, CUSTOMER_ID))!.currentPoints).toBe(0);
+    });
+
+    it('settles in full without a warning when the balance plus the earn exactly covers the discount', async () => {
+      await seedBalance(85);
+
+      const result = await useCase.execute(makeDto(discount(100)));
+
+      expect(result.pointsRedeemed).toBe(100);
+      expect((await balanceRepo.findByCustomer(TENANT_ID, CUSTOMER_ID))!.currentPoints).toBe(0);
+      expect(shortfallWarnings()).toHaveLength(0);
+    });
+
+    it('settles in full without a warning when the balance exceeds the discount', async () => {
+      await seedBalance(500);
+
+      const result = await useCase.execute(makeDto(discount(100)));
+
+      expect(result.pointsRedeemed).toBe(100);
+      expect((await balanceRepo.findByCustomer(TENANT_ID, CUSTOMER_ID))!.currentPoints).toBe(415);
+      expect(shortfallWarnings()).toHaveLength(0);
+    });
+
+    it('writes no redemption when nothing is covered, still marks the event processed and logs the shortfall', async () => {
+      tenantAccess.seedSuspended(TENANT_ID);
+      const dto = makeDto(discount(100));
+
+      const result = await useCase.execute(dto);
+
+      expect(result.skipped).toBe(false);
+      expect(result.pointsRedeemed).toBe(0);
+      expect(redemptionRepo.saved).toHaveLength(0);
+      expect(entryRepo.entries).toHaveLength(0);
+      expect(
+        await inboxRepo.hasBeenProcessed(
+          dto.eventId,
+          CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME,
+        ),
+      ).toBe(true);
+      expect(shortfallWarnings()).toHaveLength(1);
+      expect((await useCase.execute(dto)).skipped).toBe(true);
+    });
+
+    it("a shortfall for one tenant's customer never touches another tenant's balance", async () => {
+      await seedBalance(40);
+      await seedBalance(500, TENANT_B_ID);
+
+      await useCase.execute(makeDto(discount(100)));
+
+      expect((await balanceRepo.findByCustomer(TENANT_B_ID, CUSTOMER_ID))!.currentPoints).toBe(500);
+      expect(await redemptionRepo.findByCustomer(TENANT_B_ID, CUSTOMER_ID, 1, 20)).toEqual(
+        expect.objectContaining({ items: [] }),
+      );
+    });
   });
 
   describe("earning follows the tenant's access; the redemption always settles", () => {
