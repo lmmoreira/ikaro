@@ -187,8 +187,8 @@ Add `findUnprocessedDueBetween(from, to)` to `ILoyaltyEntryRepository` (query bu
   - [ ] The cross-tenant read and the warning range read seek `IDX_loyalty_entries_expires_at` (`SET enable_seqscan = off`, EXPLAIN contains the index name).
   - [ ] A sweep over a mixed set expires only due unprocessed entries, marks them processed once, advances the watermark, and a second run is a no-op.
   - [ ] A run with a failing group leaves the watermark unchanged and a retry expires the failed customer without touching the already-processed ones.
-  - [ ] Two overlapping sweeps do not double-expire and leave a consistent watermark.
-  - [ ] A suspended tenant's due entries are still expired (M25-S27 regression pin).
+  - [ ] Two overlapping sweeps do not double-expire (Story 0's `loyalty-balance-lock.integration.spec.ts` scenario, which runs the sweep through the real lock and re-check) and the watermark never moves backwards (`typeorm-expiry-sweep-state.repository.integration.spec.ts`, `GREATEST`). Shipped as those two named tests instead of a third overlapping-sweep scenario, because the watermark is one global row and the lock spec already races two sweeps.
+  - [ ] A suspended tenant's due entries are still expired (M25-S27 regression pin). Shipped as a unit-level structural pin in `expire-points.job.spec.ts` (the job resolves from a module that provides no tenant-access or tenant-directory port, so it can never skip a suspended tenant) instead of an integration test: the sweep never loads a tenant, so a seeded suspended tenant would prove nothing.
 - Tenant isolation:
   - [ ] Tenant A's failure leaves tenant B's expiry and warning intact; the processed marks of one tenant never hide another tenant's entries.
 - E2E: none — covered by integration

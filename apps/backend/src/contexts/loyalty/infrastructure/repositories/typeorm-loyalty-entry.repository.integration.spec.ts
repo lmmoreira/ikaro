@@ -1,7 +1,10 @@
 import { DataSource } from 'typeorm';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { createTestDataSource } from '../../../../test/test-datasource';
-import { LoyaltyEntryBuilder } from '../../../../test/builders/loyalty/index';
+import {
+  BalanceExpiryLogEntityBuilder,
+  LoyaltyEntryBuilder,
+} from '../../../../test/builders/loyalty/index';
 import { LoyaltyEntry } from '../../domain/loyalty-entry.aggregate';
 import { BalanceExpiryLogEntity } from '../entities/balance-expiry-log.entity';
 import { LoyaltyEntryEntity } from '../entities/loyalty-entry.entity';
@@ -201,7 +204,9 @@ describe('TypeOrmLoyaltyEntryRepository (integration)', () => {
     it('excludes entries already in the expiry log', async () => {
       const processed = await seed(TENANT_A, at('2031-05-31T12:00:00.000Z'));
       const pending = await seed(TENANT_A, at('2031-05-31T13:00:00.000Z'));
-      await dataSource.getRepository(BalanceExpiryLogEntity).insert({ entryId: processed.id });
+      await dataSource
+        .getRepository(BalanceExpiryLogEntity)
+        .insert(new BalanceExpiryLogEntityBuilder().withEntryId(processed.id).build());
 
       const ids = await dueIds(FROM, TO);
 
