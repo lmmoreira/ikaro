@@ -5,6 +5,7 @@ import { createTestDataSource } from '../../../../../test/test-datasource';
 import { InMemoryEventBus } from '../../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryLoyaltyPlatformPort } from '../../../../../test/infrastructure/in-memory-loyalty-platform.port';
 import { uuidv7 } from '../../../../../shared/domain/uuid-v7';
+import { AppLogger } from '../../../../../shared/observability/app-logger';
 import { LoyaltyBalanceBuilder } from '../../../../../test/builders/loyalty/index';
 import { LoyaltyBalanceEntity } from '../../../infrastructure/entities/loyalty-balance.entity';
 import { LoyaltyEntryEntity } from '../../../infrastructure/entities/loyalty-entry.entity';
@@ -188,18 +189,34 @@ describe('CompleteBookingLoyaltyEffectsUseCase (integration, TD24-S03 §12.3 re-
   // TD60-S03: a discount above the balance (the sweep ran after the completion screen loaded it) is
   // settled for what the balance covers instead of failing the whole event for good.
   describe('discount larger than the balance (TD60-S03)', () => {
-    function buildUseCase(tenantAccess: InMemoryTenantAccessPort) {
-      return new CompleteBookingLoyaltyEffectsUseCase(
+    let tenantAccess: InMemoryTenantAccessPort;
+    let eventBus: InMemoryEventBus;
+    let useCase: CompleteBookingLoyaltyEffectsUseCase;
+    let warnSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      tenantAccess = new InMemoryTenantAccessPort();
+      eventBus = new InMemoryEventBus();
+      useCase = new CompleteBookingLoyaltyEffectsUseCase(
         entryRepo,
         balanceRepo,
         redemptionRepo,
         inboxRepo,
         new InMemoryLoyaltyPlatformPort().withPointsPerCurrencyUnit(10),
-        new InMemoryEventBus(),
+        eventBus,
         txManager,
         tenantAccess,
       );
-    }
+      warnSpy = jest.spyOn(AppLogger.prototype, 'warn').mockImplementation();
+    });
+
+    afterEach(() => jest.restoreAllMocks());
+
+    const shortfallWarnings = (): unknown[][] =>
+      warnSpy.mock.calls.filter(
+        ([message]) =>
+          message === 'Points discount exceeded the balance: settled what the balance covered',
+      );
 
     async function seedBalance(tenantId: string, customerId: string, points: number) {
       await balanceRepo.upsert(
@@ -221,7 +238,6 @@ describe('CompleteBookingLoyaltyEffectsUseCase (integration, TD24-S03 §12.3 re-
         ...makeDto(tenantId, customerId),
         discountByPoints: { pointsUsed: 100, amountDeducted: 10 },
       };
-      const useCase = buildUseCase(new InMemoryTenantAccessPort());
 
       const first = await useCase.execute(dto);
       const second = await useCase.execute(dto);
@@ -245,6 +261,29 @@ describe('CompleteBookingLoyaltyEffectsUseCase (integration, TD24-S03 §12.3 re-
       );
     });
 
+    it('logs the shortfall once the settlement has committed, never for a rolled-back attempt', async () => {
+      const tenantId = uuidv7();
+      const customerId = uuidv7();
+      await seedBalance(tenantId, customerId, 40);
+      const dto = {
+        ...makeDto(tenantId, customerId),
+        discountByPoints: { pointsUsed: 100, amountDeducted: 10 },
+      };
+      eventBus.failNextPublish(new Error('outbox write failed'));
+
+      await expect(useCase.execute(dto)).rejects.toThrow('outbox write failed');
+
+      expect(shortfallWarnings()).toHaveLength(0);
+      expect((await balanceRepo.findByCustomer(tenantId, customerId))!.currentPoints).toBe(40);
+
+      await useCase.execute(dto);
+
+      expect(shortfallWarnings()).toHaveLength(1);
+      expect(shortfallWarnings()[0][1]).toEqual(
+        expect.objectContaining({ pointsUsed: 100, pointsRedeemed: 50, pointsShortfall: 50 }),
+      );
+    });
+
     it('writes no redemption row when nothing is covered (the table forbids zero points) and still marks the event processed', async () => {
       const tenantId = uuidv7();
       const customerId = uuidv7();
@@ -253,10 +292,9 @@ describe('CompleteBookingLoyaltyEffectsUseCase (integration, TD24-S03 §12.3 re-
         ...makeDto(tenantId, customerId),
         discountByPoints: { pointsUsed: 100, amountDeducted: 10 },
       };
-      const access = new InMemoryTenantAccessPort();
-      access.seedSuspended(tenantId);
+      tenantAccess.seedSuspended(tenantId);
 
-      const result = await buildUseCase(access).execute(dto);
+      const result = await useCase.execute(dto);
 
       expect(result.skipped).toBe(false);
       expect(result.pointsRedeemed).toBe(0);

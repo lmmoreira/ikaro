@@ -30,7 +30,7 @@ import {
   type TenantAccessPort,
 } from '../../../../../shared/ports/tenant-access.port';
 import { buildServicePointsEarnedEvent } from '../../helpers/service-points-earned.helpers';
-import { settleDiscount } from '../../helpers/discount-settlement.helpers';
+import { logDiscountShortfall, settleDiscount } from '../../helpers/discount-settlement.helpers';
 import { AppLogger } from '../../../../../shared/observability/app-logger';
 
 export interface BookingCompletedLine {
@@ -142,6 +142,7 @@ export class CompleteBookingLoyaltyEffectsUseCase {
       pointsPerCurrencyUnit,
     });
     if (!settled) return SKIPPED_RESULT;
+    logDiscountShortfall(this.logger, dto, customerId, pointsUsed, settled.pointsRedeemed);
 
     return {
       skipped: false,
@@ -200,7 +201,6 @@ export class CompleteBookingLoyaltyEffectsUseCase {
       customerId,
       plan.pointsUsed,
       plan.pointsPerCurrencyUnit,
-      this.logger,
     );
     const servicePointsEarned = mayEarn
       ? buildServicePointsEarnedEvent(

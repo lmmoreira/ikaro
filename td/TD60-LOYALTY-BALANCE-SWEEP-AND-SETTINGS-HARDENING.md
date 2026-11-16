@@ -273,7 +273,7 @@ When a `BookingCompleted` carries `discountByPoints` greater than the customer's
 
 **Backend use case steps:**
 1. `LoyaltyBalance.decrementUpTo(points)`: throws `LoyaltyInvalidPointsError` for a non-positive amount, otherwise decrements by `min(points, currentPoints)` and returns that amount.
-2. `settleDiscount` (called by `CompleteBookingLoyaltyEffectsUseCase`): take `decrementUpTo(pointsUsed)`; when the amount taken is 0 return no redemption; otherwise record the redemption for the amount taken; when it is below `pointsRedeemed`, log one `WARN` with tenant, customer, booking, `pointsUsed`, covered and shortfall.
+2. `settleDiscount` (pure, called by `CompleteBookingLoyaltyEffectsUseCase` inside the transaction): take `decrementUpTo(pointsUsed)`; when the amount taken is 0 return no redemption; otherwise record the redemption for the amount taken. After the transaction commits, `logDiscountShortfall` logs one `WARN` with tenant, customer, booking, `pointsUsed`, covered and shortfall when the amount taken is below `pointsUsed` (never from inside the transaction, so a rolled-back attempt leaves no warning and its retry does not log twice).
 3. The rest of the transaction (entries, balance upsert, redemption save, inbox mark, `ServicePointsEarned`) is unchanged; no handler change.
 **Backend HTTP surface:** none.
 **New migration / i18n keys / env vars / feature flags:** none (no schema change).
@@ -281,7 +281,7 @@ When a `BookingCompleted` carries `discountByPoints` greater than the customer's
 **Files to create/modify:**
 - `apps/backend/src/contexts/loyalty/application/use-cases/complete-booking-loyalty-effects/complete-booking-loyalty-effects.use-case.ts` (+ `.spec.ts`, `.integration.spec.ts`) (modify)
 - `apps/backend/src/contexts/loyalty/domain/loyalty-balance.aggregate.ts` (+ spec) (modify: add `decrementUpTo`)
-- `apps/backend/src/contexts/loyalty/application/helpers/discount-settlement.helpers.ts` (new: `settleDiscount`, the clamped settlement and its shortfall `WARN`, extracted beside `service-points-earned.helpers.ts` because the use case file was at the 250-line lint limit; covered through the use-case specs)
+- `apps/backend/src/contexts/loyalty/application/helpers/discount-settlement.helpers.ts` (new: `settleDiscount`, the clamped settlement, and `logDiscountShortfall`, the post-commit shortfall `WARN`, extracted beside `service-points-earned.helpers.ts` because the use case file was at the 250-line lint limit; with its own `.spec.ts`, and also exercised through the use-case specs)
 - `docs/BUSINESS_LOGIC_REFERENCE.md` (the earn and settle rule and the known limitation), `docs/DOMAIN_MODEL.md` (the `LoyaltyBalance` `decrement` paragraph and the redemption rules), `docs/USE_CASES.md` UC-009 A6 step 5 (modify)
 
 **Acceptance criteria — product:**

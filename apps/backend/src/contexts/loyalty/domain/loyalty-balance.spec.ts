@@ -3,6 +3,7 @@ import {
   LoyaltyInsufficientPointsError,
   LoyaltyInvalidPointsError,
 } from './errors/loyalty-domain.error';
+import { LoyaltyBalanceBuilder } from '../../../test/builders/loyalty/index';
 import { LoyaltyBalance } from './loyalty-balance.aggregate';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
@@ -101,7 +102,11 @@ describe('LoyaltyBalance', () => {
 
   describe('decrementUpTo()', () => {
     const balanceWith = (currentPoints: number): LoyaltyBalance =>
-      LoyaltyBalance.reconstitute({ tenantId: TENANT_ID, customerId: CUSTOMER_ID, currentPoints });
+      new LoyaltyBalanceBuilder()
+        .withTenantId(TENANT_ID)
+        .withCustomerId(CUSTOMER_ID)
+        .withCurrentPoints(currentPoints)
+        .build();
 
     it('takes the whole amount when the balance covers it', () => {
       const balance = balanceWith(50);
@@ -125,7 +130,7 @@ describe('LoyaltyBalance', () => {
     });
 
     it('takes nothing at a zero balance', () => {
-      const balance = LoyaltyBalance.create(TENANT_ID, CUSTOMER_ID);
+      const balance = balanceWith(0);
 
       expect(balance.decrementUpTo(5)).toBe(0);
       expect(balance.currentPoints).toBe(0);
