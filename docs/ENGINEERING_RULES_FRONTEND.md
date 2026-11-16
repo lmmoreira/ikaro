@@ -322,3 +322,16 @@ Every response field that refers to a saved public image is already a full URL (
 - **A component test** that renders an image sets the base-URL variable to a deliberately wrong host and asserts the `src` is still the URL it was given; a web-side composition would change it.
 
 Real incident: TD56-S07, 2026-10-25.
+
+## A dashboard section gated by a feature: the gate runs on the server, a layout read must skip a locked route, and a lock cue never dims the label
+
+A tenant that lacks a feature sees its nav item padlocked (the real `href` kept) and its route replaced by `LockedFeaturePage`, never a 404, a redirect or an error (UC-125). `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` (the locked-features bullet) says how it is wired; these are the traps that wiring has:
+
+- **The gate is a server component inside the section layout** (`FeatureGate`, mounted by `DashboardSectionShell` / `DashboardLayoutShell` or by a hand-rolled layout), and it replaces `{children}`. Gating inside the client `DashboardShell` would not stop the page from running: the children are already rendered on the server by then.
+- **A layout or page that reads a record before the gate must skip the read while the route is locked** (`isShellRouteLocked(shell)`). A booking or service detail read for the topbar is refused by the backend for a tenant without `BOOKING`, and its error replaces the locked page. The same goes for a section's topbar action (`DashboardLayoutShell` drops it on a locked route).
+- **A gated piece inside a page that is not itself locked** (the Chatbot section of Configurações, the Chatbot and lead-form panels of the hotsite editor): the page reads `fetchTenantAccess` (React's `cache` shares it with the layout in the same render) and hands the locked card down as a node (`lockedChatbotSection`, `LockedModulePanelsProvider`), so the feature slice never imports the billing slice. The locked save must not write the gated settings (`withoutChatbotSettings`), and the gated read must not be made.
+- **A lock cue never dims the whole link.** `opacity-60` on a nav label stacked on its muted colour and fell to about 1.7:1 contrast; the padlock (with its accessible name, `NavLockMark`) and a dimmed icon carry the cue.
+- **A locked drill-down route keeps the bottom nav** (`BottomNav` skips its hide-on-drilldown rule when the route is locked): the locked page has no back arrow of its own.
+- A failed access read fails open: `lockedFeatures` is empty and the dashboard renders as before billing.
+
+Real incident: M25-S29, 2026-11-16 (the bookings and services layouts read a record before the gate; found in review).

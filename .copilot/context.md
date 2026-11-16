@@ -335,7 +335,7 @@ A doc with a `§` or "only" is read at that section (`grep -n '^## ' <doc>` for 
 
 | Task | Docs to load |
 |---|---|
-| Writing any code | `docs/CODE_STANDARDS.md` (19 KB) + `docs/AGENT_PATTERNS.md` (57 KB) + `docs/ENGINEERING_RULES_SHARED.md` (52 KB) — read whole |
+| Writing any code | `docs/CODE_STANDARDS.md` (19 KB) + `docs/AGENT_PATTERNS.md` (57 KB) + `docs/ENGINEERING_RULES_SHARED.md` (57 KB) — read whole |
 | Finishing a story / before PR | `docs/DEFINITION_OF_DONE.md` (16 KB) |
 | CI failure / pre-PR | `docs/CI_TRAPS.md` (119 KB) — the failing tool's own section only: `grep -n '^## ' docs/CI_TRAPS.md` |
 | Implement a UC | `docs/USE_CASES.md` (366 KB) — the UC's own section only: `grep -n 'UC-0NN'` + `docs/DOMAIN_MODEL.md` § Aggregates, Entities, and Value Objects (the aggregate's subsection) + `docs/DOMAIN_EVENTS.md` § Event Categories (the event's entry) |
@@ -355,7 +355,7 @@ A doc with a `§` or "only" is read at that section (`grep -n '^## ' <doc>` for 
 | Multi-tenancy / isolation; access gate | `docs/TENANT_ISOLATION_STRATEGY.md` (17 KB) + `docs/ENGINEERING_RULES_SHARED.md` § Tenant access enforcement |
 | Testing patterns | `docs/TESTING_STRATEGY.md` § Mandatory Patterns (+ the layer's section) + `docs/ENGINEERING_RULES_TESTING.md` (56 KB, read whole); billing: § Testing the billing provider |
 | apps/web test infrastructure | `docs/TESTING_STRATEGY.md` § apps/web Testing Infrastructure |
-| Value objects / mappers | `docs/VALUE_OBJECTS_REFERENCE.md` + `docs/ENGINEERING_RULES_SHARED.md` (52 KB) |
+| Value objects / mappers | `docs/VALUE_OBJECTS_REFERENCE.md` + `docs/ENGINEERING_RULES_SHARED.md` (57 KB) |
 | CI / pipelines | `docs/CI_CD_PIPELINE.md` + `docs/GITHUB_WORKFLOWS_GUIDELINES.md` (21 KB) |
 | Deployment / infra | `docs/DEPLOYMENT_STRATEGY.md` + `docs/TECH_STACK_DECISIONS.md` (50 KB) — the decision's numbered section only: `grep -n '^## [0-9]' docs/TECH_STACK_DECISIONS.md` + `docs/ENGINEERING_RULES_INFRA.md` (34 KB) |
 | Writing Terraform / infra code | vendored HashiCorp Terraform skills (`.claude/skills/`) + `plan/M17-CLOUD-DEPLOY.md` §0–§2 (299 KB doc: those sections only) + `infra/terraform/README.md` § Layout (60 KB; a new resource: § New-resource PR-sequencing playbook; IAM: § IAM binding review discipline) + `docs/ENGINEERING_RULES_INFRA.md` (34 KB) |
