@@ -173,4 +173,29 @@ describe('RedeemPointsUseCase', () => {
     const { items } = await redemptionRepo.findByCustomer(TENANT_ID, CUSTOMER_ID, 1, 20);
     expect(items).toHaveLength(0);
   });
+
+  describe('balance row lock (docs/LOCK_CATALOG.md H7)', () => {
+    it('reads the balance with the row lock inside the transaction and never unlocked', async () => {
+      balanceRepo.requireTransaction(() => txManager.isInTransaction);
+      await balanceRepo.upsert(
+        new LoyaltyBalanceBuilder()
+          .withTenantId(TENANT_ID)
+          .withCustomerId(CUSTOMER_ID)
+          .withCurrentPoints(50)
+          .build(),
+      );
+
+      await useCase.execute({
+        tenantId: TENANT_ID,
+        customerId: CUSTOMER_ID,
+        pointsToRedeem: 20,
+        pointsPerCurrencyUnit: 0,
+        redeemedBy: STAFF_ID,
+      });
+
+      expect(balanceRepo.lockCallCount).toBe(1);
+      expect(balanceRepo.unlockedReadCount).toBe(0);
+      expect(txManager.runCallCount).toBe(1);
+    });
+  });
 });

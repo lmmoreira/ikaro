@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
+import { runWithEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { BalanceExpiryLogEntity } from '../entities/balance-expiry-log.entity';
 import { TypeOrmBalanceExpiryLogRepository } from './typeorm-balance-expiry-log.repository';
@@ -17,6 +18,7 @@ describe('TypeOrmBalanceExpiryLogRepository', () => {
           provide: getRepositoryToken(BalanceExpiryLogEntity),
           useValue: {
             count: jest.fn(),
+            find: jest.fn(),
             upsert: jest.fn(),
           },
         },
@@ -36,6 +38,38 @@ describe('TypeOrmBalanceExpiryLogRepository', () => {
     it('returns true when entry has been processed', async () => {
       ormRepo.count.mockResolvedValue(1);
       expect(await repo.hasBeenProcessed(uuidv7())).toBe(true);
+    });
+  });
+
+  describe('findProcessedEntryIds()', () => {
+    it('returns an empty set without querying when no ids are given', async () => {
+      expect(await repo.findProcessedEntryIds([])).toEqual(new Set());
+      expect(ormRepo.find).not.toHaveBeenCalled();
+    });
+
+    it('returns only the ids that have a log row', async () => {
+      const processed = uuidv7();
+      const pending = uuidv7();
+      ormRepo.find.mockResolvedValue([{ entryId: processed } as BalanceExpiryLogEntity]);
+
+      const result = await repo.findProcessedEntryIds([processed, pending]);
+
+      expect(result).toEqual(new Set([processed]));
+    });
+
+    it('reads on the ambient transaction manager, not a second pooled connection', async () => {
+      const processed = uuidv7();
+      const mockManager = {
+        find: jest.fn().mockResolvedValue([{ entryId: processed }]),
+      } as unknown as jest.Mocked<EntityManager>;
+
+      const result = await runWithEntityManager(mockManager, () =>
+        repo.findProcessedEntryIds([processed]),
+      );
+
+      expect(result).toEqual(new Set([processed]));
+      expect(mockManager.find).toHaveBeenCalledWith(BalanceExpiryLogEntity, expect.anything());
+      expect(ormRepo.find).not.toHaveBeenCalled();
     });
   });
 

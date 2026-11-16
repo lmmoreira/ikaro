@@ -753,7 +753,7 @@ flowchart TD
 - **Settlement never depends on access.** The discount is already on the booking; dropping the settlement would leave the customer with the discount and the points. A delayed delivery is real, not a race of seconds: a failed inline dispatch stays in the outbox until the relay sweep retries it.
 - **A suppressed event is still marked processed**, so a duplicate delivered after access is restored cannot earn for an event that was suppressed.
 - **`ServicePointsEarned` is emitted only when points were earned**, and its `currentBalance` is read after the same transaction's redemption, as before.
-- **Why not two consumers (earn gated, settle ungated):** the balance is saved by an unlocked read-modify-write upsert, so two consumers on one event would lose an update; it would also need a new Pub/Sub subscription and a rule for `currentBalance`.
+- **Why not two consumers (earn gated, settle ungated):** the balance is a read-modify-write of one row (locked since TD60-S00, `docs/LOCK_CATALOG.md` R6), and two consumers would each need that lock plus the inbox re-check; it would also need a new Pub/Sub subscription and a rule for `currentBalance`.
 
 ### Known limitations
 

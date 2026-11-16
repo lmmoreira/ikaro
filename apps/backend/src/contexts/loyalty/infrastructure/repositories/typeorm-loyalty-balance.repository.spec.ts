@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
+import { runWithEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import {
   LoyaltyBalanceBuilder,
   LoyaltyBalanceEntityBuilder,
@@ -56,6 +57,112 @@ describe('TypeOrmLoyaltyBalanceRepository', () => {
 
       expect(result).toBeInstanceOf(LoyaltyBalance);
       expect(result!.currentPoints).toBe(50);
+    });
+  });
+
+  describe('row-locking reads', () => {
+    const entity = () =>
+      new LoyaltyBalanceEntityBuilder()
+        .withTenantId(TENANT_ID)
+        .withCustomerId(CUSTOMER_ID)
+        .withCurrentPoints(70)
+        .build();
+
+    function managerWith(findOne: jest.Mock) {
+      const execute = jest.fn().mockResolvedValue(undefined);
+      const orIgnore = jest.fn().mockReturnValue({ execute });
+      const values = jest.fn().mockReturnValue({ orIgnore });
+      const into = jest.fn().mockReturnValue({ values });
+      const insert = jest.fn().mockReturnValue({ into });
+      const manager = {
+        findOne,
+        createQueryBuilder: jest.fn().mockReturnValue({ insert }),
+      } as unknown as jest.Mocked<EntityManager>;
+      return { manager, into, values, orIgnore, execute };
+    }
+
+    it('findByCustomerForUpdate throws outside a transaction', async () => {
+      await expect(repo.findByCustomerForUpdate(TENANT_ID, CUSTOMER_ID)).rejects.toThrow(
+        'must be called inside an active transaction',
+      );
+    });
+
+    it('findOrCreateByCustomerForUpdate throws outside a transaction', async () => {
+      await expect(repo.findOrCreateByCustomerForUpdate(TENANT_ID, CUSTOMER_ID)).rejects.toThrow(
+        'must be called inside an active transaction',
+      );
+    });
+
+    it('findByCustomerForUpdate takes a pessimistic write lock scoped to the tenant', async () => {
+      const findOne = jest.fn().mockResolvedValue(entity());
+      const { manager } = managerWith(findOne);
+
+      const result = await runWithEntityManager(manager, () =>
+        repo.findByCustomerForUpdate(TENANT_ID, CUSTOMER_ID),
+      );
+
+      expect(result!.currentPoints).toBe(70);
+      expect(findOne).toHaveBeenCalledWith(LoyaltyBalanceEntity, {
+        where: { tenantId: TENANT_ID, customerId: CUSTOMER_ID },
+        lock: { mode: 'pessimistic_write' },
+      });
+      expect(ormRepo.findOne).not.toHaveBeenCalled();
+    });
+
+    it('findByCustomerForUpdate returns null when no row exists', async () => {
+      const { manager } = managerWith(jest.fn().mockResolvedValue(null));
+
+      const result = await runWithEntityManager(manager, () =>
+        repo.findByCustomerForUpdate(TENANT_ID, CUSTOMER_ID),
+      );
+
+      expect(result).toBeNull();
+    });
+
+    it('findOrCreateByCustomerForUpdate issues one lock query when the row exists', async () => {
+      const findOne = jest.fn().mockResolvedValue(entity());
+      const { manager, execute } = managerWith(findOne);
+
+      const result = await runWithEntityManager(manager, () =>
+        repo.findOrCreateByCustomerForUpdate(TENANT_ID, CUSTOMER_ID),
+      );
+
+      expect(result.currentPoints).toBe(70);
+      expect(findOne).toHaveBeenCalledTimes(1);
+      expect(execute).not.toHaveBeenCalled();
+    });
+
+    it('findOrCreateByCustomerForUpdate inserts (ignoring a conflict) then locks on a miss', async () => {
+      const findOne = jest
+        .fn()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(
+          new LoyaltyBalanceEntityBuilder()
+            .withTenantId(TENANT_ID)
+            .withCustomerId(CUSTOMER_ID)
+            .withCurrentPoints(0)
+            .build(),
+        );
+      const { manager, into, values, orIgnore, execute } = managerWith(findOne);
+
+      const result = await runWithEntityManager(manager, () =>
+        repo.findOrCreateByCustomerForUpdate(TENANT_ID, CUSTOMER_ID),
+      );
+
+      expect(result.currentPoints).toBe(0);
+      expect(into).toHaveBeenCalledWith(LoyaltyBalanceEntity);
+      expect(values).toHaveBeenCalledWith({
+        tenantId: TENANT_ID,
+        customerId: CUSTOMER_ID,
+        currentPoints: 0,
+      });
+      expect(orIgnore).toHaveBeenCalled();
+      expect(execute).toHaveBeenCalledTimes(1);
+      expect(findOne).toHaveBeenCalledTimes(2);
+      expect(findOne).toHaveBeenLastCalledWith(
+        LoyaltyBalanceEntity,
+        expect.objectContaining({ lock: { mode: 'pessimistic_write' } }),
+      );
     });
   });
 

@@ -7,6 +7,10 @@ export class InMemoryBalanceExpiryLogRepository implements IBalanceExpiryLogRepo
     return this.processed.has(entryId);
   }
 
+  async findProcessedEntryIds(entryIds: string[]): Promise<Set<string>> {
+    return new Set(entryIds.filter((id) => this.processed.has(id)));
+  }
+
   async markProcessed(entryId: string): Promise<void> {
     this.processed.add(entryId);
   }

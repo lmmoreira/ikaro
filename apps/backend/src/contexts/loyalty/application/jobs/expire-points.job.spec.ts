@@ -261,4 +261,50 @@ describe('ExpirePointsJob', () => {
     expect(balA?.currentPoints).toBe(40);
     expect(balB?.currentPoints).toBe(40);
   });
+
+  describe('balance row lock (docs/LOCK_CATALOG.md H7)', () => {
+    async function seedDueEntry(points: number, balancePoints: number) {
+      const entry = new LoyaltyEntryBuilder()
+        .withTenantId(TENANT_ID)
+        .withCustomerId(CUSTOMER_ID)
+        .withPoints(points)
+        .withExpiresAt(PAST)
+        .build();
+      await entryRepo.save(entry);
+      await balanceRepo.upsert(
+        new LoyaltyBalanceBuilder()
+          .withTenantId(TENANT_ID)
+          .withCustomerId(CUSTOMER_ID)
+          .withCurrentPoints(balancePoints)
+          .build(),
+      );
+      return entry;
+    }
+
+    it('locks the balance row inside the per-customer transaction and never reads it unlocked', async () => {
+      balanceRepo.requireTransaction(() => txManager.isInTransaction);
+      await seedDueEntry(20, 50);
+
+      await job.run();
+
+      expect(balanceRepo.lockCallCount).toBe(1);
+      expect(balanceRepo.unlockedReadCount).toBe(0);
+    });
+
+    it('does not expire entries another run processed while this one waited for the lock', async () => {
+      const entry = await seedDueEntry(20, 50);
+      // An overlapping run expires the same entry and commits while this one waits for the lock.
+      balanceRepo.onLockAcquired(async () => {
+        await expiryLogRepo.markProcessed(entry.id);
+        const current = (await balanceRepo.findByCustomer(TENANT_ID, CUSTOMER_ID))!;
+        current.decrement(20);
+      });
+
+      const result = await job.run();
+
+      expect(result.totalPointsExpired).toBe(0);
+      const balance = await balanceRepo.findByCustomer(TENANT_ID, CUSTOMER_ID);
+      expect(balance?.currentPoints).toBe(30);
+    });
+  });
 });

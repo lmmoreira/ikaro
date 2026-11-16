@@ -55,6 +55,7 @@ describe('CompleteBookingLoyaltyEffectsUseCase', () => {
   let tenantSettingsPort: InMemoryLoyaltyPlatformPort;
   let outboxPublisher: InMemoryEventBus;
   let tenantAccess: InMemoryTenantAccessPort;
+  let txManager: InMemoryTransactionManager;
   let useCase: CompleteBookingLoyaltyEffectsUseCase;
 
   beforeEach(() => {
@@ -65,6 +66,7 @@ describe('CompleteBookingLoyaltyEffectsUseCase', () => {
     tenantSettingsPort = new InMemoryLoyaltyPlatformPort().withPointsPerCurrencyUnit(10);
     outboxPublisher = new InMemoryEventBus();
     tenantAccess = new InMemoryTenantAccessPort();
+    txManager = new InMemoryTransactionManager();
 
     useCase = new CompleteBookingLoyaltyEffectsUseCase(
       entryRepo,
@@ -73,7 +75,7 @@ describe('CompleteBookingLoyaltyEffectsUseCase', () => {
       inboxRepo,
       tenantSettingsPort,
       outboxPublisher,
-      new InMemoryTransactionManager(),
+      txManager,
       tenantAccess,
     );
   });
@@ -304,5 +306,36 @@ describe('CompleteBookingLoyaltyEffectsUseCase', () => {
     expect(tenantBBalance!.currentPoints).toBe(815); // 900 + 15 earned - 100 redeemed
     const tenantBRedemptions = await redemptionRepo.findByCustomer(TENANT_B_ID, CUSTOMER_ID, 1, 20);
     expect(tenantBRedemptions.items).toHaveLength(1);
+  });
+
+  describe('balance row lock (docs/LOCK_CATALOG.md H7)', () => {
+    it('ensures and locks the balance row inside the transaction and never reads it unlocked', async () => {
+      balanceRepo.requireTransaction(() => txManager.isInTransaction);
+
+      await useCase.execute(makeDto());
+
+      expect(balanceRepo.lockCallCount).toBe(1);
+      expect(balanceRepo.unlockedReadCount).toBe(0);
+      expect(txManager.runCallCount).toBe(1);
+    });
+
+    it('creates the first balance row for a customer who has none', async () => {
+      await useCase.execute(makeDto());
+
+      const balance = await balanceRepo.findByCustomer(TENANT_ID, CUSTOMER_ID);
+      expect(balance?.currentPoints).toBe(15);
+    });
+
+    it('writes nothing when a concurrent delivery processed the event while it waited for the lock', async () => {
+      balanceRepo.onLockAcquired(async () => {
+        await inboxRepo.markProcessed(EVENT_ID, CompleteBookingLoyaltyEffectsUseCase.CONSUMER_NAME);
+      });
+
+      const result = await useCase.execute(makeDto());
+
+      expect(result.skipped).toBe(true);
+      expect(entryRepo.entries).toHaveLength(0);
+      expect(outboxPublisher.published).toHaveLength(0);
+    });
   });
 });
