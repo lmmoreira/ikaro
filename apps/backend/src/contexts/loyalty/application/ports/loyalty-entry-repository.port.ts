@@ -14,8 +14,9 @@ export interface NextExpiry {
 
 export interface ILoyaltyEntryRepository {
   save(entry: LoyaltyEntry): Promise<void>;
-  existsById(id: string): Promise<boolean>;
-  findExpiringBefore(date: Date): Promise<LoyaltyEntry[]>;
+  // Entries due in (from, to] that the expiry sweep has not processed yet, across every tenant.
+  // `from` is null when the sweep has no watermark (its first run): no lower bound.
+  findUnprocessedDueBetween(from: Date | null, to: Date): Promise<LoyaltyEntry[]>;
   findExpiringSoon(from: Date, to: Date): Promise<LoyaltyEntry[]>;
   findByCustomerPaginated(
     tenantId: string,

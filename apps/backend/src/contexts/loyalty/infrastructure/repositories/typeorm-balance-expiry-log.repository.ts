@@ -12,11 +12,6 @@ export class TypeOrmBalanceExpiryLogRepository implements IBalanceExpiryLogRepos
     private readonly repo: Repository<BalanceExpiryLogEntity>,
   ) {}
 
-  async hasBeenProcessed(entryId: string): Promise<boolean> {
-    const count = await this.repo.count({ where: { entryId } });
-    return count > 0;
-  }
-
   // On the active transaction's connection when there is one: a caller holding a lock must not
   // take a second pooled connection while it waits (pool exhaustion under load).
   async findProcessedEntryIds(entryIds: string[]): Promise<Set<string>> {
@@ -29,15 +24,16 @@ export class TypeOrmBalanceExpiryLogRepository implements IBalanceExpiryLogRepos
     return new Set(rows.map((row) => row.entryId));
   }
 
-  async markProcessed(entryId: string): Promise<void> {
-    const manager = getActiveEntityManager();
-    const entity = new BalanceExpiryLogEntity();
-    entity.entryId = entryId;
-    const conflictPaths: (keyof BalanceExpiryLogEntity)[] = ['entryId'];
-    if (manager) {
-      await manager.upsert(BalanceExpiryLogEntity, entity, conflictPaths);
-    } else {
-      await this.repo.upsert(entity, conflictPaths);
-    }
+  // ON CONFLICT DO NOTHING: an entry another run already marked keeps its original processed_at.
+  async markProcessedMany(entryIds: string[]): Promise<void> {
+    if (entryIds.length === 0) return;
+    const executor = getActiveEntityManager() ?? this.repo.manager;
+    await executor
+      .createQueryBuilder()
+      .insert()
+      .into(BalanceExpiryLogEntity)
+      .values(entryIds.map((entryId) => ({ entryId })))
+      .orIgnore()
+      .execute();
   }
 }

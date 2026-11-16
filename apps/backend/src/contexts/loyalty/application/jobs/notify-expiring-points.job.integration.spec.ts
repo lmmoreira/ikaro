@@ -12,6 +12,7 @@ import { InMemoryLoyaltyEntryRepository } from '../../../../test/repositories/lo
 import { InMemoryLoyaltyPlatformPort } from '../../../../test/infrastructure/in-memory-loyalty-platform.port';
 import { LoyaltyEntryBuilder } from '../../../../test/builders/loyalty/index';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
+import { AppLogger } from '../../../../shared/observability/app-logger';
 import { NotifyExpiringPointsJob } from './notify-expiring-points.job';
 
 // TD24-S03: same real-outbox proof as the two booking jobs, for the loyalty cron job.
@@ -87,5 +88,52 @@ describe('NotifyExpiringPointsJob (integration, TD24-S03 cron double-send fix)',
       where: { id: rows[0].id },
     });
     expect(publishedRow!.publishedAt).not.toBeNull();
+  });
+
+  // TD60-S01: one tenant's failure no longer stops the tenants after it, and the retry the rethrow
+  // triggers adds nothing for a tenant that already published (the outbox dedup key collapses it).
+  it('a failing tenant leaves the other tenants published, and the retry publishes it without duplicating the rest', async () => {
+    jest.spyOn(AppLogger.prototype, 'error').mockImplementation();
+    const failingTenantId = uuidv7();
+    const healthyTenantId = uuidv7();
+    const entryRepo = new InMemoryLoyaltyEntryRepository();
+    for (const tenantId of [failingTenantId, healthyTenantId]) {
+      await entryRepo.save(
+        new LoyaltyEntryBuilder()
+          .withTenantId(tenantId)
+          .withCustomerId(uuidv7())
+          .withPoints(10)
+          .withExpiresAt(new Date(Date.now() + 3 * 24 * 60 * 60 * 1000))
+          .build(),
+      );
+    }
+    const settingsPort = new InMemoryLoyaltyPlatformPort().withFailureForTenant(failingTenantId);
+    const job = new NotifyExpiringPointsJob(
+      entryRepo,
+      makeRealOutboxPublisher(outboxRepo, eventBus),
+      settingsPort,
+      txManager,
+    );
+    const now = new Date();
+    const rowsOf = (tenantId: string) =>
+      ds
+        .getRepository(OutboxEventEntity)
+        .find({ where: { eventName: 'PointsExpiringSoon', tenantId } });
+
+    await expect(job.run(now)).rejects.toThrow(failingTenantId);
+
+    expect(await rowsOf(healthyTenantId)).toHaveLength(1);
+    expect(await rowsOf(failingTenantId)).toHaveLength(0);
+
+    const recovered = new NotifyExpiringPointsJob(
+      entryRepo,
+      makeRealOutboxPublisher(outboxRepo, eventBus),
+      new InMemoryLoyaltyPlatformPort(),
+      txManager,
+    );
+    await recovered.run(now);
+
+    expect(await rowsOf(healthyTenantId)).toHaveLength(1);
+    expect(await rowsOf(failingTenantId)).toHaveLength(1);
   });
 });

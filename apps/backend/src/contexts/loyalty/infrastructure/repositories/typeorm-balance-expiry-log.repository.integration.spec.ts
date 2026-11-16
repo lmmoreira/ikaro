@@ -34,23 +34,42 @@ describe('TypeOrmBalanceExpiryLogRepository (integration)', () => {
     ]);
   });
 
-  it('hasBeenProcessed returns false for unknown entryId', async () => {
-    expect(await repo.hasBeenProcessed(uuidv7())).toBe(false);
+  it('findProcessedEntryIds does not report an unknown entryId', async () => {
+    expect(await repo.findProcessedEntryIds([uuidv7()])).toEqual(new Set());
   });
 
-  it('markProcessed then hasBeenProcessed returns true', async () => {
-    const entry = new LoyaltyEntryBuilder().build();
-    await entryRepo.save(entry);
+  it('markProcessedMany marks every given entry in one call', async () => {
+    const first = new LoyaltyEntryBuilder().build();
+    const second = new LoyaltyEntryBuilder().build();
+    const untouched = new LoyaltyEntryBuilder().build();
+    for (const entry of [first, second, untouched]) await entryRepo.save(entry);
 
-    await repo.markProcessed(entry.id);
-    expect(await repo.hasBeenProcessed(entry.id)).toBe(true);
+    await repo.markProcessedMany([first.id, second.id]);
+
+    expect(await repo.findProcessedEntryIds([first.id, second.id, untouched.id])).toEqual(
+      new Set([first.id, second.id]),
+    );
   });
 
-  it('marking same entryId twice does not throw (idempotent)', async () => {
+  it('markProcessedMany with no ids writes nothing and does not throw', async () => {
+    await expect(repo.markProcessedMany([])).resolves.toBeUndefined();
+  });
+
+  it('marking the same entries twice does not throw and keeps the original processed_at', async () => {
     const entry = new LoyaltyEntryBuilder().build();
     await entryRepo.save(entry);
+    await repo.markProcessedMany([entry.id]);
+    const [{ processed_at: first }] = await dataSource.query<{ processed_at: Date }[]>(
+      `SELECT processed_at FROM "loyalty"."balance_expiry_log" WHERE entry_id = $1`,
+      [entry.id],
+    );
 
-    await repo.markProcessed(entry.id);
-    await expect(repo.markProcessed(entry.id)).resolves.not.toThrow();
+    await expect(repo.markProcessedMany([entry.id])).resolves.toBeUndefined();
+
+    const [{ processed_at: second }] = await dataSource.query<{ processed_at: Date }[]>(
+      `SELECT processed_at FROM "loyalty"."balance_expiry_log" WHERE entry_id = $1`,
+      [entry.id],
+    );
+    expect(second).toEqual(first);
   });
 });

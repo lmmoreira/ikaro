@@ -14,8 +14,14 @@ const TENANT_ID = '00000000-0000-7000-8000-000000000001';
 describe('TypeOrmLoyaltyEntryRepository', () => {
   let repo: TypeOrmLoyaltyEntryRepository;
   let ormRepo: jest.Mocked<Repository<LoyaltyEntryEntity>>;
+  let queryBuilder: Record<'where' | 'andWhere' | 'getMany', jest.Mock>;
 
   beforeEach(async () => {
+    queryBuilder = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getMany: jest.fn(),
+    };
     const moduleRef = await Test.createTestingModule({
       providers: [
         TypeOrmLoyaltyEntryRepository,
@@ -23,10 +29,10 @@ describe('TypeOrmLoyaltyEntryRepository', () => {
           provide: getRepositoryToken(LoyaltyEntryEntity),
           useValue: {
             save: jest.fn(),
-            exists: jest.fn(),
             find: jest.fn(),
             findAndCount: jest.fn(),
             query: jest.fn(),
+            createQueryBuilder: jest.fn(() => queryBuilder),
           },
         },
       ],
@@ -46,25 +52,6 @@ describe('TypeOrmLoyaltyEntryRepository', () => {
       await repo.save(entry);
 
       expect(ormRepo.save).toHaveBeenCalledWith(expect.objectContaining({ tenantId: TENANT_ID }));
-    });
-  });
-
-  describe('existsById()', () => {
-    it('returns true when the entry exists', async () => {
-      (ormRepo.exists as jest.Mock).mockResolvedValue(true);
-
-      const result = await repo.existsById('entry-id');
-
-      expect(result).toBe(true);
-      expect(ormRepo.exists).toHaveBeenCalledWith({ where: { id: 'entry-id' } });
-    });
-
-    it('returns false when the entry does not exist', async () => {
-      (ormRepo.exists as jest.Mock).mockResolvedValue(false);
-
-      const result = await repo.existsById('entry-id');
-
-      expect(result).toBe(false);
     });
   });
 
@@ -112,22 +99,34 @@ describe('TypeOrmLoyaltyEntryRepository', () => {
     });
   });
 
-  describe('findExpiringBefore()', () => {
-    it('returns empty array when no expiring entries', async () => {
-      ormRepo.find.mockResolvedValue([]);
+  describe('findUnprocessedDueBetween()', () => {
+    const TO = new Date('2026-11-16T02:00:00.000Z');
+    const FROM = new Date('2026-11-14T02:00:00.000Z');
 
-      const result = await repo.findExpiringBefore(new Date());
+    it('has no lower bound when there is no watermark', async () => {
+      queryBuilder.getMany.mockResolvedValue([]);
 
-      expect(result).toEqual([]);
+      await repo.findUnprocessedDueBetween(null, TO);
+
+      expect(queryBuilder.where).toHaveBeenCalledWith('e.expiresAt <= :to', { to: TO });
+      expect(queryBuilder.andWhere).toHaveBeenCalledTimes(1);
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(expect.stringContaining('NOT EXISTS'));
     });
 
-    it('maps expiring entries to LoyaltyEntry domain objects', async () => {
-      const pastDate = new Date(Date.now() - 1000);
-      ormRepo.find.mockResolvedValue([
-        new LoyaltyEntryEntityBuilder().withExpiresAt(pastDate).build(),
+    it('adds the lower bound when a watermark is given', async () => {
+      queryBuilder.getMany.mockResolvedValue([]);
+
+      await repo.findUnprocessedDueBetween(FROM, TO);
+
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith('e.expiresAt > :from', { from: FROM });
+    });
+
+    it('maps the rows to LoyaltyEntry domain objects', async () => {
+      queryBuilder.getMany.mockResolvedValue([
+        new LoyaltyEntryEntityBuilder().withExpiresAt(new Date(TO.getTime() - 1000)).build(),
       ]);
 
-      const result = await repo.findExpiringBefore(new Date());
+      const result = await repo.findUnprocessedDueBetween(null, TO);
 
       expect(result).toHaveLength(1);
       expect(result[0]).toBeInstanceOf(LoyaltyEntry);

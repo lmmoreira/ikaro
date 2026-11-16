@@ -10,17 +10,24 @@ import { TypeOrmBalanceExpiryLogRepository } from './typeorm-balance-expiry-log.
 describe('TypeOrmBalanceExpiryLogRepository', () => {
   let repo: TypeOrmBalanceExpiryLogRepository;
   let ormRepo: jest.Mocked<Repository<BalanceExpiryLogEntity>>;
+  let insertBuilder: Record<'insert' | 'into' | 'values' | 'orIgnore' | 'execute', jest.Mock>;
 
   beforeEach(async () => {
+    insertBuilder = {
+      insert: jest.fn().mockReturnThis(),
+      into: jest.fn().mockReturnThis(),
+      values: jest.fn().mockReturnThis(),
+      orIgnore: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue(undefined),
+    };
     const moduleRef = await Test.createTestingModule({
       providers: [
         TypeOrmBalanceExpiryLogRepository,
         {
           provide: getRepositoryToken(BalanceExpiryLogEntity),
           useValue: {
-            count: jest.fn(),
             find: jest.fn(),
-            upsert: jest.fn(),
+            manager: { createQueryBuilder: jest.fn(() => insertBuilder) },
           },
         },
       ],
@@ -28,18 +35,6 @@ describe('TypeOrmBalanceExpiryLogRepository', () => {
 
     repo = moduleRef.get(TypeOrmBalanceExpiryLogRepository);
     ormRepo = moduleRef.get(getRepositoryToken(BalanceExpiryLogEntity));
-  });
-
-  describe('hasBeenProcessed()', () => {
-    it('returns false when entry has not been processed', async () => {
-      ormRepo.count.mockResolvedValue(0);
-      expect(await repo.hasBeenProcessed(uuidv7())).toBe(false);
-    });
-
-    it('returns true when entry has been processed', async () => {
-      ormRepo.count.mockResolvedValue(1);
-      expect(await repo.hasBeenProcessed(uuidv7())).toBe(true);
-    });
   });
 
   describe('findProcessedEntryIds()', () => {
@@ -78,16 +73,34 @@ describe('TypeOrmBalanceExpiryLogRepository', () => {
     });
   });
 
-  describe('markProcessed()', () => {
-    it('upserts an expiry log entity with the given entryId', async () => {
-      ormRepo.upsert.mockResolvedValue({ raw: [], generatedMaps: [], identifiers: [] });
-      const entryId = uuidv7();
+  describe('markProcessedMany()', () => {
+    it('does nothing for an empty list', async () => {
+      await repo.markProcessedMany([]);
 
-      await repo.markProcessed(entryId);
+      expect(ormRepo.manager.createQueryBuilder).not.toHaveBeenCalled();
+    });
 
-      expect(ormRepo.upsert).toHaveBeenCalledWith(expect.objectContaining({ entryId }), [
-        'entryId',
-      ]);
+    it('writes one row per entry in a single insert that ignores conflicts', async () => {
+      const first = uuidv7();
+      const second = uuidv7();
+
+      await repo.markProcessedMany([first, second]);
+
+      expect(insertBuilder.into).toHaveBeenCalledWith(BalanceExpiryLogEntity);
+      expect(insertBuilder.values).toHaveBeenCalledWith([{ entryId: first }, { entryId: second }]);
+      expect(insertBuilder.orIgnore).toHaveBeenCalledTimes(1);
+      expect(insertBuilder.execute).toHaveBeenCalledTimes(1);
+    });
+
+    it('writes on the ambient transaction manager, not a second pooled connection', async () => {
+      const mockManager = {
+        createQueryBuilder: jest.fn(() => insertBuilder),
+      } as unknown as jest.Mocked<EntityManager>;
+
+      await runWithEntityManager(mockManager, () => repo.markProcessedMany([uuidv7()]));
+
+      expect(mockManager.createQueryBuilder).toHaveBeenCalledTimes(1);
+      expect(ormRepo.manager.createQueryBuilder).not.toHaveBeenCalled();
     });
   });
 });

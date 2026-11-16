@@ -1,5 +1,6 @@
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
+import { AppLogger } from '../../../../shared/observability/app-logger';
 import { OUTBOX_PUBLISH_CHUNK_SIZE } from '../../../../shared/utils/publish-to-outbox-in-chunks';
 import { InMemoryLoyaltyEntryRepository } from '../../../../test/repositories/loyalty/in-memory-loyalty-entry.repository';
 import { InMemoryLoyaltyPlatformPort } from '../../../../test/infrastructure/in-memory-loyalty-platform.port';
@@ -262,5 +263,56 @@ describe('NotifyExpiringPointsJob', () => {
       (e) => e.eventName === 'PointsExpiringSoon',
     ) as PointsExpiringSoon[];
     expect(events[0].data.customerId).toBe(CUSTOMER_2);
+  });
+
+  describe('failure isolation (TD60-S01)', () => {
+    let errorSpy: jest.SpyInstance;
+
+    beforeEach(async () => {
+      errorSpy = jest.spyOn(AppLogger.prototype, 'error').mockImplementation();
+      for (const tenantId of [TENANT_A, TENANT_B]) {
+        await entryRepo.save(
+          new LoyaltyEntryBuilder()
+            .withTenantId(tenantId)
+            .withCustomerId(CUSTOMER_1)
+            .withPoints(10)
+            .withExpiresAt(soon(3))
+            .build(),
+        );
+      }
+    });
+
+    afterEach(() => jest.restoreAllMocks());
+
+    it('still publishes for the other tenants when one tenant fails, then rethrows once', async () => {
+      settingsPort.withFailureForTenant(TENANT_A);
+
+      await expect(job.run()).rejects.toThrow(
+        `NotifyExpiringPointsJob failed for tenant(s): ${TENANT_A}`,
+      );
+
+      const events = outboxPublisher.published.filter(
+        (e) => e.eventName === 'PointsExpiringSoon',
+      ) as PointsExpiringSoon[];
+      expect(events.map((e) => e.tenantId)).toEqual([TENANT_B]);
+    });
+
+    it('logs the failed tenant with its id', async () => {
+      settingsPort.withFailureForTenant(TENANT_B);
+
+      await expect(job.run()).rejects.toThrow();
+
+      expect(errorSpy).toHaveBeenCalledWith(
+        'NotifyExpiringPointsJob failed for a tenant — the run will be retried',
+        expect.any(String),
+        { tenantId: TENANT_B },
+      );
+    });
+
+    it('reads the warning window with the between-dates read, not the sweep read', async () => {
+      await job.run();
+
+      expect(entryRepo.dueBetweenCalls).toHaveLength(0);
+    });
   });
 });
