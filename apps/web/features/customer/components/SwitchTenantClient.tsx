@@ -16,6 +16,11 @@ interface SwitchTenantClientProps {
 
 type FetchState = 'loading' | 'loaded' | 'error';
 
+// Same format the backend `Slug` VO enforces. The slug comes from the signed JWT, but it is
+// interpolated into a hard-navigation URL below, so assert its shape (a "//host" or "\\host"
+// value would turn the relative path into a cross-origin redirect) instead of trusting the source.
+const TENANT_SLUG_PATTERN = /^[a-z0-9-]+$/;
+
 export function SwitchTenantClient({
   currentTenantSlug,
   branding,
@@ -153,7 +158,7 @@ export function SwitchTenantClient({
               // name missing even though they're still logged in. We already know exactly where
               // to land (the tenant they're already authenticated against), so go there directly
               // instead of relying on history.
-              if (currentTenantSlug) {
+              if (currentTenantSlug && TENANT_SLUG_PATTERN.test(currentTenantSlug)) {
                 // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- hard reload avoids stale authenticated hotsite back-forward cache
                 globalThis.location.href = `/${currentTenantSlug}`;
               } else {

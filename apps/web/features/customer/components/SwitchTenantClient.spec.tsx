@@ -136,6 +136,28 @@ describe('SwitchTenantClient', () => {
     Object.defineProperty(window, 'location', { value: originalLocation, writable: true });
   });
 
+  it.each(['//evil.com', '\\evil.com', 'Lavacar BH', '../admin'])(
+    'falls back to router.back() instead of hard-navigating when the slug %s is malformed',
+    async (slug) => {
+      vi.mocked(fetchCustomerTenants).mockResolvedValue([CURRENT, OTHER]);
+      const originalLocation = window.location;
+      Object.defineProperty(window, 'location', {
+        value: { ...originalLocation, href: '' },
+        writable: true,
+      });
+
+      renderWithIntl(<SwitchTenantClient currentTenantSlug={slug} />);
+      await screen.findByTestId('switch-tenant-list');
+
+      await userEvent.click(screen.getByTestId('switch-tenant-cancel'));
+
+      expect(window.location.href).toBe('');
+      expect(back).toHaveBeenCalled();
+
+      Object.defineProperty(window, 'location', { value: originalLocation, writable: true });
+    },
+  );
+
   it('falls back to router.back() when there is no current tenant slug', async () => {
     vi.mocked(fetchCustomerTenants).mockResolvedValue([CURRENT, OTHER]);
 
