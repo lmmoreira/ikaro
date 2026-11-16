@@ -49,11 +49,14 @@ export function SwitchTenantClient({
     };
   }, []);
 
+  const navigableTenantSlug =
+    currentTenantSlug && TENANT_SLUG_PATTERN.test(currentTenantSlug) ? currentTenantSlug : null;
+
   useEffect(() => {
-    if (fetchState === 'loaded' && tenants.length <= 1 && currentTenantSlug) {
-      router.replace(`/${currentTenantSlug}`);
+    if (fetchState === 'loaded' && tenants.length <= 1 && navigableTenantSlug) {
+      router.replace(`/${navigableTenantSlug}`);
     }
-  }, [fetchState, tenants, currentTenantSlug, router]);
+  }, [fetchState, tenants, navigableTenantSlug, router]);
 
   async function handleSelect(targetTenantId: string): Promise<void> {
     setSwitchingId(targetTenantId);
@@ -158,9 +161,9 @@ export function SwitchTenantClient({
               // name missing even though they're still logged in. We already know exactly where
               // to land (the tenant they're already authenticated against), so go there directly
               // instead of relying on history.
-              if (currentTenantSlug && TENANT_SLUG_PATTERN.test(currentTenantSlug)) {
+              if (navigableTenantSlug) {
                 // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- hard reload avoids stale authenticated hotsite back-forward cache
-                globalThis.location.href = `/${currentTenantSlug}`;
+                globalThis.location.href = `/${navigableTenantSlug}`;
               } else {
                 router.back();
               }

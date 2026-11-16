@@ -88,6 +88,15 @@ describe('SwitchTenantClient', () => {
     await waitFor(() => expect(replace).toHaveBeenCalledWith('/lavacar-bh'));
   });
 
+  it('does not auto-redirect when the only tenant is reached with a malformed slug', async () => {
+    vi.mocked(fetchCustomerTenants).mockResolvedValue([CURRENT]);
+
+    renderWithIntl(<SwitchTenantClient currentTenantSlug="//evil.com" />);
+
+    await screen.findByTestId('switch-tenant-list');
+    expect(replace).not.toHaveBeenCalled();
+  });
+
   it('switches tenant on click and redirects to the new tenant slug', async () => {
     vi.mocked(fetchCustomerTenants).mockResolvedValue([CURRENT, OTHER]);
     vi.mocked(switchTenant).mockResolvedValue({ tenantSlug: 'superclean', expiresIn: '7d' });
