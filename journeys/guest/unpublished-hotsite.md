@@ -36,10 +36,10 @@ flowchart TD
 
 ## Open questions / gaps
 
-- [ ] **Top-bar label:** the real `HotsiteAuthBar` says "Área da Equipe"; the prototype keeps the real label (the discovery spec called it "Login da equipe"). Verify the bar renders in the story.
+- [x] **Top-bar label:** the real `HotsiteAuthBar` says "Área da Equipe"; the prototype keeps the real label (the discovery spec called it "Login da equipe"). Verified: `UnavailablePage` renders the real bar (M25-S30).
 - [ ] **Customer sign-in on an unpublished hotsite:** `[slug]/login` and `[slug]/my-account` never check `isPublished`, so customers and the team keep a working sign-in path — intentional, it is what makes the customer "Empresa inativa" badge (`customer/minha-conta.md`) and the staff notice (`staff/login.md`) reachable.
 - [x] **Copy scope (decided at M25-S30 discovery):** one neutral page and copy for every case, including a published hotsite whose lead-form module is disabled (UC-039 A6) and the stale cached page (the widget keeps the message-only `Unavailable` under the bar the page already draws). "Em breve" is removed; nothing links to a disabled lead-form, so that page is reached by URL, a cached page up to 5 minutes old, or the widget's live check.
-- [ ] **Copy:** "Página indisponível" and "Esta página não está disponível no momento. Volte em breve." are new (en: "Page unavailable" / "This page isn't available right now. Please check back soon."); today's placeholder says "Em breve" / "Estamos preparando algo especial". The browser tab reads "Página indisponível — Ikaro". Both need pt-BR and en entries.
+- [x] **Copy:** "Página indisponível" and "Esta página não está disponível no momento. Volte em breve." are new (en: "Page unavailable" / "This page isn't available right now. Please check back soon."); today's placeholder says "Em breve" / "Estamos preparando algo especial". The browser tab reads "Página indisponível — Ikaro". Both need pt-BR and en entries.
 - [ ] **Existing journey lines:** `guest/submit-lead-form.md` and `guest/service-detail.md` already point at the generic `Unavailable` for a hotsite that is not published; they now also point here.
 
 ## Prototype
