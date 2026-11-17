@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CustomerBookingDetailResponse } from '@ikaro/types';
 import { resolveBookingDetailActions } from './booking-detail-actions';
+import { resolveCustomerCapabilities } from './customer-capabilities';
 
 const FUTURE = new Date(Date.now() + 24 * 3_600_000).toISOString();
 
@@ -23,6 +24,12 @@ function resolve(
   > = {},
   options: { tenantOperational?: boolean; infoJustSubmitted?: boolean } = {},
 ) {
+  // The actions follow the tenant's capabilities (a suspended tenant offers neither), resolved here
+  // the way the page does.
+  const { canReschedule, canRespondToInfoRequest } = resolveCustomerCapabilities({
+    operational: options.tenantOperational ?? true,
+    entitledFeatures: null,
+  });
   return resolveBookingDetailActions({
     status,
     booking: {
@@ -32,7 +39,8 @@ function resolve(
       infoResponseMessage: null,
       ...overrides,
     },
-    tenantOperational: options.tenantOperational ?? true,
+    canReschedule,
+    canRespondToInfoRequest,
     infoJustSubmitted: options.infoJustSubmitted ?? false,
   });
 }

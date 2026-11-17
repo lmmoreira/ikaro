@@ -11,6 +11,7 @@ import type {
 } from '@ikaro/types';
 import { Tabs, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
+import { useCustomerCapabilities } from '../customer-tenant-access-context';
 import { LoyaltyEntriesPanel } from './LoyaltyEntriesPanel';
 import { LoyaltyRedemptionsPanel } from './LoyaltyRedemptionsPanel';
 import { Button } from '@/shared/components/ui/button';
@@ -21,21 +22,22 @@ interface LoyaltyPageProps {
   readonly entries: CustomerLoyaltyEntriesResponse;
   readonly redemptions: CustomerLoyaltyRedemptionsResponse;
   readonly tenantSlug: string;
-  /** `false` while the tenant is suspended (UC-121): the page stays readable under a neutral notice. */
-  readonly tenantOperational?: boolean;
 }
 
 type LoyaltyTab = 'entries' | 'redemptions';
 
+// While the tenant is suspended (UC-121) the page stays readable under a neutral notice and offers no
+// booking link: what it offers is the tenant's capabilities. A booking link is safe here for a tenant
+// that holds LOYALTY, because LOYALTY requires BOOKING.
 export function LoyaltyPage({
   balance,
   entries,
   redemptions,
   tenantSlug,
-  tenantOperational = true,
 }: LoyaltyPageProps): React.JSX.Element {
   const t = useTranslations('customer.loyalty');
   const tInactive = useTranslations('customer.inactiveTenant');
+  const { showInactiveNotice, canStartBooking } = useCustomerCapabilities();
   const { formatDate, formatMoney } = useFormatting();
   const [activeTab, setActiveTab] = useState<LoyaltyTab>('entries');
 
@@ -47,7 +49,7 @@ export function LoyaltyPage({
     <div className="w-full">
       <PageHeader title={t('title')} />
 
-      {!tenantOperational && (
+      {showInactiveNotice && (
         <Card
           data-testid="loyalty-inactive-notice"
           className="mt-4 flex flex-col gap-1 rounded-xl border-gray-200 bg-gray-50 p-4 shadow-none"
@@ -97,7 +99,7 @@ export function LoyaltyPage({
         >
           <p className="text-base font-semibold text-gray-900">{t('emptyTitle')}</p>
           <p className="mt-1 max-w-sm text-sm text-gray-500">{t('emptyBody')}</p>
-          {tenantOperational && (
+          {canStartBooking && (
             <Button asChild className="mt-5">
               <Link href={`/${tenantSlug}/booking`}>{t('emptyCta')}</Link>
             </Button>

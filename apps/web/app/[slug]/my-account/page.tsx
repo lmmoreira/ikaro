@@ -6,10 +6,7 @@ import { fetchCustomerBookings } from '@/features/booking/api/customer.server';
 import { fetchActiveRecurringSchedules } from '@/features/booking/api/recurring-booking-schedules.server';
 import { fetchLoyaltyBalance } from '@/features/loyalty/api.server';
 import { HomeDashboard } from '@/features/customer/components/my-account/HomeDashboard';
-import {
-  fetchCustomerTenantOperational,
-  readWhenCustomerFeatureHeld,
-} from '@/shared/lib/billing/access.server';
+import { readWhenCustomerFeatureHeld } from '@/shared/lib/billing/access.server';
 import { nullWhenNotEntitled } from '@/shared/lib/api/errors';
 
 interface MyAccountHomePageProps {
@@ -28,20 +25,18 @@ export default async function MyAccountHomePage({
   // schedules and alerts belong to `BOOKING`, the points to `LOYALTY`, and a tenant without one has
   // no such tile. `nullWhenNotEntitled` stays as the backstop for a stale answer. The two summaries
   // also resolve to `null` on any failure, so a broken read hides its own tile and never blocks the
-  // rest of Início, and the tenant's `operational` flag is a fail-open read (no answer shows no
-  // "Empresa inativa" badge).
-  const [bookings, loyaltyBalance, recurringSchedules, alertsSummary, operational] =
-    await Promise.all([
-      readWhenCustomerFeatureHeld(token, 'BOOKING', () =>
-        withAuthRedirect(nullWhenNotEntitled(fetchCustomerBookings(token)), slug),
-      ),
-      readWhenCustomerFeatureHeld(token, 'LOYALTY', () =>
-        withAuthRedirect(nullWhenNotEntitled(fetchLoyaltyBalance(token)), slug),
-      ),
-      readWhenCustomerFeatureHeld(token, 'BOOKING', () => fetchActiveRecurringSchedules(token)),
-      readWhenCustomerFeatureHeld(token, 'BOOKING', () => fetchAlertsSummary(token)),
-      fetchCustomerTenantOperational(token),
-    ]);
+  // rest of Início. What a suspended tenant changes (the "Empresa inativa" badge, the disabled
+  // "+ Novo") comes from the capabilities the account shell provides.
+  const [bookings, loyaltyBalance, recurringSchedules, alertsSummary] = await Promise.all([
+    readWhenCustomerFeatureHeld(token, 'BOOKING', () =>
+      withAuthRedirect(nullWhenNotEntitled(fetchCustomerBookings(token)), slug),
+    ),
+    readWhenCustomerFeatureHeld(token, 'LOYALTY', () =>
+      withAuthRedirect(nullWhenNotEntitled(fetchLoyaltyBalance(token)), slug),
+    ),
+    readWhenCustomerFeatureHeld(token, 'BOOKING', () => fetchActiveRecurringSchedules(token)),
+    readWhenCustomerFeatureHeld(token, 'BOOKING', () => fetchAlertsSummary(token)),
+  ]);
 
   return (
     <HomeDashboard
@@ -51,7 +46,6 @@ export default async function MyAccountHomePage({
       tenantSlug={slug}
       recurringSchedules={recurringSchedules}
       activeAlertCount={alertsSummary?.activeCount ?? null}
-      tenantOperational={operational !== false}
     />
   );
 }

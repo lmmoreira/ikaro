@@ -12,6 +12,7 @@ import { FeedbackMessage, type FeedbackModel } from '@/shared/components/ui/feed
 import { returnBackLabelKey } from '../../booking-navigation';
 import { resolveBookingDetailActions } from '../../booking-detail-actions';
 import { useCustomerTopbarStatus } from '../customer-topbar-status-context';
+import { useCustomerCapabilities } from '../customer-tenant-access-context';
 import { BookingDetailMain } from './BookingDetailMain';
 import { CancelAction } from './CancelAction';
 import { InfoSubmitButton, InfoSubmitForm, useInfoSubmit } from './InfoSubmitForm';
@@ -21,22 +22,20 @@ interface BookingDetailPageProps {
   readonly booking: CustomerBookingDetailResponse;
   readonly tenantSlug: string;
   readonly returnTo?: string | null;
-  /**
-   * `false` while the tenant is suspended (UC-121): the detail stays readable and a future
-   * booking can still be cancelled, but the page offers no reschedule, no info response and no
-   * new booking, and shows the neutral "Empresa inativa" notice. `true` (the default) is today's page.
-   */
-  readonly tenantOperational?: boolean;
 }
 
+// While the tenant is suspended (UC-121) the detail stays readable and a future booking can still be
+// cancelled, but the page offers no reschedule, no info response and no new booking, and shows the
+// neutral "Empresa inativa" notice: what it offers is the tenant's capabilities.
 export function BookingDetailPage({
   booking,
   tenantSlug,
   returnTo = null,
-  tenantOperational = true,
 }: BookingDetailPageProps): React.JSX.Element {
   const t = useTranslations('customer.bookingDetail');
   const tInactive = useTranslations('customer.inactiveTenant');
+  const { showInactiveNotice, canStartBooking, canReschedule, canRespondToInfoRequest } =
+    useCustomerCapabilities();
   const [status, setStatus] = useState(booking.status);
   const [infoJustSubmitted, setInfoJustSubmitted] = useState(false);
   const info = useInfoSubmit({
@@ -58,7 +57,13 @@ export function BookingDetailPage({
     closedNote,
     hasSidebarAction,
     hasMobileNotes,
-  } = resolveBookingDetailActions({ status, booking, tenantOperational, infoJustSubmitted });
+  } = resolveBookingDetailActions({
+    status,
+    booking,
+    canReschedule,
+    canRespondToInfoRequest,
+    infoJustSubmitted,
+  });
   const sentFeedback: FeedbackModel | null = infoJustSubmitted
     ? {
         variant: 'success',
@@ -127,7 +132,7 @@ export function BookingDetailPage({
     ) : (
       <>
         <p className="text-sm leading-relaxed text-gray-500">{t(closedNote)}</p>
-        {tenantOperational && newBookingLink}
+        {canStartBooking && newBookingLink}
         {pointsLink}
       </>
     );
@@ -139,9 +144,9 @@ export function BookingDetailPage({
         {cancelAction('button')}
       </div>
     ) : (
-      <div className={tenantOperational ? 'grid grid-cols-2 gap-3' : 'grid grid-cols-1 gap-3'}>
+      <div className={canStartBooking ? 'grid grid-cols-2 gap-3' : 'grid grid-cols-1 gap-3'}>
         {pointsLink}
-        {tenantOperational && newBookingLink}
+        {canStartBooking && newBookingLink}
       </div>
     );
 
@@ -155,7 +160,7 @@ export function BookingDetailPage({
         }
       >
         <div className="flex flex-col gap-4">
-          {!tenantOperational && (
+          {showInactiveNotice && (
             <Card
               data-testid="booking-inactive-notice"
               className="flex flex-col gap-1 rounded-xl border-gray-200 bg-gray-50 p-4 shadow-none"
@@ -190,11 +195,7 @@ export function BookingDetailPage({
               </p>
             </div>
           )}
-          <BookingDetailMain
-            booking={{ ...booking, status }}
-            tenantSlug={tenantSlug}
-            tenantOperational={tenantOperational}
-          />
+          <BookingDetailMain booking={{ ...booking, status }} tenantSlug={tenantSlug} />
 
           {sentFeedback !== null && !hasSidebarAction && (
             <FeedbackMessage

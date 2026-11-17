@@ -35,8 +35,6 @@ interface HomeDashboardProps {
   readonly recurringSchedules: readonly RecurringBookingScheduleListItem[] | null;
   /** How many availability alerts are active; `null` when that optional read failed (no tile). */
   readonly activeAlertCount: number | null;
-  /** `false` while the tenant is suspended (UC-121): the preview rows carry the notice badge. */
-  readonly tenantOperational?: boolean;
 }
 
 export function HomeDashboard({
@@ -46,7 +44,6 @@ export function HomeDashboard({
   tenantSlug,
   recurringSchedules,
   activeAlertCount,
-  tenantOperational = true,
 }: HomeDashboardProps): React.JSX.Element {
   const t = useTranslations('customer.home');
   const { formatDate, timezone } = useFormatting();
@@ -131,18 +128,13 @@ export function HomeDashboard({
           <h2 className="text-sm font-semibold text-gray-500">{t('upcomingTitle')}</h2>
           {preview.length === 0 ? (
             <div className="mt-2">
-              <BookingEmptyState tenantSlug={tenantSlug} tenantOperational={tenantOperational} />
+              <BookingEmptyState tenantSlug={tenantSlug} />
             </div>
           ) : (
             <>
               <ul className="mt-2 flex flex-col gap-2">
                 {preview.map((item) => (
-                  <BookingListItem
-                    key={item.bookingId}
-                    item={item}
-                    tenantSlug={tenantSlug}
-                    tenantOperational={tenantOperational}
-                  />
+                  <BookingListItem key={item.bookingId} item={item} tenantSlug={tenantSlug} />
                 ))}
               </ul>
               <Link
@@ -158,11 +150,7 @@ export function HomeDashboard({
 
       {bookings !== null && (
         <div className="mt-6 lg:hidden" data-testid="mobile-new-menu">
-          <NewReservationMenu
-            tenantSlug={tenantSlug}
-            fullWidth
-            tenantOperational={tenantOperational}
-          />
+          <NewReservationMenu tenantSlug={tenantSlug} fullWidth />
         </div>
       )}
     </div>

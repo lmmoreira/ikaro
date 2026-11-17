@@ -8,10 +8,7 @@ import {
 } from '@/features/loyalty/api.server';
 import { LoyaltyPage } from '@/features/customer/components/my-account/LoyaltyPage';
 import { nullWhenNotEntitled } from '@/shared/lib/api/errors';
-import {
-  fetchCustomerTenantOperational,
-  redirectCustomerWithoutFeature,
-} from '@/shared/lib/billing/access.server';
+import { redirectCustomerWithoutFeature } from '@/shared/lib/billing/access.server';
 
 interface MyAccountLoyaltyPageProps {
   readonly params: Promise<{ readonly slug: string }>;
@@ -24,11 +21,10 @@ export default async function MyAccountLoyaltyPage({
   const token = await getAccessToken();
   await redirectCustomerWithoutFeature(token, slug, 'LOYALTY');
 
-  const [balance, entries, redemptions, operational] = await Promise.all([
+  const [balance, entries, redemptions] = await Promise.all([
     withAuthRedirect(nullWhenNotEntitled(fetchLoyaltyBalance(token)), slug),
     withAuthRedirect(nullWhenNotEntitled(fetchLoyaltyEntries(token)), slug),
     withAuthRedirect(nullWhenNotEntitled(fetchLoyaltyRedemptions(token)), slug),
-    fetchCustomerTenantOperational(token),
   ]);
 
   // A tenant without the `LOYALTY` feature has no points program: its customers land back on
@@ -38,12 +34,6 @@ export default async function MyAccountLoyaltyPage({
   }
 
   return (
-    <LoyaltyPage
-      balance={balance}
-      entries={entries}
-      redemptions={redemptions}
-      tenantSlug={slug}
-      tenantOperational={operational !== false}
-    />
+    <LoyaltyPage balance={balance} entries={entries} redemptions={redemptions} tenantSlug={slug} />
   );
 }

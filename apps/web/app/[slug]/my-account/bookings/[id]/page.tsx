@@ -2,10 +2,7 @@ import { getAccessToken } from '@/features/auth/get-access-token';
 import { fetchCustomerBookingDetailOrRedirect } from '@/features/booking/api/customer.server';
 import { resolveReturnTo } from '@/features/customer/booking-navigation';
 import { BookingDetailPage } from '@/features/customer/components/my-account/BookingDetailPage';
-import {
-  fetchCustomerTenantOperational,
-  redirectCustomerWithoutFeature,
-} from '@/shared/lib/billing/access.server';
+import { redirectCustomerWithoutFeature } from '@/shared/lib/billing/access.server';
 
 interface BookingDetailRouteProps {
   readonly params: Promise<{ readonly slug: string; readonly id: string }>;
@@ -23,17 +20,13 @@ export default async function BookingDetailRoute({
   // backend would refuse. A suspended tenant keeps this page readable (UC-121): the helper reads
   // the feature list as unknown while the tenant is not operational.
   await redirectCustomerWithoutFeature(token, slug, 'BOOKING');
-  const [booking, operational] = await Promise.all([
-    fetchCustomerBookingDetailOrRedirect(token, id, slug),
-    fetchCustomerTenantOperational(token),
-  ]);
+  const booking = await fetchCustomerBookingDetailOrRedirect(token, id, slug);
 
   return (
     <BookingDetailPage
       booking={booking}
       tenantSlug={slug}
       returnTo={resolveReturnTo(returnTo, slug)}
-      tenantOperational={operational !== false}
     />
   );
 }

@@ -7,6 +7,7 @@ import type {
   CustomerLoyaltyEntriesResponse,
   CustomerLoyaltyRedemptionsResponse,
 } from '@ikaro/types';
+import { CustomerTenantAccessProvider } from '../customer-tenant-access-context';
 import { LoyaltyPage } from './LoyaltyPage';
 
 vi.mock('next-intl', () => ({
@@ -408,13 +409,14 @@ describe('LoyaltyPage', () => {
 describe('LoyaltyPage while the tenant is suspended (UC-121)', () => {
   it('keeps the balance and history readable under a neutral notice', () => {
     render(
-      <LoyaltyPage
-        balance={makeBalance()}
-        entries={makeEntries()}
-        redemptions={makeRedemptions()}
-        tenantSlug="lavacar-bh"
-        tenantOperational={false}
-      />,
+      <CustomerTenantAccessProvider operational={false} entitledFeatures={null}>
+        <LoyaltyPage
+          balance={makeBalance()}
+          entries={makeEntries()}
+          redemptions={makeRedemptions()}
+          tenantSlug="lavacar-bh"
+        />
+      </CustomerTenantAccessProvider>,
     );
 
     expect(screen.getByTestId('loyalty-inactive-notice')).toBeInTheDocument();
@@ -444,7 +446,11 @@ describe('LoyaltyPage empty state while the tenant is suspended (UC-121)', () =>
   };
 
   it('keeps the empty text but offers no booking action', () => {
-    render(<LoyaltyPage {...empty} tenantSlug="lavacar-bh" tenantOperational={false} />);
+    render(
+      <CustomerTenantAccessProvider operational={false} entitledFeatures={null}>
+        <LoyaltyPage {...empty} tenantSlug="lavacar-bh" />
+      </CustomerTenantAccessProvider>,
+    );
 
     expect(screen.getByTestId('loyalty-empty-state')).toBeInTheDocument();
     expect(screen.getByText('Nenhum ponto acumulado ainda')).toBeInTheDocument();

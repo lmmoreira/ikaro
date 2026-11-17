@@ -19,8 +19,9 @@ interface BookingDetailActionsInput {
     CustomerBookingDetailResponse,
     'cancellableUntil' | 'reschedule' | 'infoRequestMessage' | 'infoResponseMessage'
   >;
-  /** `false` while the tenant is suspended (UC-121): no reschedule and no information response. */
-  readonly tenantOperational: boolean;
+  /** The tenant's capabilities (UC-121): a suspended tenant offers no reschedule and no info response. */
+  readonly canReschedule: boolean;
+  readonly canRespondToInfoRequest: boolean;
   readonly infoJustSubmitted: boolean;
 }
 
@@ -40,14 +41,15 @@ export interface BookingDetailActions {
 export function resolveBookingDetailActions({
   status,
   booking,
-  tenantOperational,
+  canReschedule,
+  canRespondToInfoRequest,
   infoJustSubmitted,
 }: BookingDetailActionsInput): BookingDetailActions {
   const showCancel = canCancelBooking({ status, cancellableUntil: booking.cancellableUntil });
   const showReschedule =
-    tenantOperational && canRescheduleBooking({ status, reschedule: booking.reschedule });
+    canReschedule && canRescheduleBooking({ status, reschedule: booking.reschedule });
   const showInfoForm =
-    tenantOperational &&
+    canRespondToInfoRequest &&
     status === BOOKING_STATUS.INFO_REQUESTED &&
     booking.infoResponseMessage === null &&
     !infoJustSubmitted;
