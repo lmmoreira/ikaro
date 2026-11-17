@@ -10,7 +10,7 @@ import {
 // `HOTSITE_MODULE_FEATURE` then says which feature that section needs, so a button is dropped when
 // its section's feature is unavailable. A new gated section is one entry in each map: nothing below
 // names a feature.
-const CTA_TARGET_MODULE: Readonly<Record<string, HotsiteModuleType>> = {
+export const CTA_TARGET_MODULE: Readonly<Record<string, HotsiteModuleType>> = {
   'booking-form': 'BOOKING_CTA',
   'lead-form': 'LEAD_FORM',
   'service-list': 'SERVICE_LIST',
