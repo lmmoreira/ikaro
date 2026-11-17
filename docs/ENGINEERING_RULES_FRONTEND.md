@@ -335,3 +335,23 @@ A tenant that lacks a feature sees its nav item padlocked (the real `href` kept)
 - A failed access read fails open: `lockedFeatures` is empty and the dashboard renders as before billing.
 
 Real incident: M25-S29, 2026-11-16 (the bookings and services layouts read a record before the gate; found in review).
+
+## A surface of a missing feature or a suspended tenant: absent, locked or disabled, by who sees it
+
+A tenant's plan decides which surfaces exist, and no actor ever meets a dead link or an error page for one that does not (UC-121, UC-122, UC-125). The same two situations look different to each actor, on purpose:
+
+| Actor | The tenant lacks a feature | The tenant is `SUSPENDED` |
+|---|---|---|
+| Hotsite visitor | The feature's sections are omitted from the manifest, no button or navigation link leads to them, and its pages (`/booking`, `/booking/availability-alert`, a service page) render the neutral "Página indisponível" | The whole hotsite is unpublished and renders the same neutral page, with the login links |
+| Customer account | The feature's tab, menu entry and tiles are **absent**, and each page the feature owns returns to Início (`redirectCustomerWithoutFeature`) | Every tab stays, open bookings carry the "Empresa inativa" badge, history stays readable, creating actions are **disabled** |
+| Manager and staff | A **locked** card or padlock in place of the item, page or settings section (`FeatureGate`, `LockedFeatureCard`, `SETTINGS_SECTION_FEATURE`), never a 404 or an error | The suspended notice page (a manager is sent to the billing page once M26 builds it) |
+
+Absent is for people who cannot buy the feature (a visitor, a customer); locked is for the people who can (staff and the manager); disabled is for a state that will end. Do not mix them. The traps:
+
+- **A suspended tenant's access answer carries `features: []`**, because a suspended subscription entitles nothing. Read as "the tenant lacks every feature" it hides every tab and sends the customer to Início, away from the history UC-121 keeps readable. A feature list means something only when the same answer says `operational === true` explicitly; for a suspended tenant, an absent or malformed `operational`, or a list that is not plain keys, it is unknown and fails open, so every surface stays (`fetchCustomerFeatures`). `operational` alone decides what a suspended tenant's customer sees.
+- **Never learn whether a tenant holds a feature by calling the feature's own read and catching its denial in each page.** Every new feature would need its own probe, its own fail-open rule and its own tests. Read the one access answer (`GET /v1/billing/access`, request-cached in `access.server.ts`, shared by the layout and the page). The typed `BILLING_FEATURE_NOT_ENTITLED` denial stays as a backstop for a direct URL and a stale cache, where it means "nothing to show" (an empty catalog, no points), never an error.
+- **The web reads the backend's flag; it never decides entitlement.** The backend owns the decision (`unavailableFeatures` in the manifest, `features` in the customer answer), and a failed read fails open.
+- **Hiding a section means hiding every link to it.** The manifest omits the module; the generic rule in `fetchManifest` drops the buttons that lead to it (the hero draws no button without a label), and navigation links already follow the rendered sections.
+- **The surfaces are registries, not conditions.** A new gated surface is an entry (`HOTSITE_MODULE_FEATURE`, `CUSTOMER_FEATURE_KEYS`, `SETTINGS_SECTION_FEATURE`, `ROUTE_FEATURES`), and the full checklist is in `docs/ENGINEERING_RULES_SHARED.md` § Tenant access enforcement.
+
+Real incident: M25-S31a, 2026-11-17 (the first customer reduction hid both tabs of a suspended tenant; found while testing, after ten review rounds).
