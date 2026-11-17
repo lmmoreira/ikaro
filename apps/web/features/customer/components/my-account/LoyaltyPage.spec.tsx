@@ -435,3 +435,28 @@ describe('LoyaltyPage while the tenant is suspended (UC-121)', () => {
     expect(screen.queryByTestId('loyalty-inactive-notice')).not.toBeInTheDocument();
   });
 });
+
+describe('LoyaltyPage empty state while the tenant is suspended (UC-121)', () => {
+  const empty = {
+    balance: makeBalance({ currentPoints: 0, nextExpiryDate: null, nextExpiryPoints: null }),
+    entries: makeEntries({ items: [], total: 0 }),
+    redemptions: makeRedemptions({ items: [], total: 0 }),
+  };
+
+  it('keeps the empty text but offers no booking action', () => {
+    render(<LoyaltyPage {...empty} tenantSlug="lavacar-bh" tenantOperational={false} />);
+
+    expect(screen.getByTestId('loyalty-empty-state')).toBeInTheDocument();
+    expect(screen.getByText('Nenhum ponto acumulado ainda')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Agendar agora' })).not.toBeInTheDocument();
+  });
+
+  it('still offers the booking action to an operational tenant', () => {
+    render(<LoyaltyPage {...empty} tenantSlug="lavacar-bh" />);
+
+    expect(screen.getByRole('link', { name: 'Agendar agora' })).toHaveAttribute(
+      'href',
+      '/lavacar-bh/booking',
+    );
+  });
+});

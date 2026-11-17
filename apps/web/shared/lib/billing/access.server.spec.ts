@@ -49,6 +49,15 @@ describe('fetchTenantAccess', () => {
 
     await expect(fetchTenantAccess('token')).resolves.toEqual({ ok: false });
   });
+
+  it.each([42, 'oops', { operational: true, features: [null] }])(
+    'fails open, never throws, on a body of the wrong shape %j',
+    async (body) => {
+      bffServerFetch.mockResolvedValue(jsonResponse(body));
+
+      await expect(fetchTenantAccess('token')).resolves.toEqual({ ok: false });
+    },
+  );
 });
 
 describe('fetchCustomerTenantOperational', () => {

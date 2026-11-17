@@ -109,6 +109,6 @@ flowchart TD
 
 | File | Screen | UC | Story | Status |
 |---|---|---|---|---|
-| `02-suspended-notice.html` | Suspended-account notice for a staff member | UC-121 | planned Billing milestone | ❓ Draft |
-| `03-select-tenant-suspended.html` | Tenant selection with a suspended tenant marked "Suspensa" | UC-121 A4 | planned Billing milestone | ❓ Draft |
+| `02-suspended-notice.html` | Suspended-account notice for a staff member | UC-121 | M25-S31a | ✅ Criado (M25-S31a) |
+| `03-select-tenant-suspended.html` | Tenant selection with a suspended tenant marked "Suspensa" | UC-121 A4 | M25-S31a | ✅ Criado (M25-S31a) |
 

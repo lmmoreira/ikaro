@@ -201,7 +201,7 @@ flowchart TD
 
 ## Billing — tenant suspended (UC-121, built in M25-S31a)
 
-> Added for the planned Billing milestone (`docs/USE_CASES.md` UC-121). The shipped flows above are unchanged; this describes how the same account pages behave while the tenant is `SUSPENDED`. **Status: Draft — not yet built.** The screens were drawn during the tenant-billing discovery and moved here as `16`, `16b` and `16c` (`14` and `15` were taken by the recurring-reservation and reschedule screens).
+> Added for the planned Billing milestone (`docs/USE_CASES.md` UC-121). The shipped flows above are unchanged; this describes how the same account pages behave while the tenant is `SUSPENDED`. **Status: built (M25-S31a).** The screens were drawn during the tenant-billing discovery and moved here as `16`, `16b` and `16c` (`14` and `15` were taken by the recurring-reservation and reschedule screens), then redrawn at M25-S31a as `16`, `16b`, `16f`, `16g` and `05b` (`16c` was dropped).
 
 ```mermaid
 flowchart TD

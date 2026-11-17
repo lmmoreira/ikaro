@@ -26,8 +26,15 @@ async function readAccessBody(token: string): Promise<Partial<BillingAccessRespo
 
 async function readTenantAccess(token: string): Promise<TenantAccessResult> {
   const body = await readAccessBody(token);
-  const access = body ? toTenantAccess(body as BillingAccessResponse) : null;
-  return access ? { ok: true, access } : FAIL_OPEN;
+  if (!body) return FAIL_OPEN;
+  try {
+    // A well-formed JSON body of the wrong shape (a number, `features: [null]`) makes the
+    // conversion throw; that is still "no usable answer", never an error the layout surfaces.
+    const access = toTenantAccess(body as BillingAccessResponse);
+    return access ? { ok: true, access } : FAIL_OPEN;
+  } catch {
+    return FAIL_OPEN;
+  }
 }
 
 // Server-side, uncached across requests (the backend port owns the 300 s / 10 s staleness bound).

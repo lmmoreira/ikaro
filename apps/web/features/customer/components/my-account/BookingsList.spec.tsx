@@ -372,3 +372,20 @@ describe('BookingsList while the tenant is suspended (UC-121)', () => {
     expect(screen.getByTestId('alerts-entry-row')).toBeInTheDocument();
   });
 });
+
+describe('BookingsList empty state while the tenant is suspended (UC-121)', () => {
+  it('keeps the empty text but offers no booking action', () => {
+    render(
+      <BookingsList
+        bookings={[]}
+        recurringSummary={null}
+        alertsSummary={null}
+        tenantSlug="lavacar-bh"
+        tenantOperational={false}
+      />,
+    );
+
+    expect(screen.getByText('Nenhum agendamento ainda')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Fazer agendamento' })).not.toBeInTheDocument();
+  });
+});

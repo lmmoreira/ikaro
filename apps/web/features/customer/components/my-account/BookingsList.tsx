@@ -176,7 +176,7 @@ export function BookingsList({
 
       {isEmpty ? (
         <div className="mt-6">
-          <BookingEmptyState tenantSlug={tenantSlug} />
+          <BookingEmptyState tenantSlug={tenantSlug} tenantOperational={tenantOperational} />
         </div>
       ) : (
         <div className="mt-4">

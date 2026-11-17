@@ -24,7 +24,7 @@
 |---|---|---|
 | MANAGER | Only `/dashboard/billing` (+ the cancel confirmation page); every other dashboard route redirects there; other nav items rendered disabled | manager-01d, manager-01e |
 | STAFF | Notice page with "Sair" | staff-01 |
-| CUSTOMER | Account page with "Empresa inativa" badge; history viewable; open-booking detail blocked; new booking blocked | customer-01, 01b, 01c |
+| CUSTOMER | Account page with "Empresa inativa" badge; history viewable; open-booking detail blocked (superseded by M25-S31a, 2026-11-16: the booking detail stays readable and the cancel page is unchanged; reschedule, information responses and new bookings stay blocked); new booking blocked | customer-01, 01b, 01c |
 | Visitor | "Página não publicada" with top-bar login for team and customers (reason-neutral) | public-01 |
 
 ## Open questions / known limitations
@@ -265,12 +265,16 @@ Mobile: bottom nav (Início, Agendamentos, Fidelidade); badge wraps under status
 
 ## Screen 9 — Detalhe de agendamento em aberto bloqueado (`BookingBlockedNotice`)
 
+> **Superseded by M25-S31a (2026-11-16):** the booking detail stays readable while suspended, so this screen, its `BookingBlockedNotice` and the 403 below were not built. The built screens are `journeys/customer/prototypes/minha-conta/16b-detalhe-empresa-inativa.html` and `16g-detalhe-historico-empresa-inativa.html`.
+
 File: `customer-01b-open-booking-detail-blocked.html` — Status: GAP, route EXISTS.
 Backend: `GET /v1/bookings/:id` -> 403 `BILLING_TENANT_SUSPENDED` for non-terminal bookings; terminal ones still open.
 Copy: "Este agendamento não pode ser aberto agora", "Esta empresa está inativa no momento, por isso os detalhes de agendamentos em aberto não estão disponíveis.", "Voltar para Agendamentos". New error code needs translation in both `errors.json` locales.
 Mobile: drill-down page, bottom nav hidden.
 
 ## Screen 10 — Novo agendamento bloqueado
+
+> **Superseded by M25-S25/S30 and M25-S31a (2026-11-16):** a suspended tenant's booking page already renders the neutral "Página indisponível" (`UnavailablePage`), so no separate blocked-booking screen was built.
 
 File: `customer-01c-new-booking-blocked.html` — Status: GAP (variant of `BookingBlockedNotice`), booking route EXISTS.
 Backend: `POST /v1/bookings` -> 403 `BILLING_TENANT_SUSPENDED`.

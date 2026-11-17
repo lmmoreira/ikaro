@@ -97,9 +97,11 @@ export function LoyaltyPage({
         >
           <p className="text-base font-semibold text-gray-900">{t('emptyTitle')}</p>
           <p className="mt-1 max-w-sm text-sm text-gray-500">{t('emptyBody')}</p>
-          <Button asChild className="mt-5">
-            <Link href={`/${tenantSlug}/booking`}>{t('emptyCta')}</Link>
-          </Button>
+          {tenantOperational && (
+            <Button asChild className="mt-5">
+              <Link href={`/${tenantSlug}/booking`}>{t('emptyCta')}</Link>
+            </Button>
+          )}
         </div>
       ) : (
         <>

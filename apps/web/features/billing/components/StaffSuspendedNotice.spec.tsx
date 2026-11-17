@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { axe } from '@/axe-helper';
+import { axe } from 'jest-axe';
 import { clearPublicEnv, renderWithIntl, stubPublicEnv } from '@/test-utils';
 import { StaffSuspendedNotice } from './StaffSuspendedNotice';
 

@@ -10,7 +10,7 @@ import { Button } from '@/shared/components/ui/button';
 import { Card } from '@/shared/components/ui/card';
 import { FeedbackMessage, type FeedbackModel } from '@/shared/components/ui/feedback-message';
 import { returnBackLabelKey } from '../../booking-navigation';
-import { canCancelBooking, canRescheduleBooking } from '../../booking-sections';
+import { resolveBookingDetailActions } from '../../booking-detail-actions';
 import { useCustomerTopbarStatus } from '../customer-topbar-status-context';
 import { BookingDetailMain } from './BookingDetailMain';
 import { CancelAction } from './CancelAction';
@@ -28,17 +28,6 @@ interface BookingDetailPageProps {
    */
   readonly tenantOperational?: boolean;
 }
-
-type ClosedNoteKey = 'completedNote' | 'noShowNote' | 'cancelledNote' | 'rejectedNote';
-
-// COMPLETED and NO_SHOW share one pane (02c / 02f) with CANCELLED and REJECTED: a note, a way to
-// book again, and the points.
-const CLOSED_NOTE: Partial<Record<CustomerBookingDetailResponse['status'], ClosedNoteKey>> = {
-  [BOOKING_STATUS.COMPLETED]: 'completedNote',
-  [BOOKING_STATUS.NO_SHOW]: 'noShowNote',
-  [BOOKING_STATUS.CANCELLED]: 'cancelledNote',
-  [BOOKING_STATUS.REJECTED]: 'rejectedNote',
-};
 
 export function BookingDetailPage({
   booking,
@@ -62,24 +51,14 @@ export function BookingDetailPage({
   const setBackHrefOverride = topbarStatus?.setBackHrefOverride;
   const setBackLabelOverride = topbarStatus?.setBackLabelOverride;
 
-  const isInfoRequested = status === BOOKING_STATUS.INFO_REQUESTED;
-  const showCancel = canCancelBooking({ status, cancellableUntil: booking.cancellableUntil });
-  const showReschedule =
-    tenantOperational && canRescheduleBooking({ status, reschedule: booking.reschedule });
-  const showInfoForm =
-    tenantOperational &&
-    isInfoRequested &&
-    booking.infoResponseMessage === null &&
-    !infoJustSubmitted;
-  const closedNote = CLOSED_NOTE[status];
-  const showInfoFields = showInfoForm && booking.infoRequestMessage !== null;
-  // Every non-terminal state gets the same two-column layout, with the shared action pane: the
-  // sticky card on desktop, the fixed bottom bar on mobile.
-  const hasSidebarAction = showCancel || showReschedule || closedNote !== undefined;
-  const showRescheduleAction = showReschedule && booking.reschedule !== null;
-  const hasMobileNotes =
-    showRescheduleAction ||
-    (showCancel && status === BOOKING_STATUS.APPROVED && booking.cancellableUntil !== null);
+  const {
+    showCancel,
+    showRescheduleAction,
+    showInfoFields,
+    closedNote,
+    hasSidebarAction,
+    hasMobileNotes,
+  } = resolveBookingDetailActions({ status, booking, tenantOperational, infoJustSubmitted });
   const sentFeedback: FeedbackModel | null = infoJustSubmitted
     ? {
         variant: 'success',
