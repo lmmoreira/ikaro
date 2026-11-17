@@ -74,6 +74,7 @@
 | 3 | M25-S30 | `Unavailable` page and hotsite login bar (UC-122) — one neutral page for every unavailable case |
 | 3 | M25-S31a | Staff notice, "Suspensa" tenant list, customer "Empresa inativa" — components (UC-121) |
 | 3 | M25-S31b | Suspended-experience spanning Playwright E2E (UC-121) |
+| 3 | M25-S34 | One shared hotsite target-to-section map, and the booking-detail guard for a tenant without `BOOKING` (UC-122, UC-125) |
 | 4 | M25-S32 | Staging live verification — the operator script, its audit rows and the consumer log (carried from S15b) |
 
 ```mermaid
@@ -2399,7 +2400,7 @@ Build the suspended-experience surfaces (the components; the milestone's **Playw
 5. **Engine contract tests.** Table-driven specs loop over the registries (`apps/web/shared/lib/billing/feature-surfaces.contract.spec.ts` and the manifest use-case spec), so a new feature or gated module fails a test until its surfaces are decided: every feature owns a surface or is declared without one, every gated module is locked and omitted, every button target is kept or dropped by its section's feature, every customer feature has a tab it hides, every settings section names a real feature and a key the save really carries.
 6. **Docs.** `docs/API_CONTRACTS.md` (the customer reduction, the manifest field, module filtering), `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`, UC-122 A4, UC-125 A6 and A7, `journeys/customer/minha-conta.md` and the customer prototype dev-notes.
 
-**Not done here.** A booking detail opened by a direct URL still answers a tenant without `BOOKING` with the typed denial; a hotsite-only plan cannot show a service showcase (services are Booking data; a catalog readable without `BOOKING` is a plan decision for M26). The cross-map duplication between `CTA_TARGET_MODULE`, the web's `NAVIGATION_TARGET_MODULE` and the backend's `NAVIGATION_TARGET_MODULE_TYPE` is left for a cleanup story.
+**Not done here.** A booking detail opened by a direct URL still answers a tenant without `BOOKING` with the typed denial (M25-S34 closes it); a hotsite-only plan cannot show a service showcase (services are Booking data; a catalog readable without `BOOKING` is a plan decision for M26). The cross-map duplication between `CTA_TARGET_MODULE`, the web's `NAVIGATION_TARGET_MODULE` and the backend's `NAVIGATION_TARGET_MODULE_TYPE` is left for M25-S34, which also guards the booking detail, reschedule and cancel pages by direct URL.
 
 ---
 
@@ -2473,6 +2474,71 @@ No product code is written here beyond test helpers; any defect the spec finds i
   - [ ] **Two Playwright specs**, `billing-suspended-experience.spec.ts` and `billing-missing-feature.spec.ts`, covering the scenarios above, with "today"/dates computed in the tenant timezone, not the runner's, and fixtures with symmetric setup/teardown; every assertion that follows a suspend or unsuspend **polls up to the cache staleness bound** (the backend cache alone since S33: a suspension within 300 s, a reinstatement within 10 s. A suspend through the operator route runs on the one backend instance that serves the E2E stack and evicts its own cache on `save()`, so the suspension shows at once and only a reinstatement polls, up to 10 s) rather than asserting instantly
   - [ ] **Each regression named above has a failing-before test**: run the missing-`LOYALTY` customer case and the typed recurrence-URL case against the pre-fix behaviour (`main` before this story's fixes) or reason from the removed code, and record in the PR that the assertion would have failed (a negative-guarantee test must be shown to catch the defect it names)
 - [ ] Coverage ≥80% on changed code (test helpers excluded from the gate)
+- [ ] `tsc --noEmit` clean, lint clean
+
+---
+
+### M25-S34 — One shared hotsite target-to-section map, and the booking-detail guard for a tenant without `BOOKING` (UC-122, UC-125)
+
+**Agent:** fullstack-ts
+**Complexity:** S
+**Docs to load:** `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` (§ module filtering by entitlement, and the navigation rules: a navigation link never targets a disabled section), `docs/ENGINEERING_RULES_SHARED.md` § Tenant access enforcement — the declarative choke points, `docs/ENGINEERING_RULES_FRONTEND.md` § A dashboard section gated by a feature (the same "the page asks the access answer, the feature slice never imports billing" shape), `docs/TESTING_STRATEGY.md` § apps/web Testing Infrastructure, `docs/CODE_STANDARDS.md`
+**Dependencies:** M25-S31a (merged: it introduced the generic link rule, `CTA_TARGET_MODULE`, `redirectCustomerWithoutFeature` and the feature-surfaces contract spec this story builds on)
+**Pattern:** Registry: one data map, exhaustive by type, read by every consumer, with no new abstraction. The guard is plain composition (the existing `redirectCustomerWithoutFeature`).
+
+**Discovered:** 2026-11-17, while reviewing M25-S31a (PR #808): both items were recorded there as "Not done here" and as a cleanup for a later story.
+**Root cause:** (1) The same "which hotsite section does a button or navigation target lead to" knowledge is written four times, each time keyed by a slightly different target set: `NAVIGATION_TARGET_MODULE_TYPE` (`apps/backend/src/contexts/platform/domain/hotsite-layout.rules.ts:45`, navigation items), `NAVIGATION_TARGET_MODULE` (`apps/web/features/platform/hotsite/navigation-links.ts:13`, navigation items), `NAVIGATION_TARGET_TYPE` (`apps/web/features/platform/hotsite/page-model.ts:101`, navigation items) and `CTA_TARGET_MODULE` (`apps/web/features/platform/hotsite/feature-availability.ts:13`, buttons: adds `booking-form` and `lead-form`). A target added to one copy and not the others drifts silently. (2) `apps/web/app/[slug]/my-account/bookings/[id]/page.tsx` and its sub-pages read the booking without asking whether the tenant holds `BOOKING`, so a customer of an operational tenant without it gets the typed `BILLING_FEATURE_NOT_ENTITLED` denial instead of going back to Início, unlike every other feature-owned customer page.
+
+**Description:**
+Two leftovers of the S31a rule "a tenant's plan decides which surfaces exist; no surface meets an error page".
+
+**Item 1, one map.** Add one exhaustive map to `@ikaro/types`, in `packages/types/src/hotsite.ts` next to the target types it keys on (`HOTSITE_MODULE_FEATURE` lives in `enums.ts`, which `hotsite.ts` already imports from, so the map cannot live in `enums.ts` without a cycle):
+
+```
+export const HOTSITE_LINK_TARGET_MODULE: Readonly<
+  Record<HotsiteNavigationTarget | ContentBlockCtaTarget | 'lead-form', HotsiteModuleType | null>
+> = { home: null, 'booking-form': 'BOOKING_CTA', 'lead-form': 'LEAD_FORM', 'service-list': 'SERVICE_LIST', gallery: 'GALLERY', testimonials: 'TESTIMONIALS', about: 'ABOUT', contact: 'CONTACT' };
+```
+
+The `Record` key is the union of every target a link can have (the navigation item targets, the hero and content-block button targets, and the navigation button's `lead-form`), so adding a target to any of those types is a compile error until it is mapped. `null` means the target needs no section (`home`). The four copies are deleted and every consumer reads this one: the backend navigation rule (it rejects an enabled navigation that links to a disabled section; behaviour unchanged), `navigation-links.ts` (`isNavigationTargetEnabled`, `navigationReferences`), `page-model.ts` (which navigation links the top bar renders) and `feature-availability.ts` (which buttons are dropped for an unavailable feature). Nothing about what a visitor sees changes: this is a pure consolidation, so every existing spec of those four places must keep passing unmodified except for the import of the map.
+
+**Item 2, the booking-detail guard.** Every page under `apps/web/app/[slug]/my-account/bookings/[id]/` (the detail, `reschedule`, `cancel` and `cancel/error`) calls `redirectCustomerWithoutFeature(token, slug, 'BOOKING')` first, exactly as `bookings/page.tsx` already does, so a customer of an operational tenant without `BOOKING` returns to Início. A **suspended** tenant keeps its readable detail and its cancel page (UC-121): `fetchCustomerFeatures` reads the list as unknown while the tenant is not operational, so the helper never redirects there; the story adds no suspension logic. `redirectCustomerWithoutFeature` already has specs for both cases (no redirect when suspended, redirect when a feature is missing), so the new call sites are thin and the end-to-end proof is S31b's plan-profile matrix, whose customer bullet this story extends with these URLs.
+
+**Out of scope:** the hotsite-only service showcase (services are Booking data; a catalog readable without `BOOKING` is a plan decision for M26).
+
+**Backend use case steps:** none (the backend rule keeps its logic and reads the shared map).
+**Backend HTTP surface:** none.
+**BFF endpoint spec:** none.
+**Prototype references:** none (no screen changes).
+**New migration / i18n keys / env vars / feature flags:** none.
+
+**Files to create/modify:**
+- `packages/types/src/hotsite.ts` (modify: add `HOTSITE_LINK_TARGET_MODULE`)
+- `packages/types/src/hotsite-link-target.spec.ts` (new, sibling of `hotsite-module-feature.spec.ts`: the exhaustiveness and "every value is a real module type" cases)
+- `apps/backend/src/contexts/platform/domain/hotsite-layout.rules.ts` (modify: read the shared map, delete `NAVIGATION_TARGET_MODULE_TYPE`) and `hotsite-layout.rules.spec.ts` (modify only if it imports the deleted constant)
+- `apps/web/features/platform/hotsite/navigation-links.ts` (modify: read the shared map, delete `NAVIGATION_TARGET_MODULE`) and its spec
+- `apps/web/features/platform/hotsite/page-model.ts` (modify: delete `NAVIGATION_TARGET_TYPE`) and its spec
+- `apps/web/features/platform/hotsite/feature-availability.ts` (modify: delete `CTA_TARGET_MODULE`) and its spec
+- `apps/web/shared/lib/billing/feature-surfaces.contract.spec.ts` (modify: assert every target of the shared map names a real module, and that a gated section's button is dropped for each target)
+- `apps/web/app/[slug]/my-account/bookings/[id]/page.tsx`, `.../reschedule/page.tsx`, `.../cancel/page.tsx`, `.../cancel/error/page.tsx` (modify: the guard call)
+- `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` (modify: § module filtering names the shared map instead of `CTA_TARGET_MODULE` in `feature-availability.ts`)
+- `plan/M25-TENANT-BILLING-FOUNDATION.md` (modify: S31b's plan-profile matrix, customer bullet, gains the booking detail, reschedule and cancel URLs; S31a's "Not done here" paragraph points to this story)
+
+**Acceptance criteria — product:**
+- [ ] A customer of an operational tenant without `BOOKING` who opens a booking detail, reschedule or cancel URL by hand goes back to Início, never an error page.
+- [ ] A suspended tenant's customer still opens the booking detail and the cancel page read-only (UC-121), and a tenant holding `BOOKING` sees no change.
+- [ ] No hotsite visitor sees a difference: every navigation link and button is shown or dropped exactly as before.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] `packages/types/src/hotsite-link-target.spec.ts`: every navigation target, every content-block button target and `lead-form` is a key of the map, and every non-null value is a real `HotsiteModuleType` (a type-level check makes a new unmapped target a compile error)
+  - [ ] The backend layout rules, `navigation-links.ts`, `page-model.ts` and `feature-availability.ts` specs pass **unchanged** apart from imports (negative guarantee: the consolidation changes no behaviour)
+  - [ ] `feature-surfaces.contract.spec.ts` keeps looping every target of the shared map against `HOTSITE_MODULE_FEATURE`
+  - [ ] No copy of the map remains: a grep for `NAVIGATION_TARGET_MODULE_TYPE`, `NAVIGATION_TARGET_MODULE`, `NAVIGATION_TARGET_TYPE` and `CTA_TARGET_MODULE` finds only the shared map's consumers
+- Integration: omitted for the web part; the backend rule is a pure domain function covered by its unit spec (no new endpoint, no persistence)
+- Tenant isolation: [ ] the guard reads the signed-in tenant's access answer only (no tenant is named anywhere in the new calls)
+- E2E: none here: the new URLs are added to S31b's plan-profile matrix (customer bullet), and pages are E2E-only by the repo's web testing rule
+- [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
 ---
