@@ -31,6 +31,7 @@ describe('TenantOptionRow', () => {
         isCurrent
         disabled={false}
         currentBadgeLabel="Atual"
+        inactiveBadgeLabel="Empresa inativa"
         loyaltyPointsLabel="120 pontos"
         onSelect={vi.fn()}
       />,
@@ -50,6 +51,7 @@ describe('TenantOptionRow', () => {
         isCurrent={false}
         disabled={false}
         currentBadgeLabel="Atual"
+        inactiveBadgeLabel="Empresa inativa"
         loyaltyPointsLabel="120 pontos"
         onSelect={vi.fn()}
       />,
@@ -68,6 +70,7 @@ describe('TenantOptionRow', () => {
         isCurrent={false}
         disabled={false}
         currentBadgeLabel="Atual"
+        inactiveBadgeLabel="Empresa inativa"
         loyaltyPointsLabel="120 pontos"
         onSelect={onSelect}
       />,
@@ -85,6 +88,7 @@ describe('TenantOptionRow', () => {
         isCurrent={false}
         disabled
         currentBadgeLabel="Atual"
+        inactiveBadgeLabel="Empresa inativa"
         loyaltyPointsLabel="120 pontos"
         onSelect={vi.fn()}
       />,
@@ -105,6 +109,7 @@ describe('TenantOptionRow readable colours (TD51-S05)', () => {
         isCurrent={isCurrent}
         disabled={false}
         currentBadgeLabel="Atual"
+        inactiveBadgeLabel="Empresa inativa"
         loyaltyPointsLabel="120 pontos"
         onSelect={vi.fn()}
       />,
@@ -126,11 +131,65 @@ describe('TenantOptionRow readable colours (TD51-S05)', () => {
         isCurrent
         disabled={false}
         currentBadgeLabel="Atual"
+        inactiveBadgeLabel="Empresa inativa"
         loyaltyPointsLabel="120 pontos"
         onSelect={vi.fn()}
       />,
     );
 
     expect(screen.getByTestId('switch-tenant-current').className).not.toMatch(/opacity/);
+  });
+
+  it('marks a suspended tenant with the inactive badge and keeps it selectable', async () => {
+    const onSelect = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <TenantOptionRow
+        tenant={makeTenant({ operational: false })}
+        isCurrent={false}
+        disabled={false}
+        currentBadgeLabel="Atual"
+        inactiveBadgeLabel="Empresa inativa"
+        loyaltyPointsLabel="120 pontos"
+        onSelect={onSelect}
+      />,
+    );
+
+    expect(screen.getByTestId('switch-tenant-inactive-badge')).toHaveTextContent('Empresa inativa');
+    await user.click(screen.getByTestId('switch-tenant-option'));
+    expect(onSelect).toHaveBeenCalledOnce();
+  });
+
+  it('leaves an operational tenant unmarked', () => {
+    render(
+      <TenantOptionRow
+        tenant={makeTenant({ operational: true })}
+        isCurrent={false}
+        disabled={false}
+        currentBadgeLabel="Atual"
+        inactiveBadgeLabel="Empresa inativa"
+        loyaltyPointsLabel="120 pontos"
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId('switch-tenant-inactive-badge')).not.toBeInTheDocument();
+  });
+
+  it('never marks the current tenant, even when it is not operational', () => {
+    render(
+      <TenantOptionRow
+        tenant={makeTenant({ operational: false })}
+        isCurrent
+        disabled={false}
+        currentBadgeLabel="Atual"
+        inactiveBadgeLabel="Empresa inativa"
+        loyaltyPointsLabel="120 pontos"
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId('switch-tenant-inactive-badge')).not.toBeInTheDocument();
+    expect(screen.getByText('Atual')).toBeInTheDocument();
   });
 });

@@ -17,6 +17,7 @@ import {
 import { fetchManifest } from '@/features/platform/api.server';
 import { toISODateInTimezone } from '@/shared/lib/formatting/date-utils';
 import { isValidTimezone } from '@/shared/lib/formatting/locale-validators';
+import { redirectCustomerWhenBookingUnavailable } from '@/shared/lib/billing/access.server';
 
 interface RecurringScheduleDetailRouteProps {
   readonly params: Promise<{ readonly slug: string; readonly id: string }>;
@@ -32,6 +33,7 @@ export default async function RecurringScheduleDetailRoute({
   const returnTo = resolveReturnTo(rawReturnTo, slug);
   const page = parseOccurrencePage(rawPage);
   const token = await getAccessToken();
+  await redirectCustomerWhenBookingUnavailable(token, slug);
   const schedule = await fetchCustomerRecurringScheduleOrRedirect(token, id, slug);
 
   // A pending schedule has no bookings yet — nothing to list.

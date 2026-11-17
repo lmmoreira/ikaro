@@ -62,7 +62,11 @@ const ROUTES: BookingRoute[] = [
 
 // What UC-121 leaves reachable while suspended (CUSTOMER_HISTORY, customer role only). Every other
 // route above is refused with BILLING_TENANT_SUSPENDED.
-const HISTORY_ROUTES = new Set(['get /bookings', `patch /bookings/${SOME_ID}/cancel-customer`]);
+const HISTORY_ROUTES = new Set([
+  'get /bookings',
+  `get /bookings/${SOME_ID}`,
+  `patch /bookings/${SOME_ID}/cancel-customer`,
+]);
 const routeKey = (route: BookingRoute) => `${route.method} ${route.path}`;
 const SUSPENDED_ROUTES = ROUTES.filter((route) => !HISTORY_ROUTES.has(routeKey(route)));
 
@@ -227,6 +231,38 @@ describe('Booking routes — tenant access (integration)', () => {
       expect((res.body.items as { id: string }[]).map((item) => item.id)).toContain(bookingId);
     });
 
+    it("lets the customer open a booking's detail (UC-121 'CUSTOMER_HISTORY')", async () => {
+      const bookingId = await createBooking();
+      access.seedSuspended(tenantA);
+
+      const res = await request(app.getHttpServer())
+        .get(`/bookings/${bookingId}`)
+        .set(actorHeaders(tenantA, customerA, 'CUSTOMER'));
+
+      expect(res.status).toBe(200);
+      expect(res.body.id ?? res.body.bookingId).toBe(bookingId);
+    });
+
+    it('still refuses the customer every action on that booking', async () => {
+      const bookingId = await createBooking();
+      access.seedSuspended(tenantA);
+      const customer = actorHeaders(tenantA, customerA, 'CUSTOMER');
+
+      const reschedule = await request(app.getHttpServer())
+        .patch(`/bookings/${bookingId}/reschedule-customer`)
+        .set(customer)
+        .send({ scheduledAt: new Date(Date.now() + 86_400_000).toISOString() });
+      const submitInfo = await request(app.getHttpServer())
+        .patch(`/bookings/${bookingId}/submit-info`)
+        .set(customer)
+        .send({ response: 'x' });
+
+      for (const res of [reschedule, submitInfo]) {
+        expect(res.status).toBe(403);
+        expect(res.body).toMatchObject({ code: BillingErrorCode.TENANT_SUSPENDED });
+      }
+    });
+
     it('lets the customer cancel a future booking', async () => {
       const bookingId = await createBooking();
       access.seedSuspended(tenantA);
@@ -239,12 +275,15 @@ describe('Booking routes — tenant access (integration)', () => {
       expect(res.body.status).toBe('CANCELLED');
     });
 
-    it('refuses a staff caller the booking list and both cancels (CUSTOMER_HISTORY is customer-only)', async () => {
+    it('refuses a staff caller the booking list, the detail and both cancels (CUSTOMER_HISTORY is customer-only)', async () => {
       const bookingId = await createBooking();
       access.seedSuspended(tenantA);
 
       const list = await request(app.getHttpServer())
         .get('/bookings')
+        .set(actorHeaders(tenantA, STAFF_ID, 'STAFF'));
+      const detailAsStaff = await request(app.getHttpServer())
+        .get(`/bookings/${bookingId}`)
         .set(actorHeaders(tenantA, STAFF_ID, 'STAFF'));
       const cancelCustomerRoute = await request(app.getHttpServer())
         .patch(`/bookings/${bookingId}/cancel-customer`)
@@ -254,7 +293,7 @@ describe('Booking routes — tenant access (integration)', () => {
         .set(actorHeaders(tenantA, STAFF_ID, 'MANAGER'))
         .send({ reason: 'x' });
 
-      for (const res of [list, cancelCustomerRoute, cancelAdmin]) {
+      for (const res of [list, detailAsStaff, cancelCustomerRoute, cancelAdmin]) {
         expect(res.status).toBe(403);
         expect(res.body).toMatchObject({ code: BillingErrorCode.TENANT_SUSPENDED });
       }

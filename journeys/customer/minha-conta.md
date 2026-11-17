@@ -64,6 +64,8 @@ flowchart TD
 
 **Tab roles (decided 2026-10-09):** Início is the glance (points, active counts, the "Renovar" card, a short booking preview); Agendamentos is the booking list plus the two sub-lists that are bookings in disguise — "Reservas recorrentes" and "Meus avisos" — each shown only when the customer has any item in it, in any status, so an ended schedule can still be reached and renewed; Fidelidade is the only full points view. Points are not repeated on Agendamentos.
 
+**Tabs follow the tenant's features (decided 2026-11-17, M25-S31a):** a tenant without `LOYALTY` shows no Fidelidade tab (top nav and bottom nav), and one without `BOOKING` shows no Agendamentos tab, no "+ Novo" menu and no bookings on Início (the Agendamentos URL returns to Início); Início is always there. The feature keys come from the role-reduced `GET /v1/billing/access` the layout already reads for the "Empresa inativa" badge. If that read fails every tab stays, and a direct URL to a hidden tab's page sends the customer back to Início.
+
 ## BFF calls in this flow
 
 | Call | When | Roles |
@@ -199,49 +201,48 @@ flowchart TD
 
 **Resolved at `/story-discovery M23-S30` (2026-10-07):** the customer booking read carries a server-resolved `reschedule` block (kept picks, availability pins, effective window, `eligibleUntil`) — a backend/BFF change in the same story; the booking's own current window shows as unavailable in the slot list (public availability reads, same as the staff reschedule); the S33 window errors show in `15k`; the `BookingRescheduled` customer email exists. Details: `customer/prototypes/minha-conta/dev-notes.md` § Reagendar.
 
-## Billing — tenant suspended (planned, UC-121)
+## Billing — tenant suspended (UC-121, built in M25-S31a)
 
-> Added for the planned Billing milestone (`docs/USE_CASES.md` UC-121). The shipped flows above are unchanged; this describes how the same account pages behave while the tenant is `SUSPENDED`. **Status: Draft — not yet built.** The screens were drawn during the tenant-billing discovery and moved here as `16`, `16b` and `16c` (`14` and `15` were taken by the recurring-reservation and reschedule screens).
+> Added for the planned Billing milestone (`docs/USE_CASES.md` UC-121). The shipped flows above are unchanged; this describes how the same account pages behave while the tenant is `SUSPENDED`. **Status: built (M25-S31a).** The screens were drawn during the tenant-billing discovery and moved here as `16`, `16b` and `16c` (`14` and `15` were taken by the recurring-reservation and reschedule screens), then redrawn at M25-S31a as `16`, `16b`, `16f`, `16g` and `05b` (`16c` was dropped).
 
 ```mermaid
 flowchart TD
     classDef existing fill:#e6ffe6,stroke:#3a3
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
-    Login(["Customer signs in (never blocked)"]) --> List["✅ /{slug}/my-account/bookings<br/>❓ GAP: 'Empresa inativa' badge, three sections (entry rows hidden: their reads are refused)<br/>(16-agendamentos-empresa-inativa)"]
-    Login --> Switch["✅ /switch-tenant<br/>❓ GAP: 'Empresa inativa' marker on a suspended tenant, still selectable<br/>(05b-trocar-empresa-inativa)"]
-    List -->|"history row (not a link, aria-disabled)"| Hist["History is readable in the list only: the booking detail is denied for every status"]
-    List -.->|"direct URL only (rows are not links)"| Blocked["❓ GAP: BookingBlockedNotice — BILLING_TENANT_SUSPENDED (403)<br/>(16b-detalhe-bloqueado)"]
-    List -->|"Novo agendamento (disabled, inert)"| NewBlocked["✅ /{slug}/booking already renders UnavailablePage while suspended (M25-S25/S30) — no screen of its own"]
-    List -->|"Cancelar on an open future row"| Cancel["❓ GAP: CancelFromListConfirm dialog from the row data (16d-cancelar-da-lista); Booking decides the record-dependent rules"]
-    Cancel -->|"old .../cancel route opened by URL"| Blocked
-    Detail15["Reschedule page, by direct URL"] -.-> RBlocked["❓ GAP: reschedule blocked notice<br/>(16e-reagendar-bloqueado)"]
-    Loy["✅ /{slug}/my-account/loyalty"] --> LoyRO["❓ GAP: read-only banner, balance and history visible<br/>(16f-fidelidade-somente-leitura)"]
+    Login(["Customer signs in (never blocked)"]) --> List["✅ /{slug}/my-account/bookings<br/>'Empresa inativa' badge on open rows, no 'Responder', entry rows hidden<br/>(16-agendamentos-empresa-inativa)"]
+    Login --> Switch["✅ /switch-tenant<br/>'Empresa inativa' marker on a suspended tenant, still selectable<br/>(05b-trocar-empresa-inativa)"]
+    List -->|"open row (APPROVED · PENDING · INFO_REQUESTED)"| Detail["✅ /{slug}/my-account/bookings/[id]<br/>'Empresa inativa' notice, no 'Reagendar', no info form<br/>(16b-detalhe-empresa-inativa)"]
+    List -->|"history row"| Hist["✅ same route, read-only<br/>notice, no 'Fazer novo agendamento'<br/>(16g-detalhe-historico-empresa-inativa)"]
+    List -->|"Cancelar link on an open future row"| Cancel["✅ .../bookings/[id]/cancel — unchanged"]
+    Detail -->|"Cancelar agendamento"| Cancel
+    List -->|"+ Novo (disabled)"| NewBlocked["✅ /{slug}/booking already renders UnavailablePage while suspended (M25-S25/S30) — no screen of its own"]
+    Resch["Reschedule URL typed by hand"] -.-> Detail
+    Loy["✅ /{slug}/my-account/loyalty"] --> LoyRO["read-only notice, balance and history visible<br/>(16f-fidelidade-somente-leitura)"]
 
-    class Login,NewBlocked,Loy existing
-    class List,Switch,Hist,Blocked,Cancel,RBlocked,LoyRO,Detail15 gap
+        class Login,Cancel,NewBlocked,Loy,List,Switch,Detail,Hist,LoyRO existing
 ```
 
-**Behaviour.** Open bookings (`PENDING`, `INFO_REQUESTED`, `APPROVED`) stay listed with the "Empresa inativa" badge and are not links, but each open future row carries a secondary "Cancelar" action that opens the `CancelFromListConfirm` dialog (M25-S31a, `16d`), a feature component composing the `alert-dialog` primitive and rendered from the row's own data — not the existing cancel page — because UC-121 allows cancelling an existing future booking while the booking detail read (`16b`) is denied for every status (`GET /bookings/:id` is `DEFAULT_DENY`, M25-S18a), so the cancel page, which loads it, cannot work; history rows are listed but are **not openable** either (UC-121 "history stays readable" means the list only; the rows are not links, `aria-disabled`; `16b` is reachable only by direct URL); "Novo agendamento" is rendered disabled and inert, with no screen of its own (a suspended tenant's `/{slug}/booking` already renders the neutral `UnavailablePage`, M25-S25/S30, so the old `16c` is dropped); rescheduling an existing booking is blocked as well (the shipped reschedule page, `15`, shows a blocked notice, `16e`, when opened by URL); the list keeps its real three sections (upcoming, pending, history) while the "Reservas recorrentes" / "Meus avisos" entry rows disappear on their own, because their summary reads are refused while suspended (M25-S18b) and the list renders an entry row only when its summary is non-null — and the account's tenant-switch list marks a suspended tenant "Empresa inativa" (`05b`); cancelling an existing future booking stays allowed (entered from the "Cancelar" link on the list row, not from the blocked detail; Booking, not the web, decides the record-dependent rules such as the cancellation deadline, `docs/USE_CASES.md` UC-121). The loyalty page is read-only (`16f`): balance and history are visible under a short banner, earning and redemption are blocked. The badge is driven by `operational`, read from the customer-reduced `GET /v1/billing/access` for the current tenant and from the per-tenant `operational` flag on the customer tenant-switch list (`GET /customers/tenants`); no separate customer flag or route is added. The loyalty expiry clock keeps running while suspended, by decision (UC-121 O-L1, M25-S27); a reason-neutral email to customers with approved future bookings remains a named open item of UC-121 (O-B1).
+**Behaviour (decided 2026-11-16: the booking detail stays readable while suspended, so the existing pages and patterns are kept).** Open bookings (`PENDING`, `INFO_REQUESTED`, `APPROVED`) stay listed in the list's three real sections with a neutral "Empresa inativa" badge, lose "Responder" (the information response is refused) and still open the detail; history rows open the detail too. The detail is the page an operational tenant sees, with a neutral "Empresa inativa" notice above it and no "Reagendar", no information form and no "Fazer novo agendamento" (the booking page is the neutral "Página indisponível" while suspended, M25-S30); **cancelling a future booking is unchanged**: the same "Cancelar" link on the list row and on the detail, the same cancel page, the same `PATCH /bookings/:id/cancel` (Booking decides the record rules such as the cancellation deadline, `docs/USE_CASES.md` UC-121). "+ Novo" is rendered disabled; the "Reservas recorrentes" / "Meus avisos" entry rows disappear on their own, because their summary reads are refused while suspended and the list renders an entry row only when its summary is non-null; the reschedule URL typed by hand lands on the booking's detail. The loyalty page is read-only (`16f`): balance and history are visible under a short notice, earning and redemption are blocked. The account's tenant-switch list marks a suspended tenant "Empresa inativa" (`05b`). The badge is driven by `operational`, read from the customer-reduced `GET /v1/billing/access` for the current tenant (fail open: no answer shows no badge) and from the per-tenant `operational` flag on the customer tenant-switch list (`GET /customers/tenants`); no separate customer flag or route is added. The loyalty expiry clock keeps running while suspended, by decision (UC-121 O-L1, M25-S27); a reason-neutral email to customers with approved future bookings is UC-121's O-B1 (built, M25-S28). The "+ Novo" menu is a disabled button everywhere (topbar, Início, bookings list), and a typed URL to a recurring-reservation or availability-alert page returns the customer to the bookings list (their reads are refused). **A tenant without the `LOYALTY` feature** (a separate case from suspension): Início shows no points tile and no expiry strip, and the Fidelidade URL returns the customer to Início; the web never reads a billing denial (`BILLING_FEATURE_NOT_ENTITLED`, `BILLING_TENANT_SUSPENDED`) as a logged-out session, so the account always opens.
 
 | Page / Route | Component | Story | Status |
 |---|---|---|---|
-| `/{slug}/my-account/bookings` | booking list rows with the "Empresa inativa" badge (`tenantOperational` prop) | planned Billing milestone | ❓ Gap (list exists) |
-| `/{slug}/my-account/bookings/:id` (open booking) | `BookingBlockedNotice` | planned Billing milestone | ❓ Gap (route exists) |
-| `/{slug}/my-account/bookings/:id/cancel` and `.../reschedule` (suspended) | `BookingBlockedNotice` (reschedule: `16e`) | planned Billing milestone | ❓ Gap (routes exist) |
-| `/{slug}/my-account/loyalty` (suspended) | read-only banner (`16f`) | planned Billing milestone | ❓ Gap (route exists) |
-| `/switch-tenant` | `SwitchTenantClient` + "Empresa inativa" marker (`05b`) | planned Billing milestone | ❓ Gap (marker only) |
+| `/{slug}/my-account/bookings` | `BookingsList` / `BookingListItem` with the "Empresa inativa" badge (`tenantOperational` prop) | M25-S31a | ✅ Done (M25-S31a) |
+| `/{slug}/my-account/bookings/:id` | `BookingDetailPage` with the neutral notice and without reschedule, information form and new-booking link (`tenantOperational` prop) | M25-S31a | ✅ Done (M25-S31a) |
+| `/{slug}/my-account/bookings/:id/cancel` | `CancelConfirmPage`, unchanged | — | ✅ Existing |
+| `/{slug}/my-account/bookings/:id/reschedule` (suspended) | redirects to the detail | M25-S31a | ✅ Done (M25-S31a) |
+| `/{slug}/my-account/loyalty` (suspended) | `LoyaltyPage` read-only notice (`16f`) | M25-S31a | ✅ Done (M25-S31a) |
+| `/switch-tenant` | `SwitchTenantClient` + `TenantOptionRow` "Empresa inativa" marker (`05b`) | M25-S31a | ✅ Done (M25-S31a) |
 | `/{slug}/booking` (suspended) | none — `UnavailablePage` already renders (M25-S25/S30) | M25-S30 | ✅ Done |
 
 | File | Screen | UC | Story | Status |
 |---|---|---|---|---|
-| `16-agendamentos-empresa-inativa.html` | Account list with the "Empresa inativa" badge, history visible | UC-121 | planned Billing milestone | ❓ Draft |
-| `16b-detalhe-bloqueado.html` | An open booking's detail is blocked (opened from the list, or by direct URL — UC-121 A1) | UC-121, A1 | planned Billing milestone | ❓ Draft |
-| `16d-cancelar-da-lista.html` | The `CancelFromListConfirm` dialog open over the list, from the row's own data | UC-121 | M25-S31a | ❓ Draft |
-| `16e-reagendar-bloqueado.html` | Reschedule opened by URL while suspended | UC-121 | M25-S31a | ❓ Draft |
-| `16f-fidelidade-somente-leitura.html` | Loyalty read-only: banner, balance and history | UC-121 | M25-S31a | ❓ Draft |
-| `05b-trocar-empresa-inativa.html` | Tenant-switch list with the "Empresa inativa" marker | UC-121 | M25-S31a | ❓ Draft |
-| ~~`16c-novo-agendamento-bloqueado.html`~~ | Superseded 2026-11-16: a suspended tenant's `/{slug}/booking` renders `UnavailablePage` (M25-S25/S30); file removed with the prototypes | UC-121 | M25-S31a | Removed |
+| `16-agendamentos-empresa-inativa.html` | Account list with the "Empresa inativa" badge on open rows, three sections, "+ Novo" disabled | UC-121 | M25-S31a | ✅ Criado (M25-S31a) |
+| `16b-detalhe-empresa-inativa.html` | An open booking's detail while suspended: notice, no "Reagendar", "Cancelar agendamento" kept | UC-121 | M25-S31a | ✅ Criado (M25-S31a) |
+| `16g-detalhe-historico-empresa-inativa.html` | A completed booking's detail while suspended: notice, no "Fazer novo agendamento" | UC-121 | M25-S31a | ✅ Criado (M25-S31a) |
+| `16f-fidelidade-somente-leitura.html` | Loyalty read-only: notice, balance and history | UC-121 | M25-S31a | ✅ Criado (M25-S31a) |
+| `05b-trocar-empresa-inativa.html` | Tenant-switch list with the "Empresa inativa" marker | UC-121 | M25-S31a | ✅ Criado (M25-S31a) |
+| ~~`16c-novo-agendamento-bloqueado.html`~~, ~~`16d-cancelar-da-lista.html`~~, ~~`16e-reagendar-bloqueado.html`~~ | Superseded 2026-11-16: a suspended tenant's `/{slug}/booking` renders `UnavailablePage`, and the detail and the cancel page stay available, so no blocked-notice or list-row dialog is needed; files removed | UC-121 | M25-S31a | Removed |
 | `17-erro-de-rota.html` | Erro ao carregar a conta: `my-account/error.tsx` como mensagem de página com "Tentar novamente" | — | TD57-S11 | ✅ Done (TD57-S11) |
 
 ---

@@ -63,7 +63,7 @@ export async function loadDashboardShellContext(
   const accessResult = await fetchTenantAccess(token);
   const access = accessResult.ok ? accessResult.access : null;
 
-  const suspendedTarget = resolveSuspendedRedirect({ role: base.role, access, pathname });
+  const suspendedTarget = resolveSuspendedRedirect({ access, pathname });
   if (suspendedTarget) redirect(suspendedTarget);
 
   const lockedFeatures = access ? lockedFeaturesOf(access) : [];

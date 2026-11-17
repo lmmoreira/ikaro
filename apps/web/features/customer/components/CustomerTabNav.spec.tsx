@@ -52,4 +52,19 @@ describe('CustomerTabNav', () => {
     const nav = screen.getByRole('navigation', { name: 'customer-tabs' });
     expect(nav.querySelector('a[href="/outro-tenant/my-account"]')).toBeInTheDocument();
   });
+
+  it('hides the loyalty tab for a tenant without LOYALTY', () => {
+    render(<CustomerTabNav tenantSlug="lavacar-bh" entitledFeatures={['BOOKING']} />);
+
+    const nav = screen.getByRole('navigation', { name: 'customer-tabs' });
+    expect(nav.querySelector('a[href="/lavacar-bh/my-account/bookings"]')).toBeInTheDocument();
+    expect(nav.querySelector('a[href="/lavacar-bh/my-account/loyalty"]')).not.toBeInTheDocument();
+  });
+
+  it('shows every tab when the entitled features are unknown (negative guarantee)', () => {
+    render(<CustomerTabNav tenantSlug="lavacar-bh" entitledFeatures={null} />);
+
+    const nav = screen.getByRole('navigation', { name: 'customer-tabs' });
+    expect(nav.querySelectorAll('a')).toHaveLength(3);
+  });
 });

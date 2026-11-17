@@ -81,7 +81,7 @@ Folder: `staff/prototypes/login/`
 
 ## Billing — tenant suspended (planned, UC-121)
 
-> Added for the planned Billing milestone (`docs/USE_CASES.md` UC-121). The shipped login flow above is unchanged. **Status: partly built.** M25-S29 shipped the manager notice (`ManagerSuspendedNotice`), the redirect helper and the `/dashboard/suspended` route; the staff notice and the "Suspensa" badge are M25-S31a's. The screens were drawn during the tenant-billing discovery (`docs/discovery/tenant-billing/`) and moved here; login itself is never blocked while a tenant is `SUSPENDED`.
+> Added for the planned Billing milestone (`docs/USE_CASES.md` UC-121). The shipped login flow above is unchanged. **Status: built** (M25-S29: the manager notice, the redirect helper and the `/dashboard/suspended` route; M25-S31a: the staff notice, the role branch and the "Suspensa" badge). The screens were drawn during the tenant-billing discovery (`docs/discovery/tenant-billing/`) and moved here; login itself is never blocked while a tenant is `SUSPENDED`.
 
 ```mermaid
 flowchart TD
@@ -89,27 +89,26 @@ flowchart TD
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
     Done(["Staff completes Google login"]) --> Many{"2+ tenants?"}
-    Many -->|yes| Pick["✅ /select-staff-tenant<br/>❓ GAP: 'Suspensa' badge on a suspended tenant<br/>(03-select-tenant-suspended)"]
+    Many -->|yes| Pick["✅ /select-staff-tenant<br/>'Suspensa' badge on a suspended tenant (M25-S31a)<br/>(03-select-tenant-suspended)"]
     Many -->|no| Status
     Pick -->|"UC-022 A1 — a suspended tenant stays listed and selectable"| Status{"Tenant status"}
     Status -->|"TRIALING / ACTIVE / PAST_DUE (or exempt)"| Queue["✅ /dashboard → /dashboard/bookings"]
-    Status -->|"SUSPENDED + role STAFF"| Notice["❓ GAP: StaffSuspendedNotice<br/>'Esta conta está suspensa. Fale com o gerente.'<br/>(02-suspended-notice)"]
+    Status -->|"SUSPENDED + role STAFF"| Notice["StaffSuspendedNotice (M25-S31a)<br/>'Esta conta está suspensa. Fale com o gerente.'<br/>(02-suspended-notice)"]
     Status -->|"SUSPENDED + role MANAGER"| MgrNotice["✅ /dashboard/suspended<br/>ManagerSuspendedNotice (M25-S29, interim)<br/>M26 repoints it to /dashboard/billing (manager/billing.md)"]
     Notice --> Exit(("Sair"))
 
-    class Done,Many,Queue,MgrNotice existing
-    class Pick,Notice gap
+    class Done,Many,Queue,MgrNotice,Pick,Notice existing
 ```
 
 | Page / Route | Component | Story | Status |
 |---|---|---|---|
-| `/dashboard` (role `STAFF`, tenant `SUSPENDED`) | `StaffSuspendedNotice` (M25-S31a), rendered by `app/dashboard/suspended/page.tsx`. Today the page renders only `ManagerSuspendedNotice` (M25-S29) and sends everyone else to `/dashboard`; M25-S31a adds the STAFF branch. The redirect to `/dashboard/suspended` lives in the shared helper (`resolveSuspendedRedirect`) called from `loadDashboardShellContext`, not in `app/dashboard/layout.tsx` (a passthrough); it redirects a `MANAGER` only until M25-S31a extends it to `STAFF`; no nav; a failed access lookup fails open (the page renders as today) | planned Billing milestone | ❓ Gap |
-| `/select-staff-tenant` | `SelectStaffTenantClient` (exists) + amber "Suspensa" badge when `operational === false` | planned Billing milestone | ❓ Gap (badge only) |
+| `/dashboard` (role `STAFF`, tenant `SUSPENDED`) | `StaffSuspendedNotice` (M25-S31a), rendered by `app/dashboard/suspended/page.tsx`, which branches on the role (STAFF gets this, MANAGER gets `ManagerSuspendedNotice`, M25-S29). The redirect to `/dashboard/suspended` lives in the shared helper (`resolveSuspendedRedirect`) called from `loadDashboardShellContext`, not in `app/dashboard/layout.tsx` (a passthrough), and no longer depends on the role; no nav; a failed access lookup fails open (the page renders as today) | M25-S31a | ✅ Done |
+| `/select-staff-tenant` | `SelectStaffTenantClient` + amber "Suspensa" badge when `operational === false` | M25-S31a | ✅ Done |
 
-**BFF calls.** `GET /v1/billing/access` decides the notice (`docs/API_CONTRACTS.md` § Billing — Access Resolution and Suspended-State Effects). `GET /auth/staff-tenants` returns a per-tenant `operational` flag (built, M25-S26; `StaffTenantOption.operational`) and never filters a suspended tenant out; `POST /auth/switch-staff-tenant` is unchanged and accepts one. Only the web badge is missing. The customer switch list (`app/switch-tenant/page.tsx`, `GET /customers/tenants`) gains the same per-tenant `operational` (M25-S26; see `customer/minha-conta.md`). The API answers `BILLING_TENANT_SUSPENDED` (403, M25-S16) for any other route the staff member calls. The notice is reason-neutral and offers only "Sair"; staff never see a reason or payment information.
+**BFF calls.** `GET /v1/billing/access` decides the notice (`docs/API_CONTRACTS.md` § Billing — Access Resolution and Suspended-State Effects). `GET /auth/staff-tenants` returns a per-tenant `operational` flag (built, M25-S26; `StaffTenantOption.operational`) and never filters a suspended tenant out; `POST /auth/switch-staff-tenant` is unchanged and accepts one. The customer switch list (`app/switch-tenant/page.tsx`, `GET /customers/tenants`) gains the same per-tenant `operational` (M25-S26; see `customer/minha-conta.md`). The API answers `BILLING_TENANT_SUSPENDED` (403, M25-S16) for any other route the staff member calls. The notice is reason-neutral and offers only "Sair"; staff never see a reason or payment information.
 
 | File | Screen | UC | Story | Status |
 |---|---|---|---|---|
-| `02-suspended-notice.html` | Suspended-account notice for a staff member | UC-121 | planned Billing milestone | ❓ Draft |
-| `03-select-tenant-suspended.html` | Tenant selection with a suspended tenant marked "Suspensa" | UC-121 A4 | planned Billing milestone | ❓ Draft |
+| `02-suspended-notice.html` | Suspended-account notice for a staff member | UC-121 | M25-S31a | ✅ Criado (M25-S31a) |
+| `03-select-tenant-suspended.html` | Tenant selection with a suspended tenant marked "Suspensa" | UC-121 A4 | M25-S31a | ✅ Criado (M25-S31a) |
 

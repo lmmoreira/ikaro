@@ -168,3 +168,21 @@ describe('CustomerTopbar', () => {
     expect(screen.getByTestId('topbar-booking-status-badge')).toHaveTextContent('Aprovado');
   });
 });
+
+describe('CustomerTopbar while the tenant is suspended (UC-121)', () => {
+  it('disables the "+ Novo" menu', () => {
+    render(
+      <CustomerTopbarStatusProvider>
+        <CustomerTopbar
+          tenantName="Lavacar BH"
+          tenantSlug="lavacar-bh"
+          userName="João Silva"
+          tenantOperational={false}
+        />
+      </CustomerTopbarStatusProvider>,
+    );
+
+    expect(screen.getByTestId('new-booking-disabled')).toBeDisabled();
+    expect(screen.queryByTestId('new-menu-trigger')).not.toBeInTheDocument();
+  });
+});

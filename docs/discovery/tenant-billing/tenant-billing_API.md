@@ -132,7 +132,7 @@ POST /v1/public/signup/tenant
 - `GET /v1/public/platform/manifest/:slug` (manifest; the real route in `platform.public.controller.ts`): `isPublished` becomes the **effective** value (`manager's flag && operational`); the payload for a suspended tenant keeps `branding` but stays minimal exactly like today's `isPublished: false` (still `200`, never `404`).
 - `GET /v1/public/platform/published-hotsites`: excludes non-operational tenants.
 - New hotsite module type `TRIAL_SIGNUP_CTA` — see `tenant-billing_MODULE.md`.
-- Customer booking/loyalty: the BFF exposes a customer-safe `tenantOperational` flag for the inactive badge and read-only history. While suspended, Booking allows cancellation of an existing future booking but refuses new booking, reschedule and open-detail access; Loyalty allows balance/history reads but refuses earning/redemption.
+- Customer booking/loyalty: the BFF exposes a customer-safe `tenantOperational` flag for the inactive badge and read-only history. While suspended, Booking allows cancellation of an existing future booking but refuses new booking, reschedule and open-detail access (superseded by M25-S31a, 2026-11-16: the booking detail stays readable and the cancel page is unchanged; reschedule, information responses and new bookings stay blocked); Loyalty allows balance/history reads but refuses earning/redemption.
 
 ## 5. Internal backend endpoints (BFF/operator → backend; `InternalApiGuard`; operator routes also `PlatformAdminGuard`)
 

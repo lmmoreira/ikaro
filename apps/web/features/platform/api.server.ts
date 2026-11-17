@@ -7,6 +7,7 @@ import {
   HOTSITE_REVALIDATE_SECONDS,
   hotsiteManifestCacheTag,
 } from '@/features/platform/hotsite/revalidate';
+import { withoutLinksToUnavailableSections } from '@/features/platform/hotsite/feature-availability';
 import { bffPublicFetch } from '@/shared/lib/api/bff-server';
 
 // Single source of truth for the manifest URL — fetchManifest() (below) and
@@ -40,7 +41,7 @@ export const fetchManifest = cache(async (slug: string): Promise<HotsiteManifest
   if (res.status === 404) notFound();
   if (!res.ok) throw new Error(`Failed to fetch manifest for slug "${slug}"`);
 
-  return res.json() as Promise<HotsiteManifestResponse>;
+  return withoutLinksToUnavailableSections((await res.json()) as HotsiteManifestResponse);
 });
 
 export async function fetchPublishedHotsiteSlugs(): Promise<HotsiteSitemapEntryListResponse> {

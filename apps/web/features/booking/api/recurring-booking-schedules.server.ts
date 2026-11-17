@@ -4,7 +4,7 @@ import type {
   RecurringBookingScheduleListResponse,
 } from '@ikaro/types';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
-import { assertOk, CustomerFetchError } from '@/shared/lib/api/errors';
+import { assertOk, CustomerFetchError, isSessionRejected } from '@/shared/lib/api/errors';
 
 // The BFF caps `limit` at 100 and the customer's own schedules are bounded by MAX_ACTIVE_*, so one
 // request holds every schedule the account page lists — there is no paging UI on that list.
@@ -87,7 +87,7 @@ export async function fetchCustomerRecurringScheduleOrNull(
   } catch (err) {
     if (err instanceof CustomerFetchError) {
       if (err.status === 404) return null;
-      if (err.status === 401 || err.status === 403) redirect(`/${tenantSlug}/login`);
+      if (isSessionRejected(err)) redirect(`/${tenantSlug}/login`);
     }
     throw err;
   }
@@ -106,7 +106,7 @@ export async function fetchCustomerRecurringScheduleOrRedirect(
   } catch (err) {
     if (err instanceof CustomerFetchError) {
       if (err.status === 404) notFound();
-      if (err.status === 401 || err.status === 403) redirect(`/${tenantSlug}/login`);
+      if (isSessionRejected(err)) redirect(`/${tenantSlug}/login`);
     }
     throw err;
   }

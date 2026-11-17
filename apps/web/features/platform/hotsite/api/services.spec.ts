@@ -36,6 +36,18 @@ describe('fetchServicesClient', () => {
     expect(mock.history.get?.[0]?.headers?.['X-Tenant-Slug']).toBe('lavacar-beloauto');
   });
 
+  it('returns an empty catalog for a tenant without the BOOKING feature', async () => {
+    mock.onGet('/public/services').reply(403, { code: 'BILLING_FEATURE_NOT_ENTITLED' });
+
+    await expect(fetchServicesClient('lavacar-beloauto')).resolves.toEqual([]);
+  });
+
+  it('still rejects on a suspension denial', async () => {
+    mock.onGet('/public/services').reply(403, { code: 'BILLING_TENANT_SUSPENDED' });
+
+    await expect(fetchServicesClient('lavacar-beloauto')).rejects.toThrow();
+  });
+
   it('rejects when the BFF returns an error', async () => {
     mock.onGet('/public/services').reply(500);
 

@@ -5,6 +5,7 @@ import {
   TenantBusinessInfo,
 } from '@ikaro/types';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
+import { isFeatureNotEntitled } from '../../shared/http/feature-not-entitled';
 import { BackendTenantByIdResponse } from './platform.types';
 
 export interface ChatbotBusinessContext {
@@ -16,15 +17,23 @@ export interface ChatbotBusinessContext {
 
 // Same call `SERVICE_LIST`/`ServicesPublicController` already makes — no new cross-context
 // machinery (docs/USE_CASES.md UC-033).
+// A tenant without the `BOOKING` feature has no catalog: the backend refuses the read with the typed
+// denial, which means "no services" for the chat (it still answers from the business info). Any
+// other failure still surfaces.
 export async function getServicesContext(
   backendHttp: BackendHttpService,
   tenantId: string,
 ): Promise<HotsiteServiceResponse[]> {
-  const { items } = await backendHttp.getForPublic<HotsiteServiceListResponse>(
-    '/services',
-    tenantId,
-  );
-  return items;
+  try {
+    const { items } = await backendHttp.getForPublic<HotsiteServiceListResponse>(
+      '/services',
+      tenantId,
+    );
+    return items;
+  } catch (err) {
+    if (isFeatureNotEntitled(err)) return [];
+    throw err;
+  }
 }
 
 // `/internal/tenants/:tenantId` (InternalTenantReadController) — no role guard, already called

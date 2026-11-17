@@ -24,6 +24,7 @@ vi.mock('next-intl', () => ({
       selectTenantRetry: 'Tente novamente',
       roleManager: 'Gerente',
       roleStaff: 'Funcionário',
+      selectTenantSuspendedBadge: 'Suspensa',
     })[key] ?? key,
 }));
 
@@ -52,6 +53,37 @@ describe('SelectStaffTenantClient', () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('marks only a suspended tenant "Suspensa" and keeps it selectable', async () => {
+    const user = userEvent.setup();
+    vi.mocked(switchStaffTenant).mockResolvedValue(undefined as never);
+    render(
+      <SelectStaffTenantClient
+        initialOptions={[
+          makeOption({ staffId: 'staff-1', tenantName: 'AutoWash Pro' }),
+          makeOption({
+            staffId: 'staff-2',
+            tenantName: 'Lavacar BeloAuto',
+            role: 'STAFF',
+            operational: false,
+          }),
+        ]}
+      />,
+    );
+
+    const rows = screen.getAllByTestId('staff-tenant-option');
+    expect(within(rows[0]).queryByTestId('staff-tenant-suspended-badge')).not.toBeInTheDocument();
+    expect(within(rows[1]).getByTestId('staff-tenant-suspended-badge')).toHaveTextContent(
+      'Suspensa',
+    );
+    expect(within(rows[1]).getByText('Funcionário')).toBeInTheDocument();
+    expect(rows[1]).toBeEnabled();
+
+    await user.click(rows[1]);
+
+    expect(switchStaffTenant).toHaveBeenCalledWith('staff-2');
+    expect(push).toHaveBeenCalledWith('/dashboard');
   });
 
   it('shows the load failure as an alert with a retry that refreshes the page', async () => {

@@ -8,9 +8,14 @@ import { Button } from '@/shared/components/ui/button';
 
 interface BookingEmptyStateProps {
   readonly tenantSlug: string;
+  /** `false` while the tenant is suspended (UC-121): the text stays, the booking action does not. */
+  readonly tenantOperational?: boolean;
 }
 
-export function BookingEmptyState({ tenantSlug }: BookingEmptyStateProps): React.JSX.Element {
+export function BookingEmptyState({
+  tenantSlug,
+  tenantOperational = true,
+}: BookingEmptyStateProps): React.JSX.Element {
   const t = useTranslations('customer.emptyState');
 
   return (
@@ -19,9 +24,11 @@ export function BookingEmptyState({ tenantSlug }: BookingEmptyStateProps): React
       title={t('title')}
       body={t('body')}
       action={
-        <Button asChild className="mt-5">
-          <Link href={`/${tenantSlug}/booking`}>{t('cta')}</Link>
-        </Button>
+        tenantOperational ? (
+          <Button asChild className="mt-5">
+            <Link href={`/${tenantSlug}/booking`}>{t('cta')}</Link>
+          </Button>
+        ) : undefined
       }
     />
   );

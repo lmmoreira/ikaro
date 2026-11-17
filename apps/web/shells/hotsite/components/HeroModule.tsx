@@ -78,13 +78,15 @@ function HeroTextContent({
         </p>
       )}
       <div className={['flex flex-wrap gap-4', ctaJustifyClass].filter(Boolean).join(' ')}>
-        <a
-          href={ctaHref}
-          style={primaryBtnStyle}
-          className="inline-block border-2 px-8 py-3 font-semibold transition-all hover:opacity-90 hover:bg-[var(--ba-btn-hover-bg)]"
-        >
-          {data.ctaLabel}
-        </a>
+        {data.ctaLabel && (
+          <a
+            href={ctaHref}
+            style={primaryBtnStyle}
+            className="inline-block border-2 px-8 py-3 font-semibold transition-all hover:opacity-90 hover:bg-[var(--ba-btn-hover-bg)]"
+          >
+            {data.ctaLabel}
+          </a>
+        )}
         {data.secondaryCtaLabel && secondaryHref && (
           <a
             href={secondaryHref}

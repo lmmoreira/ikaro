@@ -136,6 +136,7 @@ export function SwitchTenantClient({
                 isCurrent={tenant.slug === currentTenantSlug}
                 disabled={switchingId !== null}
                 currentBadgeLabel={t('switchTenantCurrentBadge')}
+                inactiveBadgeLabel={t('switchTenantInactiveBadge')}
                 loyaltyPointsLabel={t('tenantLoyaltyPoints', { count: tenant.loyaltyPoints })}
                 onSelect={() => handleSelect(tenant.id)}
               />

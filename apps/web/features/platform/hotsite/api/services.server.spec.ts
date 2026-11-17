@@ -52,6 +52,22 @@ describe('fetchServices', () => {
     );
   });
 
+  it('returns an empty catalog for a tenant without the BOOKING feature', async () => {
+    fetchSpy.mockResolvedValue(
+      new Response(JSON.stringify({ code: 'BILLING_FEATURE_NOT_ENTITLED' }), { status: 403 }),
+    );
+
+    await expect(fetchServices('lavacar-beloauto')).resolves.toEqual([]);
+  });
+
+  it('still throws on a suspension denial (also a 403)', async () => {
+    fetchSpy.mockResolvedValue(
+      new Response(JSON.stringify({ code: 'BILLING_TENANT_SUSPENDED' }), { status: 403 }),
+    );
+
+    await expect(fetchServices('lavacar-beloauto')).rejects.toThrow(/Failed to fetch services/);
+  });
+
   it('throws when the BFF returns an error', async () => {
     fetchSpy.mockResolvedValue(new Response(null, { status: 500 }));
 

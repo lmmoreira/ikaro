@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import type { CustomerFeatureKey } from '@ikaro/types';
 import {
   getCustomerNavItems,
   getNavIconClass,
@@ -12,14 +13,17 @@ import {
 
 interface CustomerBottomNavProps {
   readonly tenantSlug: string;
+  /** `null` when unknown: every tab is shown. */
+  readonly entitledFeatures?: readonly CustomerFeatureKey[] | null;
 }
 
 export function CustomerBottomNav({
   tenantSlug,
+  entitledFeatures = null,
 }: CustomerBottomNavProps): React.JSX.Element | null {
   const t = useTranslations('customer');
   const pathname = usePathname();
-  const navItems = getCustomerNavItems(tenantSlug);
+  const navItems = getCustomerNavItems(tenantSlug, entitledFeatures);
   const homeHref = navItems[0].href;
 
   if (!shouldShowCustomerBottomNav(pathname)) return null;

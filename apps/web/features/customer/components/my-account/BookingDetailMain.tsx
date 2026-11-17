@@ -12,6 +12,7 @@ import { DetailSection } from './DetailSection';
 interface BookingDetailMainProps {
   readonly booking: CustomerBookingDetailResponse;
   readonly tenantSlug: string;
+  readonly tenantOperational?: boolean;
 }
 
 interface DetailRowProps {
@@ -38,6 +39,7 @@ function DetailRow({ icon, label, value, last }: DetailRowProps): React.JSX.Elem
 export function BookingDetailMain({
   booking,
   tenantSlug,
+  tenantOperational = true,
 }: BookingDetailMainProps): React.JSX.Element {
   const t = useTranslations('customer.bookingDetail');
   const { formatMoney, formatTime, formatDateLong } = useFormatting();
@@ -138,7 +140,11 @@ export function BookingDetailMain({
         </DetailSection>
       )}
 
-      <CustomerBookingExtras booking={booking} tenantSlug={tenantSlug} />
+      <CustomerBookingExtras
+        booking={booking}
+        tenantSlug={tenantSlug}
+        tenantOperational={tenantOperational}
+      />
 
       {booking.notes !== null && (
         <DetailSection title={t('notesTitle')}>

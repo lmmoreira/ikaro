@@ -151,7 +151,7 @@ interface RenderOptions {
 }
 
 function renderHome(
-  bookings: CustomerBookingListItem[],
+  bookings: CustomerBookingListItem[] | null,
   { userName = 'João Silva', recurringSchedules = [], activeAlertCount = 0 }: RenderOptions = {},
 ) {
   return render(
@@ -349,5 +349,88 @@ describe('HomeDashboard — the "Renovar" card', () => {
     const upcoming = screen.getByText('Próximos agendamentos');
     expect(strip.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(card.compareDocumentPosition(upcoming) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
+describe('HomeDashboard — a tenant without the LOYALTY feature', () => {
+  function renderWithoutLoyalty(bookings: CustomerBookingListItem[] = []) {
+    return render(
+      <HomeDashboard
+        bookings={bookings}
+        loyaltyBalance={null}
+        userName="João Silva"
+        tenantSlug="lavacar-bh"
+        recurringSchedules={[]}
+        activeAlertCount={0}
+      />,
+    );
+  }
+
+  it('renders the dashboard with no points tile and no expiry strip', () => {
+    renderWithoutLoyalty();
+
+    expect(screen.queryByTestId('home-points-value')).not.toBeInTheDocument();
+    expect(screen.queryByText(/pts expiram em/)).not.toBeInTheDocument();
+    expect(screen.getByTestId('home-bookings-value')).toBeInTheDocument();
+  });
+
+  it('keeps the points tile and the expiry strip for a tenant that holds the feature (negative guarantee)', () => {
+    renderHome([]);
+
+    expect(screen.getByTestId('home-points-value')).toBeInTheDocument();
+    expect(screen.getByText(/pts expiram em/)).toBeInTheDocument();
+  });
+});
+
+describe('HomeDashboard while the tenant is suspended (UC-121)', () => {
+  function renderSuspended(bookings: CustomerBookingListItem[]) {
+    return render(
+      <HomeDashboard
+        bookings={bookings}
+        loyaltyBalance={balance}
+        userName="João Silva"
+        tenantSlug="lavacar-bh"
+        recurringSchedules={[]}
+        activeAlertCount={0}
+        tenantOperational={false}
+      />,
+    );
+  }
+
+  it('badges the open bookings in the preview and drops "Responder"', () => {
+    renderSuspended([makeItem({ status: 'INFO_REQUESTED' }), makeItem({ status: 'APPROVED' })]);
+
+    expect(screen.getAllByTestId('booking-inactive-badge')).toHaveLength(2);
+    expect(screen.queryByRole('link', { name: 'Responder' })).not.toBeInTheDocument();
+  });
+
+  it('keeps the empty text but offers no booking action when there is no booking', () => {
+    renderSuspended([]);
+
+    expect(screen.queryByRole('link', { name: 'Fazer agendamento' })).not.toBeInTheDocument();
+  });
+
+  it('shows no badge for an operational tenant (negative guarantee)', () => {
+    renderHome([makeItem({ status: 'INFO_REQUESTED' })]);
+
+    expect(screen.queryByTestId('booking-inactive-badge')).not.toBeInTheDocument();
+  });
+
+  it('shows no bookings tile, preview or menu for a tenant without BOOKING', () => {
+    renderHome(null);
+
+    expect(screen.queryByText('Agendamentos')).not.toBeInTheDocument();
+    expect(screen.queryByText('Próximos agendamentos')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('mobile-new-menu')).not.toBeInTheDocument();
+    // The rest of Início is untouched.
+    expect(screen.getByText('Pontos')).toBeInTheDocument();
+  });
+
+  it('keeps the bookings tile, preview and menu for a tenant with BOOKING (negative guarantee)', () => {
+    renderHome([]);
+
+    expect(screen.getByText('Agendamentos')).toBeInTheDocument();
+    expect(screen.getByText('Próximos agendamentos')).toBeInTheDocument();
+    expect(screen.getByTestId('mobile-new-menu')).toBeInTheDocument();
   });
 });

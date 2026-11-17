@@ -14,6 +14,8 @@ import { BookingTerminationCard } from '@/features/booking/components/booking-de
 interface CustomerBookingExtrasProps {
   readonly booking: CustomerBookingDetailResponse;
   readonly tenantSlug: string;
+  /** `false` while the tenant is suspended: the recurring schedule's page is refused, so no link. */
+  readonly tenantOperational?: boolean;
 }
 
 type Translate = ReturnType<typeof useTranslations<'booking.detailCards'>>;
@@ -30,6 +32,7 @@ function cancellationActorLabel(cancellation: CustomerBookingCancellation, t: Tr
 export function CustomerBookingExtras({
   booking,
   tenantSlug,
+  tenantOperational = true,
 }: CustomerBookingExtrasProps): React.JSX.Element {
   const t = useTranslations('booking.detailCards');
   const { cancellation, rejection } = booking;
@@ -46,7 +49,7 @@ export function CustomerBookingExtras({
       <BookingAddressesCard pickupAddress={booking.pickupAddress} />
       <BookingOriginCard
         recurrenceHref={
-          booking.recurringScheduleId === null
+          booking.recurringScheduleId === null || !tenantOperational
             ? null
             : appendReturnTo(
                 `/${tenantSlug}/my-account/recurring-schedules/${booking.recurringScheduleId}`,

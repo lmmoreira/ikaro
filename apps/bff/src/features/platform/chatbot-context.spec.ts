@@ -1,4 +1,5 @@
-import { HotsiteServiceListResponse, TenantSettings } from '@ikaro/types';
+import { HttpException, HttpStatus } from '@nestjs/common';
+import { BillingErrorCode, HotsiteServiceListResponse, TenantSettings } from '@ikaro/types';
 import { makeBackendHttp } from '../../test/backend-http.mock';
 import { getBusinessContext, getServicesContext } from './chatbot-context';
 import { BackendTenantByIdResponse } from './platform.types';
@@ -67,6 +68,34 @@ describe('getServicesContext', () => {
 
     expect(backendHttp.getForPublic).toHaveBeenCalledWith('/services', 'tenant-uuid');
     expect(result).toEqual([mockService]);
+  });
+
+  it('answers an empty catalog for a tenant without the BOOKING feature', async () => {
+    const backendHttp = makeBackendHttp({
+      getForPublic: jest
+        .fn()
+        .mockRejectedValue(
+          new HttpException({ code: BillingErrorCode.FEATURE_NOT_ENTITLED }, HttpStatus.FORBIDDEN),
+        ),
+    });
+
+    await expect(getServicesContext(backendHttp, 'tenant-uuid')).resolves.toEqual([]);
+  });
+
+  it('still surfaces a suspension denial and any other failure', async () => {
+    const suspended = makeBackendHttp({
+      getForPublic: jest
+        .fn()
+        .mockRejectedValue(
+          new HttpException({ code: BillingErrorCode.TENANT_SUSPENDED }, HttpStatus.FORBIDDEN),
+        ),
+    });
+    const down = makeBackendHttp({ getForPublic: jest.fn().mockRejectedValue(new Error('down')) });
+
+    await expect(getServicesContext(suspended, 'tenant-uuid')).rejects.toBeInstanceOf(
+      HttpException,
+    );
+    await expect(getServicesContext(down, 'tenant-uuid')).rejects.toThrow('down');
   });
 });
 

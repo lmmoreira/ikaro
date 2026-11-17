@@ -48,9 +48,9 @@ const MAPPING: ControllerMapping[] = [
   {
     controller: BookingController,
     default: DENY,
-    // The booking list is the customer's history; creating a booking as a guest is public. The
-    // detail read (`getOne`) stays DEFAULT_DENY: UC-121 blocks opening a booking's detail.
-    routes: { list: HISTORY, create: PUBLIC },
+    // The booking list and the booking detail are the customer's history; creating a booking as a
+    // guest is public. Every action on a booking stays DEFAULT_DENY (UC-121).
+    routes: { list: HISTORY, getOne: HISTORY, create: PUBLIC },
     minRoutes: 5,
   },
 ];
@@ -91,19 +91,19 @@ describe('Booking routes — tenant access mapping (M25-S18a)', () => {
     }
   });
 
-  it('keeps the booking detail read DEFAULT_DENY, declared on the route itself (UC-121)', () => {
+  it('declares the booking detail read CUSTOMER_HISTORY on the route itself (UC-121)', () => {
     const getOne = routeAccessRequirements(BookingController, reflector).find(
       (route) => route.handler === 'getOne',
     );
 
-    expect(getOne?.requirement.policy).toBe('DEFAULT_DENY');
+    expect(getOne?.requirement.policy).toBe('CUSTOMER_HISTORY');
     // The effective policy alone would pass on the class default; the route must carry its own.
     expect(reflector.get(SUSPENSION_ACCESS_KEY, BookingController.prototype.getOne)).toBe(
-      'DEFAULT_DENY',
+      'CUSTOMER_HISTORY',
     );
   });
 
-  it('keeps the booking list and the customer cancel the only routes a suspended tenant reaches', () => {
+  it('keeps the list, the detail and the customer cancel the only routes a suspended tenant reaches', () => {
     const reachable = rows.filter(
       (row) =>
         row.requirement.policy !== 'DEFAULT_DENY' && row.requirement.policy !== 'PUBLIC_NONE',
@@ -111,6 +111,7 @@ describe('Booking routes — tenant access mapping (M25-S18a)', () => {
 
     expect(reachable.map((row) => `${row.controller}.${row.handler}`).sort()).toEqual([
       'BookingCompletionController.cancelAsCustomer',
+      'BookingController.getOne',
       'BookingController.list',
     ]);
   });

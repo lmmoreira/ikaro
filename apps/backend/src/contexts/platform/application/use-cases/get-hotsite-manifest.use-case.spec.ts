@@ -1,3 +1,4 @@
+import { HOTSITE_MODULE_FEATURE } from '@ikaro/types';
 import {
   HotsiteConfigBuilder,
   TenantBuilder,
@@ -387,6 +388,116 @@ describe('GetHotsiteManifestUseCase', () => {
       const result = await useCase.execute({ tenantId: TENANT_A });
 
       expect(result.layout.map((m) => m.type)).toEqual(['HERO', 'CHATBOT']);
+    });
+
+    // The contract for every feature that gates a hotsite surface, over the map itself: a new gated
+    // module type needs a fixture here, so it cannot ship without its omission being checked.
+    describe('every feature that gates a hotsite module', () => {
+      const FIXTURES: Record<string, HotsiteModule> = {
+        SERVICE_LIST: {
+          type: 'SERVICE_LIST',
+          enabled: true,
+          data: { showPrices: true, showPoints: false, layout: 'grid' },
+        },
+        BOOKING_CTA: {
+          type: 'BOOKING_CTA',
+          enabled: true,
+          data: { title: 'Agende', ctaLabel: 'Agendar' },
+        },
+        CHATBOT: { type: 'CHATBOT', enabled: true, data: { variant: 'bubble' } },
+        LEAD_FORM: {
+          type: 'LEAD_FORM',
+          enabled: true,
+          data: { title: 'Fale conosco', ctaLabel: 'Enviar' },
+        },
+      };
+      const gated = Object.entries(HOTSITE_MODULE_FEATURE);
+      const gatingFeatures = [...new Set(gated.map(([, feature]) => feature))];
+
+      it('has a fixture for every gated module type', () => {
+        expect(Object.keys(FIXTURES).sort()).toEqual(gated.map(([type]) => type).sort());
+      });
+
+      it.each(gatingFeatures)(
+        'omits exactly the modules %s gates, keeps the rest and lists only %s as unavailable',
+        async (missing) => {
+          const layoutAll = [HERO, ...Object.values(FIXTURES)];
+          await repo.save(
+            new HotsiteConfigBuilder().withTenantId(TENANT_A).buildPublished(undefined, layoutAll),
+          );
+          access.seed(TENANT_A, withoutFeatures(missing));
+
+          const result = await useCase.execute({ tenantId: TENANT_A });
+
+          const omitted = gated.filter(([, feature]) => feature === missing).map(([type]) => type);
+          const kept = layoutAll.map((m) => m.type).filter((type) => !omitted.includes(type));
+          expect(result.layout.map((m) => m.type)).toEqual(kept);
+          expect(result.unavailableFeatures).toEqual([missing]);
+        },
+      );
+    });
+
+    describe('BOOKING', () => {
+      const bookingLayout: HotsiteModule[] = [
+        HERO,
+        {
+          type: 'SERVICE_LIST',
+          enabled: true,
+          data: { showPrices: true, showPoints: false, layout: 'grid' },
+        },
+        { type: 'BOOKING_CTA', enabled: true, data: { title: 'Agende', ctaLabel: 'Agendar' } },
+      ];
+
+      it('omits the service list and the booking call to action and reports BOOKING unavailable for a tenant without it', async () => {
+        await repo.save(
+          new HotsiteConfigBuilder()
+            .withTenantId(TENANT_A)
+            .buildPublished(undefined, bookingLayout),
+        );
+        access.seed(TENANT_A, withoutFeatures('BOOKING'));
+
+        const result = await useCase.execute({ tenantId: TENANT_A });
+
+        expect(result.layout.map((m) => m.type)).toEqual(['HERO']);
+        expect(result.unavailableFeatures).toEqual(['BOOKING']);
+      });
+
+      it('keeps both modules and does not report BOOKING unavailable for a tenant holding it (negative guarantee)', async () => {
+        await repo.save(
+          new HotsiteConfigBuilder()
+            .withTenantId(TENANT_A)
+            .buildPublished(undefined, bookingLayout),
+        );
+        access.seed(TENANT_A, withoutFeatures('LEAD_FORM'));
+
+        const result = await useCase.execute({ tenantId: TENANT_A });
+
+        expect(result.layout.map((m) => m.type)).toEqual(['HERO', 'SERVICE_LIST', 'BOOKING_CTA']);
+        expect(result.unavailableFeatures).toEqual(['LEAD_FORM']);
+      });
+
+      it('publishes only the features that gate a hotsite surface, never the rest of the plan', async () => {
+        await repo.save(new HotsiteConfigBuilder().withTenantId(TENANT_A).buildPublished());
+        access.seed(TENANT_A, withoutFeatures('LOYALTY', 'LEAD_FORM', 'CHATBOT'));
+
+        const result = await useCase.execute({ tenantId: TENANT_A });
+
+        expect(result.unavailableFeatures).toEqual(['LEAD_FORM', 'CHATBOT']);
+      });
+
+      it('fails open when the access lookup throws: no feature is reported unavailable', async () => {
+        await repo.save(
+          new HotsiteConfigBuilder()
+            .withTenantId(TENANT_A)
+            .buildPublished(undefined, bookingLayout),
+        );
+        access.getAccessError = new Error('billing down');
+
+        const result = await useCase.execute({ tenantId: TENANT_A });
+
+        expect(result.unavailableFeatures).toEqual([]);
+        expect(result.layout).toHaveLength(3);
+      });
     });
 
     it('preserves the stored module settings: the module returns untouched when the entitlement does', async () => {

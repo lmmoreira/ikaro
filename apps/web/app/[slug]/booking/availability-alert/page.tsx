@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { fetchManifest } from '@/features/platform/api.server';
+import { isFeatureAvailable } from '@/features/platform/hotsite/feature-availability';
 import { fetchServices } from '@/features/platform/hotsite/api/services.server';
 import { AvailabilityAlertPage } from '@/features/booking/components/public/AvailabilityAlertPage';
 import type { AvailabilityAlertFormService } from '@/features/booking/components/public/NewAvailabilityAlertForm';
@@ -33,9 +34,10 @@ export async function generateMetadata({ params }: AvailabilityAlertRouteProps):
 
   return {
     ...(await buildHotsiteMetadata({ manifest, slug, path: '/booking/availability-alert' })),
-    title: manifest.isPublished
-      ? tBooking('availabilityAlert.title')
-      : `${tHotsite('unavailable.title')} — Ikaro`,
+    title:
+      manifest.isPublished && isFeatureAvailable(manifest, 'BOOKING')
+        ? tBooking('availabilityAlert.title')
+        : `${tHotsite('unavailable.title')} — Ikaro`,
     robots: { index: false, follow: false },
   };
 }
@@ -51,7 +53,7 @@ export default async function AvailabilityAlertRoute({
   const link = parseAvailabilityAlertParams(await searchParams);
   const manifest = await fetchManifest(slug);
 
-  if (!manifest.isPublished) {
+  if (!manifest.isPublished || !isFeatureAvailable(manifest, 'BOOKING')) {
     return <UnavailablePage slug={slug} manifest={manifest} />;
   }
 

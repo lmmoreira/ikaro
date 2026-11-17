@@ -8,11 +8,17 @@ import { Button } from '@/shared/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover';
 import { cn } from '@/shared/utils/cn';
 import { recurringScheduleNewPath } from '../recurring-schedule-model';
+import { useHasCustomerFeature } from './customer-features-context';
 
 interface NewReservationMenuProps {
   readonly tenantSlug: string;
   /** Stretches the trigger across its container (Início's mobile button). */
   readonly fullWidth?: boolean;
+  /**
+   * `false` while the tenant is suspended (UC-121): neither a booking nor a recurring reservation
+   * can be created, so the menu is a disabled button. `true` (the default) is today's menu.
+   */
+  readonly tenantOperational?: boolean;
 }
 
 /**
@@ -23,9 +29,31 @@ interface NewReservationMenuProps {
 export function NewReservationMenu({
   tenantSlug,
   fullWidth = false,
-}: NewReservationMenuProps): React.JSX.Element {
+  tenantOperational = true,
+}: NewReservationMenuProps): React.JSX.Element | null {
   const t = useTranslations('customer.newMenu');
+  const tInactive = useTranslations('customer.inactiveTenant');
   const [open, setOpen] = useState(false);
+  const hasBooking = useHasCustomerFeature('BOOKING');
+
+  // Every entry is owned by `BOOKING`: a tenant without it has nothing to create, so the menu is
+  // absent (not disabled, which would read as a temporary suspension).
+  if (!hasBooking) return null;
+
+  if (!tenantOperational) {
+    return (
+      <Button
+        type="button"
+        size={fullWidth ? 'default' : 'sm'}
+        disabled
+        title={tInactive('newDisabledHint')}
+        data-testid="new-booking-disabled"
+        className={cn(fullWidth && 'w-full')}
+      >
+        + {t('label')}
+      </Button>
+    );
+  }
 
   const items = [
     {

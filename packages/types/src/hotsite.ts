@@ -1,4 +1,4 @@
-import type { HotsiteModuleType, ResourceType } from './enums';
+import type { FeatureKey, HotsiteModuleType, ResourceType } from './enums';
 import type { Money, MoneyAmount } from './money';
 import type {
   ResourceRequirementSelectionMode,
@@ -436,6 +436,12 @@ export interface HotsiteManifestResponse extends HotsiteResponse {
   // added here would be a breaking change for any producer/consumer/cached response still on the
   // prior shape (see .coderabbit.yaml's packages/** path instructions).
   booking?: HotsiteBookingSettingsResponse;
+  /**
+   * The features the hotsite has a surface for (a module, a page, a link) that the tenant does not
+   * hold; the page shows none of them. Absent or empty means every one is available, so a producer
+   * or a cached response on the prior shape changes nothing, and a failed access lookup fails open.
+   */
+  unavailableFeatures?: FeatureKey[];
 }
 
 export interface HotsiteAdminContentResponse extends HotsiteResponse {

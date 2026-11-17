@@ -574,37 +574,86 @@ describe('SettingsForm', () => {
     );
   });
 
-  it('renders the locked Chatbot card in place of the section while CHATBOT is not entitled', () => {
-    renderWithIntl(
-      <SettingsForm
-        initial={buildTenant()}
-        lockedChatbotSection={<div data-testid="locked-chatbot">Recurso não contratado</div>}
-      />,
-    );
+  describe.each([
+    {
+      section: 'booking',
+      field: () => screen.getByLabelText('Janela de cancelamento'),
+    },
+    {
+      section: 'loyalty',
+      field: () => screen.getByTestId('settings-points-per-unit-input'),
+    },
+    {
+      section: 'leadForm',
+      field: () => screen.getByTestId('settings-lead-form-retention-months'),
+    },
+    {
+      section: 'chatbot',
+      field: () => screen.getByTestId('settings-chatbot-knowledge-text'),
+    },
+  ] as const)('the $section section', ({ section, field }) => {
+    const lockedCard = <div data-testid="locked-section">Recurso não contratado</div>;
 
-    expect(screen.getByTestId('locked-chatbot')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Sobre o seu negócio')).not.toBeInTheDocument();
-    // The other sections stay editable.
-    expect(screen.getByLabelText('Nome do estabelecimento *')).toBeInTheDocument();
+    it('renders the locked card in place of its fields while its feature is not held', () => {
+      renderWithIntl(
+        <SettingsForm initial={buildTenant()} lockedSections={{ [section]: lockedCard }} />,
+      );
+
+      expect(screen.getByTestId('locked-section')).toBeInTheDocument();
+      // The other sections stay editable.
+      expect(screen.getByLabelText('Nome do estabelecimento *')).toBeInTheDocument();
+    });
+
+    it('renders its fields, and no card, when its feature is held (negative guarantee)', () => {
+      renderWithIntl(<SettingsForm initial={buildTenant()} />);
+
+      expect(field()).toBeInTheDocument();
+      expect(screen.queryByTestId('locked-section')).not.toBeInTheDocument();
+    });
+
+    it('sends none of its keys in a save while locked, and every other key', async () => {
+      const user = userEvent.setup();
+      renderWithIntl(
+        <SettingsForm initial={buildTenant()} lockedSections={{ [section]: lockedCard }} />,
+      );
+
+      await user.click(screen.getByTestId('settings-submit-desktop'));
+
+      expect(await screen.findByTestId('form-feedback')).toBeInTheDocument();
+      expect(mockUpdateTenantSettings).toHaveBeenCalledTimes(1);
+      const payload = mockUpdateTenantSettings.mock.calls[0][0] as { settings: object };
+      expect(payload.settings).not.toHaveProperty(section);
+      for (const other of ['booking', 'loyalty', 'leadForm', 'chatbot'].filter(
+        (key) => key !== section,
+      )) {
+        expect(payload.settings).toHaveProperty(other);
+      }
+    });
   });
 
-  it('sends no chatbot.* key in a save while the Chatbot section is locked, leaving the stored values', async () => {
+  it('renders every locked card at once and sends only the keys no feature owns', async () => {
     const user = userEvent.setup();
+    const card = (name: string) => <div data-testid={`locked-${name}`}>Recurso não contratado</div>;
     renderWithIntl(
       <SettingsForm
         initial={buildTenant()}
-        lockedChatbotSection={<div data-testid="locked-chatbot">Recurso não contratado</div>}
+        lockedSections={{
+          booking: card('booking'),
+          loyalty: card('loyalty'),
+          leadForm: card('leadForm'),
+          chatbot: card('chatbot'),
+        }}
       />,
     );
 
     await user.click(screen.getByTestId('settings-submit-desktop'));
 
     expect(await screen.findByTestId('form-feedback')).toBeInTheDocument();
-    expect(mockUpdateTenantSettings).toHaveBeenCalledTimes(1);
     const payload = mockUpdateTenantSettings.mock.calls[0][0] as { settings: object };
-    expect(payload.settings).not.toHaveProperty('chatbot');
-    expect(payload.settings).toHaveProperty('booking');
-    expect(payload.settings).toHaveProperty('leadForm');
+    for (const key of ['booking', 'loyalty', 'leadForm', 'chatbot']) {
+      expect(payload.settings).not.toHaveProperty(key);
+    }
+    expect(payload.settings).toHaveProperty('businessInfo');
   });
 
   it('marks and focuses the knowledge text input for the server error, mapped from its backend path', async () => {

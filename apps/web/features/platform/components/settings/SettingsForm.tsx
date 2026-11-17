@@ -18,7 +18,6 @@ import {
   resolveSettingsLocalization,
   toSettingsFormValues,
   validateSettingsForm,
-  withoutChatbotSettings,
   type DayHoursValue,
   type SettingsAddressValues,
   type SettingsFormErrors,
@@ -26,6 +25,10 @@ import {
   type SettingsSocialLinksValues,
   type WeekDay,
 } from '@/features/platform/settings-form';
+import {
+  withoutLockedSettings,
+  type LockableSettingsSection,
+} from '@/features/platform/settings-locked-sections';
 import { SettingsGeneralSection } from './SettingsGeneralSection';
 import { SettingsBookingSection } from './SettingsBookingSection';
 import { SettingsLoyaltySection } from './SettingsLoyaltySection';
@@ -58,15 +61,16 @@ interface SettingsFormProps {
   // Injectable for tests — defaults to the real ViaCEP adapter, same pattern as the
   // booking flow's AddressFields.tsx.
   readonly addressLookup?: AddressLookup;
-  // The locked card the page renders in place of the Chatbot section while the tenant does not
-  // hold CHATBOT (UC-125): the section's fields are not rendered and a save sends no `chatbot.*`.
-  readonly lockedChatbotSection?: React.ReactNode;
+  // The locked card the page renders in place of a section whose feature the tenant does not hold
+  // (UC-125): that section's fields are not rendered and a save sends none of its keys. Every other
+  // section stays editable.
+  readonly lockedSections?: Partial<Record<LockableSettingsSection, React.ReactNode>>;
 }
 
 export function SettingsForm({
   initial,
   addressLookup = viaCepAddressLookup,
-  lockedChatbotSection,
+  lockedSections = {},
 }: SettingsFormProps): React.JSX.Element {
   const t = useTranslations('dashboard.settingsPage');
   const locale = useResolvedLocale();
@@ -161,9 +165,7 @@ export function SettingsForm({
     setIsSubmitting(true);
     try {
       await updateTenantSettings({
-        settings: lockedChatbotSection
-          ? withoutChatbotSettings(normalized.settings)
-          : normalized.settings,
+        settings: withoutLockedSettings(normalized.settings, Object.keys(lockedSections)),
       });
     } catch (err) {
       // chatbot.knowledgeText is the only settings field validated purely server-side (no
@@ -216,9 +218,13 @@ export function SettingsForm({
             onNameChange={(value) => setField('name', value)}
           />
 
-          <SettingsBookingSection values={values} feedback={feedback} onFieldChange={setField} />
+          {lockedSections.booking ?? (
+            <SettingsBookingSection values={values} feedback={feedback} onFieldChange={setField} />
+          )}
 
-          <SettingsLoyaltySection values={values} feedback={feedback} onFieldChange={setField} />
+          {lockedSections.loyalty ?? (
+            <SettingsLoyaltySection values={values} feedback={feedback} onFieldChange={setField} />
+          )}
 
           <SettingsHoursSection
             timezone={values.timezone}
@@ -246,7 +252,7 @@ export function SettingsForm({
             }}
           />
 
-          {lockedChatbotSection ?? (
+          {lockedSections.chatbot ?? (
             <SettingsChatbotSection
               knowledgeText={values.knowledgeText}
               feedback={feedback}
@@ -254,7 +260,9 @@ export function SettingsForm({
             />
           )}
 
-          <SettingsLeadFormSection values={values} feedback={feedback} onFieldChange={setField} />
+          {lockedSections.leadForm ?? (
+            <SettingsLeadFormSection values={values} feedback={feedback} onFieldChange={setField} />
+          )}
 
           <SettingsLocalizationSection
             countryCode={initial.settings.localization.countryCode}

@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import type { CustomerBookingDetailResponse, CustomerBookingListResponse } from '@ikaro/types';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
-import { assertOk, CustomerFetchError } from '@/shared/lib/api/errors';
+import { assertOk, CustomerFetchError, isSessionRejected } from '@/shared/lib/api/errors';
 
 // GET /v1/bookings defaults to status=PENDING,INFO_REQUESTED and limit=20 — both params
 // must be passed explicitly or APPROVED/COMPLETED/CANCELLED/REJECTED/NO_SHOW are silently dropped.
@@ -61,7 +61,7 @@ export async function fetchCustomerBookingDetailOrRedirect(
   } catch (err) {
     if (err instanceof CustomerFetchError) {
       if (err.status === 404) notFound();
-      if (err.status === 401 || err.status === 403) redirect(`/${tenantSlug}/login`);
+      if (isSessionRejected(err)) redirect(`/${tenantSlug}/login`);
     }
     throw err;
   }

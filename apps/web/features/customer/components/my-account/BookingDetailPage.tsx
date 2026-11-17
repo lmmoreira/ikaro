@@ -10,7 +10,7 @@ import { Button } from '@/shared/components/ui/button';
 import { Card } from '@/shared/components/ui/card';
 import { FeedbackMessage, type FeedbackModel } from '@/shared/components/ui/feedback-message';
 import { returnBackLabelKey } from '../../booking-navigation';
-import { canCancelBooking, canRescheduleBooking } from '../../booking-sections';
+import { resolveBookingDetailActions } from '../../booking-detail-actions';
 import { useCustomerTopbarStatus } from '../customer-topbar-status-context';
 import { BookingDetailMain } from './BookingDetailMain';
 import { CancelAction } from './CancelAction';
@@ -21,25 +21,22 @@ interface BookingDetailPageProps {
   readonly booking: CustomerBookingDetailResponse;
   readonly tenantSlug: string;
   readonly returnTo?: string | null;
+  /**
+   * `false` while the tenant is suspended (UC-121): the detail stays readable and a future
+   * booking can still be cancelled, but the page offers no reschedule, no info response and no
+   * new booking, and shows the neutral "Empresa inativa" notice. `true` (the default) is today's page.
+   */
+  readonly tenantOperational?: boolean;
 }
-
-type ClosedNoteKey = 'completedNote' | 'noShowNote' | 'cancelledNote' | 'rejectedNote';
-
-// COMPLETED and NO_SHOW share one pane (02c / 02f) with CANCELLED and REJECTED: a note, a way to
-// book again, and the points.
-const CLOSED_NOTE: Partial<Record<CustomerBookingDetailResponse['status'], ClosedNoteKey>> = {
-  [BOOKING_STATUS.COMPLETED]: 'completedNote',
-  [BOOKING_STATUS.NO_SHOW]: 'noShowNote',
-  [BOOKING_STATUS.CANCELLED]: 'cancelledNote',
-  [BOOKING_STATUS.REJECTED]: 'rejectedNote',
-};
 
 export function BookingDetailPage({
   booking,
   tenantSlug,
   returnTo = null,
+  tenantOperational = true,
 }: BookingDetailPageProps): React.JSX.Element {
   const t = useTranslations('customer.bookingDetail');
+  const tInactive = useTranslations('customer.inactiveTenant');
   const [status, setStatus] = useState(booking.status);
   const [infoJustSubmitted, setInfoJustSubmitted] = useState(false);
   const info = useInfoSubmit({
@@ -54,20 +51,14 @@ export function BookingDetailPage({
   const setBackHrefOverride = topbarStatus?.setBackHrefOverride;
   const setBackLabelOverride = topbarStatus?.setBackLabelOverride;
 
-  const isInfoRequested = status === BOOKING_STATUS.INFO_REQUESTED;
-  const showCancel = canCancelBooking({ status, cancellableUntil: booking.cancellableUntil });
-  const showReschedule = canRescheduleBooking({ status, reschedule: booking.reschedule });
-  const showInfoForm =
-    isInfoRequested && booking.infoResponseMessage === null && !infoJustSubmitted;
-  const closedNote = CLOSED_NOTE[status];
-  const showInfoFields = showInfoForm && booking.infoRequestMessage !== null;
-  // Every non-terminal state gets the same two-column layout, with the shared action pane: the
-  // sticky card on desktop, the fixed bottom bar on mobile.
-  const hasSidebarAction = showCancel || showReschedule || closedNote !== undefined;
-  const showRescheduleAction = showReschedule && booking.reschedule !== null;
-  const hasMobileNotes =
-    showRescheduleAction ||
-    (showCancel && status === BOOKING_STATUS.APPROVED && booking.cancellableUntil !== null);
+  const {
+    showCancel,
+    showRescheduleAction,
+    showInfoFields,
+    closedNote,
+    hasSidebarAction,
+    hasMobileNotes,
+  } = resolveBookingDetailActions({ status, booking, tenantOperational, infoJustSubmitted });
   const sentFeedback: FeedbackModel | null = infoJustSubmitted
     ? {
         variant: 'success',
@@ -136,7 +127,7 @@ export function BookingDetailPage({
     ) : (
       <>
         <p className="text-sm leading-relaxed text-gray-500">{t(closedNote)}</p>
-        {newBookingLink}
+        {tenantOperational && newBookingLink}
         {pointsLink}
       </>
     );
@@ -148,9 +139,9 @@ export function BookingDetailPage({
         {cancelAction('button')}
       </div>
     ) : (
-      <div className="grid grid-cols-2 gap-3">
+      <div className={tenantOperational ? 'grid grid-cols-2 gap-3' : 'grid grid-cols-1 gap-3'}>
         {pointsLink}
-        {newBookingLink}
+        {tenantOperational && newBookingLink}
       </div>
     );
 
@@ -164,6 +155,15 @@ export function BookingDetailPage({
         }
       >
         <div className="flex flex-col gap-4">
+          {!tenantOperational && (
+            <Card
+              data-testid="booking-inactive-notice"
+              className="flex flex-col gap-1 rounded-xl border-gray-200 bg-gray-50 p-4 shadow-none"
+            >
+              <p className="text-sm font-semibold text-gray-800">{tInactive('badge')}</p>
+              <p className="text-sm leading-relaxed text-gray-600">{tInactive('detailNotice')}</p>
+            </Card>
+          )}
           {showInfoFields && booking.infoRequestMessage !== null && (
             <InfoSubmitForm infoRequestMessage={booking.infoRequestMessage} controller={info} />
           )}
@@ -190,7 +190,11 @@ export function BookingDetailPage({
               </p>
             </div>
           )}
-          <BookingDetailMain booking={{ ...booking, status }} tenantSlug={tenantSlug} />
+          <BookingDetailMain
+            booking={{ ...booking, status }}
+            tenantSlug={tenantSlug}
+            tenantOperational={tenantOperational}
+          />
 
           {sentFeedback !== null && !hasSidebarAction && (
             <FeedbackMessage

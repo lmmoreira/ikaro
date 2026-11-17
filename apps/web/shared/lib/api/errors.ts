@@ -1,4 +1,4 @@
-import type { ProblemDetail, ValidationProblemDetail } from '@ikaro/types';
+import { BillingErrorCode, type ProblemDetail, type ValidationProblemDetail } from '@ikaro/types';
 
 // Shared across every fetch-based API helper that needs to stop discarding the response body on
 // error (TD23 Story 12) — extracts the canonical envelope's `code`/`field`/`violations`/`detail`
@@ -64,6 +64,45 @@ export async function assertOk<E extends FetchError>(
   if (res.ok) return;
   const body = await parseErrorBody(res);
   throw new ErrorClass(res.status, body.code, body.field, body.detail);
+}
+
+// `true` for the typed refusal of a route whose feature the tenant does not hold. Reads a clone, so
+// the caller can still read the body of a response that is not that denial.
+export async function isFeatureNotEntitledResponse(res: Response): Promise<boolean> {
+  if (res.status !== 403) return false;
+  const body = await parseErrorBody(res.clone());
+  return body.code === BillingErrorCode.FEATURE_NOT_ENTITLED;
+}
+
+// The two typed billing denials are `403`s, but the caller is logged in: the tenant lacks a
+// feature, or is suspended on a route that does not admit the caller (UC-125, UC-121).
+export function isBillingDenial(err: FetchError): boolean {
+  return (
+    err.status === 403 &&
+    (err.code === BillingErrorCode.FEATURE_NOT_ENTITLED ||
+      err.code === BillingErrorCode.TENANT_SUSPENDED)
+  );
+}
+
+// `true` when the session no longer authenticates the caller at this tenant: a `401`, or a `403`
+// that is not a billing denial. Redirecting to login on a billing denial instead sends a logged-in
+// customer into a login loop, because the login page returns them to the page that was denied.
+export function isSessionRejected(err: FetchError): boolean {
+  return err.status === 401 || (err.status === 403 && !isBillingDenial(err));
+}
+
+// Resolves to `null` when the tenant does not hold the feature behind this read, so a page can
+// hide that surface instead of failing (a tenant without `LOYALTY` still has a working account).
+// Every other failure, including a suspension denial, is rethrown unchanged.
+export async function nullWhenNotEntitled<T>(promise: Promise<T>): Promise<T | null> {
+  try {
+    return await promise;
+  } catch (err) {
+    if (err instanceof FetchError && err.code === BillingErrorCode.FEATURE_NOT_ENTITLED) {
+      return null;
+    }
+    throw err;
+  }
 }
 
 export class AuthError extends Error {

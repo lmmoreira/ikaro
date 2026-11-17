@@ -70,14 +70,24 @@ export function SelectStaffTenantClient({
                   } ${selecting === null ? 'cursor-pointer' : 'cursor-wait'}`}
                 >
                   <span className="font-medium text-gray-900">{opt.tenantName}</span>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                      opt.role === 'MANAGER'
-                        ? 'bg-violet-100 text-violet-700'
-                        : 'bg-gray-100 text-gray-700'
-                    }`}
-                  >
-                    {opt.role === 'MANAGER' ? t('roleManager') : t('roleStaff')}
+                  <span className="flex shrink-0 items-center gap-2">
+                    {!opt.operational && (
+                      <span
+                        data-testid="staff-tenant-suspended-badge"
+                        className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800"
+                      >
+                        {t('selectTenantSuspendedBadge')}
+                      </span>
+                    )}
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                        opt.role === 'MANAGER'
+                          ? 'bg-violet-100 text-violet-700'
+                          : 'bg-gray-100 text-gray-700'
+                      }`}
+                    >
+                      {opt.role === 'MANAGER' ? t('roleManager') : t('roleStaff')}
+                    </span>
                   </span>
                 </button>
               </li>

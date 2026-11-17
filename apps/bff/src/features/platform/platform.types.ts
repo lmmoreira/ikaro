@@ -1,4 +1,5 @@
 import {
+  FeatureKey,
   HotsiteBookingSettingsResponse,
   HotsiteBusinessInfoResponse,
   HotsiteLocalizationResponse,
@@ -12,6 +13,7 @@ export type BackendHotsiteManifestResponse = HotsiteResponse & {
   business: HotsiteBusinessInfoResponse;
   localization: HotsiteLocalizationResponse;
   booking: HotsiteBookingSettingsResponse;
+  unavailableFeatures?: FeatureKey[];
 };
 
 // GET /internal/tenants/:tenantId's real shape (GetTenantByIdUseCaseResult) — no guard, already

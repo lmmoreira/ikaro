@@ -5,7 +5,7 @@ import {
   withEffectiveStatus,
 } from '@/features/booking/model/availability-alert-status';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
-import { assertOk, CustomerFetchError } from '@/shared/lib/api/errors';
+import { assertOk, CustomerFetchError, isSessionRejected } from '@/shared/lib/api/errors';
 
 // GET /availability-alerts — the caller's own alerts, newest first, history included, at most the
 // 100 most recent (UC-076). One request holds everything the list page shows.
@@ -58,7 +58,7 @@ export async function fetchCustomerAvailabilityAlertOrRedirect(
   } catch (err) {
     if (err instanceof CustomerFetchError) {
       if (err.status === 404) notFound();
-      if (err.status === 401 || err.status === 403) redirect(`/${tenantSlug}/login`);
+      if (isSessionRejected(err)) redirect(`/${tenantSlug}/login`);
     }
     throw err;
   }

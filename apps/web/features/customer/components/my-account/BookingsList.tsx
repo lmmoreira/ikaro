@@ -6,6 +6,7 @@ import { Bell, ChevronRight, Repeat } from 'lucide-react';
 import type { CustomerBookingListItem } from '@ikaro/types';
 import type { AlertsSummary } from '@/features/booking/api/availability-alerts.server';
 import type { RecurringSummary } from '@/features/booking/api/recurring-booking-schedules.server';
+import { Card } from '@/shared/components/ui/card';
 import { PageHeader } from '@/shared/components/ui/page-header';
 import { alertListPath } from '../../alert-model';
 import { recurringScheduleListPath } from '../../recurring-schedule-model';
@@ -21,6 +22,12 @@ interface BookingsListProps {
   /** `null` when the alerts read failed — the entry row is simply not shown. */
   readonly alertsSummary: AlertsSummary | null;
   readonly tenantSlug: string;
+  /**
+   * `false` while the tenant is suspended (UC-121): the "Empresa inativa" notice and badges show,
+   * "+ Novo" is disabled and the recurring and alerts entry rows are not offered (their reads are
+   * refused). `true` (the default) is today's list.
+   */
+  readonly tenantOperational?: boolean;
 }
 
 interface EntryRowProps {
@@ -71,6 +78,7 @@ interface BookingSectionProps {
   readonly title: string;
   readonly items: readonly CustomerBookingListItem[];
   readonly tenantSlug: string;
+  readonly tenantOperational: boolean;
 }
 
 function BookingSection({
@@ -78,13 +86,19 @@ function BookingSection({
   title,
   items,
   tenantSlug,
+  tenantOperational,
 }: BookingSectionProps): React.JSX.Element {
   return (
     <section data-testid={testId} className="mt-6 first:mt-0">
       <h2 className="text-sm font-semibold text-gray-500">{title}</h2>
       <ul className="mt-2 flex flex-col gap-2">
         {items.map((item) => (
-          <BookingListItem key={item.bookingId} item={item} tenantSlug={tenantSlug} />
+          <BookingListItem
+            key={item.bookingId}
+            item={item}
+            tenantSlug={tenantSlug}
+            tenantOperational={tenantOperational}
+          />
         ))}
       </ul>
     </section>
@@ -96,8 +110,10 @@ export function BookingsList({
   recurringSummary,
   alertsSummary,
   tenantSlug,
+  tenantOperational = true,
 }: BookingsListProps): React.JSX.Element {
   const t = useTranslations('customer.bookings');
+  const tInactive = useTranslations('customer.inactiveTenant');
   const { upcoming, pending, history } = splitBookingSections(bookings);
   const isEmpty = upcoming.length === 0 && pending.length === 0 && history.length === 0;
 
@@ -108,12 +124,22 @@ export function BookingsList({
         className="items-center"
         actions={
           <div className="lg:hidden" data-testid="mobile-new-menu">
-            <NewReservationMenu tenantSlug={tenantSlug} />
+            <NewReservationMenu tenantSlug={tenantSlug} tenantOperational={tenantOperational} />
           </div>
         }
       />
 
-      {recurringSummary?.hasAny === true && (
+      {!tenantOperational && (
+        <Card
+          data-testid="inactive-tenant-notice"
+          className="mt-4 flex flex-col gap-1 rounded-xl border-gray-200 bg-gray-50 p-4 shadow-none"
+        >
+          <p className="text-sm font-semibold text-gray-800">{tInactive('noticeTitle')}</p>
+          <p className="text-sm leading-relaxed text-gray-600">{tInactive('noticeBody')}</p>
+        </Card>
+      )}
+
+      {tenantOperational && recurringSummary?.hasAny === true && (
         <EntryRow
           rowTestId="recurring-entry-row"
           countTestId="recurring-entry-count"
@@ -124,7 +150,7 @@ export function BookingsList({
         />
       )}
 
-      {alertsSummary?.hasAny === true && (
+      {tenantOperational && alertsSummary?.hasAny === true && (
         <EntryRow
           rowTestId="alerts-entry-row"
           countTestId="alerts-entry-count"
@@ -137,7 +163,7 @@ export function BookingsList({
 
       {isEmpty ? (
         <div className="mt-6">
-          <BookingEmptyState tenantSlug={tenantSlug} />
+          <BookingEmptyState tenantSlug={tenantSlug} tenantOperational={tenantOperational} />
         </div>
       ) : (
         <div className="mt-4">
@@ -147,6 +173,7 @@ export function BookingsList({
               title={t('sectionUpcoming', { count: upcoming.length })}
               items={upcoming}
               tenantSlug={tenantSlug}
+              tenantOperational={tenantOperational}
             />
           )}
           {pending.length > 0 && (
@@ -155,6 +182,7 @@ export function BookingsList({
               title={t('sectionPending', { count: pending.length })}
               items={pending}
               tenantSlug={tenantSlug}
+              tenantOperational={tenantOperational}
             />
           )}
           {history.length > 0 && (
@@ -163,6 +191,7 @@ export function BookingsList({
               title={t('sectionHistory', { count: history.length })}
               items={history}
               tenantSlug={tenantSlug}
+              tenantOperational={tenantOperational}
             />
           )}
         </div>

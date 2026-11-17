@@ -3,17 +3,23 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import type { CustomerFeatureKey } from '@ikaro/types';
 import { cn } from '@/shared/utils/cn';
 import { getCustomerNavItems, getNavIconClass, isCustomerNavActive } from './customer-nav-items';
 
 interface CustomerTabNavProps {
   readonly tenantSlug: string;
+  /** `null` when unknown: every tab is shown. */
+  readonly entitledFeatures?: readonly CustomerFeatureKey[] | null;
 }
 
-export function CustomerTabNav({ tenantSlug }: CustomerTabNavProps): React.JSX.Element {
+export function CustomerTabNav({
+  tenantSlug,
+  entitledFeatures = null,
+}: CustomerTabNavProps): React.JSX.Element {
   const t = useTranslations('customer');
   const pathname = usePathname();
-  const navItems = getCustomerNavItems(tenantSlug);
+  const navItems = getCustomerNavItems(tenantSlug, entitledFeatures);
   const homeHref = navItems[0].href;
 
   const linkClass = (active: boolean) =>

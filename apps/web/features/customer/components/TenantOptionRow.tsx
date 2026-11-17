@@ -47,6 +47,8 @@ interface TenantOptionRowProps {
   readonly isCurrent: boolean;
   readonly disabled: boolean;
   readonly currentBadgeLabel: string;
+  /** The neutral marker of a suspended tenant (UC-121): it stays listed and selectable. */
+  readonly inactiveBadgeLabel: string;
   readonly loyaltyPointsLabel: string;
   readonly onSelect: () => void;
 }
@@ -56,6 +58,7 @@ export function TenantOptionRow({
   isCurrent,
   disabled,
   currentBadgeLabel,
+  inactiveBadgeLabel,
   loyaltyPointsLabel,
   onSelect,
 }: TenantOptionRowProps): React.JSX.Element {
@@ -76,7 +79,18 @@ export function TenantOptionRow({
           {currentBadgeLabel}
         </span>
       ) : (
-        <ChevronIcon />
+        <>
+          {!tenant.operational && (
+            <span
+              data-testid="switch-tenant-inactive-badge"
+              className="shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[0.6875rem] font-bold"
+              style={{ borderColor: 'var(--ba-secondary)', color: 'var(--ba-secondary-text)' }}
+            >
+              {inactiveBadgeLabel}
+            </span>
+          )}
+          <ChevronIcon />
+        </>
       )}
     </>
   );

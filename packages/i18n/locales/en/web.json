@@ -76,7 +76,9 @@
     "errorNoTenantHeading": "Could not sign in",
     "errorNoTenantMessage": "No establishment found for your Google account.",
     "errorFallbackHeading": "Authentication error",
-    "errorFallbackMessage": "An unexpected error occurred. Please try again."
+    "errorFallbackMessage": "An unexpected error occurred. Please try again.",
+    "selectTenantSuspendedBadge": "Suspended",
+    "switchTenantInactiveBadge": "Inactive company"
   },
   "booking": {
     "title": "Book a service",
@@ -1061,6 +1063,14 @@
       "bookingHint": "Book a single time slot",
       "recurring": "Recurring reservation",
       "recurringHint": "Book the same time every week"
+    },
+    "inactiveTenant": {
+      "badge": "Inactive company",
+      "noticeTitle": "Inactive company.",
+      "noticeBody": "This company is not operating right now. You can review your bookings and cancel future ones, but you cannot answer information requests, reschedule or create new bookings.",
+      "newDisabledHint": "Unavailable while the company is inactive",
+      "loyaltyReadOnly": "This company is inactive. Your balance and history are still available to view, but you cannot earn or use points right now. Points keep expiring on their scheduled date.",
+      "detailNotice": "You can review this booking and cancel it, but you cannot reschedule or send information while the company is inactive."
     }
   },
   "dashboard": {
@@ -3112,6 +3122,11 @@
           "title": "Your account is suspended",
           "body": "Access to the dashboard is unavailable while the subscription is suspended. Your data and settings were kept.",
           "billingHint": "The next step is the subscription area, where you settle the account to reactivate it.",
+          "signOut": "Sign out"
+        },
+        "staff": {
+          "title": "Account suspended",
+          "body": "This account is suspended. Talk to your manager.",
           "signOut": "Sign out"
         }
       }

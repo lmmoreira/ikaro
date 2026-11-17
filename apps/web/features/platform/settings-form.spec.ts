@@ -4,9 +4,9 @@ import {
   resolveSettingsLocalization,
   toSettingsFormValues,
   validateSettingsForm,
-  withoutChatbotSettings,
   type SettingsFormValues,
 } from './settings-form';
+import { SETTINGS_SECTION_FEATURE } from './settings-locked-sections';
 
 const t = (key: string): string => key;
 const BR = 'BR';
@@ -663,30 +663,12 @@ describe('validateSettingsForm', () => {
   });
 });
 
-describe('withoutChatbotSettings', () => {
-  it('drops only the chatbot key and leaves every other settings category untouched', () => {
-    const settings = {
-      booking: { cancellationWindowHours: 24 },
-      chatbot: { knowledgeText: 'Aceitamos Pix.' },
-      leadForm: { retentionMonths: 12 },
-    } as unknown as Parameters<typeof withoutChatbotSettings>[0];
+describe('the settings sections that belong to a feature', () => {
+  it('each write a key the save payload really carries, so locking one leaves that key out', () => {
+    const { normalized } = validateSettingsForm(validValues(), BR, t);
 
-    const result = withoutChatbotSettings(settings);
-
-    expect(result).not.toHaveProperty('chatbot');
-    expect(result).toEqual({
-      booking: { cancellationWindowHours: 24 },
-      leadForm: { retentionMonths: 12 },
-    });
-    // The input is not mutated, so a locked save never changes what the form still holds.
-    expect(settings).toHaveProperty('chatbot');
-  });
-
-  it('returns the same categories when there is no chatbot key', () => {
-    const settings = { booking: { cancellationWindowHours: 24 } } as unknown as Parameters<
-      typeof withoutChatbotSettings
-    >[0];
-
-    expect(withoutChatbotSettings(settings)).toEqual(settings);
+    expect(Object.keys(normalized?.settings ?? {})).toEqual(
+      expect.arrayContaining(Object.keys(SETTINGS_SECTION_FEATURE)),
+    );
   });
 });
