@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { FeatureKey, HotsiteManifestResponse, HotsiteModuleResponse } from '@ikaro/types';
 import {
   HOTSITE_PAGE_FEATURE,
+  type HotsiteFeaturePage,
   isFeatureAvailable,
   isHotsitePageAvailable,
   withoutLinksToUnavailableSections,
@@ -83,7 +84,7 @@ describe('isHotsitePageAvailable', () => {
     ['unpublished, nothing unavailable', pageManifest(false, [])],
     ['unpublished, BOOKING unavailable', pageManifest(false, ['BOOKING'])],
   ])('decides %s exactly as the hand-written expression did', (_state, manifestIn) => {
-    for (const page of Object.keys(HOTSITE_PAGE_FEATURE) as (keyof typeof HOTSITE_PAGE_FEATURE)[]) {
+    for (const page of Object.keys(HOTSITE_PAGE_FEATURE) as HotsiteFeaturePage[]) {
       expect(isHotsitePageAvailable(manifestIn, page)).toBe(previously(manifestIn));
     }
   });

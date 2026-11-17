@@ -21,7 +21,7 @@ export const DEFAULT_CUSTOMER_TENANT_ACCESS: CustomerTenantAccess = {
 // § A surface of a missing feature or a suspended tenant): absent for a tenant that cannot offer
 // the surface at all (no `BOOKING`), disabled for a state that will end (suspended), offered
 // otherwise.
-export type NewBookingMenuState = 'offered' | 'disabled' | 'absent';
+type NewBookingMenuState = 'offered' | 'disabled' | 'absent';
 
 // What the customer's account may offer, decided once from the tenant's state so no component asks
 // "is the tenant suspended?" or "does it hold BOOKING?" itself. Each capability is one named

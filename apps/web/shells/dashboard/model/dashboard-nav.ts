@@ -27,10 +27,10 @@ export type DashboardNavRole = 'STAFF' | 'MANAGER';
 
 // An optional module the manager switches on, which hides its item while it is off (an item the
 // tenant is not entitled to is shown locked instead, whatever the switch says).
-export type DashboardNavToggle = 'leadForm';
-export type DashboardNavToggles = Readonly<Record<DashboardNavToggle, boolean>>;
+type DashboardNavToggle = 'leadForm';
+type DashboardNavToggles = Readonly<Record<DashboardNavToggle, boolean>>;
 
-export type DashboardNavLabelKey =
+type DashboardNavLabelKey =
   | 'nav.bookings'
   | 'nav.schedule'
   | 'nav.services'
@@ -41,7 +41,7 @@ export type DashboardNavLabelKey =
   | 'nav.settings'
   | 'nav.hotsite';
 
-export interface DashboardNavEntry {
+interface DashboardNavEntry {
   readonly href: string;
   readonly labelKey: DashboardNavLabelKey;
   readonly Icon: LucideIcon;
