@@ -806,12 +806,12 @@ Staff closes a session's roster after `endTime`, marks individual attendance, an
 **Agent:** `frontend-ts`
 **Complexity:** L
 **Docs to load:** `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/API_CONTRACTS.md` § 4b
-**Dependencies:** M24-S01, M24-S02, M24-S11, M24-S13
+**Dependencies:** M24-S01, M24-S02, M24-S11, M24-S13, M25-S34 (the dashboard nav registry)
 **Pattern:** plain composition — matches `apps/web/features/booking/components/dashboard/services/` shape.
 **Prototype references:** `journeys/manager/turmas.md`, `journeys/manager/prototypes/turmas/01-turmas-list.html` through `07b-nova-matricula-erro.html`, `dev-notes.md`.
 
 **Description:**
-Build the manager admin surface: template CRUD, contracts, and matrículas (enrollments) view — following `journeys/manager/prototypes/turmas/` exactly. **Session list/override/cancel is deliberately out of scope here** — `journeys/manager/turmas.md`'s own header scopes this journey to configuration only (UC-079/080/096/099/103/104) and explicitly says session-level daily operations belong to `staff/turmas.md`'s shared STAFF|MANAGER surface (S16); no manager-only session-management screen was ever promoted or prototyped (`docs-audit` found `01-turmas-list.html`'s "Ver sessões"/"Editar" links were dead `#` placeholders with no destination screen — this correction removes that dangling scope rather than treating it as a gap to fill). A manager wanting to manage sessions day-to-day uses S16 directly, same as a staff member. New MANAGER-only sidebar item "Turmas" (`Sidebar.tsx`'s `MANAGER_NAV_KEYS`).
+Build the manager admin surface: template CRUD, contracts, and matrículas (enrollments) view — following `journeys/manager/prototypes/turmas/` exactly. **Session list/override/cancel is deliberately out of scope here** — `journeys/manager/turmas.md`'s own header scopes this journey to configuration only (UC-079/080/096/099/103/104) and explicitly says session-level daily operations belong to `staff/turmas.md`'s shared STAFF|MANAGER surface (S16); no manager-only session-management screen was ever promoted or prototyped (`docs-audit` found `01-turmas-list.html`'s "Ver sessões"/"Editar" links were dead `#` placeholders with no destination screen — this correction removes that dangling scope rather than treating it as a gap to fill). A manager wanting to manage sessions day-to-day uses S16 directly, same as a staff member. New MANAGER-only sidebar item "Turmas" (one manager entry in the `dashboard-nav.ts` registry that M25-S34 introduces; `Sidebar.tsx`, `BottomNav.tsx` and `MoreSheet.tsx` read it).
 
 **Files to create/modify:**
 - `apps/web/app/dashboard/turmas/page.tsx`, `new/page.tsx`, `[id]/page.tsx`, `[id]/matriculas/page.tsx` (new)
@@ -821,7 +821,7 @@ Build the manager admin surface: template CRUD, contracts, and matrículas (enro
 - `apps/web/features/booking/components/dashboard/turmas/ContractCreateForm.tsx` (+ `.spec.tsx`) (new)
 - `apps/web/features/booking/components/dashboard/turmas/EnrollmentsPage.tsx` (+ `.spec.tsx`) (new)
 - `apps/web/features/booking/api/class-schedule-templates.ts`, `class-access-contracts.ts`, `class-sessions.ts`, `recurring-enrollments.ts` (new — React Query hooks)
-- `apps/web/shells/dashboard/components/Sidebar.tsx` (modify — add "Turmas" to `MANAGER_NAV_KEYS`)
+- `apps/web/shells/dashboard/model/dashboard-nav.ts` (modify — add the "Turmas" manager entry to the registry M25-S34 introduced, with its `ROUTE_FEATURES` row in `apps/web/shared/lib/billing/feature-registry.ts` if the route is feature-gated; the three nav components do not change)
 - `packages/i18n/locales/{pt-BR,en}/web.json` (modify — `dashboard.nav.turmas`, `dashboard.turmasPage` namespace)
 
 **Acceptance criteria — product:**
