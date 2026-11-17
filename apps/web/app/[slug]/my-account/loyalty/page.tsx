@@ -7,6 +7,7 @@ import {
   fetchLoyaltyRedemptions,
 } from '@/features/loyalty/api.server';
 import { LoyaltyPage } from '@/features/customer/components/my-account/LoyaltyPage';
+import { CustomerTenantAccessScope } from '@/features/customer/components/CustomerTenantAccessScope';
 import { nullWhenNotEntitled } from '@/shared/lib/api/errors';
 import { redirectCustomerWithoutFeature } from '@/shared/lib/billing/access.server';
 
@@ -34,6 +35,13 @@ export default async function MyAccountLoyaltyPage({
   }
 
   return (
-    <LoyaltyPage balance={balance} entries={entries} redemptions={redemptions} tenantSlug={slug} />
+    <CustomerTenantAccessScope token={token}>
+      <LoyaltyPage
+        balance={balance}
+        entries={entries}
+        redemptions={redemptions}
+        tenantSlug={slug}
+      />
+    </CustomerTenantAccessScope>
   );
 }

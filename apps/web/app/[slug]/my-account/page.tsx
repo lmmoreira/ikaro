@@ -6,6 +6,7 @@ import { fetchCustomerBookings } from '@/features/booking/api/customer.server';
 import { fetchActiveRecurringSchedules } from '@/features/booking/api/recurring-booking-schedules.server';
 import { fetchLoyaltyBalance } from '@/features/loyalty/api.server';
 import { HomeDashboard } from '@/features/customer/components/my-account/HomeDashboard';
+import { CustomerTenantAccessScope } from '@/features/customer/components/CustomerTenantAccessScope';
 import { readWhenCustomerFeatureHeld } from '@/shared/lib/billing/access.server';
 import { nullWhenNotEntitled } from '@/shared/lib/api/errors';
 
@@ -26,7 +27,7 @@ export default async function MyAccountHomePage({
   // no such tile. `nullWhenNotEntitled` stays as the backstop for a stale answer. The two summaries
   // also resolve to `null` on any failure, so a broken read hides its own tile and never blocks the
   // rest of Início. What a suspended tenant changes (the "Empresa inativa" badge, the disabled
-  // "+ Novo") comes from the capabilities the account shell provides.
+  // "+ Novo") comes from the capabilities of the tenant state this page provides, read in this render.
   const [bookings, loyaltyBalance, recurringSchedules, alertsSummary] = await Promise.all([
     readWhenCustomerFeatureHeld(token, 'BOOKING', () =>
       withAuthRedirect(nullWhenNotEntitled(fetchCustomerBookings(token)), slug),
@@ -39,13 +40,15 @@ export default async function MyAccountHomePage({
   ]);
 
   return (
-    <HomeDashboard
-      bookings={bookings?.items ?? null}
-      loyaltyBalance={loyaltyBalance}
-      userName={userName ?? null}
-      tenantSlug={slug}
-      recurringSchedules={recurringSchedules}
-      activeAlertCount={alertsSummary?.activeCount ?? null}
-    />
+    <CustomerTenantAccessScope token={token}>
+      <HomeDashboard
+        bookings={bookings?.items ?? null}
+        loyaltyBalance={loyaltyBalance}
+        userName={userName ?? null}
+        tenantSlug={slug}
+        recurringSchedules={recurringSchedules}
+        activeAlertCount={alertsSummary?.activeCount ?? null}
+      />
+    </CustomerTenantAccessScope>
   );
 }

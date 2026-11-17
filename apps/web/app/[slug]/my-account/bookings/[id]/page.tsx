@@ -2,6 +2,7 @@ import { getAccessToken } from '@/features/auth/get-access-token';
 import { fetchCustomerBookingDetailOrRedirect } from '@/features/booking/api/customer.server';
 import { resolveReturnTo } from '@/features/customer/booking-navigation';
 import { BookingDetailPage } from '@/features/customer/components/my-account/BookingDetailPage';
+import { CustomerTenantAccessScope } from '@/features/customer/components/CustomerTenantAccessScope';
 import { redirectCustomerWithoutFeature } from '@/shared/lib/billing/access.server';
 
 interface BookingDetailRouteProps {
@@ -22,11 +23,15 @@ export default async function BookingDetailRoute({
   await redirectCustomerWithoutFeature(token, slug, 'BOOKING');
   const booking = await fetchCustomerBookingDetailOrRedirect(token, id, slug);
 
+  // The tenant's state is read in this render, not taken from the account layout: a layout is kept
+  // across client navigation, so a tenant suspended or reactivated mid-session must show here.
   return (
-    <BookingDetailPage
-      booking={booking}
-      tenantSlug={slug}
-      returnTo={resolveReturnTo(returnTo, slug)}
-    />
+    <CustomerTenantAccessScope token={token}>
+      <BookingDetailPage
+        booking={booking}
+        tenantSlug={slug}
+        returnTo={resolveReturnTo(returnTo, slug)}
+      />
+    </CustomerTenantAccessScope>
   );
 }

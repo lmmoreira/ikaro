@@ -5,6 +5,7 @@ import { fetchAlertsSummary } from '@/features/booking/api/availability-alerts.s
 import { fetchCustomerBookings } from '@/features/booking/api/customer.server';
 import { fetchRecurringSummary } from '@/features/booking/api/recurring-booking-schedules.server';
 import { BookingsList } from '@/features/customer/components/my-account/BookingsList';
+import { CustomerTenantAccessScope } from '@/features/customer/components/CustomerTenantAccessScope';
 import { nullWhenNotEntitled } from '@/shared/lib/api/errors';
 import { redirectCustomerWithoutFeature } from '@/shared/lib/billing/access.server';
 
@@ -21,7 +22,7 @@ export default async function MyAccountBookingsPage({
 
   // The recurring and alerts summaries only feed optional entry rows and resolve to null on any
   // failure, so they can never block the tab; the bookings read handles an expired session. What a
-  // suspended tenant changes comes from the capabilities the account shell provides.
+  // suspended tenant changes comes from the capabilities of the tenant state this page provides.
   const [bookings, recurringSummary, alertsSummary] = await Promise.all([
     withAuthRedirect(nullWhenNotEntitled(fetchCustomerBookings(token)), slug),
     fetchRecurringSummary(token),
@@ -32,11 +33,13 @@ export default async function MyAccountBookingsPage({
   if (bookings === null) redirect(`/${slug}/my-account`);
 
   return (
-    <BookingsList
-      bookings={bookings.items}
-      recurringSummary={recurringSummary}
-      alertsSummary={alertsSummary}
-      tenantSlug={slug}
-    />
+    <CustomerTenantAccessScope token={token}>
+      <BookingsList
+        bookings={bookings.items}
+        recurringSummary={recurringSummary}
+        alertsSummary={alertsSummary}
+        tenantSlug={slug}
+      />
+    </CustomerTenantAccessScope>
   );
 }

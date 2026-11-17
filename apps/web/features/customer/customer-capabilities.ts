@@ -47,6 +47,12 @@ export interface CustomerCapabilities {
   readonly canManageRecurring: boolean;
 }
 
+// Absent wins over disabled: a tenant that cannot offer the surface at all shows no disabled stub.
+function newBookingMenuState(holdsBooking: boolean, operational: boolean): NewBookingMenuState {
+  if (!holdsBooking) return 'absent';
+  return operational ? 'offered' : 'disabled';
+}
+
 export function resolveCustomerCapabilities({
   operational,
   entitledFeatures,
@@ -56,7 +62,7 @@ export function resolveCustomerCapabilities({
   return {
     showInactiveNotice: !operational,
     canStartBooking: operational,
-    newBookingMenu: !holdsBooking ? 'absent' : operational ? 'offered' : 'disabled',
+    newBookingMenu: newBookingMenuState(holdsBooking, operational),
     canRespondToInfoRequest: operational,
     canReschedule: operational,
     offersRecurringAndAlerts: operational,
