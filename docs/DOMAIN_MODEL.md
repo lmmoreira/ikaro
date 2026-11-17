@@ -60,7 +60,7 @@ A bounded context is an autonomous domain with clear boundaries and its own mode
 - One immutable `LoyaltyEntry` is inserted each time a booking is completed for an authenticated customer. Append-only.
 - `LoyaltyBalance` holds the running active point total per `(tenant_id, customer_id)` — O(1) reads, updated atomically on earn/redeem/expiry.
 - `LoyaltyRedemption` records each time an admin redeems points for a customer. Append-only audit log.
-- A GCP Cloud Scheduler job publishes to the `ikaro-cron-loyalty-expiry` Pub/Sub topic at 02:00 UTC daily; the push subscription dispatches to `ExpirePointsTriggerHandler`, which decrements `loyalty_balances.current_points` for entries whose `expires_at` has passed (idempotent via `balance_expiry_log`). `POST /cron/loyalty-expiry` publishes the same trigger for local/manual use (M17-S03).
+- A GCP Cloud Scheduler job publishes to the `ikaro-cron-loyalty-expiry` Pub/Sub topic at 02:00 UTC daily; the push subscription dispatches to `ExpirePointsTriggerHandler`, which decrements `loyalty_balances.current_points` for the entries due since its stored watermark (idempotent via `balance_expiry_log`; see § Expiration window (`loyalty.expiryDays`) below). `POST /cron/loyalty-expiry` publishes the same trigger for local/manual use (M17-S03).
 
 **Responsibilities:**
 - Append a `LoyaltyEntry` and increment `LoyaltyBalance` when `BookingCompleted` is consumed and the booking has a `customerId`.

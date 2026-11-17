@@ -155,6 +155,14 @@ Naming (from `infra/terraform/modules/pubsub` and `modules/scheduler`): a topic 
 4. The planned Billing triggers (`cron-billing-*`, see § Billing (planned)) follow the same rule: fire the Scheduler job `ikaro-cron-billing-<name>`, never the `/cron/billing-*` route, outside local development.
 5. Some consumers only act inside a tenant-local window (the availability-alert sweep runs 06:30–06:59 tenant time — `docs/BUSINESS_LOGIC_REFERENCE.md`), so a manual tick outside the window correctly does nothing.
 
+### The loyalty expiry sweep keeps failing, or needs a full rescan
+
+The daily `cron-loyalty-expiry` sweep (consumer `loyalty-expire-points`) processes each customer in its own transaction and moves its watermark (`loyalty.expiry_sweep_state`, one row for `loyalty-expiry-sweep`) only after every customer succeeded.
+
+1. A failing customer is logged as `ExpirePointsJob failed for a customer — the run will be retried` with its `tenantId` and `customerId`; the run then fails once, so the message is redelivered and the next night re-reads the same slice. The other customers are expired normally, and entries already processed are skipped.
+2. To force one full rescan (for example after a bad backfill), delete the row: `DELETE FROM loyalty.expiry_sweep_state WHERE job_name = 'loyalty-expiry-sweep'`. The next run reads every unprocessed entry once, which is slower but safe because `loyalty.balance_expiry_log` keeps it from expiring anything twice (`docs/DATABASE_SCHEMA.md`).
+3. A `Points discount exceeded the balance: settled what the balance covered` warning is not a failure of this sweep: a booking was completed with a points discount and the balance had dropped before the loyalty side processed it, so the redemption recorded the points that were left and the difference was absorbed (`docs/BUSINESS_LOGIC_REFERENCE.md`, the Loyalty earn and settle section). It is expected to be rare; a burst of them is worth a look.
+
 ### A message landed in a dead-letter topic
 
 Push subscriptions retry with backoff (10 s → 600 s) and dead-letter after 5 delivery attempts; messages are kept 7 days. DLQs are alert-only — application code never reads them.

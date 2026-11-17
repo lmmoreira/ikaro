@@ -1991,7 +1991,7 @@ Returns:
 - **Preconditions:** At least one tenant has customers with `LoyaltyEntry` rows whose `expires_at` falls within the warning window.
 - **Trigger:** GCP Cloud Scheduler publishes to the `ikaro-cron-loyalty-expiry-warning` Pub/Sub topic once a week (Mondays 06:00 UTC); the push subscription dispatches to `NotifyExpiringPointsTriggerHandler`, which calls `NotifyExpiringPointsJob.run()` (M17-S03 — local dev: `POST /cron/loyalty-expiry-warning` publishes the same trigger).
 - **Main Flow:**
-  1. Job fetches all `LoyaltyEntry` rows where `expires_at BETWEEN now() AND now() + 7 days` (a constant in the job, `DEFAULT_EXPIRY_WARNING_DAYS`; `settings.loyalty.expiryWarningDays` is validated and stored but not read at runtime) that are not yet in `balance_expiry_log`, across all tenants in a single query (all-tenant pass, same pattern as the daily expiry job).
+  1. Job fetches all `LoyaltyEntry` rows where `expires_at BETWEEN now() AND now() + 7 days` (a constant in the job, `DEFAULT_EXPIRY_WARNING_DAYS`; `settings.loyalty.expiryWarningDays` is validated and stored but not read at runtime), across all tenants in a single query (all-tenant pass, same pattern as the daily expiry job).
   2. Groups entries by `(tenant_id, customer_id)`.
   3. For each group: computes `pointsExpiringSoon` (sum of `points`) and `earliestExpiresAt` (minimum `expires_at`). A group whose `pointsExpiringSoon` is below the tenant's `settings.loyalty.notificationMinPoints` is skipped (the threshold is compared with the points expiring in the window, not with the customer's balance).
   4. Publishes one `PointsExpiringSoon` event per remaining customer.
@@ -2003,6 +2003,7 @@ Returns:
   - **A2: Customer not found in Notification context** → Consumer skips silently (logs a warning). Idempotency log is not written.
   - **A3: Duplicate delivery (handler called twice)** → Consumer checks `notification_logs` by `eventId`; second call is a no-op.
   - **A4: Tenant is suspended** → the Notification consumer declares `skipWhenSuspended: true`, so the event is dropped and no email is sent (UC-123). Expiry itself is not paused: points keep expiring while a tenant is suspended (O-L1, UC-121, decided in M25-S27), so a customer can lose points with no warning. Dropped events are not replayed.
+  - **A5: A tenant's settings read or publish fails** → that tenant is skipped for this run (its customers get no warning this week), the other tenants are still processed, and the run fails once at the end so the trigger is redelivered. The job is weekly and recomputes its window from the entries, so no state is lost. The settings read never falls back to default thresholds (`docs/BOUNDED_CONTEXTS.md`, the Loyalty adapter fails closed).
 
 - **Postconditions:** One warning email sent per customer with expiring points (at least `notificationMinPoints`, tenant not suspended). No DB rows written by the cron itself (state-free read + publish).
 - **Events Triggered:** `PointsExpiringSoon` (one per affected customer per tenant).
