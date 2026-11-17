@@ -50,6 +50,9 @@ export function HomeDashboard({
   const t = useTranslations('customer.home');
   const { formatDate, timezone } = useFormatting();
   const preview = selectHomePreview(bookings);
+  // Both are `null` for a tenant without the `LOYALTY` feature (no balance to read them from).
+  const expiryDate = loyaltyBalance?.nextExpiryDate ?? null;
+  const expiryPoints = loyaltyBalance?.nextExpiryPoints ?? null;
   const recurringCount = recurringSchedules?.length ?? 0;
   const renewal =
     recurringSchedules === null
@@ -106,19 +109,17 @@ export function HomeDashboard({
         )}
       </div>
 
-      {loyaltyBalance !== null &&
-        loyaltyBalance.nextExpiryDate !== null &&
-        loyaltyBalance.nextExpiryPoints !== null && (
-          <Link
-            href={`/${tenantSlug}/my-account/loyalty`}
-            className="mt-3 block rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-800 hover:bg-amber-100"
-          >
-            {t('expiryStrip', {
-              points: loyaltyBalance.nextExpiryPoints,
-              date: formatDate(new Date(loyaltyBalance.nextExpiryDate)),
-            })}
-          </Link>
-        )}
+      {expiryDate !== null && expiryPoints !== null && (
+        <Link
+          href={`/${tenantSlug}/my-account/loyalty`}
+          className="mt-3 block rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-800 hover:bg-amber-100"
+        >
+          {t('expiryStrip', {
+            points: expiryPoints,
+            date: formatDate(new Date(expiryDate)),
+          })}
+        </Link>
+      )}
 
       {renewal !== null && <HomeRenewalCard selection={renewal} tenantSlug={tenantSlug} />}
 
