@@ -257,7 +257,7 @@ Mobile: card is already full-width up to 26rem.
 ## Screen 8 — Minha conta com empresa inativa
 
 File: `customer-01-account-inactive-business.html` — Status: EXISTS (`my-account` booking list rows) + GAP prop `tenantActive`.
-Behaviour: open bookings (PENDING, INFO_REQUESTED, APPROVED) are listed with the "Empresa inativa" badge and are not links (`aria-disabled`); history (COMPLETED, CANCELLED, REJECTED, NO_SHOW) stays linked to the detail page. "Novo agendamento" rendered disabled. The prototype-only link under the open list and the link on the disabled button exist to reach screens 9 and 10; in production they are inert.
+Behaviour: open bookings (PENDING, INFO_REQUESTED, APPROVED) are listed with the "Empresa inativa" badge and are not links (`aria-disabled`) (superseded by M25-S31a, 2026-11-16: a suspended customer can open the booking detail, so only reschedule, information responses and new bookings stay blocked); history (COMPLETED, CANCELLED, REJECTED, NO_SHOW) stays linked to the detail page. "Novo agendamento" rendered disabled. The prototype-only link under the open list and the link on the disabled button exist to reach screens 9 and 10; in production they are inert.
 BFF: `GET /v1/bookings` (unchanged), customer-safe active flag (see open points).
 Copy: "Empresa inativa", "Esta empresa não está operando no momento. Você pode consultar seu histórico, mas não é possível abrir agendamentos em aberto nem criar novos."
 States: empty history = existing empty copy; load-error = existing retry alert.

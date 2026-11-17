@@ -251,7 +251,7 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
 - **Actor:** Manager / Staff / Customer.
 - **Preconditions:** Tenant `SUSPENDED`.
 - **Trigger:** Login or any navigation.
-- **Main Flow:** Login itself is never blocked. After login: manager → billing page only; staff → suspended notice; customer → account with "Empresa inativa" badge, booking/loyalty history readable, new booking/reschedule/redemption/earning blocked, and cancellation of an existing future booking allowed. One global guard applies declarative `@SuspensionAccess` route policy; Booking decides record-dependent open-detail/cancellation rules.
+- **Main Flow:** Login itself is never blocked. After login: manager → billing page only; staff → suspended notice; customer → account with "Empresa inativa" badge, booking/loyalty history readable, new booking/reschedule/redemption/earning blocked, and cancellation of an existing future booking allowed. One global guard applies declarative `@SuspensionAccess` route policy; Booking decides record-dependent open-detail/cancellation rules (superseded by M25-S31a, 2026-11-16: a suspended customer can open the booking detail, so only reschedule, information responses and new bookings stay blocked).
 - **Alternative Flows:**
   - **A1: Direct URL to a blocked page** → typed backend denial; web routing redirects only where a role-specific safe destination exists.
   - **A2: JWT issued before suspension** → the guard checks current access, not the token claims, so it takes effect immediately (cache TTL bounded).
