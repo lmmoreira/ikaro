@@ -3,6 +3,28 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const bffServerFetch = vi.hoisted(() => vi.fn());
 vi.mock('@/shared/lib/api/bff-server', () => ({ bffServerFetch }));
 
+// React's `cache` memoizes only inside a server render; this stand-in memoizes per call arguments
+// until `resetRenderCache()`, so a spec can tell one shared read from two.
+const renderCache = vi.hoisted(() => {
+  const stores: Map<string, unknown>[] = [];
+  return {
+    cache: <A extends unknown[], R>(fn: (...args: A) => R) => {
+      const store = new Map<string, unknown>();
+      stores.push(store);
+      return (...args: A): R => {
+        const key = JSON.stringify(args);
+        if (!store.has(key)) store.set(key, fn(...args));
+        return store.get(key) as R;
+      };
+    },
+    reset: () => stores.forEach((store) => store.clear()),
+  };
+});
+vi.mock('react', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('react')>()),
+  cache: renderCache.cache,
+}));
+
 const redirect = vi.hoisted(() =>
   vi.fn((url: string) => {
     throw new Error(`NEXT_REDIRECT:${url}`);
@@ -22,6 +44,7 @@ function jsonResponse(body: unknown, ok = true, status = 200): Response {
 }
 
 beforeEach(() => {
+  renderCache.reset();
   bffServerFetch.mockReset();
 });
 
@@ -141,6 +164,28 @@ describe('fetchCustomerFeatures', () => {
     bffServerFetch.mockRejectedValue(new Error('network down'));
 
     await expect(fetchCustomerFeatures('token')).resolves.toBeNull();
+  });
+
+  it.each([[null], [[null]], [[{ key: 'LOYALTY', tier: 'STANDARD' }]], [[42]]])(
+    'fails open on a features array that is not plain keys: %j',
+    async (features) => {
+      bffServerFetch.mockResolvedValue(jsonResponse({ operational: true, features }));
+
+      await expect(fetchCustomerFeatures('token')).resolves.toBeNull();
+    },
+  );
+
+  it('makes one request when the layout asks for the operational flag and the features together', async () => {
+    bffServerFetch.mockResolvedValue(jsonResponse({ operational: true, features: ['BOOKING'] }));
+
+    const [operational, features] = await Promise.all([
+      fetchCustomerTenantOperational('token'),
+      fetchCustomerFeatures('token'),
+    ]);
+
+    expect(operational).toBe(true);
+    expect(features).toEqual(['BOOKING']);
+    expect(bffServerFetch).toHaveBeenCalledTimes(1);
   });
 
   it.each([{}, { features: 'all' }, null])('fails open on a malformed body %j', async (body) => {

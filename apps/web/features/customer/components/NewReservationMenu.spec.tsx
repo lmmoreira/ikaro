@@ -2,6 +2,7 @@
 import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { renderWithIntl } from '@/test-utils';
+import { CustomerFeaturesProvider } from './customer-features-context';
 import { NewReservationMenu } from './NewReservationMenu';
 
 function open(): void {
@@ -73,5 +74,26 @@ describe('NewReservationMenu while the tenant is suspended (UC-121)', () => {
 
     expect(screen.getByTestId('new-menu-trigger')).toBeEnabled();
     expect(screen.queryByTestId('new-booking-disabled')).not.toBeInTheDocument();
+  });
+
+  it('is absent, not disabled, for a tenant without BOOKING', () => {
+    renderWithIntl(
+      <CustomerFeaturesProvider entitledFeatures={['LOYALTY']}>
+        <NewReservationMenu tenantSlug="lavacar-bh" />
+      </CustomerFeaturesProvider>,
+    );
+
+    expect(screen.queryByTestId('new-menu-trigger')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('new-booking-disabled')).not.toBeInTheDocument();
+  });
+
+  it('is the usual menu when the tenant features are unknown (negative guarantee)', () => {
+    renderWithIntl(
+      <CustomerFeaturesProvider entitledFeatures={null}>
+        <NewReservationMenu tenantSlug="lavacar-bh" />
+      </CustomerFeaturesProvider>,
+    );
+
+    expect(screen.getByTestId('new-menu-trigger')).toBeEnabled();
   });
 });

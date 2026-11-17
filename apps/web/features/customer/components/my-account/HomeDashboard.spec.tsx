@@ -151,7 +151,7 @@ interface RenderOptions {
 }
 
 function renderHome(
-  bookings: CustomerBookingListItem[],
+  bookings: CustomerBookingListItem[] | null,
   { userName = 'João Silva', recurringSchedules = [], activeAlertCount = 0 }: RenderOptions = {},
 ) {
   return render(
@@ -414,5 +414,23 @@ describe('HomeDashboard while the tenant is suspended (UC-121)', () => {
     renderHome([makeItem({ status: 'INFO_REQUESTED' })]);
 
     expect(screen.queryByTestId('booking-inactive-badge')).not.toBeInTheDocument();
+  });
+
+  it('shows no bookings tile, preview or menu for a tenant without BOOKING', () => {
+    renderHome(null);
+
+    expect(screen.queryByText('Agendamentos')).not.toBeInTheDocument();
+    expect(screen.queryByText('Próximos agendamentos')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('mobile-new-menu')).not.toBeInTheDocument();
+    // The rest of Início is untouched.
+    expect(screen.getByText('Pontos')).toBeInTheDocument();
+  });
+
+  it('keeps the bookings tile, preview and menu for a tenant with BOOKING (negative guarantee)', () => {
+    renderHome([]);
+
+    expect(screen.getByText('Agendamentos')).toBeInTheDocument();
+    expect(screen.getByText('Próximos agendamentos')).toBeInTheDocument();
+    expect(screen.getByTestId('mobile-new-menu')).toBeInTheDocument();
   });
 });

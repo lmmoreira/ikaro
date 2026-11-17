@@ -17,9 +17,11 @@ export type TenantAccessResult =
 
 const FAIL_OPEN: TenantAccessResult = { ok: false };
 
-// The one `GET /billing/access` read both readers below share. `null` is "no usable answer":
-// a failed request, a non-2xx answer or an unparsable body.
-async function readAccessBody(token: string): Promise<Partial<BillingAccessResponse> | null> {
+// The one `GET /billing/access` read every reader below shares. `null` is "no usable answer":
+// a failed request, a non-2xx answer or an unparsable body. React's `cache` de-duplicates it inside
+// one render, so a layout that asks for the operational flag and the features (or a page and its
+// layout) make a single request and can never see two different answers.
+async function fetchAccessBody(token: string): Promise<Partial<BillingAccessResponse> | null> {
   try {
     const res = await bffServerFetch(token, '/billing/access', { cache: 'no-store' });
     if (!res.ok) return null;
@@ -28,6 +30,8 @@ async function readAccessBody(token: string): Promise<Partial<BillingAccessRespo
     return null;
   }
 }
+
+const readAccessBody = cache(fetchAccessBody);
 
 async function readTenantAccess(token: string): Promise<TenantAccessResult> {
   const body = await readAccessBody(token);
@@ -65,6 +69,10 @@ async function readCustomerFeatures(token: string): Promise<readonly CustomerFea
   const body = await readAccessBody(token);
   if (!Array.isArray(body?.features)) return null;
   const held: readonly unknown[] = body.features;
+  // Every entry must be a plain key (an unknown key is a feature a newer backend added and is
+  // ignored); anything else, such as the staff `{ key, tier }` shape, is no usable answer. An empty
+  // list from a malformed body would hide every tab instead of failing open.
+  if (!held.every((entry) => typeof entry === 'string')) return null;
   return CUSTOMER_FEATURE_KEYS.filter((key) => held.includes(key));
 }
 

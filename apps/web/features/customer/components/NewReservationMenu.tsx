@@ -8,6 +8,7 @@ import { Button } from '@/shared/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover';
 import { cn } from '@/shared/utils/cn';
 import { recurringScheduleNewPath } from '../recurring-schedule-model';
+import { useHasCustomerFeature } from './customer-features-context';
 
 interface NewReservationMenuProps {
   readonly tenantSlug: string;
@@ -29,10 +30,15 @@ export function NewReservationMenu({
   tenantSlug,
   fullWidth = false,
   tenantOperational = true,
-}: NewReservationMenuProps): React.JSX.Element {
+}: NewReservationMenuProps): React.JSX.Element | null {
   const t = useTranslations('customer.newMenu');
   const tInactive = useTranslations('customer.inactiveTenant');
   const [open, setOpen] = useState(false);
+  const hasBooking = useHasCustomerFeature('BOOKING');
+
+  // Every entry is owned by `BOOKING`: a tenant without it has nothing to create, so the menu is
+  // absent (not disabled, which would read as a temporary suspension).
+  if (!hasBooking) return null;
 
   if (!tenantOperational) {
     return (

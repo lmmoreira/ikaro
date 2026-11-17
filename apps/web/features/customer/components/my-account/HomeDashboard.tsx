@@ -22,7 +22,8 @@ import { HomeCountTile } from './HomeCountTile';
 import { HomeRenewalCard } from './HomeRenewalCard';
 
 interface HomeDashboardProps {
-  readonly bookings: readonly CustomerBookingListItem[];
+  /** `null` when the tenant does not hold the `BOOKING` feature: no bookings tile, preview or menu. */
+  readonly bookings: readonly CustomerBookingListItem[] | null;
   /** `null` when the tenant does not hold the `LOYALTY` feature: no points tile, no expiry strip. */
   readonly loyaltyBalance: CustomerLoyaltyBalanceResponse | null;
   readonly userName: string | null;
@@ -49,7 +50,7 @@ export function HomeDashboard({
 }: HomeDashboardProps): React.JSX.Element {
   const t = useTranslations('customer.home');
   const { formatDate, timezone } = useFormatting();
-  const preview = selectHomePreview(bookings);
+  const preview = bookings === null ? [] : selectHomePreview(bookings);
   // Both are `null` for a tenant without the `LOYALTY` feature (no balance to read them from).
   const expiryDate = loyaltyBalance?.nextExpiryDate ?? null;
   const expiryPoints = loyaltyBalance?.nextExpiryPoints ?? null;
@@ -79,14 +80,16 @@ export function HomeDashboard({
             }
           />
         )}
-        <HomeCountTile
-          href={`/${tenantSlug}/my-account/bookings`}
-          label={t('bookings')}
-          value={t('bookingsTotal', { count: countActiveBookings(bookings) })}
-          valueTestId="home-bookings-value"
-          iconBackground="bg-blue-50"
-          icon={<Calendar className="h-[18px] w-[18px] text-blue-600" aria-hidden="true" />}
-        />
+        {bookings !== null && (
+          <HomeCountTile
+            href={`/${tenantSlug}/my-account/bookings`}
+            label={t('bookings')}
+            value={t('bookingsTotal', { count: countActiveBookings(bookings ?? []) })}
+            valueTestId="home-bookings-value"
+            iconBackground="bg-blue-50"
+            icon={<Calendar className="h-[18px] w-[18px] text-blue-600" aria-hidden="true" />}
+          />
+        )}
         {recurringCount > 0 && (
           <HomeCountTile
             href={recurringScheduleListPath(tenantSlug)}
@@ -123,41 +126,45 @@ export function HomeDashboard({
 
       {renewal !== null && <HomeRenewalCard selection={renewal} tenantSlug={tenantSlug} />}
 
-      <section className="mt-6">
-        <h2 className="text-sm font-semibold text-gray-500">{t('upcomingTitle')}</h2>
-        {preview.length === 0 ? (
-          <div className="mt-2">
-            <BookingEmptyState tenantSlug={tenantSlug} tenantOperational={tenantOperational} />
-          </div>
-        ) : (
-          <>
-            <ul className="mt-2 flex flex-col gap-2">
-              {preview.map((item) => (
-                <BookingListItem
-                  key={item.bookingId}
-                  item={item}
-                  tenantSlug={tenantSlug}
-                  tenantOperational={tenantOperational}
-                />
-              ))}
-            </ul>
-            <Link
-              href={`/${tenantSlug}/my-account/bookings`}
-              className="mt-3 inline-block text-sm font-medium text-blue-600 hover:underline"
-            >
-              {t('viewAll')}
-            </Link>
-          </>
-        )}
-      </section>
+      {bookings !== null && (
+        <section className="mt-6">
+          <h2 className="text-sm font-semibold text-gray-500">{t('upcomingTitle')}</h2>
+          {preview.length === 0 ? (
+            <div className="mt-2">
+              <BookingEmptyState tenantSlug={tenantSlug} tenantOperational={tenantOperational} />
+            </div>
+          ) : (
+            <>
+              <ul className="mt-2 flex flex-col gap-2">
+                {preview.map((item) => (
+                  <BookingListItem
+                    key={item.bookingId}
+                    item={item}
+                    tenantSlug={tenantSlug}
+                    tenantOperational={tenantOperational}
+                  />
+                ))}
+              </ul>
+              <Link
+                href={`/${tenantSlug}/my-account/bookings`}
+                className="mt-3 inline-block text-sm font-medium text-blue-600 hover:underline"
+              >
+                {t('viewAll')}
+              </Link>
+            </>
+          )}
+        </section>
+      )}
 
-      <div className="mt-6 lg:hidden" data-testid="mobile-new-menu">
-        <NewReservationMenu
-          tenantSlug={tenantSlug}
-          fullWidth
-          tenantOperational={tenantOperational}
-        />
-      </div>
+      {bookings !== null && (
+        <div className="mt-6 lg:hidden" data-testid="mobile-new-menu">
+          <NewReservationMenu
+            tenantSlug={tenantSlug}
+            fullWidth
+            tenantOperational={tenantOperational}
+          />
+        </div>
+      )}
     </div>
   );
 }

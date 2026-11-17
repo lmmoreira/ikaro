@@ -22,11 +22,11 @@ export default async function MyAccountHomePage({
 
   // The two summaries are optional: each resolves to `null` on any failure, so a broken schedules
   // or alerts read hides its own tile and never redirects or blocks the rest of Início. The loyalty
-  // balance is optional too: a tenant without the `LOYALTY` feature has no points tile, and the
+  // balance is optional too, and so are the bookings (a tenant without `BOOKING` shows no bookings surface): a tenant without the `LOYALTY` feature has no points tile, and the
   // tenant's `operational` flag is a fail-open read (no answer shows no "Empresa inativa" badge).
   const [bookings, loyaltyBalance, recurringSchedules, alertsSummary, operational] =
     await Promise.all([
-      withAuthRedirect(fetchCustomerBookings(token), slug),
+      withAuthRedirect(nullWhenNotEntitled(fetchCustomerBookings(token)), slug),
       withAuthRedirect(nullWhenNotEntitled(fetchLoyaltyBalance(token)), slug),
       fetchActiveRecurringSchedules(token),
       fetchAlertsSummary(token),
@@ -35,7 +35,7 @@ export default async function MyAccountHomePage({
 
   return (
     <HomeDashboard
-      bookings={bookings.items}
+      bookings={bookings?.items ?? null}
       loyaltyBalance={loyaltyBalance}
       userName={userName ?? null}
       tenantSlug={slug}

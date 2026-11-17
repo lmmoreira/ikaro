@@ -64,7 +64,7 @@ flowchart TD
 
 **Tab roles (decided 2026-10-09):** Início is the glance (points, active counts, the "Renovar" card, a short booking preview); Agendamentos is the booking list plus the two sub-lists that are bookings in disguise — "Reservas recorrentes" and "Meus avisos" — each shown only when the customer has any item in it, in any status, so an ended schedule can still be reached and renewed; Fidelidade is the only full points view. Points are not repeated on Agendamentos.
 
-**Tabs follow the tenant's features (decided 2026-11-17, M25-S31a):** a tenant without `LOYALTY` shows no Fidelidade tab (top nav and bottom nav), and one without `BOOKING` shows no Agendamentos tab; Início is always there. The feature keys come from the role-reduced `GET /v1/billing/access` the layout already reads for the "Empresa inativa" badge. If that read fails every tab stays, and a direct URL to a hidden tab's page sends the customer back to Início.
+**Tabs follow the tenant's features (decided 2026-11-17, M25-S31a):** a tenant without `LOYALTY` shows no Fidelidade tab (top nav and bottom nav), and one without `BOOKING` shows no Agendamentos tab, no "+ Novo" menu and no bookings on Início (the Agendamentos URL returns to Início); Início is always there. The feature keys come from the role-reduced `GET /v1/billing/access` the layout already reads for the "Empresa inativa" badge. If that read fails every tab stays, and a direct URL to a hidden tab's page sends the customer back to Início.
 
 ## BFF calls in this flow
 
