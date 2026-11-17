@@ -1,4 +1,5 @@
-import type { FeatureKey } from '@ikaro/validation';
+import { CUSTOMER_FEATURE_KEYS, HOTSITE_MODULE_FEATURE } from '@ikaro/types';
+import { FEATURE_KEYS, type FeatureKey } from '@ikaro/validation';
 import {
   FeatureDependencyUnmetError,
   FeatureHasDependentsError,
@@ -6,6 +7,7 @@ import {
   SubscriptionInvariantError,
 } from './errors/billing-domain.error';
 import {
+  FEATURE_REQUIREMENTS,
   defaultSelection,
   defaultTierFor,
   isTierSoldFor,
@@ -122,6 +124,59 @@ describe('plan-selection', () => {
       const before = JSON.stringify([current, proposed]);
       validateSelection(current, proposed);
       expect(JSON.stringify([current, proposed])).toBe(before);
+    });
+  });
+
+  // The dependency graph against the surfaces features gate. The web never re-derives entitlement
+  // from the graph (the backend decides, and a plan can only be saved dependency-closed), so this is
+  // the one place a new feature's surfaces are checked against it: a feature whose surface is hosted
+  // by another must require that host, or a tenant could hold the feature without any page to show it.
+  describe('the feature hierarchy against the surfaces features gate', () => {
+    function requiredBy(feature: FeatureKey): Set<FeatureKey> {
+      const seen = new Set<FeatureKey>();
+      const pending = [...FEATURE_REQUIREMENTS[feature]];
+      for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+        if (seen.has(next)) continue;
+        seen.add(next);
+        pending.push(...FEATURE_REQUIREMENTS[next]);
+      }
+      return seen;
+    }
+
+    it('has HOTSITE as the one root: it requires nothing and every other feature requires it', () => {
+      expect(FEATURE_REQUIREMENTS.HOTSITE).toEqual([]);
+      for (const feature of FEATURE_KEYS.filter((key) => key !== 'HOTSITE')) {
+        expect([feature, requiredBy(feature).has('HOTSITE')]).toEqual([feature, true]);
+      }
+    });
+
+    it('has no feature that requires itself, directly or through others', () => {
+      for (const feature of FEATURE_KEYS) {
+        expect([feature, requiredBy(feature).has(feature)]).toEqual([feature, false]);
+      }
+    });
+
+    // The hotsite, its pages and its sections are hosted by HOTSITE: a feature whose module or page
+    // the hotsite shows must require it.
+    it.each(Object.values(HOTSITE_MODULE_FEATURE).filter((feature) => feature !== 'HOTSITE'))(
+      '%s, which gates a hotsite module, requires HOTSITE',
+      (feature) => {
+        expect(requiredBy(feature)).toContain('HOTSITE');
+      },
+    );
+
+    // The customer account lives on the tenant's hotsite.
+    it.each(CUSTOMER_FEATURE_KEYS)(
+      '%s, which has a customer-account surface, requires HOTSITE',
+      (feature) => {
+        expect(requiredBy(feature)).toContain('HOTSITE');
+      },
+    );
+
+    // The points page offers a booking link, and the points accrue from bookings: a tenant with
+    // LOYALTY always has BOOKING, so that link is never dead.
+    it('makes LOYALTY require BOOKING', () => {
+      expect(requiredBy('LOYALTY')).toContain('BOOKING');
     });
   });
 });

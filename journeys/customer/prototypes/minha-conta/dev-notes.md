@@ -380,7 +380,7 @@ The customer area had **no reschedule screen** (only the staff `RescheduleBookin
 
 ## Billing — account with an inactive company (`16-agendamentos-empresa-inativa.html`)
 
-File: `16-agendamentos-empresa-inativa.html` — Status: EXISTS (`my-account` booking list) + built prop `tenantOperational` (M25-S31a).
+File: `16-agendamentos-empresa-inativa.html` — Status: EXISTS (`my-account` booking list) + built as the `showInactiveNotice` capability of `CustomerTenantAccessProvider` (M25-S31a, reworked from a `tenantOperational` prop in M25-S34).
 Behaviour: same three sections as the shipped list (Próximos, Pendentes, Histórico), same rows and links. Every OPEN row (APPROVED, PENDING, INFO_REQUESTED) carries the "Empresa inativa" badge and loses "Responder" (the information response is refused); the row still opens the detail (`16b`), history rows open the read-only detail (`16g`), and "Cancelar" / "Cancelar solicitação" is the same link to the same cancel page (`03-cancel-confirm.html`). "+ Novo" is rendered disabled. **No "Reservas recorrentes" / "Meus avisos" entry rows:** their summary reads are refused while suspended (`DEFAULT_DENY`, M25-S18b) and `BookingsList` renders an entry row only when its summary is non-null, so they disappear on their own. A neutral notice above the sections explains it.
 BFF: `GET /v1/bookings` (unchanged) and `GET /v1/billing/access` for `operational`.
 Copy: "Empresa inativa", "Esta empresa não está operando no momento. Você pode consultar seus agendamentos e cancelar os futuros, mas não é possível responder pedidos de informação, remarcar nem criar novos agendamentos."
@@ -389,7 +389,7 @@ Mobile: bottom nav (Início, Agendamentos, Fidelidade); badge wraps under status
 
 ## Billing — booking detail while suspended (`16b-detalhe-empresa-inativa.html`, `16g-detalhe-historico-empresa-inativa.html`; `BookingDetailPage`)
 
-Files: `16b` (an APPROVED future booking, from `02-agendamento-detail.html`) and `16g` (a COMPLETED booking, from `02c-agendamento-historico.html`) — Status: EXISTS + built prop `tenantOperational` (M25-S31a).
+Files: `16b` (an APPROVED future booking, from `02-agendamento-detail.html`) and `16g` (a COMPLETED booking, from `02c-agendamento-historico.html`) — Status: EXISTS + built as the tenant's capabilities (M25-S31a, reworked from a `tenantOperational` prop in M25-S34).
 Backend: `GET /v1/bookings/:id` is `CUSTOMER_HISTORY` (customer role only; amended in M25-S31a, previously `DEFAULT_DENY`), so the page loads exactly as for an operational tenant; reschedule, submit-info and attachment routes stay refused.
 Behaviour: a neutral "Empresa inativa" notice card above the detail ("Você pode consultar este agendamento e cancelá-lo, mas não é possível remarcar nem enviar informações enquanto a empresa estiver inativa."). The action pane omits "Reagendar" (and the information form on an INFO_REQUESTED booking, whose request message is not shown as a form) and, on a closed booking, "Fazer novo agendamento"; "Cancelar agendamento" / "Cancelar solicitação" and "Ver meus pontos →" stay. A booking that belongs to a recurring schedule shows no link to the schedule (its reads are refused). The reschedule URL typed by hand redirects to this detail.
 Copy: i18n `customer.inactiveTenant.badge` and `.detailNotice`.
@@ -405,7 +405,7 @@ File: `16f-fidelidade-somente-leitura.html` — Status: built (M25-S31a), route 
 
 ## Billing — states of existing screens (no new screen)
 
-- **"+ Novo" while suspended:** the same disabled button (`customer.inactiveTenant.newDisabledHint` as its title) in the topbar, on Início and on the bookings list (`NewReservationMenu`, `tenantOperational`), so no booking or recurring reservation can be started. Typing the URL of a recurring-reservation or availability-alert page returns the customer to the bookings list.
+- **"+ Novo" while suspended:** the same disabled button (`customer.inactiveTenant.newDisabledHint` as its title) in the topbar, on Início and on the bookings list (`NewReservationMenu`, `newBookingMenu: 'disabled'`), so no booking or recurring reservation can be started. Typing the URL of a recurring-reservation or availability-alert page returns the customer to the bookings list.
 - **Início while suspended:** the preview rows carry the "Empresa inativa" badge and no "Responder", and the empty state has no booking button.
 - **A tenant without the `LOYALTY` feature** (not a suspension): Início has no "Pontos" tile and no expiry strip; the Fidelidade URL returns the customer to Início. The customer-reduced access answer carries the held feature keys, so the layout also hides the Fidelidade tab (top nav and bottom nav) up front; the page-level `nullWhenNotEntitled` on the loyalty reads stays as the backstop for a direct URL.
 - **A tenant without the `BOOKING` feature:** the Agendamentos tab and the "+ Novo" menu are absent (not disabled), Início shows no bookings tile, preview or mobile menu, and the Agendamentos URL returns the customer to Início.

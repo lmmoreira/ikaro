@@ -151,7 +151,7 @@ Same pattern as `RemoveClosureDialog`. Shows date + window. "Remover abertura" =
 
 ## Route registration
 
-Shipped: `apps/web/app/dashboard/schedule/page.tsx` is in the dashboard sidebar nav (`MAIN_NAV_KEYS` in `shells/dashboard/components/Sidebar.tsx`, `Clock` icon, label key `nav.schedule`).
+Shipped: `apps/web/app/dashboard/schedule/page.tsx` is in the dashboard sidebar nav (the `DASHBOARD_NAV` registry in `shells/dashboard/model/dashboard-nav.ts`, `Clock` icon, label key `nav.schedule`).
 
 ## shadcn/ui component map
 
