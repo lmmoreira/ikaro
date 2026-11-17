@@ -26,7 +26,7 @@ A per-module drill-down config panel for the new `LEAD_FORM` hotsite module (10t
 | `apps/web/app/dashboard/hotsite/page.tsx` + existing editor view | ✅ Existing | In-place manager config flow; no dedicated route |
 | `apps/web/features/platform/components/hotsite/HotsiteEditor.tsx`, `ModuleConfigPreviewScreen.tsx`, `hotsite-editor-lazy-panels.tsx` | ✅ Shipped M20-S08 | Wire the LEAD_FORM panel into the Layout tab (publish-blocked message, drill-down screen, lazy panel); `HotsiteEditorMainView.tsx` has no LEAD_FORM reference |
 | `apps/web/features/platform/components/hotsite/modules/LeadFormConfigPanel.tsx` | ✅ Shipped M20-S08 | The panel component — same `ModuleConfigPanelProps` contract every other module panel (Hero, Chatbot, ...) already uses |
-| `apps/web/shells/dashboard/components/Sidebar.tsx` | ✅ Shipped M20-S10 | Draws the Leads item from the `DASHBOARD_NAV` registry (`shells/dashboard/model/dashboard-nav.ts`, toggle `leadForm`), only when the `leadFormEnabled` prop is set (or shown locked) |
+| `apps/web/shells/dashboard/components/Sidebar.tsx` | ✅ Shipped M20-S10 | Draws the Leads item from the `DASHBOARD_NAV` registry (`shells/dashboard/model/dashboard-nav.ts`, toggle `leadForm`), only when `DashboardShell`'s `leadFormEnabled` prop is set (or shown locked); `Sidebar` receives the resolved navigation |
 | `apps/web/shells/dashboard/model/dashboard-shell-context.ts` | ✅ Shipped M20-S10 | `loadDashboardShellContext()` fetches `GET /v1/tenants/lead-form/status` server-side — see `../leads/dev-notes.md` |
 
 ---

@@ -37,8 +37,8 @@ Backed by a new `platform.lead_form_answers` child table — one row per questio
 | `apps/web/app/dashboard/leads/[id]/page.tsx` | ✅ Done | Submission detail |
 | `apps/web/app/dashboard/leads/layout.tsx` | ✅ Done | New — uses `DashboardSectionShell`, same shape as `settings/layout.tsx`/`hotsite/layout.tsx` |
 | `apps/web/shells/dashboard/model/dashboard-shell-context.ts` | ✅ Done (extend) | `loadDashboardShellContext()` gains a parallel `GET /v1/tenants/lead-form/status` fetch; `DashboardShellContext` gains `leadFormEnabled: boolean` |
-| `apps/web/shells/dashboard/components/Sidebar.tsx` | ✅ Done (extend) | Draws the Leads entry of the `DASHBOARD_NAV` registry when `leadFormEnabled` |
-| `apps/web/shells/dashboard/components/BottomNav.tsx` | ✅ Done (extend) | "Mais" trigger now also shows for STAFF when `leadFormEnabled` |
+| `apps/web/shells/dashboard/components/Sidebar.tsx` | ✅ Done (extend) | Draws the Leads entry of the resolved navigation (`DASHBOARD_NAV` registry, `resolveDashboardNav`, resolved once in `DashboardShell` from its `leadFormEnabled` prop) |
+| `apps/web/shells/dashboard/components/BottomNav.tsx` | ✅ Done (extend) | "Mais" trigger exists exactly when the resolved navigation has a sheet (`nav.hasSheet`: always for a MANAGER, for STAFF once Leads is shown or locked) |
 | `apps/web/shells/dashboard/components/MoreSheet.tsx` | ✅ Done (renamed from `ManagerSheet.tsx`) | Header-less "Leads" item for either role when enabled, manager-only section unchanged |
 | `apps/web/features/platform/components/leads/LeadFormSubmissionsList.tsx` | ✅ Done | Paginated list component; renders the search panel + distinct no-results state (M20-S13) |
 | `apps/web/features/platform/components/leads/LeadFormSubmissionDetail.tsx` | ✅ Done | Read-only detail component |
