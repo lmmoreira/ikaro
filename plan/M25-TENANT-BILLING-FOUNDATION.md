@@ -2398,12 +2398,40 @@ Build the suspended-experience surfaces (the components; the milestone's **Playw
 
 **Agent:** `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/USE_CASES.md` UC-121, `docs/TESTING_STRATEGY.md` § Running Playwright locally and § apps/web Testing Infrastructure, `docs/ENGINEERING_RULES_TESTING.md` § An integration test seeding fixtures and § An E2E test that computes "today", `docs/ENGINEERING_RULES_FRONTEND.md`
-**Dependencies:** M25-S31a (the components under test), M25-S26 (staff-tenants `operational` and the customer flag), M25-S29, M25-S30
+**Docs to load:** `docs/USE_CASES.md` UC-121 and UC-125, `journeys/customer/minha-conta.md` and `journeys/staff/login.md` (the UC-121 sections and their `16*`, `05b`, `02` and `03` prototypes, as built in M25-S31a), `docs/TESTING_STRATEGY.md` § Running Playwright locally, § apps/web Testing Infrastructure and § Layer 5 (before adding an E2E test), `docs/ENGINEERING_RULES_TESTING.md` § An integration test seeding fixtures and § An E2E test that computes "today", `docs/ENGINEERING_RULES_FRONTEND.md`
+**Dependencies:** M25-S31a (the components under test, and the booking-detail policy it changed), M25-S26 (staff-tenants `operational` and the customer flag), M25-S29, M25-S30
 **Pattern:** the E2E follows the repo's helper-and-spec split (`apps/web/e2e/helpers/<feature>/**` for flows, specs for cases only).
 
 **Description:**
-Own the milestone's **Playwright spanning spec** for the suspended experience. **E2E (Playwright, in the story's worktree via the repo's compose flow; never start the stack without the autonomous-chain authorization):** one spanning scenario using dev-login for roles and the operator route to suspend/unsuspend the seeded tenant: a suspended **manager** opening any protected dashboard route (the Agenda and a Configurações URL) lands on `/dashboard/suspended` with the manager notice (S29), never on a denied-read error, and the notice never says "Fale com o gerente"; staff sees the notice; a multi-tenant staff sees "Suspensa" and can switch; a customer sees "Empresa inativa", reads history and cancels a future booking but cannot book/reschedule; the hotsite shows "Página indisponível" with working login links; a tenant without `LEAD_FORM` sees the Leads item locked (S29) and `/dashboard/leads` opened by URL shows the locked page (and a detail URL whose layout pre-reads a record, such as a booking or a service id, shows it too instead of an error), and a tenant without `CHATBOT` or `LEAD_FORM` sees the locked card, not a load error, in the matching module panel of the hotsite editor, and a tenant without `CHATBOT` sees the locked card in place of the Chatbot section of Configurações with the saved `chatbot.*` values still stored (the fixture seeds the missing features through the helper's seeding step, since nothing in M25 removes a feature; the same recipe goes in S29's PR body); unsuspend restores everything with preferences untouched. No product code is written here beyond test helpers; any defect the spec finds is fixed in the owning story's code in this PR.
+Own the milestone's **Playwright specs** for the suspended and the missing-feature experience. This is the layer M25-S31a deliberately left out, and the one that would have caught the bugs its manual testing found (a customer locked out of a tenant without `LOYALTY`, an error page behind "Nova reserva recorrente"): they live in the real BFF, the real backend and routing, which jsdom specs never exercise. **E2E (Playwright, in the story's worktree via the repo's compose flow; never start the stack without the autonomous-chain authorization):** dev-login for the roles, and the operator route to suspend and unsuspend the seeded tenant.
+
+**Test 1 — the suspended tenant, one spanning scenario:**
+- **Manager:** opening any protected dashboard route (the Agenda and a Configurações URL) lands on `/dashboard/suspended` with the manager notice (S29), never on a denied-read error; the notice never says "Fale com o gerente"; "Sair" signs out and the manager can sign in again (login is never blocked) and lands on the notice again.
+- **Staff:** the staff notice with "Esta conta está suspensa. Fale com o gerente." and no reason, from a deep dashboard URL too (the redirect does not depend on the role); a multi-tenant staff member sees "Suspensa" on the picker and can still switch into it.
+- **Customer, the account (S31a):**
+  - the list keeps its three sections, every open row carries "Empresa inativa" and no "Responder", history rows are listed and open;
+  - a booking's detail opens read-only: the neutral notice, **no "Reagendar", no information form, no "Fazer novo agendamento"**;
+  - cancelling a future booking works exactly as for an operational tenant (the row's "Cancelar" and the detail's button both reach the normal cancel page, the booking becomes "Cancelado");
+  - "+ Novo" is a **disabled button in the topbar, on Início and on the bookings list**, and a typed URL to `recurring-schedules/new`, a recurring-schedule page or an alerts page returns the customer to the bookings list, never an error page (regression: the `fetchServices` error page behind "Nova reserva recorrente");
+  - the reschedule URL of a booking lands on that booking's detail;
+  - Início's preview rows carry the badge and its empty state has no booking button;
+  - the loyalty page is read-only under its notice, with balance and history visible;
+  - a customer of two tenants sees "Empresa inativa" on the suspended one in the tenant-switch list and can still switch into it, and the current tenant is never marked.
+- **Hotsite and new booking:** the hotsite shows "Página indisponível" with working login links, and a signed-in customer opening `/{slug}/booking` also gets the neutral page (a new booking is refused).
+- **Isolation and restore:** a second tenant stays operational throughout; unsuspend restores everything with the manager's preferences untouched.
+
+**Test 2 — a tenant without a feature (the locked and the missing-`LOYALTY` states):**
+- **Dashboard (S29):** a tenant without `LEAD_FORM` sees the Leads item locked and `/dashboard/leads` opened by URL shows the locked page (a detail URL whose layout pre-reads a record, such as a booking or a service id, shows it too instead of an error); a tenant without `CHATBOT` or `LEAD_FORM` sees the locked card, not a load error, in the matching module panel of the hotsite editor; a tenant without `CHATBOT` sees the locked card in place of the Chatbot section of Configurações with the saved `chatbot.*` values still stored.
+- **Customer without `LOYALTY` (regression for the lockout found while testing S31a):** the customer signs in and **stays signed in**: `/{slug}/my-account` opens (no redirect to login, no login loop), Início has no "Pontos" tile and no expiry strip, the other tiles and the bookings list work, and the Fidelidade URL returns to Início. If M25-S31a hides the Fidelidade tab for such a tenant, the spec also asserts the tab is absent from the top and the bottom nav; assert whichever the merged S31a does.
+- **Seeding:** the fixture removes the features through the helper's seeding step (nothing in M25 removes a feature; the same recipe goes in S29's PR body) and **restores them in teardown**.
+
+**Helper rules learned in manual testing.** The helper suspends and unsuspends **through the operator route**, never with SQL: a direct `UPDATE` does not evict the backend's access cache, so the suspension shows only after the cache expires (up to 300 s), which is how a hand-run test looks broken when it is not. Every assertion after a suspend or unsuspend still polls up to the cache bound (see the technical criteria). The feature seeding is SQL (nothing else removes a feature) and does not evict the cache either, so Test 2 provisions a fresh tenant and removes the feature **before that tenant's first access read**: an answer cached earlier would keep showing the feature for up to 300 s. A seeded tenant on the shared stack needs symmetric setup and teardown (`docs/ENGINEERING_RULES_TESTING.md` § An integration test seeding fixtures).
+
+**Why new specs and not steps of existing ones (`docs/TESTING_STRATEGY.md` § Layer 5).** The existing `my-account-*.spec.ts` files walk the same routes, but all on an operational tenant with every feature; this needs a tenant whose state changes mid-scenario, so it cannot be a `test.step` of them. Reuse their dev-login and booking-seed helpers; do not duplicate a flow they already prove.
+
+**Not covered here.** A customer of a tenant without the `BOOKING` feature (the account is not meaningful without it; it is expected to show the account's generic error page, which is not asserted here); the backend's refusal of a suspended customer's reschedule, information response and attachments (backend integration specs, S31a); the staging check with the real operator script (S32).
+
+No product code is written here beyond test helpers; any defect the spec finds is fixed in the owning story's code in this PR.
 
 **Backend use case steps:** none.
 **Backend HTTP surface:** none.
@@ -2411,18 +2439,22 @@ Own the milestone's **Playwright spanning spec** for the suspended experience. *
 **New migration / i18n keys / env vars / feature flags:** none.
 
 **Files to create/modify:**
-- `apps/web/e2e/helpers/billing/suspension.ts` (new — operator suspend/unsuspend + seeding helpers)
-- `apps/web/e2e/billing-suspended-experience.spec.ts` (new)
+- `apps/web/e2e/helpers/billing/suspension.ts` (new — operator suspend/unsuspend through the operator route, the feature-removal seeding step with its restore, and the polling wait for the cache bound)
+- `apps/web/e2e/billing-suspended-experience.spec.ts` (new — Test 1)
+- `apps/web/e2e/billing-missing-feature.spec.ts` (new — Test 2, so a feature-removal failure cannot leave the suspended scenario half-run)
 
 **Acceptance criteria — product:**
-- [ ] Everything is restored on unsuspend with all preferences untouched; for an entitled/exempt tenant nothing looks different.
+- [ ] A suspended tenant's manager, staff and customer each see the surface UC-121 specifies, in a real browser against the real stack, and the same tenant is fully restored on unsuspend with all preferences untouched; for an entitled/exempt tenant nothing looks different.
+- [ ] A suspended customer can read every booking and cancel a future one, and **every path that would create or change a booking** (the "+ Novo" menu, a typed recurrence, alerts or reschedule URL, the booking page) ends on a readable page, never an error page.
+- [ ] A customer of a tenant without `LOYALTY` can always sign in and use the account; no billing denial is ever read as a logged-out session.
 
 **Acceptance criteria — technical:**
 - Unit: none — test-only story; component specs are S31a's.
 - Integration: omitted (web)
 - Tenant isolation: [ ] the spec asserts each surface shows the signed-in tenant's state only (a second tenant stays operational throughout)
 - E2E:
-  - [ ] **Spanning Playwright spec** `billing-suspended-experience.spec.ts` covering the scenario above (manager, staff, multi-tenant staff, customer, hotsite, locked feature and locked Chatbot section, unsuspend), with "today"/dates computed in the tenant timezone, not the runner's, and fixtures with symmetric setup/teardown; every assertion that follows a suspend or unsuspend **polls up to the cache staleness bound** (the backend cache alone since S33: a suspension within 300 s, a reinstatement within 10 s. A suspend through the operator route runs on the one backend instance that serves the E2E stack and evicts its own cache on `save()`, so the suspension shows at once and only a reinstatement polls, up to 10 s) rather than asserting instantly
+  - [ ] **Two Playwright specs**, `billing-suspended-experience.spec.ts` and `billing-missing-feature.spec.ts`, covering the scenarios above, with "today"/dates computed in the tenant timezone, not the runner's, and fixtures with symmetric setup/teardown; every assertion that follows a suspend or unsuspend **polls up to the cache staleness bound** (the backend cache alone since S33: a suspension within 300 s, a reinstatement within 10 s. A suspend through the operator route runs on the one backend instance that serves the E2E stack and evicts its own cache on `save()`, so the suspension shows at once and only a reinstatement polls, up to 10 s) rather than asserting instantly
+  - [ ] **Each regression named above has a failing-before test**: run the missing-`LOYALTY` customer case and the typed recurrence-URL case against the pre-fix behaviour (`main` before this story's fixes) or reason from the removed code, and record in the PR that the assertion would have failed (a negative-guarantee test must be shown to catch the defect it names)
 - [ ] Coverage ≥80% on changed code (test helpers excluded from the gate)
 - [ ] `tsc --noEmit` clean, lint clean
 
