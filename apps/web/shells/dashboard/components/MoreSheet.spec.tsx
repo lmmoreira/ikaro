@@ -1,9 +1,27 @@
 // @vitest-environment jsdom
+import type { ComponentProps } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { clearPublicEnv, stubPublicEnv } from '@/test-utils';
-import { MoreSheet } from './MoreSheet';
+import { resolveDashboardNav } from '@/shells/dashboard/model/dashboard-nav';
+import { MoreSheet as MoreSheetView } from './MoreSheet';
+
+// The shell resolves the navigation once and hands it to the sheet; these cases state the facts
+// (role, the lead-form switch, the locked features) and let the registry resolve them, as the shell
+// does.
+type MoreSheetProps = Omit<ComponentProps<typeof MoreSheetView>, 'nav'> & {
+  readonly leadFormEnabled: boolean;
+};
+
+function MoreSheet({ leadFormEnabled, ...props }: MoreSheetProps): React.JSX.Element {
+  const nav = resolveDashboardNav({
+    role: props.role,
+    lockedFeatures: props.lockedFeatures,
+    toggles: { leadForm: leadFormEnabled },
+  });
+  return <MoreSheetView {...props} nav={nav} />;
+}
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => {

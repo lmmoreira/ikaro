@@ -1,8 +1,27 @@
 // @vitest-environment jsdom
+import type { ComponentProps } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { BottomNav } from './BottomNav';
+import { resolveDashboardNav } from '@/shells/dashboard/model/dashboard-nav';
+import { BottomNav as BottomNavView } from './BottomNav';
+
+// The shell resolves the navigation once and hands it to the bar; these cases state the facts
+// (role, the lead-form switch, the locked features) and let the registry resolve them, as the shell
+// does.
+type BottomNavProps = Omit<ComponentProps<typeof BottomNavView>, 'nav'> & {
+  readonly role: 'STAFF' | 'MANAGER';
+  readonly leadFormEnabled: boolean;
+};
+
+function BottomNav({ role, leadFormEnabled, ...props }: BottomNavProps): React.JSX.Element | null {
+  const nav = resolveDashboardNav({
+    role,
+    lockedFeatures: props.lockedFeatures,
+    toggles: { leadForm: leadFormEnabled },
+  });
+  return <BottomNavView {...props} nav={nav} />;
+}
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => {
