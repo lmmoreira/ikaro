@@ -51,10 +51,11 @@ async function readTenantAccess(token: string): Promise<TenantAccessResult> {
 // share a single call.
 export const fetchTenantAccess = cache(readTenantAccess);
 
-// A customer's role-reduced answer carries `operational` and nothing else, so `toTenantAccess`
-// (which needs `features`) reads it as "no usable answer". The customer account needs only that
-// one boolean for its "Empresa inativa" surfaces (UC-121), hence its own reader. `null` is "no
-// usable answer" and fails open: no badge, never a suspension inferred from a failed read.
+// A customer's role-reduced answer carries `operational` and plain feature keys, not the
+// `{ key, tier }` entries `toTenantAccess` reads, so that converter takes it as "no usable answer".
+// The customer account needs the one boolean for its "Empresa inativa" surfaces (UC-121), hence its
+// own reader. `null` is "no usable answer" and fails open: no badge, never a suspension inferred
+// from a failed read.
 async function readCustomerTenantOperational(token: string): Promise<boolean | null> {
   const body = await readAccessBody(token);
   return typeof body?.operational === 'boolean' ? body.operational : null;
@@ -69,8 +70,11 @@ export const fetchCustomerTenantOperational = cache(readCustomerTenantOperationa
 // says nothing about the plan, and `operational` alone decides what the customer sees (UC-121).
 async function readCustomerFeatures(token: string): Promise<readonly CustomerFeatureKey[] | null> {
   const body = await readAccessBody(token);
-  if (body?.operational === false) return null;
-  if (!Array.isArray(body?.features)) return null;
+  // The list says something about the plan only for an operational tenant (a suspended one entitles
+  // nothing), and only when the answer says so explicitly: an absent or malformed `operational` is
+  // no usable answer, never an empty plan.
+  if (body?.operational !== true) return null;
+  if (!Array.isArray(body.features)) return null;
   const held: readonly unknown[] = body.features;
   // Every entry must be a plain key (an unknown key is a feature a newer backend added and is
   // ignored); anything else, such as the staff `{ key, tier }` shape, is no usable answer. An empty

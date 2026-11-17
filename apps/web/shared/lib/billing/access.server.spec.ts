@@ -147,6 +147,19 @@ describe('fetchCustomerFeatures', () => {
     await expect(fetchCustomerFeatures('token')).resolves.toBeNull();
   });
 
+  it.each([
+    [{ features: [] }],
+    [{ operational: 'true', features: [] }],
+    [{ operational: null, features: ['BOOKING'] }],
+  ])(
+    'reads %j, where operational is not an explicit true, as unknown (never an empty plan)',
+    async (body) => {
+      bffServerFetch.mockResolvedValue(jsonResponse(body));
+
+      await expect(fetchCustomerFeatures('token')).resolves.toBeNull();
+    },
+  );
+
   it('reads a tenant holding none as an empty list, not as unknown', async () => {
     bffServerFetch.mockResolvedValue(jsonResponse({ operational: true, features: [] }));
 
