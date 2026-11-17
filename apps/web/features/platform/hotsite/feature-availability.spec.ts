@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { FeatureKey, HotsiteManifestResponse, HotsiteModuleResponse } from '@ikaro/types';
-import { isFeatureAvailable, withoutLinksToUnavailableSections } from './feature-availability';
+import {
+  HOTSITE_PAGE_FEATURE,
+  isFeatureAvailable,
+  isHotsitePageAvailable,
+  withoutLinksToUnavailableSections,
+} from './feature-availability';
 
 function manifest(
   layout: HotsiteModuleResponse[],
@@ -58,6 +63,41 @@ describe('isFeatureAvailable', () => {
 
   it.each([undefined, []])('is true for every feature when the list is %j', (unavailable) => {
     expect(isFeatureAvailable(manifest([], unavailable), 'BOOKING')).toBe(true);
+  });
+});
+
+describe('isHotsitePageAvailable', () => {
+  const pageManifest = (isPublished: boolean, unavailable?: FeatureKey[]) =>
+    ({ isPublished, unavailableFeatures: unavailable }) as HotsiteManifestResponse;
+
+  // The expression every page wrote by hand before the registry: the truth table proves the
+  // predicate is the very same decision for every state a manifest can be in.
+  const previously = (manifestIn: HotsiteManifestResponse) =>
+    manifestIn.isPublished && isFeatureAvailable(manifestIn, 'BOOKING');
+
+  it.each([
+    ['published, nothing unavailable', pageManifest(true, [])],
+    ['published, no answer about features', pageManifest(true, undefined)],
+    ['published, BOOKING unavailable', pageManifest(true, ['BOOKING'])],
+    ['published, another feature unavailable', pageManifest(true, ['LEAD_FORM', 'CHATBOT'])],
+    ['unpublished, nothing unavailable', pageManifest(false, [])],
+    ['unpublished, BOOKING unavailable', pageManifest(false, ['BOOKING'])],
+  ])('decides %s exactly as the hand-written expression did', (_state, manifestIn) => {
+    for (const page of Object.keys(HOTSITE_PAGE_FEATURE) as (keyof typeof HOTSITE_PAGE_FEATURE)[]) {
+      expect(isHotsitePageAvailable(manifestIn, page)).toBe(previously(manifestIn));
+    }
+  });
+
+  it('opens a page only for a published hotsite whose page feature is available', () => {
+    expect(isHotsitePageAvailable(pageManifest(true, []), 'booking')).toBe(true);
+    expect(isHotsitePageAvailable(pageManifest(true, ['BOOKING']), 'booking')).toBe(false);
+    expect(isHotsitePageAvailable(pageManifest(false, []), 'booking')).toBe(false);
+  });
+
+  it('is unaffected by a feature the page does not need', () => {
+    expect(
+      isHotsitePageAvailable(pageManifest(true, ['LEAD_FORM']), 'booking/availability-alert'),
+    ).toBe(true);
   });
 });
 
