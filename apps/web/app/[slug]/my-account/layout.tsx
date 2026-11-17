@@ -6,7 +6,10 @@ import { LocaleProvider } from '@/providers/locale-provider';
 import { TenantProvider } from '@/providers/tenant-provider';
 import { CustomerShell } from '@/features/customer/components/CustomerShell';
 import { CustomerTopbarStatusProvider } from '@/features/customer/components/customer-topbar-status-context';
-import { fetchCustomerTenantOperational } from '@/shared/lib/billing/access.server';
+import {
+  fetchCustomerFeatures,
+  fetchCustomerTenantOperational,
+} from '@/shared/lib/billing/access.server';
 
 interface MyAccountLayoutProps {
   readonly children: React.ReactNode;
@@ -19,8 +22,10 @@ async function resolveMyAccountContext(slug: string) {
   const locale = resolveSupportedLocale(payload.locale ?? 'pt-BR');
   const messages = await getMessages(locale);
   // A fail-open read (no answer is never a suspension), shared with the page's own read in the
-  // same render. It only decides whether the topbar's "+ Novo" menu is offered.
-  const operational = payload.tenantId ? await fetchCustomerTenantOperational(token) : null;
+  // same render. It decides whether the topbar's "+ Novo" menu is offered and which tabs the nav shows.
+  const [operational, entitledFeatures] = payload.tenantId
+    ? await Promise.all([fetchCustomerTenantOperational(token), fetchCustomerFeatures(token)])
+    : [null, null];
   // Middleware validates tenantSlug matches the route slug before this runs — use slug directly.
   return {
     tenantName: payload.tenantName ?? '',
@@ -30,6 +35,7 @@ async function resolveMyAccountContext(slug: string) {
     locale,
     messages,
     tenantOperational: operational !== false,
+    entitledFeatures,
   };
 }
 
@@ -38,8 +44,16 @@ export default async function MyAccountLayout({
   params,
 }: MyAccountLayoutProps): Promise<React.JSX.Element> {
   const { slug } = await params;
-  const { tenantName, tenantSlug, tenantId, userName, locale, messages, tenantOperational } =
-    await resolveMyAccountContext(slug);
+  const {
+    tenantName,
+    tenantSlug,
+    tenantId,
+    userName,
+    locale,
+    messages,
+    tenantOperational,
+    entitledFeatures,
+  } = await resolveMyAccountContext(slug);
 
   if (!tenantId) redirect(`/${slug}/login`);
 
@@ -52,6 +66,7 @@ export default async function MyAccountLayout({
             tenantSlug={tenantSlug}
             userName={userName}
             tenantOperational={tenantOperational}
+            entitledFeatures={entitledFeatures}
           >
             {children}
           </CustomerShell>

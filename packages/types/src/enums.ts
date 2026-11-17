@@ -29,6 +29,15 @@ export type ResourceType = 'LOCATION' | 'STAFF' | 'ROOM' | 'EQUIPMENT';
 // backend/BFF-importable constant arrays); the closedEnumRegistry entries keep them identical.
 export type FeatureKey = 'HOTSITE' | 'BOOKING' | 'LOYALTY' | 'CHATBOT' | 'LEAD_FORM';
 
+// The features a customer's account has a surface for. A customer's role-reduced access answer
+// lists only these (UC-125): a new customer-facing module is one more entry here.
+export const CUSTOMER_FEATURE_KEYS = [
+  'BOOKING',
+  'LOYALTY',
+] as const satisfies readonly FeatureKey[];
+
+export type CustomerFeatureKey = (typeof CUSTOMER_FEATURE_KEYS)[number];
+
 export type ChatbotTier = 'BASIC' | 'PLUS';
 
 export type HotsiteModuleType =

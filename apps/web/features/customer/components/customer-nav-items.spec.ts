@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { getNavIconClass, shouldShowCustomerBottomNav } from './customer-nav-items';
+import {
+  getCustomerNavItems,
+  getNavIconClass,
+  shouldShowCustomerBottomNav,
+} from './customer-nav-items';
 
 describe('getNavIconClass', () => {
   it('applies the size and color classes with full opacity when active', () => {
@@ -42,5 +46,35 @@ describe('shouldShowCustomerBottomNav', () => {
     expect(
       shouldShowCustomerBottomNav('/lavacar-bh/my-account/bookings/abc-123/cancel/error'),
     ).toBe(false);
+  });
+});
+
+describe('getCustomerNavItems', () => {
+  const hrefs = (items: ReturnType<typeof getCustomerNavItems>) =>
+    items.map((item) => item.href.split('/my-account')[1] || '/');
+
+  it('shows every tab when the tenant features are unknown', () => {
+    expect(hrefs(getCustomerNavItems('t'))).toEqual(['/', '/bookings', '/loyalty']);
+    expect(hrefs(getCustomerNavItems('t', null))).toEqual(['/', '/bookings', '/loyalty']);
+  });
+
+  it('shows every tab when the tenant holds both features', () => {
+    expect(hrefs(getCustomerNavItems('t', ['BOOKING', 'LOYALTY']))).toEqual([
+      '/',
+      '/bookings',
+      '/loyalty',
+    ]);
+  });
+
+  it('hides the loyalty tab for a tenant without LOYALTY', () => {
+    expect(hrefs(getCustomerNavItems('t', ['BOOKING']))).toEqual(['/', '/bookings']);
+  });
+
+  it('hides the bookings tab for a tenant without BOOKING', () => {
+    expect(hrefs(getCustomerNavItems('t', ['LOYALTY']))).toEqual(['/', '/loyalty']);
+  });
+
+  it('always keeps Início, even for a tenant holding none', () => {
+    expect(hrefs(getCustomerNavItems('t', []))).toEqual(['/']);
   });
 });

@@ -72,7 +72,7 @@ describe('BillingController (component)', () => {
     expect(res.body).toEqual({ operational: false, features: [] });
   });
 
-  it('GET /v1/billing/access → 200 for a CUSTOMER, operational only', async () => {
+  it('GET /v1/billing/access → 200 for a CUSTOMER, operational and the customer-facing features', async () => {
     backendHttpService.get.mockResolvedValueOnce(BACKEND_ANSWER);
 
     const res = await request(app.getHttpServer())
@@ -80,7 +80,7 @@ describe('BillingController (component)', () => {
       .set('Authorization', `Bearer ${makeCustomerJwt(jwtService)}`);
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ operational: false });
+    expect(res.body).toEqual({ operational: false, features: [] });
   });
 
   it.each([

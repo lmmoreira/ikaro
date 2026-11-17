@@ -33,8 +33,22 @@ describe('toBillingAccessResponse', () => {
     expect(view).not.toHaveProperty('status');
   });
 
-  it('gives a CUSTOMER only whether the tenant is operational', () => {
-    expect(toBillingAccessResponse('CUSTOMER', ACCESS)).toEqual({ operational: true });
+  it('gives a CUSTOMER the operational flag and only the customer-facing features held', () => {
+    const access: BackendTenantAccess = {
+      ...ACCESS,
+      features: [...ACCESS.features, { key: 'LOYALTY', tier: 'STANDARD' }],
+    };
+    expect(toBillingAccessResponse('CUSTOMER', access)).toEqual({
+      operational: true,
+      features: ['LOYALTY'],
+    });
+  });
+
+  it('gives a CUSTOMER no features when the tenant holds none a customer can use', () => {
+    expect(toBillingAccessResponse('CUSTOMER', ACCESS)).toEqual({
+      operational: true,
+      features: [],
+    });
   });
 
   it.each(['MANAGER', 'STAFF', 'CUSTOMER'] as const)(

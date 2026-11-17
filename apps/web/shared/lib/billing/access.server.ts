@@ -1,7 +1,11 @@
 import 'server-only';
 import { cache } from 'react';
 import { redirect } from 'next/navigation';
-import type { BillingAccessResponse } from '@ikaro/types';
+import {
+  CUSTOMER_FEATURE_KEYS,
+  type BillingAccessResponse,
+  type CustomerFeatureKey,
+} from '@ikaro/types';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
 import { toTenantAccess, type TenantAccess } from './tenant-access';
 
@@ -53,6 +57,18 @@ async function readCustomerTenantOperational(token: string): Promise<boolean | n
 }
 
 export const fetchCustomerTenantOperational = cache(readCustomerTenantOperational);
+
+// The customer-facing features the tenant holds, from the same one answer (no extra request, and
+// `cache` shares it with the readers above). `null` is "no usable answer" and fails open: the
+// account shows every surface, a failed read never hides one.
+async function readCustomerFeatures(token: string): Promise<readonly CustomerFeatureKey[] | null> {
+  const body = await readAccessBody(token);
+  if (!Array.isArray(body?.features)) return null;
+  const held: readonly unknown[] = body.features;
+  return CUSTOMER_FEATURE_KEYS.filter((key) => held.includes(key));
+}
+
+export const fetchCustomerFeatures = cache(readCustomerFeatures);
 
 // The customer pages whose reads a suspended tenant refuses (recurring reservations and
 // availability alerts, UC-121) call this first: a suspended customer is sent to the bookings

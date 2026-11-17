@@ -11,6 +11,7 @@ const redirect = vi.hoisted(() =>
 vi.mock('next/navigation', () => ({ redirect }));
 
 import {
+  fetchCustomerFeatures,
   fetchCustomerTenantOperational,
   fetchTenantAccess,
   redirectCustomerWhenSuspended,
@@ -103,6 +104,49 @@ describe('fetchCustomerTenantOperational', () => {
     bffServerFetch.mockResolvedValue(jsonResponse(body));
 
     await expect(fetchCustomerTenantOperational('token')).resolves.toBeNull();
+  });
+});
+
+describe('fetchCustomerFeatures', () => {
+  it('reads the customer-facing features the tenant holds from the one access answer', async () => {
+    bffServerFetch.mockResolvedValue(jsonResponse({ operational: true, features: ['BOOKING'] }));
+
+    await expect(fetchCustomerFeatures('token')).resolves.toEqual(['BOOKING']);
+    expect(bffServerFetch).toHaveBeenCalledWith('token', '/billing/access', {
+      cache: 'no-store',
+    });
+  });
+
+  it('reads a tenant holding none as an empty list, not as unknown', async () => {
+    bffServerFetch.mockResolvedValue(jsonResponse({ operational: true, features: [] }));
+
+    await expect(fetchCustomerFeatures('token')).resolves.toEqual([]);
+  });
+
+  it('ignores a key this build does not know', async () => {
+    bffServerFetch.mockResolvedValue(
+      jsonResponse({ operational: true, features: ['LOYALTY', 'FUTURE_MODULE'] }),
+    );
+
+    await expect(fetchCustomerFeatures('token')).resolves.toEqual(['LOYALTY']);
+  });
+
+  it.each([401, 403, 500, 503])('fails open (null) on a %s answer', async (status) => {
+    bffServerFetch.mockResolvedValue(jsonResponse({}, false, status));
+
+    await expect(fetchCustomerFeatures('token')).resolves.toBeNull();
+  });
+
+  it('fails open when the request throws', async () => {
+    bffServerFetch.mockRejectedValue(new Error('network down'));
+
+    await expect(fetchCustomerFeatures('token')).resolves.toBeNull();
+  });
+
+  it.each([{}, { features: 'all' }, null])('fails open on a malformed body %j', async (body) => {
+    bffServerFetch.mockResolvedValue(jsonResponse(body));
+
+    await expect(fetchCustomerFeatures('token')).resolves.toBeNull();
   });
 });
 

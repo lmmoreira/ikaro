@@ -47,7 +47,10 @@ describe('BillingController', () => {
       operational: false,
       features: [],
     });
-    await expect(controller.getAccess(user('CUSTOMER'))).resolves.toEqual({ operational: false });
+    await expect(controller.getAccess(user('CUSTOMER'))).resolves.toEqual({
+      operational: false,
+      features: [],
+    });
   });
 
   it('fails open on a backend outage (5xx or network), with every feature', async () => {
@@ -72,6 +75,7 @@ describe('BillingController', () => {
 
     await expect(new BillingController(backendHttp).getAccess(user('CUSTOMER'))).resolves.toEqual({
       operational: true,
+      features: ['BOOKING', 'LOYALTY'],
     });
   });
 

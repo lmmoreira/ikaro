@@ -77,6 +77,19 @@ describe('CustomerShell', () => {
     expect(screen.getByRole('navigation', { name: 'customer-bottom-nav' })).toBeInTheDocument();
   });
 
+  it('hides the loyalty tab in both navs for a tenant without LOYALTY', () => {
+    render(
+      <CustomerShell {...DEFAULT_PROPS} entitledFeatures={['BOOKING']}>
+        x
+      </CustomerShell>,
+    );
+
+    for (const name of ['customer-tabs', 'customer-bottom-nav']) {
+      const nav = screen.getByRole('navigation', { name });
+      expect(nav.querySelector('a[href="/lavacar-bh/my-account/loyalty"]')).not.toBeInTheDocument();
+    }
+  });
+
   it('marks Início as active when pathname is the my-account root', () => {
     render(<CustomerShell {...DEFAULT_PROPS}>x</CustomerShell>);
 

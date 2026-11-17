@@ -1,5 +1,5 @@
 import { HttpException } from '@nestjs/common';
-import type { ActorRole, BillingAccessResponse } from '@ikaro/types';
+import { CUSTOMER_FEATURE_KEYS, type ActorRole, type BillingAccessResponse } from '@ikaro/types';
 import { FEATURE_KEYS } from '@ikaro/validation';
 import { ZodError } from 'zod';
 import type { BackendTenantAccess } from './billing.types';
@@ -42,7 +42,8 @@ export function recoverAccessLookup(
 
 // The role reduction (M25-S13, docs/API_CONTRACTS.md § Billing — Access Resolution): a manager runs
 // the account and sees the status; staff see what is locked but never the payment state; a customer
-// only learns whether the tenant is operational. Built field by field, never by spreading the
+// only learns whether the tenant is operational and which customer-facing features it holds.
+// Built field by field, never by spreading the
 // backend answer, so nothing else can leak through.
 export function toBillingAccessResponse(
   role: ActorRole,
@@ -54,6 +55,9 @@ export function toBillingAccessResponse(
     case 'STAFF':
       return { operational: access.operational, features: access.features };
     case 'CUSTOMER':
-      return { operational: access.operational };
+      return {
+        operational: access.operational,
+        features: CUSTOMER_FEATURE_KEYS.filter((key) => access.features.some((f) => f.key === key)),
+      };
   }
 }

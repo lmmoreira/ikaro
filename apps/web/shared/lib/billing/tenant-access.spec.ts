@@ -34,8 +34,8 @@ describe('toTenantAccess', () => {
     ).toEqual({ operational: true, features: ['HOTSITE'] });
   });
 
-  it('returns null for a customer answer, which carries no features', () => {
-    expect(toTenantAccess({ operational: true })).toBeNull();
+  it('returns null for a customer answer, whose features are plain keys, never a lock', () => {
+    expect(toTenantAccess({ operational: true, features: ['LOYALTY'] })).toBeNull();
   });
 
   it('returns null for a malformed answer', () => {

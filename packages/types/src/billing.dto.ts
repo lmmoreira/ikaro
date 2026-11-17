@@ -1,4 +1,4 @@
-import type { ChatbotTier, FeatureKey } from './enums';
+import type { ChatbotTier, CustomerFeatureKey, FeatureKey } from './enums';
 
 // Billing access resolution (M25-S13, UC-120). The backend answers the BFF with the full
 // `BackendTenantAccessResponse`; the web only ever sees a role-reduced `BillingAccessResponse`.
@@ -23,9 +23,13 @@ export interface BillingAccessStaffResponse {
   features: TenantAccessFeatureDto[];
 }
 
-/** `GET /v1/billing/access` for a `CUSTOMER`: only whether the tenant is operational. */
+/**
+ * `GET /v1/billing/access` for a `CUSTOMER`: whether the tenant is operational and which of the
+ * customer-facing features it holds. No tier, no other feature.
+ */
 export interface BillingAccessCustomerResponse {
   operational: boolean;
+  features: CustomerFeatureKey[];
 }
 
 /** No role ever receives the suspension reason or the internal `provisional` / `degraded` markers. */
