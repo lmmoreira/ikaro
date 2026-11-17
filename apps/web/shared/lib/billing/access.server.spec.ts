@@ -36,6 +36,7 @@ import {
   fetchCustomerFeatures,
   fetchCustomerTenantOperational,
   fetchTenantAccess,
+  readWhenCustomerFeatureHeld,
   redirectCustomerWhenBookingUnavailable,
   redirectCustomerWithoutFeature,
 } from './access.server';
@@ -253,6 +254,34 @@ describe('redirectCustomerWithoutFeature', () => {
       redirectCustomerWithoutFeature('token', 'lavacar-bh', 'BOOKING'),
     ).resolves.toBeUndefined();
     expect(redirect).not.toHaveBeenCalled();
+  });
+});
+
+describe('readWhenCustomerFeatureHeld', () => {
+  it('makes no read for a feature the tenant is known not to hold', async () => {
+    bffServerFetch.mockResolvedValue(jsonResponse({ operational: true, features: ['LOYALTY'] }));
+    const read = vi.fn().mockResolvedValue('bookings');
+
+    await expect(readWhenCustomerFeatureHeld('token', 'BOOKING', read)).resolves.toBeNull();
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it('returns what the read returns for a feature the tenant holds', async () => {
+    bffServerFetch.mockResolvedValue(jsonResponse({ operational: true, features: ['BOOKING'] }));
+    const read = vi.fn().mockResolvedValue('bookings');
+
+    await expect(readWhenCustomerFeatureHeld('token', 'BOOKING', read)).resolves.toBe('bookings');
+  });
+
+  it('makes the read when the answer is unknown (fail open), and for a suspended tenant', async () => {
+    bffServerFetch.mockResolvedValue(jsonResponse({}, false, 500));
+    const unknown = vi.fn().mockResolvedValue('kept');
+    await expect(readWhenCustomerFeatureHeld('token', 'LOYALTY', unknown)).resolves.toBe('kept');
+
+    renderCache.reset();
+    bffServerFetch.mockResolvedValue(jsonResponse({ operational: false, features: [] }));
+    const suspended = vi.fn().mockResolvedValue('kept');
+    await expect(readWhenCustomerFeatureHeld('token', 'BOOKING', suspended)).resolves.toBe('kept');
   });
 });
 

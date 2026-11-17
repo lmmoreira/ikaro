@@ -99,6 +99,21 @@ export async function redirectCustomerWithoutFeature(
   }
 }
 
+// A read owned by a customer-facing feature, for a page that shows the surface only when the feature
+// is held (Início's bookings and points): the read is not made for a tenant that is known not to
+// hold the feature, so the page never learns "feature missing" from a denied call. `null` is the
+// same "nothing to show" a denial would give. An unknown answer reads as held (fail open), and the
+// typed denial stays as the backstop for a stale answer, where the caller maps it to `null`.
+export async function readWhenCustomerFeatureHeld<T>(
+  token: string,
+  feature: CustomerFeatureKey,
+  read: () => Promise<T>,
+): Promise<T | null> {
+  const features = await fetchCustomerFeatures(token);
+  if (features !== null && !features.includes(feature)) return null;
+  return read();
+}
+
 // The customer pages owned by `BOOKING` (recurring reservations and availability alerts). Without
 // the feature the customer goes to Início; a suspended tenant refuses their reads (UC-121), so the
 // customer goes to the bookings list, which stays readable.
