@@ -28,15 +28,6 @@ const balanceWith = (currentPoints: number) =>
     .build();
 
 describe('settleDiscount()', () => {
-  it('redeems the whole discount and leaves the rest when the balance covers it', () => {
-    const balance = balanceWith(500);
-
-    const redemption = settleDiscount(balance, source, CUSTOMER_ID, 100, RATE);
-
-    expect(redemption?.pointsRedeemed).toBe(100);
-    expect(balance.currentPoints).toBe(400);
-  });
-
   it('copies the settlement context onto the redemption', () => {
     const redemption = settleDiscount(balanceWith(500), source, CUSTOMER_ID, 100, RATE);
 
@@ -51,22 +42,17 @@ describe('settleDiscount()', () => {
     );
   });
 
-  it('redeems exactly the balance when it equals the discount', () => {
-    const balance = balanceWith(100);
+  it.each([
+    { case: 'the balance covers the discount', balance: 500, redeemed: 100, left: 400 },
+    { case: 'the balance equals the discount', balance: 100, redeemed: 100, left: 0 },
+    { case: 'the discount is larger than the balance', balance: 40, redeemed: 40, left: 0 },
+  ])('redeems $redeemed and leaves $left when $case', ({ balance, redeemed, left }) => {
+    const aggregate = balanceWith(balance);
 
-    const redemption = settleDiscount(balance, source, CUSTOMER_ID, 100, RATE);
+    const redemption = settleDiscount(aggregate, source, CUSTOMER_ID, 100, RATE);
 
-    expect(redemption?.pointsRedeemed).toBe(100);
-    expect(balance.currentPoints).toBe(0);
-  });
-
-  it('redeems only what the balance has when the discount is larger', () => {
-    const balance = balanceWith(40);
-
-    const redemption = settleDiscount(balance, source, CUSTOMER_ID, 100, RATE);
-
-    expect(redemption?.pointsRedeemed).toBe(40);
-    expect(balance.currentPoints).toBe(0);
+    expect(redemption?.pointsRedeemed).toBe(redeemed);
+    expect(aggregate.currentPoints).toBe(left);
   });
 
   it('returns no redemption when nothing is covered, because a redemption needs positive points', () => {
