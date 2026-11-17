@@ -3013,6 +3013,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
    - **A5: A plan change** → entitlement changes start at the next period (UC-136), not at the click.
    - **A6: A customer of a tenant without a feature** → the customer account hides the tab of a feature it lacks (`BOOKING` hides Agendamentos, the "+ Novo" menu and the bookings on Início; `LOYALTY` hides Fidelidade and the points tile) and never shows a dead link. It reads the feature keys from its role-reduced `GET /v1/billing/access` (`docs/API_CONTRACTS.md` § Billing — Access Resolution), the answer it already reads for the "Empresa inativa" badge. If that answer is unavailable every tab stays; a direct URL to the hidden page sends the customer back to Início.
    - **A7: A hotsite visitor of a tenant without `BOOKING`** → see UC-122 A4: the sections and links that depend on Booking are omitted, never an error.
+   - **A8: The settings page of a tenant without a feature** → the Booking, Loyalty, Contact form and Chatbot sections of Configurações each show the locked card in place of their fields when `BOOKING`, `LOYALTY`, `LEAD_FORM` or `CHATBOT` is missing (staff see the same card, with no buy action). The other sections stay editable, and a save sends none of a locked section's keys, so the stored values stay untouched and apply again when the feature returns (A2).
 - **Postconditions:** No unentitled feature use.
 - **Events Triggered:** None.
 

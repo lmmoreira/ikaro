@@ -52,10 +52,10 @@ async function readTenantAccess(token: string): Promise<TenantAccessResult> {
 export const fetchTenantAccess = cache(readTenantAccess);
 
 // A customer's role-reduced answer carries `operational` and plain feature keys, not the
-// `{ key, tier }` entries `toTenantAccess` reads, so that converter takes it as "no usable answer".
-// The customer account needs the one boolean for its "Empresa inativa" surfaces (UC-121), hence its
-// own reader. `null` is "no usable answer" and fails open: no badge, never a suspension inferred
-// from a failed read.
+// `{ key, tier }` entries `toTenantAccess` reads (that converter is for the staff and manager
+// dashboard, which never receives a customer answer). The customer account needs the one boolean for
+// its "Empresa inativa" surfaces (UC-121), hence its own reader. `null` is "no usable answer" and
+// fails open: no badge, never a suspension inferred from a failed read.
 async function readCustomerTenantOperational(token: string): Promise<boolean | null> {
   const body = await readAccessBody(token);
   return typeof body?.operational === 'boolean' ? body.operational : null;

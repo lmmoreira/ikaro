@@ -14,6 +14,10 @@ import {
   isFeatureAvailable,
   withoutLinksToUnavailableSections,
 } from '@/features/platform/hotsite/feature-availability';
+import {
+  SETTINGS_SECTION_FEATURE,
+  lockedSettingsSections,
+} from '@/features/platform/settings-locked-sections';
 import { ALL_FEATURES, ROUTE_FEATURES } from './feature-registry';
 import { lockedHotsiteModules } from './locked-modules';
 
@@ -43,6 +47,7 @@ describe('every feature has a decided surface', () => {
         ...GATED_MODULES.map(([, gating]) => gating),
         ...CUSTOMER_FEATURE_KEYS,
         ...ROUTE_FEATURES.map(([, routeFeature]) => routeFeature),
+        ...Object.values(SETTINGS_SECTION_FEATURE),
         ...FEATURES_WITHOUT_SURFACE,
       ];
 
@@ -129,4 +134,14 @@ describe('the customer account', () => {
   it('always keeps Início, whatever the tenant holds', () => {
     expect(getCustomerNavItems('t', []).map((item) => item.feature)).toEqual([undefined]);
   });
+});
+
+describe('the settings page', () => {
+  it.each(Object.entries(SETTINGS_SECTION_FEATURE))(
+    'locks the %s section with the %s feature, and every such feature is a real one',
+    (section, feature) => {
+      expect(ALL_FEATURES).toContain(feature);
+      expect(lockedSettingsSections([feature])).toHaveProperty(section, feature);
+    },
+  );
 });
