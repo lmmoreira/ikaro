@@ -41,6 +41,17 @@ export class LoyaltyBalance extends AggregateRoot {
     this.props.currentPoints -= points;
   }
 
+  /**
+   * Takes what the balance can give, never below zero, and returns the amount taken (0 at a zero
+   * balance). `decrement` stays strict for the callers that must refuse an amount above the balance.
+   */
+  decrementUpTo(points: number): number {
+    if (points <= 0) throw new LoyaltyInvalidPointsError();
+    const taken = Math.min(points, this.props.currentPoints);
+    this.props.currentPoints -= taken;
+    return taken;
+  }
+
   static create(tenantId: string, customerId: string): LoyaltyBalance {
     return new LoyaltyBalance({ tenantId, customerId, currentPoints: 0 });
   }

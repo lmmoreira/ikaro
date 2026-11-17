@@ -3,6 +3,7 @@ import {
   LoyaltyInsufficientPointsError,
   LoyaltyInvalidPointsError,
 } from './errors/loyalty-domain.error';
+import { LoyaltyBalanceBuilder } from '../../../test/builders/loyalty/index';
 import { LoyaltyBalance } from './loyalty-balance.aggregate';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
@@ -96,6 +97,47 @@ describe('LoyaltyBalance', () => {
       balance.decrement(20);
       balance.decrement(15);
       expect(balance.currentPoints).toBe(15);
+    });
+  });
+
+  describe('decrementUpTo()', () => {
+    const balanceWith = (currentPoints: number): LoyaltyBalance =>
+      new LoyaltyBalanceBuilder()
+        .withTenantId(TENANT_ID)
+        .withCustomerId(CUSTOMER_ID)
+        .withCurrentPoints(currentPoints)
+        .build();
+
+    it('takes the whole amount when the balance covers it', () => {
+      const balance = balanceWith(50);
+
+      expect(balance.decrementUpTo(20)).toBe(20);
+      expect(balance.currentPoints).toBe(30);
+    });
+
+    it('takes exactly the balance when the amount equals it', () => {
+      const balance = balanceWith(10);
+
+      expect(balance.decrementUpTo(10)).toBe(10);
+      expect(balance.currentPoints).toBe(0);
+    });
+
+    it('takes only what the balance has when the amount is higher', () => {
+      const balance = balanceWith(40);
+
+      expect(balance.decrementUpTo(100)).toBe(40);
+      expect(balance.currentPoints).toBe(0);
+    });
+
+    it('takes nothing at a zero balance', () => {
+      const balance = balanceWith(0);
+
+      expect(balance.decrementUpTo(5)).toBe(0);
+      expect(balance.currentPoints).toBe(0);
+    });
+
+    it.each([0, -5])('throws LoyaltyInvalidPointsError when points = %i', (points) => {
+      expect(() => balanceWith(10).decrementUpTo(points)).toThrow(LoyaltyInvalidPointsError);
     });
   });
 
