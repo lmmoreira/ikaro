@@ -7,7 +7,7 @@
 - **Context**: Loyalty bounded context — backend only (`apps/backend/src/contexts/loyalty`), plus one new Loyalty migration. No BFF, web, infra or `@ikaro/types` change.
 - **Created**: 2026-11-15
 - **Discovered**: M25/M26 docs-audit pass after the M25-S27 decision (points keep expiring while a tenant is suspended, PR #789 / #790). The audit re-read the Loyalty code against its docs and found three real code gaps; the docs now describe them (`docs/LOCK_CATALOG.md` hazard H7, `docs/DATABASE_SCHEMA.md` Loyalty section).
-- **Decision status**: Ready for discovery in the dependency order below; each story still begins with `/story-discovery`. Story 3's product decision is locked (option a, see its "Locked at `/story-discovery`" note).
+- **Decision status**: Done. All four stories are implemented and merged (Story 0 PR #803, Story 1 PR #804, Story 2 PR #806, Story 3 PR #807); Story 3's product decision was option (a), see its "Locked at `/story-discovery`" note.
 - **Related**: `docs/LOCK_CATALOG.md` § H7; `docs/BUSINESS_LOGIC_REFERENCE.md` (the earn and settle section); `docs/DATABASE_SCHEMA.md` § Schema: `loyalty`; `docs/ENGINEERING_RULES_BACKEND.md` § Choosing a race-condition primitive, § Adding a cron-published event, § Event Handlers; closed PR #788 / branch `feat/m25-s27-loyalty-pause-expiry-while-suspended` (reference for Story 1 only, see below); M25-S27 (product decision O-L1: points keep expiring while a tenant is suspended, so none of this changes expiry semantics).
 
 ## Problem
@@ -249,7 +249,7 @@ Add `findUnprocessedDueBetween(from, to)` to `ILoyaltyEntryRepository` (query bu
 
 ---
 
-### TD60 Story 3 — Settle what the balance covers when a discount settlement exceeds it
+### TD60 Story 3 — Settle what the balance covers when a discount settlement exceeds it ✅ Done
 
 **Agent:** backend-ts
 **Complexity:** S
