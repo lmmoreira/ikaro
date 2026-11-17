@@ -17,6 +17,7 @@ import { toRecurringBookingScheduleResult } from './recurring-booking-schedule-r
 const TENANT = '10000000-0000-4000-8000-000000000401';
 const OTHER_TENANT = '10000000-0000-4000-8000-000000000499';
 const SERVICE_ID = 'service-1';
+const TENANT_TIMEZONE = 'America/Sao_Paulo';
 
 function schedule(
   customerId: string,
@@ -34,8 +35,10 @@ function schedule(
       startTime: '10:00',
       durationMinutes: 60,
     },
-    startsOn: '2026-09-01',
-    endsOn: '2026-11-24',
+    // Relative to the tenant's today, never a calendar date: `renewable` turns true inside the
+    // renewal window before `endsOn`, so a fixed date makes this suite fail once that day arrives.
+    startsOn: addDaysUTC(todayInTimezone(TENANT_TIMEZONE), -30),
+    endsOn: addDaysUTC(todayInTimezone(TENANT_TIMEZONE), 60),
     maxTermDays: 90,
     assignmentPolicy: 'FIXED_ASSIGNMENT',
     resourceAssignments: [
