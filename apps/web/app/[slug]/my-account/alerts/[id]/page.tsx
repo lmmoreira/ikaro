@@ -1,7 +1,7 @@
 import { getAccessToken } from '@/features/auth/get-access-token';
 import { fetchCustomerAvailabilityAlertOrRedirect } from '@/features/booking/api/availability-alerts.server';
 import { AvailabilityAlertDetail } from '@/features/customer/components/my-account/AvailabilityAlertDetail';
-import { redirectCustomerWhenSuspended } from '@/shared/lib/billing/access.server';
+import { redirectCustomerWhenBookingUnavailable } from '@/shared/lib/billing/access.server';
 
 interface AlertDetailRouteProps {
   readonly params: Promise<{ readonly slug: string; readonly id: string }>;
@@ -12,7 +12,7 @@ export default async function AlertDetailRoute({
 }: AlertDetailRouteProps): Promise<React.JSX.Element> {
   const { slug, id } = await params;
   const token = await getAccessToken();
-  await redirectCustomerWhenSuspended(token, slug);
+  await redirectCustomerWhenBookingUnavailable(token, slug);
   const alert = await fetchCustomerAvailabilityAlertOrRedirect(token, id, slug);
 
   return <AvailabilityAlertDetail alert={alert} tenantSlug={slug} />;

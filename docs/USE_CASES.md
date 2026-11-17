@@ -2962,6 +2962,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
    - **A1: The manager had already unpublished** → the hotsite stays unpublished after reactivation.
    - **A2: Stale cached manifest** → the existing on-demand revalidation is triggered on suspend and on reactivate.
    - **A3: Unknown slug** → the existing not-found behaviour, unchanged; it is a different case from an unpublished hotsite.
+   - **A4: The tenant lacks the `BOOKING` feature** (a hotsite-only plan, or booking dropped later; M25-S31a) → the hotsite stays published and opens. The service list and booking call-to-action sections are omitted (the manifest lists `BOOKING` in `unavailableFeatures`), no link or button leads to the booking form or the service list, and the booking, availability-alert and service pages render the same neutral "Página indisponível". A visitor never meets an error page.
 - **Postconditions:** No new bookings through the public site.
 - **Events Triggered:** None (it reacts to `SubscriptionSuspended` / `SubscriptionReactivated` for the revalidation).
 
@@ -3011,6 +3012,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
    - **A4: A cron-driven feature** (the recurring-renewal reminder) → skipped for tenants without the entitlement.
    - **A5: A plan change** → entitlement changes start at the next period (UC-136), not at the click.
    - **A6: A customer of a tenant without a feature** → the customer account hides the tab of a feature it lacks (`BOOKING` hides Agendamentos, the "+ Novo" menu and the bookings on Início; `LOYALTY` hides Fidelidade and the points tile) and never shows a dead link. It reads the feature keys from its role-reduced `GET /v1/billing/access` (`docs/API_CONTRACTS.md` § Billing — Access Resolution), the answer it already reads for the "Empresa inativa" badge. If that answer is unavailable every tab stays; a direct URL to the hidden page sends the customer back to Início.
+   - **A7: A hotsite visitor of a tenant without `BOOKING`** → see UC-122 A4: the sections and links that depend on Booking are omitted, never an error.
 - **Postconditions:** No unentitled feature use.
 - **Events Triggered:** None.
 

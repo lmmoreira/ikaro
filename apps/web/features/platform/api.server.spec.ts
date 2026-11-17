@@ -99,6 +99,23 @@ describe('fetchManifest', () => {
     );
   });
 
+  it('drops the links to sections the plan does not include', async () => {
+    const manifest = makeManifest();
+    manifest.unavailableFeatures = ['BOOKING'];
+    manifest.layout = [
+      {
+        type: 'NAVIGATION',
+        enabled: true,
+        data: { items: [], cta: { label: 'Agendar', target: 'booking-form' } },
+      },
+    ];
+    fetchSpy.mockResolvedValue(new Response(JSON.stringify(manifest), { status: 200 }));
+
+    const result = await fetchManifest('tenant-no-booking');
+
+    expect(result.layout[0].data).toEqual({ items: [] });
+  });
+
   it('calls notFound() when the BFF returns 404', async () => {
     fetchSpy.mockResolvedValue(new Response(null, { status: 404 }));
 

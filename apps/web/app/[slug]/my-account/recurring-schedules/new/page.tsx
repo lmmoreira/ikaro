@@ -10,7 +10,7 @@ import { NewRecurringSchedulePage } from '@/features/customer/components/my-acco
 import { fetchManifest } from '@/features/platform/api.server';
 import { fetchServices } from '@/features/platform/hotsite/api/services.server';
 import { toISODateInTimezone } from '@/shared/lib/formatting/date-utils';
-import { redirectCustomerWhenSuspended } from '@/shared/lib/billing/access.server';
+import { redirectCustomerWhenBookingUnavailable } from '@/shared/lib/billing/access.server';
 import { isValidTimezone } from '@/shared/lib/formatting/locale-validators';
 
 interface NewRecurringScheduleRouteProps {
@@ -25,7 +25,7 @@ export default async function NewRecurringScheduleRoute({
   const { slug } = await params;
   const { renewFrom } = await searchParams;
   // A suspended tenant refuses the public services read below (UC-121): back to the bookings list.
-  await redirectCustomerWhenSuspended(await getAccessToken(), slug);
+  await redirectCustomerWhenBookingUnavailable(await getAccessToken(), slug);
   const allServices = await fetchServices(slug);
   const services = filterRecurrenceEligibleServices(allServices);
   const emptyReason = noRecurrenceServicesReason(allServices);

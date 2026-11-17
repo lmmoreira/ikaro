@@ -59,6 +59,8 @@ export type HotsiteModuleType =
 // omitted from the manifest layout (its stored settings are kept); the backend manifest use case
 // is the one reader today (docs/HOTSITE_DYNAMIC_ARCHITECTURE.md § Unpublished state).
 export const HOTSITE_MODULE_FEATURE: Readonly<Partial<Record<HotsiteModuleType, FeatureKey>>> = {
+  SERVICE_LIST: 'BOOKING',
+  BOOKING_CTA: 'BOOKING',
   LEAD_FORM: 'LEAD_FORM',
   CHATBOT: 'CHATBOT',
 };

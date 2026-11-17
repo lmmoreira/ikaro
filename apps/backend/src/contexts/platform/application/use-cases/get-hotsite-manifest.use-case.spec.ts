@@ -389,6 +389,69 @@ describe('GetHotsiteManifestUseCase', () => {
       expect(result.layout.map((m) => m.type)).toEqual(['HERO', 'CHATBOT']);
     });
 
+    describe('BOOKING', () => {
+      const bookingLayout: HotsiteModule[] = [
+        HERO,
+        {
+          type: 'SERVICE_LIST',
+          enabled: true,
+          data: { showPrices: true, showPoints: false, layout: 'grid' },
+        },
+        { type: 'BOOKING_CTA', enabled: true, data: { title: 'Agende', ctaLabel: 'Agendar' } },
+      ];
+
+      it('omits the service list and the booking call to action and reports BOOKING unavailable for a tenant without it', async () => {
+        await repo.save(
+          new HotsiteConfigBuilder()
+            .withTenantId(TENANT_A)
+            .buildPublished(undefined, bookingLayout),
+        );
+        access.seed(TENANT_A, withoutFeatures('BOOKING'));
+
+        const result = await useCase.execute({ tenantId: TENANT_A });
+
+        expect(result.layout.map((m) => m.type)).toEqual(['HERO']);
+        expect(result.unavailableFeatures).toEqual(['BOOKING']);
+      });
+
+      it('keeps both modules and does not report BOOKING unavailable for a tenant holding it (negative guarantee)', async () => {
+        await repo.save(
+          new HotsiteConfigBuilder()
+            .withTenantId(TENANT_A)
+            .buildPublished(undefined, bookingLayout),
+        );
+        access.seed(TENANT_A, withoutFeatures('LEAD_FORM'));
+
+        const result = await useCase.execute({ tenantId: TENANT_A });
+
+        expect(result.layout.map((m) => m.type)).toEqual(['HERO', 'SERVICE_LIST', 'BOOKING_CTA']);
+        expect(result.unavailableFeatures).toEqual(['LEAD_FORM']);
+      });
+
+      it('publishes only the features that gate a hotsite surface, never the rest of the plan', async () => {
+        await repo.save(new HotsiteConfigBuilder().withTenantId(TENANT_A).buildPublished());
+        access.seed(TENANT_A, withoutFeatures('LOYALTY', 'LEAD_FORM', 'CHATBOT'));
+
+        const result = await useCase.execute({ tenantId: TENANT_A });
+
+        expect(result.unavailableFeatures).toEqual(['LEAD_FORM', 'CHATBOT']);
+      });
+
+      it('fails open when the access lookup throws: no feature is reported unavailable', async () => {
+        await repo.save(
+          new HotsiteConfigBuilder()
+            .withTenantId(TENANT_A)
+            .buildPublished(undefined, bookingLayout),
+        );
+        access.getAccessError = new Error('billing down');
+
+        const result = await useCase.execute({ tenantId: TENANT_A });
+
+        expect(result.unavailableFeatures).toEqual([]);
+        expect(result.layout).toHaveLength(3);
+      });
+    });
+
     it('preserves the stored module settings: the module returns untouched when the entitlement does', async () => {
       await repo.save(
         new HotsiteConfigBuilder().withTenantId(TENANT_A).buildPublished(undefined, layout),

@@ -78,13 +78,28 @@ async function readCustomerFeatures(token: string): Promise<readonly CustomerFea
 
 export const fetchCustomerFeatures = cache(readCustomerFeatures);
 
-// The customer pages whose reads a suspended tenant refuses (recurring reservations and
-// availability alerts, UC-121) call this first: a suspended customer is sent to the bookings
-// list, which stays readable, instead of an error page. A failed access read does not redirect.
-export async function redirectCustomerWhenSuspended(
+// A page owned by a customer-facing feature: a tenant without it has no such page, so its customer
+// goes back to Início. A failed access read redirects nowhere (fail open). Every customer page that
+// belongs to a feature calls this first, with that feature.
+export async function redirectCustomerWithoutFeature(
+  token: string,
+  tenantSlug: string,
+  feature: CustomerFeatureKey,
+): Promise<void> {
+  const features = await fetchCustomerFeatures(token);
+  if (features !== null && !features.includes(feature)) {
+    redirect(`/${tenantSlug}/my-account`);
+  }
+}
+
+// The customer pages owned by `BOOKING` (recurring reservations and availability alerts). Without
+// the feature the customer goes to Início; a suspended tenant refuses their reads (UC-121), so the
+// customer goes to the bookings list, which stays readable.
+export async function redirectCustomerWhenBookingUnavailable(
   token: string,
   tenantSlug: string,
 ): Promise<void> {
+  await redirectCustomerWithoutFeature(token, tenantSlug, 'BOOKING');
   if ((await fetchCustomerTenantOperational(token)) === false) {
     redirect(`/${tenantSlug}/my-account/bookings`);
   }

@@ -7,6 +7,7 @@ import {
   FetchError,
   ForbiddenError,
   isBillingDenial,
+  isFeatureNotEntitledResponse,
   isSessionRejected,
   nullWhenNotEntitled,
   parseErrorBody,
@@ -38,6 +39,28 @@ describe('parseErrorBody', () => {
   it('resolves to an empty object when the body is empty', async () => {
     const res = new Response('');
     await expect(parseErrorBody(res)).resolves.toEqual({});
+  });
+});
+
+describe('isFeatureNotEntitledResponse', () => {
+  it('is true for the typed 403 of a missing feature, and leaves the body readable', async () => {
+    const res = new Response(JSON.stringify({ code: 'BILLING_FEATURE_NOT_ENTITLED' }), {
+      status: 403,
+    });
+
+    await expect(isFeatureNotEntitledResponse(res)).resolves.toBe(true);
+    await expect(res.json()).resolves.toEqual({ code: 'BILLING_FEATURE_NOT_ENTITLED' });
+  });
+
+  it.each([
+    [403, { code: 'BILLING_TENANT_SUSPENDED' }],
+    [403, { code: 'GENERIC_FORBIDDEN' }],
+    [500, { code: 'BILLING_FEATURE_NOT_ENTITLED' }],
+    [200, {}],
+  ])('is false for status %i with %j', async (status, body) => {
+    await expect(
+      isFeatureNotEntitledResponse(new Response(JSON.stringify(body), { status })),
+    ).resolves.toBe(false);
   });
 });
 

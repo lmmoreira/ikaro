@@ -36,7 +36,8 @@ import {
   fetchCustomerFeatures,
   fetchCustomerTenantOperational,
   fetchTenantAccess,
-  redirectCustomerWhenSuspended,
+  redirectCustomerWhenBookingUnavailable,
+  redirectCustomerWithoutFeature,
 } from './access.server';
 
 function jsonResponse(body: unknown, ok = true, status = 200): Response {
@@ -195,7 +196,39 @@ describe('fetchCustomerFeatures', () => {
   });
 });
 
-describe('redirectCustomerWhenSuspended', () => {
+describe('redirectCustomerWithoutFeature', () => {
+  beforeEach(() => {
+    redirect.mockClear();
+  });
+
+  it.each(['BOOKING', 'LOYALTY'] as const)(
+    'sends the customer back to Início when the tenant lacks %s',
+    async (feature) => {
+      const held = feature === 'BOOKING' ? ['LOYALTY'] : ['BOOKING'];
+      bffServerFetch.mockResolvedValue(jsonResponse({ operational: true, features: held }));
+
+      await expect(redirectCustomerWithoutFeature('token', 'lavacar-bh', feature)).rejects.toThrow(
+        'NEXT_REDIRECT:/lavacar-bh/my-account',
+      );
+    },
+  );
+
+  it('does nothing when the tenant holds the feature, or when its features are unknown', async () => {
+    bffServerFetch.mockResolvedValue(jsonResponse({ operational: true, features: ['LOYALTY'] }));
+    await expect(
+      redirectCustomerWithoutFeature('token', 'lavacar-bh', 'LOYALTY'),
+    ).resolves.toBeUndefined();
+
+    renderCache.reset();
+    bffServerFetch.mockResolvedValue(jsonResponse({}, false, 500));
+    await expect(
+      redirectCustomerWithoutFeature('token', 'lavacar-bh', 'BOOKING'),
+    ).resolves.toBeUndefined();
+    expect(redirect).not.toHaveBeenCalled();
+  });
+});
+
+describe('redirectCustomerWhenBookingUnavailable', () => {
   beforeEach(() => {
     redirect.mockClear();
   });
@@ -203,15 +236,34 @@ describe('redirectCustomerWhenSuspended', () => {
   it('sends a customer of a suspended tenant to the bookings list, which stays readable', async () => {
     bffServerFetch.mockResolvedValue(jsonResponse({ operational: false }));
 
-    await expect(redirectCustomerWhenSuspended('token', 'lavacar-bh')).rejects.toThrow(
+    await expect(redirectCustomerWhenBookingUnavailable('token', 'lavacar-bh')).rejects.toThrow(
       'NEXT_REDIRECT:/lavacar-bh/my-account/bookings',
     );
+  });
+
+  it('sends a customer of a tenant without BOOKING back to Início, whatever its status', async () => {
+    bffServerFetch.mockResolvedValue(jsonResponse({ operational: true, features: ['LOYALTY'] }));
+
+    await expect(redirectCustomerWhenBookingUnavailable('token', 'lavacar-bh')).rejects.toThrow(
+      'NEXT_REDIRECT:/lavacar-bh/my-account',
+    );
+  });
+
+  it('does nothing for a tenant holding BOOKING (negative guarantee)', async () => {
+    bffServerFetch.mockResolvedValue(jsonResponse({ operational: true, features: ['BOOKING'] }));
+
+    await expect(
+      redirectCustomerWhenBookingUnavailable('token', 'lavacar-bh'),
+    ).resolves.toBeUndefined();
+    expect(redirect).not.toHaveBeenCalled();
   });
 
   it('does nothing for an operational tenant (negative guarantee)', async () => {
     bffServerFetch.mockResolvedValue(jsonResponse({ operational: true }));
 
-    await expect(redirectCustomerWhenSuspended('token', 'lavacar-bh')).resolves.toBeUndefined();
+    await expect(
+      redirectCustomerWhenBookingUnavailable('token', 'lavacar-bh'),
+    ).resolves.toBeUndefined();
     expect(redirect).not.toHaveBeenCalled();
   });
 
@@ -220,7 +272,9 @@ describe('redirectCustomerWhenSuspended', () => {
     async (status) => {
       bffServerFetch.mockResolvedValue(jsonResponse({}, false, status));
 
-      await expect(redirectCustomerWhenSuspended('token', 'lavacar-bh')).resolves.toBeUndefined();
+      await expect(
+        redirectCustomerWhenBookingUnavailable('token', 'lavacar-bh'),
+      ).resolves.toBeUndefined();
       expect(redirect).not.toHaveBeenCalled();
     },
   );

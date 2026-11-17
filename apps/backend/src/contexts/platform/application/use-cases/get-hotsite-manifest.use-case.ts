@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { HOTSITE_MODULE_FEATURE } from '@ikaro/types';
+import { HOTSITE_MODULE_FEATURE, type FeatureKey } from '@ikaro/types';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import {
   TENANT_ACCESS_PORT,
@@ -76,6 +76,8 @@ export interface GetHotsiteManifestUseCaseResult {
   business: HotsiteBusinessInfo;
   localization: HotsiteLocalization;
   booking: HotsiteBookingSettings;
+  /** The features the hotsite has a surface for that the tenant does not hold; `[]` fails open. */
+  unavailableFeatures: FeatureKey[];
 }
 
 function emptyBusinessInfo(): HotsiteBusinessInfo {
@@ -121,6 +123,7 @@ export class GetHotsiteManifestUseCase {
           tenant.settings.businessHours.timezone,
         ),
         booking: this.mapBookingSettings(tenant.settings.booking),
+        unavailableFeatures: this.unavailableFeatures(access),
       };
     }
 
@@ -135,6 +138,7 @@ export class GetHotsiteManifestUseCase {
         tenant.settings.businessHours.timezone,
       ),
       booking: this.mapBookingSettings(tenant.settings.booking),
+      unavailableFeatures: this.unavailableFeatures(access),
     };
   }
 
@@ -190,6 +194,15 @@ export class GetHotsiteManifestUseCase {
         lookupService: resolved.address.lookupService,
       },
     };
+  }
+
+  // The features that gate a hotsite surface (the values of `HOTSITE_MODULE_FEATURE`) the tenant does
+  // not hold, so the web can hide the links and pages that depend on them without knowing any one
+  // feature. Nothing else about the tenant's plan is published.
+  private unavailableFeatures(access: TenantAccess | null): FeatureKey[] {
+    if (!access) return [];
+    const gating = new Set(Object.values(HOTSITE_MODULE_FEATURE));
+    return [...gating].filter((feature) => !access.features.some((held) => held.key === feature));
   }
 
   private mapBookingSettings(booking: BookingSettings): HotsiteBookingSettings {

@@ -10,6 +10,7 @@ import {
   hotsiteServicesCacheTag,
 } from '@/features/platform/hotsite/revalidate';
 import { bffPublicFetch } from '@/shared/lib/api/bff-server';
+import { isFeatureNotEntitledResponse } from '@/shared/lib/api/errors';
 
 // Server-only — carries the Next Data Cache tag app/api/revalidate/route.ts invalidates on
 // service create/update/activate/deactivate. Client callers (HotsitePreview.tsx) use
@@ -24,6 +25,10 @@ export async function fetchServices(slug: string): Promise<HotsiteServiceRespons
     },
   });
 
+  // A tenant without the `BOOKING` feature has no catalog: an empty list, not an error. The hotsite
+  // already omits its booking surfaces from the manifest; this keeps a page that reads the list
+  // anyway (a stale cached manifest, the sitemap, a staff page) from failing.
+  if (await isFeatureNotEntitledResponse(res)) return [];
   if (!res.ok) throw new Error(`Failed to fetch services for slug "${slug}"`);
 
   const data = (await res.json()) as HotsiteServiceListResponse;
@@ -51,6 +56,8 @@ export const fetchServiceBySlug = cache(
 
     // 400 is a slug that cannot exist (the BFF refuses a malformed one) — also "no such page".
     if (res.status === 404 || res.status === 400) return null;
+    // A tenant without `BOOKING` has no service pages either.
+    if (await isFeatureNotEntitledResponse(res)) return null;
     if (!res.ok) throw new Error(`Failed to fetch service "${serviceSlug}" for slug "${slug}"`);
 
     return (await res.json()) as HotsiteServiceDetailResponse;

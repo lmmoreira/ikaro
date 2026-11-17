@@ -24,6 +24,13 @@ describe('HeroModule', () => {
       expect(screen.getByRole('link', { name: 'Agendar agora' })).toBeInTheDocument();
     });
 
+    it('renders no primary button when the label is empty, and keeps the heading', () => {
+      render(<HeroModule data={makeData({ ctaLabel: '' })} slug="tenant" />);
+
+      expect(screen.getByRole('heading', { name: 'Bem-vindo à Lavacar' })).toBeInTheDocument();
+      expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    });
+
     it('applies centered layout marker', () => {
       const { container } = render(<HeroModule data={makeData()} slug="tenant" />);
 

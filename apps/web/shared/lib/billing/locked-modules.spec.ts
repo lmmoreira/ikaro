@@ -9,12 +9,19 @@ describe('lockedHotsiteModules', () => {
     });
   });
 
+  it('locks the service list and the booking call to action with BOOKING, the feature they read from', () => {
+    expect(lockedHotsiteModules(['BOOKING'])).toEqual({
+      SERVICE_LIST: 'BOOKING',
+      BOOKING_CTA: 'BOOKING',
+    });
+  });
+
   it('locks only the module whose feature is locked', () => {
     expect(lockedHotsiteModules(['LEAD_FORM'])).toEqual({ LEAD_FORM: 'LEAD_FORM' });
   });
 
   it('locks no module when none of their features is locked, whatever else is', () => {
     expect(lockedHotsiteModules([])).toEqual({});
-    expect(lockedHotsiteModules(['LOYALTY', 'BOOKING'])).toEqual({});
+    expect(lockedHotsiteModules(['LOYALTY'])).toEqual({});
   });
 });

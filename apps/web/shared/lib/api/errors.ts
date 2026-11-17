@@ -66,6 +66,14 @@ export async function assertOk<E extends FetchError>(
   throw new ErrorClass(res.status, body.code, body.field, body.detail);
 }
 
+// `true` for the typed refusal of a route whose feature the tenant does not hold. Reads a clone, so
+// the caller can still read the body of a response that is not that denial.
+export async function isFeatureNotEntitledResponse(res: Response): Promise<boolean> {
+  if (res.status !== 403) return false;
+  const body = await parseErrorBody(res.clone());
+  return body.code === BillingErrorCode.FEATURE_NOT_ENTITLED;
+}
+
 // The two typed billing denials are `403`s, but the caller is logged in: the tenant lacks a
 // feature, or is suspended on a route that does not admit the caller (UC-125, UC-121).
 export function isBillingDenial(err: FetchError): boolean {

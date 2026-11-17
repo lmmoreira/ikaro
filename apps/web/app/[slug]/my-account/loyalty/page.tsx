@@ -8,7 +8,10 @@ import {
 } from '@/features/loyalty/api.server';
 import { LoyaltyPage } from '@/features/customer/components/my-account/LoyaltyPage';
 import { nullWhenNotEntitled } from '@/shared/lib/api/errors';
-import { fetchCustomerTenantOperational } from '@/shared/lib/billing/access.server';
+import {
+  fetchCustomerTenantOperational,
+  redirectCustomerWithoutFeature,
+} from '@/shared/lib/billing/access.server';
 
 interface MyAccountLoyaltyPageProps {
   readonly params: Promise<{ readonly slug: string }>;
@@ -19,6 +22,7 @@ export default async function MyAccountLoyaltyPage({
 }: MyAccountLoyaltyPageProps): Promise<React.JSX.Element> {
   const { slug } = await params;
   const token = await getAccessToken();
+  await redirectCustomerWithoutFeature(token, slug, 'LOYALTY');
 
   const [balance, entries, redemptions, operational] = await Promise.all([
     withAuthRedirect(nullWhenNotEntitled(fetchLoyaltyBalance(token)), slug),
