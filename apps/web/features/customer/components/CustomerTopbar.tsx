@@ -21,15 +21,12 @@ interface CustomerTopbarProps {
   readonly tenantName: string;
   readonly tenantSlug: string;
   readonly userName: string | null;
-  /** `false` while the tenant is suspended (UC-121): the "+ Novo" menu is disabled. */
-  readonly tenantOperational?: boolean;
 }
 
 export function CustomerTopbar({
   tenantName,
   tenantSlug,
   userName,
-  tenantOperational = true,
 }: CustomerTopbarProps): React.JSX.Element {
   const t = useTranslations('customer');
   const statusLabelsT = useTranslations('customer.bookingItem');
@@ -82,7 +79,7 @@ export function CustomerTopbar({
         )}
 
         <div className="hidden lg:block">
-          <NewReservationMenu tenantSlug={tenantSlug} tenantOperational={tenantOperational} />
+          <NewReservationMenu tenantSlug={tenantSlug} />
         </div>
 
         <details className="relative" data-testid="avatar-dropdown">

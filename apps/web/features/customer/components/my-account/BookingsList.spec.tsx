@@ -2,6 +2,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { CustomerBookingListItem } from '@ikaro/types';
+import { CustomerTenantAccessProvider } from '../customer-tenant-access-context';
 import { BookingsList } from './BookingsList';
 
 vi.mock('next-intl', () => ({
@@ -308,13 +309,14 @@ describe('BookingsList while the tenant is suspended (UC-121)', () => {
 
   function renderSuspended(bookings: CustomerBookingListItem[]) {
     return render(
-      <BookingsList
-        bookings={bookings}
-        recurringSummary={SUMMARY}
-        alertsSummary={SUMMARY}
-        tenantSlug="lavacar-bh"
-        tenantOperational={false}
-      />,
+      <CustomerTenantAccessProvider operational={false} entitledFeatures={null}>
+        <BookingsList
+          bookings={bookings}
+          recurringSummary={SUMMARY}
+          alertsSummary={SUMMARY}
+          tenantSlug="lavacar-bh"
+        />
+      </CustomerTenantAccessProvider>,
     );
   }
 
@@ -376,13 +378,14 @@ describe('BookingsList while the tenant is suspended (UC-121)', () => {
 describe('BookingsList empty state while the tenant is suspended (UC-121)', () => {
   it('keeps the empty text but offers no booking action', () => {
     render(
-      <BookingsList
-        bookings={[]}
-        recurringSummary={null}
-        alertsSummary={null}
-        tenantSlug="lavacar-bh"
-        tenantOperational={false}
-      />,
+      <CustomerTenantAccessProvider operational={false} entitledFeatures={null}>
+        <BookingsList
+          bookings={[]}
+          recurringSummary={null}
+          alertsSummary={null}
+          tenantSlug="lavacar-bh"
+        />
+      </CustomerTenantAccessProvider>,
     );
 
     expect(screen.getByText('Nenhum agendamento ainda')).toBeInTheDocument();

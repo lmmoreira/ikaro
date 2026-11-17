@@ -90,6 +90,29 @@ describe('CustomerShell', () => {
     }
   });
 
+  // The shell provides the tenant's state to everything below it, so a page's component asks for a
+  // capability instead of receiving the suspension as a prop through every layer.
+  it('provides a suspended tenant to the components below it: the "+ Novo" menu is disabled', () => {
+    render(
+      <CustomerShell {...DEFAULT_PROPS} tenantOperational={false}>
+        x
+      </CustomerShell>,
+    );
+
+    expect(screen.getByTestId('new-booking-disabled')).toBeDisabled();
+  });
+
+  it('provides a tenant without BOOKING to the components below it: the "+ Novo" menu is absent', () => {
+    render(
+      <CustomerShell {...DEFAULT_PROPS} entitledFeatures={['LOYALTY']}>
+        x
+      </CustomerShell>,
+    );
+
+    expect(screen.queryByTestId('new-menu-trigger')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('new-booking-disabled')).not.toBeInTheDocument();
+  });
+
   it('marks Início as active when pathname is the my-account root', () => {
     render(<CustomerShell {...DEFAULT_PROPS}>x</CustomerShell>);
 

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { fetchManifest } from '@/features/platform/api.server';
-import { isFeatureAvailable } from '@/features/platform/hotsite/feature-availability';
+import { isHotsitePageAvailable } from '@/features/platform/hotsite/feature-availability';
 import { fetchServiceBySlug } from '@/features/platform/hotsite/api/services.server';
 import {
   buildHotsiteModuleRenderPlan,
@@ -36,10 +36,9 @@ const NOINDEX = { index: false, follow: false } as const;
 export async function generateMetadata({ params }: ServiceDetailRouteProps): Promise<Metadata> {
   const { slug, serviceSlug } = await params;
   const manifest = await fetchManifest(slug);
-  const service =
-    manifest.isPublished && isFeatureAvailable(manifest, 'BOOKING')
-      ? await fetchServiceBySlug(slug, serviceSlug)
-      : null;
+  const service = isHotsitePageAvailable(manifest, 'servicos/[serviceSlug]')
+    ? await fetchServiceBySlug(slug, serviceSlug)
+    : null;
 
   if (!service) {
     const t = await getTranslations('hotsite');
@@ -66,7 +65,7 @@ export default async function ServiceDetailRoute({ params }: ServiceDetailRouteP
   const { slug, serviceSlug } = await params;
   const manifest = await fetchManifest(slug);
 
-  if (!manifest.isPublished || !isFeatureAvailable(manifest, 'BOOKING')) {
+  if (!isHotsitePageAvailable(manifest, 'servicos/[serviceSlug]')) {
     return <UnavailablePage slug={slug} manifest={manifest} />;
   }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CUSTOMER_FEATURE_KEYS,
+  HOTSITE_LINK_TARGET_MODULE,
   HOTSITE_MODULE_FEATURE,
   HotsiteCtaTargetSchema,
   type FeatureKey,
@@ -10,7 +11,6 @@ import {
 } from '@ikaro/types';
 import { getCustomerNavItems } from '@/features/customer/components/customer-nav-items';
 import {
-  CTA_TARGET_MODULE,
   isFeatureAvailable,
   withoutLinksToUnavailableSections,
 } from '@/features/platform/hotsite/feature-availability';
@@ -67,13 +67,15 @@ describe('a gated hotsite module', () => {
 });
 
 describe('a button on the hotsite', () => {
-  const entries = Object.entries(CTA_TARGET_MODULE);
+  // Every target of the shared map, `home` included: it leads to no section, so its button is
+  // always kept.
+  const entries = Object.entries(HOTSITE_LINK_TARGET_MODULE);
 
   describe.each(GATING_FEATURES)('when %s is unavailable', (missing) => {
     it.each(entries)(
       'aimed at "%s" (%s) is kept or dropped by its section feature',
       (target, moduleType) => {
-        const gate = HOTSITE_MODULE_FEATURE[moduleType];
+        const gate = moduleType === null ? undefined : HOTSITE_MODULE_FEATURE[moduleType];
         const block: HotsiteModuleResponse = {
           type: 'CONTENT_BLOCK',
           enabled: true,
@@ -100,7 +102,7 @@ describe('a button on the hotsite', () => {
 
   it('names a section for every target a button can have', () => {
     // The hero and content-block targets are a closed enum, the navigation button adds `lead-form`.
-    expect(Object.keys(CTA_TARGET_MODULE)).toEqual(
+    expect(Object.keys(HOTSITE_LINK_TARGET_MODULE)).toEqual(
       expect.arrayContaining([...HotsiteCtaTargetSchema.options, 'lead-form']),
     );
   });

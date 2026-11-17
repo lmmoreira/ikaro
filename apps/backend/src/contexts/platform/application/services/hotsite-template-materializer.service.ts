@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { NAVIGATION_CTA_REQUIRED_MODULE, type NavigationCtaTarget } from '@ikaro/types';
 import {
   HotsiteBranding,
   HotsiteModule,
@@ -124,7 +125,7 @@ export class HotsiteTemplateMaterializer {
   // Two template choices can clash with tenant data the template must not change; both resolve to
   // the closest valid value instead of producing a draft the manager cannot save.
   private fitToTenant(layout: HotsiteModule[], maxBookingAdvanceDays: number): HotsiteModule[] {
-    const leadFormEnabled = layout.some((module) => module.type === 'LEAD_FORM' && module.enabled);
+    const enabledTypes = new Set(layout.filter((module) => module.enabled).map((m) => m.type));
     return layout.map((module) => {
       const data = module.data as Record<string, unknown>;
 
@@ -138,14 +139,18 @@ export class HotsiteTemplateMaterializer {
         }
       }
 
-      // The header button may only point at the lead form when that module is enabled, and
-      // enabling it is the tenant's operational choice (preserved), not the template's.
-      const cta = data.cta as { target?: string } | undefined;
-      if (module.type === 'NAVIGATION' && cta?.target === 'lead-form' && !leadFormEnabled) {
-        return {
-          ...module,
-          data: { ...data, cta: { ...cta, target: 'booking-form' } } as HotsiteModuleData,
-        };
+      // The header button may only point at a target whose module is enabled (the lead form needs
+      // LEAD_FORM), and enabling it is the tenant's operational choice (preserved), not the
+      // template's: the button falls back to the booking form, which needs no module.
+      if (module.type === 'NAVIGATION') {
+        const cta = data.cta as { target?: NavigationCtaTarget } | undefined;
+        const required = cta?.target ? NAVIGATION_CTA_REQUIRED_MODULE[cta.target] : null;
+        if (required && !enabledTypes.has(required)) {
+          return {
+            ...module,
+            data: { ...data, cta: { ...cta, target: 'booking-form' } } as HotsiteModuleData,
+          };
+        }
       }
       return module;
     });

@@ -79,4 +79,4 @@ Folder: `manager/prototypes/resources/` — relocated from `docs/discovery/multi
 
 - [x] **Backend + BFF story shipped** — M21-S01 (`plan/M21-MULTIVERTICAL-FOUNDATION.md`). `GET /v1/resources/:id` added in M21-S04.
 - [x] **Frontend story shipped** — M21-S04. Working-hours edit and deactivate confirmation screens (not covered by the discovery prototype) were designed from `SettingsHoursSection.tsx` and `manager/prototypes/equipe/03-deactivate-confirm.html`; reactivation is a one-click row action, no screen — see the Prototype section above.
-- [x] **Nav placement** — "Recursos" shipped as a new MANAGER-only sidebar item, same tier as "Equipe"/"Configurações"/"Hotsite" (`apps/web/shells/dashboard/components/Sidebar.tsx`'s `MANAGER_NAV_KEYS`).
+- [x] **Nav placement** — "Recursos" shipped as a new MANAGER-only sidebar item, same tier as "Equipe"/"Configurações"/"Hotsite" (a manager entry of the `DASHBOARD_NAV` registry, `apps/web/shells/dashboard/model/dashboard-nav.ts`).

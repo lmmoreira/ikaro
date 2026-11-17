@@ -6,7 +6,8 @@ import { fetchCustomerBookings } from '@/features/booking/api/customer.server';
 import { fetchActiveRecurringSchedules } from '@/features/booking/api/recurring-booking-schedules.server';
 import { fetchLoyaltyBalance } from '@/features/loyalty/api.server';
 import { HomeDashboard } from '@/features/customer/components/my-account/HomeDashboard';
-import { fetchCustomerTenantOperational } from '@/shared/lib/billing/access.server';
+import { CustomerTenantAccessScope } from '@/features/customer/components/CustomerTenantAccessScope';
+import { readWhenCustomerFeatureHeld } from '@/shared/lib/billing/access.server';
 import { nullWhenNotEntitled } from '@/shared/lib/api/errors';
 
 interface MyAccountHomePageProps {
@@ -20,28 +21,34 @@ export default async function MyAccountHomePage({
   const token = await getAccessToken();
   const { userName } = decodeJwtPayload(token);
 
-  // The two summaries are optional: each resolves to `null` on any failure, so a broken schedules
-  // or alerts read hides its own tile and never redirects or blocks the rest of Início. The loyalty
-  // balance is optional too, and so are the bookings (a tenant without `BOOKING` shows no bookings surface): a tenant without the `LOYALTY` feature has no points tile, and the
-  // tenant's `operational` flag is a fail-open read (no answer shows no "Empresa inativa" badge).
-  const [bookings, loyaltyBalance, recurringSchedules, alertsSummary, operational] =
-    await Promise.all([
+  // Every surface here is optional. A read is made only for a feature the tenant holds, learned
+  // from the one access answer the layout shares (never from a denied call): bookings, recurring
+  // schedules and alerts belong to `BOOKING`, the points to `LOYALTY`, and a tenant without one has
+  // no such tile. `nullWhenNotEntitled` stays as the backstop for a stale answer. The two summaries
+  // also resolve to `null` on any failure, so a broken read hides its own tile and never blocks the
+  // rest of Início. What a suspended tenant changes (the "Empresa inativa" badge, the disabled
+  // "+ Novo") comes from the capabilities of the tenant state this page provides, read in this render.
+  const [bookings, loyaltyBalance, recurringSchedules, alertsSummary] = await Promise.all([
+    readWhenCustomerFeatureHeld(token, 'BOOKING', () =>
       withAuthRedirect(nullWhenNotEntitled(fetchCustomerBookings(token)), slug),
+    ),
+    readWhenCustomerFeatureHeld(token, 'LOYALTY', () =>
       withAuthRedirect(nullWhenNotEntitled(fetchLoyaltyBalance(token)), slug),
-      fetchActiveRecurringSchedules(token),
-      fetchAlertsSummary(token),
-      fetchCustomerTenantOperational(token),
-    ]);
+    ),
+    readWhenCustomerFeatureHeld(token, 'BOOKING', () => fetchActiveRecurringSchedules(token)),
+    readWhenCustomerFeatureHeld(token, 'BOOKING', () => fetchAlertsSummary(token)),
+  ]);
 
   return (
-    <HomeDashboard
-      bookings={bookings?.items ?? null}
-      loyaltyBalance={loyaltyBalance}
-      userName={userName ?? null}
-      tenantSlug={slug}
-      recurringSchedules={recurringSchedules}
-      activeAlertCount={alertsSummary?.activeCount ?? null}
-      tenantOperational={operational !== false}
-    />
+    <CustomerTenantAccessScope token={token}>
+      <HomeDashboard
+        bookings={bookings?.items ?? null}
+        loyaltyBalance={loyaltyBalance}
+        userName={userName ?? null}
+        tenantSlug={slug}
+        recurringSchedules={recurringSchedules}
+        activeAlertCount={alertsSummary?.activeCount ?? null}
+      />
+    </CustomerTenantAccessScope>
   );
 }

@@ -1,24 +1,11 @@
 import {
+  HOTSITE_LINK_TARGET_MODULE,
   HOTSITE_MODULE_FEATURE,
   type FeatureKey,
+  type HotsiteLinkTarget,
   type HotsiteManifestResponse,
   type HotsiteModuleResponse,
-  type HotsiteModuleType,
 } from '@ikaro/types';
-
-// Which section a call-to-action target leads to (a hero, content-block or navigation button).
-// `HOTSITE_MODULE_FEATURE` then says which feature that section needs, so a button is dropped when
-// its section's feature is unavailable. A new gated section is one entry in each map: nothing below
-// names a feature.
-export const CTA_TARGET_MODULE: Readonly<Record<string, HotsiteModuleType>> = {
-  'booking-form': 'BOOKING_CTA',
-  'lead-form': 'LEAD_FORM',
-  'service-list': 'SERVICE_LIST',
-  gallery: 'GALLERY',
-  testimonials: 'TESTIMONIALS',
-  about: 'ABOUT',
-  contact: 'CONTACT',
-};
 
 type Availability = Pick<HotsiteManifestResponse, 'unavailableFeatures'>;
 
@@ -28,10 +15,45 @@ export function isFeatureAvailable(manifest: Availability, feature: FeatureKey):
   return !manifest.unavailableFeatures?.includes(feature);
 }
 
+// The public hotsite pages a feature owns, by route under `/{slug}` (the folder of the page under
+// `app/[slug]/`). A tenant without the feature has no such page: it renders the neutral
+// "Página indisponível", never an error. A new gated page is one row here (the scan spec fails on a
+// public page that is neither listed here nor declared to need no feature); `/lead-form` is owned by
+// its module instead, which the manifest omits for a tenant without the feature.
+export const HOTSITE_PAGE_FEATURE = {
+  booking: 'BOOKING',
+  'booking/availability-alert': 'BOOKING',
+  'servicos/[serviceSlug]': 'BOOKING',
+} as const satisfies Readonly<Record<string, FeatureKey>>;
+
+export type HotsiteFeaturePage = keyof typeof HOTSITE_PAGE_FEATURE;
+
+// Whether a page the hotsite offers can be opened: the hotsite is published and the page's feature is
+// available. The page's metadata and its body both ask this, so they can never disagree.
+export function isHotsitePageAvailable(
+  manifest: Availability & Pick<HotsiteManifestResponse, 'isPublished'>,
+  page: HotsiteFeaturePage,
+): boolean {
+  return manifest.isPublished && isFeatureAvailable(manifest, HOTSITE_PAGE_FEATURE[page]);
+}
+
+// The feature the section behind a button's `target` needs: `HOTSITE_LINK_TARGET_MODULE` says which
+// section a target leads to and `HOTSITE_MODULE_FEATURE` which feature that section needs, so a new
+// gated section is one entry in each map and nothing here names a feature. `undefined` when the
+// target leads to no section (`home`), when its section needs no feature, and when it is not a link
+// target at all (the manifest carries an arbitrary string; an own-property check keeps names such as
+// `constructor` out): in each case the button is kept.
+function featureBehindTarget(target: unknown): FeatureKey | undefined {
+  if (typeof target !== 'string' || !Object.hasOwn(HOTSITE_LINK_TARGET_MODULE, target)) {
+    return undefined;
+  }
+  const type = HOTSITE_LINK_TARGET_MODULE[target as HotsiteLinkTarget];
+  return type === null ? undefined : HOTSITE_MODULE_FEATURE[type];
+}
+
 // Whether a button aimed at `target` would lead to a section the manifest omits for want of a feature.
 function leadsToUnavailableSection(manifest: Availability, target: unknown): boolean {
-  const type = typeof target === 'string' ? CTA_TARGET_MODULE[target] : undefined;
-  const feature = type && HOTSITE_MODULE_FEATURE[type];
+  const feature = featureBehindTarget(target);
   return feature !== undefined && !isFeatureAvailable(manifest, feature);
 }
 

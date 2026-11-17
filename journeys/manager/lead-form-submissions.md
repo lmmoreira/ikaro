@@ -5,13 +5,13 @@
 **UCs covered:** UC-041
 **Status:** ✅ Done — base list/detail + gated nav (M20-S10), search backend/BFF (M20-S12), and search frontend UI (M20-S13, basic/advanced/date-range, all button-driven — see Flow section below). Implemented from the lead-form design promoted via `/discovery-to-milestone` (2026-08-23) for milestone `M20-LEAD-FORM-MODULE`.
 
-**Gated, not unconditional (post-review redesign, 2026-08-24; implementation corrected during M20-S10 story-discovery, 2026-08-27):** the "Leads" sidebar item only renders when `GET /v1/tenants/lead-form/status` reports `enabled: true` for this tenant (fetched server-side by the shared `loadDashboardShellContext()`, `apps/web/shells/dashboard/model/dashboard-shell-context.ts` — called independently by every top-level dashboard section's own `layout.tsx`, since there is no single shared `app/dashboard/layout.tsx` — passed down through `DashboardShell` → `Sidebar`/`BottomNav`/`MoreSheet`) — a tenant that never turned the module on never sees this item, since it would otherwise point at a permanently empty screen.
+**Gated, not unconditional (post-review redesign, 2026-08-24; implementation corrected during M20-S10 story-discovery, 2026-08-27):** the "Leads" sidebar item only renders when `GET /v1/tenants/lead-form/status` reports `enabled: true` for this tenant (fetched server-side by the shared `loadDashboardShellContext()`, `apps/web/shells/dashboard/model/dashboard-shell-context.ts` — called independently by every top-level dashboard section's own `layout.tsx`, since there is no single shared `app/dashboard/layout.tsx` — passed down through `DashboardShell` → `Sidebar`/`BottomNav`/`MoreSheet`) — a tenant entitled to `LEAD_FORM` that never turned the module on never sees this item (a tenant that is not entitled sees it locked, with a padlock, whatever the switch says, UC-125), since it would otherwise point at a permanently empty screen.
 
 ## Flow
 
 ```mermaid
 flowchart TD
-    Start(["Sidebar — clica 'Leads'<br/>(item novo, após MAIN_NAV_KEYS, STAFF|MANAGER,<br/>só aparece se módulo enabled)"]) --> List{"GET /v1/tenants/lead-form/submissions"}
+    Start(["Sidebar — clica 'Leads'<br/>(item novo, grupo principal do registro DASHBOARD_NAV, STAFF|MANAGER,<br/>só aparece se módulo enabled; travado, com cadeado, se o tenant não tem a feature LEAD_FORM)"]) --> List{"GET /v1/tenants/lead-form/submissions"}
     List -- "vazio" --> Empty["nenhum envio ainda<br/>(01b-submissions-empty) |UC-041 A1|"]
     List -- "com dados" --> Submissions["lista paginada<br/>(01-submissions-list)"]
 

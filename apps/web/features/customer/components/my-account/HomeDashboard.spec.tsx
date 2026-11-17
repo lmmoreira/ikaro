@@ -6,6 +6,7 @@ import type {
   CustomerLoyaltyBalanceResponse,
   RecurringBookingScheduleListItem,
 } from '@ikaro/types';
+import { CustomerTenantAccessProvider } from '../customer-tenant-access-context';
 import { HomeDashboard } from './HomeDashboard';
 
 vi.mock('next-intl', () => ({
@@ -385,15 +386,16 @@ describe('HomeDashboard — a tenant without the LOYALTY feature', () => {
 describe('HomeDashboard while the tenant is suspended (UC-121)', () => {
   function renderSuspended(bookings: CustomerBookingListItem[]) {
     return render(
-      <HomeDashboard
-        bookings={bookings}
-        loyaltyBalance={balance}
-        userName="João Silva"
-        tenantSlug="lavacar-bh"
-        recurringSchedules={[]}
-        activeAlertCount={0}
-        tenantOperational={false}
-      />,
+      <CustomerTenantAccessProvider operational={false} entitledFeatures={null}>
+        <HomeDashboard
+          bookings={bookings}
+          loyaltyBalance={balance}
+          userName="João Silva"
+          tenantSlug="lavacar-bh"
+          recurringSchedules={[]}
+          activeAlertCount={0}
+        />
+      </CustomerTenantAccessProvider>,
     );
   }
 

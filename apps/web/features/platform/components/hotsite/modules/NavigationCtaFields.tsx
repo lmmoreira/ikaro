@@ -1,7 +1,11 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import type { NavigationModuleData } from '@ikaro/types';
+import {
+  NAVIGATION_CTA_REQUIRED_MODULE,
+  type NavigationCtaTarget,
+  type NavigationModuleData,
+} from '@ikaro/types';
 import { PillSelect } from '@/shared/components/ui/pill-select';
 import { SwitchField } from '@/shared/components/ui/switch-field';
 import { NAVIGATION_LABEL_MAX_LENGTH } from '@/features/platform/hotsite/navigation-links';
@@ -12,18 +16,35 @@ export type NavigationCta = NonNullable<NavigationModuleData['cta']>;
 
 const DEFAULT_CTA: NavigationCta = { label: '', target: 'booking-form' };
 
+type CtaCopyKey = 'ctaTargetBooking' | 'ctaTargetLeadForm' | 'ctaLeadFormDisabled';
+
+// The copy of each header-button target. Exhaustive on purpose: a target added to the shared map is
+// a compile error here until it has a label (and, when it needs a module, a note for its disabled
+// state). The options themselves are the map's keys, never a second list.
+const CTA_TARGET_COPY: Readonly<
+  Record<NavigationCtaTarget, { readonly label: CtaCopyKey; readonly disabledNote?: CtaCopyKey }>
+> = {
+  'booking-form': { label: 'ctaTargetBooking' },
+  'lead-form': { label: 'ctaTargetLeadForm', disabledNote: 'ctaLeadFormDisabled' },
+};
+
+const CTA_TARGETS = Object.keys(NAVIGATION_CTA_REQUIRED_MODULE) as NavigationCtaTarget[];
+
 interface CtaFieldsProps {
   readonly cta: NavigationCta | undefined;
-  readonly leadFormEnabled: boolean;
+  // Whether the module a target needs is enabled (a target that needs none always is).
+  readonly isTargetEnabled: (target: NavigationCtaTarget) => boolean;
   readonly onChange: (cta: NavigationCta | undefined) => void;
 }
 
 export function NavigationCtaFields({
   cta,
-  leadFormEnabled,
+  isTargetEnabled,
   onChange,
 }: CtaFieldsProps): React.JSX.Element {
   const t = useTranslations('dashboard.hotsitePage.layout.panels.navigation');
+  const disabledNote =
+    cta && !isTargetEnabled(cta.target) ? CTA_TARGET_COPY[cta.target].disabledNote : undefined;
   return (
     <div className="space-y-4 rounded-md border border-gray-200 p-4">
       <SwitchField
@@ -50,14 +71,15 @@ export function NavigationCtaFields({
             value={cta.target}
             testId="navigation-cta-target"
             onChange={(target) => onChange({ ...cta, target })}
-            options={[
-              { value: 'booking-form', label: t('ctaTargetBooking') },
-              { value: 'lead-form', label: t('ctaTargetLeadForm'), disabled: !leadFormEnabled },
-            ]}
+            options={CTA_TARGETS.map((target) => ({
+              value: target,
+              label: t(CTA_TARGET_COPY[target].label),
+              disabled: !isTargetEnabled(target),
+            }))}
           />
-          {cta.target === 'lead-form' && !leadFormEnabled && (
+          {disabledNote && (
             <p role="note" className="rounded-md bg-amber-50 p-3 text-sm text-amber-800">
-              {t('ctaLeadFormDisabled')}
+              {t(disabledNote)}
             </p>
           )}
         </>

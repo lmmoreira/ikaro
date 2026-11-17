@@ -58,11 +58,13 @@ export function isCustomerNavActive(pathname: string, href: string, homeHref: st
   return pathname.startsWith(href);
 }
 
-// The three tab routes only — /{slug}/my-account, /{slug}/my-account/bookings,
-// /{slug}/my-account/loyalty. Anything deeper (booking detail, cancel, cancel/error) is a
-// drill-down page and hides the bottom nav, per M13-S28.
-const TAB_ROUTE_PATTERN = /^\/[^/]+\/my-account(\/bookings|\/loyalty)?$/;
-
+// The tab routes only — the href of each nav item (Início, Agendamentos, Fidelidade). Anything
+// deeper (booking detail, cancel, cancel/error) is a drill-down page and hides the bottom nav, per
+// M13-S28. The routes are the registry's own items, never a second list, so a new tab shows the
+// bar on its own page without another edit. The slug is the first path segment, and every item is
+// considered whatever the tenant holds: a tab the tenant lacks is a page its guard sends away.
 export function shouldShowCustomerBottomNav(pathname: string): boolean {
-  return TAB_ROUTE_PATTERN.test(pathname);
+  const slug = pathname.split('/')[1];
+  if (!slug) return false;
+  return getCustomerNavItems(slug).some(({ href }) => href === pathname);
 }

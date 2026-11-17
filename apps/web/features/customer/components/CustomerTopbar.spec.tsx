@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { clearPublicEnv, stubPublicEnv } from '@/test-utils';
+import { CustomerTenantAccessProvider } from './customer-tenant-access-context';
 import { CustomerTopbar } from './CustomerTopbar';
 import {
   CustomerTopbarStatusProvider,
@@ -172,14 +173,11 @@ describe('CustomerTopbar', () => {
 describe('CustomerTopbar while the tenant is suspended (UC-121)', () => {
   it('disables the "+ Novo" menu', () => {
     render(
-      <CustomerTopbarStatusProvider>
-        <CustomerTopbar
-          tenantName="Lavacar BH"
-          tenantSlug="lavacar-bh"
-          userName="João Silva"
-          tenantOperational={false}
-        />
-      </CustomerTopbarStatusProvider>,
+      <CustomerTenantAccessProvider operational={false} entitledFeatures={null}>
+        <CustomerTopbarStatusProvider>
+          <CustomerTopbar tenantName="Lavacar BH" tenantSlug="lavacar-bh" userName="João Silva" />
+        </CustomerTopbarStatusProvider>
+      </CustomerTenantAccessProvider>,
     );
 
     expect(screen.getByTestId('new-booking-disabled')).toBeDisabled();

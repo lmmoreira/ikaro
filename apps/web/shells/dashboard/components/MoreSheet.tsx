@@ -3,10 +3,11 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import type { FeatureKey } from '@ikaro/types';
-import { Boxes, Users, Settings, Globe, LogOut, FileText } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 import { isRouteLocked } from '@/shared/lib/billing/feature-registry';
 import { cn } from '@/shared/utils/cn';
+import type { DashboardNav } from '@/shells/dashboard/model/dashboard-nav';
 import { NavLockMark } from './NavLockMark';
 import { SchedulingExceptionsSheetItem } from './SchedulingExceptionsNavItem';
 
@@ -15,33 +16,28 @@ interface MoreSheetProps {
   readonly onClose: () => void;
   readonly tenantSlug: string;
   readonly role: 'STAFF' | 'MANAGER';
-  readonly leadFormEnabled: boolean;
+  // What the dashboard shell resolved for this caller (`resolveDashboardNav`): the header-less items
+  // and the manager section, each shown or locked (UC-125).
+  readonly nav: DashboardNav;
+  // The features the tenant does not hold: the scheduling-exceptions item, which the shell composes
+  // itself, renders locked.
   readonly lockedFeatures: readonly FeatureKey[];
 }
 
-const MANAGER_SHEET_ITEM_KEYS = [
-  { href: '/dashboard/resources', labelKey: 'nav.resources', Icon: Boxes },
-  { href: '/dashboard/team', labelKey: 'nav.team', Icon: Users },
-  { href: '/dashboard/settings', labelKey: 'nav.settings', Icon: Settings },
-  { href: '/dashboard/hotsite', labelKey: 'nav.hotsite', Icon: Globe },
-] as const;
-
-// Renamed from ManagerSheet (M20-S10) — this sheet now also serves STAFF once the LEAD_FORM
-// module is enabled (BottomNav's "Mais" trigger opens it for STAFF too in that case), so its
-// content is no longer manager-exclusive. The "Leads" item renders header-less for either role;
-// the "Somente Gerente" section below it stays MANAGER-only, unchanged.
+// Renamed from ManagerSheet (M20-S10) — this sheet also serves STAFF once a toggled module such as
+// the lead form is shown (BottomNav's "Mais" trigger opens it for STAFF too in that case), so its
+// content is no longer manager-exclusive. The header-less items (Leads) render for either role; the
+// "Somente Gerente" section below them stays MANAGER-only, unchanged.
 export function MoreSheet({
   open,
   onClose,
   tenantSlug,
   role,
-  leadFormEnabled,
+  nav,
   lockedFeatures,
 }: MoreSheetProps): React.JSX.Element {
   const t = useTranslations('dashboard');
   const logoutUrl = `${getPublicEnv('NEXT_PUBLIC_BFF_URL')}/auth/logout?tenantSlug=${tenantSlug}`;
-  const leadsLocked = lockedFeatures.includes('LEAD_FORM');
-  const leadsVisible = leadFormEnabled || leadsLocked;
 
   return (
     <>
@@ -78,19 +74,23 @@ export function MoreSheet({
         {/* Drag handle — mobile only */}
         <div className="mx-auto mt-3 h-1 w-10 rounded-full bg-gray-900/15 lg:hidden" />
 
-        {/* "Leads" — header-less, visible to either role once the module is enabled */}
-        {leadsVisible && (
+        {/* Header-less items (Leads) — visible to either role once the module is enabled */}
+        {nav.sheetMain.map(({ href, labelKey, Icon, locked }, index) => (
           <Link
-            href="/dashboard/leads"
+            key={href}
+            href={href}
             onClick={onClose}
-            data-locked={leadsLocked ? 'true' : undefined}
-            className="mt-2 flex items-center gap-[0.875rem] px-5 py-[0.875rem] text-[0.9375rem] font-medium text-gray-900 transition-colors active:bg-blue-50"
+            data-locked={locked ? 'true' : undefined}
+            className={cn(
+              'flex items-center gap-[0.875rem] px-5 py-[0.875rem] text-[0.9375rem] font-medium text-gray-900 transition-colors active:bg-blue-50',
+              index === 0 && 'mt-2',
+            )}
           >
-            <FileText className="h-5 w-5 shrink-0 opacity-60" />
-            {t('nav.leads')}
-            {leadsLocked ? <NavLockMark className="ml-auto" /> : null}
+            <Icon className="h-5 w-5 shrink-0 opacity-60" />
+            {t(labelKey)}
+            {locked ? <NavLockMark className="ml-auto" /> : null}
           </Link>
-        )}
+        ))}
 
         {role === 'MANAGER' && (
           <>
@@ -104,8 +104,7 @@ export function MoreSheet({
               onClose={onClose}
               locked={isRouteLocked('/dashboard/scheduling-exceptions', lockedFeatures)}
             />
-            {MANAGER_SHEET_ITEM_KEYS.map(({ href, labelKey, Icon }) => {
-              const locked = isRouteLocked(href, lockedFeatures);
+            {nav.sheetManager.map(({ href, labelKey, Icon, locked }) => {
               return (
                 <Link
                   key={href}

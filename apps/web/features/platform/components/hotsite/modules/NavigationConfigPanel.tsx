@@ -26,8 +26,8 @@ import { splitPresentation } from '@/features/platform/hotsite/module-presentati
 import {
   NAVIGATION_MAX_ITEMS,
   NAVIGATION_TARGETS,
+  isNavigationCtaTargetEnabled,
   isNavigationTargetEnabled,
-  isModuleEnabled,
   moveNavigationItem,
 } from '@/features/platform/hotsite/navigation-links';
 import { NavigationCtaFields, type NavigationCta } from './NavigationCtaFields';
@@ -135,7 +135,9 @@ export function NavigationConfigPanel({
       </div>
       <NavigationCtaFields
         cta={navigation.cta}
-        leadFormEnabled={modules === undefined || isModuleEnabled(modules, 'LEAD_FORM')}
+        isTargetEnabled={(target) =>
+          modules === undefined || isNavigationCtaTargetEnabled(modules, target)
+        }
         onChange={setCta}
       />
     </div>

@@ -1,8 +1,26 @@
 // @vitest-environment jsdom
+import type { ComponentProps } from 'react';
 import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearPublicEnv, stubPublicEnv } from '@/test-utils';
-import { Sidebar } from './Sidebar';
+import { resolveDashboardNav } from '@/shells/dashboard/model/dashboard-nav';
+import { Sidebar as SidebarView } from './Sidebar';
+
+// The shell resolves the navigation once and hands it to the sidebar; these cases state the facts
+// (role, the lead-form switch, the locked features) and let the registry resolve them, as the shell
+// does.
+type SidebarProps = Omit<ComponentProps<typeof SidebarView>, 'nav'> & {
+  readonly leadFormEnabled: boolean;
+};
+
+function Sidebar({ leadFormEnabled, ...props }: SidebarProps): React.JSX.Element {
+  const nav = resolveDashboardNav({
+    role: props.role,
+    lockedFeatures: props.lockedFeatures,
+    toggles: { leadForm: leadFormEnabled },
+  });
+  return <SidebarView {...props} nav={nav} />;
+}
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => {

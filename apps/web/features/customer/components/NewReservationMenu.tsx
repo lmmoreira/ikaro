@@ -8,39 +8,36 @@ import { Button } from '@/shared/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover';
 import { cn } from '@/shared/utils/cn';
 import { recurringScheduleNewPath } from '../recurring-schedule-model';
-import { useHasCustomerFeature } from './customer-features-context';
+import { useCustomerCapabilities } from './customer-tenant-access-context';
 
 interface NewReservationMenuProps {
   readonly tenantSlug: string;
   /** Stretches the trigger across its container (Início's mobile button). */
   readonly fullWidth?: boolean;
-  /**
-   * `false` while the tenant is suspended (UC-121): neither a booking nor a recurring reservation
-   * can be created, so the menu is a disabled button. `true` (the default) is today's menu.
-   */
-  readonly tenantOperational?: boolean;
 }
 
 /**
  * The customer's one "create" action: "+ Novo ▾" with a one-off booking and a recurring
  * reservation. The desktop topbar renders it on every my-account screen; on mobile, where the topbar
  * has no room, the pages that offer a create action render the same menu in the page.
+ *
+ * Its state comes from the tenant's capabilities: every entry is owned by `BOOKING`, so a tenant
+ * without it has nothing to create and the menu is absent (not disabled, which would read as a
+ * temporary suspension); while the tenant is suspended (UC-121) neither a booking nor a recurring
+ * reservation can be created, so it is a disabled button.
  */
 export function NewReservationMenu({
   tenantSlug,
   fullWidth = false,
-  tenantOperational = true,
 }: NewReservationMenuProps): React.JSX.Element | null {
   const t = useTranslations('customer.newMenu');
   const tInactive = useTranslations('customer.inactiveTenant');
   const [open, setOpen] = useState(false);
-  const hasBooking = useHasCustomerFeature('BOOKING');
+  const { newBookingMenu } = useCustomerCapabilities();
 
-  // Every entry is owned by `BOOKING`: a tenant without it has nothing to create, so the menu is
-  // absent (not disabled, which would read as a temporary suspension).
-  if (!hasBooking) return null;
+  if (newBookingMenu === 'absent') return null;
 
-  if (!tenantOperational) {
+  if (newBookingMenu === 'disabled') {
     return (
       <Button
         type="button"

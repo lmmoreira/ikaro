@@ -6,7 +6,8 @@ import ptBRMessages from '@ikaro/i18n/locales/pt-BR/web.json';
 import enMessages from '@ikaro/i18n/locales/en/web.json';
 import { FormattingProvider } from '@/providers/formatting-provider';
 import type { DateFormat } from '@ikaro/i18n';
-import type { HotsiteAddressSpec, HotsiteServiceResponse } from '@ikaro/types';
+import type { CustomerFeatureKey, HotsiteAddressSpec, HotsiteServiceResponse } from '@ikaro/types';
+import { CustomerTenantAccessProvider } from '@/features/customer/components/customer-tenant-access-context';
 import type { PublicEnvKey } from '@/shared/lib/runtime-env/public-env';
 import {
   FloatingFilterDockContext,
@@ -226,6 +227,30 @@ export function renderWithIntlInFloatingFilterDock(
     );
   }
   return renderWithIntl(ui, { ...options, contextWrapper: DockContext });
+}
+
+// The customer account reads the tenant's state (suspended or not, the features it holds) from the
+// account shell's provider, so a component spec states that state instead of passing it down as
+// props. Defaults are today's account: operational, every feature held.
+export function renderWithIntlInCustomerTenantAccess(
+  ui: React.ReactElement,
+  {
+    operational = true,
+    entitledFeatures = null,
+    ...options
+  }: RenderWithIntlOptions & {
+    readonly operational?: boolean;
+    readonly entitledFeatures?: readonly CustomerFeatureKey[] | null;
+  } = {},
+): ReturnType<typeof render> {
+  function TenantAccess({ children }: { readonly children: React.ReactNode }): React.JSX.Element {
+    return (
+      <CustomerTenantAccessProvider operational={operational} entitledFeatures={entitledFeatures}>
+        {children}
+      </CustomerTenantAccessProvider>
+    );
+  }
+  return renderWithIntl(ui, { ...options, contextWrapper: TenantAccess });
 }
 
 // PillSelect (TD37-S23, Codex review PR #450) shares one static data-testid per option group,

@@ -10,12 +10,11 @@ import { BookingParticipantsCard } from '@/features/booking/components/booking-d
 import { appendReturnTo } from '@/features/customer/booking-navigation';
 import { BookingResourcesCard } from '@/features/booking/components/booking-detail/BookingResourcesCard';
 import { BookingTerminationCard } from '@/features/booking/components/booking-detail/BookingTerminationCard';
+import { useCustomerCapabilities } from '../customer-tenant-access-context';
 
 interface CustomerBookingExtrasProps {
   readonly booking: CustomerBookingDetailResponse;
   readonly tenantSlug: string;
-  /** `false` while the tenant is suspended: the recurring schedule's page is refused, so no link. */
-  readonly tenantOperational?: boolean;
 }
 
 type Translate = ReturnType<typeof useTranslations<'booking.detailCards'>>;
@@ -32,9 +31,10 @@ function cancellationActorLabel(cancellation: CustomerBookingCancellation, t: Tr
 export function CustomerBookingExtras({
   booking,
   tenantSlug,
-  tenantOperational = true,
 }: CustomerBookingExtrasProps): React.JSX.Element {
   const t = useTranslations('booking.detailCards');
+  // The recurring schedule's page is refused while the tenant is suspended, so there is no link.
+  const { canManageRecurring } = useCustomerCapabilities();
   const { cancellation, rejection } = booking;
 
   return (
@@ -49,7 +49,7 @@ export function CustomerBookingExtras({
       <BookingAddressesCard pickupAddress={booking.pickupAddress} />
       <BookingOriginCard
         recurrenceHref={
-          booking.recurringScheduleId === null || !tenantOperational
+          booking.recurringScheduleId === null || !canManageRecurring
             ? null
             : appendReturnTo(
                 `/${tenantSlug}/my-account/recurring-schedules/${booking.recurringScheduleId}`,

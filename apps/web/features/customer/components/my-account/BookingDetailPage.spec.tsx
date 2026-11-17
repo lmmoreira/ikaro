@@ -7,6 +7,7 @@ import {
   CustomerTopbarStatusProvider,
   useCustomerTopbarStatus,
 } from '../customer-topbar-status-context';
+import { CustomerTenantAccessProvider } from '../customer-tenant-access-context';
 import { BookingDetailPage } from './BookingDetailPage';
 
 function TopbarStatusProbe(): React.JSX.Element {
@@ -484,7 +485,9 @@ describe('BookingDetailPage while the tenant is suspended (UC-121)', () => {
 
   function renderSuspended(booking: CustomerBookingDetailResponse) {
     return render(
-      <BookingDetailPage booking={booking} tenantSlug="lavacar-bh" tenantOperational={false} />,
+      <CustomerTenantAccessProvider operational={false} entitledFeatures={null}>
+        <BookingDetailPage booking={booking} tenantSlug="lavacar-bh" />
+      </CustomerTenantAccessProvider>,
     );
   }
 

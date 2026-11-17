@@ -227,8 +227,8 @@ flowchart TD
 
 | Page / Route | Component | Story | Status |
 |---|---|---|---|
-| `/{slug}/my-account/bookings` | `BookingsList` / `BookingListItem` with the "Empresa inativa" badge (`tenantOperational` prop) | M25-S31a | ✅ Done (M25-S31a) |
-| `/{slug}/my-account/bookings/:id` | `BookingDetailPage` with the neutral notice and without reschedule, information form and new-booking link (`tenantOperational` prop) | M25-S31a | ✅ Done (M25-S31a) |
+| `/{slug}/my-account/bookings` | `BookingsList` / `BookingListItem` with the "Empresa inativa" badge (the `showInactiveNotice` capability, M25-S34) | M25-S31a | ✅ Done (M25-S31a) |
+| `/{slug}/my-account/bookings/:id` | `BookingDetailPage` with the neutral notice and without reschedule, information form and new-booking link (the tenant's capabilities, M25-S34) | M25-S31a | ✅ Done (M25-S31a) |
 | `/{slug}/my-account/bookings/:id/cancel` | `CancelConfirmPage`, unchanged | — | ✅ Existing |
 | `/{slug}/my-account/bookings/:id/reschedule` (suspended) | redirects to the detail | M25-S31a | ✅ Done (M25-S31a) |
 | `/{slug}/my-account/loyalty` (suspended) | `LoyaltyPage` read-only notice (`16f`) | M25-S31a | ✅ Done (M25-S31a) |

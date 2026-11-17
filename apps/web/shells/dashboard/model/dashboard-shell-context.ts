@@ -10,7 +10,11 @@ import { resolveTenantFormatting } from '@/features/platform/model/tenant-settin
 import { getMessages, resolveSupportedLocale } from '@/shared/lib/i18n/get-messages';
 import { resolveDateFormat } from '@/shared/lib/formatting/locale-validators';
 import { fetchTenantAccess } from '@/shared/lib/billing/access.server';
-import { featureForPath, isFeatureLocked } from '@/shared/lib/billing/feature-registry';
+import {
+  featureForPath,
+  isFeatureLocked,
+  isRouteLocked,
+} from '@/shared/lib/billing/feature-registry';
 import { resolveSuspendedRedirect } from '@/shared/lib/billing/suspended-redirect';
 import { lockedFeaturesOf } from '@/shared/lib/billing/tenant-access';
 
@@ -67,7 +71,9 @@ export async function loadDashboardShellContext(
   if (suspendedTarget) redirect(suspendedTarget);
 
   const lockedFeatures = access ? lockedFeaturesOf(access) : [];
-  const leadFormEntitled = !lockedFeatures.includes('LEAD_FORM');
+  // The lead form status is read only for a tenant entitled to it: the backend refuses it
+  // otherwise. The feature is the one the route registry gives the Leads page.
+  const leadFormEntitled = !isRouteLocked('/dashboard/leads', lockedFeatures);
   const [messages, tenantSettings, leadFormStatus] = await Promise.all([
     getMessages(base.locale),
     fetchTenantSettings(token),

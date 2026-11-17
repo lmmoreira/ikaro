@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { renderWithIntl } from '@/test-utils';
-import { CustomerFeaturesProvider } from './customer-features-context';
+import { renderWithIntl, renderWithIntlInCustomerTenantAccess } from '@/test-utils';
 import { NewReservationMenu } from './NewReservationMenu';
 
 function open(): void {
@@ -52,7 +51,9 @@ describe('NewReservationMenu', () => {
 
 describe('NewReservationMenu while the tenant is suspended (UC-121)', () => {
   it('is a disabled button with no menu: neither a booking nor a recurring reservation can be created', () => {
-    renderWithIntl(<NewReservationMenu tenantSlug="lavacar-bh" tenantOperational={false} />);
+    renderWithIntlInCustomerTenantAccess(<NewReservationMenu tenantSlug="lavacar-bh" />, {
+      operational: false,
+    });
 
     const button = screen.getByTestId('new-booking-disabled');
     expect(button).toBeDisabled();
@@ -62,9 +63,9 @@ describe('NewReservationMenu while the tenant is suspended (UC-121)', () => {
   });
 
   it('keeps the full-width trigger shape for the mobile placement', () => {
-    renderWithIntl(
-      <NewReservationMenu tenantSlug="lavacar-bh" tenantOperational={false} fullWidth />,
-    );
+    renderWithIntlInCustomerTenantAccess(<NewReservationMenu tenantSlug="lavacar-bh" fullWidth />, {
+      operational: false,
+    });
 
     expect(screen.getByTestId('new-booking-disabled').className).toContain('w-full');
   });
@@ -77,22 +78,18 @@ describe('NewReservationMenu while the tenant is suspended (UC-121)', () => {
   });
 
   it('is absent, not disabled, for a tenant without BOOKING', () => {
-    renderWithIntl(
-      <CustomerFeaturesProvider entitledFeatures={['LOYALTY']}>
-        <NewReservationMenu tenantSlug="lavacar-bh" />
-      </CustomerFeaturesProvider>,
-    );
+    renderWithIntlInCustomerTenantAccess(<NewReservationMenu tenantSlug="lavacar-bh" />, {
+      entitledFeatures: ['LOYALTY'],
+    });
 
     expect(screen.queryByTestId('new-menu-trigger')).not.toBeInTheDocument();
     expect(screen.queryByTestId('new-booking-disabled')).not.toBeInTheDocument();
   });
 
   it('is the usual menu when the tenant features are unknown (negative guarantee)', () => {
-    renderWithIntl(
-      <CustomerFeaturesProvider entitledFeatures={null}>
-        <NewReservationMenu tenantSlug="lavacar-bh" />
-      </CustomerFeaturesProvider>,
-    );
+    renderWithIntlInCustomerTenantAccess(<NewReservationMenu tenantSlug="lavacar-bh" />, {
+      entitledFeatures: null,
+    });
 
     expect(screen.getByTestId('new-menu-trigger')).toBeEnabled();
   });

@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { fetchManifest } from '@/features/platform/api.server';
-import { isFeatureAvailable } from '@/features/platform/hotsite/feature-availability';
+import { isHotsitePageAvailable } from '@/features/platform/hotsite/feature-availability';
 import { fetchServices } from '@/features/platform/hotsite/api/services.server';
 import { BookingForm } from '@/features/booking/components/public/BookingForm';
 import { BookingFormWithDeepLink } from '@/features/booking/components/public/BookingFormWithDeepLink';
@@ -30,10 +30,9 @@ export async function generateMetadata({ params }: BookingPageProps): Promise<Me
 
   return {
     ...(await buildHotsiteMetadata({ manifest, slug, path: '/booking' })),
-    title:
-      manifest.isPublished && isFeatureAvailable(manifest, 'BOOKING')
-        ? tBooking('title')
-        : `${tHotsite('unavailable.title')} — Ikaro`,
+    title: isHotsitePageAvailable(manifest, 'booking')
+      ? tBooking('title')
+      : `${tHotsite('unavailable.title')} — Ikaro`,
     robots: { index: false, follow: false },
   };
 }
@@ -42,9 +41,9 @@ export default async function BookingPage({ params }: BookingPageProps) {
   const { slug } = await params;
   const manifest = await fetchManifest(slug);
 
-  // A tenant without the `BOOKING` feature has no booking page: the same neutral page as an
+  // A tenant without the feature this page needs has no booking page: the same neutral page as an
   // unpublished hotsite, never an error.
-  if (!manifest.isPublished || !isFeatureAvailable(manifest, 'BOOKING')) {
+  if (!isHotsitePageAvailable(manifest, 'booking')) {
     return <UnavailablePage slug={slug} manifest={manifest} />;
   }
 

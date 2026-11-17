@@ -10,17 +10,12 @@ import {
 } from '@/features/booking/model/booking-status';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { canCancelBooking } from '../../booking-sections';
+import { useCustomerCapabilities } from '../customer-tenant-access-context';
 import { BookingStatusIcon } from './BookingStatusIcon';
 
 interface BookingListItemProps {
   readonly item: CustomerBookingListItemDto;
   readonly tenantSlug: string;
-  /**
-   * `false` while the tenant is suspended (UC-121): an open row carries the "Empresa inativa"
-   * badge and offers no "Responder" (the response is refused); the row still opens the detail and
-   * a future booking can still be cancelled. `true` (the default) is today's row.
-   */
-  readonly tenantOperational?: boolean;
 }
 
 const OPEN_STATUSES: ReadonlySet<string> = new Set([
@@ -29,14 +24,14 @@ const OPEN_STATUSES: ReadonlySet<string> = new Set([
   BOOKING_STATUS.INFO_REQUESTED,
 ]);
 
-export function BookingListItem({
-  item,
-  tenantSlug,
-  tenantOperational = true,
-}: BookingListItemProps): React.JSX.Element {
+// While the tenant is suspended (UC-121) an open row carries the "Empresa inativa" badge and offers
+// no "Responder" (the response is refused); the row still opens the detail and a future booking can
+// still be cancelled.
+export function BookingListItem({ item, tenantSlug }: BookingListItemProps): React.JSX.Element {
   const t = useTranslations('customer.bookingItem');
   const tInactive = useTranslations('customer.inactiveTenant');
   const { formatMoney, formatTime, formatDateLong } = useFormatting();
+  const { showInactiveNotice, canRespondToInfoRequest } = useCustomerCapabilities();
 
   const statusLabels = buildBookingStatusLabels(t);
   const scheduledAt = new Date(item.scheduledAt);
@@ -44,7 +39,7 @@ export function BookingListItem({
   const detailHref = `/${tenantSlug}/my-account/bookings/${item.bookingId}`;
   const cancelHref = `${detailHref}/cancel`;
   const cancellable = canCancelBooking(item);
-  const showInactiveBadge = !tenantOperational && OPEN_STATUSES.has(item.status);
+  const showInactiveBadge = showInactiveNotice && OPEN_STATUSES.has(item.status);
 
   return (
     <li className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
@@ -79,7 +74,7 @@ export function BookingListItem({
               {t('cancelRequest')}
             </Link>
           )}
-          {item.status === BOOKING_STATUS.INFO_REQUESTED && tenantOperational && (
+          {item.status === BOOKING_STATUS.INFO_REQUESTED && canRespondToInfoRequest && (
             <Link href={detailHref} className="font-medium text-blue-600 hover:underline">
               {t('respond')}
             </Link>

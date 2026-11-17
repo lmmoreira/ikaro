@@ -31,7 +31,7 @@
   <!--
     New top-level sidebar item "Leads" (UC-041 main flow), own dedicated screen — not nested
     inside hotsite editing, same shell contract as every other staff/manager list page.
-    Visible to STAFF|MANAGER (MAIN_NAV_KEYS, not the manager-only section) — but GATED, not
+    Visible to STAFF|MANAGER (a main-group entry of the DASHBOARD_NAV registry, not the manager-only section) — but GATED, not
     unconditional: only rendered when GET /v1/tenants/lead-form/status reports enabled: true
     for this tenant (fetched server-side in apps/web/app/dashboard/layout.tsx). See dev-notes.md.
 

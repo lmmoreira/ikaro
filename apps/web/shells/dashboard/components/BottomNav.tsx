@@ -4,9 +4,10 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { FeatureKey } from '@ikaro/types';
-import { Calendar, Clock, Wrench, Star, MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal } from 'lucide-react';
 import { isRouteLocked } from '@/shared/lib/billing/feature-registry';
 import { cn } from '@/shared/utils/cn';
+import type { DashboardNav } from '@/shells/dashboard/model/dashboard-nav';
 import { NavLockMark } from './NavLockMark';
 import {
   isBookingCreateRoute,
@@ -22,22 +23,16 @@ import { isServiceCreateRoute, matchServiceRoute } from '@/shells/dashboard/mode
 import { isTeamInviteRoute, matchTeamRoute } from '@/shells/dashboard/model/team-route';
 
 interface BottomNavProps {
-  readonly role: 'STAFF' | 'MANAGER';
-  readonly leadFormEnabled: boolean;
+  // What the dashboard shell resolved for this caller (`resolveDashboardNav`): the tabs, and whether
+  // the "Mais" button exists.
+  readonly nav: DashboardNav;
+  // The features the tenant does not hold: a drill-down route of one keeps the bar (see below).
   readonly lockedFeatures: readonly FeatureKey[];
   readonly onOpenSheet: () => void;
 }
 
-const NAV_ITEM_KEYS = [
-  { href: '/dashboard/bookings', labelKey: 'nav.bookings', Icon: Calendar },
-  { href: '/dashboard/schedule', labelKey: 'nav.schedule', Icon: Clock },
-  { href: '/dashboard/services', labelKey: 'nav.services', Icon: Wrench },
-  { href: '/dashboard/loyalty', labelKey: 'nav.loyalty', Icon: Star },
-] as const;
-
 export function BottomNav({
-  role,
-  leadFormEnabled,
+  nav,
   lockedFeatures,
   onOpenSheet,
 }: BottomNavProps): React.JSX.Element | null {
@@ -86,17 +81,14 @@ export function BottomNav({
       'relative flex flex-1 flex-col items-center justify-center gap-1 px-1 py-2 text-[0.625rem] font-semibold tracking-[0.02em] transition-colors',
       active ? 'text-blue-600' : 'text-gray-900/40',
     );
-  // The "Mais" sheet holds Leads, so a tenant whose Leads item is shown locked still opens it.
-  const leadsVisible = leadFormEnabled || lockedFeatures.includes('LEAD_FORM');
 
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-20 flex border-t bg-white lg:hidden"
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0)' }}
     >
-      {NAV_ITEM_KEYS.map(({ href, labelKey, Icon }) => {
+      {nav.bottomTabs.map(({ href, labelKey, Icon, locked }) => {
         const isActive = pathname.startsWith(href);
-        const locked = isRouteLocked(href, lockedFeatures);
         return (
           <Link
             key={href}
@@ -111,7 +103,9 @@ export function BottomNav({
         );
       })}
 
-      {(role === 'MANAGER' || (role === 'STAFF' && leadsVisible)) && (
+      {/* The sheet holds the manager's items and a toggled module such as Leads (also when shown
+          locked), so the button exists exactly when the sheet has an item for this caller. */}
+      {nav.hasSheet && (
         <button
           type="button"
           onClick={onOpenSheet}

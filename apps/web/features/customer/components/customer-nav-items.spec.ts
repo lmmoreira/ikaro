@@ -47,6 +47,24 @@ describe('shouldShowCustomerBottomNav', () => {
       shouldShowCustomerBottomNav('/lavacar-bh/my-account/bookings/abc-123/cancel/error'),
     ).toBe(false);
   });
+
+  // The tab routes are the registry's own items, so a new tab is covered without another edit.
+  it('shows the nav on the page of every nav item, whatever the tenant holds', () => {
+    for (const { href } of getCustomerNavItems('lavacar-bh')) {
+      expect(shouldShowCustomerBottomNav(href)).toBe(true);
+    }
+  });
+
+  it.each([
+    '/',
+    '',
+    '/my-account/bookings',
+    '/lavacar-bh',
+    '/lavacar-bh/my-account/',
+    '/a/b/my-account',
+  ])('hides the nav outside any tenant account route: "%s"', (pathname) => {
+    expect(shouldShowCustomerBottomNav(pathname)).toBe(false);
+  });
 });
 
 describe('getCustomerNavItems', () => {

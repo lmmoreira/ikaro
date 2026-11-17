@@ -2,6 +2,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { CustomerBookingListItem as CustomerBookingListItemDto } from '@ikaro/types';
+import { CustomerTenantAccessProvider } from '../customer-tenant-access-context';
 import { BookingListItem } from './BookingListItem';
 
 vi.mock('next-intl', () => ({
@@ -164,9 +165,11 @@ describe('BookingListItem', () => {
 describe('BookingListItem while the tenant is suspended (UC-121)', () => {
   function renderSuspended(item: CustomerBookingListItemDto) {
     return render(
-      <ul>
-        <BookingListItem item={item} tenantSlug="lavacar-bh" tenantOperational={false} />
-      </ul>,
+      <CustomerTenantAccessProvider operational={false} entitledFeatures={null}>
+        <ul>
+          <BookingListItem item={item} tenantSlug="lavacar-bh" />
+        </ul>
+      </CustomerTenantAccessProvider>,
     );
   }
 
