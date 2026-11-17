@@ -2331,7 +2331,7 @@ Today every public hotsite route renders a bare `Unavailable` ("Em breve") with 
 
 ---
 
-### M25-S31a — Staff notice, "Suspensa" tenant list, customer "Empresa inativa" — components (UC-121)
+### M25-S31a — Staff notice, "Suspensa" tenant list, customer "Empresa inativa" — components (UC-121) ✅ Done
 
 **Agent:** `frontend-ts`
 **Complexity:** M
