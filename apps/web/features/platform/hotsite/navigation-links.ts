@@ -1,27 +1,19 @@
 import {
+  HOTSITE_LINK_TARGET_MODULE,
+  NAVIGATION_CTA_REQUIRED_MODULE,
   NavigationModuleDataSchema,
   type HotsiteModuleResponse,
   type HotsiteModuleType,
   type HotsiteNavigationTarget,
+  type NavigationCtaTarget,
   type NavigationModuleData,
 } from '@ikaro/types';
 
-// The section a navigation item scrolls to, by target; `home` links to the hotsite root and needs
-// no section (null). Mirrors the backend's
-// NAVIGATION_TARGET_MODULE_TYPE (hotsite-layout.rules.ts); the backend is what enforces that an
-// enabled navigation never links to a disabled section, the editor only explains it first.
-export const NAVIGATION_TARGET_MODULE: Readonly<
-  Record<HotsiteNavigationTarget, HotsiteModuleType | null>
-> = {
-  home: null,
-  'service-list': 'SERVICE_LIST',
-  gallery: 'GALLERY',
-  testimonials: 'TESTIMONIALS',
-  about: 'ABOUT',
-  contact: 'CONTACT',
-};
+// What a navigation item scrolls to (and what the header button needs) is read from the shared
+// maps in @ikaro/types, the same ones the backend's layout rule reads: the backend is what enforces
+// that an enabled navigation never links to a disabled section, the editor only explains it first.
 
-// The picker's order; the Record above makes the compiler reject a target missing from either.
+// The picker's order; navigation-links.spec pins it against the schema's item targets.
 export const NAVIGATION_TARGETS: readonly HotsiteNavigationTarget[] = [
   'home',
   'service-list',
@@ -48,7 +40,17 @@ export function isNavigationTargetEnabled(
   layout: readonly HotsiteModuleResponse[],
   target: HotsiteNavigationTarget,
 ): boolean {
-  const type = NAVIGATION_TARGET_MODULE[target];
+  const type = HOTSITE_LINK_TARGET_MODULE[target];
+  return type === null || isModuleEnabled(layout, type);
+}
+
+// Whether the module the header button needs is enabled (`booking-form` needs none), so the picker
+// can disable an option that the backend would refuse on save.
+export function isNavigationCtaTargetEnabled(
+  layout: readonly HotsiteModuleResponse[],
+  target: NavigationCtaTarget,
+): boolean {
+  const type = NAVIGATION_CTA_REQUIRED_MODULE[target];
   return type === null || isModuleEnabled(layout, type);
 }
 
@@ -82,8 +84,8 @@ export function navigationReferences(
   const data = navigation && navigationData(navigation);
   if (!data) return { items: 0, cta: false };
   return {
-    items: data.items.filter((item) => NAVIGATION_TARGET_MODULE[item.target] === type).length,
-    cta: type === 'LEAD_FORM' && data.cta?.target === 'lead-form',
+    items: data.items.filter((item) => HOTSITE_LINK_TARGET_MODULE[item.target] === type).length,
+    cta: data.cta !== undefined && NAVIGATION_CTA_REQUIRED_MODULE[data.cta.target] === type,
   };
 }
 
@@ -107,12 +109,12 @@ export function disableModuleRemovingLinks(
     const data = navigationData(module);
     if (!data) return module;
     const { items, cta, ...rest } = data;
-    const keepCta = cta !== undefined && !(type === 'LEAD_FORM' && cta.target === 'lead-form');
+    const keepCta = cta !== undefined && NAVIGATION_CTA_REQUIRED_MODULE[cta.target] !== type;
     return {
       ...module,
       data: {
         ...rest,
-        items: items.filter((item) => NAVIGATION_TARGET_MODULE[item.target] !== type),
+        items: items.filter((item) => HOTSITE_LINK_TARGET_MODULE[item.target] !== type),
         ...(keepCta ? { cta } : {}),
       },
     };

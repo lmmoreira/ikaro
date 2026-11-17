@@ -1,10 +1,12 @@
-import type {
-  HotsiteBrandingResponse,
-  HotsiteManifestResponse,
-  HotsiteModuleResponse,
-  HotsiteModuleType,
-  HotsiteNavigationItem,
-  NavigationModuleData,
+import {
+  HOTSITE_LINK_TARGET_MODULE,
+  NAVIGATION_CTA_REQUIRED_MODULE,
+  type HotsiteBrandingResponse,
+  type HotsiteManifestResponse,
+  type HotsiteModuleResponse,
+  type HotsiteModuleType,
+  type HotsiteNavigationItem,
+  type NavigationModuleData,
 } from '@ikaro/types';
 import {
   AboutModuleDataSchema,
@@ -96,19 +98,6 @@ export function shouldSkipDivider(
 // the "first section has no divider" rule.
 const NON_SECTION_TYPES: ReadonlySet<HotsiteModuleType> = new Set(['NAVIGATION']);
 
-// The module type a navigation item's `target` anchor points at (the section's own DOM id).
-// `home` has no section: it links to the hotsite root, so it is always kept.
-const NAVIGATION_TARGET_TYPE: Readonly<
-  Record<HotsiteNavigationItem['target'], HotsiteModuleType | null>
-> = {
-  home: null,
-  'service-list': 'SERVICE_LIST',
-  gallery: 'GALLERY',
-  testimonials: 'TESTIMONIALS',
-  about: 'ABOUT',
-  contact: 'CONTACT',
-};
-
 // A plan item whose component actually draws a section. Gallery and Testimonials render nothing for
 // valid but empty data (no images, no items), so a link to them would point at an anchor that does
 // not exist.
@@ -135,14 +124,16 @@ export function resolveHotsiteNavigation(
   const renderedTypes = new Set<HotsiteModuleType>(
     plan.filter(rendersSection).map((item) => item.parsed.type),
   );
+  // The section a navigation item's `target` anchor points at (the section's own DOM id); `home`
+  // has none: it links to the hotsite root, so it is always kept.
   return parsed.data.items.filter((item) => {
-    const type = NAVIGATION_TARGET_TYPE[item.target];
+    const type = HOTSITE_LINK_TARGET_MODULE[item.target];
     return type === null || renderedTypes.has(type);
   });
 }
 
 // A header CTA belongs to the same enabled, validated NAVIGATION entry as the section links; a
-// lead-form CTA additionally needs an enabled LEAD_FORM module.
+// target that needs a module (the lead form) additionally needs it enabled.
 export function resolveHotsiteNavigationCta(
   layout: ReadonlyArray<HotsiteModuleResponse>,
 ): NavigationModuleData['cta'] | undefined {
@@ -151,9 +142,8 @@ export function resolveHotsiteNavigationCta(
   const parsed = NavigationModuleDataSchema.safeParse(navigation.data);
   const cta = parsed.success ? parsed.data.cta : undefined;
   // /{slug}/lead-form is unavailable without an enabled LEAD_FORM: never render a dead button.
-  if (cta?.target === 'lead-form' && !layout.some((m) => m.type === 'LEAD_FORM' && m.enabled)) {
-    return undefined;
-  }
+  const required = cta ? NAVIGATION_CTA_REQUIRED_MODULE[cta.target] : null;
+  if (required && !layout.some((m) => m.type === required && m.enabled)) return undefined;
   return cta;
 }
 

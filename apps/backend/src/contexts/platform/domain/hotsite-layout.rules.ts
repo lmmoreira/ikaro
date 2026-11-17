@@ -1,3 +1,4 @@
+import { HOTSITE_LINK_TARGET_MODULE, NAVIGATION_CTA_REQUIRED_MODULE } from '@ikaro/types';
 import {
   HotsiteModuleDuplicateError,
   HotsiteNavigationNotFirstError,
@@ -40,19 +41,6 @@ const PRESENTATION_BACKGROUND_MODULE_TYPES: ReadonlySet<HotsiteModuleType> = new
   'CONTENT_BLOCK',
 ]);
 
-// A navigation item targets the section anchor of one of these module types; `home` links to the
-// hotsite root, which always exists, so it depends on no module.
-const NAVIGATION_TARGET_MODULE_TYPE: Readonly<
-  Record<NavigationModuleData['items'][number]['target'], HotsiteModuleType | null>
-> = {
-  home: null,
-  'service-list': 'SERVICE_LIST',
-  gallery: 'GALLERY',
-  testimonials: 'TESTIMONIALS',
-  about: 'ABOUT',
-  contact: 'CONTACT',
-};
-
 function assertModulePresentation(module: HotsiteModule): void {
   if (module.presentation === undefined) return;
   if (!PRESENTATION_MODULE_TYPES.has(module.type)) {
@@ -73,23 +61,25 @@ function assertModulePresentation(module: HotsiteModule): void {
 }
 
 // An enabled NAVIGATION must never leave a dead link: every item's target section has to be an
-// enabled module of the same layout. A disabled NAVIGATION renders nothing, so its items are not
-// checked until it is enabled — otherwise a stale, hidden navigation could block unrelated saves.
+// enabled module of the same layout, and so does the module its header button needs (the lead form
+// for /{slug}/lead-form, which is unavailable without it). A disabled NAVIGATION renders nothing,
+// so its items are not checked until it is enabled — otherwise a stale, hidden navigation could
+// block unrelated saves. Both lookups read the shared maps in @ikaro/types: `home` leads to no
+// section, and the `booking-form` header button needs no module.
 function assertNavigationTargetsEnabled(layout: readonly HotsiteModule[]): void {
   const navigation = layout.find((module) => module.type === 'NAVIGATION');
   if (!navigation?.enabled) return;
 
   const enabledTypes = new Set(layout.filter((m) => m.enabled).map((m) => m.type));
-  for (const item of (navigation.data as NavigationModuleData).items) {
-    const requiredType = NAVIGATION_TARGET_MODULE_TYPE[item.target];
+  const { items, cta } = navigation.data as NavigationModuleData;
+  for (const item of items) {
+    const requiredType = HOTSITE_LINK_TARGET_MODULE[item.target];
     if (requiredType !== null && !enabledTypes.has(requiredType)) {
       throw new HotsiteNavigationTargetNotEnabledError(item.target);
     }
   }
-  // The header button to /{slug}/lead-form is a link too: that route is unavailable without an
-  // enabled LEAD_FORM module.
-  const cta = (navigation.data as NavigationModuleData).cta;
-  if (cta?.target === 'lead-form' && !enabledTypes.has('LEAD_FORM')) {
+  const requiredForCta = cta ? NAVIGATION_CTA_REQUIRED_MODULE[cta.target] : null;
+  if (cta && requiredForCta !== null && !enabledTypes.has(requiredForCta)) {
     throw new HotsiteNavigationTargetNotEnabledError(cta.target);
   }
 }

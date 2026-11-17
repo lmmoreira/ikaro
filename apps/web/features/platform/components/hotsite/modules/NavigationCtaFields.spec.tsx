@@ -12,8 +12,14 @@ function renderFields(
   leadFormEnabled = true,
 ) {
   const onChange = vi.fn();
+  // The panel answers "is the module this target needs enabled?" from the layout; here only the
+  // contact form can be off.
   renderWithIntl(
-    <NavigationCtaFields cta={cta} leadFormEnabled={leadFormEnabled} onChange={onChange} />,
+    <NavigationCtaFields
+      cta={cta}
+      isTargetEnabled={(target) => target !== 'lead-form' || leadFormEnabled}
+      onChange={onChange}
+    />,
   );
   return onChange;
 }

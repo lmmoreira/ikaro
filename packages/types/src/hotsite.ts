@@ -215,6 +215,48 @@ export interface ContentBlockCta {
   target: ContentBlockCtaTarget;
 }
 
+// The target of the navigation module's header button.
+export type NavigationCtaTarget = NonNullable<NavigationModuleData['cta']>['target'];
+
+// Every target a link or button on the hotsite can have, taken from the data fields that carry one
+// (the hero's two buttons, a navigation item, a content-block button and the header button), not
+// from hand-named unions: a target added to any of those fields is a compile error in the maps
+// below until it is mapped.
+export type HotsiteLinkTarget =
+  | HeroModuleData['ctaTarget']
+  | NonNullable<HeroModuleData['secondaryCtaTarget']>
+  | HotsiteNavigationItem['target']
+  | ContentBlockCta['target']
+  | NavigationCtaTarget;
+
+// The section a link or button leads to, by target. `HOTSITE_MODULE_FEATURE` then says which
+// feature that section needs, so a button is dropped (and a navigation item refused) when its
+// section is unavailable. `null` means the target needs no section (`home`, the hotsite root). One
+// map for the backend layout rule and every web reader.
+export const HOTSITE_LINK_TARGET_MODULE: Readonly<
+  Record<HotsiteLinkTarget, HotsiteModuleType | null>
+> = {
+  home: null,
+  'booking-form': 'BOOKING_CTA',
+  'lead-form': 'LEAD_FORM',
+  'service-list': 'SERVICE_LIST',
+  gallery: 'GALLERY',
+  testimonials: 'TESTIMONIALS',
+  about: 'ABOUT',
+  contact: 'CONTACT',
+};
+
+// The module that must be ENABLED for the header button to be valid. A different question from the
+// map above: `booking-form` leads to the BOOKING_CTA section (so that map names it for the feature
+// gate), yet the header button to it is valid with BOOKING_CTA off, so it needs no module here.
+// Merging the two would make the backend start requiring BOOKING_CTA.
+export const NAVIGATION_CTA_REQUIRED_MODULE: Readonly<
+  Record<NavigationCtaTarget, HotsiteModuleType | null>
+> = {
+  'booking-form': null,
+  'lead-form': 'LEAD_FORM',
+};
+
 export interface ContentBlockCommon {
   align?: 'left' | 'center' | 'right';
   eyebrow?: string;

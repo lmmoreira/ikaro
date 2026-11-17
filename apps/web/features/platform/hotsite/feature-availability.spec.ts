@@ -109,6 +109,35 @@ describe('withoutLinksToUnavailableSections', () => {
     expect(withoutLinksToUnavailableSections(input).layout[0]).toBe(HERO_ABOUT);
   });
 
+  // Negative guarantees. `home` maps to no section (null in the shared map), which must read as
+  // "needs no feature", never as "needs a feature that is unavailable".
+  it('keeps a button aimed at home, which leads to no section, whatever is unavailable', () => {
+    const block: HotsiteModuleResponse = {
+      type: 'CONTENT_BLOCK',
+      enabled: true,
+      data: { variant: 'text', body: 'x', cta: { label: 'Início', target: 'home' } },
+    };
+    const input = manifest([block], ['BOOKING', 'LEAD_FORM', 'CHATBOT']);
+
+    expect(withoutLinksToUnavailableSections(input).layout[0]).toBe(block);
+  });
+
+  // The manifest carries an arbitrary string: only an own key of the shared map is a target, so a
+  // value such as `constructor` is not one and its button is kept.
+  it.each(['nope', 'constructor', '__proto__', 'toString', ''])(
+    'keeps a button whose target "%s" is not a link target',
+    (target) => {
+      const block: HotsiteModuleResponse = {
+        type: 'CONTENT_BLOCK',
+        enabled: true,
+        data: { variant: 'text', body: 'x', cta: { label: 'Go', target } },
+      };
+      const input = manifest([block], ['BOOKING', 'LEAD_FORM', 'CHATBOT']);
+
+      expect(withoutLinksToUnavailableSections(input).layout[0]).toBe(block);
+    },
+  );
+
   it('removes only the content block button that leads to an unavailable section', () => {
     const [services, contact] = withoutLinksToUnavailableSections(
       manifest([BLOCK_SERVICES, BLOCK_CONTACT], ['BOOKING']),

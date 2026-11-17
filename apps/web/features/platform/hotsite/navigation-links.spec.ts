@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { HotsiteModuleResponse } from '@ikaro/types';
+import { NavigationModuleDataSchema, type HotsiteModuleResponse } from '@ikaro/types';
 import {
+  NAVIGATION_TARGETS,
   disableModuleRemovingLinks,
   hasNavigationReferences,
+  isNavigationCtaTargetEnabled,
   isNavigationTargetEnabled,
   moveNavigationItem,
   navigationReferences,
@@ -27,6 +29,34 @@ const NAV = {
   ],
   cta: { label: 'Orçamento', target: 'lead-form' },
 };
+
+describe('NAVIGATION_TARGETS', () => {
+  // The picker's order is the only list left here, so it is pinned against the schema's own targets:
+  // a target the request boundary accepts must be offered, and nothing else.
+  it('offers exactly the targets a navigation item can have', () => {
+    const accepted = NavigationModuleDataSchema.shape.items.element.shape.target.options;
+
+    expect([...NAVIGATION_TARGETS].sort()).toEqual([...accepted].sort());
+  });
+});
+
+describe('isNavigationCtaTargetEnabled', () => {
+  it('needs an enabled lead form for the lead-form button and nothing for the booking button', () => {
+    const withoutLeadForm = layoutWith({}).filter((module) => module.type !== 'LEAD_FORM');
+
+    expect(isNavigationCtaTargetEnabled(withoutLeadForm, 'lead-form')).toBe(false);
+    expect(isNavigationCtaTargetEnabled(layoutWith({}), 'lead-form')).toBe(true);
+    expect(isNavigationCtaTargetEnabled(withoutLeadForm, 'booking-form')).toBe(true);
+  });
+
+  it('reads a disabled lead form as not enabled', () => {
+    const disabled = layoutWith({}).map((module) =>
+      module.type === 'LEAD_FORM' ? { ...module, enabled: false } : module,
+    );
+
+    expect(isNavigationCtaTargetEnabled(disabled, 'lead-form')).toBe(false);
+  });
+});
 
 describe('moveNavigationItem', () => {
   it('moves an item down and up, shifting the ones between', () => {
