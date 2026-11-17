@@ -64,9 +64,12 @@ export const fetchCustomerTenantOperational = cache(readCustomerTenantOperationa
 
 // The customer-facing features the tenant holds, from the same one answer (no extra request, and
 // `cache` shares it with the readers above). `null` is "no usable answer" and fails open: the
-// account shows every surface, a failed read never hides one.
+// account shows every surface, a failed read never hides one. A suspended tenant entitles nothing,
+// so its list is empty without any feature being missing: while it is not operational the list
+// says nothing about the plan, and `operational` alone decides what the customer sees (UC-121).
 async function readCustomerFeatures(token: string): Promise<readonly CustomerFeatureKey[] | null> {
   const body = await readAccessBody(token);
+  if (body?.operational === false) return null;
   if (!Array.isArray(body?.features)) return null;
   const held: readonly unknown[] = body.features;
   // Every entry must be a plain key (an unknown key is a feature a newer backend added and is

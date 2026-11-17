@@ -141,6 +141,12 @@ describe('fetchCustomerFeatures', () => {
     });
   });
 
+  it('reads a suspended tenant as unknown: its empty list is not a missing feature', async () => {
+    bffServerFetch.mockResolvedValue(jsonResponse({ operational: false, features: [] }));
+
+    await expect(fetchCustomerFeatures('token')).resolves.toBeNull();
+  });
+
   it('reads a tenant holding none as an empty list, not as unknown', async () => {
     bffServerFetch.mockResolvedValue(jsonResponse({ operational: true, features: [] }));
 
@@ -213,6 +219,15 @@ describe('redirectCustomerWithoutFeature', () => {
     },
   );
 
+  it('does not send the customer of a suspended tenant to Início: its empty list is not a missing feature', async () => {
+    bffServerFetch.mockResolvedValue(jsonResponse({ operational: false, features: [] }));
+
+    await expect(
+      redirectCustomerWithoutFeature('token', 'lavacar-bh', 'BOOKING'),
+    ).resolves.toBeUndefined();
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
   it('does nothing when the tenant holds the feature, or when its features are unknown', async () => {
     bffServerFetch.mockResolvedValue(jsonResponse({ operational: true, features: ['LOYALTY'] }));
     await expect(
@@ -241,7 +256,15 @@ describe('redirectCustomerWhenBookingUnavailable', () => {
     );
   });
 
-  it('sends a customer of a tenant without BOOKING back to Início, whatever its status', async () => {
+  it('sends the customer of a suspended tenant to the readable bookings list, never to Início', async () => {
+    bffServerFetch.mockResolvedValue(jsonResponse({ operational: false, features: [] }));
+
+    await expect(redirectCustomerWhenBookingUnavailable('token', 'lavacar-bh')).rejects.toThrow(
+      'NEXT_REDIRECT:/lavacar-bh/my-account/bookings',
+    );
+  });
+
+  it('sends a customer of an operational tenant without BOOKING back to Início', async () => {
     bffServerFetch.mockResolvedValue(jsonResponse({ operational: true, features: ['LOYALTY'] }));
 
     await expect(redirectCustomerWhenBookingUnavailable('token', 'lavacar-bh')).rejects.toThrow(
