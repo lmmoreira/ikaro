@@ -2480,7 +2480,7 @@ No product code is written here beyond test helpers; any defect the spec finds i
 
 ---
 
-### M25-S34 — One registry per "what does a missing feature remove", across the hotsite, the staff dashboard and the customer account, and the booking-detail guard (UC-121, UC-122, UC-125)
+### M25-S34 — One registry per "what does a missing feature remove", across the hotsite, the staff dashboard and the customer account, and the booking-detail guard (UC-121, UC-122, UC-125) ✅ Done
 
 **Agent:** fullstack-ts
 **Complexity:** L (one PR, built and committed in six slices, each green on its own; see "Build order")
