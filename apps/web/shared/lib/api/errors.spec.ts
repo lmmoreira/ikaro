@@ -6,6 +6,9 @@ import {
   extractProblemDetailShape,
   FetchError,
   ForbiddenError,
+  isBillingDenial,
+  isSessionRejected,
+  nullWhenNotEntitled,
   parseErrorBody,
 } from './errors';
 
@@ -210,5 +213,57 @@ describe('assertOk', () => {
         ExampleFetchError,
       ),
     ).rejects.toBeInstanceOf(ExampleFetchError);
+  });
+});
+
+describe('isBillingDenial / isSessionRejected', () => {
+  const fetchError = (status: number, code?: string) => new FetchError('x', status, code);
+
+  it.each(['BILLING_FEATURE_NOT_ENTITLED', 'BILLING_TENANT_SUSPENDED'])(
+    'reads a 403 %s as a billing denial, not a rejected session',
+    (code) => {
+      expect(isBillingDenial(fetchError(403, code))).toBe(true);
+      expect(isSessionRejected(fetchError(403, code))).toBe(false);
+    },
+  );
+
+  it('reads a 401 as a rejected session', () => {
+    expect(isSessionRejected(fetchError(401))).toBe(true);
+    expect(isSessionRejected(fetchError(401, 'BILLING_FEATURE_NOT_ENTITLED'))).toBe(true);
+  });
+
+  it.each([undefined, 'AUTH_TENANT_MISMATCH', 'GENERIC_FORBIDDEN'])(
+    'still reads any other 403 (code %s) as a rejected session',
+    (code) => {
+      expect(isBillingDenial(fetchError(403, code))).toBe(false);
+      expect(isSessionRejected(fetchError(403, code))).toBe(true);
+    },
+  );
+
+  it('reads neither a 404 nor a 500 as a rejected session', () => {
+    expect(isSessionRejected(fetchError(404))).toBe(false);
+    expect(isSessionRejected(fetchError(500))).toBe(false);
+  });
+});
+
+describe('nullWhenNotEntitled', () => {
+  it('resolves with the value on success', async () => {
+    await expect(nullWhenNotEntitled(Promise.resolve('ok'))).resolves.toBe('ok');
+  });
+
+  it('resolves to null when the tenant does not hold the feature', async () => {
+    const denied = Promise.reject(new FetchError('x', 403, 'BILLING_FEATURE_NOT_ENTITLED'));
+
+    await expect(nullWhenNotEntitled(denied)).resolves.toBeNull();
+  });
+
+  it.each([
+    new FetchError('x', 403, 'BILLING_TENANT_SUSPENDED'),
+    new FetchError('x', 403, 'AUTH_TENANT_MISMATCH'),
+    new FetchError('x', 401),
+    new FetchError('x', 500),
+    new Error('network down'),
+  ])('rethrows every other failure unchanged (%s)', async (error) => {
+    await expect(nullWhenNotEntitled(Promise.reject(error))).rejects.toBe(error);
   });
 });

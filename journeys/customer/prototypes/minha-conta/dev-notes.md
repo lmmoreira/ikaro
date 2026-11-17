@@ -403,6 +403,13 @@ Decided: the customer tenant switch list (`/switch-tenant`, BFF `GET /customers/
 
 File: `16f-fidelidade-somente-leitura.html` — Status: built (M25-S31a), route EXISTS (`/{slug}/my-account/loyalty`). The shipped page plus a neutral notice above the balance (i18n `customer.inactiveTenant.badge` and `.loyaltyReadOnly`): "Esta empresa está inativa. Seu saldo e seu histórico continuam disponíveis para consulta, mas não é possível ganhar nem usar pontos agora. Pontos continuam vencendo na data prevista." The expiry strip stays (expiry keeps running while suspended, O-L1). The loyalty reads are `CUSTOMER_HISTORY` (S19), so the page loads as today; the page has no redeem control to hide, and earning and redemption are blocked server-side.
 
+## Billing — states of existing screens (no new screen)
+
+- **"+ Novo" while suspended:** the same disabled button (`customer.inactiveTenant.newDisabledHint` as its title) in the topbar, on Início and on the bookings list (`NewReservationMenu`, `tenantOperational`), so no booking or recurring reservation can be started. Typing the URL of a recurring-reservation or availability-alert page returns the customer to the bookings list.
+- **Início while suspended:** the preview rows carry the "Empresa inativa" badge and no "Responder", and the empty state has no booking button.
+- **A tenant without the `LOYALTY` feature** (not a suspension): Início has no "Pontos" tile and no expiry strip; the Fidelidade URL returns the customer to Início. The customer-reduced access answer carries only `operational`, so the web learns this from the typed `BILLING_FEATURE_NOT_ENTITLED` denial of the loyalty reads (`nullWhenNotEntitled`), never from a pre-check.
+- **No login loop:** `withAuthRedirect` and the other customer loaders redirect to login only for a `401` or a `403` that is not a billing denial (`isSessionRejected`).
+
 ## Billing — new booking (no screen)
 
 A suspended tenant's `/{slug}/booking` renders the neutral `UnavailablePage` ("Página indisponível", M25-S25/S30), so no blocked-booking screen exists: `16c-novo-agendamento-bloqueado.html` was removed on 2026-11-16, and `16d-cancelar-da-lista.html` and `16e-reagendar-bloqueado.html` (a list-row cancel dialog and a reschedule notice) were removed the same day when the booking detail was kept readable.

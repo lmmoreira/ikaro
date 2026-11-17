@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { getAccessToken } from '@/features/auth/get-access-token';
 import { withAuthRedirect } from '@/features/customer/api.server';
 import {
@@ -6,6 +7,7 @@ import {
   fetchLoyaltyRedemptions,
 } from '@/features/loyalty/api.server';
 import { LoyaltyPage } from '@/features/customer/components/my-account/LoyaltyPage';
+import { nullWhenNotEntitled } from '@/shared/lib/api/errors';
 import { fetchCustomerTenantOperational } from '@/shared/lib/billing/access.server';
 
 interface MyAccountLoyaltyPageProps {
@@ -19,11 +21,17 @@ export default async function MyAccountLoyaltyPage({
   const token = await getAccessToken();
 
   const [balance, entries, redemptions, operational] = await Promise.all([
-    withAuthRedirect(fetchLoyaltyBalance(token), slug),
-    withAuthRedirect(fetchLoyaltyEntries(token), slug),
-    withAuthRedirect(fetchLoyaltyRedemptions(token), slug),
+    withAuthRedirect(nullWhenNotEntitled(fetchLoyaltyBalance(token)), slug),
+    withAuthRedirect(nullWhenNotEntitled(fetchLoyaltyEntries(token)), slug),
+    withAuthRedirect(nullWhenNotEntitled(fetchLoyaltyRedemptions(token)), slug),
     fetchCustomerTenantOperational(token),
   ]);
+
+  // A tenant without the `LOYALTY` feature has no points program: its customers land back on
+  // Início, which shows no points tile, instead of an error or a login loop.
+  if (balance === null || entries === null || redemptions === null) {
+    redirect(`/${slug}/my-account`);
+  }
 
   return (
     <LoyaltyPage

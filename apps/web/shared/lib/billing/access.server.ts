@@ -1,5 +1,6 @@
 import 'server-only';
 import { cache } from 'react';
+import { redirect } from 'next/navigation';
 import type { BillingAccessResponse } from '@ikaro/types';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
 import { toTenantAccess, type TenantAccess } from './tenant-access';
@@ -52,3 +53,15 @@ async function readCustomerTenantOperational(token: string): Promise<boolean | n
 }
 
 export const fetchCustomerTenantOperational = cache(readCustomerTenantOperational);
+
+// The customer pages whose reads a suspended tenant refuses (recurring reservations and
+// availability alerts, UC-121) call this first: a suspended customer is sent to the bookings
+// list, which stays readable, instead of an error page. A failed access read does not redirect.
+export async function redirectCustomerWhenSuspended(
+  token: string,
+  tenantSlug: string,
+): Promise<void> {
+  if ((await fetchCustomerTenantOperational(token)) === false) {
+    redirect(`/${tenantSlug}/my-account/bookings`);
+  }
+}

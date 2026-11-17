@@ -3,7 +3,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const bffServerFetch = vi.hoisted(() => vi.fn());
 vi.mock('@/shared/lib/api/bff-server', () => ({ bffServerFetch }));
 
-import { fetchCustomerTenantOperational, fetchTenantAccess } from './access.server';
+const redirect = vi.hoisted(() =>
+  vi.fn((url: string) => {
+    throw new Error(`NEXT_REDIRECT:${url}`);
+  }),
+);
+vi.mock('next/navigation', () => ({ redirect }));
+
+import {
+  fetchCustomerTenantOperational,
+  fetchTenantAccess,
+  redirectCustomerWhenSuspended,
+} from './access.server';
 
 function jsonResponse(body: unknown, ok = true, status = 200): Response {
   return { ok, status, json: async () => body } as Response;
@@ -93,4 +104,35 @@ describe('fetchCustomerTenantOperational', () => {
 
     await expect(fetchCustomerTenantOperational('token')).resolves.toBeNull();
   });
+});
+
+describe('redirectCustomerWhenSuspended', () => {
+  beforeEach(() => {
+    redirect.mockClear();
+  });
+
+  it('sends a customer of a suspended tenant to the bookings list, which stays readable', async () => {
+    bffServerFetch.mockResolvedValue(jsonResponse({ operational: false }));
+
+    await expect(redirectCustomerWhenSuspended('token', 'lavacar-bh')).rejects.toThrow(
+      'NEXT_REDIRECT:/lavacar-bh/my-account/bookings',
+    );
+  });
+
+  it('does nothing for an operational tenant (negative guarantee)', async () => {
+    bffServerFetch.mockResolvedValue(jsonResponse({ operational: true }));
+
+    await expect(redirectCustomerWhenSuspended('token', 'lavacar-bh')).resolves.toBeUndefined();
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it.each([500, 403])(
+    'does not redirect when the access read fails with %i (fail open)',
+    async (status) => {
+      bffServerFetch.mockResolvedValue(jsonResponse({}, false, status));
+
+      await expect(redirectCustomerWhenSuspended('token', 'lavacar-bh')).resolves.toBeUndefined();
+      expect(redirect).not.toHaveBeenCalled();
+    },
+  );
 });

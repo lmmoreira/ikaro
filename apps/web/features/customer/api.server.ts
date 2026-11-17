@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import type { CustomerProfileResponse } from '@ikaro/types';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
-import { CustomerFetchError } from '@/shared/lib/api/errors';
+import { CustomerFetchError, isSessionRejected } from '@/shared/lib/api/errors';
 
 // A tenant customer's profile for the staff booking flow (STAFF | MANAGER): the name and contact
 // the steps show, and the saved address a pickup service starts with. Null when the customer does
@@ -23,7 +23,7 @@ export async function withAuthRedirect<T>(promise: Promise<T>, tenantSlug: strin
   try {
     return await promise;
   } catch (err) {
-    if (err instanceof CustomerFetchError && (err.status === 401 || err.status === 403)) {
+    if (err instanceof CustomerFetchError && isSessionRejected(err)) {
       redirect(`/${tenantSlug}/login`);
     }
     throw err;

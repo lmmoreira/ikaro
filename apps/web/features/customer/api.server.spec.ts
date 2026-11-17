@@ -74,3 +74,22 @@ describe('withAuthRedirect', () => {
     expect(redirect).not.toHaveBeenCalled();
   });
 });
+
+describe('withAuthRedirect — billing denials', () => {
+  it.each(['BILLING_FEATURE_NOT_ENTITLED', 'BILLING_TENANT_SUSPENDED'])(
+    'does not send a logged-in customer to login on a 403 %s',
+    async (code) => {
+      const denied = new CustomerFetchError(403, code);
+
+      await expect(withAuthRedirect(Promise.reject(denied), 'lavacar-bh')).rejects.toBe(denied);
+      expect(redirect).not.toHaveBeenCalled();
+    },
+  );
+
+  it('still redirects a 403 that is not a billing denial', async () => {
+    const rejected = Promise.reject(new CustomerFetchError(403, 'AUTH_TENANT_MISMATCH'));
+
+    await expect(withAuthRedirect(rejected, 'lavacar-bh')).rejects.toThrow('NEXT_REDIRECT');
+    expect(redirect).toHaveBeenCalledWith('/lavacar-bh/login');
+  });
+});

@@ -126,3 +126,26 @@ describe('fetchCustomerBookingDetailOrRedirect', () => {
     expect(redirect).not.toHaveBeenCalled();
   });
 });
+
+describe('fetchCustomerBookingDetailOrRedirect — billing denials', () => {
+  it.each(['BILLING_FEATURE_NOT_ENTITLED', 'BILLING_TENANT_SUSPENDED'])(
+    'rethrows a 403 %s instead of sending a logged-in customer to login',
+    async (code) => {
+      bffServerFetch.mockResolvedValue(jsonResponse({ code }, false, 403));
+
+      await expect(
+        fetchCustomerBookingDetailOrRedirect('token', 'b1', 'lavacar-bh'),
+      ).rejects.toMatchObject({ status: 403, code });
+      expect(redirect).not.toHaveBeenCalled();
+    },
+  );
+
+  it('still redirects a 403 that is not a billing denial', async () => {
+    bffServerFetch.mockResolvedValue(jsonResponse({ code: 'AUTH_TENANT_MISMATCH' }, false, 403));
+
+    await expect(fetchCustomerBookingDetailOrRedirect('token', 'b1', 'lavacar-bh')).rejects.toThrow(
+      'NEXT_REDIRECT',
+    );
+    expect(redirect).toHaveBeenCalledWith('/lavacar-bh/login');
+  });
+});

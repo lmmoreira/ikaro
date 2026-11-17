@@ -48,3 +48,30 @@ describe('NewReservationMenu', () => {
     expect(screen.getByTestId('new-menu-trigger').className).toContain('w-full');
   });
 });
+
+describe('NewReservationMenu while the tenant is suspended (UC-121)', () => {
+  it('is a disabled button with no menu: neither a booking nor a recurring reservation can be created', () => {
+    renderWithIntl(<NewReservationMenu tenantSlug="lavacar-bh" tenantOperational={false} />);
+
+    const button = screen.getByTestId('new-booking-disabled');
+    expect(button).toBeDisabled();
+    expect(button).toHaveTextContent('+ Novo');
+    expect(screen.queryByTestId('new-menu-trigger')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('new-menu-recurring')).not.toBeInTheDocument();
+  });
+
+  it('keeps the full-width trigger shape for the mobile placement', () => {
+    renderWithIntl(
+      <NewReservationMenu tenantSlug="lavacar-bh" tenantOperational={false} fullWidth />,
+    );
+
+    expect(screen.getByTestId('new-booking-disabled').className).toContain('w-full');
+  });
+
+  it('is the usual menu for an operational tenant (negative guarantee)', () => {
+    renderWithIntl(<NewReservationMenu tenantSlug="lavacar-bh" />);
+
+    expect(screen.getByTestId('new-menu-trigger')).toBeEnabled();
+    expect(screen.queryByTestId('new-booking-disabled')).not.toBeInTheDocument();
+  });
+});

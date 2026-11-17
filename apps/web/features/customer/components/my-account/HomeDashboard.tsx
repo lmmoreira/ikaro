@@ -23,7 +23,8 @@ import { HomeRenewalCard } from './HomeRenewalCard';
 
 interface HomeDashboardProps {
   readonly bookings: readonly CustomerBookingListItem[];
-  readonly loyaltyBalance: CustomerLoyaltyBalanceResponse;
+  /** `null` when the tenant does not hold the `LOYALTY` feature: no points tile, no expiry strip. */
+  readonly loyaltyBalance: CustomerLoyaltyBalanceResponse | null;
   readonly userName: string | null;
   readonly tenantSlug: string;
   /**
@@ -33,6 +34,8 @@ interface HomeDashboardProps {
   readonly recurringSchedules: readonly RecurringBookingScheduleListItem[] | null;
   /** How many availability alerts are active; `null` when that optional read failed (no tile). */
   readonly activeAlertCount: number | null;
+  /** `false` while the tenant is suspended (UC-121): the preview rows carry the notice badge. */
+  readonly tenantOperational?: boolean;
 }
 
 export function HomeDashboard({
@@ -42,6 +45,7 @@ export function HomeDashboard({
   tenantSlug,
   recurringSchedules,
   activeAlertCount,
+  tenantOperational = true,
 }: HomeDashboardProps): React.JSX.Element {
   const t = useTranslations('customer.home');
   const { formatDate, timezone } = useFormatting();
@@ -57,16 +61,21 @@ export function HomeDashboard({
       {userName !== null && <PageHeader title={t('greeting', { name: userName })} />}
 
       <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-3">
-        <HomeCountTile
-          href={`/${tenantSlug}/my-account/loyalty`}
-          label={t('points')}
-          value={t('pointsValue', { points: loyaltyBalance.currentPoints })}
-          valueTestId="home-points-value"
-          iconBackground="bg-amber-100"
-          icon={
-            <Star className="h-[18px] w-[18px] fill-amber-500 text-amber-500" aria-hidden="true" />
-          }
-        />
+        {loyaltyBalance !== null && (
+          <HomeCountTile
+            href={`/${tenantSlug}/my-account/loyalty`}
+            label={t('points')}
+            value={t('pointsValue', { points: loyaltyBalance.currentPoints })}
+            valueTestId="home-points-value"
+            iconBackground="bg-amber-100"
+            icon={
+              <Star
+                className="h-[18px] w-[18px] fill-amber-500 text-amber-500"
+                aria-hidden="true"
+              />
+            }
+          />
+        )}
         <HomeCountTile
           href={`/${tenantSlug}/my-account/bookings`}
           label={t('bookings')}
@@ -97,17 +106,19 @@ export function HomeDashboard({
         )}
       </div>
 
-      {loyaltyBalance.nextExpiryDate !== null && loyaltyBalance.nextExpiryPoints !== null && (
-        <Link
-          href={`/${tenantSlug}/my-account/loyalty`}
-          className="mt-3 block rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-800 hover:bg-amber-100"
-        >
-          {t('expiryStrip', {
-            points: loyaltyBalance.nextExpiryPoints,
-            date: formatDate(new Date(loyaltyBalance.nextExpiryDate)),
-          })}
-        </Link>
-      )}
+      {loyaltyBalance !== null &&
+        loyaltyBalance.nextExpiryDate !== null &&
+        loyaltyBalance.nextExpiryPoints !== null && (
+          <Link
+            href={`/${tenantSlug}/my-account/loyalty`}
+            className="mt-3 block rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-800 hover:bg-amber-100"
+          >
+            {t('expiryStrip', {
+              points: loyaltyBalance.nextExpiryPoints,
+              date: formatDate(new Date(loyaltyBalance.nextExpiryDate)),
+            })}
+          </Link>
+        )}
 
       {renewal !== null && <HomeRenewalCard selection={renewal} tenantSlug={tenantSlug} />}
 
@@ -115,13 +126,18 @@ export function HomeDashboard({
         <h2 className="text-sm font-semibold text-gray-500">{t('upcomingTitle')}</h2>
         {preview.length === 0 ? (
           <div className="mt-2">
-            <BookingEmptyState tenantSlug={tenantSlug} />
+            <BookingEmptyState tenantSlug={tenantSlug} tenantOperational={tenantOperational} />
           </div>
         ) : (
           <>
             <ul className="mt-2 flex flex-col gap-2">
               {preview.map((item) => (
-                <BookingListItem key={item.bookingId} item={item} tenantSlug={tenantSlug} />
+                <BookingListItem
+                  key={item.bookingId}
+                  item={item}
+                  tenantSlug={tenantSlug}
+                  tenantOperational={tenantOperational}
+                />
               ))}
             </ul>
             <Link
@@ -135,7 +151,11 @@ export function HomeDashboard({
       </section>
 
       <div className="mt-6 lg:hidden" data-testid="mobile-new-menu">
-        <NewReservationMenu tenantSlug={tenantSlug} fullWidth />
+        <NewReservationMenu
+          tenantSlug={tenantSlug}
+          fullWidth
+          tenantOperational={tenantOperational}
+        />
       </div>
     </div>
   );

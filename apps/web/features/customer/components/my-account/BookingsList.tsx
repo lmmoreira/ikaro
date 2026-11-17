@@ -6,7 +6,6 @@ import { Bell, ChevronRight, Repeat } from 'lucide-react';
 import type { CustomerBookingListItem } from '@ikaro/types';
 import type { AlertsSummary } from '@/features/booking/api/availability-alerts.server';
 import type { RecurringSummary } from '@/features/booking/api/recurring-booking-schedules.server';
-import { Button } from '@/shared/components/ui/button';
 import { Card } from '@/shared/components/ui/card';
 import { PageHeader } from '@/shared/components/ui/page-header';
 import { alertListPath } from '../../alert-model';
@@ -114,7 +113,6 @@ export function BookingsList({
   tenantOperational = true,
 }: BookingsListProps): React.JSX.Element {
   const t = useTranslations('customer.bookings');
-  const tNew = useTranslations('customer.newMenu');
   const tInactive = useTranslations('customer.inactiveTenant');
   const { upcoming, pending, history } = splitBookingSections(bookings);
   const isEmpty = upcoming.length === 0 && pending.length === 0 && history.length === 0;
@@ -126,18 +124,7 @@ export function BookingsList({
         className="items-center"
         actions={
           <div className="lg:hidden" data-testid="mobile-new-menu">
-            {tenantOperational ? (
-              <NewReservationMenu tenantSlug={tenantSlug} />
-            ) : (
-              <Button
-                type="button"
-                disabled
-                title={tInactive('newDisabledHint')}
-                data-testid="new-booking-disabled"
-              >
-                + {tNew('label')}
-              </Button>
-            )}
+            <NewReservationMenu tenantSlug={tenantSlug} tenantOperational={tenantOperational} />
           </div>
         }
       />
