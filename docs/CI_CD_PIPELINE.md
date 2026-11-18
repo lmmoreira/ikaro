@@ -62,7 +62,7 @@ They do not exchange Terraform outputs automatically. Apply ordering and manuall
 
 ### Nightly billing provider contract job *(planned, Billing milestone)*
 
-A scheduled job (planned in `.github/workflows/`, not yet built) runs the shared billing-provider contract suite against the Asaas sandbox and Stripe test mode, so drift between `FakeBillingProvider` and the real APIs is caught the day it appears; the same suite runs against the fake on every PR. It needs the sandbox keys as repository secrets, is not a required check on `main`, and a failure opens an issue rather than blocking merges — `docs/TESTING_STRATEGY.md` § Testing the billing provider — fake, sandbox, contract suite and clock.
+A scheduled job (planned in `.github/workflows/`, not yet built) runs the shared billing-provider contract suite against the Asaas sandbox (Stripe test mode joins with slice E, M28), so drift between `FakeBillingProvider` and the real APIs is caught the day it appears; the same suite runs against the fake on every PR. It needs the sandbox keys as repository secrets, is not a required check on `main`, and a failure opens an issue rather than blocking merges — `docs/TESTING_STRATEGY.md` § Testing the billing provider — fake, sandbox, contract suite and clock.
 
 ---
 

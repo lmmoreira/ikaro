@@ -1829,7 +1829,7 @@ Items hold only the *selected plan*. There are **no trial rows** (trial access c
 
 **Boundary note:** paying a `Charge` may move the `Subscription` back to `ACTIVE` — two aggregates in one use case, in one transaction, with a row lock on the subscription (`findByTenantIdForUpdate`, `docs/LOCK_CATALOG.md`). Status is recomputable (the reconcile job re-derives it), so the invariant does not depend on the transaction alone.
 
-**Repository contract (M25-S08):** `ISubscriptionRepository` has `findByTenantId`, `findByTenantIdForUpdate` (lock B-R1: `FOR UPDATE` on the subscription row, items loaded afterwards in the same transaction, must run inside `ITransactionManager.run()`) and `save()`, which checks the optimistic `version` (`SubscriptionConcurrentModificationError` when the row moved), refuses a second subscription for a tenant (`SubscriptionAlreadyExistsError`) and writes item rows only when the aggregate's `itemsDirty` flag is set, by id-diff (`docs/ENGINEERING_RULES_BACKEND.md` § A wholesale-replaced child collection).
+**Repository contract (M25-S08):** `ISubscriptionRepository` has `findByTenantId`, `findByTenantIdForUpdate` (lock B-R1: `FOR UPDATE` on the subscription row, items loaded afterwards in the same transaction, must run inside `ITransactionManager.run()`), the bulk reads `listSuspendedTenantIds()`, `findTenantIdsNotEntitledTo(featureKey, now)` and `listSummaries(...)` (the operator list), and `save()`, which checks the optimistic `version` (`SubscriptionConcurrentModificationError` when the row moved), refuses a second subscription for a tenant (`SubscriptionAlreadyExistsError`) and writes item rows only when the aggregate's `itemsDirty` flag is set, by id-diff (`docs/ENGINEERING_RULES_BACKEND.md` § A wholesale-replaced child collection).
 
 ---
 
@@ -1861,6 +1861,7 @@ A separate aggregate from `Subscription` (edited by a different actor for differ
 Charge {
   chargeId:        ChargeId
   tenantId, subscriptionId
+  merchantProfileKey: String                           -- copied from the subscription at insert (charges.merchant_profile_key NOT NULL); the provider account the charge belongs to
   kind:            'PERIOD' | 'RECOVERY' | 'ADDON'     -- ADDON only in slice H
   periodStart / periodEnd: Date | null                 -- NULL forever for RECOVERY (the period lives on the Subscription; paidAt is its start)
   dueDate:         Date                                -- tenant-timezone date
@@ -1868,7 +1869,7 @@ Charge {
   subtotalMinor / amountMinor: bigint, currency        -- BR tax-inclusive: equal; US (slice E): amount = subtotal + tax
   status:          'PENDING' | 'PAID' | 'OVERDUE' | 'FAILED' | 'CANCELED' | 'REFUNDED' | 'CHARGEBACK'
   method:          'CARD' | 'PIX' | 'BOLETO' | null
-  paidAt, provider, providerChargeId, paymentUrl, paymentUrlExpiresAt, receiptUrl
+  paidAt, provider, providerChargeId, paymentUrl, paymentUrlExpiresAt, receiptUrl   -- provider is NULL until provider creation succeeds: `markCreationReady` takes the provider along with the id and link
   paymentReturnSeenAt: DateTime | null
   refundedAmountMinor: bigint
   providerCreationStatus: 'PENDING' | 'READY' | 'FAILED'
