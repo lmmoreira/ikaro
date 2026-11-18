@@ -95,19 +95,19 @@ run "startup_script_installs_every_operator_script_before_starting_the_proxy" {
     }
   }
 
+  # Each payload is pinned to its own destination, so two scripts swapped between paths fail.
   assert {
     condition = alltrue([
-      strcontains(local.startup_script, base64encode(var.tenant_provision_script)),
-      strcontains(local.startup_script, base64encode("#!/usr/bin/env bash\necho operator")),
-      strcontains(local.startup_script, base64encode("echo lib")),
-      strcontains(local.startup_script, "\"/usr/local/bin/billing-operator.sh\""),
-      strcontains(local.startup_script, "\"/usr/local/bin/lib/relay-auth.sh\""),
+      strcontains(local.startup_script, "printf '%s' '${base64encode(var.tenant_provision_script)}' | base64 -d > \"/usr/local/bin/provision-tenant.sh\""),
+      strcontains(local.startup_script, "printf '%s' '${base64encode("#!/usr/bin/env bash\necho operator")}' | base64 -d > \"/usr/local/bin/billing-operator.sh\""),
+      strcontains(local.startup_script, "printf '%s' '${base64encode("echo lib")}' | base64 -d > \"/usr/local/bin/lib/relay-auth.sh\""),
     ])
-    error_message = "provision-tenant.sh, billing-operator.sh and lib/relay-auth.sh must all be installed under /usr/local/bin."
+    error_message = "provision-tenant.sh, billing-operator.sh and lib/relay-auth.sh must each be installed from their own payload at their own path under /usr/local/bin."
   }
 
+  # The proxy start must exist, and all three installs must come before it.
   assert {
-    condition     = strcontains(split("systemctl enable --now cloud-sql-proxy.service", local.startup_script)[0], "base64 -d")
+    condition     = length(split("systemctl enable --now cloud-sql-proxy.service", local.startup_script)) == 2 && length(regexall("base64 -d", split("systemctl enable --now cloud-sql-proxy.service", local.startup_script)[0])) == 3
     error_message = "The scripts must be installed before the proxy is started, so a proxy failure can never leave the VM without them."
   }
 }
@@ -124,6 +124,11 @@ run "script_content_that_looks_like_a_terminator_cannot_corrupt_the_startup_scri
   assert {
     condition     = length(regexall("\nUNIT\n", local.startup_script)) == 1 && !strcontains(local.startup_script, "echo start")
     error_message = "Installed from base64, a script's own lines can never act as a here-document terminator in the startup script."
+  }
+
+  assert {
+    condition     = strcontains(local.startup_script, "printf '%s' '${base64encode("echo start\nUNIT\nSCRIPT\nEOT\necho end")}' | base64 -d > \"/usr/local/bin/tricky.sh\"")
+    error_message = "The script is still installed, decoded from its base64 payload, at its own path."
   }
 }
 

@@ -91,6 +91,55 @@ run "rejects_an_additional_script_that_collides_with_provision_tenant" {
   ]
 }
 
+run "rejects_the_proxy_binary_path_and_anything_beneath_it" {
+  command = plan
+
+  variables {
+    additional_scripts = { "cloud-sql-proxy" = "echo x" }
+  }
+
+  expect_failures = [
+    var.additional_scripts,
+  ]
+}
+
+run "rejects_a_path_with_an_empty_dot_or_trailing_component" {
+  command = plan
+
+  variables {
+    additional_scripts = { "lib//relay-auth.sh" = "echo x", "lib/./x.sh" = "echo y", "lib/" = "echo z" }
+  }
+
+  expect_failures = [
+    var.additional_scripts,
+  ]
+}
+
+run "rejects_a_path_that_sits_beneath_another_installed_path" {
+  command = plan
+
+  variables {
+    additional_scripts = { "lib" = "echo x", "lib/relay-auth.sh" = "echo y" }
+  }
+
+  expect_failures = [
+    var.additional_scripts,
+  ]
+}
+
+run "accepts_the_documented_operator_script_paths" {
+  command = plan
+
+  variables {
+    additional_scripts = { "billing-operator.sh" = "echo x", "lib/relay-auth.sh" = "echo y" }
+  }
+
+  assert {
+    condition     = length(var.additional_scripts) == 2
+    error_message = "The paths the Foundation roots pass must be valid."
+  }
+}
+
 run "rejects_an_empty_additional_script" {
   command = plan
 

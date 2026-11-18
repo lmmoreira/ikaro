@@ -82,9 +82,17 @@ variable "additional_scripts" {
   validation {
     condition = alltrue([
       for path in keys(var.additional_scripts) :
-      can(regex("^[A-Za-z0-9][A-Za-z0-9._/-]*$", path)) && !strcontains(path, "..") && path != "provision-tenant.sh"
+      can(regex("^[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9][A-Za-z0-9._-]*)*$", path)) && !strcontains(path, "..") && !contains(["provision-tenant.sh", "cloud-sql-proxy"], path)
     ])
-    error_message = "Every additional_scripts key must be a relative path under /usr/local/bin: it must not start with a slash, must not contain '..', and must not be provision-tenant.sh (that is tenant_provision_script)."
+    error_message = "Every additional_scripts key must be a canonical relative file path under /usr/local/bin: no leading or trailing slash, no empty or '.' component, no '..', and not provision-tenant.sh (that is tenant_provision_script) or cloud-sql-proxy (the module installs that binary itself)."
+  }
+
+  validation {
+    condition = alltrue([
+      for installed in concat(["provision-tenant.sh", "cloud-sql-proxy"], keys(var.additional_scripts)) :
+      alltrue([for path in keys(var.additional_scripts) : !startswith(path, "${installed}/")])
+    ])
+    error_message = "An additional_scripts path cannot sit beneath another installed path (a file cannot also be a directory), for example lib together with lib/relay-auth.sh."
   }
 
   validation {
