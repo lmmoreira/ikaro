@@ -22,8 +22,12 @@ import { seedStaffMember } from './helpers/staff';
 //
 // A profile is an EXEMPT tenant (a trialing one is entitled to every sellable feature whatever its
 // items say) whose missing features are deleted from its plan before its first access read: the
-// backend caches an operational answer for up to 300 s and a SQL write does not evict it. The four
-// profiles are the ones that exercise each distinct gating path; a new feature adds one row.
+// backend caches an operational answer for up to 300 s and a SQL write does not evict it. The three
+// profiles are the fewest that put every feature on both sides, missing in one and held in another,
+// so no lock leaks onto a feature the plan holds: BOOKING is missing in the first two and held in the
+// third; LOYALTY and LEAD_FORM are missing in the first and third and held in the second; CHATBOT is
+// missing in the first and held in the other two. A new feature must be missing in one profile and
+// held in another; add a row only when it cannot be.
 const ALL_FEATURES: readonly FeatureKey[] = [
   'HOTSITE',
   'BOOKING',
@@ -40,8 +44,7 @@ interface PlanProfile {
 const PROFILES: readonly PlanProfile[] = [
   { name: 'hotsite only', missing: ['BOOKING', 'LOYALTY', 'CHATBOT', 'LEAD_FORM'] },
   { name: 'everything but BOOKING', missing: ['BOOKING'] },
-  { name: 'everything but LOYALTY', missing: ['LOYALTY'] },
-  { name: 'everything but LEAD_FORM', missing: ['LEAD_FORM'] },
+  { name: 'everything but LOYALTY and LEAD_FORM', missing: ['LOYALTY', 'LEAD_FORM'] },
 ];
 
 const LOCKED_CARD = '[data-testid="locked-feature-card"]';
