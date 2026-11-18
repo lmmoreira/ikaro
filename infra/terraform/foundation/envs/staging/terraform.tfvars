@@ -1,1 +1,1 @@
-create_relay_vm = true
+create_relay_vm = false
