@@ -552,6 +552,78 @@ A branded form control always has a visible edge and readable text, on any tenan
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean (including the tightened `rawFormControlExemptPaths` over the whole of `apps/web`, proving no raw branded control remains outside the exact-path files)
 
+### Story 7 — Log a successful hotsite revalidation, so an operator can confirm the refresh from Cloud Logging
+
+**Agent:** backend-ts
+**Complexity:** S
+**Docs to load:** `docs/OBSERVABILITY_STRATEGY.md` § Where a change belongs, `docs/CODE_STANDARDS.md`
+**Dependencies:** none (M25-S25, which added the use case, is ✅ Done)
+**Pattern:** plain composition — no named pattern applies (one log line in an existing use case).
+
+**Discovered:** 2026-11-18, the M25-S32 staging live verification: the acceptance criterion assumed one revalidation line per event, none exists, and the only evidence that the hotsite refreshed was the public page flipping.
+**Root cause:** `apps/backend/src/contexts/platform/application/use-cases/revalidate-tenant-hotsite.use-case.ts:50-51` returns `{ revalidated: true }` after the port call with no log; the only log lines are the two `warn`s (lines 43 and 53). An operator reading Cloud Logging cannot tell a successful refresh from a handler that never ran.
+
+**Description:**
+After `SubscriptionSuspended` / `SubscriptionReactivated` the Platform consumers call `RevalidateTenantHotsiteUseCase`. A failure is logged (`warn`), a success is silent. Add one `this.logger.log('Hotsite revalidated', { tenantId, correlationId })` after `frontendRevalidation.revalidate(...)` resolves and before the `return { revalidated: true }`, following the sibling convention (a past-tense statement plus a context object: `approve-booking.use-case.ts:105`, `raise-tenant-unavailable-notices.use-case.ts:67`). Decided: the fields are the same two the existing warns carry (no slug, no extra data); the log is not added to the two failure paths, which already log.
+
+**Backend HTTP surface:** none.
+**New migration / i18n keys / env vars / feature flags:** none.
+
+**Files to create/modify:**
+- `apps/backend/src/contexts/platform/application/use-cases/revalidate-tenant-hotsite.use-case.ts` (modify)
+- `apps/backend/src/contexts/platform/application/use-cases/revalidate-tenant-hotsite.use-case.spec.ts` (modify; exists)
+
+**Acceptance criteria — product:**
+- [ ] An operator can confirm from Cloud Logging that a suspended or reactivated tenant's hotsite was refreshed: one `Hotsite revalidated` line per event, carrying the tenant id and the event's correlation id.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] `revalidate-tenant-hotsite.use-case.spec.ts`: a successful revalidation logs `Hotsite revalidated` exactly once with `{ tenantId, correlationId }`, after the port call.
+  - [ ] Negative guarantee, own test: no success line when the tenant no longer exists (only the existing warn).
+  - [ ] Negative guarantee, own test: no success line when the port rejects (only the existing warn), and the use case still never throws into the caller.
+- Integration: none — a log line in an already-covered use case; the unit spec pins it.
+- Tenant isolation: none — no data access is added.
+- E2E: none.
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
+
+### Story 8 — Give the relay VM's service account permission to write logs, so its startup-script output survives the VM
+
+**Agent:** devops
+**Complexity:** S
+**Docs to load:** `infra/terraform/README.md` § New-resource PR-sequencing playbook (the "new IAM grant on an already-live resource" row) and § IAM binding review discipline, `infra/terraform/modules/relay-vm/README.md`, `docs/ENGINEERING_RULES_INFRA.md`
+**Dependencies:** M25-S32 (its module PR rewrites the same `modules/relay-vm` files; land this after it)
+**Pattern:** plain composition — no named pattern applies (one more persistent IAM binding beside the existing Cloud SQL ones).
+
+**Discovered:** 2026-11-18, while validating the staging relay VM's boot (M25-S32): every boot's journal carries `Cloud Logging Client Error: ... Permission 'logging.logEntries.create' denied on resource '//logging.googleapis.com/projects/ikaro-staging/logs/google_metadata_script_runner'`.
+**Root cause:** `infra/terraform/modules/relay-vm/main.tf` binds eight roles to the relay service account (`iam.serviceAccountUser` for the operator, IAP and OS Login for the admin, `secretmanager.secretAccessor` ×2, `run.viewer`, `cloudsql.client`, `cloudsql.instanceUser`); none is a logging role, and `roles/logging.logWriter` appears nowhere in `infra/terraform`. The GCE script runner ships its output to Cloud Logging as the instance's service account.
+
+**Description:**
+The relay VM is on-demand and destroyed after use, so its journal disappears with it: a failed boot can only be diagnosed while the VM is alive (M25-S32's two startup-script defects were found that way). Grant the relay service account `roles/logging.logWriter` (write-only, project level; Cloud Logging offers no narrower scope) so the startup script's output is kept after teardown. Decided: a persistent binding beside the Cloud SQL ones (the identity already persists while the VM is off, and persistence makes the grant checkable without a VM), not count-gated on `var.create`. Rejected: installing the Ops Agent (the VM has no route to `packages.cloud.google.com`; `modules/relay-vm/README.md` § Identity model).
+
+**IAM / permissions:**
+| Principal | Role | Resource |
+|---|---|---|
+| relay VM service account (`ikaro-relay-vm@<project>`) | `roles/logging.logWriter` | project `ikaro-staging` and `ikaro-prod` (the module is shared) |
+
+**New migration / i18n keys / env vars / feature flags:** none.
+
+**Files to create/modify:**
+- `infra/terraform/modules/relay-vm/main.tf` (modify)
+- `infra/terraform/modules/relay-vm/tests/resources_unit_test.tftest.hcl` (modify)
+- `infra/terraform/modules/relay-vm/README.md` (modify: the grants list under Identity model)
+
+**Acceptance criteria — product:**
+- [ ] After a relay VM boot, its startup-script output is readable in Cloud Logging, including after the VM is destroyed.
+
+**Acceptance criteria — technical:**
+- [ ] `terraform test` in `modules/relay-vm`: the relay service account has exactly `roles/logging.logWriter`, present with `create = true` and with `create = false` (the identity persists, like the Cloud SQL grants).
+- [ ] Negative guarantee, own test: no broader logging role (`logging.admin`, `logging.configWriter`) is granted to the relay service account.
+- [ ] Checkov / Tfsec clean
+
+**Live-verification check:** after the apply, `gcloud projects get-iam-policy ikaro-staging --flatten=bindings --filter="bindings.role=roles/logging.logWriter" --format="value(bindings.members)"` lists the relay service account (same for `ikaro-prod`); on the next relay boot, `gcloud logging read 'logName:"google_metadata_script_runner"' --project=ikaro-staging --limit=5` returns the startup lines and the journal no longer shows `PermissionDenied`. Pass = both.
+**PR sequence:** the playbook's "new IAM grant on an already-live resource" row: **1 PR** (`modules/relay-vm/**` only, no `foundation/**` file changes) **+ 1 Foundation apply** (dispatch `foundation-deploy.yml` with `apply=true` from `main`, approve `staging-foundation` then `production-foundation`; the module is consumed by the Foundation roots, so the grant lives in Foundation state).
+
 ## Self-dry-run findings
 
 - The two stories are sequenced because Story 1 must present the inheritance-correct effective buffer behavior from Story 0.
@@ -566,3 +638,5 @@ A branded form control always has a visible edge and readable text, on any tenan
 - Story 6 (branded form controls) is independent of Stories 0–4 and builds on Story 5. Premise measured 2026-11-11 over the six catalogue templates: the secondary colour is 1.07 to 1.17:1 against the page in five of them (`origem` is 9.83:1), so a field drawn with a secondary fill and border has a near-invisible edge; the lead-form controls are unstyled browser fields and are deliberately left out. Open for discovery: the exact prototype slugs to redraw, whether `BrandedSelect` should wrap the native `<select>` or only style it, and how the Story 5 `secondarySurfaceExemptPaths` blocks re-derive once the `shells/hotsite/**` raw-control folder entry goes.
 - Story 6 implementation (2026-11-11) corrected discovery once: removing the four branded folders from `rawFormControlExemptPaths` also lifted the `<button>` and `<label htmlFor>` bans there (40 raw buttons and 16 `htmlFor` labels in the branded trees, which draw their own buttons from `--ba-btn-*`). The folders therefore moved to a separate `brandedTreePaths` list that keeps only those two allowances, and the text-control bans (`input`, `textarea`, `select`, `createElement`) apply there with a message naming `BrandedInput` / `BrandedTextarea` / `BrandedSelect`. `intakeInputClass` was removed (all three callers use the atoms).
 - Story 6 discovery (2026-11-11) corrected the draft: the "at least 3:1" adversarial AC was unreachable on a bg-to-text path (white text on cream; text equal to a mid-grey secondary), so the derivation gained a black/white fallback; exact-path exemption would have lifted every raw-control ban in the three checkbox/radio files, so they get a type-aware variant of the input ban instead; removing the `shells/hotsite/**` entry would have put `HotsiteAuthBar.tsx` in a block that keeps `SECONDARY_SURFACE_SELECTOR`, so the intersection blocks become one per-file helper; `AvailabilityAlertPickers.tsx` needs no exemption (only a comment names `<select>`). `BrandedSelect` is a plain native `<select>` with the browser arrow (no chevron wrapper). Atomic-design review: three atoms in `shared/components/hotsite/`, no phone molecule below 3 copies. The prototypes were updated first (commit `f132f41a8`).
+- Story 7 (hotsite revalidation success log) is independent of Stories 0–6 and, unlike them, is Platform backend code, not Booking. Premise verified 2026-11-18: `revalidate-tenant-hotsite.use-case.ts:50-51` returns `{ revalidated: true }` with no log, the use case's spec has four tests (the success one at line 24), and sibling use cases log success as `this.logger.log('<past-tense statement>', { tenantId, ... })`. Found by the M25-S32 live verification, where the story's own acceptance criterion assumed such a line existed.
+- Story 8 (relay VM log-writer grant) is independent of Stories 0–7 and is infrastructure, not Booking. Premise verified 2026-11-18: the relay service account holds eight roles in `modules/relay-vm/main.tf`, none for logging, and `roles/logging.logWriter` appears nowhere in `infra/terraform`; the VM's journal shows the `PermissionDenied` on every boot. It touches the same module as M25-S32's open module PR, so it depends on that merging first. Open for discovery: whether the shared module's project-level grant is acceptable in `ikaro-prod` while the prod relay VM is off (the binding is persistent, like the Cloud SQL ones).
