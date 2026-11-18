@@ -552,7 +552,7 @@ A branded form control always has a visible edge and readable text, on any tenan
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean (including the tightened `rawFormControlExemptPaths` over the whole of `apps/web`, proving no raw branded control remains outside the exact-path files)
 
-### Story 7 — Log a successful hotsite revalidation, so an operator can confirm the refresh from Cloud Logging
+### Story 7 — Log a successful hotsite revalidation, so an operator can confirm the refresh from Cloud Logging ✅ Done
 
 **Agent:** backend-ts
 **Complexity:** S
