@@ -53,60 +53,19 @@ locals {
   # automatically fall back to this instance's own attached service
   # account via the metadata server when nothing else is configured —
   # that's the whole redesign in one sentence.
-  startup_script = <<-EOT
-    #!/usr/bin/env bash
-    set -euo pipefail
-
-    if [ ! -x /usr/local/bin/cloud-sql-proxy ]; then
-      curl -fsSL -o /usr/local/bin/cloud-sql-proxy \
-        "https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.23.0/cloud-sql-proxy.linux.amd64"
-      echo "cd689d582b826fa5bc82c01ccc14e45a58200c3cefbf923ce96c422825e4e6f6  /usr/local/bin/cloud-sql-proxy" | sha256sum -c -
-      chmod +x /usr/local/bin/cloud-sql-proxy
-    fi
-
-    if ! getent passwd cloud-sql-proxy >/dev/null; then
-      useradd --system --home-dir /nonexistent --shell /usr/sbin/nologin cloud-sql-proxy
-    fi
-
-    cat > /etc/systemd/system/cloud-sql-proxy.service <<'UNIT'
-    [Unit]
-    Description=Cloud SQL Auth Proxy (TD32 relay VM)
-    After=network-online.target
-    Wants=network-online.target
-
-    [Service]
-    ExecStart=/usr/local/bin/cloud-sql-proxy --private-ip --auto-iam-authn --port 5433 ${var.db_instance_connection_name}
-    Restart=on-failure
-    RestartSec=5
-    User=cloud-sql-proxy
-    NoNewPrivileges=true
-    PrivateTmp=true
-    ProtectHome=true
-    ProtectSystem=full
-    CapabilityBoundingSet=
-    RestrictSUIDSGID=true
-
-    [Install]
-    WantedBy=multi-user.target
-    UNIT
-
-    systemctl daemon-reload
-
-    %{if var.db_instance_connection_name != ""~}
-    systemctl enable --now cloud-sql-proxy.service
-    %{else~}
-    echo "cloud-sql-proxy.service installed but not started: no db_instance_connection_name (prod pre-S37 state)." >&2
-    %{endif~}
-
-    install -d -m 0755 /usr/local/bin
-    # This file() content is embedded in Compute Engine instance metadata.
-    # Keep the script free of secrets; it only contains runtime discovery and
-    # metadata-server/Secret Manager lookups.
-    cat > /usr/local/bin/provision-tenant.sh <<'SCRIPT'
-${var.tenant_provision_script}
-SCRIPT
-    chmod 0755 /usr/local/bin/provision-tenant.sh
-  EOT
+  #
+  # The script lives in startup-script.sh.tftpl, flush-left, not in an inline heredoc: a
+  # `<<-` heredoc only strips indentation down to its least-indented literal line, and an
+  # interpolated script at column 0 made it strip nothing, so every here-document
+  # terminator stayed indented and the script broke silently (M25-S32, found live). The
+  # operator scripts are embedded in Compute Engine instance metadata as base64.
+  startup_script = templatefile("${path.module}/startup-script.sh.tftpl", {
+    db_instance_connection_name = var.db_instance_connection_name
+    scripts = {
+      for path, content in merge({ "provision-tenant.sh" = var.tenant_provision_script }, var.additional_scripts) :
+      path => base64encode(content)
+    }
+  })
 }
 
 # Does real work now (redesigned 2026-07-24) — Cloud SQL IAM auth,

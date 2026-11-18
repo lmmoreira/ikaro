@@ -46,6 +46,63 @@ run "rejects_invalid_environment" {
   ]
 }
 
+run "additional_scripts_defaults_to_none" {
+  command = plan
+
+  assert {
+    condition     = length(var.additional_scripts) == 0
+    error_message = "additional_scripts must default to an empty map, so a caller that passes none keeps working."
+  }
+}
+
+run "rejects_an_absolute_additional_script_path" {
+  command = plan
+
+  variables {
+    additional_scripts = { "/etc/cron.d/evil" = "echo x" }
+  }
+
+  expect_failures = [
+    var.additional_scripts,
+  ]
+}
+
+run "rejects_a_parent_directory_additional_script_path" {
+  command = plan
+
+  variables {
+    additional_scripts = { "lib/../../etc/passwd" = "echo x" }
+  }
+
+  expect_failures = [
+    var.additional_scripts,
+  ]
+}
+
+run "rejects_an_additional_script_that_collides_with_provision_tenant" {
+  command = plan
+
+  variables {
+    additional_scripts = { "provision-tenant.sh" = "echo x" }
+  }
+
+  expect_failures = [
+    var.additional_scripts,
+  ]
+}
+
+run "rejects_an_empty_additional_script" {
+  command = plan
+
+  variables {
+    additional_scripts = { "billing-operator.sh" = "  " }
+  }
+
+  expect_failures = [
+    var.additional_scripts,
+  ]
+}
+
 run "rejects_empty_tenant_provision_script" {
   command = plan
 

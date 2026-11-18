@@ -74,6 +74,25 @@ variable "tenant_provision_script" {
   }
 }
 
+variable "additional_scripts" {
+  description = "Further operator scripts installed on the relay VM at boot, next to provision-tenant.sh: a map of install path (relative to /usr/local/bin, for example \"billing-operator.sh\" or \"lib/relay-auth.sh\") to the script's contents. Embedded in instance metadata: no secrets."
+  type        = map(string)
+  default     = {}
+
+  validation {
+    condition = alltrue([
+      for path in keys(var.additional_scripts) :
+      can(regex("^[A-Za-z0-9][A-Za-z0-9._/-]*$", path)) && !strcontains(path, "..") && path != "provision-tenant.sh"
+    ])
+    error_message = "Every additional_scripts key must be a relative path under /usr/local/bin: it must not start with a slash, must not contain '..', and must not be provision-tenant.sh (that is tenant_provision_script)."
+  }
+
+  validation {
+    condition     = alltrue([for content in values(var.additional_scripts) : trimspace(content) != ""])
+    error_message = "Every additional_scripts value must contain the script's contents."
+  }
+}
+
 variable "project_id" {
   description = "GCP project ID the resources are created in"
   type        = string
