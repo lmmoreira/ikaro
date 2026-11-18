@@ -1,10 +1,10 @@
 # Dev Notes — GUEST: Página indisponível
 
-> **Status: Shipped (UC-122, M25-S30).** The page is the shared root state for every public hotsite route that is unavailable: the manifest's effective `isPublished` is false (unpublished, never published or tenant `SUSPENDED`), or the hotsite is published but its lead-form module is disabled (UC-039 A6). It is a different case from an unknown slug (`app/not-found.tsx`). The page has no form, so there is no validation table.
+> **Status: Shipped (UC-122, M25-S30).** The page is the shared root state for every public hotsite route that is unavailable: the manifest's effective `isPublished` is false (unpublished, never published or tenant `SUSPENDED`), or the hotsite is published but its lead-form module is disabled (UC-039 A6), or the tenant lacks the BOOKING feature on a booking page. It is a different case from an unknown slug (`app/not-found.tsx`). The page has no form, so there is no validation table.
 
 ## Overview
 
-One screen: the neutral "Página indisponível" page. It is the existing `Unavailable` component (`apps/web/shells/hotsite/components/Unavailable.tsx`, today a bare "Em breve" placeholder with no props and no top bar) reduced to the message only, plus a new `UnavailablePage` (`apps/web/shells/hotsite/components/UnavailablePage.tsx`) that renders the top bar over it. There is **one** copy for every case, so it never reveals why and nothing says "Em breve". Customer and team sign-in stay reachable because `[slug]/login` and `[slug]/my-account` never check `isPublished`.
+One screen: the neutral "Página indisponível" page. It is the `Unavailable` component (`apps/web/shells/hotsite/components/Unavailable.tsx`, formerly a bare "Em breve" placeholder; now no props, the title and body only, no top bar) plus `UnavailablePage` (`apps/web/shells/hotsite/components/UnavailablePage.tsx`) that renders the top bar over it. There is **one** copy for every case, so it never reveals why and nothing says "Em breve". Customer and team sign-in stay reachable because `[slug]/login` and `[slug]/my-account` never check `isPublished`.
 
 ## Open questions / known limitations
 
@@ -15,23 +15,23 @@ One screen: the neutral "Página indisponível" page. It is the existing `Unavai
 
 ## Screen 1 — Página indisponível (`01-page-not-published.html`; `UnavailablePage` → `Unavailable`)
 
-File: `01-page-not-published.html` (the prototype file keeps its original name) — Status: **CHANGED** (`Unavailable.tsx` takes no props and renders no `HotsiteAuthBar` today; branding is already inherited today (`var(--ba-*)` via `app/[slug]/layout.tsx` `applyBranding`), so what is new is the top bar, the tenant name and logo in the bar (from the manifest) and the neutral copy). It is used for every unavailable route, never only for suspended tenants, so it stays reason-neutral.
+File: `01-page-not-published.html` (the prototype file keeps its original name) — Status: **Shipped** (M25-S30; `Unavailable.tsx` takes no props and renders the title and body only, the `HotsiteAuthBar` is drawn by `UnavailablePage`; branding is inherited (`var(--ba-*)` via `app/[slug]/layout.tsx` `applyBranding`), and the top bar, the tenant name and logo in the bar (from the manifest) and the neutral copy were added). It is used for every unavailable route, never only for suspended tenants, so it stays reason-neutral.
 BFF: `GET /v1/public/platform/manifest/:slug` (a normal manifest with `isPublished === false`, effective value; the layout is stubbed empty); no billing detail exposed publicly.
 Copy: "Página indisponível" and "Esta página não está disponível no momento. Volte em breve." (en: "Page unavailable" and "This page isn't available right now. Please check back soon."). Reason-neutral. The bar keeps "Área da Equipe" and "Entrar". The browser tab reads "Página indisponível — Ikaro" on the four routes that build a title from it.
 Background painted with `var(--ba-background)` (hotsite full-page rule).
 
 ## File map (apps/web)
 
-From `plan/M25-TENANT-BILLING-FOUNDATION.md` M25-S30. Each component change also ships its `.spec.tsx`.
+Shipped in M25-S30 (`plan/M25-TENANT-BILLING-FOUNDATION.md`). Each component change also ships its `.spec.tsx`.
 
-| apps/web path | Status | Action |
+| apps/web path | Status | What shipped |
 |---|---|---|
-| `shells/hotsite/components/Unavailable.tsx` | EXISTS (bare "Em breve", no props, no bar) | Modify: the neutral message only (heading and body), `--ba-background` painted; still used by `LeadFormWidget` |
-| `shells/hotsite/components/UnavailablePage.tsx` | NEW | Create: `HotsiteAuthBar` (from the manifest) over `Unavailable` |
-| `shells/hotsite/components/HotsiteAuthBar.tsx` (and its `HotsiteAuthBarSignedOut`/`HotsiteAuthBarDropdown` parts) | EXISTS | Reuse as is; do not duplicate the bar |
-| `app/[slug]/page.tsx`, `app/[slug]/booking/page.tsx`, `app/[slug]/booking/availability-alert/page.tsx`, `app/[slug]/lead-form/page.tsx`, `app/[slug]/servicos/[serviceSlug]/page.tsx` | EXISTS | Modify: render `<UnavailablePage />` (pages stay thin); the first four also take the new tab title |
+| `shells/hotsite/components/Unavailable.tsx` | EXISTS (shipped, M25-S30) | Neutral message only (heading and body, no props), `--ba-background` painted; still used by `LeadFormWidget` |
+| `shells/hotsite/components/UnavailablePage.tsx` | EXISTS (shipped, M25-S30) | `HotsiteAuthBar` (from the manifest) over `Unavailable` |
+| `shells/hotsite/components/HotsiteAuthBar.tsx` (and its `HotsiteAuthBarSignedOut`/`HotsiteAuthBarDropdown` parts) | EXISTS | Reused as is; the bar is not duplicated |
+| `app/[slug]/page.tsx`, `app/[slug]/booking/page.tsx`, `app/[slug]/booking/availability-alert/page.tsx`, `app/[slug]/lead-form/page.tsx`, `app/[slug]/servicos/[serviceSlug]/page.tsx` | EXISTS (shipped, M25-S30) | Render `<UnavailablePage />` (pages stay thin); the first four also take the new tab title |
 | `features/platform/components/public/LeadFormWidget.tsx` | EXISTS | Unchanged: keeps the message-only `Unavailable` (its page already draws the bar) |
-| `packages/i18n/locales/pt-BR/web.json`, `packages/i18n/locales/en/web.json` | EXISTS | Modify, both locales: `hotsite.unavailable.title` and `hotsite.unavailable.body` replace `hotsite.unavailable.label` and `hotsite.unavailable.body` |
+| `packages/i18n/locales/pt-BR/web.json`, `packages/i18n/locales/en/web.json` | EXISTS (shipped, M25-S30) | Both locales: `hotsite.unavailable.title` and `hotsite.unavailable.body` replaced `hotsite.unavailable.label` and `hotsite.unavailable.body` (the `label` key is gone) |
 
 ## Props
 
@@ -46,6 +46,7 @@ From `plan/M25-TENANT-BILLING-FOUNDATION.md` M25-S30. Each component change also
 | Unpublished | Manifest returned with effective `isPublished === false` (never published, unpublished by the manager, or tenant `SUSPENDED`; the reason is never shown) | `UnavailablePage`: top bar + "Página indisponível" |
 | Module disabled | Published hotsite, `/lead-form` while the LEAD_FORM module is disabled | The same `UnavailablePage`, with the site's navigation in the bar |
 | Module disabled after the page was cached | `LeadFormWidget`'s live config call reports the module disabled | `Unavailable` only, under the bar the page already draws (never two bars) |
+| Feature missing | Published hotsite, but the tenant lacks the BOOKING feature and the route is `/booking`, `/booking/availability-alert` or `/servicos/[serviceSlug]` (`isHotsitePageAvailable`, `features/platform/hotsite/feature-availability.ts`: `isPublished` AND the page's feature available) | The same `UnavailablePage`, reason-neutral |
 | Published | `isPublished === true` | The normal page, unchanged |
 | Unknown slug | Manifest `404` | Root `app/not-found.tsx` (not this page) |
 | Manifest loading | Server-rendered; the route has no client spinner | Not drawn. Next.js `loading.tsx` for the `[slug]` tree is not part of this story; today nothing is shown until the server responds |

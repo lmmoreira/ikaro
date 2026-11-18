@@ -11,7 +11,7 @@
 .
 ├── apps/
 │   ├── backend/          # NestJS modular monolith
-│   │   └── src/contexts/ # booking/ customer/ staff/ loyalty/ notification/ platform/ billing/ (schema, price-list, subscription and billing-account aggregates and repositories; charges and use cases planned)
+│   │   └── src/contexts/ # booking/ customer/ staff/ loyalty/ notification/ platform/ billing/ (schema, price-list, subscription and billing-account aggregates and repositories, the access, operator, registration and dev-clock use cases; the Charge flow is planned)
 │   ├── bff/              # NestJS BFF (feature slices under src/features/)
 │   └── web/              # Next.js 16 (domain features + shell slices + shared/)
 ├── packages/
@@ -50,7 +50,7 @@ Backend is already in the canonical shape and should stay close to this layout:
 apps/backend/src/
 ├── config/
 ├── contexts/
-│   ├── billing/       # schema (M25-S03); aggregates land story by story: FeaturePrice (M25-S04), Subscription and BillingAccount (M25-S08) are built, Charge is not; the access resolution (the shared `TenantAccessPort`, its adapter and the `CachingSubscriptionRepository` cache, M25-S13) is built
+│   ├── billing/       # schema (M25-S03); aggregates land story by story: FeaturePrice (M25-S04), Subscription and BillingAccount (M25-S08) are built, Charge is not; the access resolution (the shared `TenantAccessPort`, its adapter and the `CachingSubscriptionRepository` cache, M25-S13), the internal operator, registration, access and dev-clock controllers, the billing provider port with its registry and fake provider and Asaas event normalizer (M25-S14), and the signup-registration lock adapter (`infrastructure/locks/`) are built
 │   ├── booking/
 │   │   ├── domain/
 │   │   ├── application/
@@ -191,7 +191,7 @@ apps/web/
 ### Web root-level exceptions
 
 - `app/` remains the routing and layout surface.
-- `features/` is the business-owning tree for billing (planned), booking, customer, loyalty, platform, staff, and auth (`uploads` is not a current slice — see the BFF tree above for the condition under which it would become one).
+- `features/` is the business-owning tree for billing (partly built), booking, customer, loyalty, platform, staff, and auth (`uploads` is not a current slice — see the BFF tree above for the condition under which it would become one).
 - `shells/` owns route-composition only.
 - `shared/` is for cross-surface primitives and helpers only.
 - `providers/` stays root-level because it is app-wide composition.

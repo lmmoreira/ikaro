@@ -16,7 +16,7 @@ The BFF (Backend-for-Frontend) is a **separate NestJS service** (`apps/bff/`) th
 - Translate errors to RFC 9457 Problem Details
 - Apply rate limiting on all public endpoints
 
-**Not responsibilities:** the BFF does not decide business rules (entitlement, suspension, pricing, status). The backend owns the data and decides; the BFF forwards its typed denial unchanged. A BFF guard, interceptor or cache that reads backend data to make a decision the backend also makes is a design error: it adds no independent safety and costs duplicate annotations, a second cache and stacked staleness (M25-S16 added one, M25-S33 removed it). A new BFF route carries no entitlement annotation; the backend route it calls does.
+**Not responsibilities:** the BFF does not decide business rules (entitlement, suspension, pricing, status). The backend owns the data and decides; the BFF forwards its typed denial unchanged. Two narrow, deliberate cases exist and stay consistent with that: a fail-open read of the backend access answer (`tenant-access.reader.ts`: a 4xx is rethrown, anything else reads as "operational" and is logged; it adds no cache and decides nothing), and a denial match that turns the loyalty balances read's `BILLING_FEATURE_NOT_ENTITLED` into "no points" for the customer-search enrichment (`customers.loyalty-balances.ts`; any other failure still surfaces). A BFF guard, interceptor or cache that reads backend data to make a decision the backend also makes is a design error: it adds no independent safety and costs duplicate annotations, a second cache and stacked staleness (M25-S16 added one, M25-S33 removed it). A new BFF route carries no entitlement annotation; the backend route it calls does.
 
 ---
 
@@ -276,7 +276,7 @@ ActiveStaffGuard (skipped on @Public() routes)
 (no tenant-access guard — the BFF makes no entitlement or suspension decision since M25-S33; the backend guard
   on the real call is the only enforcement point, and the BFF forwards its typed 403, BILLING_FEATURE_NOT_ENTITLED or
   BILLING_TENANT_SUSPENDED, unchanged — see docs/ENGINEERING_RULES_SHARED.md § Tenant access enforcement — the
-  declarative choke points (planned))
+  declarative choke points)
   ▼
 RequestInterceptor
   │  Runs after the Guards, so req.user is populated: adds tenantId/actor to OTel span attributes
@@ -384,10 +384,11 @@ Full pattern (code catalog, naming convention, frontend resolver, "adding a new 
 | `GET /auth/google/callback` | No | No | — |
 | `GET /auth/logout` | No | No | — |
 | `POST /auth/switch-tenant` | JWT | No | CUSTOMER |
-| `GET /auth/staff-tenants` | JWT | No | STAFF \| MANAGER |
+| `GET /auth/staff-tenants` (each tenant carries a per-tenant `operational` flag from the backend access read, `auth-tenant-login.flow.ts`) | JWT | No | STAFF \| MANAGER |
 | `POST /auth/switch-staff-tenant` | JWT | No | STAFF \| MANAGER |
 | `GET /auth/session` | JWT | No (X-Tenant-Slug forwarded if given, `TenantGuard`-checked) | any (branches on JWT role internally) |
 | `POST /auth/dev-login` | No (dev only) | No | — |
+| `GET /billing/access` (the tenant's access state, role-reduced per `packages/types/src/billing.dto.ts`; no `@Roles`, so every authenticated role may read it, including while the tenant is suspended; the tenant comes from the JWT; no BFF cache, the backend port keeps its own) | JWT | No | any |
 | `GET /public/platform/manifest/:slug` | No | No (slug is the path param) | — |
 | `GET /public/platform/published-hotsites` | No | No | — |
 | `GET /public/platform/chatbot/status`, `POST /public/platform/chatbot/messages` | No | X-Tenant-Slug | — |
@@ -420,7 +421,7 @@ Full pattern (code catalog, naming convention, frontend resolver, "adding a new 
 | `POST /availability-alerts`, `GET /availability-alerts`, `GET`/`PATCH`/`DELETE /availability-alerts/:id` | JWT | No | CUSTOMER |
 | `GET /scheduling-exceptions`, `GET /scheduling-exceptions/count` (sidebar badge), `GET /scheduling-exceptions/by-booking/:bookingId` (booking decision panel), `POST /scheduling-exceptions/resolve`, `POST /scheduling-exceptions/dismiss` | JWT | No | MANAGER |
 | `GET /resources`, `GET /resources/staff-options` (BFF-only), `GET /resources/:id`, `POST /resources`, `PATCH /resources/:id`, `DELETE /resources/:id`, `POST /resources/:id/reactivate` | JWT | No | MANAGER |
-| `GET /customers/me`, `PATCH /customers/me`, `GET /customers/tenants` | JWT | No | CUSTOMER |
+| `GET /customers/me`, `PATCH /customers/me`, `GET /customers/tenants` (each tenant carries a per-tenant `operational` flag, `customers.controller.ts`) | JWT | No | CUSTOMER |
 | `GET /customers` (search), `GET /customers/:customerId` | JWT | No | STAFF \| MANAGER |
 | `GET /customers/:customerId/loyalty` (composite) and its `/balance`, `/entries`, `/redemptions` sub-routes | JWT | No | STAFF \| MANAGER |
 | `GET /loyalty/balance`, `/loyalty/entries`, `/loyalty/redemptions` | JWT | No | CUSTOMER |

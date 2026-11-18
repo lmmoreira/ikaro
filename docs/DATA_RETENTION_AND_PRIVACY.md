@@ -65,7 +65,7 @@ The following are explicitly deferred to M17-S51:
 
 ## Planned: Billing data retention (Billing release)
 
-> **PLANNED, NOT YET BUILT.** Tables: `docs/DATABASE_SCHEMA.md` § Schema: `billing`. Nothing below is enforced until the Billing release ships.
+> **Data stored today, retention enforcement PLANNED.** Built (M25): `billing.billing_accounts`, `billing.signup_registrations` and `billing.operator_audit` exist with entities and repositories (`apps/backend/src/contexts/billing/infrastructure/entities`), so those rows are stored today. Not built: `billing.provider_events`, `billing.charges` and its lines, and every purge, release and retention job below (the `cron-billing-provider-events-purge` job, the one-hour `RESERVED` release sweep (M26-S08), the purge's `BILLING` step (M27)). The retention rules below are therefore not enforced yet. Tables: `docs/DATABASE_SCHEMA.md` § Schema: `billing`.
 
 | Data | Where | Retention |
 |---|---|---|

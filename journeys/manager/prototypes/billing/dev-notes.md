@@ -14,7 +14,7 @@ All paths are new files under `apps/web` unless the Action says modify; each com
 |---|---|---|
 | `app/dashboard/billing/page.tsx`, `loading.tsx`, `error.tsx` | GAP | Create, thin routes (M26-S27) |
 | `app/dashboard/billing/cancel/page.tsx` | GAP | Create, thin (M26-S31) |
-| `app/dashboard/suspended/page.tsx` | EXISTS | Created (M25-S29) with the manager notice (`ManagerSuspendedNotice`); the staff variant is added by M25-S31a (GAP) |
+| `app/dashboard/suspended/page.tsx` | EXISTS | Created (M25-S29) with the manager notice (`ManagerSuspendedNotice`); the staff variant (`StaffSuspendedNotice`, M25-S31a) is rendered by the role branch of the same page, so both variants exist |
 | `features/billing/api/billing.server.ts`, `billing.ts` | GAP | Create (M26-S27); modify in S28, S29, S30, S31 |
 | `features/billing/components/BillingPage.tsx`, `BillingTabs.tsx`, `BillingSummaryTab.tsx`, `BillingChargesTab.tsx`, `BillingStatusBadge.tsx`, `AutoBillingComingSoon.tsx`, `ExemptNotice.tsx` | GAP | Create (M26-S27); `BillingSummaryTab.tsx` modified in S28 |
 | `features/billing/components/PayNowButton.tsx`, `PaymentPendingBanner.tsx`, `PaymentLinkExpiredNotice.tsx`, `PaymentFailedNotice.tsx` | GAP | Create (M26-S28) |
@@ -23,7 +23,7 @@ All paths are new files under `apps/web` unless the Action says modify; each com
 | `features/billing/components/CancelSubscriptionPage.tsx`, `CancelOutcome.tsx`, `ReactivateAction.tsx` | GAP | Create (M26-S31) |
 | `features/billing/components/SubscriptionBanner.tsx`, `SubscriptionBannerProvider.tsx` | GAP | Create (M26-S32); mount point chosen at story discovery |
 | `features/billing/components/FeatureGate.tsx`, `LockedFeaturePage.tsx`, `LockedFeatureCard.tsx`, `ManagerSuspendedNotice.tsx` | EXISTS | Created (M25-S29). The locked card ships without "Contratar este recurso", "Ver minha assinatura" and "Falar com a gente": M26 adds them (their targets are M26's pages and config) |
-| `features/billing/components/StaffSuspendedNotice.tsx` | GAP | Create (M25-S31a) |
+| `features/billing/components/StaffSuspendedNotice.tsx` (+ `.spec.tsx`) | EXISTS | Created (M25-S31a) |
 | `features/billing/hooks/useBillingSummary.ts`, `useBillingCharges.ts` | GAP | Create (M26-S27) |
 | `features/billing/hooks/usePayCharge.ts`, `usePaymentConfirmationPolling.ts` | GAP | Create (M26-S28) |
 | `features/billing/hooks/useBillingIdentity.ts`, `useUpdateBillingIdentity.ts` | GAP | Create (M26-S29) |
@@ -337,12 +337,12 @@ New screens: `11-billing-active-annual`, `12-addon-midyear-confirm`, `13-cancel-
 
 # Locked features (UC-125) — screens `03` and `03b`
 
-> Moved as-is from the tenant-billing discovery when the enforcement states were promoted (planned Billing milestone); to be reshaped to the `journeys/README.md` template at story discovery. Common to both: `GET /v1/billing/access -> { status, operational, features: [{ key, tier }] }` (role-reduced for any role, `docs/API_CONTRACTS.md` § Billing — Access Resolution and Suspended-State Effects) is the single input; a feature absent from `features` is locked, and `status` SUSPENDED locks the tenant out identically whatever the reason. Sibling link targets: `01-billing-active.html` (Ver cobrança / Ver minha assinatura) and `08-plan-edit.html` (Contratar este recurso). "Falar com a gente" points to a fictional URL (`https://ikaro.example/ikaro/booking`) and appears on the manager locked screens only.
+> Moved as-is from the tenant-billing discovery when the enforcement states were promoted (Billing milestone; the locked-feature and suspended surfaces are built, M25-S29/S31a); to be reshaped to the `journeys/README.md` template when the manager billing page is built (M26). Common to both: `GET /v1/billing/access` is role-reduced (`packages/types/src/billing.dto.ts`): MANAGER `{ status, operational, features: [{ key, tier }] }`, STAFF `{ operational, features }` (no `status`), CUSTOMER `{ operational, features }` with `features` limited to `BOOKING` and `LOYALTY` (`CUSTOMER_FEATURE_KEYS`) ( `docs/API_CONTRACTS.md` § Billing — Access Resolution and Suspended-State Effects) is the single input; a feature absent from `features` is locked, and `operational === false` (a manager sees `status` SUSPENDED) locks the tenant out identically whatever the reason. Sibling link targets: `01-billing-active.html` (Ver cobrança / Ver minha assinatura) and `08-plan-edit.html` (Contratar este recurso). "Falar com a gente" points to a fictional URL (`https://ikaro.example/ikaro/booking`) and appears on the manager locked screens only.
 
 ## Locked feature — Configurações, seção de recurso não contratado (`03-locked-feature.html` draws the Chatbot case; `SettingsForm` sections + `FeatureGate` locked state)
 
 File: `03-locked-feature.html` — Status: EXISTS (M25-S29): `SettingsForm` swaps a section for the locked card (`LockedFeatureCard`, passed in by the settings page) when the section's feature is not held; the prototype draws the Chatbot case, and M25-S31a applies the same swap to the Booking (`BOOKING`), Loyalty (`LOYALTY`) and Contact form (`LEAD_FORM`) sections through one registry, `SETTINGS_SECTION_FEATURE`, and the sidebar, bottom nav and "Mais" sheet draw the padlock (`NavLockMark`). Built **without** the "Contratar este recurso", "Ver minha assinatura" and "Falar com a gente" actions: M26 adds them.
-Props: `feature: 'CHATBOT'` here (any of `'BOOKING'|'LOYALTY'|'LEAD_FORM'|'CHATBOT'` for a locked settings section), `tier?: 'BASIC'|'PLUS'` (copy mentions tiers), `lockedFeatures: FeatureKey[]` on sidebar/bottom nav.
+Props (`LockedFeatureCard.tsx`): `feature: FeatureKey` (`'CHATBOT'` here; any of `'BOOKING'|'LOYALTY'|'LEAD_FORM'|'CHATBOT'` for a locked settings section, and the hotsite modules on `app/dashboard/hotsite/page.tsx`, which also render it with `variant="section"`) and `variant: 'page'|'section'`. The card carries no tier and no buy action in M25. The sidebar, bottom nav and "Mais" sheet receive `lockedFeatures: readonly FeatureKey[]` from the shell context (`loadDashboardShellContext`) and draw `NavLockMark` on each locked entry.
 BFF: `GET /v1/billing/access`. No settings write while locked: a save leaves a locked section's keys (`booking`, `loyalty`, `leadForm`, `chatbot`) out, and the stored values are kept untouched.
 Behaviour: locked sidebar / bottom-nav entries keep their real href and show a padlock (never hidden); the Fidelidade entry here points to `03b-locked-feature-direct-url.html`. A locked section's form fields are not rendered; the other sections stay editable.
 States: loaded-locked (this file); loading = existing skeleton of the page; load-error = existing `FeedbackMessage` with retry; entitled = existing Chatbot section (journeys 01d).
@@ -351,7 +351,7 @@ Mobile: padlock on the tab icon; card stacks icon above text; "Mais" sheet uncha
 
 ## Locked feature — recurso bloqueado por URL direta (`03b-locked-feature-direct-url.html`; `LockedFeaturePage`)
 
-File: `03b-locked-feature-direct-url.html` — Status: EXISTS (M25-S29): `FeatureGate` renders `LockedFeaturePage` instead of `{children}` in each section layout, on the server. Built **without** the buy actions (M26 adds them).
+File: `03b-locked-feature-direct-url.html` — Status: EXISTS (M25-S29): `FeatureGate` renders `LockedFeaturePage` instead of `{children}`, on the server; it is mounted in the dashboard shells (`DashboardLayoutShell.tsx` and `DashboardSectionShell.tsx`, using `shell.routeFeature`), which the section layouts delegate to. Built **without** the buy actions (M26 adds them).
 Props: `feature: FeatureKey`. Rendered by the route guard of each feature route (HTTP 200 with the upsell, not 404 or redirect); API calls for the feature are rejected by the backend (`BILLING_FEATURE_NOT_ENTITLED`, 403, M25-S16).
 BFF: `GET /v1/billing/access`.
 States: loaded-locked (this file); loading / load-error as for any dashboard route.

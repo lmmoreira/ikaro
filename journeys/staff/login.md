@@ -2,7 +2,7 @@
 
 **Actor(s):** STAFF | MANAGER  
 **Goal:** Staff member authenticates with Google OAuth and lands on the dashboard booking queue; an invited staff member links their Google account on the first login  
-**UCs covered:** UC-022, UC-025; planned Billing extension: UC-121  
+**UCs covered:** UC-022, UC-025; Billing extension: UC-121 (built, M25-S29/S31a)  
 **Status:** Shipped (M13-S13)
 
 ## Flow
@@ -79,9 +79,9 @@ Folder: `staff/prototypes/login/`
 | `01h-error-tenant-not-found.html` | Auth error — reason=tenant-not-found | UC-022 | M13-S13 | ✅ Criado |
 | `dev-notes.md` | Implementation handoff | — | M13-S13 | ✅ Criado |
 
-## Billing — tenant suspended (planned, UC-121)
+## Billing — tenant suspended (UC-121, built in M25-S31a)
 
-> Added for the planned Billing milestone (`docs/USE_CASES.md` UC-121). The shipped login flow above is unchanged. **Status: built** (M25-S29: the manager notice, the redirect helper and the `/dashboard/suspended` route; M25-S31a: the staff notice, the role branch and the "Suspensa" badge). The screens were drawn during the tenant-billing discovery (`docs/discovery/tenant-billing/`) and moved here; login itself is never blocked while a tenant is `SUSPENDED`.
+> Added for the Billing milestone (`docs/USE_CASES.md` UC-121). The shipped login flow above is unchanged. **Status: built** (M25-S29: the manager notice, the redirect helper and the `/dashboard/suspended` route; M25-S31a: the staff notice, the role branch and the "Suspensa" badge). The screens were drawn during the tenant-billing discovery (`docs/discovery/tenant-billing/`) and moved here; login itself is never blocked while a tenant is `SUSPENDED`.
 
 ```mermaid
 flowchart TD

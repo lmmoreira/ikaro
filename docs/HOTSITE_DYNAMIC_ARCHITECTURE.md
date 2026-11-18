@@ -1,6 +1,6 @@
 # Hotsite Dynamic Architecture - Ikaro
 
-> **When to load:** building or changing the tenant hotsite: the server-driven manifest, branding and design tokens, the module library and its data contracts, Next.js routing and SSR, manifest caching, adding a module and SEO; the authenticated dashboard is in `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, endpoints in `docs/API_CONTRACTS.md`; it also covers the planned Billing surfaces: the `TRIAL_SIGNUP_CTA` module, the public `/ikaro-trial` pages and the suspended-tenant "Unavailable" hotsite variant.
+> **When to load:** building or changing the tenant hotsite: the server-driven manifest, branding and design tokens, the module library and its data contracts, Next.js routing and SSR, manifest caching, adding a module and SEO; the authenticated dashboard is in `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, endpoints in `docs/API_CONTRACTS.md`; it also covers the Billing surfaces: the planned `TRIAL_SIGNUP_CTA` module and public `/ikaro-trial` pages, and the built suspended-tenant "Unavailable" hotsite variant.
 > **Tags:** web, bff, prototypes
 
 ## Overview
@@ -512,7 +512,7 @@ interface LeadFormModuleData {
 
 **Placement:** `LEAD_FORM` is a normal entry in the `layout` array, reordered by the admin like every other module — not a special-cased widget.
 
-**Disabled-module handling at the dedicated page:** unlike `CHATBOT` (whose availability is always live/uncached), `/[slug]/lead-form` checks the manifest's `layout` array directly for a `LEAD_FORM` module with `enabled: true` and renders the same neutral unavailable page as an unpublished hotsite (`<UnavailablePage />`, § Unpublished state) when absent/disabled. This is genuinely new logic added by this module — no prior hotsite module had a dedicated page that checked its own `enabled` flag this way (`/[slug]/booking` only checks `manifest.isPublished`, never `BOOKING_CTA.enabled`).
+**Disabled-module handling at the dedicated page:** unlike `CHATBOT` (whose availability is always live/uncached), `/[slug]/lead-form` checks the manifest's `layout` array directly for a `LEAD_FORM` module with `enabled: true` and renders the same neutral unavailable page as an unpublished hotsite (`<UnavailablePage />`, § Unpublished state) when absent/disabled. This is genuinely new logic added by this module — no prior hotsite module had a dedicated page that checked its own `enabled` flag this way (`/[slug]/booking` checks `isHotsitePageAvailable(manifest, 'booking')` (`apps/web/features/platform/hotsite/feature-availability.ts`: the hotsite is published and the tenant has the `BOOKING` feature), never `BOOKING_CTA.enabled`).
 
 Canonical rationale, domain model, and behavior: `docs/DOMAIN_MODEL.md` § `LeadFormConfig`/`LeadFormSubmission`, `docs/USE_CASES.md` UC-037–UC-043, and `docs/API_CONTRACTS.md` § Lead Form.
 
@@ -964,7 +964,7 @@ Open Graph's `images` comes from `seo.ogImageUrl` (M18-S03) — a dedicated, aut
 ### Sitemap & robots
 
 - `app/sitemap.ts` calls `fetchPublishedHotsiteSlugs()` (`apps/web/features/platform/api.server.ts`) and emits one entry per published tenant: `{ url: ${SITE_URL}/${slug}, lastModified: updatedAt }`, plus (TD56-S03) one `${SITE_URL}/${slug}/servicos/${publicSlug}` entry per active service whose public page is published — read from the same cached `fetchServices(slug)` the hotsite uses (web-side orchestration, no cross-tenant endpoint), ten tenants at a time. A tenant whose service list cannot be read is skipped (its home entry stays) so one failing tenant never breaks `/sitemap.xml`.
-- *(UC-122: the sitemap list comes from `published-hotsites`, which has an operational filter since M25-S25 — a suspended tenant drops out. Planned: the `robots` meta / `noindex` in each page's `generateMetadata` follow the effective `isPublished`; `app/robots.ts` itself is static and does not change.)*
+- *(UC-122: the sitemap list comes from `published-hotsites`, which has an operational filter since M25-S25 — a suspended tenant drops out. Built: the `robots` meta / `noindex` in each page's `generateMetadata` follow the effective `isPublished` (`buildHotsiteMetadata` in `apps/web/features/platform/hotsite/seo.ts`); `app/robots.ts` itself is static and does not change.)*
 - `app/robots.ts` allows `/`, disallows `/dashboard` and `/auth`, and references `${SITE_URL}/sitemap.xml`
 
 ### Published hotsites listing endpoint

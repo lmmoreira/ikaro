@@ -15,9 +15,9 @@ flowchart TD
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
     Visit(["Visitor opens a public hotsite route<br/>/{slug}, /booking, /booking/availability-alert,<br/>/lead-form, /servicos/{serviceSlug}"]) --> Manifest{"manifest.isPublished<br/>(effective: manager flag AND tenant operational)"}
-    Manifest -- "true" --> Module{"lead-form module enabled?<br/>(only /lead-form asks)"}
+    Manifest -- "true" --> Module{"lead-form module enabled? (only /lead-form asks)<br/>BOOKING feature held? (only /booking, /booking/availability-alert, /servicos/{serviceSlug} ask)"}
     Module -- "yes, or another route" --> Site["✅ Normal hotsite / page"]
-    Module -- "no (UC-039 A6)" --> Unavailable
+    Module -- "no (UC-039 A6, or no BOOKING feature)" --> Unavailable
     Manifest -- "false<br/>(unpublished, never published, or tenant suspended)" --> Unavailable["✅ UnavailablePage — 'Página indisponível'<br/>+ top bar (01-page-not-published)"]
     Unavailable --> Team(("Área da Equipe")) --> StaffLogin["✅ /dashboard/login?tenantSlug=…<br/>(staff/login.md)"]
     Unavailable --> Customer(("Entrar")) --> CustLogin["✅ /{slug}/login<br/>(customer/login.md)"]

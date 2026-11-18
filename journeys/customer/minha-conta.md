@@ -2,7 +2,7 @@
 
 **Actor(s):** CUSTOMER  
 **Goal:** Logged-in customer views their booking history, checks loyalty balance, and cancels eligible bookings — all scoped to the current tenant  
-**UCs covered:** UC-121 (planned Billing extension, appended section), UC-006, UC-007, UC-016 (balance summary + full breakdown), UC-023 (trigger), UC-005 A2 (authenticated customer path) — all ✅ Done · UC-069 (✅ Done — M23 Cluster 3, customer reschedule, `M23-S30`) · UC-070 (✅ Done — M23 Cluster 3: management `M23-S12`, creation `M23-S17`, renewal of an ended schedule `M23-S22`; services with no resource requirement or only the default location can recur from `TD49-S03`, and a staff + room bundle from `TD49` Stories 0 to 2; the "Renovar" on a schedule about to end shipped in `M23-S41`, behind `M23-S21`'s `renewable` flag) · UC-076 (✅ Done — M23 Cluster 3, availability alerts: list, detail and cancel `M23-S43`, creation `M23-S31`) · UC-089, UC-091, UC-094, UC-095, UC-102 (❓ Gap — M24 Cluster 4, class-session enrollment management)
+**UCs covered:** UC-121 (Billing extension, built in M25-S31a, appended section), UC-006, UC-007, UC-016 (balance summary + full breakdown), UC-023 (trigger), UC-005 A2 (authenticated customer path) — all ✅ Done · UC-069 (✅ Done — M23 Cluster 3, customer reschedule, `M23-S30`) · UC-070 (✅ Done — M23 Cluster 3: management `M23-S12`, creation `M23-S17`, renewal of an ended schedule `M23-S22`; services with no resource requirement or only the default location can recur from `TD49-S03`, and a staff + room bundle from `TD49` Stories 0 to 2; the "Renovar" on a schedule about to end shipped in `M23-S41`, behind `M23-S21`'s `renewable` flag) · UC-076 (✅ Done — M23 Cluster 3, availability alerts: list, detail and cancel `M23-S43`, creation `M23-S31`) · UC-089, UC-091, UC-094, UC-095, UC-102 (❓ Gap — M24 Cluster 4, class-session enrollment management)
 **Status:** Base flow implemented via `M13-S27`–`M13-S30` (all ✅ Done). M23 Cluster 3 is built (reschedule `M23-S30`, recurring reservations `M23-S12`/`S17`/`S22`, alert creation `M23-S31` in the booking flow; the alerts management pages `M23-S43` and the Início tiles and "Renovar" card `M23-S41` are too); only the M24 Cluster 4 extension (Turmas) is not built, see its ❓ GAP section in `dev-notes.md`.
 
 ## Flow
@@ -78,6 +78,8 @@ flowchart TD
 | `GET /v1/bookings/:id` | Detail page load | CUSTOMER (ownership enforced) |
 | `PATCH /v1/bookings/:id/cancel` | Customer confirms cancel — BFF routes to `/cancel-customer` | CUSTOMER |
 | `PATCH /v1/bookings/:id/submit-info` | Customer submits info on INFO_REQUESTED booking (UC-005 A2) | CUSTOMER |
+| `GET /v1/billing/access` | Suspended-tenant behaviour (UC-121); `apps/bff/src/features/billing/billing.controller.ts`, no `@Roles`, so it answers for a suspended tenant. A CUSTOMER response is `{ operational, features }` with `features` limited to `BOOKING` and `LOYALTY` (`billing.mapper.ts`) | any authenticated role |
+| `GET /customers/tenants` | Tenant switcher (UC-023); `customers.controller.ts`, returns `TenantOption[]`, each with the per-tenant `operational` flag (the "Empresa inativa" marker) | CUSTOMER (`@Roles('CUSTOMER')`) |
 
 ## Section logic (UC-006 step 1)
 
@@ -203,7 +205,7 @@ flowchart TD
 
 ## Billing — tenant suspended (UC-121, built in M25-S31a)
 
-> Added for the planned Billing milestone (`docs/USE_CASES.md` UC-121). The shipped flows above are unchanged; this describes how the same account pages behave while the tenant is `SUSPENDED`. **Status: built (M25-S31a).** The screens were drawn during the tenant-billing discovery and moved here as `16`, `16b` and `16c` (`14` and `15` were taken by the recurring-reservation and reschedule screens), then redrawn at M25-S31a as `16`, `16b`, `16f`, `16g` and `05b` (`16c` was dropped).
+> Added for the Billing milestone (`docs/USE_CASES.md` UC-121). The shipped flows above are unchanged; this describes how the same account pages behave while the tenant is `SUSPENDED`. **Status: built (M25-S31a).** The screens were drawn during the tenant-billing discovery and moved here as `16`, `16b` and `16c` (`14` and `15` were taken by the recurring-reservation and reschedule screens), then redrawn at M25-S31a as `16`, `16b`, `16f`, `16g` and `05b` (`16c` was dropped).
 
 ```mermaid
 flowchart TD

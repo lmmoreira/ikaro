@@ -1,6 +1,6 @@
 # Testing Strategy - Ikaro
 
-> **When to load:** writing or reviewing tests: the pyramid, domain, application, integration, contract and E2E layers, test data builders, the mandatory tenant-isolation and integration-app-helper patterns, concurrency tests, apps/web testing infrastructure (Vitest, axe, per-component coverage), parallelism and CI quality gates; rules learned from failures are in `docs/ENGINEERING_RULES_TESTING.md`, CI failure causes in `docs/CI_TRAPS.md`; the planned Billing provider strategy (fake, sandbox, contract suite, injectable clock) is in § Testing the billing provider.
+> **When to load:** writing or reviewing tests: the pyramid, domain, application, integration, contract and E2E layers, test data builders, the mandatory tenant-isolation and integration-app-helper patterns, concurrency tests, apps/web testing infrastructure (Vitest, axe, per-component coverage), parallelism and CI quality gates; rules learned from failures are in `docs/ENGINEERING_RULES_TESTING.md`, CI failure causes in `docs/CI_TRAPS.md`; the partly built Billing provider strategy (fake, sandbox, contract suite, injectable clock) is in § Testing the billing provider.
 > **Tags:** testing
 
 ## Philosophy

@@ -1229,7 +1229,7 @@ High-deliverability free tier (3k–10k emails/month) suitable at MVP scale; sta
 
 ## 10. PAYMENT PROVIDERS: Asaas (BRL) + Stripe (USD) behind one port *(planned, Billing milestone)*
 
-**Added 2026-10-29** (promoted from the tenant-billing discovery; nothing under `contexts/billing` exists yet).
+**Added 2026-10-29** (promoted from the tenant-billing discovery; at that date nothing under `contexts/billing` existed. Today the `BillingProviderPort`, the fake adapter and the contract suite (M25-S14), the aggregates and the operator routes are built; the Asaas and Stripe adapters are planned, M26).
 
 ### Decision
 Ikaro charges its tenants through **Asaas for BRL** (the first adapter, Brazil) and **Stripe for USD** (the same milestone sequence, released only after its real account and sandbox flow is verified), both behind one `BillingProviderPort` defined in Ikaro's terms — never a provider type beyond the adapter. **The provider owns the money** (charging, retries, hosted payment pages, receipts, refunds, chargebacks): Ikaro never stores card data and never renders a card form; it keeps only the status it needs, mirrored from the provider by webhook plus a reconcile job.

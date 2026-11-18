@@ -2,7 +2,7 @@
 
 ## Overview
 
-All backend, BFF, and frontend for staff login are shipped (`M13-S13`, ✅ Done). This file now documents the real implementation rather than a pre-build spec — updated 2026-07-31 after a docs audit found this journey's docs/prototype still described it as unbuilt.
+All backend, BFF, and frontend for staff login are shipped (`M13-S13`, ✅ Done); the suspended-tenant notice and the "Suspensa" badge were added later (`M25-S31a`, see the Billing section below). This file now documents the real implementation rather than a pre-build spec — updated 2026-07-31 after a docs audit found this journey's docs/prototype still described it as unbuilt.
 
 ## File map
 
@@ -11,6 +11,9 @@ All backend, BFF, and frontend for staff login are shipped (`M13-S13`, ✅ Done)
 | `apps/web/app/dashboard/login/page.tsx` | ✅ Exists | Two branches: with `?tenantSlug=` (Google button) and without it (message only, no button — see `00b-no-tenant-slug.html`) |
 | `apps/web/app/auth/error/page.tsx` | ✅ Exists | Shared staff + customer, 8 reason codes plus a generic fallback for an unknown or missing `reason` ("Erro de autenticação", CTA "Voltar" → `/`) (see table below) |
 | `apps/web/features/auth/google-oauth.ts` (`buildGoogleOAuthUrl`) | ✅ Exists | Builds `{BFF_URL}/auth/google?tenantSlug={slug}&type=staff` — no `state=__staff__` scheme; that was never built |
+| `apps/web/app/dashboard/suspended/page.tsx` | ✅ Exists | Suspended-tenant page (M25-S29, role branch M25-S31a): STAFF gets `StaffSuspendedNotice`, MANAGER gets `ManagerSuspendedNotice`; a non-suspended tenant is sent back to `/dashboard` |
+| `apps/web/features/billing/components/StaffSuspendedNotice.tsx` | ✅ Exists | The staff notice (M25-S31a), with its `.spec.tsx`; i18n `dashboard.billing.suspended.staff.{title,body,signOut}` in `packages/i18n/locales/{pt-BR,en}/web.json` |
+| `apps/web/features/staff/components/SelectStaffTenantClient.tsx` (route `/select-staff-tenant`, `apps/web/app/select-staff-tenant/`) | ✅ Exists | M25-S31a adds the amber "Suspensa" badge (`auth.selectTenantSuspendedBadge`) when `operational === false` |
 
 ## Screen: `/dashboard/login` (`StaffLoginPage`)
 
@@ -78,9 +81,9 @@ UC-022 / UC-025 — one path (handleStaffLogin):
 
 ---
 
-# Billing — tenant suspended (planned, UC-121)
+# Billing — tenant suspended (UC-121, built in M25-S31a)
 
-> Moved as-is from the tenant-billing discovery; Draft, to be reshaped at story discovery. Both screens read `GET /v1/billing/access -> { status, operational, features: [{ key, tier }] }` (role-reduced for any role, `docs/API_CONTRACTS.md` § Billing — Access Resolution and Suspended-State Effects) is the single input; a feature absent from `features` is locked, and `status` SUSPENDED locks the tenant out identically whatever the reason.
+> Moved from the tenant-billing discovery and built in M25-S29/S31a. Both screens read `GET /v1/billing/access`, which is role-reduced (`packages/types/src/billing.dto.ts`, `docs/API_CONTRACTS.md` § Billing — Access Resolution and Suspended-State Effects): a STAFF response is `{ operational, features }` with no `status` (a MANAGER response also carries `status`). A feature absent from `features` is locked, and `operational === false` locks the tenant out identically whatever the reason.
 
 ## Suspended-account notice — staff (`02-suspended-notice.html`; `StaffSuspendedNotice`)
 
@@ -100,7 +103,7 @@ Mobile: card is already full-width up to 26rem.
 **BFF call:** `GET /auth/staff-tenants` (existing) already returns a per-tenant `operational` flag (false while the tenant is suspended; built in M25-S26). `POST /auth/switch-staff-tenant { staffId }` is unchanged and does not reject a suspended tenant.
 **Behaviour:** the suspended tenant is always listed and selectable; when `operational === false`, render an extra amber badge "Suspensa" before the role badge. Selecting it switches the session and `/dashboard` renders the suspended notice (`02-suspended-notice.html`). Only the badge: no reason, no payment info for staff.
 **States:** populated (this file); load error reuses the existing `selectTenantError` / `selectTenantRetry`. No new loading/validation states.
-**i18n:** new key `auth.selectTenantSuspendedBadge` = "Suspensa" (pt-BR), "Suspended" (en).
+**i18n:** key `auth.selectTenantSuspendedBadge` = "Suspensa" (pt-BR), "Suspended" (en).
 **Mobile:** card is `max-w-md`, badges stay on the right and wrap-free (`flex-shrink: 0`).
 
 **Customers:** the login-time customer tenant selector (UC-021 Case B) is descoped (customers sign in per tenant slug), but a customer tenant switcher exists: `app/switch-tenant/page.tsx` + `SwitchTenantClient` + BFF `GET /customers/tenants`. M25-S26 adds a per-tenant `operational` to that list and M25-S31a marks a suspended tenant "Empresa inativa" — same keep-listed-and-selectable rule as staff (see `journeys/customer/prototypes/minha-conta/dev-notes.md`).

@@ -136,7 +136,7 @@ Each entry: what is locked, who takes it, the business case, why this primitive,
 - **Level:** its own, first in the Loyalty transaction (§2).
 - **Precedent:** TD60-S00.
 
-### Billing locks (B-R1 built by M25-S08, B-A1 by M25-S09; B-P1 and B-Q1 still planned — documented ahead of the code)
+### Billing locks (B-R1 built by M25-S08, B-A1 by M25-S09; B-Q1's index built by M25-S03, its purge job still planned; B-P1 still planned — documented ahead of the code)
 
 The Billing context (`docs/BOUNDED_CONTEXTS.md` § 7) adds three locks (B-A1, B-R1, B-P1) and one unique constraint (B-Q1). They live in the `billing` schema and **never combine with L0–L6 in one transaction** (Billing never opens a Booking transaction), so they form their own small ladder: B-A1 (advisory) is taken before any row exists and in its own transaction; inside a subscription transaction the order is B-R1 → charge rows. B-R1 (M25-S08, the `findByTenantIdForUpdate` port method) and B-A1 (M25-S09, the `lockSignupRegistration` port method) are implemented; until the code for the others lands this section is their design, and the `lock-catalog-coverage` check enforces a name once its port method exists.
 
