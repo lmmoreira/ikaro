@@ -115,6 +115,42 @@ run "rejects_a_path_beneath_the_proxy_binary" {
   ]
 }
 
+run "rejects_the_proxy_temporary_download_path" {
+  command = plan
+
+  variables {
+    additional_scripts = { "cloud-sql-proxy.download" = "echo x" }
+  }
+
+  expect_failures = [
+    var.additional_scripts,
+  ]
+}
+
+run "rejects_a_path_beneath_the_proxy_temporary_download_path" {
+  command = plan
+
+  variables {
+    additional_scripts = { "cloud-sql-proxy.download/x" = "echo x" }
+  }
+
+  expect_failures = [
+    var.additional_scripts,
+  ]
+}
+
+run "rejects_a_path_that_only_starts_with_the_proxy_name" {
+  command = plan
+
+  variables {
+    additional_scripts = { "cloud-sql-proxy-helper.sh" = "echo x" }
+  }
+
+  expect_failures = [
+    var.additional_scripts,
+  ]
+}
+
 run "rejects_a_path_with_an_empty_component" {
   command = plan
 
