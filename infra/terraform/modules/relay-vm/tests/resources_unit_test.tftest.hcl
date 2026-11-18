@@ -68,8 +68,106 @@ run "create_true_plans_exactly_one_instance_with_no_external_ip" {
   }
 
   assert {
-    condition     = strcontains(google_compute_instance.relay[0].metadata_startup_script, "echo provision") && strcontains(local.startup_script, "User=cloud-sql-proxy") && strcontains(local.startup_script, "NoNewPrivileges=true") && strcontains(local.startup_script, "ProtectSystem=full") && strcontains(local.startup_script, "/usr/local/bin/provision-tenant.sh") && strcontains(local.startup_script, "echo provision")
-    error_message = "Cloud SQL Auth Proxy must run as an unprivileged system user with systemd hardening."
+    condition     = strcontains(google_compute_instance.relay[0].metadata_startup_script, base64encode(var.tenant_provision_script)) && strcontains(local.startup_script, "User=cloud-sql-proxy") && strcontains(local.startup_script, "NoNewPrivileges=true") && strcontains(local.startup_script, "ProtectSystem=full") && strcontains(local.startup_script, "\"/usr/local/bin/provision-tenant.sh\"")
+    error_message = "Cloud SQL Auth Proxy must run as an unprivileged system user with systemd hardening, and the VM must receive provision-tenant.sh."
+  }
+}
+
+# M25-S32 regression guard (found live): the startup script used to be an indented
+# `<<-` heredoc whose terminators stayed indented, so bash never ended the unit's
+# here-document and the rest of the script was written into the unit file.
+run "startup_script_here_document_terminators_are_at_column_zero" {
+  command = plan
+
+  assert {
+    condition     = startswith(local.startup_script, "#!/usr/bin/env bash\n") && strcontains(local.startup_script, "\nUNIT\n") && !strcontains(local.startup_script, " UNIT\n") && length(regexall("\n[ \t]+UNIT\n", local.startup_script)) == 0
+    error_message = "The systemd unit here-document must end with a terminator at column 0, or bash swallows the rest of the startup script."
+  }
+}
+
+# Found live on a second boot: a hard reset right after the first boot's download left a
+# truncated, still-executable proxy binary, which an executable-bit guard accepted.
+run "proxy_binary_is_trusted_only_when_its_checksum_matches" {
+  command = plan
+
+  assert {
+    condition     = !strcontains(local.startup_script, "[ ! -x /usr/local/bin/cloud-sql-proxy ]")
+    error_message = "An existing executable file must not count as an installed proxy: it can be truncated."
+  }
+
+  assert {
+    condition     = strcontains(local.startup_script, "if ! echo \"cd689d582b826fa5bc82c01ccc14e45a58200c3cefbf923ce96c422825e4e6f6  /usr/local/bin/cloud-sql-proxy\" | sha256sum -c -")
+    error_message = "The installed proxy must be re-checked against its pinned sha256 on every boot."
+  }
+
+  assert {
+    condition     = strcontains(local.startup_script, "-o /usr/local/bin/cloud-sql-proxy.download") && strcontains(local.startup_script, "mv -f /usr/local/bin/cloud-sql-proxy.download /usr/local/bin/cloud-sql-proxy") && strcontains(local.startup_script, "cloud-sql-proxy.download\" | sha256sum -c -")
+    error_message = "The proxy must be downloaded to a temporary name, verified, and only then moved into place."
+  }
+}
+
+run "startup_script_installs_every_operator_script_before_starting_the_proxy" {
+  command = plan
+
+  variables {
+    additional_scripts = {
+      "billing-operator.sh" = "#!/usr/bin/env bash\necho operator"
+      "lib/relay-auth.sh"   = "echo lib"
+    }
+  }
+
+  # Each payload is pinned to its own destination, so two scripts swapped between paths fail.
+  assert {
+    condition = alltrue([
+      strcontains(local.startup_script, "printf '%s' '${base64encode(var.tenant_provision_script)}' | base64 -d > \"/usr/local/bin/provision-tenant.sh\""),
+      strcontains(local.startup_script, "printf '%s' '${base64encode("#!/usr/bin/env bash\necho operator")}' | base64 -d > \"/usr/local/bin/billing-operator.sh\""),
+      strcontains(local.startup_script, "printf '%s' '${base64encode("echo lib")}' | base64 -d > \"/usr/local/bin/lib/relay-auth.sh\""),
+    ])
+    error_message = "provision-tenant.sh, billing-operator.sh and lib/relay-auth.sh must each be installed from their own payload at their own path under /usr/local/bin."
+  }
+
+  # The proxy start must exist, and all three installs must come before it.
+  assert {
+    condition     = length(split("systemctl enable --now cloud-sql-proxy.service", local.startup_script)) == 2 && length(regexall("base64 -d", split("systemctl enable --now cloud-sql-proxy.service", local.startup_script)[0])) == 3
+    error_message = "The scripts must be installed before the proxy is started, so a proxy failure can never leave the VM without them."
+  }
+}
+
+run "script_content_that_looks_like_a_terminator_cannot_corrupt_the_startup_script" {
+  command = plan
+
+  variables {
+    additional_scripts = {
+      "tricky.sh" = "echo start\nUNIT\nSCRIPT\nEOT\necho end"
+    }
+  }
+
+  assert {
+    condition     = length(regexall("\nUNIT\n", local.startup_script)) == 1 && !strcontains(local.startup_script, "echo start")
+    error_message = "Installed from base64, a script's own lines can never act as a here-document terminator in the startup script."
+  }
+
+  assert {
+    condition     = strcontains(local.startup_script, "printf '%s' '${base64encode("echo start\nUNIT\nSCRIPT\nEOT\necho end")}' | base64 -d > \"/usr/local/bin/tricky.sh\"")
+    error_message = "The script is still installed, decoded from its base64 payload, at its own path."
+  }
+}
+
+run "proxy_is_not_started_without_a_database_connection_name" {
+  command = plan
+
+  variables {
+    db_instance_connection_name = ""
+  }
+
+  assert {
+    condition     = !strcontains(local.startup_script, "systemctl enable --now") && strcontains(local.startup_script, "not started: no db_instance_connection_name")
+    error_message = "With no db_instance_connection_name the proxy unit is installed but not started, and the scripts are still installed."
+  }
+
+  assert {
+    condition     = strcontains(local.startup_script, base64encode(var.tenant_provision_script))
+    error_message = "The scripts must be installed even when the proxy is not started."
   }
 }
 

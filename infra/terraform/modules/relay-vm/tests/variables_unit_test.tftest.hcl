@@ -46,6 +46,184 @@ run "rejects_invalid_environment" {
   ]
 }
 
+run "additional_scripts_defaults_to_none" {
+  command = plan
+
+  assert {
+    condition     = length(var.additional_scripts) == 0
+    error_message = "additional_scripts must default to an empty map, so a caller that passes none keeps working."
+  }
+}
+
+run "rejects_an_absolute_additional_script_path" {
+  command = plan
+
+  variables {
+    additional_scripts = { "/etc/cron.d/evil" = "echo x" }
+  }
+
+  expect_failures = [
+    var.additional_scripts,
+  ]
+}
+
+run "rejects_a_parent_directory_additional_script_path" {
+  command = plan
+
+  variables {
+    additional_scripts = { "lib/../../etc/passwd" = "echo x" }
+  }
+
+  expect_failures = [
+    var.additional_scripts,
+  ]
+}
+
+run "rejects_an_additional_script_that_collides_with_provision_tenant" {
+  command = plan
+
+  variables {
+    additional_scripts = { "provision-tenant.sh" = "echo x" }
+  }
+
+  expect_failures = [
+    var.additional_scripts,
+  ]
+}
+
+run "rejects_the_proxy_binary_path" {
+  command = plan
+
+  variables {
+    additional_scripts = { "cloud-sql-proxy" = "echo x" }
+  }
+
+  expect_failures = [
+    var.additional_scripts,
+  ]
+}
+
+run "rejects_a_path_beneath_the_proxy_binary" {
+  command = plan
+
+  variables {
+    additional_scripts = { "cloud-sql-proxy/x" = "echo x" }
+  }
+
+  expect_failures = [
+    var.additional_scripts,
+  ]
+}
+
+run "rejects_the_proxy_temporary_download_path" {
+  command = plan
+
+  variables {
+    additional_scripts = { "cloud-sql-proxy.download" = "echo x" }
+  }
+
+  expect_failures = [
+    var.additional_scripts,
+  ]
+}
+
+run "rejects_a_path_beneath_the_proxy_temporary_download_path" {
+  command = plan
+
+  variables {
+    additional_scripts = { "cloud-sql-proxy.download/x" = "echo x" }
+  }
+
+  expect_failures = [
+    var.additional_scripts,
+  ]
+}
+
+run "rejects_a_path_that_only_starts_with_the_proxy_name" {
+  command = plan
+
+  variables {
+    additional_scripts = { "cloud-sql-proxy-helper.sh" = "echo x" }
+  }
+
+  expect_failures = [
+    var.additional_scripts,
+  ]
+}
+
+run "rejects_a_path_with_an_empty_component" {
+  command = plan
+
+  variables {
+    additional_scripts = { "lib//relay-auth.sh" = "echo x" }
+  }
+
+  expect_failures = [
+    var.additional_scripts,
+  ]
+}
+
+run "rejects_a_path_with_a_dot_component" {
+  command = plan
+
+  variables {
+    additional_scripts = { "lib/./x.sh" = "echo x" }
+  }
+
+  expect_failures = [
+    var.additional_scripts,
+  ]
+}
+
+run "rejects_a_path_with_a_trailing_slash" {
+  command = plan
+
+  variables {
+    additional_scripts = { "lib/" = "echo x" }
+  }
+
+  expect_failures = [
+    var.additional_scripts,
+  ]
+}
+
+run "rejects_a_path_that_sits_beneath_another_installed_path" {
+  command = plan
+
+  variables {
+    additional_scripts = { "lib" = "echo x", "lib/relay-auth.sh" = "echo y" }
+  }
+
+  expect_failures = [
+    var.additional_scripts,
+  ]
+}
+
+run "accepts_the_documented_operator_script_paths" {
+  command = plan
+
+  variables {
+    additional_scripts = { "billing-operator.sh" = "echo x", "lib/relay-auth.sh" = "echo y" }
+  }
+
+  assert {
+    condition     = length(var.additional_scripts) == 2
+    error_message = "The paths the Foundation roots pass must be valid."
+  }
+}
+
+run "rejects_an_empty_additional_script" {
+  command = plan
+
+  variables {
+    additional_scripts = { "billing-operator.sh" = "  " }
+  }
+
+  expect_failures = [
+    var.additional_scripts,
+  ]
+}
+
 run "rejects_empty_tenant_provision_script" {
   command = plan
 

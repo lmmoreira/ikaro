@@ -74,6 +74,33 @@ variable "tenant_provision_script" {
   }
 }
 
+variable "additional_scripts" {
+  description = "Further operator scripts installed on the relay VM at boot, next to provision-tenant.sh: a map of install path (relative to /usr/local/bin, for example \"billing-operator.sh\" or \"lib/relay-auth.sh\") to the script's contents. Embedded in instance metadata: no secrets."
+  type        = map(string)
+  default     = {}
+
+  validation {
+    condition = alltrue([
+      for path in keys(var.additional_scripts) :
+      can(regex("^[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9][A-Za-z0-9._-]*)*$", path)) && !strcontains(path, "..") && path != "provision-tenant.sh" && !startswith(path, "cloud-sql-proxy")
+    ])
+    error_message = "Every additional_scripts key must be a canonical relative file path under /usr/local/bin: no leading or trailing slash, no empty or '.' component, no '..', not provision-tenant.sh (that is tenant_provision_script), and nothing that starts with cloud-sql-proxy (the module installs that binary and its temporary download file itself)."
+  }
+
+  validation {
+    condition = alltrue([
+      for installed in concat(["provision-tenant.sh", "cloud-sql-proxy"], keys(var.additional_scripts)) :
+      alltrue([for path in keys(var.additional_scripts) : !startswith(path, "${installed}/")])
+    ])
+    error_message = "An additional_scripts path cannot sit beneath another installed path (a file cannot also be a directory), for example lib together with lib/relay-auth.sh."
+  }
+
+  validation {
+    condition     = alltrue([for content in values(var.additional_scripts) : trimspace(content) != ""])
+    error_message = "Every additional_scripts value must contain the script's contents."
+  }
+}
+
 variable "project_id" {
   description = "GCP project ID the resources are created in"
   type        = string

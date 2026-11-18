@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Rendered by modules/relay-vm/main.tf with templatefile(). Keep this file flush-left:
+# every here-document terminator below must start at column 0, or bash never ends the
+# here-document and swallows the rest of the script (found live, M25-S32: the unit file
+# ate the script, so nothing was installed and the proxy never started).
+
+# The operator scripts come first, so a failure further down (the proxy, its unit) can
+# never again leave the VM without them. Each one is installed from base64: no content
+# can collide with a here-document terminator. The scripts are free of secrets; they only
+# contain runtime discovery and metadata-server / Secret Manager lookups.
+install -d -m 0755 /usr/local/bin
+%{ for path, content_b64 in scripts ~}
+install -d -m 0755 "$(dirname "/usr/local/bin/${path}")"
+printf '%s' '${content_b64}' | base64 -d > "/usr/local/bin/${path}"
+chmod 0755 "/usr/local/bin/${path}"
+%{ endfor ~}
+
+# The proxy binary counts as installed only when its checksum matches, never just because an
+# executable file exists: a download cut short, or a hard reset before the disk flushed it,
+# leaves an executable file that is truncated (found live on a second boot: a 24 MiB file
+# killed by SIGBUS, and the old executable-bit guard accepted it). It is downloaded to a
+# temporary name, verified, and only then moved into place.
+if ! echo "cd689d582b826fa5bc82c01ccc14e45a58200c3cefbf923ce96c422825e4e6f6  /usr/local/bin/cloud-sql-proxy" | sha256sum -c - >/dev/null 2>&1; then
+  curl -fsSL -o /usr/local/bin/cloud-sql-proxy.download \
+    "https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.23.0/cloud-sql-proxy.linux.amd64"
+  echo "cd689d582b826fa5bc82c01ccc14e45a58200c3cefbf923ce96c422825e4e6f6  /usr/local/bin/cloud-sql-proxy.download" | sha256sum -c -
+  chmod +x /usr/local/bin/cloud-sql-proxy.download
+  mv -f /usr/local/bin/cloud-sql-proxy.download /usr/local/bin/cloud-sql-proxy
+  sync
+fi
+
+if ! getent passwd cloud-sql-proxy >/dev/null; then
+  useradd --system --home-dir /nonexistent --shell /usr/sbin/nologin cloud-sql-proxy
+fi
+
+cat > /etc/systemd/system/cloud-sql-proxy.service <<'UNIT'
+[Unit]
+Description=Cloud SQL Auth Proxy (TD32 relay VM)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/cloud-sql-proxy --private-ip --auto-iam-authn --port 5433 ${db_instance_connection_name}
+Restart=on-failure
+RestartSec=5
+User=cloud-sql-proxy
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+CapabilityBoundingSet=
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+systemctl daemon-reload
+
+%{ if db_instance_connection_name != "" ~}
+systemctl enable --now cloud-sql-proxy.service
+%{ else ~}
+echo "cloud-sql-proxy.service installed but not started: no db_instance_connection_name (prod pre-S37 state)." >&2
+%{ endif ~}
