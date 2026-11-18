@@ -2406,7 +2406,7 @@ Build the suspended-experience surfaces (the components; the milestone's **Playw
 
 ---
 
-### M25-S31b — Suspended-experience spanning Playwright E2E (UC-121)
+### M25-S31b — Suspended-experience spanning Playwright E2E (UC-121) ✅ Done
 
 **Agent:** `frontend-ts`
 **Complexity:** L
