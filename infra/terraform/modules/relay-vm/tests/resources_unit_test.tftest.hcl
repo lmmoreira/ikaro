@@ -85,6 +85,27 @@ run "startup_script_here_document_terminators_are_at_column_zero" {
   }
 }
 
+# Found live on a second boot: a hard reset right after the first boot's download left a
+# truncated, still-executable proxy binary, which an executable-bit guard accepted.
+run "proxy_binary_is_trusted_only_when_its_checksum_matches" {
+  command = plan
+
+  assert {
+    condition     = !strcontains(local.startup_script, "[ ! -x /usr/local/bin/cloud-sql-proxy ]")
+    error_message = "An existing executable file must not count as an installed proxy: it can be truncated."
+  }
+
+  assert {
+    condition     = strcontains(local.startup_script, "if ! echo \"cd689d582b826fa5bc82c01ccc14e45a58200c3cefbf923ce96c422825e4e6f6  /usr/local/bin/cloud-sql-proxy\" | sha256sum -c -")
+    error_message = "The installed proxy must be re-checked against its pinned sha256 on every boot."
+  }
+
+  assert {
+    condition     = strcontains(local.startup_script, "-o /usr/local/bin/cloud-sql-proxy.download") && strcontains(local.startup_script, "mv -f /usr/local/bin/cloud-sql-proxy.download /usr/local/bin/cloud-sql-proxy") && strcontains(local.startup_script, "cloud-sql-proxy.download\" | sha256sum -c -")
+    error_message = "The proxy must be downloaded to a temporary name, verified, and only then moved into place."
+  }
+}
+
 run "startup_script_installs_every_operator_script_before_starting_the_proxy" {
   command = plan
 

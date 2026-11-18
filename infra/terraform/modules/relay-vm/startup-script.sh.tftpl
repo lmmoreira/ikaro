@@ -17,11 +17,18 @@ printf '%s' '${content_b64}' | base64 -d > "/usr/local/bin/${path}"
 chmod 0755 "/usr/local/bin/${path}"
 %{ endfor ~}
 
-if [ ! -x /usr/local/bin/cloud-sql-proxy ]; then
-  curl -fsSL -o /usr/local/bin/cloud-sql-proxy \
+# The proxy binary counts as installed only when its checksum matches, never just because an
+# executable file exists: a download cut short, or a hard reset before the disk flushed it,
+# leaves an executable file that is truncated (found live on a second boot: a 24 MiB file
+# killed by SIGBUS, and the old executable-bit guard accepted it). It is downloaded to a
+# temporary name, verified, and only then moved into place.
+if ! echo "cd689d582b826fa5bc82c01ccc14e45a58200c3cefbf923ce96c422825e4e6f6  /usr/local/bin/cloud-sql-proxy" | sha256sum -c - >/dev/null 2>&1; then
+  curl -fsSL -o /usr/local/bin/cloud-sql-proxy.download \
     "https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.23.0/cloud-sql-proxy.linux.amd64"
-  echo "cd689d582b826fa5bc82c01ccc14e45a58200c3cefbf923ce96c422825e4e6f6  /usr/local/bin/cloud-sql-proxy" | sha256sum -c -
-  chmod +x /usr/local/bin/cloud-sql-proxy
+  echo "cd689d582b826fa5bc82c01ccc14e45a58200c3cefbf923ce96c422825e4e6f6  /usr/local/bin/cloud-sql-proxy.download" | sha256sum -c -
+  chmod +x /usr/local/bin/cloud-sql-proxy.download
+  mv -f /usr/local/bin/cloud-sql-proxy.download /usr/local/bin/cloud-sql-proxy
+  sync
 fi
 
 if ! getent passwd cloud-sql-proxy >/dev/null; then
