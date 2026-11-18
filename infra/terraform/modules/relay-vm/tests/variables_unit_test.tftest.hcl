@@ -91,7 +91,7 @@ run "rejects_an_additional_script_that_collides_with_provision_tenant" {
   ]
 }
 
-run "rejects_the_proxy_binary_path_and_anything_beneath_it" {
+run "rejects_the_proxy_binary_path" {
   command = plan
 
   variables {
@@ -103,11 +103,47 @@ run "rejects_the_proxy_binary_path_and_anything_beneath_it" {
   ]
 }
 
-run "rejects_a_path_with_an_empty_dot_or_trailing_component" {
+run "rejects_a_path_beneath_the_proxy_binary" {
   command = plan
 
   variables {
-    additional_scripts = { "lib//relay-auth.sh" = "echo x", "lib/./x.sh" = "echo y", "lib/" = "echo z" }
+    additional_scripts = { "cloud-sql-proxy/x" = "echo x" }
+  }
+
+  expect_failures = [
+    var.additional_scripts,
+  ]
+}
+
+run "rejects_a_path_with_an_empty_component" {
+  command = plan
+
+  variables {
+    additional_scripts = { "lib//relay-auth.sh" = "echo x" }
+  }
+
+  expect_failures = [
+    var.additional_scripts,
+  ]
+}
+
+run "rejects_a_path_with_a_dot_component" {
+  command = plan
+
+  variables {
+    additional_scripts = { "lib/./x.sh" = "echo x" }
+  }
+
+  expect_failures = [
+    var.additional_scripts,
+  ]
+}
+
+run "rejects_a_path_with_a_trailing_slash" {
+  command = plan
+
+  variables {
+    additional_scripts = { "lib/" = "echo x" }
   }
 
   expect_failures = [
