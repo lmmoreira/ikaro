@@ -2,7 +2,6 @@ import { AppLogger } from '../../../../shared/observability/app-logger';
 import { TenantBuilder } from '../../../../test/builders/platform';
 import { InMemoryFrontendRevalidationPort } from '../../../../test/infrastructure/in-memory-frontend-revalidation.port';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
-import { IFrontendRevalidationPort } from '../ports/frontend-revalidation.port';
 import { RevalidateTenantHotsiteUseCase } from './revalidate-tenant-hotsite.use-case';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000001';
@@ -34,28 +33,19 @@ describe('RevalidateTenantHotsiteUseCase', () => {
   });
 
   it('logs the successful revalidation once, after the port call, with the tenant and correlation ids', async () => {
-    const order: string[] = [];
+    const slugsRevalidatedWhenLogged: string[][] = [];
     const logSpy = jest.spyOn(AppLogger.prototype, 'log').mockImplementation(() => {
-      order.push('log');
+      slugsRevalidatedWhenLogged.push([...revalidation.revalidatedSlugs]);
     });
-    const recording: IFrontendRevalidationPort = {
-      revalidate: () => {
-        order.push('revalidate');
-        return Promise.resolve();
-      },
-    };
 
-    await new RevalidateTenantHotsiteUseCase(tenantRepo, recording).execute({
-      tenantId: TENANT_A,
-      correlationId: CORRELATION_ID,
-    });
+    await useCase.execute({ tenantId: TENANT_A, correlationId: CORRELATION_ID });
 
     expect(logSpy).toHaveBeenCalledTimes(1);
     expect(logSpy).toHaveBeenCalledWith('Hotsite revalidated', {
       tenantId: TENANT_A,
       correlationId: CORRELATION_ID,
     });
-    expect(order).toEqual(['revalidate', 'log']);
+    expect(slugsRevalidatedWhenLogged).toEqual([['lava-rapido']]);
   });
 
   it('does not log a success line when the tenant no longer exists', async () => {
@@ -73,14 +63,9 @@ describe('RevalidateTenantHotsiteUseCase', () => {
   it('does not log a success line when the revalidation port rejects', async () => {
     const logSpy = jest.spyOn(AppLogger.prototype, 'log').mockImplementation();
     jest.spyOn(AppLogger.prototype, 'warn').mockImplementation();
-    const failing: IFrontendRevalidationPort = {
-      revalidate: () => Promise.reject(new Error('frontend down')),
-    };
+    revalidation.rejectWith = new Error('frontend down');
 
-    await new RevalidateTenantHotsiteUseCase(tenantRepo, failing).execute({
-      tenantId: TENANT_A,
-      correlationId: CORRELATION_ID,
-    });
+    await useCase.execute({ tenantId: TENANT_A, correlationId: CORRELATION_ID });
 
     expect(logSpy).not.toHaveBeenCalled();
   });
@@ -96,14 +81,9 @@ describe('RevalidateTenantHotsiteUseCase', () => {
   });
 
   it('never throws into the caller when the revalidation port fails', async () => {
-    const failing: IFrontendRevalidationPort = {
-      revalidate: () => Promise.reject(new Error('frontend down')),
-    };
+    revalidation.rejectWith = new Error('frontend down');
 
-    const result = await new RevalidateTenantHotsiteUseCase(tenantRepo, failing).execute({
-      tenantId: TENANT_A,
-      correlationId: CORRELATION_ID,
-    });
+    const result = await useCase.execute({ tenantId: TENANT_A, correlationId: CORRELATION_ID });
 
     expect(result).toEqual({ revalidated: false });
   });
