@@ -49,7 +49,12 @@ export interface SeededBooking {
 }
 
 // The customer books on `customerPage`, then the tenant's manager acts on `managerPage`. `daysAhead`
-// differs per booking so two bookings of one customer never compete for the same slot.
+// differs per booking so two bookings of one customer never compete for the same slot. The start
+// comes from the suite's shared slot helper: one of twelve half hours from 13:00Z to 18:30Z, which
+// is 10:00-15:30 in `America/Sao_Paulo` (the zone `provisionTenant` creates every tenant with), so
+// the booking falls on the same date and weekday in UTC and in the tenant's zone. No date is
+// computed or asserted here, so the "today" divergence in `docs/ENGINEERING_RULES_TESTING.md` does
+// not apply.
 export async function seedBooking(
   customerPage: Page,
   managerPage: Page,
