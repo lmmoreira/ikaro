@@ -18,6 +18,7 @@ export function Unavailable(): React.JSX.Element {
 
   return (
     <main
+      data-testid="hotsite-unavailable"
       className="flex min-h-[calc(100vh-3rem)] flex-col items-center justify-center px-6 text-center"
       style={{ backgroundColor: 'var(--ba-background)', color: 'var(--ba-text)' }}
     >

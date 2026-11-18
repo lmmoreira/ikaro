@@ -14,7 +14,9 @@ const DB_URL =
 // `(tenant_id, id)`, so every statement below filters on both.
 const E2E_TENANT_ID = '00000000-0000-7000-8000-000000000001';
 
-async function withClient<T>(run: (client: Client) => Promise<T>): Promise<T> {
+// Exported for the billing helpers (`helpers/billing/`), which delete a provisioned tenant's
+// feature rows: nothing in the product removes a feature yet.
+export async function withClient<T>(run: (client: Client) => Promise<T>): Promise<T> {
   const client = new Client({ connectionString: DB_URL });
   await client.connect();
   try {

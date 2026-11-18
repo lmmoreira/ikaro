@@ -38,7 +38,9 @@ export function CancelAction({
     ) : null;
   const button = (
     <Button asChild variant="destructive" className="w-full">
-      <Link href={cancelHref}>{isApproved ? t('cancelButton') : t('cancelRequestButton')}</Link>
+      <Link href={cancelHref} data-testid="booking-cancel-link">
+        {isApproved ? t('cancelButton') : t('cancelRequestButton')}
+      </Link>
     </Button>
   );
 
