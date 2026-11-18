@@ -48,6 +48,7 @@ export class RevalidateTenantHotsiteUseCase {
       }
 
       await this.frontendRevalidation.revalidate(tenant.slug.value);
+      this.logger.log('Hotsite revalidated', { tenantId, correlationId });
       return { revalidated: true };
     } catch (err) {
       this.logger.warn('Hotsite revalidation failed; the page refreshes when its ISR window ends', {
