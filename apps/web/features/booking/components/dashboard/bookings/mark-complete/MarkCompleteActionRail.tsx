@@ -28,7 +28,12 @@ export function MarkCompleteActionRail({
       actions={
         <div className="space-y-3">
           <p className="text-sm font-semibold text-gray-900">{t('actionsSection')}</p>
-          <Button type="submit" disabled={isSubmitting} className="w-full">
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full"
+            data-testid="mark-complete-submit"
+          >
             {t('submitComplete')}
           </Button>
           <Button asChild variant="surface" className="w-full">

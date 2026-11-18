@@ -17,5 +17,14 @@ export {
   seedService,
   seedStaffOfBothTenants,
   signInManager,
+  waitForLoyaltyEntry,
 } from './tenant-seed';
 export type { SeededBooking } from './tenant-seed';
+export {
+  accountPath,
+  expectClientSessionKept,
+  expectPageNewMenu,
+  expectTabInBothNavs,
+  markClientSession,
+  visibleByTestId,
+} from './account-ui';

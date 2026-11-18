@@ -2463,15 +2463,21 @@ No product code is written here beyond test helpers and any missing `data-testid
 **New migration / i18n keys / env vars / feature flags:** none in the product; two E2E-runner env vars (`PLATFORM_ADMIN_KEY`, `PLAYWRIGHT_BACKEND_URL`), see Runner environment above.
 
 **Files to create/modify:**
-- `apps/web/e2e/helpers/billing/suspension.ts` (new — operator suspend/unsuspend through the operator route, the feature-removal `DELETE` seeding step, and the polling wait for the cache bound)
-- `apps/web/e2e/helpers/billing/provisioning.ts` (new — the registration + tenant calls with unique slugs, the exempt and trial variants, and the admin dev-login)
+- `apps/web/e2e/helpers/billing/backend.ts` (new — direct calls to the backend's `/internal/*` routes through a Playwright request context; reads `PLATFORM_ADMIN_KEY` and `PLAYWRIGHT_BACKEND_URL` and checks the key when an operator call is made, never at import, because Playwright loads every spec before it runs any and a throw at import would stop the whole run)
+- `apps/web/e2e/helpers/billing/suspension.ts` (new — operator suspend/unsuspend through the operator route and the polling wait on the backend's own answer)
+- `apps/web/e2e/helpers/billing/provisioning.ts` (new — the registration + tenant calls with unique slugs, the exempt and trial variants, and the feature-removal `DELETE`)
+- `apps/web/e2e/helpers/billing/tenant-seed.ts` (new — a service, bookings in each state, a completed booking and its loyalty entry, multi-tenant customers and staff, and a published hotsite with every module enabled)
+- `apps/web/e2e/helpers/billing/account-ui.ts` (new — the client-session marker and the responsive-control and tab-nav checks the account scenarios share)
+- `apps/web/e2e/helpers/billing/feature-pages.ts` (new — the hotsite, account and dashboard page lists, read from the product's own registries and sources)
 - `apps/web/e2e/helpers/billing/index.ts` (new — barrel, per the helper convention)
-- `apps/web/e2e/helpers/auth/shared.ts` (modify — export `PLATFORM_ADMIN_KEY` and `BACKEND_URL`, throwing at import when the key is unset)
+- `apps/web/e2e/helpers/db/e2e-db.ts` (modify — export `withClient` for the feature-removal `DELETE`)
 - `.github/workflows/pr-tests.yml` (modify — the "Run Playwright E2E" step's `env:` gains `PLATFORM_ADMIN_KEY` and `PLAYWRIGHT_BACKEND_URL`)
 - `apps/web/.env.playwright.local` (modify, gitignored and local only — the same two values; not committed)
-- the `data-testid` additions the scenarios need on S31a/S34 components (new attributes only, each named in the PR once the spec shows which are missing)
+- `data-testid` additions, new attributes only: `hotsite-unavailable` on `shells/hotsite/components/Unavailable.tsx`, `booking-cancel-link` on `CancelAction.tsx`, `booking-cancel-confirm` on `CancelConfirmPage.tsx`, `booking-respond-link` on `BookingListItem.tsx`, `mark-complete-submit` on `MarkCompleteActionRail.tsx`
 - `apps/web/e2e/billing-suspended-experience.spec.ts` (new — Test 1)
 - `apps/web/e2e/billing-missing-feature.spec.ts` (new — Test 2 and its four-profile matrix, one test per profile with `test.step`s per actor, so a feature-removal failure cannot leave the suspended scenario half-run; table-driven over the profiles and the shells)
+
+**As built (deviations from the discovery text, found while implementing).** Test 1's second tenant ("stays operational") is a second provisioned tenant, not the seeded `autospa-premium`. The locked-section check compares `tenants.settings` before and after the save and does not restore the feature (a SQL restore does not evict the access cache). A page that holds its feature answers an unknown id with its own not-found, a 404 or a 200 that draws it in the page (`alerts/[id]/cancel` does the latter), so the assertion is "stays on the page, no server error", not a bare 404. The page's own "+ Novo" in the mid-session scenarios is asserted at phone width: on a desktop the control is the topbar's, which belongs to the layout that client navigation keeps. The hotsite rows publish the `beloauto` template with every module enabled whatever the plan (a fresh hotsite has no module, and the stored choice must survive a plan without the feature), and a fresh tenant's public hotsite reads as unavailable until it is published, so the operational second tenant is shown through its manager and its customer. The tab and "+ Novo" locators use hrefs and existing test ids; the five attributes listed above were the only product edits.
 
 **Acceptance criteria — product:**
 - [ ] A suspended tenant's manager, staff and customer each see the surface UC-121 specifies, in a real browser against the real stack, and the same tenant is fully restored on unsuspend with all preferences untouched; for an entitled/exempt tenant nothing looks different.

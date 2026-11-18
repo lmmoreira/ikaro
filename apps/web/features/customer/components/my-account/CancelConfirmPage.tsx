@@ -106,6 +106,7 @@ export function CancelConfirmPage({
       noticeTone="warning"
       asideNote={t('confirmNote')}
       confirmLabel={isSubmitting ? t('confirming') : t('confirmButton')}
+      confirmTestId="booking-cancel-confirm"
       keepLabel={t('backButton')}
       isSubmitting={isSubmitting}
       onConfirm={() => void handleConfirm()}

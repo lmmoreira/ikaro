@@ -90,7 +90,7 @@ export async function completeBooking(managerPage: Page, bookingId: string): Pro
       response.url().endsWith(`/bookings/${bookingId}/complete`) &&
       response.request().method() === 'PATCH',
   );
-  await managerPage.getByRole('button', { name: 'Confirmar conclusão' }).click();
+  await managerPage.getByTestId('action-pane-desktop').getByTestId('mark-complete-submit').click();
   expect((await completed).ok()).toBe(true);
 }
 
@@ -142,4 +142,20 @@ export async function publishHotsiteWithEveryModule(managerPage: Page): Promise<
     ...fixture,
     layout: fixture.layout.map((module) => ({ ...module, enabled: true })),
   }));
+}
+
+// Points are credited by the loyalty handler when it consumes `BookingCompleted`, not by the
+// completion request, and the loyalty page sends a customer with no balance yet back to Início. A
+// scenario that suspends the tenant afterwards waits here, while it is still operational, so the
+// suspended page always has a balance to read.
+export async function waitForLoyaltyEntry(customerPage: Page, slug: string): Promise<void> {
+  await expect
+    .poll(
+      async () => {
+        await customerPage.goto(`/${slug}/my-account/loyalty`);
+        return customerPage.getByTestId('loyalty-entry-row').count();
+      },
+      { timeout: 30_000, message: 'the loyalty entry of the completed booking' },
+    )
+    .toBeGreaterThan(0);
 }

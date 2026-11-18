@@ -75,7 +75,11 @@ export function BookingListItem({ item, tenantSlug }: BookingListItemProps): Rea
             </Link>
           )}
           {item.status === BOOKING_STATUS.INFO_REQUESTED && canRespondToInfoRequest && (
-            <Link href={detailHref} className="font-medium text-blue-600 hover:underline">
+            <Link
+              href={detailHref}
+              className="font-medium text-blue-600 hover:underline"
+              data-testid="booking-respond-link"
+            >
               {t('respond')}
             </Link>
           )}

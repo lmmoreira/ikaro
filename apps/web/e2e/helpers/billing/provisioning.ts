@@ -1,3 +1,4 @@
+import { expect } from '@playwright/test';
 import type { FeatureKey } from '@ikaro/types';
 import { withClient } from '../db/e2e-db';
 import { backendCall } from './backend';
@@ -31,18 +32,24 @@ function uniqueSlug(prefix: string): string {
   return `${prefix}-${stamp}`.slice(0, 40);
 }
 
+// Polls until `read` returns something other than null (Playwright's own polling, so the wait
+// carries a message and a trace step), then returns that value.
 async function waitFor<T>(
   describe: string,
   read: () => Promise<T | null>,
   timeoutMs = PROVISION_TIMEOUT_MS,
 ): Promise<T> {
-  const deadline = Date.now() + timeoutMs;
-  for (;;) {
-    const value = await read();
-    if (value !== null) return value;
-    if (Date.now() > deadline) throw new Error(`timed out after ${timeoutMs} ms: ${describe}`);
-    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-  }
+  let found: T | null = null;
+  await expect
+    .poll(
+      async () => {
+        found = await read();
+        return found;
+      },
+      { timeout: timeoutMs, intervals: [POLL_INTERVAL_MS], message: describe },
+    )
+    .not.toBeNull();
+  return found as T;
 }
 
 // The same two calls `scripts/provision-tenant.sh` makes: reserve the Billing registration, then

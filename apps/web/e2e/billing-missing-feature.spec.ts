@@ -43,7 +43,6 @@ const PROFILES: readonly PlanProfile[] = [
   { name: 'everything but LEAD_FORM', missing: ['LEAD_FORM'] },
 ];
 
-const UNAVAILABLE = /Página indisponível/;
 const LOCKED_CARD = '[data-testid="locked-feature-card"]';
 
 function lockedCard(page: Page, feature: FeatureKey) {
@@ -85,7 +84,7 @@ test.describe('billing: a tenant without a feature', () => {
         const guest = await newActorPage(browser);
         const home = await guest.goto(`/${tenant.slug}`);
         expect(home?.status()).toBeLessThan(400);
-        await expect(guest.locator('h1')).not.toContainText(UNAVAILABLE);
+        await expect(guest.getByTestId('hotsite-unavailable')).toHaveCount(0);
 
         for (const page of hotsitePages(tenant.slug)) {
           const response = await guest.goto(page.path);
@@ -93,12 +92,14 @@ test.describe('billing: a tenant without a feature', () => {
             expect(response?.status(), page.path).toBeLessThan(500);
           } else {
             expect(response?.status(), page.path).toBeLessThan(500);
-            await expect(guest.locator('h1'), page.path).toContainText(UNAVAILABLE);
+            await expect(guest.getByTestId('hotsite-unavailable'), page.path).toBeVisible();
           }
         }
         // The lead form is owned by its module, not by a page row.
         await guest.goto(`/${tenant.slug}/lead-form`);
-        if (!has('LEAD_FORM')) await expect(guest.locator('h1')).toContainText(UNAVAILABLE);
+        if (!has('LEAD_FORM')) {
+          await expect(guest.getByTestId('hotsite-unavailable')).toBeVisible();
+        }
 
         // No section or button of a missing feature on the hotsite itself.
         await guest.goto(`/${tenant.slug}`);
