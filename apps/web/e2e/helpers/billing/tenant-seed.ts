@@ -1,4 +1,4 @@
-import { expect, type Browser, type Page } from '@playwright/test';
+import { expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { linkStaffGoogleAccount, loginAsCustomer, loginAsStaff, uniqueTestEmail } from '../auth';
 import { BFF_URL, WEB_INTERNAL_KEY } from '../auth/shared';
 import { createAuthenticatedBooking } from '../booking';
@@ -12,11 +12,21 @@ import type { ProvisionedTenant } from './provisioning';
 // session. Every function takes the tenant explicitly: the booking helpers the rest of the suite
 // uses are bound to the seeded `lavacar-beloauto` tenant.
 
+const actorContexts: BrowserContext[] = [];
+
 // A separate browser context per actor, so a manager, a staff member and a customer are signed in
-// at once (each `loginAs*` writes the page's own cookie jar).
+// at once (each `loginAs*` writes the page's own cookie jar). A context made with
+// `browser.newContext()` outlives its test, and the worker's browser is shared by every test of the
+// run, so each is recorded here and `closeActorPages` (called from `afterEach`) closes it.
 export async function newActorPage(browser: Browser): Promise<Page> {
   const context = await browser.newContext();
+  actorContexts.push(context);
   return context.newPage();
+}
+
+export async function closeActorPages(): Promise<void> {
+  const open = actorContexts.splice(0);
+  await Promise.all(open.map((context) => context.close()));
 }
 
 export async function signInManager(page: Page, tenant: ProvisionedTenant): Promise<void> {

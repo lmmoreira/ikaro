@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { HOTSITE_MODULE_FEATURE, type FeatureKey, type HotsiteModuleType } from '@ikaro/types';
 import { loginAsCustomer, loginAsStaff, uniqueTestEmail } from './helpers/auth';
 import {
+  closeActorPages,
   expectFeatures,
   newActorPage,
   provisionTenant,
@@ -58,6 +59,8 @@ const SETTINGS_SECTION_FEATURES: readonly FeatureKey[] = [
   'CHATBOT',
 ];
 
+test.afterEach(closeActorPages);
+
 test.describe('billing: a tenant without a feature', () => {
   for (const profile of PROFILES) {
     test(`${profile.name}: no dead link and no error page from any shell`, async ({ browser }) => {
@@ -89,7 +92,10 @@ test.describe('billing: a tenant without a feature', () => {
         for (const page of hotsitePages(tenant.slug)) {
           const response = await guest.goto(page.path);
           if (has(page.feature)) {
+            // A page that holds its feature is not the neutral page: it renders its own content (an
+            // unknown service id answers with its own not-found, never the neutral page).
             expect(response?.status(), page.path).toBeLessThan(500);
+            await expect(guest.getByTestId('hotsite-unavailable'), page.path).toHaveCount(0);
           } else {
             expect(response?.status(), page.path).toBeLessThan(500);
             await expect(guest.getByTestId('hotsite-unavailable'), page.path).toBeVisible();

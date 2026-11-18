@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { loginAsCustomer, loginAsStaff, uniqueTestEmail } from './helpers/auth';
 import {
   accountPath,
+  closeActorPages,
   completeBooking,
   expectAccess,
   expectClientSessionKept,
@@ -41,8 +42,12 @@ const account = accountPath;
 let tenantToRestore: string | undefined;
 
 test.afterEach(async () => {
-  if (tenantToRestore !== undefined) await operatorUnsuspend(tenantToRestore);
-  tenantToRestore = undefined;
+  try {
+    if (tenantToRestore !== undefined) await operatorUnsuspend(tenantToRestore);
+  } finally {
+    tenantToRestore = undefined;
+    await closeActorPages();
+  }
 });
 
 test.describe('billing: the suspended tenant', () => {

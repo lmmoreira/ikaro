@@ -9,6 +9,7 @@ export {
   REINSTATEMENT_BOUND_MS,
 } from './suspension';
 export {
+  closeActorPages,
   completeBooking,
   joinTenants,
   newActorPage,
