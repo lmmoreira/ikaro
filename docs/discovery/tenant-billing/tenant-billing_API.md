@@ -244,4 +244,4 @@ Verified placement: the backend `TenantAccessGuard` runs before `RequestIntercep
 
 ## 10. Auth and headers
 
-Manager routes: JWT cookie, `X-Actor-ID/Type/Role` forwarded by the BFF; backend reads `RequestContext`. Public routes: `X-Tenant-Slug` only where tenant-scoped (the signup and prices routes are platform-level and carry none). The suspension guard is a **Guard** in the BFF (global, after `JwtAuthGuard`/`TenantGuard`), allow-listing the §1/§2 routes for managers — never an Interceptor.
+Manager routes: JWT cookie, `X-Actor-ID/Type/Role` forwarded by the BFF; backend reads `RequestContext`. Public routes: `X-Tenant-Slug` only where tenant-scoped (the signup and prices routes are platform-level and carry none). *[Superseded by M25-S33, 2026-11-15: the BFF holds no suspension guard; the backend guard is the only enforcement point and the BFF forwards its typed `403`.]* ~~The suspension guard is a **Guard** in the BFF (global, after `JwtAuthGuard`/`TenantGuard`), allow-listing the §1/§2 routes for managers — never an Interceptor.~~

@@ -765,6 +765,34 @@ flowchart TD
 
 ---
 
+## Billing — Subscription state, access and suspension (M25)
+
+Only what M25 shipped: the operator-driven part. Charges, payment-driven suspension, `PAST_DUE` sweeps and price changes are planned (M26 and later) and not described as built here. Aggregate shape: `docs/DOMAIN_MODEL.md` § Context 7: Billing Context; tables: `docs/DATABASE_SCHEMA.md` § Schema: `billing`; use cases UC-110, UC-111, UC-120–UC-125, UC-137 in `docs/USE_CASES.md`.
+
+**Status and "operational".** `Subscription.status` is `TRIALING | ACTIVE | PAST_DUE | SUSPENDED` (`subscription.types.ts`). A subscription is *operational* in every status except `SUSPENDED` (`subscription.aggregate.ts`, `operational`): a suspended tenant has nothing entitled and its hotsite is down. Features come from `entitledAt(now)`, the one entitlement formula; no caller re-derives it.
+
+**Operator transitions** (each leaves one `billing.operator_audit` row with `actor` and `payload.reason`; actions `GRACE | SUSPEND | UNSUSPEND | SET_EXEMPT`, `operator-audit.ts`):
+
+| Transition | Rule |
+|---|---|
+| `suspendByOperator` | Refused for an exempt subscription (clear exempt first). A tenant already suspended, for any reason, is left exactly as is: no change, no event, no audit row. Otherwise `SUSPENDED`, reason `OPERATOR`, raises `SubscriptionSuspended`. |
+| `unsuspendOperator` | Lifts **only** an `OPERATOR` suspension (a payment-based one needs a payment, so it is refused). Returns to `TRIALING` when the trial window is still running, else `ACTIVE`. Raises `SubscriptionReactivated`. Not suspended: no-op. |
+| `setExempt` | `ACTIVE`, exempt; clears every trial, period, due and grace field; ends the plan as it stands and opens every feature; raises `SubscriptionReactivated` when it ends a suspension. Already exempt: no-op. |
+| `clearExempt` | Back to a fresh 14-day `TRIALING` window. Never for the platform-owner tenant (`PLATFORM_OWNER_TENANT_SLUG`): `ExemptProtectedError`, `403 BILLING_EXEMPT_PROTECTED`. |
+| `extendGrace` | Only while `PAST_DUE`; never earlier than `pastDueSince` + 14 days or an already stored grace; it extends the window, never shortens it. |
+
+Today only the operator suspend produces `SubscriptionSuspended` (`reason: OPERATOR`). The operator reaches these routes only from the relay VM (`scripts/billing-operator.sh`; `docs/RUNBOOKS.md` § Operator cases).
+
+**Access read (UC-120).** `GetTenantAccessUseCase` answers `{ status, suspensionReason, operational, features }`. A tenant with no subscription yet is a pending trial for `PROVISIONING_GRACE_MINUTES` (15) and a denial after that. A transient lookup error **fails open** (`degraded`, never cached). The adapter caches per instance: operational answers for 300 s (`OPERATIONAL_TTL_MS`), suspended ones for 10 s (`SUSPENDED_TTL_MS`), so a tenant suspended seconds ago can still be served for up to about five minutes on another instance. The BFF holds no gate and no cache (M25-S33); it forwards the backend's typed `403`.
+
+**Event gate (UC-125).** `GatedEventBus` wraps the transport when a handler is registered (`subscribe()`), so the pull path, the push path and the in-memory bus all apply it, and no handler contains access logic. A handler of a suspended tenant is skipped and logged unless its `subscribe()` declares `{ skipWhenSuspended: false }` (for example `BookingCompletedHandler`, which still runs so its own rule can decide); every `subscribe()` declares it literally (CI: `event-handler-suspension-declaration`). A sender-side gate in Notification was designed and dropped (M25-S23): the one gate covers it.
+
+**Suspension notice (S28).** `SubscriptionSuspended` makes Booking fan out one `TenantUnavailableNoticeDue` command per distinct logged-in customer with an upcoming `APPROVED` booking, de-duplicated by `TenantUnavailableNoticeDue:{tenantId}:{suspensionEventId}:{customerId}`; a guest booking, a pending one and `unsuspend` send nothing. The email is reason-neutral.
+
+**Verified live on staging (2026-11-18):** the operator round trip, four audit rows, one event per transition, one email for one customer, empty DLQs (`plan/M25-TENANT-BILLING-FOUNDATION.md` § M25-S32 — Staging live verification).
+
+---
+
 ## Other bounded contexts
 
-Not yet written as sections in this doc. **Loyalty is not logic-free** — points earning and redemption on `BookingCompleted` (the section above), the expiry cron, the weekly expiring-points warning and manual redemption are implemented; until a section is written here, read them from `docs/BOUNDED_CONTEXTS.md` § 2. Loyalty Context, `docs/DOMAIN_MODEL.md` § Loyalty Context (and § Expiration window), `docs/USE_CASES.md` UC-009 / UC-016 / UC-016b, and the code under `apps/backend/src/contexts/loyalty/`. Likewise there is no booking status-machine section here: the transition table is CLAUDE.md §5 / `.copilot/context.md` §5 and the aggregate (`booking-status-transition.ts`). Platform has one section above (the hotsite template catalogue); add another here the next time a story in Customer, Staff, Loyalty, Notification, or Platform introduces business logic complex enough to earn one — see this doc's own header for the "incremental, not upfront" rule, and `/story-discovery`'s checklist item that flags the decision at discovery time.
+Billing has the section above for its M25 (operator-driven) part; the rest of Billing arrives with M26. The other contexts are not yet written as sections in this doc. **Loyalty is not logic-free** — points earning and redemption on `BookingCompleted` (the section above), the expiry cron, the weekly expiring-points warning and manual redemption are implemented; until a section is written here, read them from `docs/BOUNDED_CONTEXTS.md` § 2. Loyalty Context, `docs/DOMAIN_MODEL.md` § Loyalty Context (and § Expiration window), `docs/USE_CASES.md` UC-009 / UC-016 / UC-016b, and the code under `apps/backend/src/contexts/loyalty/`. Likewise there is no booking status-machine section here: the transition table is CLAUDE.md §5 / `.copilot/context.md` §5 and the aggregate (`booking-status-transition.ts`). Platform has one section above (the hotsite template catalogue); add another here the next time a story in Customer, Staff, Loyalty, Notification, or Platform introduces business logic complex enough to earn one — see this doc's own header for the "incremental, not upfront" rule, and `/story-discovery`'s checklist item that flags the decision at discovery time.
