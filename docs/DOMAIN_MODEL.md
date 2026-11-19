@@ -1874,6 +1874,8 @@ Charge {
   refundedAmountMinor: bigint
   providerCreationStatus: 'PENDING' | 'READY' | 'FAILED'
   providerCancelPending: Boolean   -- set before the post-commit provider cancel of a locally cancelled charge, cleared on confirmation; reconcile retries it
+  providerCreationAttempts / providerCreationLastAttemptAt   -- the creation lease: written only by the repository's claim, never by `save()`
+  version:         Int             -- optimistic concurrency (second line of defence next to the charge row lock B-C1, docs/LOCK_CATALOG.md)
 }
 ```
 **Not a child of `Subscription`** (one per period forever = unbounded); paginated by `(tenant_id, due_date DESC)`.
@@ -1893,7 +1895,7 @@ Charge {
 | | `FAILED` → `PAID` | slice F only |
 | | `PAID` → `REFUNDED` / `CHARGEBACK` | full refund / lost dispute (a partial refund only raises `refundedAmountMinor`) |
 
-The provider call is always made **outside** the insert transaction: the charge is inserted `PENDING`, the provider is asked, and only then are the id, link and (US) tax written and `ChargeIssued` raised. The paid signal is method-dependent (Pix `RECEIVED` only; boleto `CONFIRMED` then `RECEIVED`; card `CONFIRMED`, `RECEIVED` ~32 days later): whichever arrives first yields the single paid transition and the later one is a no-op.
+The provider call is always made **outside** the insert transaction: the charge is inserted `PENDING`, the provider is asked, and only then are the id, link and (US) tax written and `ChargeIssued` raised. The paid signal is method-dependent (Pix `RECEIVED` only; boleto `CONFIRMED` then `RECEIVED`; card `CONFIRMED`, `RECEIVED` ~32 days later): whichever arrives first yields the single paid transition and the later one is a no-op. A paid fact is legal for a `PENDING`, `OVERDUE` or `CANCELED` charge, always a provider-verified one (the re-read), and illegal for a `REFUNDED` or `CHARGEBACK` charge; `markCreationReady` (provider, id, link, expiry) is legal on a `PAID` or `CANCELED` charge too, because a webhook can land between the insert and `READY` and the provider did create the charge: it stores the provider fields and never touches the status.
 
 ---
 
