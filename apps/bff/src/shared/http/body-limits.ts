@@ -11,7 +11,10 @@ export const WEBHOOK_BODY_LIMIT = '64kb';
  * phone photos.
  */
 export function applyBodyLimits(app: INestApplication): void {
+  // Both parsers, whichever content type the caller claims: each global parser would otherwise read
+  // up to 10 MB of this public route's body before the controller checks the token.
   app.use('/v1/public/billing/webhooks', json({ limit: WEBHOOK_BODY_LIMIT }));
+  app.use('/v1/public/billing/webhooks', urlencoded({ limit: WEBHOOK_BODY_LIMIT, extended: true }));
   app.use(json({ limit: '10mb' }));
   app.use(urlencoded({ limit: '10mb', extended: true }));
 }

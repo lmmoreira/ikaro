@@ -248,6 +248,10 @@ describe('TypeOrmSignupRegistrationRepository (integration)', () => {
     it('reads IDX_billing_billing_accounts_tax_id for the account half', async () => {
       const plan: Array<Record<string, string>> = await dataSource.transaction(async (manager) => {
         await manager.query('SET LOCAL enable_seqscan = off');
+        // Plain index scans off too: on the statistics of a near-empty table the planner can walk
+        // the tenant unique index and filter on `tax_id`; only a bitmap scan needs an index
+        // condition, so the partial `tax_id` index is the one that can serve the predicate.
+        await manager.query('SET LOCAL enable_indexscan = off');
         return manager.query(
           `EXPLAIN SELECT 1
              FROM billing.billing_accounts a

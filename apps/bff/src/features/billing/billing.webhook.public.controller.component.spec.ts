@@ -97,6 +97,19 @@ describe('BillingWebhookPublicController (component)', () => {
     expect(backendHttpService.postWithoutTenant).not.toHaveBeenCalled();
   });
 
+  it('caps a URL-encoded body to the same 64 KB: the global form parser never reads this public route', async () => {
+    const oversizedForm = `payload=${'x'.repeat(70 * 1024)}`;
+
+    const res = await request(app.getHttpServer())
+      .post(URL)
+      .set('asaas-access-token', TOKEN)
+      .set('Content-Type', 'application/x-www-form-urlencoded')
+      .send(oversizedForm);
+
+    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(backendHttpService.postWithoutTenant).not.toHaveBeenCalled();
+  });
+
   it('accepts a normal-sized provider payload under the 64 KB cap', async () => {
     backendHttpService.postWithoutTenant.mockResolvedValueOnce(undefined);
 
