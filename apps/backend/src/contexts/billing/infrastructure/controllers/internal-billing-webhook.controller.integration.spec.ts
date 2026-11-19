@@ -216,6 +216,15 @@ describe('InternalBillingWebhookController (integration)', () => {
       expect(await ds.getRepository(ProviderEventEntity).countBy({ tenantId })).toBe(0);
     });
 
+    it('acknowledges an authenticated body that is not a JSON object with 200 and stores nothing', async () => {
+      const { tenantId } = await seed('PAST_DUE');
+
+      const response = await post([1, 2, 3] as unknown as Record<string, unknown>);
+
+      expect(response.status).toBe(200);
+      expect(await ds.getRepository(ProviderEventEntity).countBy({ tenantId })).toBe(0);
+    });
+
     it('answers non-2xx when the provider re-read fails, so the provider retries; the retry then applies', async () => {
       const { chargeId, providerChargeId } = await seed('PAST_DUE');
       fake.simulatePayment(providerChargeId, 'PIX');

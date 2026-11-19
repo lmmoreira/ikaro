@@ -2,8 +2,6 @@ import { Body, Controller, Headers, HttpCode, HttpStatus, Post } from '@nestjs/c
 import { ConfigService } from '@nestjs/config';
 import { SkipThrottle } from '@nestjs/throttler';
 import { AuthErrorCode } from '@ikaro/types';
-import { ZodValidationPipe } from '@ikaro/nestjs-http';
-import { ProviderWebhookBody, ProviderWebhookBodySchema } from '@ikaro/validation';
 import { Public } from '../../shared/decorators/public.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { throwProblemDetail } from '../../shared/http/problem-detail';
@@ -26,7 +24,9 @@ export class BillingWebhookPublicController {
   ) {}
 
   // Authenticity is checked here and only here: the backend never sees the token. A wrong or
-  // missing token answers 401 and nothing reaches the backend. A backend failure is forwarded as
+  // missing token answers 401 and nothing reaches the backend. The body is forwarded untouched,
+  // with no shape check of its own: the backend adapter is the one reader of it, and decides that
+  // an unreadable body after a valid token is acknowledged with `200` (a retry could never succeed). A backend failure is forwarded as
   // non-2xx on purpose, so the provider retries.
   @Public()
   @SkipThrottle()
@@ -34,7 +34,7 @@ export class BillingWebhookPublicController {
   @HttpCode(HttpStatus.OK)
   async receiveAsaas(
     @Headers(ASAAS_TOKEN_HEADER) token: string | undefined,
-    @Body(new ZodValidationPipe(ProviderWebhookBodySchema)) body: ProviderWebhookBody,
+    @Body() body: unknown,
   ): Promise<void> {
     if (!secretsMatch(this.config.get<string>('ASAAS_WEBHOOK_TOKEN'), token)) {
       throw throwProblemDetail(

@@ -9,7 +9,6 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { NoFeatureGate, SuspensionAccess, ZodValidationPipe } from '@ikaro/nestjs-http';
-import { ProviderWebhookBody, ProviderWebhookBodySchema } from '@ikaro/validation';
 import { InternalApiGuard } from '../../../../shared/guards/internal-api.guard';
 import {
   WEBHOOK_PROVIDER_BY_SLUG,
@@ -35,14 +34,15 @@ export class InternalBillingWebhookController {
   @HttpCode(HttpStatus.OK)
   async receive(
     @Param('provider', new ZodValidationPipe(WebhookProviderSlugSchema)) providerSlug: string,
-    @Body(new ZodValidationPipe(ProviderWebhookBodySchema)) body: ProviderWebhookBody,
+    @Body() body: unknown,
     @Headers() headers: Record<string, string | undefined>,
     @Headers('x-correlation-id') correlationId: string,
   ): Promise<void> {
     await this.processWebhook
       .execute({
         provider: WEBHOOK_PROVIDER_BY_SLUG[providerSlug],
-        rawBody: JSON.stringify(body),
+        // The adapter reads the body: anything it cannot read is an acknowledged `200`, not a `400`.
+        rawBody: JSON.stringify(body) ?? '',
         headers,
         correlationId,
       })

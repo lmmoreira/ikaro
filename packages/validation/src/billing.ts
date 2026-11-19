@@ -1,5 +1,3 @@
-import { z } from 'zod';
-
 // Billing closed enums (M25-S04) — canonical constant arrays. The backend and BFF may not import
 // the `@ikaro/types` root barrel, so they take these from here (as they do HOTSITE_MODULE_TYPES);
 // `packages/types/src/enums.ts` carries the mirror unions the web imports. The `closedEnumRegistry`
@@ -16,10 +14,3 @@ export type FeatureKey = (typeof FEATURE_KEYS)[number];
 export const CHATBOT_TIERS = ['BASIC', 'PLUS'] as const;
 
 export type ChatbotTier = (typeof CHATBOT_TIERS)[number];
-
-// The provider's own JSON, forwarded by the BFF to the backend as it arrived (M26-S04, UC-114). The
-// BFF only authenticates it (the token header) and the backend adapter reads it (`parseWebhook`),
-// so the shape both apps validate is just "a JSON object": a field-by-field schema in either would
-// be a second copy of the adapter's parser. One definition, imported by both.
-export const ProviderWebhookBodySchema = z.record(z.string(), z.unknown());
-export type ProviderWebhookBody = z.infer<typeof ProviderWebhookBodySchema>;
