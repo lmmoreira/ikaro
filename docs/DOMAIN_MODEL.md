@@ -1893,7 +1893,7 @@ Charge {
 | | `PENDING`/`OVERDUE` → `CANCELED` | plan re-issue, cancel, suspension (stale charge), `exempt` set |
 | | `CANCELED` → `PAID` | **only** a provider-confirmed paid fact (the provider could not cancel it because it had just been paid, UC-114 step 4); never a local event |
 | | `FAILED` → `PAID` | slice F only |
-| | `PAID` → `REFUNDED` / `CHARGEBACK` | full refund / lost dispute (a partial refund only raises `refundedAmountMinor`) |
+| | `PAID` → `REFUNDED` / `CHARGEBACK` | full refund / lost dispute (a partial refund changes no access, and the provider webhook only records it in the inbox: the charge's `refundedAmountMinor` is not raised by it, M26-S04) |
 
 The provider call is always made **outside** the insert transaction: the charge is inserted `PENDING`, the provider is asked, and only then are the id, link and (US) tax written and `ChargeIssued` raised. The paid signal is method-dependent (Pix `RECEIVED` only; boleto `CONFIRMED` then `RECEIVED`; card `CONFIRMED`, `RECEIVED` ~32 days later): whichever arrives first yields the single paid transition and the later one is a no-op. A paid fact is legal for a `PENDING`, `OVERDUE` or `CANCELED` charge, always a provider-verified one (the re-read), and illegal for a `REFUNDED` or `CHARGEBACK` charge; `markCreationReady` (provider, id, link, expiry) is legal on a `PAID` or `CANCELED` charge too, because a webhook can land between the insert and `READY` and the provider did create the charge: it stores the provider fields and never touches the status.
 

@@ -2,6 +2,8 @@
 
 **Promoted 2026-10-29;** canonical home: `docs/USE_CASES.md` (UC-110..145), `docs/DOMAIN_MODEL.md` § Context 7, `docs/DATABASE_SCHEMA.md` § Schema: `billing`, `docs/API_CONTRACTS.md`, `docs/BOUNDED_CONTEXTS.md` § 7 and the plans `plan/M25-TENANT-BILLING-FOUNDATION.md` / `plan/M26-TENANT-BILLING-COLLECTION-LAUNCH.md`. Where this file differs, the docs win.
 
+**Amended 2026-11-19 (M26-S04):** the webhook design below is superseded where it differs from what shipped: the BFF webhook route carries `@Public()` and `@SkipThrottle()` but **no** `@BypassWebOnlyGuard()` (the provider calls the `ikaro-web` same-origin gateway, which sends the shared-secret header itself), and Asaas has no body signature, so the BFF forwards the **parsed JSON** and preserves no raw body (raw-body preservation is Stripe's need, M28). The canonical contract is `docs/API_CONTRACTS.md` § Provider webhooks (UC-114).
+
 **Status:** Discovery — endpoint inventory and shapes at sketch level. Final contracts are written into `docs/API_CONTRACTS.md` on promotion. Conventions follow `docs/API_CONTRACTS.md` § Base Standards: the web only talks to the **BFF** (`/v1`), the BFF forwards actor headers to the internal backend, errors are RFC 9457 Problem Details, money is **integer minor units + ISO currency** (never floats), dates ISO-8601 UTC (`due_date`: `YYYY-MM-DD`). List endpoints use **Pattern A** pagination (`items` + `pagination {limit, offset, total, hasMore}`) like `GET /bookings`.
 
 **Companion docs:** `tenant-billing.md` · `tenant-billing_USECASES.md` · `tenant-billing_DATA_MODEL.md` · `tenant-billing_MODULE.md` · `tenant-billing_OPERATIONS.md`.
