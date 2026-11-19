@@ -358,8 +358,13 @@ run "log_writer_grant_persists_when_vm_is_off" {
   }
 }
 
-# Negative guarantee: the grant is write-only. A broader role on the relay
-# identity would let a compromised VM read or reconfigure project logs.
+# Negative guarantee: the relay identity's logging access is write-only. A
+# broader role would let a compromised VM read or reconfigure project logs.
+# The assertion covers every project-level binding the module declares for the
+# relay service account, so a role edited on any of them is caught. A new
+# resource that grants a role is outside what a plan test can enumerate: the
+# module's IAM review (infra/terraform/README.md § IAM binding review
+# discipline) is what catches that.
 run "relay_service_account_gets_no_broader_logging_role" {
   command = plan
 
@@ -377,7 +382,13 @@ run "relay_service_account_gets_no_broader_logging_role" {
   }
 
   assert {
-    condition     = !contains(["roles/logging.admin", "roles/logging.configWriter", "roles/logging.viewer", "roles/logging.privateLogViewer", "roles/owner", "roles/editor"], google_project_iam_member.relay_logging_writer.role)
-    error_message = "The relay service account may only write logs: no logging.admin, configWriter, viewer, privateLogViewer, owner or editor."
+    condition = length([
+      for r in [
+        google_project_iam_member.relay_cloudsql_client[0].role,
+        google_project_iam_member.relay_cloudsql_instance_user[0].role,
+        google_project_iam_member.relay_logging_writer.role,
+      ] : r if contains(["roles/owner", "roles/editor"], r) || (startswith(r, "roles/logging.") && r != "roles/logging.logWriter")
+    ]) == 0
+    error_message = "The relay service account may only write logs: none of its project-level roles may be logging.admin, configWriter, viewer, privateLogViewer, owner or editor."
   }
 }
