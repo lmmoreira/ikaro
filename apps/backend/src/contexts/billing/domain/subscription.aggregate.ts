@@ -475,6 +475,7 @@ export class Subscription extends AggregateRoot {
         reactivatedAt: now.toISOString(),
         suspendedAt: suspendedAt.toISOString(),
         recipientEmail,
+        exempt: this._exempt,
       }),
     );
   }

@@ -50,13 +50,13 @@ export class UnsuspendTenantUseCase {
   ) {}
 
   async execute(input: UnsuspendTenantUseCaseInput): Promise<UnsuspendTenantUseCaseResult> {
+    // Read before the transaction: the account is not part of the locked section, and a lookup
+    // inside it would only lengthen the subscription row lock.
+    const account = await this.accounts.findByTenantId(input.tenantId);
     return this.txManager.run(async () => {
       const subscription = await loadSubscriptionForUpdate(this.subscriptions, input.tenantId);
       const now = this.clock.now();
-      const recipientEmail = resolveBillingRecipientEmail(
-        subscription.exempt,
-        await this.accounts.findByTenantId(input.tenantId),
-      );
+      const recipientEmail = resolveBillingRecipientEmail(subscription.exempt, account);
       if (subscription.unsuspendOperator(now, input.correlationId, recipientEmail)) {
         await this.subscriptions.save(subscription);
         await this.audits.save(

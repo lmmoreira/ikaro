@@ -73,8 +73,8 @@ describe('UnsuspendTenantUseCase', () => {
     await useCase.execute({ tenantId: withoutAccount.tenantId, ...INPUT });
 
     expect(outbox.published.map((event) => event.data)).toEqual([
-      expect.objectContaining({ recipientEmail: 'billing@example.test' }),
-      expect.objectContaining({ recipientEmail: null }),
+      expect.objectContaining({ recipientEmail: 'billing@example.test', exempt: false }),
+      expect.objectContaining({ recipientEmail: null, exempt: false }),
     ]);
   });
 

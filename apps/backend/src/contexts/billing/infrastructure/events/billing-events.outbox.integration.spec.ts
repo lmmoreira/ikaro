@@ -29,7 +29,7 @@ describe('Billing events through the outbox (integration)', () => {
   let txManager: TypeOrmTransactionManager;
   let outboxRows: Repository<OutboxEventEntity>;
   let publisher: OutboxPublisher;
-  let logged: Array<{ eventName: string; tenantId: string }>;
+  let auditInbox: InMemoryInboxRepository;
   const tenants: string[] = [];
 
   const newTenant = (): string => {
@@ -44,13 +44,8 @@ describe('Billing events through the outbox (integration)', () => {
     outboxRows = dataSource.getRepository(OutboxEventEntity);
     const outboxRepo = new TypeOrmOutboxRepository(outboxRows);
     const bus = new RoutingInMemoryEventBus();
-    logged = [];
-    const logUseCase = {
-      execute: async (input: { eventName: string; tenantId: string }) => {
-        logged.push({ eventName: input.eventName, tenantId: input.tenantId });
-      },
-    };
-    new BillingAuditLogHandler(logUseCase as unknown as LogDomainEventUseCase, bus).onModuleInit();
+    auditInbox = new InMemoryInboxRepository();
+    new BillingAuditLogHandler(new LogDomainEventUseCase(auditInbox), bus).onModuleInit();
     const config = makeConfigService({ OUTBOX_INLINE_DISPATCH_ENABLED: true });
     const relay = new OutboxRelayService(
       outboxRepo,
@@ -63,7 +58,7 @@ describe('Billing events through the outbox (integration)', () => {
   });
 
   afterEach(async () => {
-    logged.length = 0;
+    auditInbox.clear();
     if (tenants.length > 0) {
       await dataSource.query(`DELETE FROM "shared"."outbox" WHERE "tenant_id" = ANY($1::uuid[])`, [
         tenants,
@@ -76,7 +71,7 @@ describe('Billing events through the outbox (integration)', () => {
     await dataSource.destroy();
   });
 
-  it('publishes each new domain event after commit and the audit-log consumer receives it, for its own tenant only', async () => {
+  it('publishes each new domain event after commit and the audit-log consumer claims it', async () => {
     const tenantA = newTenant();
     const tenantB = newTenant();
     const events: Envelope[] = [
@@ -92,27 +87,33 @@ describe('Billing events through the outbox (integration)', () => {
       for (const event of events) await publisher.publish(event);
     });
 
-    expect(logged).toHaveLength(6);
-    expect(logged.filter((entry) => entry.tenantId === tenantA)).toHaveLength(5);
-    expect(logged.find((entry) => entry.tenantId === tenantB)?.eventName).toBe(
-      'SubscriptionPriceChangeAnnounced',
-    );
+    for (const event of events) {
+      expect(
+        await auditInbox.hasBeenProcessed(event.eventId, LogDomainEventUseCase.CONSUMER_NAME),
+      ).toBe(true);
+    }
     const rows = await outboxRows.find({ where: { tenantId: tenantA } });
+    expect(rows).toHaveLength(5);
     expect(rows.every((row) => row.publishedAt !== null)).toBe(true);
+    expect(await outboxRows.find({ where: { tenantId: tenantB } })).toHaveLength(1);
   });
 
   it('leaves no outbox row and no audit-log call when the transaction rolls back', async () => {
     const tenantId = newTenant();
 
+    const event = new ChargeIssuedEventBuilder().withTenantId(tenantId).build();
+
     await expect(
       txManager.run(async () => {
-        await publisher.publish(new ChargeIssuedEventBuilder().withTenantId(tenantId).build());
+        await publisher.publish(event);
         throw new Error('a later step failed');
       }),
     ).rejects.toThrow('a later step failed');
 
     expect(await outboxRows.find({ where: { tenantId } })).toHaveLength(0);
-    expect(logged).toHaveLength(0);
+    expect(
+      await auditInbox.hasBeenProcessed(event.eventId, LogDomainEventUseCase.CONSUMER_NAME),
+    ).toBe(false);
   });
 
   it('collapses two BillingReminderDue commands with the same business key into one outbox row, whatever the recipient', async () => {

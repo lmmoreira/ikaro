@@ -555,7 +555,10 @@ describe('Subscription', () => {
 
       subscription.setExempt(now, 'operator-7', 'corr-1');
 
-      expect(subscription.domainEvents[0]?.data).toMatchObject({ recipientEmail: null });
+      expect(subscription.domainEvents[0]?.data).toMatchObject({
+        recipientEmail: null,
+        exempt: true,
+      });
     });
 
     it('removes default paid items that have not started and opens every feature from now (a trial)', () => {
