@@ -848,7 +848,10 @@
         "SubscriptionItemEntity",
         "BillingAccountEntity",
         "SignupRegistrationEntity",
-        "OperatorAuditEntity"
+        "OperatorAuditEntity",
+        "ChargeEntity",
+        "ChargeLineEntity",
+        "ProviderEventEntity"
       ],
       "rationale": "General-purpose raw DataSource for integration specs that assert directly against tables. Intentionally omits NotificationTemplateEntity: every spec using this helper reads notification templates through InMemoryNotificationTemplateRepository, never this DataSource. ResourceEntity and the M22-S01 Service child-table entities were added so TypeOrmServiceRepository's own repository-level integration spec can round-trip resourceRequirements/legs/classResourceSlots without the DataSource lacking their metadata. ServiceBookingIntakeSchemaEntity and BookingAttendeeEntity (M22-S02) were added for the same reason, covering the booking-policy/intake-schema tables. BookingLineResourceAssignmentEntity and ResourceOccupancyEntity (M22-S03) were added so the resource-occupancy repository's own integration spec can round-trip the exclusivity-lock tables. RecurringBookingScheduleEntity and its 2 child entities (M23-S04) were added so TypeOrmRecurringBookingScheduleRepository's own repository-level integration spec can round-trip the optimistic-concurrency version column."
     },
@@ -863,6 +866,9 @@
         "BillingAccountEntity",
         "SignupRegistrationEntity",
         "OperatorAuditEntity",
+        "ChargeEntity",
+        "ChargeLineEntity",
+        "ProviderEventEntity",
         "InboxRecordEntity",
         "TenantEntity",
         "HotsiteConfigEntity"
@@ -880,6 +886,9 @@
         "BillingAccountEntity",
         "SignupRegistrationEntity",
         "OperatorAuditEntity",
+        "ChargeEntity",
+        "ChargeLineEntity",
+        "ProviderEventEntity",
         "InboxRecordEntity",
         "TenantEntity",
         "HotsiteConfigEntity",
@@ -1074,6 +1083,14 @@
       "class": "SubscriptionInvariantError",
       "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
       "rationale": "Same as FeatureDependencyUnmetError above: a programming-contract guard (tier/feature mismatch, overlapping item windows, a malformed item) that no endpoint input can reach once its caller validates the selection; the first story that exposes one of these to user input maps it with its own code and removes this entry.",
+      "owner": "billing",
+      "reviewBy": "2026-12-31"
+    },
+    {
+      "rule": "error-mapper-coverage",
+      "class": "ChargeInvariantError",
+      "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
+      "rationale": "M26-S02's Charge, ChargeLine and RecoveryChargeFactory throw it for a malformed shape (no lines, a mixed currency, period dates on a RECOVERY charge, a missing price). A programming-contract guard like SubscriptionInvariantError: the caller builds the charge from already-validated subscription items and resolved prices, so no endpoint input reaches it. The first story that exposes one of these to user input maps it with its own code and removes this entry.",
       "owner": "billing",
       "reviewBy": "2026-12-31"
     },

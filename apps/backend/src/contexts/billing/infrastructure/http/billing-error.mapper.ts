@@ -1,5 +1,9 @@
 import { HttpStatus } from '@nestjs/common';
 import { throwProblemDetail } from '@ikaro/nestjs-http';
+import { ChargeAlreadyExistsError } from '../../domain/errors/charge-already-exists.error';
+import { ChargeConcurrentModificationError } from '../../domain/errors/charge-concurrent-modification.error';
+import { IllegalChargeTransitionError } from '../../domain/errors/illegal-charge-transition.error';
+import { RecoveryChargeAlreadyOpenError } from '../../domain/errors/recovery-charge-already-open.error';
 import {
   BillingTenantNotFoundError,
   ExemptProtectedError,
@@ -37,7 +41,13 @@ export function mapBillingError(err: unknown): never {
   if (
     err instanceof GraceNotAllowedError ||
     err instanceof UnsuspendNotAllowedError ||
-    err instanceof SubscriptionConcurrentModificationError
+    err instanceof SubscriptionConcurrentModificationError ||
+    // The Charge errors (M26-S02) are internal: the two "already" ones are consumed by the use
+    // cases, and none has a client code of its own, so they answer the same generic conflict.
+    err instanceof IllegalChargeTransitionError ||
+    err instanceof ChargeConcurrentModificationError ||
+    err instanceof ChargeAlreadyExistsError ||
+    err instanceof RecoveryChargeAlreadyOpenError
   ) {
     throw throwProblemDetail(HttpStatus.CONFLICT, err.code, err.message);
   }

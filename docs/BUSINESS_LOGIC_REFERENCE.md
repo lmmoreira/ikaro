@@ -793,6 +793,49 @@ Today only the operator suspend produces `SubscriptionSuspended` (`reason: OPERA
 
 ---
 
+## Billing — The Charge: status table, concurrent writers and the recovery rule (M26-S02)
+
+The model only: `Charge` (`charge.aggregate.ts`), `ChargeLine`, `RecoveryChargeFactory` and the two repositories. The use cases that drive it (webhook, issue, sweep, reactivate, reconcile) are M26-S04 onwards and are not described as built here. Shape and field list: `docs/DOMAIN_MODEL.md` § Aggregate: Charge; columns and indexes: `docs/DATABASE_SCHEMA.md` § `billing.charges`.
+
+**Status table.** One method per row, a repeat is a no-op, anything else throws `IllegalChargeTransitionError`. `FAILED` has no transition into it (reserved for M29).
+
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING: create (lines + amounts fixed here)
+    PENDING --> OVERDUE: markOverdue (tenant-local due date passed)
+    PENDING --> PAID: markPaid
+    OVERDUE --> PAID: markPaid
+    PENDING --> CANCELED: cancel
+    OVERDUE --> CANCELED: cancel
+    CANCELED --> PAID: markPaid (the provider could not cancel it, UC-114 step 4)
+    PAID --> REFUNDED: markRefunded (the full amount)
+    PAID --> PAID: markRefunded (partial, only raises refunded)
+    PAID --> CHARGEBACK: markChargeback
+```
+
+`markPaid` is called **only with a provider-verified fact** (the re-read of `ApplyChargeFactUseCase`), so it carries no provenance flag; it clears `providerCancelPending`. `markCreationReady` (provider, id, link, expiry) is legal on a charge of any status, a `PAID` or `CANCELED` one included, and never touches the status. `markProviderCancelPending` is legal only on a `CANCELED` charge.
+
+**Two writers, one row: B-C1 and `version`.** The writes that follow a provider call (store `READY`, a creation failure, a cleared `provider_cancel_pending`) run without the subscription lock, so a webhook can mark the same charge `PAID` in between. Each such write is a short transaction that takes the charge row lock (`findByIdForUpdate`, `docs/LOCK_CATALOG.md` B-C1) and re-reads the charge; `charges.version` makes a stale `save()` fail with `ChargeConcurrentModificationError` if a caller forgot.
+
+```mermaid
+sequenceDiagram
+    participant C as Creator (issue / retry)
+    participant DB as billing.charges
+    participant W as Webhook (ApplyCharge)
+    C->>DB: insert PENDING, commit
+    C->>DB: claimForProviderCreation (own statement, committed)
+    C->>C: provider createCharge (no transaction open)
+    W->>DB: B-R1, then B-C1, markPaid, commit (PAID)
+    C->>DB: B-C1: re-read (sees PAID)
+    C->>DB: markCreationReady (provider id + link), status stays PAID
+```
+
+**The creation lease.** `claimForProviderCreation(tenantId, chargeId, now)` is the single place `provider_creation_attempts` is incremented: one conditional `UPDATE` on the repository's own connection (never the caller's transaction), only for an open charge (`status` `PENDING` or `OVERDUE`, so a cancelled or paid one never gets a provider bill) whose `provider_creation_status` is `PENDING` with no provider id and whose last attempt is null or older than `PROVIDER_CREATION_LEASE_MINUTES` (10), `now` being the caller's `IClock`. It returns whether this caller owns the creation. The lease is not mutual exclusion past those 10 minutes: a provider call that outlasts it lets a second creator claim the charge, and `createCharge` being idempotent per charge id is what prevents a duplicate bill. `save()` never writes the two claim columns, so a stale aggregate cannot undo an increment.
+
+**The recovery rule.** `RecoveryChargeFactory.build` is the single place it lives (UC-115 step 3, UC-134, UC-113 A2): a one-month `RECOVERY` charge, lines = the items it is given, each priced from the map the caller resolved for **that day** (a missing price throws, never a zero), due `RECOVERY_CHARGE_DUE_DAYS` (7) after the subscription-timezone date it is given, no period dates (the period lives on the subscription and starts at `paidAt`), `merchantProfileKey` copied from the subscription. At most one is open per subscription (`UQ_billing_charges_open_recovery`): the repository throws `RecoveryChargeAlreadyOpenError` and the caller re-reads the existing one; a second period charge for one period is `ChargeAlreadyExistsError` (`UQ_billing_charges_period`, a cancelled charge does not count).
+
+---
+
 ## Other bounded contexts
 
 Billing has the section above for its M25 (operator-driven) part; the rest of Billing arrives with M26. The other contexts are not yet written as sections in this doc. **Loyalty is not logic-free** — points earning and redemption on `BookingCompleted` (the section above), the expiry cron, the weekly expiring-points warning and manual redemption are implemented; until a section is written here, read them from `docs/BOUNDED_CONTEXTS.md` § 2. Loyalty Context, `docs/DOMAIN_MODEL.md` § Loyalty Context (and § Expiration window), `docs/USE_CASES.md` UC-009 / UC-016 / UC-016b, and the code under `apps/backend/src/contexts/loyalty/`. Likewise there is no booking status-machine section here: the transition table is CLAUDE.md §5 / `.copilot/context.md` §5 and the aggregate (`booking-status-transition.ts`). Platform has one section above (the hotsite template catalogue); add another here the next time a story in Customer, Staff, Loyalty, Notification, or Platform introduces business logic complex enough to earn one — see this doc's own header for the "incremental, not upfront" rule, and `/story-discovery`'s checklist item that flags the decision at discovery time.

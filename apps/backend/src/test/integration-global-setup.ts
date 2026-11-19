@@ -80,6 +80,9 @@ import { FeaturePriceEntity } from '../contexts/billing/infrastructure/entities/
 import { BillingAccountEntity } from '../contexts/billing/infrastructure/entities/billing-account.entity';
 import { SignupRegistrationEntity } from '../contexts/billing/infrastructure/entities/signup-registration.entity';
 import { OperatorAuditEntity } from '../contexts/billing/infrastructure/entities/operator-audit.entity';
+import { ChargeLineEntity } from '../contexts/billing/infrastructure/entities/charge-line.entity';
+import { ChargeEntity } from '../contexts/billing/infrastructure/entities/charge.entity';
+import { ProviderEventEntity } from '../contexts/billing/infrastructure/entities/provider-event.entity';
 import { SubscriptionItemEntity } from '../contexts/billing/infrastructure/entities/subscription-item.entity';
 import { SubscriptionEntity } from '../contexts/billing/infrastructure/entities/subscription.entity';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
@@ -94,6 +97,7 @@ import { CreateLoyaltyLoyaltyEntries1748000000016 } from '../contexts/loyalty/in
 import { CreateLoyaltyBalancesRedemptionsExpiryLog1748000000017 } from '../contexts/loyalty/infrastructure/migrations/1748000000017-CreateLoyaltyBalancesRedemptionsExpiryLog';
 import { AddLoyaltyRedemptionPointsPerCurrencyUnit1748400000003 } from '../contexts/loyalty/infrastructure/migrations/1748400000003-AddLoyaltyRedemptionPointsPerCurrencyUnit';
 import { AddLoyaltyExpirySweepStateAndEntriesExpiresAtIndex1748500000045 } from '../contexts/loyalty/infrastructure/migrations/1748500000045-AddLoyaltyExpirySweepStateAndEntriesExpiresAtIndex';
+import { AddChargeVersion1748500000046 } from '../contexts/billing/infrastructure/migrations/1748500000046-AddChargeVersion';
 import { NotificationLogEntity } from '../contexts/notification/infrastructure/entities/notification-log.entity';
 import { NotificationTemplateEntity } from '../contexts/notification/infrastructure/entities/notification-template.entity';
 import { CreateNotificationLogs1748000000010 } from '../contexts/notification/infrastructure/migrations/1748000000010-CreateNotificationLogs';
@@ -189,6 +193,9 @@ export default async function globalSetup(): Promise<void> {
       BillingAccountEntity,
       SignupRegistrationEntity,
       OperatorAuditEntity,
+      ChargeEntity,
+      ChargeLineEntity,
+      ProviderEventEntity,
       LeadFormSubmissionEntity,
       LeadFormAnswerEntity,
       ResourceEntity,
@@ -287,6 +294,7 @@ export default async function globalSetup(): Promise<void> {
       AddExemptToSignupRegistrations1748500000043,
       AddTenantUnavailableCustomerTemplate1748500000044,
       AddLoyaltyExpirySweepStateAndEntriesExpiresAtIndex1748500000045,
+      AddChargeVersion1748500000046,
     ],
     synchronize: false,
     migrationsRun: false,
