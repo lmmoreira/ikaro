@@ -10,6 +10,7 @@ import { REQUEST } from '@nestjs/core';
 import { HttpService } from '@nestjs/axios';
 import { JwtService } from '@nestjs/jwt';
 import { AppModule } from '../app.module';
+import { applyBodyLimits } from '../shared/http/body-limits';
 import { applySecurityHeaders } from '../shared/http/security-headers';
 import { Request } from 'express';
 import { BackendHttpService } from '../shared/http/backend-http.service';
@@ -93,6 +94,7 @@ export async function createTestApp(options: { realBackendHttp?: boolean } = {})
 
   const app = module.createNestApplication();
   applySecurityHeaders(app);
+  applyBodyLimits(app);
   app.setGlobalPrefix('v1');
   await app.init();
 

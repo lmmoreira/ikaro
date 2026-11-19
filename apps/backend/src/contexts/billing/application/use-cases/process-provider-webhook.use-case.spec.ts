@@ -264,6 +264,21 @@ describe('ProcessProviderWebhookUseCase', () => {
     });
   });
 
+  describe('a refund delivered before its payment', () => {
+    it('never applies the payment afterwards: the re-read says refunded, so the tenant is not reactivated', async () => {
+      const { charge, subscription, providerChargeId } = await seed('PAST_DUE');
+      fake.simulatePayment(providerChargeId, 'CARD');
+      fake.simulateRefund(providerChargeId, 'FULL');
+
+      // Reversed: the REFUNDED delivery reaches us first, the CONFIRMED one second.
+      expect(await deliverAll({ reverse: true })).toEqual(['ILLEGAL', 'NOT_CONFIRMED']);
+
+      expect(charge.status).toBe('PENDING');
+      expect(subscription.status).toBe('PAST_DUE');
+      expect(outbox.published).toEqual([]);
+    });
+  });
+
   describe('delivery guarantees', () => {
     it('a duplicate delivery is a no-op with no second provider re-read', async () => {
       const { providerChargeId } = await seed('PAST_DUE');

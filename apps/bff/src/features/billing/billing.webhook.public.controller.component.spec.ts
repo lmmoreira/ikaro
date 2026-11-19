@@ -83,6 +83,31 @@ describe('BillingWebhookPublicController (component)', () => {
     expect(backendHttpService.postWithoutTenant).not.toHaveBeenCalled();
   });
 
+  it('refuses an oversized body before any handler runs: the body parser rejects it and no backend call is made', async () => {
+    const oversized = { id: 'evt_big&1', payload: 'x'.repeat(70 * 1024) };
+
+    const res = await request(app.getHttpServer())
+      .post(URL)
+      .set('asaas-access-token', TOKEN)
+      .send(oversized);
+
+    // The shared error filter maps the parser's 413 to a generic non-2xx (it only knows HttpException);
+    // what matters here is that the request is refused and never reaches the backend.
+    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(backendHttpService.postWithoutTenant).not.toHaveBeenCalled();
+  });
+
+  it('accepts a normal-sized provider payload under the 64 KB cap', async () => {
+    backendHttpService.postWithoutTenant.mockResolvedValueOnce(undefined);
+
+    const res = await request(app.getHttpServer())
+      .post(URL)
+      .set('asaas-access-token', TOKEN)
+      .send({ id: 'evt_ok&1', payload: 'x'.repeat(20 * 1024) });
+
+    expect(res.status).toBe(200);
+  });
+
   it('forwards a backend failure as non-2xx so Asaas retries', async () => {
     backendHttpService.postWithoutTenant.mockRejectedValueOnce(
       new HttpException({ title: 'Service Unavailable', status: 503 }, 503),
