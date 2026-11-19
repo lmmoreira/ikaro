@@ -611,7 +611,8 @@ The relay VM is on-demand and destroyed after use, so its journal disappears wit
 **Files to create/modify:**
 - `infra/terraform/modules/relay-vm/main.tf` (modify)
 - `infra/terraform/modules/relay-vm/tests/resources_unit_test.tftest.hcl` (modify)
-- `infra/terraform/modules/relay-vm/README.md` (modify: the grants list under Identity model)
+- `infra/terraform/modules/relay-vm/README.md` (modify: one sentence in § Identity model saying the relay service account holds `roles/logging.logWriter` and why; that section is prose and has no grants list)
+- `infra/terraform/README.md` (modify: the "new IAM grant on an already-live resource" row of the PR-sequencing playbook, which says `1 (foundation only)`; a grant that lives in a module consumed by the Foundation roots is 1 PR + 1 Foundation apply)
 
 **Acceptance criteria — product:**
 - [ ] After a relay VM boot, its startup-script output is readable in Cloud Logging, including after the VM is destroyed.
@@ -621,8 +622,8 @@ The relay VM is on-demand and destroyed after use, so its journal disappears wit
 - [ ] Negative guarantee, own test: no broader logging role (`logging.admin`, `logging.configWriter`) is granted to the relay service account.
 - [ ] Checkov / Tfsec clean
 
-**Live-verification check:** after the apply, `gcloud projects get-iam-policy ikaro-staging --flatten=bindings --filter="bindings.role=roles/logging.logWriter" --format="value(bindings.members)"` lists the relay service account (same for `ikaro-prod`); on the next relay boot, `gcloud logging read 'logName:"google_metadata_script_runner"' --project=ikaro-staging --limit=5` returns the startup lines and the journal no longer shows `PermissionDenied`. Pass = both.
-**PR sequence:** the playbook's "new IAM grant on an already-live resource" row: **1 PR** (`modules/relay-vm/**` only, no `foundation/**` file changes) **+ 1 Foundation apply** (dispatch `foundation-deploy.yml` with `apply=true` from `main`, approve `staging-foundation` then `production-foundation`; the module is consumed by the Foundation roots, so the grant lives in Foundation state).
+**Live-verification check:** the gate is the read-only IAM check, run after the Foundation apply: `gcloud projects get-iam-policy ikaro-staging --flatten=bindings --filter="bindings.role=roles/logging.logWriter" --format="value(bindings.members)"` lists the relay service account (same for `ikaro-prod`). Pass = both projects list it. The boot check (on the next relay boot, `gcloud logging read 'logName:"google_metadata_script_runner"' --project=ikaro-staging --limit=5` returns the startup lines and the journal no longer shows `PermissionDenied`) is recorded at the next natural relay boot (for example the next billing operator run), not a reason to boot a VM just for this story; `/mark-done` notes it as pending if it has not happened yet.
+**PR sequence:** the playbook's "new IAM grant on an already-live resource" row: **1 PR** (`modules/relay-vm/**` only, no `foundation/**` file changes, no `infra-app-mix-ok`) **+ 1 Foundation apply** as its own numbered step after the merge: dispatch `foundation-deploy.yml` with `apply=true` from `main`, approve `staging-foundation` then `production-foundation`, then run the IAM check above in both projects. The module is consumed by the Foundation roots (`foundation/envs/{staging,prod}/main.tf`), so the grant lives in Foundation state. Nothing in CI fails if the apply is skipped: `foundation-applied-check` only looks at commits under `foundation/**`, which this PR does not touch.
 
 ## Self-dry-run findings
 
