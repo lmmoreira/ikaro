@@ -833,7 +833,7 @@ Ikaro charging its tenants (`docs/DOMAIN_MODEL.md` § Billing Context, `docs/USE
 
 #### **BillingReminderDue** *(a Command — see the note below the Billing events; not an audited domain event)*
 - **Trigger:** the daily reminders job (UC-139), once per milestone, deduped by `(subscription, kind, daysOffset, chargeId)`
-- **Data:** `kind` (`PLAN_CONFIRMATION` | `TRIAL_ENDING` | `CHARGE_DUE_SOON` | `CHARGE_OVERDUE` | `RECOVERY_CHARGE_OPEN`), `daysOffset`, `chargeId?`, `paymentUrl?`, `recipientEmail?`
+- **Data:** `subscriptionId`, `kind` (`PLAN_CONFIRMATION` | `TRIAL_ENDING` | `CHARGE_DUE_SOON` | `CHARGE_OVERDUE` | `RECOVERY_CHARGE_OPEN`), `daysOffset`, `chargeId?`, `paymentUrl?`, `recipientEmail?`
 - **Consumers:** Notification (dunning email; one template key per kind). **Freshness is Billing's job:** Billing re-checks "charge still open" and "tenant not exempt" immediately before writing the outbox row; Notification does no re-check and has no read port into Billing. A small stale window is accepted and the copy is tolerant
 
 #### **SubscriptionPriceChangeAnnounced**
