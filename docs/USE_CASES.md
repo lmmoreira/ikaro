@@ -2803,7 +2803,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 ### **UC-114: System Handles a Provider Webhook**
 
 - **Actor:** Provider (Asaas; Stripe in slice E) → public BFF route → internal backend
-- **Endpoints:** `POST /v1/public/billing/webhooks/asaas` and `…/stripe` (BFF: `@Public()`, `@BypassWebOnlyGuard()`, `@SkipThrottle()`); `POST /internal/billing/webhooks/{provider}` (backend, `InternalApiGuard`). Contract: `docs/API_CONTRACTS.md` § Billing — Provider Webhooks and Internal API.
+- **Endpoints:** `POST /v1/public/billing/webhooks/asaas` and `…/stripe` (BFF: `@Public()`, `@SkipThrottle()`, no `@BypassWebOnlyGuard()` — reached through the `ikaro-web` gateway); `POST /internal/billing/webhooks/{provider}` (backend, `InternalApiGuard`). Contract: `docs/API_CONTRACTS.md` § Billing — Provider Webhooks and Internal API.
 - **Preconditions:** The webhook is configured at the provider with a token / signing secret held in Secret Manager.
 - **Trigger:** An HTTP POST from the provider (Asaas: header `asaas-access-token`; Stripe: `Stripe-Signature`).
 - **Main Flow:**

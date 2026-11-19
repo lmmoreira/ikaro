@@ -244,7 +244,7 @@ CorrelationMiddleware (Express middleware — runs before every Guard, so even a
   ▼
 WebOnlyGuard (global, registered first)
   │  Rejects any caller that is not ikaro-web: X-Web-Internal-Key must match WEB_INTERNAL_KEY
-  │  (constant-time compare). No @Public() escape hatch — only @BypassWebOnlyGuard() (health probes and, planned, the billing webhooks)
+  │  (constant-time compare). No @Public() escape hatch — only @BypassWebOnlyGuard() (health probes; the billing webhooks need none, they arrive through the web gateway, which sends the shared-secret header)
   ▼
 AppThrottlerGuard
   │  Rate limit per route (see Rate Limiting) — rejects over-limit requests before any JWT work
@@ -493,7 +493,7 @@ On limit exceeded: `429` with the standard RFC 9457 Problem Detail envelope, `co
 | `ENABLE_DEV_AUTH` | Cloud Run env | Optional; `true` enables `POST /auth/dev-login` (local and staging E2E only, startup fails under `APP_ENV=production`) |
 | `INTERNAL_API_KEY` | Secret Manager | Shared secret with the backend, min 32 chars |
 | `WEB_INTERNAL_KEY` | Secret Manager | Shared secret with `ikaro-web`, min 32 chars, checked by `WebOnlyGuard` on every request |
-| `ASAAS_WEBHOOK_TOKEN`, `STRIPE_WEBHOOK_SECRET` *(planned with Billing)* | Secret Manager | Verify the provider webhooks on the `@BypassWebOnlyGuard()` routes (Asaas token header compared timing-safe; Stripe signature on the raw body). Sandbox and live are separate entries; the full secret list (`ASAAS_API_KEY`, `STRIPE_SECRET_KEY` live on the backend) is in `docs/ENGINEERING_RULES_INFRA.md` § Billing configuration (planned) |
+| `ASAAS_WEBHOOK_TOKEN`, `STRIPE_WEBHOOK_SECRET` *(planned with Billing)* | Secret Manager | Verify the provider webhooks on the `@Public()` + `@SkipThrottle()` routes reached through the web gateway (Asaas token header compared timing-safe; Stripe signature on the raw body). Sandbox and live are separate entries; the full secret list (`ASAAS_API_KEY`, `STRIPE_SECRET_KEY` live on the backend) is in `docs/ENGINEERING_RULES_INFRA.md` § Billing configuration (planned) |
 | `BACKEND_AUTH_MODE` | Cloud Run env | `none` (default) \| `iam`; must be `iam` when `NODE_ENV=production` |
 | `BACKEND_AUDIENCE` | Cloud Run env | Optional URL used as the identity-token audience when `BACKEND_AUTH_MODE=iam` (defaults to the backend URL) |
 | `GOOGLE_CALLBACK_URL` | Cloud Run env | `https://ikaro.online/v1/auth/google/callback` (prod; web-origin gateway) |
