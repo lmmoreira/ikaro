@@ -309,6 +309,42 @@ describe('validateEnv()', () => {
     );
   });
 
+  describe('ASAAS_API_KEY (M26-S01)', () => {
+    it('is optional: unset resolves to undefined, so no environment needs it to boot', () => {
+      expect(validateEnv(valid).ASAAS_API_KEY).toBeUndefined();
+    });
+
+    it('accepts a value', () => {
+      expect(validateEnv({ ...valid, ASAAS_API_KEY: 'sandbox-key' }).ASAAS_API_KEY).toBe(
+        'sandbox-key',
+      );
+    });
+
+    it('rejects an empty string', () => {
+      expect(() => validateEnv({ ...valid, ASAAS_API_KEY: '' })).toThrow(
+        'ASAAS_API_KEY must not be empty when set',
+      );
+    });
+
+    it('stays optional in production: no provider flag makes it required', () => {
+      const production = {
+        ...valid,
+        APP_ENV: 'production',
+        DB_HOST: undefined,
+        DB_INSTANCE_CONNECTION_NAME: 'proj:region:instance',
+        PUBSUB_AUTO_CREATE: 'false',
+        PUBSUB_CONSUMER_MODE: 'push',
+        PUBSUB_PUSH_AUDIENCE: 'https://backend.example.com',
+        PUBSUB_PUSH_SERVICE_ACCOUNT: 'push@proj.iam.gserviceaccount.com',
+        CHATBOT_LLM_PROVIDER: 'openrouter',
+        EMAIL_ADAPTER: 'brevo',
+        BREVO_SMTP_LOGIN: 'login',
+        BREVO_SMTP_KEY: 'key',
+      };
+      expect(validateEnv(production).ASAAS_API_KEY).toBeUndefined();
+    });
+  });
+
   describe('PLATFORM_OWNER_TENANT_SLUG (M25-S07)', () => {
     it('is optional: unset resolves to undefined', () => {
       expect(validateEnv(valid).PLATFORM_OWNER_TENANT_SLUG).toBeUndefined();

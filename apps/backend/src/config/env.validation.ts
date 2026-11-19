@@ -102,6 +102,15 @@ export const schema = z.object({
   // CloudflareTurnstileAdapter's own getOrThrow() is the only place a missing value actually
   // surfaces (a scoped fail-closed `false`, not a boot crash).
   TURNSTILE_SECRET_KEY: z.string().optional(),
+  // M26-S01 — Asaas API key (sandbox value in staging, live value in production). Optional, with
+  // no feature flag: no production Asaas account exists before M26-S39, so an unset key is the
+  // state that keeps the live adapter off (S37 builds its live profile only when this is set; a
+  // live merchant key then resolves to ProviderNotSupportedError, which the billing jobs skip and
+  // log). An empty string is rejected so a blank secret never reads as "configured".
+  ASAAS_API_KEY: z
+    .string()
+    .min(1, { message: 'ASAAS_API_KEY must not be empty when set' })
+    .optional(),
   // Chatbot cost/abuse-prevention platform-wide backstops (M19-S05/S06) — deliberately env vars,
   // not tenants.settings fields (docs/USE_CASES.md UC-033): no tenant can opt
   // out, and all three can be changed via a Terraform var update + apply (a new Cloud Run
