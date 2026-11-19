@@ -19,6 +19,7 @@ import {
   type ChargeFactOutcome,
   type ChargeFactResult,
 } from '../helpers/charge-fact';
+import { findFeaturePriceInForce } from '../helpers/feature-price-lookup.helper';
 import { loadSubscriptionForUpdate } from '../helpers/operator-billing.helpers';
 import { CHARGE_REPOSITORY, IChargeRepository } from '../ports/charge-repository.port';
 import {
@@ -26,12 +27,15 @@ import {
   PROVIDER_EVENT_REPOSITORY,
 } from '../ports/provider-event-repository.port';
 import {
+  FEATURE_PRICE_REPOSITORY,
+  IFeaturePriceRepository,
+} from '../ports/feature-price-repository.port';
+import {
   ISubscriptionRepository,
   SUBSCRIPTION_REPOSITORY,
 } from '../ports/subscription-repository.port';
-import { GetFeaturePriceAtUseCase } from './get-feature-price-at.use-case';
 
-export interface ApplyChargeFactUseCaseInput {
+export interface ApplyChargeFactInput {
   tenantId: string;
   chargeId: string;
   fact: ChargeFact;
@@ -45,7 +49,7 @@ export interface ApplyChargeFactUseCaseInput {
   inbox?: ProviderEvent;
 }
 
-export type ApplyChargeFactUseCaseResult = ChargeFactResult | 'DUPLICATE' | 'CHARGE_NOT_FOUND';
+export type ApplyChargeFactResult = ChargeFactResult | 'DUPLICATE' | 'CHARGE_NOT_FOUND';
 
 interface FollowUps {
   /** The open `RECOVERY` charge the stale payment made unnecessary, cancelled. */
@@ -63,19 +67,19 @@ interface FollowUps {
  * cached subscription repository after commit, so there is no explicit invalidation here.
  */
 @Injectable()
-export class ApplyChargeFactUseCase {
-  private readonly logger = new AppLogger(ApplyChargeFactUseCase.name);
+export class ApplyChargeFactService {
+  private readonly logger = new AppLogger(ApplyChargeFactService.name);
 
   constructor(
     @Inject(SUBSCRIPTION_REPOSITORY) private readonly subscriptions: ISubscriptionRepository,
     @Inject(CHARGE_REPOSITORY) private readonly charges: IChargeRepository,
     @Inject(PROVIDER_EVENT_REPOSITORY) private readonly providerEvents: IProviderEventRepository,
-    private readonly prices: GetFeaturePriceAtUseCase,
+    @Inject(FEATURE_PRICE_REPOSITORY) private readonly prices: IFeaturePriceRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     @Inject(CLOCK) private readonly clock: IClock,
   ) {}
 
-  async execute(input: ApplyChargeFactUseCaseInput): Promise<ApplyChargeFactUseCaseResult> {
+  async execute(input: ApplyChargeFactInput): Promise<ApplyChargeFactResult> {
     return this.txManager.run(async () => {
       if (input.inbox && !(await this.providerEvents.insertIfAbsent(input.inbox))) {
         return 'DUPLICATE';
@@ -138,30 +142,29 @@ export class ApplyChargeFactUseCase {
     );
     if (existing !== null) return null;
     const today = utcDateToLocalDate(now, subscription.timezone.value);
+    const todayDate = CalendarDate.create(today);
     const items = subscription.selection;
     const prices = new Map<string, MinorAmount>();
     for (const item of items) {
-      const price = await this.prices.execute({
-        featureKey: item.featureKey,
-        countryCode: subscription.countryCode.value,
-        tier: item.tier,
-        cycle: 'MONTHLY',
-        at: today,
-      });
-      prices.set(
-        recoveryPriceKey(item.featureKey, item.tier),
-        MinorAmount.create(price.amountMinor, price.currency),
+      const { version } = await findFeaturePriceInForce(
+        this.prices,
+        item.featureKey,
+        subscription.countryCode,
+        item.tier,
+        'MONTHLY',
+        todayDate,
       );
+      prices.set(recoveryPriceKey(item.featureKey, item.tier), version.amount);
     }
     return RecoveryChargeFactory.build({
       subscription,
       items,
       prices,
-      today: CalendarDate.create(today),
+      today: todayDate,
     });
   }
 
-  private logOutcome(input: ApplyChargeFactUseCaseInput, outcome: ChargeFactOutcome): void {
+  private logOutcome(input: ApplyChargeFactInput, outcome: ChargeFactOutcome): void {
     const context = {
       tenantId: input.tenantId,
       chargeId: input.chargeId,

@@ -14,8 +14,7 @@ import {
   WEBHOOK_PROVIDER_BY_SLUG,
   WebhookProviderSlugSchema,
 } from '../../application/dtos/provider-webhook.dto';
-import { ApplyChargeFactUseCase } from '../../application/use-cases/apply-charge-fact.use-case';
-import { GetFeaturePriceAtUseCase } from '../../application/use-cases/get-feature-price-at.use-case';
+import { ApplyChargeFactService } from '../../application/services/apply-charge-fact.service';
 import { ProcessProviderWebhookUseCase } from '../../application/use-cases/process-provider-webhook.use-case';
 import { BillingProviderRegistry } from '../providers/billing-provider.registry';
 import { FakeBillingProvider } from '../providers/fake-billing.provider';
@@ -29,11 +28,11 @@ function buildController(fake: FakeBillingProvider): InternalBillingWebhookContr
   const subscriptions = new InMemorySubscriptionRepository();
   const charges = new InMemoryChargeRepository();
   const providerEvents = new InMemoryProviderEventRepository();
-  const applyFact = new ApplyChargeFactUseCase(
+  const applyFact = new ApplyChargeFactService(
     subscriptions,
     charges,
     providerEvents,
-    new GetFeaturePriceAtUseCase(new InMemoryFeaturePriceRepository()),
+    new InMemoryFeaturePriceRepository(),
     txManager,
     clock,
   );

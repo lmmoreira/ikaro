@@ -17,8 +17,7 @@ import type { Charge } from '../../domain/charge.aggregate';
 import type { Subscription } from '../../domain/subscription.aggregate';
 import type { SuspensionReason } from '../../domain/subscription.types';
 import type { ChargeFact } from '../helpers/charge-fact';
-import { ApplyChargeFactUseCase } from './apply-charge-fact.use-case';
-import { GetFeaturePriceAtUseCase } from './get-feature-price-at.use-case';
+import { ApplyChargeFactService } from './apply-charge-fact.service';
 
 // São Paulo is UTC-3 with no DST: NOW is 12:00 local on 2026-03-10.
 const NOW = new Date('2026-03-10T15:00:00Z');
@@ -53,12 +52,12 @@ class RecordingCharges extends InMemoryChargeRepository {
   }
 }
 
-describe('ApplyChargeFactUseCase', () => {
+describe('ApplyChargeFactService', () => {
   let outbox: InMemoryOutboxPublisher;
   let subscriptions: RecordingSubscriptions;
   let charges: RecordingCharges;
   let providerEvents: InMemoryProviderEventRepository;
-  let useCase: ApplyChargeFactUseCase;
+  let useCase: ApplyChargeFactService;
 
   beforeEach(() => {
     lockOrder.length = 0;
@@ -73,11 +72,11 @@ describe('ApplyChargeFactUseCase', () => {
         .withVersions([new FeaturePriceVersionBuilder().withAmountMinor(4900).build()])
         .build(),
     );
-    useCase = new ApplyChargeFactUseCase(
+    useCase = new ApplyChargeFactService(
       subscriptions,
       charges,
       providerEvents,
-      new GetFeaturePriceAtUseCase(prices),
+      prices,
       txManager,
       new AdvanceableClock(NOW),
     );

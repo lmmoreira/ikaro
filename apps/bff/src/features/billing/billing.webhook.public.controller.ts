@@ -1,26 +1,15 @@
-import * as crypto from 'node:crypto';
 import { Body, Controller, Headers, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SkipThrottle } from '@nestjs/throttler';
 import { AuthErrorCode } from '@ikaro/types';
 import { ZodValidationPipe } from '@ikaro/nestjs-http';
+import { ProviderWebhookBody, ProviderWebhookBodySchema } from '@ikaro/validation';
 import { Public } from '../../shared/decorators/public.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { throwProblemDetail } from '../../shared/http/problem-detail';
-import { ProviderWebhookBody, ProviderWebhookBodySchema } from './billing.webhook.schemas';
+import { secretsMatch } from '../../shared/http/timing-safe-secret';
 
 const ASAAS_TOKEN_HEADER = 'asaas-access-token';
-
-/**
- * Timing-safe comparison: both sides are hashed first so the lengths match, the same construction
- * as `WebOnlyGuard`. An unset expected token never matches (fail closed): until the Asaas account
- * exists (M26-S39) nothing is registered at Asaas, so no delivery is expected.
- */
-function tokenMatches(expected: string | undefined, received: string | undefined): boolean {
-  if (!expected || !received) return false;
-  const digest = (value: string): Buffer => crypto.createHash('sha256').update(value).digest();
-  return crypto.timingSafeEqual(digest(expected), digest(received));
-}
 
 // The provider's webhook receiver (UC-114). Public and provider-called, so it is its own controller
 // beside the authenticated `billing.controller.ts`. Asaas reaches it through the `ikaro-web`
@@ -47,7 +36,7 @@ export class BillingWebhookPublicController {
     @Headers(ASAAS_TOKEN_HEADER) token: string | undefined,
     @Body(new ZodValidationPipe(ProviderWebhookBodySchema)) body: ProviderWebhookBody,
   ): Promise<void> {
-    if (!tokenMatches(this.config.get<string>('ASAAS_WEBHOOK_TOKEN'), token)) {
+    if (!secretsMatch(this.config.get<string>('ASAAS_WEBHOOK_TOKEN'), token)) {
       throw throwProblemDetail(
         HttpStatus.UNAUTHORIZED,
         AuthErrorCode.UNAUTHORIZED,

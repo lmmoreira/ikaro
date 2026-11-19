@@ -1,3 +1,4 @@
+import { ProviderWebhookBody, ProviderWebhookBodySchema } from '@ikaro/validation';
 import { z } from 'zod';
 import type { BillingProvider } from '../../domain/billing-account.aggregate';
 
@@ -13,7 +14,6 @@ export const WebhookProviderSlugSchema = z
     message: 'Unsupported billing provider',
   });
 
-// The body is the provider's own JSON, forwarded after the BFF verified the token; its shape is the
-// adapter's to read (`parseWebhook`), so the route only requires a JSON object.
-export const ProviderWebhookBodySchema = z.record(z.string(), z.unknown());
-export type ProviderWebhookBodyDto = z.infer<typeof ProviderWebhookBodySchema>;
+// The body schema is shared with the BFF (`@ikaro/validation`): both validate the same JSON object.
+export { ProviderWebhookBodySchema };
+export type ProviderWebhookBodyDto = ProviderWebhookBody;

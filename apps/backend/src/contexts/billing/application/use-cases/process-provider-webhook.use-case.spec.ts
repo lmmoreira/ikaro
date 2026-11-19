@@ -26,8 +26,7 @@ import type { SubscriptionStatus, SuspensionReason } from '../../domain/subscrip
 import { BillingProviderRegistry } from '../../infrastructure/providers/billing-provider.registry';
 import { FakeBillingProvider } from '../../infrastructure/providers/fake-billing.provider';
 import type { FakeWebhookDelivery } from '../../infrastructure/providers/fake-billing.types';
-import { ApplyChargeFactUseCase } from './apply-charge-fact.use-case';
-import { GetFeaturePriceAtUseCase } from './get-feature-price-at.use-case';
+import { ApplyChargeFactService } from '../services/apply-charge-fact.service';
 import {
   ProcessProviderWebhookUseCase,
   type ProcessProviderWebhookUseCaseResult,
@@ -86,11 +85,11 @@ describe('ProcessProviderWebhookUseCase', () => {
         .withVersions([new FeaturePriceVersionBuilder().withAmountMinor(4900).build()])
         .build(),
     );
-    const applyFact = new ApplyChargeFactUseCase(
+    const applyFact = new ApplyChargeFactService(
       subscriptions,
       charges,
       providerEvents,
-      new GetFeaturePriceAtUseCase(prices),
+      prices,
       txManager,
       clock,
     );

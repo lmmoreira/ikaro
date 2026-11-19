@@ -56,7 +56,7 @@ import { SuspendTenantByOperatorUseCase } from './application/use-cases/suspend-
 import { UnsuspendTenantUseCase } from './application/use-cases/unsuspend-tenant.use-case';
 import { BillingAuditLogHandler } from './infrastructure/events/billing-audit-log.handler';
 import { InternalBillingOperatorController } from './infrastructure/controllers/internal-billing-operator.controller';
-import { ApplyChargeFactUseCase } from './application/use-cases/apply-charge-fact.use-case';
+import { ApplyChargeFactService } from './application/services/apply-charge-fact.service';
 import { ProcessProviderWebhookUseCase } from './application/use-cases/process-provider-webhook.use-case';
 import { InternalBillingWebhookController } from './infrastructure/controllers/internal-billing-webhook.controller';
 import { InternalBillingAccessController } from './infrastructure/controllers/internal-billing-access.controller';
@@ -144,7 +144,7 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     BillingAuditLogHandler,
     // The provider webhook (M26-S04): the use case the controller calls and the shared service
     // that writes a verified paid / refunded / charged-back fact.
-    ApplyChargeFactUseCase,
+    ApplyChargeFactService,
     ProcessProviderWebhookUseCase,
   ],
   // The shared access port is consumed by every context (M25-S16 onwards). The registration and

@@ -200,7 +200,7 @@ export class Charge extends AggregateRoot {
 
   /**
    * The provider's paid fact, **only ever called with a provider-verified one** (the re-read of
-   * `ApplyChargeFactUseCase`): legal from `PENDING`, `OVERDUE` and `CANCELED` (the provider could
+   * `ApplyChargeFactService`): legal from `PENDING`, `OVERDUE` and `CANCELED` (the provider could
    * not cancel it because it was already paid, UC-114 step 4), a no-op on `PAID` (the first signal
    * wins, a later one is ignored), illegal once refunded, charged back or failed. A paid charge
    * needs no provider cancel any more, so the retry flag is cleared. Raises `ChargePaid` once: a

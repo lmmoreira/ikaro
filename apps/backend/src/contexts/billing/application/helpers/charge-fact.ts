@@ -3,7 +3,7 @@ import { IllegalChargeTransitionError } from '../../domain/errors/illegal-charge
 import type { PaymentMethod } from '../../domain/provider-events';
 import type { Subscription } from '../../domain/subscription.aggregate';
 
-/** A provider-verified fact about one charge: the only input `ApplyChargeFactUseCase` takes. */
+/** A provider-verified fact about one charge: the only input `ApplyChargeFactService` takes. */
 export type ChargeFact =
   | {
       readonly type: 'PAID';

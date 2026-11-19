@@ -9,6 +9,7 @@ import type { NormalizedChargeStatus, NormalizedProviderEvent } from '../../doma
 import type { ProviderEvent } from '../../domain/provider-event';
 import type { Subscription } from '../../domain/subscription.aggregate';
 import type { ChargeFact } from '../helpers/charge-fact';
+import { ApplyChargeFactService } from '../services/apply-charge-fact.service';
 import { resolveBillingRecipientEmail } from '../helpers/billing-recipient-email.helper';
 import {
   BILLING_ACCOUNT_REPOSITORY,
@@ -32,7 +33,6 @@ import {
   ISubscriptionRepository,
   SUBSCRIPTION_REPOSITORY,
 } from '../ports/subscription-repository.port';
-import { ApplyChargeFactUseCase } from './apply-charge-fact.use-case';
 
 export interface ProcessProviderWebhookUseCaseInput {
   provider: BillingProvider;
@@ -82,7 +82,7 @@ const REREAD_TYPES: ReadonlySet<ChargeEvent['type']> = new Set([
  * (a read-only inbox check, so a replay costs no provider call), resolves the tenant from the
  * provider customer, or from the charge's `externalReference` when that customer is not stored yet,
  * re-reads the provider **before** any transaction opens, and hands the verified fact to
- * `ApplyChargeFactUseCase`, which writes it with the inbox row in one transaction. Provider events
+ * `ApplyChargeFactService`, which writes it with the inbox row in one transaction. Provider events
  * that need no state change (`PaymentOverdue`, an opened dispute, a cancel, a partial refund) only
  * leave their inbox row.
  */
@@ -97,7 +97,7 @@ export class ProcessProviderWebhookUseCase {
     @Inject(SUBSCRIPTION_REPOSITORY) private readonly subscriptions: ISubscriptionRepository,
     @Inject(CHARGE_REPOSITORY) private readonly charges: IChargeRepository,
     @Inject(PROVIDER_EVENT_REPOSITORY) private readonly providerEvents: IProviderEventRepository,
-    private readonly applyFact: ApplyChargeFactUseCase,
+    private readonly applyFact: ApplyChargeFactService,
     @Inject(CLOCK) private readonly clock: IClock,
   ) {}
 
@@ -119,7 +119,7 @@ export class ProcessProviderWebhookUseCase {
     return this.process(input, chargeEvent, target);
   }
 
-  // `parseWebhook` is local: any registry entry of the deployment's own BRL profile can parse it.
+  // `parseWebhook` is local: the registry entry of the deployment's own BRL profile can parse it.
   private parse(input: ProcessProviderWebhookUseCaseInput): NormalizedProviderEvent | null {
     const adapter = this.registry.resolve(resolveMerchantProfileKey(this.config.appEnv, 'BR'));
     try {
