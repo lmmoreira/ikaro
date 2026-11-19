@@ -108,7 +108,7 @@ export class ChargeBuilder {
     return this;
   }
 
-  withRefunded(refundedMinor: number): this {
+  withRefundedMinor(refundedMinor: number): this {
     this.refundedMinor = refundedMinor;
     return this;
   }
@@ -128,6 +128,11 @@ export class ChargeBuilder {
     this.providerChargeId = providerChargeId;
     this.paymentUrl = paymentUrl;
     this.providerCreationStatus = 'READY';
+    return this;
+  }
+
+  withProviderCreationAttempts(providerCreationAttempts: number): this {
+    this.providerCreationAttempts = providerCreationAttempts;
     return this;
   }
 

@@ -183,7 +183,7 @@ describe('Charge', () => {
     });
 
     it('an older or repeated total changes nothing (the total is absolute)', () => {
-      const charge = new ChargeBuilder().withStatus('PAID').withRefunded(2000).build();
+      const charge = new ChargeBuilder().withStatus('PAID').withRefundedMinor(2000).build();
 
       charge.markRefunded(brl(1000));
       charge.markRefunded(brl(2000));

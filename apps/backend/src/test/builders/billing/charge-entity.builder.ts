@@ -76,6 +76,41 @@ export class ChargeEntityBuilder {
     return this;
   }
 
+  withKind(kind: string): this {
+    this.kind = kind;
+    return this;
+  }
+
+  withSubtotalMinor(subtotalMinor: number): this {
+    this.subtotalMinor = String(subtotalMinor);
+    return this;
+  }
+
+  withCurrency(currency: string): this {
+    this.currency = currency;
+    return this;
+  }
+
+  withMerchantProfileKey(merchantProfileKey: string): this {
+    this.merchantProfileKey = merchantProfileKey;
+    return this;
+  }
+
+  withRefundedAmountMinor(refundedAmountMinor: number): this {
+    this.refundedAmountMinor = String(refundedAmountMinor);
+    return this;
+  }
+
+  withProviderCreationStatus(providerCreationStatus: string): this {
+    this.providerCreationStatus = providerCreationStatus;
+    return this;
+  }
+
+  withProviderCreationAttempts(providerCreationAttempts: number): this {
+    this.providerCreationAttempts = providerCreationAttempts;
+    return this;
+  }
+
   withPaidAt(paidAt: Date | null): this {
     this.paidAt = paidAt;
     return this;

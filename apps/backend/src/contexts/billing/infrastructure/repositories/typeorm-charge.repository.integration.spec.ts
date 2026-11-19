@@ -7,6 +7,7 @@ import {
   SubscriptionEntityBuilder,
 } from '../../../../test/builders/billing';
 import { createTestDataSource } from '../../../../test/test-datasource';
+import { waitForBlockedRowLock } from '../../../../test/utils/wait-for-blocked-row-lock';
 import { Charge } from '../../domain/charge.aggregate';
 import { ChargeAlreadyExistsError } from '../../domain/errors/charge-already-exists.error';
 import { ChargeConcurrentModificationError } from '../../domain/errors/charge-concurrent-modification.error';
@@ -14,20 +15,6 @@ import { RecoveryChargeAlreadyOpenError } from '../../domain/errors/recovery-cha
 import { ChargeEntity } from '../entities/charge.entity';
 import { SubscriptionEntity } from '../entities/subscription.entity';
 import { TypeOrmChargeRepository } from './typeorm-charge.repository';
-
-// Polls until some backend is parked on a row lock, pausing inside Postgres (pg_sleep) so no
-// test-side timer is involved. Bounded: a lock wait that never appears fails the test.
-async function waitForBlockedRowLock(dataSource: DataSource): Promise<void> {
-  for (let attempt = 0; attempt < 500; attempt++) {
-    const [{ waiting }] = await dataSource.query<{ waiting: number }[]>(
-      `SELECT count(*)::int AS waiting FROM pg_stat_activity
-        WHERE datname = current_database() AND wait_event_type = 'Lock'`,
-    );
-    if (waiting > 0) return;
-    await dataSource.query('SELECT pg_sleep(0.01)');
-  }
-  throw new Error('no transaction ever blocked on the row lock');
-}
 
 describe('TypeOrmChargeRepository (integration)', () => {
   let dataSource: DataSource;
