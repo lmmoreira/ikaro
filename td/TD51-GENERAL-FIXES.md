@@ -587,7 +587,7 @@ After `SubscriptionSuspended` / `SubscriptionReactivated` the Platform consumers
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-### Story 8 — Give the relay VM's service account permission to write logs, so its startup-script output survives the VM
+### Story 8 — Give the relay VM's service account permission to write logs, so its startup-script output survives the VM ✅ Done
 
 **Agent:** devops
 **Complexity:** S
