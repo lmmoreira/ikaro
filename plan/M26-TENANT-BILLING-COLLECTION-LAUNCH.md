@@ -335,7 +335,7 @@ Create the provider secrets and the environment variables the money loop and the
 
 ---
 
-### M26-S02 — `Charge` aggregate, `ChargeLine`, provider-event inbox, recovery-charge factory
+### M26-S02 — `Charge` aggregate, `ChargeLine`, provider-event inbox, recovery-charge factory ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** L
