@@ -3,6 +3,7 @@ import { uuidv7 } from '../../../shared/domain/uuid-v7';
 
 export class SubscriptionReactivatedEventBuilder {
   private tenantId = uuidv7();
+  private recipientEmail: string | null = 'billing@example.test';
   private correlationId = 'corr-reactivated-1';
   private subscriptionId = uuidv7();
   // Relative to now, never a calendar date (docs/ENGINEERING_RULES_TESTING.md).
@@ -34,11 +35,17 @@ export class SubscriptionReactivatedEventBuilder {
     return this;
   }
 
+  withRecipientEmail(recipientEmail: string | null): this {
+    this.recipientEmail = recipientEmail;
+    return this;
+  }
+
   build(): SubscriptionReactivated {
     return new SubscriptionReactivated(this.tenantId, this.correlationId, {
       subscriptionId: this.subscriptionId,
       reactivatedAt: this.reactivatedAt.toISOString(),
       suspendedAt: this.suspendedAt.toISOString(),
+      recipientEmail: this.recipientEmail,
     });
   }
 }

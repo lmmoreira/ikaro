@@ -122,6 +122,18 @@
     ]
   },
   {
+    "event": "ChargeIssued",
+    "consumers": [
+      "audit-log"
+    ]
+  },
+  {
+    "event": "ChargePaid",
+    "consumers": [
+      "audit-log"
+    ]
+  },
+  {
     "event": "FutureCommitmentExceptionDismissed",
     "consumers": [
       "audit-log"
@@ -141,6 +153,12 @@
   },
   {
     "event": "LeadFormSubmissionReceived",
+    "consumers": [
+      "audit-log"
+    ]
+  },
+  {
+    "event": "PlanChanged",
     "consumers": [
       "audit-log"
     ]
@@ -217,6 +235,24 @@
     "consumers": [
       "audit-log",
       "notification"
+    ]
+  },
+  {
+    "event": "SubscriptionCancelled",
+    "consumers": [
+      "audit-log"
+    ]
+  },
+  {
+    "event": "SubscriptionPastDue",
+    "consumers": [
+      "audit-log"
+    ]
+  },
+  {
+    "event": "SubscriptionPriceChangeAnnounced",
+    "consumers": [
+      "audit-log"
     ]
   },
   {

@@ -105,7 +105,7 @@ describe('TypeOrmSubscriptionRepository (integration)', () => {
     const loaded = await reload(tenantId);
     const itemIdsBefore = loaded.items.map((item) => item.id).sort();
 
-    loaded.suspendByOperator(new Date('2026-02-01T12:00:00Z'), 'corr-1');
+    loaded.suspendByOperator(new Date('2026-02-01T12:00:00Z'), 'corr-1', null);
     await save(loaded);
 
     const found = await reload(tenantId);
@@ -122,9 +122,9 @@ describe('TypeOrmSubscriptionRepository (integration)', () => {
     const first = await reload(tenantId);
     const second = await reload(tenantId);
 
-    first.suspendByOperator(new Date('2026-02-01T12:00:00Z'), 'corr-1');
+    first.suspendByOperator(new Date('2026-02-01T12:00:00Z'), 'corr-1', null);
     await save(first);
-    second.suspendByOperator(new Date('2026-02-02T12:00:00Z'), 'corr-1');
+    second.suspendByOperator(new Date('2026-02-02T12:00:00Z'), 'corr-1', null);
 
     await expect(save(second)).rejects.toThrow(SubscriptionConcurrentModificationError);
     expect((await reload(tenantId)).suspendedAt?.toISOString()).toBe('2026-02-01T12:00:00.000Z');
@@ -311,7 +311,7 @@ describe('TypeOrmSubscriptionRepository (integration)', () => {
         order.push('first-locked');
         firstHasLock();
         await firstReleased;
-        locked.suspendByOperator(new Date('2026-02-01T12:00:00Z'), 'corr-1');
+        locked.suspendByOperator(new Date('2026-02-01T12:00:00Z'), 'corr-1', null);
         await repo.save(locked);
         order.push('first-committing');
       });

@@ -1,7 +1,8 @@
 import { AdvanceableClock } from '../../../../test/infrastructure/advanceable-clock';
 import { InMemoryOutboxPublisher } from '../../../../test/infrastructure/in-memory-outbox-publisher';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
-import { SubscriptionBuilder } from '../../../../test/builders/billing';
+import { BillingAccountBuilder, SubscriptionBuilder } from '../../../../test/builders/billing';
+import { InMemoryBillingAccountRepository } from '../../../../test/repositories/billing/in-memory-billing-account.repository';
 import { InMemoryOperatorAuditRepository } from '../../../../test/repositories/billing/in-memory-operator-audit.repository';
 import { InMemorySubscriptionRepository } from '../../../../test/repositories/billing/in-memory-subscription.repository';
 import {
@@ -18,6 +19,7 @@ describe('UnsuspendTenantUseCase', () => {
   let outbox: InMemoryOutboxPublisher;
   let subscriptions: InMemorySubscriptionRepository;
   let audits: InMemoryOperatorAuditRepository;
+  let accounts: InMemoryBillingAccountRepository;
   let useCase: UnsuspendTenantUseCase;
 
   beforeEach(() => {
@@ -25,8 +27,10 @@ describe('UnsuspendTenantUseCase', () => {
     outbox = new InMemoryOutboxPublisher(txManager);
     subscriptions = new InMemorySubscriptionRepository(outbox);
     audits = new InMemoryOperatorAuditRepository();
+    accounts = new InMemoryBillingAccountRepository();
     useCase = new UnsuspendTenantUseCase(
       subscriptions,
+      accounts,
       audits,
       txManager,
       new AdvanceableClock(NOW),
@@ -49,6 +53,29 @@ describe('UnsuspendTenantUseCase', () => {
       correlationId: 'corr-req-2',
       data: { reactivatedAt: NOW.toISOString(), suspendedAt: SUSPENDED_AT.toISOString() },
     });
+  });
+
+  it('puts the billing email on SubscriptionReactivated, and null when the tenant has no account', async () => {
+    const withEmail = new SubscriptionBuilder().withSuspension('OPERATOR', SUSPENDED_AT).build();
+    const withoutAccount = new SubscriptionBuilder()
+      .withSuspension('OPERATOR', SUSPENDED_AT)
+      .build();
+    await subscriptions.save(withEmail);
+    await subscriptions.save(withoutAccount);
+    await accounts.save(
+      new BillingAccountBuilder()
+        .withTenantId(withEmail.tenantId)
+        .withBillingEmail('billing@example.test')
+        .build(),
+    );
+
+    await useCase.execute({ tenantId: withEmail.tenantId, ...INPUT });
+    await useCase.execute({ tenantId: withoutAccount.tenantId, ...INPUT });
+
+    expect(outbox.published.map((event) => event.data)).toEqual([
+      expect.objectContaining({ recipientEmail: 'billing@example.test' }),
+      expect.objectContaining({ recipientEmail: null }),
+    ]);
   });
 
   it('refuses to reactivate a payment-based suspension, with no audit row and no event', async () => {

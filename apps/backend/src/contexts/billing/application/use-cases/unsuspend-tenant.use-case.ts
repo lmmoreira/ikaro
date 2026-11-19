@@ -4,6 +4,11 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
+import {
+  BILLING_ACCOUNT_REPOSITORY,
+  IBillingAccountRepository,
+} from '../ports/billing-account-repository.port';
+import { resolveBillingRecipientEmail } from '../helpers/billing-recipient-email.helper';
 import { OperatorAudit } from '../../domain/operator-audit';
 import {
   IOperatorAuditRepository,
@@ -38,6 +43,7 @@ export type UnsuspendTenantUseCaseResult = OperatorBillingStateResult;
 export class UnsuspendTenantUseCase {
   constructor(
     @Inject(SUBSCRIPTION_REPOSITORY) private readonly subscriptions: ISubscriptionRepository,
+    @Inject(BILLING_ACCOUNT_REPOSITORY) private readonly accounts: IBillingAccountRepository,
     @Inject(OPERATOR_AUDIT_REPOSITORY) private readonly audits: IOperatorAuditRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     @Inject(CLOCK) private readonly clock: IClock,
@@ -47,7 +53,11 @@ export class UnsuspendTenantUseCase {
     return this.txManager.run(async () => {
       const subscription = await loadSubscriptionForUpdate(this.subscriptions, input.tenantId);
       const now = this.clock.now();
-      if (subscription.unsuspendOperator(now, input.correlationId)) {
+      const recipientEmail = resolveBillingRecipientEmail(
+        subscription.exempt,
+        await this.accounts.findByTenantId(input.tenantId),
+      );
+      if (subscription.unsuspendOperator(now, input.correlationId, recipientEmail)) {
         await this.subscriptions.save(subscription);
         await this.audits.save(
           OperatorAudit.record({

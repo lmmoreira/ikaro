@@ -11,6 +11,7 @@ import { ListTenantBillingStatusUseCase } from '../../application/use-cases/list
 import { SetTenantExemptUseCase } from '../../application/use-cases/set-tenant-exempt.use-case';
 import { SuspendTenantByOperatorUseCase } from '../../application/use-cases/suspend-tenant-by-operator.use-case';
 import { UnsuspendTenantUseCase } from '../../application/use-cases/unsuspend-tenant.use-case';
+import { InMemoryBillingAccountRepository } from '../../../../test/repositories/billing/in-memory-billing-account.repository';
 import { InternalBillingOperatorController } from './internal-billing-operator.controller';
 
 const NOW = new Date('2026-11-12T12:00:00.000Z');
@@ -27,8 +28,20 @@ describe('InternalBillingOperatorController', () => {
     const tx = new InMemoryTransactionManager();
     const clock = new AdvanceableClock(NOW);
     controller = new InternalBillingOperatorController(
-      new SuspendTenantByOperatorUseCase(subscriptions, audits, tx, clock),
-      new UnsuspendTenantUseCase(subscriptions, audits, tx, clock),
+      new SuspendTenantByOperatorUseCase(
+        subscriptions,
+        new InMemoryBillingAccountRepository(),
+        audits,
+        tx,
+        clock,
+      ),
+      new UnsuspendTenantUseCase(
+        subscriptions,
+        new InMemoryBillingAccountRepository(),
+        audits,
+        tx,
+        clock,
+      ),
       new ExtendGraceUseCase(subscriptions, audits, tx, clock),
       new SetTenantExemptUseCase(
         subscriptions,

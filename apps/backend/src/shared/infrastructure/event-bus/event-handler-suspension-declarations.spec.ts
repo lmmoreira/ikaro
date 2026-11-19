@@ -108,7 +108,7 @@ describe('declared skipWhenSuspended values (UC-123)', () => {
       ['staff', 'staff-audit-log.handler.ts', 3],
       ['staff', 'tenant-provisioned.handler.ts', 1],
       ['platform', 'platform-audit-log.handler.ts', 2],
-      ['billing', 'billing-audit-log.handler.ts', 2],
+      ['billing', 'billing-audit-log.handler.ts', 8],
       ['billing', 'tenant-provisioned-billing.handler.ts', 1],
     ])('%s/%s runs while suspended (state sync, audit, Billing)', (context, file, sites) => {
       const declared = declarations(context, file);

@@ -78,7 +78,7 @@ describe('TypeOrmSubscriptionRepository → outbox (integration)', () => {
 
     await txManager.run(async () => {
       const subscription = await repo.findByTenantIdForUpdate(tenantId);
-      subscription?.suspendByOperator(new Date(), 'corr-outbox');
+      subscription?.suspendByOperator(new Date(), 'corr-outbox', null);
       if (subscription) await repo.save(subscription);
     });
 
@@ -96,7 +96,7 @@ describe('TypeOrmSubscriptionRepository → outbox (integration)', () => {
     await expect(
       txManager.run(async () => {
         const subscription = await repo.findByTenantIdForUpdate(tenantId);
-        subscription?.suspendByOperator(new Date(), 'corr-rollback');
+        subscription?.suspendByOperator(new Date(), 'corr-rollback', null);
         if (subscription) await repo.save(subscription);
         throw new Error('a later step failed');
       }),

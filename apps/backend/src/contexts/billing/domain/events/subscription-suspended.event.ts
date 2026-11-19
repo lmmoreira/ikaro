@@ -11,6 +11,8 @@ interface SubscriptionSuspendedData extends Record<string, unknown> {
    * that never paid, + 180 for one that did). Informational until M27's purge acts on it.
    */
   purgeAt: string;
+  /** The billing email, resolved by Billing; `null` when unset or for an exempt subscription. */
+  recipientEmail: string | null;
 }
 
 /** A subscription became `SUSPENDED` (docs/DOMAIN_EVENTS.md § SubscriptionSuspended). */

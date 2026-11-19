@@ -2,6 +2,12 @@ import { LogDomainEventUseCase } from '../../../../shared/application/use-cases/
 import { Envelope } from '../../../../shared/domain/envelope';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import {
+  ChargeIssuedEventBuilder,
+  ChargePaidEventBuilder,
+  PlanChangedEventBuilder,
+  SubscriptionCancelledEventBuilder,
+  SubscriptionPastDueEventBuilder,
+  SubscriptionPriceChangeAnnouncedEventBuilder,
   SubscriptionReactivatedEventBuilder,
   SubscriptionSuspendedEventBuilder,
 } from '../../../../test/builders/billing';
@@ -18,6 +24,14 @@ const EVENT_BUILDERS: Record<string, () => Envelope> = {
     new SubscriptionSuspendedEventBuilder().withTenantId(TENANT_ID).build(),
   SubscriptionReactivated: () =>
     new SubscriptionReactivatedEventBuilder().withTenantId(TENANT_ID).build(),
+  ChargeIssued: () => new ChargeIssuedEventBuilder().withTenantId(TENANT_ID).build(),
+  ChargePaid: () => new ChargePaidEventBuilder().withTenantId(TENANT_ID).build(),
+  SubscriptionPastDue: () => new SubscriptionPastDueEventBuilder().withTenantId(TENANT_ID).build(),
+  SubscriptionCancelled: () =>
+    new SubscriptionCancelledEventBuilder().withTenantId(TENANT_ID).build(),
+  PlanChanged: () => new PlanChangedEventBuilder().withTenantId(TENANT_ID).build(),
+  SubscriptionPriceChangeAnnounced: () =>
+    new SubscriptionPriceChangeAnnouncedEventBuilder().withTenantId(TENANT_ID).build(),
 };
 const EVENT_NAMES = Object.keys(EVENT_BUILDERS);
 
@@ -34,7 +48,7 @@ describe('BillingAuditLogHandler', () => {
     handler = new BillingAuditLogHandler(useCase as unknown as LogDomainEventUseCase, eventBus);
   });
 
-  it('subscribes to exactly the 2 billing domain events, all with the audit-log consumer name', () => {
+  it('subscribes to exactly the 8 billing domain events, all with the audit-log consumer name', () => {
     handler.onModuleInit();
 
     expect(eventBus.subscriptions.map((s) => s.eventName).sort()).toEqual([...EVENT_NAMES].sort());

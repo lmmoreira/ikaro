@@ -6,6 +6,8 @@ interface SubscriptionReactivatedData extends Record<string, unknown> {
   reactivatedAt: string;
   /** ISO-8601 UTC: the start of the suspension span that just ended (the subscription clears it). */
   suspendedAt: string;
+  /** The billing email, resolved by Billing; `null` when unset or for an exempt subscription. */
+  recipientEmail: string | null;
 }
 
 /** A `SUSPENDED` subscription became operational again (docs/DOMAIN_EVENTS.md § SubscriptionReactivated). */
