@@ -313,3 +313,82 @@ run "cloud_sql_identity_persists_when_vm_is_off" {
     error_message = "VM-only access grants must remain disabled while the VM is off."
   }
 }
+
+run "relay_service_account_can_write_logs_while_the_vm_exists" {
+  command = plan
+
+  variables {
+    create = true
+  }
+
+  override_resource {
+    target          = google_service_account.relay
+    override_during = plan
+    values = {
+      email = "ikaro-relay-vm@ikaro-test.iam.gserviceaccount.com"
+      name  = "projects/ikaro-test/serviceAccounts/ikaro-relay-vm@ikaro-test.iam.gserviceaccount.com"
+    }
+  }
+
+  assert {
+    condition     = google_project_iam_member.relay_logging_writer.role == "roles/logging.logWriter" && google_project_iam_member.relay_logging_writer.member == "serviceAccount:ikaro-relay-vm@ikaro-test.iam.gserviceaccount.com" && google_project_iam_member.relay_logging_writer.project == "ikaro-test"
+    error_message = "The relay VM's own service account must hold roles/logging.logWriter so the GCE script runner can ship the startup script's output to Cloud Logging."
+  }
+}
+
+run "log_writer_grant_persists_when_vm_is_off" {
+  command = plan
+
+  variables {
+    create = false
+  }
+
+  override_resource {
+    target          = google_service_account.relay
+    override_during = plan
+    values = {
+      email = "ikaro-relay-vm@ikaro-test.iam.gserviceaccount.com"
+      name  = "projects/ikaro-test/serviceAccounts/ikaro-relay-vm@ikaro-test.iam.gserviceaccount.com"
+    }
+  }
+
+  assert {
+    condition     = google_project_iam_member.relay_logging_writer.role == "roles/logging.logWriter" && google_project_iam_member.relay_logging_writer.member == "serviceAccount:ikaro-relay-vm@ikaro-test.iam.gserviceaccount.com"
+    error_message = "The log-writer grant must persist while the on-demand VM is disabled, like the Cloud SQL grants: the identity outlives the VM and the grant stays checkable without one."
+  }
+}
+
+# Negative guarantee: the relay identity's logging access is write-only. A
+# broader role would let a compromised VM read or reconfigure project logs.
+# The assertion covers every project-level binding the module declares for the
+# relay service account, so a role edited on any of them is caught. A new
+# resource that grants a role is outside what a plan test can enumerate: the
+# module's IAM review (infra/terraform/README.md § IAM binding review
+# discipline) is what catches that.
+run "relay_service_account_gets_no_broader_logging_role" {
+  command = plan
+
+  variables {
+    create = true
+  }
+
+  override_resource {
+    target          = google_service_account.relay
+    override_during = plan
+    values = {
+      email = "ikaro-relay-vm@ikaro-test.iam.gserviceaccount.com"
+      name  = "projects/ikaro-test/serviceAccounts/ikaro-relay-vm@ikaro-test.iam.gserviceaccount.com"
+    }
+  }
+
+  assert {
+    condition = length([
+      for r in [
+        google_project_iam_member.relay_cloudsql_client[0].role,
+        google_project_iam_member.relay_cloudsql_instance_user[0].role,
+        google_project_iam_member.relay_logging_writer.role,
+      ] : r if contains(["roles/owner", "roles/editor"], r) || (startswith(r, "roles/logging.") && r != "roles/logging.logWriter")
+    ]) == 0
+    error_message = "The relay service account may only write logs: none of its project-level roles may be logging.admin, configWriter, viewer, privateLogViewer, owner or editor."
+  }
+}

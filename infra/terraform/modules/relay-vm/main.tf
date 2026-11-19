@@ -253,6 +253,21 @@ resource "google_project_iam_member" "relay_cloudsql_instance_user" {
   member  = "serviceAccount:${google_service_account.relay.email}"
 }
 
+# Write-only access to Cloud Logging, so the GCE script runner can ship the
+# startup script's output as the instance's service account. The VM is
+# destroyed after each use and its journal goes with it, so without this a
+# failed boot can only be diagnosed while the VM is alive. Persistent like the
+# Cloud SQL grants above (the identity outlives the VM), not gated on
+# var.create. logWriter is the narrowest role Cloud Logging offers for this and
+# it is granted at project level because there is no narrower scope. The Ops
+# Agent is deliberately not installed: the VM has no route to
+# packages.cloud.google.com (README § Identity model).
+resource "google_project_iam_member" "relay_logging_writer" {
+  project = var.project_id
+  role    = "roles/logging.logWriter"
+  member  = "serviceAccount:${google_service_account.relay.email}"
+}
+
 # Passwordless Cloud SQL IAM database user for the relay SA — same
 # mechanism as modules/database's google_sql_user.iam_admin, but for a
 # service account instead of a human. The .gserviceaccount.com suffix
