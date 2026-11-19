@@ -138,6 +138,26 @@ describe('Subscription — payment facts (UC-114)', () => {
       },
     );
 
+    it('never moves the current start back: an older period paid after a recovery payment began a newer month', () => {
+      const recoveryPaidAt = at('2026-03-01T15:00:00Z');
+      const subscription = new SubscriptionBuilder()
+        .withStatus('SUSPENDED')
+        .withSuspension('NON_PAYMENT', at('2026-02-20T03:00:00Z'))
+        .build();
+      subscription.reactivateOnPayment(recoveryPaidAt, recoveryPaidAt, CORRELATION, EMAIL);
+
+      subscription.markPeriodPaid(
+        date('2026-02-10'),
+        date('2026-03-09'),
+        at('2026-03-02T15:00:00Z'),
+        CORRELATION,
+        EMAIL,
+      );
+
+      expect(subscription.currentPeriodStart).toEqual(recoveryPaidAt);
+      expect(subscription.currentPeriodEnd).toEqual(endOfLocalDay('2026-03-31'));
+    });
+
     it('an OPERATOR suspension is never lifted by a payment', () => {
       const subscription = new SubscriptionBuilder()
         .withStatus('SUSPENDED')
@@ -323,6 +343,63 @@ describe('Subscription — payment facts (UC-114)', () => {
 
       expect(current.reversePayment(settled, NOW, CORRELATION, EMAIL)).toBe(true);
       expect(older.reversePayment(settled, NOW, CORRELATION, EMAIL)).toBe(false);
+    });
+
+    it('a refund of a stale PERIOD charge that still covers today does not suspend a tenant a recovery payment funds', () => {
+      const recoveryPaidAt = at('2026-03-01T15:00:00Z');
+      const subscription = new SubscriptionBuilder()
+        .withStatus('SUSPENDED')
+        .withSuspension('NON_PAYMENT', at('2026-02-20T03:00:00Z'))
+        .build();
+      subscription.reactivateOnPayment(recoveryPaidAt, recoveryPaidAt, CORRELATION, EMAIL);
+      subscription.clearDomainEvents();
+
+      const changed = subscription.reversePayment(
+        periodCharge('2026-02-10', '2026-03-09'),
+        at('2026-03-03T15:00:00Z'),
+        CORRELATION,
+        EMAIL,
+      );
+
+      expect(changed).toBe(false);
+      expect(subscription.status).toBe('ACTIVE');
+    });
+
+    it('still suspends when the refunded PERIOD charge is the one that funds the period', () => {
+      const subscription = new SubscriptionBuilder()
+        .withStatus('ACTIVE')
+        .withCurrentPeriod(startOfLocalDay('2026-03-10'), endOfLocalDay('2026-04-09'))
+        .build();
+
+      expect(
+        subscription.reversePayment(
+          periodCharge('2026-03-10', '2026-04-09'),
+          NOW,
+          CORRELATION,
+          EMAIL,
+        ),
+      ).toBe(true);
+    });
+
+    it('hasMovedPast is true only for an ACTIVE, non-exempt tenant whose current period began after the given start', () => {
+      const active = new SubscriptionBuilder()
+        .withStatus('ACTIVE')
+        .withCurrentPeriod(at('2026-03-01T15:00:00Z'), endOfLocalDay('2026-03-31'))
+        .build();
+
+      expect(active.hasMovedPast(date('2026-02-10'))).toBe(true);
+      expect(active.hasMovedPast(date('2026-03-01'))).toBe(false);
+      expect(active.hasMovedPast(date('2026-04-01'))).toBe(false);
+      expect(
+        new SubscriptionBuilder()
+          .withStatus('PAST_DUE')
+          .withCurrentPeriod(at('2026-03-01T15:00:00Z'), null)
+          .build()
+          .hasMovedPast(date('2026-02-10')),
+      ).toBe(false);
+      expect(
+        new SubscriptionBuilder().withStatus('TRIALING').build().hasMovedPast(date('2026-02-10')),
+      ).toBe(false);
     });
 
     it('a TRIALING tenant is never suspended by a refund: nothing settled is being reversed', () => {

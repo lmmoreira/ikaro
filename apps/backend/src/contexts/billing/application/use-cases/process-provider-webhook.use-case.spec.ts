@@ -123,7 +123,9 @@ describe('ProcessProviderWebhookUseCase', () => {
     const subscriptionBuilder = new SubscriptionBuilder()
       .withStatus(status)
       .withCurrentPeriod(periodStart, periodEnd)
-      .withItems([new SubscriptionItemBuilder().build()]);
+      .withItems([
+        new SubscriptionItemBuilder().withStartsAt(new Date('2026-02-10T03:00:00Z')).build(),
+      ]);
     if (options.suspension) {
       subscriptionBuilder.withSuspension(options.suspension, new Date('2026-03-01T03:00:00Z'));
     }
@@ -422,6 +424,34 @@ describe('ProcessProviderWebhookUseCase', () => {
       expect(result).toBe('UNKNOWN_TARGET');
       expect(victim.charge.status).toBe('PENDING');
       expect(attacker.charge.status).toBe('PENDING');
+    });
+
+    it('an unbound local charge is applied only when the provider re-read holds the same reference: a real payment of another charge is never bound to it', async () => {
+      const victim = await seed('PAST_DUE', { storeCustomer: false, readyAtProvider: false });
+      const other = await seed('PAST_DUE');
+      fake.simulatePayment(other.providerChargeId, 'PIX');
+      const [delivery] = fake.drainDeliveries();
+      const original = JSON.parse(delivery.body);
+      // A real paid provider charge (the other one), claiming the victim's local charge as its reference.
+      const spoofed = JSON.stringify({
+        ...original,
+        payment: {
+          ...original.payment,
+          customer: 'cus_unknown',
+          externalReference: victim.charge.id,
+        },
+      });
+
+      const result = await useCase.execute({
+        provider: 'ASAAS',
+        rawBody: spoofed,
+        headers: {},
+        correlationId: 'c',
+      });
+
+      expect(result).toBe('NOT_CONFIRMED');
+      expect(victim.charge.status).toBe('PENDING');
+      expect(victim.charge.providerChargeId).toBeNull();
     });
 
     it('two tenants with the same amount and due date are not confused: paying A never touches B', async () => {

@@ -66,6 +66,12 @@ export interface NormalizedChargeStatus {
   readonly amountMinor: number;
   /** A dispute is open on a charge that is still `PAID`: never a reason to change access. */
   readonly disputeOpen: boolean;
+  /**
+   * Our charge id as the provider stored it when the charge was created: the authoritative binding
+   * of a provider charge to a local one. A webhook's own copy of it is the caller's word; this one
+   * comes from the re-read.
+   */
+  readonly externalReference: string | null;
 }
 
 export interface ProviderAccountHealth {

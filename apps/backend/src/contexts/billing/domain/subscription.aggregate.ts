@@ -408,8 +408,13 @@ export class Subscription extends AggregateRoot {
     if (this._currentPeriodEnd === null || endsAt.getTime() > this._currentPeriodEnd.getTime()) {
       this._currentPeriodEnd = endsAt;
     }
-    if (periodStart.value <= utcDateToLocalDate(now, tz)) {
-      this._currentPeriodStart = localDateStartUTC(periodStart.value, tz);
+    const startsAt = localDateStartUTC(periodStart.value, tz);
+    // Only forward: an older period's payment (a stale charge paid after a recovery payment began a
+    // newer month) never moves the current period's start back.
+    const advances =
+      this._currentPeriodStart === null || startsAt.getTime() > this._currentPeriodStart.getTime();
+    if (periodStart.value <= utcDateToLocalDate(now, tz) && advances) {
+      this._currentPeriodStart = startsAt;
     }
     this._status = 'ACTIVE';
     this._pastDueSince = null;
@@ -500,7 +505,24 @@ export class Subscription extends AggregateRoot {
     }
     if (settled.periodStart === null || settled.periodEnd === null) return false;
     const today = utcDateToLocalDate(now, this.timezone.value);
-    return settled.periodStart.value <= today && today <= settled.periodEnd.value;
+    const coversToday = settled.periodStart.value <= today && today <= settled.periodEnd.value;
+    // A charge older than the current period's start (a stale one paid after a recovery payment
+    // began a newer month) is not what funds the period, even when its days still cover today.
+    return coversToday && !this.hasMovedPast(settled.periodStart);
+  }
+
+  /**
+   * An `ACTIVE`, non-exempt subscription whose current period began on a later tenant-local day than `periodStart`: a payment
+   * for that older period buys nothing now (UC-114 step 4: the second payment is refunded in the
+   * provider console and recorded `REFUNDED`).
+   */
+  hasMovedPast(periodStart: CalendarDate): boolean {
+    return (
+      this._status === 'ACTIVE' &&
+      !this._exempt &&
+      this._currentPeriodStart !== null &&
+      periodStart.value < utcDateToLocalDate(this._currentPeriodStart, this.timezone.value)
+    );
   }
 
   /**

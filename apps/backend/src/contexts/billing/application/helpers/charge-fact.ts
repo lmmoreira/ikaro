@@ -85,6 +85,12 @@ function applyPeriodPaid(
   subscription: Subscription,
   ctx: ChargeFactContext,
 ): ChargeFactOutcome {
+  // The period moved on (a recovery payment began a newer month): this payment buys nothing, so it
+  // is recorded `REFUNDED` and the subscription's period is left alone.
+  if (subscription.hasMovedPast(charge.periodStart!)) {
+    charge.markRefunded(charge.amount);
+    return { ...NO_CHANGE, result: 'APPLIED', chargeChanged: true, doublePaid: true };
+  }
   const wasPaymentSuspended = paymentSuspended(subscription);
   const changed = subscription.markPeriodPaid(
     charge.periodStart!,

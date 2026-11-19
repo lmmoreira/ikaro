@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
 import { AppLogger } from '../../../../shared/observability/app-logger';
+import { mapSequentially } from '../../../../shared/utils/sequential';
 import { CLOCK, type IClock } from '../../../../shared/ports/clock.port';
 import {
   ITransactionManager,
@@ -127,7 +128,7 @@ export class ApplyChargeFactService {
     );
     if (open === null) return null;
     const locked = await this.charges.findByIdForUpdate(subscription.tenantId, open.id);
-    if (locked === null || !locked.open) return null;
+    if (!locked?.open) return null;
     locked.cancel();
     if (locked.providerChargeId !== null) locked.markProviderCancelPending();
     return locked;
@@ -144,8 +145,8 @@ export class ApplyChargeFactService {
     const today = utcDateToLocalDate(now, subscription.timezone.value);
     const todayDate = CalendarDate.create(today);
     const items = subscription.selection;
-    const prices = new Map<string, MinorAmount>();
-    for (const item of items) {
+    // One transaction connection: the reads queue anyway, so they run one after another.
+    const amounts = await mapSequentially(items, async (item) => {
       const { version } = await findFeaturePriceInForce(
         this.prices,
         item.featureKey,
@@ -154,8 +155,9 @@ export class ApplyChargeFactService {
         'MONTHLY',
         todayDate,
       );
-      prices.set(recoveryPriceKey(item.featureKey, item.tier), version.amount);
-    }
+      return [recoveryPriceKey(item.featureKey, item.tier), version.amount] as const;
+    });
+    const prices = new Map<string, MinorAmount>(amounts);
     return RecoveryChargeFactory.build({
       subscription,
       items,

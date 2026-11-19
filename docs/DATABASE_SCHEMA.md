@@ -1429,7 +1429,7 @@ Immutable tax snapshot, zero or more per US charge: `tenant_id`, `charge_id` (co
 |--------|------|-------------|
 | provider | VARCHAR(10) | NOT NULL |
 | event_id | VARCHAR(100) | NOT NULL — the provider's event id |
-| tenant_id | UUID | NOT NULL — **resolved from `billing_accounts` before insert**; events for unknown customers are acknowledged and logged, not stored |
+| tenant_id | UUID | NOT NULL — **resolved before insert** from `billing_accounts` (the provider customer id) or, when that customer is not stored yet, from the charge's `external_reference`, which is our own charge id (M26-S04); events whose tenant resolves neither way are acknowledged and logged, not stored |
 | event_type | VARCHAR(60) | NOT NULL |
 | received_at / processed_at | TIMESTAMP WITH TIME ZONE | NOT NULL — `processed_at` is set in the same transaction as the local change and the outbox rows |
 | **PRIMARY KEY** | (provider, event_id) | tenant-first exemption (see above) |

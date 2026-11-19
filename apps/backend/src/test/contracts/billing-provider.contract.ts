@@ -164,6 +164,8 @@ function registerCoreCases(
       receiptUrl: null,
       amountMinor: 4900,
       disputeOpen: false,
+      // The provider echoes the reference the charge was created with: the binding is authoritative.
+      externalReference: expect.stringMatching(/^contract-charge-/),
     });
   });
 

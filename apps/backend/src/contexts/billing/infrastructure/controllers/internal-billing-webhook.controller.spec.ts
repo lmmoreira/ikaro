@@ -10,7 +10,6 @@ import { InMemoryFeaturePriceRepository } from '../../../../test/repositories/bi
 import { InMemoryProviderEventRepository } from '../../../../test/repositories/billing/in-memory-provider-event.repository';
 import { InMemorySubscriptionRepository } from '../../../../test/repositories/billing/in-memory-subscription.repository';
 import {
-  ProviderWebhookBodySchema,
   WEBHOOK_PROVIDER_BY_SLUG,
   WebhookProviderSlugSchema,
 } from '../../application/dtos/provider-webhook.dto';
@@ -73,12 +72,6 @@ describe('InternalBillingWebhookController', () => {
     expect(WebhookProviderSlugSchema.safeParse('asaas').success).toBe(true);
     expect(WebhookProviderSlugSchema.safeParse('stripe').success).toBe(false);
     expect(WebhookProviderSlugSchema.safeParse('constructor').success).toBe(false);
-  });
-
-  it('accepts a JSON object body only', () => {
-    expect(ProviderWebhookBodySchema.safeParse({ id: 'evt_1' }).success).toBe(true);
-    expect(ProviderWebhookBodySchema.safeParse([]).success).toBe(false);
-    expect(ProviderWebhookBodySchema.safeParse('text').success).toBe(false);
   });
 
   it('answers with no body for an event of an unknown tenant (the provider sees an empty 200)', async () => {

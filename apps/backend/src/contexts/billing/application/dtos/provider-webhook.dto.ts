@@ -1,4 +1,3 @@
-import { ProviderWebhookBody, ProviderWebhookBodySchema } from '@ikaro/validation';
 import { z } from 'zod';
 import type { BillingProvider } from '../../domain/billing-account.aggregate';
 
@@ -13,7 +12,3 @@ export const WebhookProviderSlugSchema = z
   .refine((slug) => Object.hasOwn(WEBHOOK_PROVIDER_BY_SLUG, slug), {
     message: 'Unsupported billing provider',
   });
-
-// The body schema is shared with the BFF (`@ikaro/validation`): both validate the same JSON object.
-export { ProviderWebhookBodySchema };
-export type ProviderWebhookBodyDto = ProviderWebhookBody;

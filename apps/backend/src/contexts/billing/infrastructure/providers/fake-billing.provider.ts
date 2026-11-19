@@ -131,6 +131,7 @@ export class FakeBillingProvider implements BillingProviderPort {
       receiptUrl: receiptUrlOf(charge),
       amountMinor: charge.amountMinor,
       disputeOpen: charge.disputeOpen,
+      externalReference: charge.externalReference,
     };
   }
 

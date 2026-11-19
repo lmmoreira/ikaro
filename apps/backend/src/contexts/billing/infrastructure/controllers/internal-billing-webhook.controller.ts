@@ -9,10 +9,9 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { NoFeatureGate, SuspensionAccess, ZodValidationPipe } from '@ikaro/nestjs-http';
+import { ProviderWebhookBody, ProviderWebhookBodySchema } from '@ikaro/validation';
 import { InternalApiGuard } from '../../../../shared/guards/internal-api.guard';
 import {
-  ProviderWebhookBodyDto,
-  ProviderWebhookBodySchema,
   WEBHOOK_PROVIDER_BY_SLUG,
   WebhookProviderSlugSchema,
 } from '../../application/dtos/provider-webhook.dto';
@@ -36,7 +35,7 @@ export class InternalBillingWebhookController {
   @HttpCode(HttpStatus.OK)
   async receive(
     @Param('provider', new ZodValidationPipe(WebhookProviderSlugSchema)) providerSlug: string,
-    @Body(new ZodValidationPipe(ProviderWebhookBodySchema)) body: ProviderWebhookBodyDto,
+    @Body(new ZodValidationPipe(ProviderWebhookBodySchema)) body: ProviderWebhookBody,
     @Headers() headers: Record<string, string | undefined>,
     @Headers('x-correlation-id') correlationId: string,
   ): Promise<void> {

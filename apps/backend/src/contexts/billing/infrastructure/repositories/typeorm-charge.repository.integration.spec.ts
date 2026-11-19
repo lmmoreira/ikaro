@@ -6,6 +6,8 @@ import {
   ChargeLineBuilder,
   SubscriptionEntityBuilder,
 } from '../../../../test/builders/billing';
+import { OutboxEventEntity } from '../../../../shared/infrastructure/outbox/outbox-event.entity';
+import { TypeOrmOutboxRepository } from '../../../../shared/infrastructure/outbox/typeorm-outbox.repository';
 import { InMemoryOutboxPublisher } from '../../../../test/infrastructure/in-memory-outbox-publisher';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { waitForBlockedRowLock } from '../../../../test/utils/wait-for-blocked-row-lock';
@@ -61,6 +63,9 @@ describe('TypeOrmChargeRepository (integration)', () => {
 
   afterEach(async () => {
     if (tenants.length > 0) {
+      await dataSource.query(`DELETE FROM shared.outbox WHERE tenant_id = ANY($1::uuid[])`, [
+        tenants,
+      ]);
       for (const table of ['charge_lines', 'charges', 'subscription_items', 'subscriptions']) {
         await dataSource.query(`DELETE FROM billing.${table} WHERE tenant_id = ANY($1::uuid[])`, [
           tenants,
@@ -262,17 +267,54 @@ describe('TypeOrmChargeRepository (integration)', () => {
       expect(await repo.findByIdForJob(uuidv7())).toBeNull();
     });
 
-    it('a paid charge drains ChargePaid to the outbox only when the transaction commits its save', async () => {
-      const t = await newTenant();
-      const created = period(t);
-      await save(created);
-      const loaded = await repo.findById(t.tenantId, created.id);
-      outbox.published.length = 0; // the outbox is shared by every test of this file
-      loaded?.markPaid('PIX', new Date(), null, 'corr-int', 'a@example.test');
+    // The real outbox repository: its insert refuses to run outside a transaction, so these two
+    // tests fail if the drain ever moves out of the save's own transaction.
+    describe('ChargePaid through the real outbox', () => {
+      const outboxRows = (tenantId: string): Promise<OutboxEventEntity[]> =>
+        dataSource.getRepository(OutboxEventEntity).find({ where: { tenantId } });
+      const realOutboxRepo = (): TypeOrmChargeRepository => {
+        const rows = new TypeOrmOutboxRepository(dataSource.getRepository(OutboxEventEntity));
+        return new TypeOrmChargeRepository(dataSource.getRepository(ChargeEntity), {
+          publish: async (event) => {
+            await rows.insert(event, event.eventId);
+          },
+        });
+      };
 
-      await save(loaded as Charge);
+      it('commits the paid charge and its ChargePaid outbox row together', async () => {
+        const t = await newTenant();
+        const created = period(t);
+        await save(created);
+        const chargeRepo = realOutboxRepo();
+        const loaded = (await chargeRepo.findById(t.tenantId, created.id)) as Charge;
+        loaded.markPaid('PIX', new Date(), null, 'corr-int', 'a@example.test');
 
-      expect(outbox.published.map((event) => event.eventName)).toEqual(['ChargePaid']);
+        await txManager.run(() => chargeRepo.save(loaded));
+
+        expect((await repo.findById(t.tenantId, created.id))?.status).toBe('PAID');
+        const rows = await outboxRows(t.tenantId);
+        expect(rows.map((row) => row.eventName)).toEqual(['ChargePaid']);
+        expect(rows[0].payload).toMatchObject({ data: { chargeId: created.id } });
+      });
+
+      it('rolls both back when the transaction fails after the save: no paid charge, no outbox row', async () => {
+        const t = await newTenant();
+        const created = period(t);
+        await save(created);
+        const chargeRepo = realOutboxRepo();
+        const loaded = (await chargeRepo.findById(t.tenantId, created.id)) as Charge;
+        loaded.markPaid('PIX', new Date(), null, 'corr-int', null);
+
+        await expect(
+          txManager.run(async () => {
+            await chargeRepo.save(loaded);
+            throw new Error('fail after the save');
+          }),
+        ).rejects.toThrow('fail after the save');
+
+        expect((await repo.findById(t.tenantId, created.id))?.status).toBe('PENDING');
+        expect(await outboxRows(t.tenantId)).toEqual([]);
+      });
     });
 
     it('migration 1748500000046 gives an existing row version 0', async () => {

@@ -83,7 +83,11 @@ describe('ApplyChargeFactService', () => {
   });
 
   const subscriptionOf = (builder: SubscriptionBuilder): Promise<Subscription> => {
-    const subscription = builder.withItems([new SubscriptionItemBuilder().build()]).build();
+    const subscription = builder
+      .withItems([
+        new SubscriptionItemBuilder().withStartsAt(new Date('2026-02-10T03:00:00Z')).build(),
+      ])
+      .build();
     return subscriptions.save(subscription).then(() => subscription);
   };
   const periodCharge = async (subscription: Subscription, start: string, end: string) => {
@@ -249,6 +253,34 @@ describe('ApplyChargeFactService', () => {
       expect(recovery.status).toBe('REFUNDED');
       expect(subscription.status).toBe('ACTIVE');
       expect(subscription.currentPeriodStart).toEqual(startOfLocalDay('2026-03-10'));
+    });
+
+    it('a stale PERIOD charge paid after the recovery payment began a newer month is the second payment: recorded REFUNDED, the period untouched', async () => {
+      const subscription = await subscriptionOf(
+        new SubscriptionBuilder()
+          .withStatus('SUSPENDED')
+          .withSuspension('NON_PAYMENT', new Date('2026-02-20T03:00:00Z')),
+      );
+      const recovery = new ChargeBuilder()
+        .withTenantId(subscription.tenantId)
+        .withSubscriptionId(subscription.id)
+        .asRecovery()
+        .build();
+      const stale = await periodCharge(subscription, '2026-02-10', '2026-03-09');
+      await charges.save(recovery);
+      await apply(subscription, recovery, PAID);
+      const startAfterRecovery = subscription.currentPeriodStart;
+      const endAfterRecovery = subscription.currentPeriodEnd;
+
+      await apply(subscription, stale, { ...PAID, paidAt: new Date('2026-03-10T16:00:00Z') });
+
+      expect(stale.status).toBe('REFUNDED');
+      expect(subscription.status).toBe('ACTIVE');
+      expect(subscription.currentPeriodStart).toEqual(startAfterRecovery);
+      expect(subscription.currentPeriodEnd).toEqual(endAfterRecovery);
+      // The refund event of that second payment later changes nothing: no suspension.
+      expect(await apply(subscription, stale, REFUNDED)).toBe('NO_CHANGE');
+      expect(subscription.status).toBe('ACTIVE');
     });
 
     it('is idempotent: a second paid fact (CONFIRMED then RECEIVED) is a no-op with no second ChargePaid', async () => {

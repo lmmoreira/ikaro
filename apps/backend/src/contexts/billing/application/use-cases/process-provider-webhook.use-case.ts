@@ -242,6 +242,11 @@ export class ProcessProviderWebhookUseCase {
 /** Why the re-read does not confirm the webhook, or `null` when it does. */
 function verify(event: ChargeEvent, status: NormalizedChargeStatus, charge: Charge): string | null {
   if (status.amountMinor !== charge.amount.amountMinor) return 'AMOUNT_MISMATCH';
+  // A charge the provider id is not stored on yet (the webhook outran the READY write) is bound to
+  // this payment only by the reference the provider holds, never by the webhook's own copy of it.
+  if (charge.providerChargeId === null && status.externalReference !== charge.id) {
+    return 'REFERENCE_MISMATCH';
+  }
   switch (event.type) {
     case 'PaymentConfirmed':
       return status.state === 'PAID' || status.state === 'PARTIALLY_REFUNDED' ? null : 'NOT_PAID';

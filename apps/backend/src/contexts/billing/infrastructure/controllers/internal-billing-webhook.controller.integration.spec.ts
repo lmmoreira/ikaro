@@ -279,6 +279,19 @@ describe('InternalBillingWebhookController (integration)', () => {
       expect(await ds.getRepository(ProviderEventEntity).countBy({ tenantId })).toBe(2);
     });
 
+    it('two simultaneous deliveries of the SAME event id both answer 200 and apply the payment exactly once', async () => {
+      const { tenantId, chargeId, providerChargeId } = await seed('PAST_DUE');
+      fake.simulatePayment(providerChargeId, 'PIX');
+      const [delivery] = fake.drainDeliveries();
+
+      const responses = await Promise.all([post(delivery), post(delivery), post(delivery)]);
+
+      expect(responses.map((response) => response.status)).toEqual([200, 200, 200]);
+      expect(await chargeRow(chargeId)).toMatchObject({ status: 'PAID' });
+      expect(publishedFor(tenantId, 'ChargePaid')).toHaveLength(1);
+      expect(await ds.getRepository(ProviderEventEntity).countBy({ tenantId })).toBe(1);
+    });
+
     it('B-R1: a webhook racing an operator suspend serialises: the parked webhook never lifts the OPERATOR suspension', async () => {
       const { tenantId, chargeId, providerChargeId } = await seed('ACTIVE');
       fake.simulatePayment(providerChargeId, 'PIX');
