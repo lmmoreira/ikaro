@@ -941,6 +941,7 @@ Per `base_secret_ids` in `infra/terraform/modules/secrets/main.tf`:
 ├─ hotsite-revalidate-secret, turnstile-secret-key
 ├─ brevo-smtp-key (email provider)
 ├─ openrouter-api-key, openrouter-management-api-key, anthropic-api-key, openai-api-key (chatbot LLM providers)
+├─ asaas-api-key (backend: outbound Asaas API), asaas-webhook-token (BFF: inbound webhook token)
 └─ cloudflare-api-token (production only)
 ```
 
