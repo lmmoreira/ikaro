@@ -1,7 +1,8 @@
 import { AdvanceableClock } from '../../../../test/infrastructure/advanceable-clock';
 import { InMemoryOutboxPublisher } from '../../../../test/infrastructure/in-memory-outbox-publisher';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
-import { SubscriptionBuilder } from '../../../../test/builders/billing';
+import { BillingAccountBuilder, SubscriptionBuilder } from '../../../../test/builders/billing';
+import { InMemoryBillingAccountRepository } from '../../../../test/repositories/billing/in-memory-billing-account.repository';
 import { InMemoryOperatorAuditRepository } from '../../../../test/repositories/billing/in-memory-operator-audit.repository';
 import { InMemorySubscriptionRepository } from '../../../../test/repositories/billing/in-memory-subscription.repository';
 import {
@@ -17,6 +18,7 @@ describe('SuspendTenantByOperatorUseCase', () => {
   let outbox: InMemoryOutboxPublisher;
   let subscriptions: InMemorySubscriptionRepository;
   let audits: InMemoryOperatorAuditRepository;
+  let accounts: InMemoryBillingAccountRepository;
   let useCase: SuspendTenantByOperatorUseCase;
 
   beforeEach(() => {
@@ -24,12 +26,37 @@ describe('SuspendTenantByOperatorUseCase', () => {
     outbox = new InMemoryOutboxPublisher(txManager);
     subscriptions = new InMemorySubscriptionRepository(outbox);
     audits = new InMemoryOperatorAuditRepository();
+    accounts = new InMemoryBillingAccountRepository();
     useCase = new SuspendTenantByOperatorUseCase(
       subscriptions,
+      accounts,
       audits,
       txManager,
       new AdvanceableClock(NOW),
     );
+  });
+
+  it('puts the billing email on SubscriptionSuspended, and null when the account has none', async () => {
+    const withEmail = new SubscriptionBuilder().withStatus('ACTIVE').build();
+    const withoutEmail = new SubscriptionBuilder().withStatus('ACTIVE').build();
+    await subscriptions.save(withEmail);
+    await subscriptions.save(withoutEmail);
+    await accounts.save(
+      new BillingAccountBuilder()
+        .withTenantId(withEmail.tenantId)
+        .withBillingEmail('billing@example.test')
+        .build(),
+    );
+    await accounts.save(new BillingAccountBuilder().withTenantId(withoutEmail.tenantId).build());
+    outbox.published.length = 0;
+
+    await useCase.execute({ tenantId: withEmail.tenantId, ...INPUT });
+    await useCase.execute({ tenantId: withoutEmail.tenantId, ...INPUT });
+
+    expect(outbox.published.map((event) => event.data)).toEqual([
+      expect.objectContaining({ recipientEmail: 'billing@example.test' }),
+      expect.objectContaining({ recipientEmail: null }),
+    ]);
   });
 
   it('suspends an active tenant, audits who and why, and publishes SubscriptionSuspended with the request correlation id', async () => {

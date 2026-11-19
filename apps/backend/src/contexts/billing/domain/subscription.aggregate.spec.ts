@@ -354,7 +354,7 @@ describe('Subscription', () => {
     it('suspends with reason OPERATOR and stamps suspendedAt', () => {
       const subscription = new SubscriptionBuilder().withStatus('ACTIVE').build();
 
-      subscription.suspendByOperator(now, 'corr-1');
+      subscription.suspendByOperator(now, 'corr-1', null);
 
       expect(subscription.status).toBe('SUSPENDED');
       expect(subscription.suspensionReason).toBe('OPERATOR');
@@ -362,10 +362,23 @@ describe('Subscription', () => {
       expect(subscription.operational).toBe(false);
     });
 
+    it('carries the given recipientEmail on SubscriptionSuspended', () => {
+      const subscription = new SubscriptionBuilder().withStatus('ACTIVE').build();
+
+      subscription.suspendByOperator(now, 'corr-1', 'billing@example.test');
+
+      expect(subscription.domainEvents[0]?.data).toMatchObject({
+        reason: 'OPERATOR',
+        recipientEmail: 'billing@example.test',
+      });
+    });
+
     it('refuses an exempt subscription', () => {
       const subscription = new SubscriptionBuilder().withStatus('ACTIVE').withExempt(true).build();
 
-      expect(() => subscription.suspendByOperator(now, 'corr-1')).toThrow(ExemptProtectedError);
+      expect(() => subscription.suspendByOperator(now, 'corr-1', null)).toThrow(
+        ExemptProtectedError,
+      );
       expect(subscription.status).toBe('ACTIVE');
     });
 
@@ -373,7 +386,7 @@ describe('Subscription', () => {
       const first = at('2026-02-01T00:00:00Z');
       const subscription = new SubscriptionBuilder().withSuspension('OPERATOR', first).build();
 
-      subscription.suspendByOperator(now, 'corr-1');
+      subscription.suspendByOperator(now, 'corr-1', null);
 
       expect(subscription.suspendedAt).toEqual(first);
       expect(subscription.suspensionReason).toBe('OPERATOR');
@@ -385,11 +398,11 @@ describe('Subscription', () => {
         const first = at('2026-02-01T00:00:00Z');
         const subscription = new SubscriptionBuilder().withSuspension(reason, first).build();
 
-        expect(subscription.suspendByOperator(now, 'corr-1')).toBe(false);
+        expect(subscription.suspendByOperator(now, 'corr-1', null)).toBe(false);
 
         expect(subscription.suspensionReason).toBe(reason);
         expect(subscription.suspendedAt).toEqual(first);
-        expect(() => subscription.unsuspendOperator(now, 'corr-1')).toThrow(
+        expect(() => subscription.unsuspendOperator(now, 'corr-1', null)).toThrow(
           UnsuspendNotAllowedError,
         );
       },
@@ -398,7 +411,7 @@ describe('Subscription', () => {
     it('leaves the item rows alone (a status-only change)', () => {
       const subscription = new SubscriptionBuilder().withStatus('ACTIVE').build();
 
-      subscription.suspendByOperator(now, 'corr-1');
+      subscription.suspendByOperator(now, 'corr-1', null);
 
       expect(subscription.itemsDirty).toBe(false);
     });
@@ -438,7 +451,7 @@ describe('Subscription', () => {
         .withPurgeWarnings(at('2026-02-25T00:00:00Z'), at('2026-02-27T00:00:00Z'))
         .build();
 
-      subscription.unsuspendOperator(now, 'corr-1');
+      subscription.unsuspendOperator(now, 'corr-1', null);
 
       expect(subscription.status).toBe('ACTIVE');
       expect(subscription.suspensionReason).toBeNull();
@@ -455,7 +468,7 @@ describe('Subscription', () => {
         .withTrialEndsAt(at('2026-03-10T03:00:00Z'))
         .build();
 
-      subscription.unsuspendOperator(now, 'corr-1');
+      subscription.unsuspendOperator(now, 'corr-1', null);
 
       expect(subscription.status).toBe('TRIALING');
     });
@@ -465,7 +478,7 @@ describe('Subscription', () => {
       (reason) => {
         const subscription = new SubscriptionBuilder().withSuspension(reason, now).build();
 
-        expect(() => subscription.unsuspendOperator(now, 'corr-1')).toThrow(
+        expect(() => subscription.unsuspendOperator(now, 'corr-1', null)).toThrow(
           UnsuspendNotAllowedError,
         );
         expect(subscription.status).toBe('SUSPENDED');
@@ -475,7 +488,7 @@ describe('Subscription', () => {
     it('is a no-op (reports no change, raises nothing) when the subscription is not suspended at all', () => {
       const subscription = new SubscriptionBuilder().withStatus('ACTIVE').build();
 
-      expect(subscription.unsuspendOperator(now, 'corr-1')).toBe(false);
+      expect(subscription.unsuspendOperator(now, 'corr-1', null)).toBe(false);
 
       expect(subscription.status).toBe('ACTIVE');
       expect(subscription.domainEvents).toEqual([]);
@@ -534,6 +547,19 @@ describe('Subscription', () => {
 
   describe('setExempt', () => {
     const now = at('2026-03-01T12:00:00Z');
+
+    it('raises SubscriptionReactivated with no recipient when it ends a suspension (an exempt tenant is never emailed)', () => {
+      const subscription = new SubscriptionBuilder()
+        .withSuspension('OPERATOR', at('2026-02-20T08:00:00Z'))
+        .build();
+
+      subscription.setExempt(now, 'operator-7', 'corr-1');
+
+      expect(subscription.domainEvents[0]?.data).toMatchObject({
+        recipientEmail: null,
+        exempt: true,
+      });
+    });
 
     it('removes default paid items that have not started and opens every feature from now (a trial)', () => {
       const subscription = Subscription.startTrial(
@@ -751,7 +777,7 @@ describe('Subscription', () => {
     it('suspendByOperator raises SubscriptionSuspended with purgeAt 90 days out for a never-paid tenant', () => {
       const subscription = new SubscriptionBuilder().withStatus('ACTIVE').build();
 
-      expect(subscription.suspendByOperator(now, 'corr-9')).toBe(true);
+      expect(subscription.suspendByOperator(now, 'corr-9', null)).toBe(true);
 
       expect(subscription.domainEvents).toHaveLength(1);
       expect(subscription.domainEvents[0]).toMatchObject({
@@ -773,7 +799,7 @@ describe('Subscription', () => {
         .withHasEverPaid(true)
         .build();
 
-      subscription.suspendByOperator(now, 'corr-9');
+      subscription.suspendByOperator(now, 'corr-9', null);
 
       expect(subscription.domainEvents[0]?.data).toMatchObject({
         purgeAt: at('2026-08-28T12:00:00Z').toISOString(),
@@ -785,7 +811,7 @@ describe('Subscription', () => {
         .withSuspension('OPERATOR', suspendedAt)
         .build();
 
-      expect(subscription.suspendByOperator(now, 'corr-9')).toBe(false);
+      expect(subscription.suspendByOperator(now, 'corr-9', null)).toBe(false);
       expect(subscription.domainEvents).toEqual([]);
     });
 
@@ -794,7 +820,7 @@ describe('Subscription', () => {
         .withSuspension('NON_PAYMENT', suspendedAt)
         .build();
 
-      expect(subscription.suspendByOperator(now, 'corr-9')).toBe(false);
+      expect(subscription.suspendByOperator(now, 'corr-9', null)).toBe(false);
       expect(subscription.domainEvents).toEqual([]);
     });
 
@@ -803,7 +829,7 @@ describe('Subscription', () => {
         .withSuspension('OPERATOR', suspendedAt)
         .build();
 
-      subscription.unsuspendOperator(now, 'corr-9');
+      subscription.unsuspendOperator(now, 'corr-9', null);
 
       expect(subscription.suspendedAt).toBeNull();
       expect(subscription.domainEvents).toHaveLength(1);

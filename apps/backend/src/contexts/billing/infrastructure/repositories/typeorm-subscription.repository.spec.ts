@@ -234,7 +234,7 @@ describe('TypeOrmSubscriptionRepository', () => {
         .withStatus('ACTIVE')
         .withVersion(3)
         .build();
-      subscription.suspendByOperator(new Date('2026-03-01T12:00:00Z'), 'corr-1');
+      subscription.suspendByOperator(new Date('2026-03-01T12:00:00Z'), 'corr-1', null);
 
       await inTransaction(() => repo.save(subscription));
 
@@ -252,7 +252,7 @@ describe('TypeOrmSubscriptionRepository', () => {
         .withStatus('ACTIVE')
         .withVersion(3)
         .build();
-      subscription.suspendByOperator(new Date('2026-03-01T12:00:00Z'), 'corr-1');
+      subscription.suspendByOperator(new Date('2026-03-01T12:00:00Z'), 'corr-1', null);
 
       await inTransaction(() => repo.save(subscription));
       await inTransaction(() => repo.save(subscription));
@@ -263,7 +263,7 @@ describe('TypeOrmSubscriptionRepository', () => {
 
     it('publishes nothing when the optimistic update loses (the write never happened)', async () => {
       const subscription = new SubscriptionBuilder().withTenantId(TENANT).withVersion(3).build();
-      subscription.suspendByOperator(new Date('2026-03-01T12:00:00Z'), 'corr-1');
+      subscription.suspendByOperator(new Date('2026-03-01T12:00:00Z'), 'corr-1', null);
       mocks.executeUpdate.mockResolvedValueOnce({ affected: 0 });
 
       await expect(inTransaction(() => repo.save(subscription))).rejects.toThrow();
@@ -308,7 +308,7 @@ describe('TypeOrmSubscriptionRepository', () => {
         .withItems([new SubscriptionItemBuilder().build()])
         .withVersion(1)
         .build();
-      subscription.suspendByOperator(new Date('2026-03-01T12:00:00Z'), 'corr-1');
+      subscription.suspendByOperator(new Date('2026-03-01T12:00:00Z'), 'corr-1', null);
 
       await inTransaction(() => repo.save(subscription));
 

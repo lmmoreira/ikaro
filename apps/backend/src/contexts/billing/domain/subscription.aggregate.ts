@@ -324,7 +324,7 @@ export class Subscription extends AggregateRoot {
    * `OPERATOR` one would let the operator lift it with `unsuspendOperator` and restore access
    * without a payment, which UC-111 forbids. Returns whether the state changed.
    */
-  suspendByOperator(now: Date, correlationId: string): boolean {
+  suspendByOperator(now: Date, correlationId: string, recipientEmail: string | null): boolean {
     if (this._exempt) {
       throw new ExemptProtectedError(
         'An exempt subscription is never suspended: clear exempt first',
@@ -340,6 +340,7 @@ export class Subscription extends AggregateRoot {
         reason: 'OPERATOR',
         suspendedAt: now.toISOString(),
         purgeAt: this.purgeAtFrom(now).toISOString(),
+        recipientEmail,
       }),
     );
     return true;
@@ -352,7 +353,7 @@ export class Subscription extends AggregateRoot {
    * subscription that is not suspended is already in the requested state: no change, returns
    * `false`. A payment-based suspension is refused. Returns whether the state changed.
    */
-  unsuspendOperator(now: Date, correlationId: string): boolean {
+  unsuspendOperator(now: Date, correlationId: string, recipientEmail: string | null): boolean {
     if (this._status !== 'SUSPENDED') return false;
     if (this._suspensionReason !== 'OPERATOR' || this._suspendedAt === null) {
       throw new UnsuspendNotAllowedError(
@@ -363,7 +364,7 @@ export class Subscription extends AggregateRoot {
     const trialRunning = this._trialEndsAt !== null && this._trialEndsAt.getTime() > now.getTime();
     this._status = trialRunning ? 'TRIALING' : 'ACTIVE';
     this.clearSuspension();
-    this.addReactivated(now, suspendedAt, correlationId);
+    this.addReactivated(now, suspendedAt, correlationId, recipientEmail);
     return true;
   }
 
@@ -418,7 +419,8 @@ export class Subscription extends AggregateRoot {
     this._cancelAt = null;
     this._planConfirmedAt = null;
     this.replacePlan(now, now, actor);
-    if (suspendedAt !== null) this.addReactivated(now, suspendedAt, correlationId);
+    // An exempt subscription is never emailed about billing: no recipient.
+    if (suspendedAt !== null) this.addReactivated(now, suspendedAt, correlationId, null);
     return true;
   }
 
@@ -461,12 +463,19 @@ export class Subscription extends AggregateRoot {
     return DateTime.fromJSDate(suspendedAt, { zone: 'utc' }).plus({ days }).toJSDate();
   }
 
-  private addReactivated(now: Date, suspendedAt: Date, correlationId: string): void {
+  private addReactivated(
+    now: Date,
+    suspendedAt: Date,
+    correlationId: string,
+    recipientEmail: string | null,
+  ): void {
     this.addDomainEvent(
       new SubscriptionReactivated(this.tenantId, correlationId, {
         subscriptionId: this.id,
         reactivatedAt: now.toISOString(),
         suspendedAt: suspendedAt.toISOString(),
+        recipientEmail,
+        exempt: this._exempt,
       }),
     );
   }

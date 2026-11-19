@@ -4,6 +4,11 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
+import {
+  BILLING_ACCOUNT_REPOSITORY,
+  IBillingAccountRepository,
+} from '../ports/billing-account-repository.port';
+import { resolveBillingRecipientEmail } from '../helpers/billing-recipient-email.helper';
 import { OperatorAudit } from '../../domain/operator-audit';
 import {
   IOperatorAuditRepository,
@@ -41,6 +46,7 @@ export type SuspendTenantByOperatorUseCaseResult = OperatorBillingStateResult;
 export class SuspendTenantByOperatorUseCase {
   constructor(
     @Inject(SUBSCRIPTION_REPOSITORY) private readonly subscriptions: ISubscriptionRepository,
+    @Inject(BILLING_ACCOUNT_REPOSITORY) private readonly accounts: IBillingAccountRepository,
     @Inject(OPERATOR_AUDIT_REPOSITORY) private readonly audits: IOperatorAuditRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     @Inject(CLOCK) private readonly clock: IClock,
@@ -49,11 +55,15 @@ export class SuspendTenantByOperatorUseCase {
   async execute(
     input: SuspendTenantByOperatorUseCaseInput,
   ): Promise<SuspendTenantByOperatorUseCaseResult> {
+    // Read before the transaction: the account is not part of the locked section, and a lookup
+    // inside it would only lengthen the subscription row lock.
+    const account = await this.accounts.findByTenantId(input.tenantId);
     return this.txManager.run(async () => {
       const subscription = await loadSubscriptionForUpdate(this.subscriptions, input.tenantId);
       const now = this.clock.now();
+      const recipientEmail = resolveBillingRecipientEmail(subscription.exempt, account);
       const previousReason = subscription.suspensionReason;
-      if (subscription.suspendByOperator(now, input.correlationId)) {
+      if (subscription.suspendByOperator(now, input.correlationId, recipientEmail)) {
         await this.subscriptions.save(subscription);
         await this.audits.save(
           OperatorAudit.record({

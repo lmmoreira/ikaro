@@ -4,6 +4,7 @@ import { uuidv7 } from '../../../shared/domain/uuid-v7';
 
 export class SubscriptionSuspendedEventBuilder {
   private tenantId = uuidv7();
+  private recipientEmail: string | null = 'billing@example.test';
   private correlationId = 'corr-suspended-1';
   private subscriptionId = uuidv7();
   private reason: SuspensionReason = 'OPERATOR';
@@ -41,12 +42,18 @@ export class SubscriptionSuspendedEventBuilder {
     return this;
   }
 
+  withRecipientEmail(recipientEmail: string | null): this {
+    this.recipientEmail = recipientEmail;
+    return this;
+  }
+
   build(): SubscriptionSuspended {
     return new SubscriptionSuspended(this.tenantId, this.correlationId, {
       subscriptionId: this.subscriptionId,
       reason: this.reason,
       suspendedAt: this.suspendedAt.toISOString(),
       purgeAt: this.purgeAt.toISOString(),
+      recipientEmail: this.recipientEmail,
     });
   }
 }
