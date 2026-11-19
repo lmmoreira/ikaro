@@ -43,6 +43,14 @@ export const schema = z.object({
   // TD38: app-layer defense-in-depth companion to the Cloud Run IAM lockdown — checked by
   // WebOnlyGuard against the X-Web-Internal-Key header ikaro-web sends on every call.
   WEB_INTERNAL_KEY: z.string().min(32, 'WEB_INTERNAL_KEY must be at least 32 characters'),
+  // M26-S01 — static token Asaas sends in the `asaas-access-token` header of every webhook; the
+  // BFF is the only verifier (the backend never receives it). Optional, with no feature flag: an
+  // unset token makes the webhook route answer 401 and call no backend (M26-S04), the state
+  // production keeps until the Asaas account exists (M26-S39). Empty strings are rejected.
+  ASAAS_WEBHOOK_TOKEN: z
+    .string()
+    .min(1, { message: 'ASAAS_WEBHOOK_TOKEN must not be empty when set' })
+    .optional(),
 });
 
 const validatedSchema = schema.superRefine((data, ctx) => {

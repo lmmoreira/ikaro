@@ -50,6 +50,14 @@ locals {
     # already degrades safely if this secret is unset (fails closed, 400, never a crash) — that's
     # what makes the safe row correct here.
     "turnstile-secret-key",
+    # M26-S01: Asaas (Brazilian payment provider) credentials. asaas-api-key is the backend's
+    # API key (the sandbox value in staging, the live value in prod); asaas-webhook-token is the
+    # static token Asaas sends in `asaas-access-token`, verified by the BFF only. Both consumers
+    # degrade safely when unset (no feature flag): the BFF webhook route answers 401 and the
+    # live adapter is not built. Container plus secret_env_vars wiring land together here; the
+    # accessor grants follow in a Foundation-only PR (playbook: accept-deploy-risk row, 2 PRs).
+    "asaas-api-key",
+    "asaas-webhook-token",
   ]
 
   # cloudflare-api-token is prod-only (edge module, S22/S23 — DNS:Edit scope).

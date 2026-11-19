@@ -124,4 +124,22 @@ describe('validateEnv()', () => {
     );
     expect(() => validateEnv(withoutKey)).toThrow('ENV validation failed');
   });
+
+  describe('ASAAS_WEBHOOK_TOKEN (M26-S01)', () => {
+    it('is optional: unset resolves to undefined, so no environment needs it to boot', () => {
+      expect(validateEnv(valid).ASAAS_WEBHOOK_TOKEN).toBeUndefined();
+    });
+
+    it('accepts a value', () => {
+      expect(
+        validateEnv({ ...valid, ASAAS_WEBHOOK_TOKEN: 'a'.repeat(40) }).ASAAS_WEBHOOK_TOKEN,
+      ).toBe('a'.repeat(40));
+    });
+
+    it('rejects an empty string', () => {
+      expect(() => validateEnv({ ...valid, ASAAS_WEBHOOK_TOKEN: '' })).toThrow(
+        'ASAAS_WEBHOOK_TOKEN must not be empty when set',
+      );
+    });
+  });
 });

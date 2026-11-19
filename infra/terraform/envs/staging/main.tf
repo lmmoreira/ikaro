@@ -248,6 +248,11 @@ module "cloudrun_backend" {
     # creation fails resolving secret_key_ref (old revision keeps serving 100% of traffic in the
     # meantime, so this is a deploy-pipeline failure, not a live outage).
     OPENROUTER_MANAGEMENT_API_KEY = module.secrets.secret_ids["openrouter-management-api-key"]
+    # M26-S01: the Asaas sandbox key in staging. The accessor grant lands in a Foundation-only
+    # follow-up PR (TD39), so until it is applied AND a real value is populated via
+    # `gcloud secrets versions add`, this apply's Cloud Run revision creation fails resolving
+    # secret_key_ref (the previous revision keeps serving; a forced redeploy recovers).
+    ASAAS_API_KEY = module.secrets.secret_ids["asaas-api-key"]
   }
 }
 
@@ -314,6 +319,9 @@ module "cloudrun_bff" {
     # TD38: app-layer defense-in-depth companion to the IAM lockdown above — checked by
     # WebOnlyGuard against the X-Web-Internal-Key header ikaro-web sends on every call.
     WEB_INTERNAL_KEY = module.secrets.secret_ids["web-internal-key"]
+    # M26-S01: verified by the BFF only (the backend never receives it); same Foundation-grant
+    # sequencing caveat as ASAAS_API_KEY on cloudrun_backend above.
+    ASAAS_WEBHOOK_TOKEN = module.secrets.secret_ids["asaas-webhook-token"]
   }
 }
 

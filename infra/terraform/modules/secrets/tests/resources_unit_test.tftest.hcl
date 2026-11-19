@@ -10,7 +10,7 @@ variables {
   labels      = { env = "staging", managed-by = "terraform" }
 }
 
-run "staging_provisions_the_fifteen_base_secrets_only" {
+run "staging_provisions_the_seventeen_base_secrets_only" {
   command = plan
 
   assert {
@@ -30,8 +30,10 @@ run "staging_provisions_the_fifteen_base_secrets_only" {
       "openai-api-key",
       "openrouter-management-api-key",
       "turnstile-secret-key",
+      "asaas-api-key",
+      "asaas-webhook-token",
     ])
-    error_message = "Staging must provision exactly the 15 base secrets — no cloudflare-api-token."
+    error_message = "Staging must provision exactly the 17 base secrets — no cloudflare-api-token."
   }
 }
 
@@ -53,8 +55,8 @@ run "prod_also_provisions_cloudflare_api_token" {
   }
 
   assert {
-    condition     = length(google_secret_manager_secret.this) == 16
-    error_message = "Prod must provision exactly 16 secrets (15 base + cloudflare-api-token)."
+    condition     = length(google_secret_manager_secret.this) == 18
+    error_message = "Prod must provision exactly 18 secrets (17 base + cloudflare-api-token)."
   }
 }
 

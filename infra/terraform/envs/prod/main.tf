@@ -276,6 +276,10 @@ module "cloudrun_backend" {
     # its own outbound siteverify call had no route out). PR1 already granted this SA accessor
     # rights on the existing secret container — see runtime-identities/main.tf's own comment.
     TURNSTILE_SECRET_KEY = module.secrets.secret_ids["turnstile-secret-key"]
+    # M26-S01: the live Asaas key. Inert while bootstrap_mode is true (secret_env_vars ignored);
+    # the activation runbook populates a version before M17-S37 flips it, and M26-S39 populates the
+    # real value. Same Foundation-grant sequencing caveat as staging.
+    ASAAS_API_KEY = module.secrets.secret_ids["asaas-api-key"]
   }
 }
 
@@ -347,6 +351,8 @@ module "cloudrun_bff" {
     # of environment — wired here so prod's Terraform stays consistent with the shared app
     # code, even though prod's own ingress lockdown (Story B) is not part of this change.
     WEB_INTERNAL_KEY = module.secrets.secret_ids["web-internal-key"]
+    # M26-S01: verified by the BFF only; inert while bootstrap_mode is true, populated by M26-S39.
+    ASAAS_WEBHOOK_TOKEN = module.secrets.secret_ids["asaas-webhook-token"]
   }
 }
 
