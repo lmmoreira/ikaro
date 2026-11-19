@@ -401,7 +401,7 @@ Give the money its model. **`Charge`** (root, `apps/backend/src/contexts/billing
 
 ---
 
-### M26-S03 — Billing domain events, audit-log lines and topics
+### M26-S03 — Billing domain events, audit-log lines and topics ✅ Done
 
 **Agent:** `backend-ts + devops`
 **Complexity:** M
