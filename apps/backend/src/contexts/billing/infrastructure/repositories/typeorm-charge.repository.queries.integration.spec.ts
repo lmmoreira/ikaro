@@ -143,6 +143,28 @@ describe('TypeOrmChargeRepository queries, claim and isolation (integration)', (
       expect(await attemptsInDb(charge.id)).toBe(0);
     });
 
+    it.each(['CANCELED', 'PAID'])(
+      'refuses a %s charge: a closed charge never gets a provider bill',
+      async (status) => {
+        const t = await newTenant();
+        const charge = await seed(t, (b) => b.withStatus(status as 'CANCELED' | 'PAID'));
+
+        expect(await repo.claimForProviderCreation(t.tenantId, charge.id, new Date())).toBe(false);
+        expect(await attemptsInDb(charge.id)).toBe(0);
+      },
+    );
+
+    it('the creation retry does not list a closed charge', async () => {
+      const t = await newTenant();
+      const cancelled = await seed(t, (b) => b.withStatus('CANCELED'));
+      const open = await seed(t, (b) => b.withPeriod('2026-06-01', '2026-06-30'));
+
+      const ids = (await repo.listPendingCreationForJob(new Date(), 100)).map((r) => r.id);
+
+      expect(ids).toContain(open.id);
+      expect(ids).not.toContain(cancelled.id);
+    });
+
     it('refuses another tenant’s charge', async () => {
       const owner = await newTenant();
       const other = await newTenant();

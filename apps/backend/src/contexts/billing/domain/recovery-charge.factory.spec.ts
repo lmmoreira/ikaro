@@ -1,20 +1,17 @@
 import { CalendarDate } from '../../../shared/value-objects/calendar-date.vo';
-import { CountryCode } from '../../../shared/value-objects/country-code.vo';
+import { SubscriptionBuilder } from '../../../test/builders/billing';
 import { RECOVERY_CHARGE_DUE_DAYS } from './billing-constants';
 import { ChargeInvariantError } from './errors/billing-domain.error';
 import { RecoveryChargeFactory, recoveryPriceKey } from './recovery-charge.factory';
-import { Subscription } from './subscription.aggregate';
+import type { Subscription } from './subscription.aggregate';
 import { MinorAmount } from './value-objects/minor-amount.vo';
 
 const subscription = (): Subscription =>
-  Subscription.startTrial({
-    tenantId: '0197a2b0-0000-7000-8000-0000000000aa',
-    countryCode: CountryCode.create('BR'),
-    currency: 'BRL',
-    timezone: 'America/Sao_Paulo',
-    merchantProfileKey: 'BRL_FAKE',
-    start: new Date('2026-01-10T15:00:00Z'),
-  });
+  new SubscriptionBuilder()
+    .withTenantId('0197a2b0-0000-7000-8000-0000000000aa')
+    .withCountryCode('BR')
+    .withCurrency('BRL')
+    .build();
 
 const prices = new Map<string, MinorAmount>([
   [recoveryPriceKey('HOTSITE', 'STANDARD'), MinorAmount.create(4900, 'BRL')],

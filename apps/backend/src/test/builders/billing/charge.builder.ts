@@ -35,7 +35,7 @@ export class ChargeBuilder {
   private provider: BillingProvider | null = null;
   private providerChargeId: string | null = null;
   private paymentUrl: string | null = null;
-  private paymentUrlExpiresAt: Date | null = null;
+  private readonly paymentUrlExpiresAt: Date | null = null;
   private receiptUrl: string | null = null;
   private paymentReturnSeenAt: Date | null = null;
   private refundedMinor = 0;
@@ -154,6 +154,7 @@ export class ChargeBuilder {
   }
 
   build(): Charge {
+    this.assertCreatable();
     const subtotal = MinorAmount.create(
       this.lines.reduce((sum, line) => sum + line.unitPriceMinor, 0),
       this.currency,
@@ -186,5 +187,14 @@ export class ChargeBuilder {
       providerCancelPending: this.providerCancelPending,
       ...(this.version === undefined ? {} : { version: this.version }),
     });
+  }
+
+  // The builder never makes a shape `Charge.create` refuses: at least one line, every line priced
+  // in the charge currency (the period-date rules are the two `as…`/`withPeriod` methods').
+  private assertCreatable(): void {
+    if (this.lines.length === 0) throw new Error('ChargeBuilder: a charge needs at least one line');
+    if (this.lines.some((line) => line.unitPrice.currency !== this.currency)) {
+      throw new Error(`ChargeBuilder: every line must be priced in ${this.currency}`);
+    }
   }
 }

@@ -55,8 +55,9 @@ export interface IChargeRepository {
 
   /**
    * The creation lease every creator takes before any `createCharge`: one conditional `UPDATE`
-   * that sets the last-attempt instant to `now` and adds 1 to the attempts, only for a `PENDING`
-   * charge with no provider id whose last attempt is older than the lease. Returns whether this
+   * that sets the last-attempt instant to `now` and adds 1 to the attempts, only for an open
+   * (`PENDING` / `OVERDUE`) charge whose creation is still `PENDING`, with no provider id, whose
+   * last attempt is older than the lease (a cancelled or paid charge is never claimed). Returns whether this
    * caller owns the creation. It is the **single place that increments the attempts**, runs as its
    * own statement (never joining the caller's transaction: the lease must be committed before the
    * provider call) and takes no B-C1.
@@ -66,7 +67,7 @@ export interface IChargeRepository {
   // ── Cross-tenant job selectors (no tenant: ids only, each served by its own standalone index) ──
 
   /**
-   * Charges waiting for the provider whose lease is free at `now` (never attempted, or last
+   * Open charges waiting for the provider whose lease is free at `now` (never attempted, or last
    * attempted more than the lease ago), least recently attempted first: the creation retry.
    * `IDX_billing_charges_creation_retry`.
    */

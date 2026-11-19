@@ -27,7 +27,8 @@ export class InMemoryChargeRepository implements IChargeRepository {
 
   /** The attempts the claim has counted for a charge (the aggregate never changes them). */
   claimedAttempts(chargeId: string): number {
-    return this.claims.get(chargeId)?.attempts ?? 0;
+    const charge = this.saved.find((c) => c.id === chargeId);
+    return (charge && this.leaseOf(charge)?.attempts) || 0;
   }
 
   async findById(tenantId: string, id: string): Promise<Charge | null> {
@@ -92,14 +93,8 @@ export class InMemoryChargeRepository implements IChargeRepository {
 
   async claimForProviderCreation(tenantId: string, chargeId: string, now: Date): Promise<boolean> {
     const charge = await this.findById(tenantId, chargeId);
-    if (
-      !charge ||
-      charge.providerCreationStatus !== 'PENDING' ||
-      charge.providerChargeId !== null
-    ) {
-      return false;
-    }
-    const claim = this.claims.get(chargeId);
+    if (!charge?.open || !this.awaitingCreation(charge)) return false;
+    const claim = this.leaseOf(charge);
     if (claim && !this.leaseFree(claim, now)) return false;
     this.claims.set(chargeId, { attempts: (claim?.attempts ?? 0) + 1, lastAttemptAt: now });
     return true;
@@ -108,12 +103,8 @@ export class InMemoryChargeRepository implements IChargeRepository {
   async listPendingCreationForJob(now: Date, limit: number): Promise<ChargeRef[]> {
     return this.refs(
       this.saved.filter((c) => {
-        const claim = this.claims.get(c.id);
-        return (
-          c.providerCreationStatus === 'PENDING' &&
-          c.providerChargeId === null &&
-          (!claim || this.leaseFree(claim, now))
-        );
+        const claim = this.leaseOf(c);
+        return c.open && this.awaitingCreation(c) && (!claim || this.leaseFree(claim, now));
       }),
       limit,
     );
@@ -140,6 +131,23 @@ export class InMemoryChargeRepository implements IChargeRepository {
     );
   }
 
+  private awaitingCreation(charge: Charge): boolean {
+    return charge.providerCreationStatus === 'PENDING' && charge.providerChargeId === null;
+  }
+
+  // The lease state: what the repository's claims recorded, else what the charge was loaded with
+  // (a charge never attempted has no lease at all).
+  private leaseOf(charge: Charge): Claim | null {
+    const claim = this.claims.get(charge.id);
+    if (claim) return claim;
+    return charge.providerCreationLastAttemptAt
+      ? {
+          attempts: charge.providerCreationAttempts,
+          lastAttemptAt: charge.providerCreationLastAttemptAt,
+        }
+      : null;
+  }
+
   private leaseFree(claim: Claim, now: Date): boolean {
     return claim.lastAttemptAt.getTime() < now.getTime() - PROVIDER_CREATION_LEASE_MINUTES * 60_000;
   }
@@ -156,6 +164,7 @@ export class InMemoryChargeRepository implements IChargeRepository {
   private assertUnique(charge: Charge): void {
     if (
       charge.kind === 'PERIOD' &&
+      charge.status !== 'CANCELED' &&
       this.saved.some(
         (c) =>
           c.tenantId === charge.tenantId &&

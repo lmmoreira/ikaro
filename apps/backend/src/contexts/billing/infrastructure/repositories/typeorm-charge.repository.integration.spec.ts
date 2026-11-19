@@ -174,23 +174,31 @@ describe('TypeOrmChargeRepository (integration)', () => {
       let release!: () => void;
       const held = new Promise<void>((resolve) => (release = resolve));
 
+      let markReady!: () => void;
+      const ready = new Promise<void>((resolve) => (markReady = resolve));
+
+      // The holder signals once it has written OVERDUE while its transaction still owns the row.
       const holder = txManager.run(async () => {
         const locked = await repo.findByIdForUpdate(t.tenantId, charge.id);
         locked?.markOverdue();
         if (locked) await repo.save(locked);
+        markReady();
         await held;
       });
-      await dataSource.query('SELECT pg_sleep(0.05)');
+      // Racing the holder: a failure before the signal rejects instead of hanging.
+      await Promise.race([ready, holder]);
       const waiter = txManager.run(async () => {
         const seen = await repo.findByIdForUpdate(t.tenantId, charge.id);
         return seen?.status;
       });
       // Released in a `finally`: a failed wait must not leave the holder's transaction open.
       try {
-        await waitForBlockedRowLock(dataSource);
+        // The entity alias opens the SELECT list; the FROM clause is past Postgres' 1024-character
+        // truncation of `pg_stat_activity.query` for this wide table.
+        await waitForBlockedRowLock(dataSource, '"ChargeEntity"."id"');
       } finally {
         release();
-        await holder;
+        await Promise.all([holder, waiter]);
       }
 
       expect(await waiter).toBe('OVERDUE');

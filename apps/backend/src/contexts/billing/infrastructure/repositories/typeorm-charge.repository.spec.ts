@@ -246,11 +246,24 @@ describe('TypeOrmChargeRepository', () => {
       await inTransaction(() => repo.save(charge));
 
       const written = Object.keys(mocks.set.mock.calls[0]?.[0] as object);
-      expect(written).not.toContain('providerCreationAttempts');
-      expect(written).not.toContain('providerCreationLastAttemptAt');
-      expect(written).not.toEqual(
-        expect.arrayContaining(['id', 'tenantId', 'amountMinor', 'subtotalMinor', 'dueDate']),
-      );
+      const immutable = [
+        'providerCreationAttempts',
+        'providerCreationLastAttemptAt',
+        'id',
+        'tenantId',
+        'subscriptionId',
+        'kind',
+        'periodStart',
+        'periodEnd',
+        'dueDate',
+        'subtotalMinor',
+        'amountMinor',
+        'currency',
+        'merchantProfileKey',
+      ];
+      for (const column of immutable) {
+        expect(written).not.toContain(column);
+      }
       expect(written).toEqual(expect.arrayContaining(['status', 'version', 'updatedAt']));
     });
 
@@ -295,6 +308,16 @@ describe('TypeOrmChargeRepository', () => {
         NOW,
         PROVIDER_CREATION_LEASE_MINUTES,
       ]);
+    });
+
+    it('only claims an open charge: a cancelled or paid one never gets a provider bill', async () => {
+      mocks.manager.query.mockResolvedValueOnce([]);
+
+      await repo.claimForProviderCreation(TENANT, 'c-1', NOW);
+
+      expect(mocks.manager.query.mock.calls[0]?.[0]).toContain(
+        `"status" IN ('PENDING', 'OVERDUE')`,
+      );
     });
 
     it('runs on the repository’s own manager, never the caller’s transaction', async () => {
