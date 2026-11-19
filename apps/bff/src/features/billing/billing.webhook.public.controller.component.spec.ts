@@ -143,6 +143,28 @@ describe('BillingWebhookPublicController (component)', () => {
     );
   });
 
+  it('checks the token before the bytes: invalid JSON without the token is a 401, and with the token it is forwarded as unreadable', async () => {
+    const unauthenticated = await request(app.getHttpServer())
+      .post(URL)
+      .set('Content-Type', 'application/json')
+      .send('{not json');
+    expect(unauthenticated.status).toBe(401);
+    expect(backendHttpService.postWithoutTenant).not.toHaveBeenCalled();
+
+    backendHttpService.postWithoutTenant.mockResolvedValueOnce(undefined);
+    const authenticated = await request(app.getHttpServer())
+      .post(URL)
+      .set('asaas-access-token', TOKEN)
+      .set('Content-Type', 'application/json')
+      .send('{not json');
+
+    expect(authenticated.status).toBe(200);
+    expect(backendHttpService.postWithoutTenant).toHaveBeenCalledWith(
+      '/internal/billing/webhooks/asaas',
+      null,
+    );
+  });
+
   it('forwards a backend failure as non-2xx so Asaas retries', async () => {
     backendHttpService.postWithoutTenant.mockRejectedValueOnce(
       new HttpException({ title: 'Service Unavailable', status: 503 }, 503),

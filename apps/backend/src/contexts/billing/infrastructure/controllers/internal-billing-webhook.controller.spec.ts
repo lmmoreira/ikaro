@@ -92,7 +92,7 @@ describe('InternalBillingWebhookController', () => {
     expect(result).toBeUndefined();
   });
 
-  it.each([[[]], [[1, 2, 3]], [undefined]])(
+  it.each([[[]], [[1, 2, 3]], [undefined], [null]])(
     'acknowledges a body that is not a JSON object (%j) with an empty 200: the adapter cannot read it and a retry could never succeed',
     async (body) => {
       const controller = buildController(new FakeBillingProvider(new AdvanceableClock(NOW)));
