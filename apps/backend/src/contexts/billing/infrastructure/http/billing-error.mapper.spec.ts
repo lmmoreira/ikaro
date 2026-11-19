@@ -16,6 +16,10 @@ import {
   SubscriptionConcurrentModificationError,
   UnsuspendNotAllowedError,
 } from '../../domain/errors/billing-domain.error';
+import { ChargeAlreadyExistsError } from '../../domain/errors/charge-already-exists.error';
+import { ChargeConcurrentModificationError } from '../../domain/errors/charge-concurrent-modification.error';
+import { IllegalChargeTransitionError } from '../../domain/errors/illegal-charge-transition.error';
+import { RecoveryChargeAlreadyOpenError } from '../../domain/errors/recovery-charge-already-open.error';
 import { mapBillingError } from './billing-error.mapper';
 
 function call(err: unknown): unknown {
@@ -71,6 +75,22 @@ describe('mapBillingError', () => {
     expect(thrown.getStatus()).toBe(HttpStatus.CONFLICT);
     expect(thrown.getResponse()).toMatchObject({ code: BillingErrorCode.CONCURRENT_MODIFICATION });
   });
+
+  it.each([
+    ['IllegalChargeTransitionError', new IllegalChargeTransitionError('PAID', 'be cancelled')],
+    ['ChargeConcurrentModificationError', new ChargeConcurrentModificationError()],
+    ['ChargeAlreadyExistsError', new ChargeAlreadyExistsError()],
+    ['RecoveryChargeAlreadyOpenError', new RecoveryChargeAlreadyOpenError()],
+  ])(
+    'maps %s to the generic 409 BILLING_CONCURRENT_MODIFICATION (no code of its own)',
+    (_n, err) => {
+      const thrown = call(err) as HttpException;
+      expect(thrown.getStatus()).toBe(HttpStatus.CONFLICT);
+      expect(thrown.getResponse()).toMatchObject({
+        code: BillingErrorCode.CONCURRENT_MODIFICATION,
+      });
+    },
+  );
 
   it('maps a CountryCodeValidationError to 400 (shared address branch)', () => {
     const thrown = call(

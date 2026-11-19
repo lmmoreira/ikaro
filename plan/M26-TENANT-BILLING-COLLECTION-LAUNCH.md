@@ -348,7 +348,7 @@ Give the money its model. **`Charge`** (root, `apps/backend/src/contexts/billing
 
 **Backend use case steps:** none — this story is the model, repositories and factory; use cases arrive with S04–S09.
 **Backend HTTP surface:** none.
-**New migration / i18n keys / env vars / feature flags:** one expand-only migration, `1748500000044-AddChargeVersion` (`ALTER TABLE billing.charges ADD COLUMN version INT NOT NULL DEFAULT 0`: a constant default is metadata-only on PostgreSQL 17, no rewrite; migration `…039` is not edited, it may already be deployed). No i18n keys, env vars or flags (the other tables exist from M25-S03; entity mappings only).
+**New migration / i18n keys / env vars / feature flags:** one expand-only migration, `1748500000046-AddChargeVersion` (`ALTER TABLE billing.charges ADD COLUMN version INT NOT NULL DEFAULT 0`: a constant default is metadata-only on PostgreSQL 17, no rewrite; migration `…039` is not edited, it may already be deployed). No i18n keys, env vars or flags (the other tables exist from M25-S03; entity mappings only).
 
 **Files to create/modify:**
 - `apps/backend/src/contexts/billing/domain/charge.aggregate.ts` (+ `.spec.ts`) (new)
@@ -358,7 +358,7 @@ Give the money its model. **`Charge`** (root, `apps/backend/src/contexts/billing
 - `apps/backend/src/test/repositories/billing/in-memory-charge.repository.ts`, `in-memory-provider-event.repository.ts` (new — `InMemoryXxx` doubles for the two ports; `no-jest-fn-for-repository-or-port`; follow the sibling naming in that directory)
 - `apps/backend/src/contexts/billing/domain/errors/illegal-charge-transition.error.ts`, `charge-already-exists.error.ts`, `recovery-charge-already-open.error.ts`, `charge-concurrent-modification.error.ts` (new — one file per invariant error; M25-S08's error files are different names)
 - `apps/backend/src/contexts/billing/infrastructure/http/billing-error.mapper.ts` (+ `.spec.ts`) (modify — M25-S06 created it; map the four errors to `409` `BILLING_CONCURRENT_MODIFICATION` as stated above, `error-mapper-coverage`)
-- `apps/backend/src/contexts/billing/infrastructure/migrations/1748500000044-AddChargeVersion.ts` (new — expand-only `version` column), registered in `apps/backend/src/test/integration-global-setup.ts` (below)
+- `apps/backend/src/contexts/billing/infrastructure/migrations/1748500000046-AddChargeVersion.ts` (new — expand-only `version` column), registered in `apps/backend/src/test/integration-global-setup.ts` (below)
 - `apps/backend/src/contexts/billing/application/ports/charge-repository.port.ts`, `provider-event-repository.port.ts` (new)
 - `apps/backend/src/contexts/billing/infrastructure/entities/charge.entity.ts`, `charge-line.entity.ts`, `provider-event.entity.ts` (new)
 - `apps/backend/src/contexts/billing/infrastructure/repositories/typeorm-charge.repository.ts`, `typeorm-charge.mapper.ts`, `typeorm-provider-event.repository.ts` (+ `.spec.ts`, `.integration.spec.ts`) (new — the mapper split follows `typeorm-subscription.mapper.ts`)

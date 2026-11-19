@@ -14,8 +14,13 @@ import { BILLING_ACCOUNT_REPOSITORY } from './application/ports/billing-account-
 import { OPERATOR_AUDIT_REPOSITORY } from './application/ports/operator-audit-repository.port';
 import { OperatorAuditEntity } from './infrastructure/entities/operator-audit.entity';
 import { TypeOrmOperatorAuditRepository } from './infrastructure/repositories/typeorm-operator-audit.repository';
+import { CHARGE_REPOSITORY } from './application/ports/charge-repository.port';
+import { PROVIDER_EVENT_REPOSITORY } from './application/ports/provider-event-repository.port';
 import { SUBSCRIPTION_REPOSITORY } from './application/ports/subscription-repository.port';
 import { BillingAccountEntity } from './infrastructure/entities/billing-account.entity';
+import { ChargeLineEntity } from './infrastructure/entities/charge-line.entity';
+import { ChargeEntity } from './infrastructure/entities/charge.entity';
+import { ProviderEventEntity } from './infrastructure/entities/provider-event.entity';
 import { FeaturePriceVersionEntity } from './infrastructure/entities/feature-price-version.entity';
 import { FeaturePriceEntity } from './infrastructure/entities/feature-price.entity';
 import { SubscriptionItemEntity } from './infrastructure/entities/subscription-item.entity';
@@ -28,6 +33,8 @@ import { SignupRegistrationEntity } from './infrastructure/entities/signup-regis
 import { TypeOrmSignupRegistrationLockAdapter } from './infrastructure/locks/typeorm-signup-registration-lock.adapter';
 import { TypeOrmSignupRegistrationRepository } from './infrastructure/repositories/typeorm-signup-registration.repository';
 import { TypeOrmBillingAccountRepository } from './infrastructure/repositories/typeorm-billing-account.repository';
+import { TypeOrmChargeRepository } from './infrastructure/repositories/typeorm-charge.repository';
+import { TypeOrmProviderEventRepository } from './infrastructure/repositories/typeorm-provider-event.repository';
 import { TypeOrmFeaturePriceRepository } from './infrastructure/repositories/typeorm-feature-price.repository';
 import { CachingSubscriptionRepository } from './infrastructure/repositories/caching-subscription.repository';
 import { TypeOrmSubscriptionRepository } from './infrastructure/repositories/typeorm-subscription.repository';
@@ -77,6 +84,9 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
       BillingAccountEntity,
       SignupRegistrationEntity,
       OperatorAuditEntity,
+      ChargeEntity,
+      ChargeLineEntity,
+      ProviderEventEntity,
     ]),
   ],
   controllers: [
@@ -95,6 +105,9 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     CachingSubscriptionRepository,
     { provide: SUBSCRIPTION_REPOSITORY, useClass: CachingSubscriptionRepository },
     { provide: BILLING_ACCOUNT_REPOSITORY, useClass: TypeOrmBillingAccountRepository },
+    // The money model (M26-S02): consumed by the M26 use cases (S04 onwards).
+    { provide: CHARGE_REPOSITORY, useClass: TypeOrmChargeRepository },
+    { provide: PROVIDER_EVENT_REPOSITORY, useClass: TypeOrmProviderEventRepository },
     // Written by the operator use cases (M25-S15b), in the same transaction as the change they audit.
     { provide: OPERATOR_AUDIT_REPOSITORY, useClass: TypeOrmOperatorAuditRepository },
     { provide: BILLING_APP_ENV, useFactory: () => resolveAppEnv(process.env) },

@@ -11,7 +11,7 @@
 .
 ├── apps/
 │   ├── backend/          # NestJS modular monolith
-│   │   └── src/contexts/ # booking/ customer/ staff/ loyalty/ notification/ platform/ billing/ (schema, price-list, subscription and billing-account aggregates and repositories, the access, operator, registration and dev-clock use cases; the Charge flow is planned)
+│   │   └── src/contexts/ # booking/ customer/ staff/ loyalty/ notification/ platform/ billing/ (schema, price-list, subscription and billing-account aggregates and repositories, the access, operator, registration and dev-clock use cases; the Charge, ChargeLine and ProviderEvent model and repositories; the Charge flow's use cases are planned)
 │   ├── bff/              # NestJS BFF (feature slices under src/features/)
 │   └── web/              # Next.js 16 (domain features + shell slices + shared/)
 ├── packages/

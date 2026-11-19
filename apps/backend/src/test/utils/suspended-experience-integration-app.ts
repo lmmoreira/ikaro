@@ -10,6 +10,9 @@ import { BillingAccountEntity } from '../../contexts/billing/infrastructure/enti
 import { FeaturePriceVersionEntity } from '../../contexts/billing/infrastructure/entities/feature-price-version.entity';
 import { FeaturePriceEntity } from '../../contexts/billing/infrastructure/entities/feature-price.entity';
 import { OperatorAuditEntity } from '../../contexts/billing/infrastructure/entities/operator-audit.entity';
+import { ChargeLineEntity } from '../../contexts/billing/infrastructure/entities/charge-line.entity';
+import { ChargeEntity } from '../../contexts/billing/infrastructure/entities/charge.entity';
+import { ProviderEventEntity } from '../../contexts/billing/infrastructure/entities/provider-event.entity';
 import { SignupRegistrationEntity } from '../../contexts/billing/infrastructure/entities/signup-registration.entity';
 import { SubscriptionItemEntity } from '../../contexts/billing/infrastructure/entities/subscription-item.entity';
 import { SubscriptionEntity } from '../../contexts/billing/infrastructure/entities/subscription.entity';
@@ -77,6 +80,9 @@ export async function createSuspendedExperienceApp(
           BillingAccountEntity,
           SignupRegistrationEntity,
           OperatorAuditEntity,
+          ChargeEntity,
+          ChargeLineEntity,
+          ProviderEventEntity,
           InboxRecordEntity,
           TenantEntity,
           HotsiteConfigEntity,

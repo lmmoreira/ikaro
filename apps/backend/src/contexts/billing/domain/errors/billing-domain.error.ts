@@ -108,6 +108,14 @@ export class SubscriptionInvariantError extends BillingDomainError {
   }
 }
 
+/** A Charge or ChargeLine was built from an inconsistent shape (kind/period dates, lines, amounts). */
+export class ChargeInvariantError extends BillingDomainError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ChargeInvariantError';
+  }
+}
+
 /** The optimistic `version` check found the row changed since it was read. */
 export class SubscriptionConcurrentModificationError
   extends BillingDomainError
