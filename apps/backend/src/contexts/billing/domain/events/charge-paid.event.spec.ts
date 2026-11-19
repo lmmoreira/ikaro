@@ -1,4 +1,6 @@
 import { ChargePaidEventBuilder } from '../../../../test/builders/billing';
+import { MinorAmount } from '../value-objects/minor-amount.vo';
+import { ChargePaid } from './charge-paid.event';
 
 describe('ChargePaid', () => {
   it('carries the full envelope', () => {
@@ -29,6 +31,32 @@ describe('ChargePaid', () => {
       'receiptUrl',
       'recipientEmail',
     ]);
+  });
+
+  it('builds itself from a charge: the amount and currency come from the charge, the rest from the facts', () => {
+    const event = ChargePaid.forCharge(
+      { tenantId: 'tenant-1', id: 'charge-1', amount: MinorAmount.create(4900, 'BRL') },
+      'corr-1',
+      'CARD',
+      new Date('2026-03-10T15:00:00Z'),
+      null,
+      'billing@example.test',
+    );
+
+    expect(event).toMatchObject({ tenantId: 'tenant-1', correlationId: 'corr-1' });
+    expect(event.data).toEqual({
+      chargeId: 'charge-1',
+      amountMinor: 4900,
+      currency: 'BRL',
+      method: 'CARD',
+      paidAt: '2026-03-10T15:00:00.000Z',
+      receiptUrl: null,
+      recipientEmail: 'billing@example.test',
+    });
+  });
+
+  it('allows a null method when the provider reported none for a paid charge', () => {
+    expect(new ChargePaidEventBuilder().withMethod(null).build().data.method).toBeNull();
   });
 
   it('allows a null recipientEmail (Notification falls back to the managers)', () => {

@@ -56,6 +56,9 @@ import { SuspendTenantByOperatorUseCase } from './application/use-cases/suspend-
 import { UnsuspendTenantUseCase } from './application/use-cases/unsuspend-tenant.use-case';
 import { BillingAuditLogHandler } from './infrastructure/events/billing-audit-log.handler';
 import { InternalBillingOperatorController } from './infrastructure/controllers/internal-billing-operator.controller';
+import { ApplyChargeFactUseCase } from './application/use-cases/apply-charge-fact.use-case';
+import { ProcessProviderWebhookUseCase } from './application/use-cases/process-provider-webhook.use-case';
+import { InternalBillingWebhookController } from './infrastructure/controllers/internal-billing-webhook.controller';
 import { InternalBillingAccessController } from './infrastructure/controllers/internal-billing-access.controller';
 import { BILLING_PROVIDER_REGISTRY } from './application/ports/billing-provider.port';
 import {
@@ -93,6 +96,7 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     InternalBillingRegistrationController,
     InternalBillingAccessController,
     InternalBillingOperatorController,
+    InternalBillingWebhookController,
   ],
   providers: [
     { provide: SIGNUP_REGISTRATION_REPOSITORY, useClass: TypeOrmSignupRegistrationRepository },
@@ -138,6 +142,10 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     SetTenantExemptUseCase,
     ListTenantBillingStatusUseCase,
     BillingAuditLogHandler,
+    // The provider webhook (M26-S04): the use case the controller calls and the shared service
+    // that writes a verified paid / refunded / charged-back fact.
+    ApplyChargeFactUseCase,
+    ProcessProviderWebhookUseCase,
   ],
   // The shared access port is consumed by every context (M25-S16 onwards). The registration and
   // the five operator use cases are injected by this module's own controllers, which the
@@ -152,6 +160,7 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     ExtendGraceUseCase,
     SetTenantExemptUseCase,
     ListTenantBillingStatusUseCase,
+    ProcessProviderWebhookUseCase,
   ],
 })
 export class BillingModule {}

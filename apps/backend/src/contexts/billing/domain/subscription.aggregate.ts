@@ -6,6 +6,11 @@ import { CountryCode } from '../../../shared/value-objects/country-code.vo';
 import { Timezone } from '../../../shared/value-objects/timezone.vo';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import {
+  localDateEndUTC,
+  localDateStartUTC,
+  utcDateToLocalDate,
+} from '../../../shared/utils/calendar-date';
+import {
   ExemptProtectedError,
   GraceNotAllowedError,
   SubscriptionInvariantError,
@@ -15,12 +20,14 @@ import { SubscriptionReactivated } from './events/subscription-reactivated.event
 import { SubscriptionSuspended } from './events/subscription-suspended.event';
 import { defaultSelection, type SelectionEntry, validateSelection } from './plan-selection';
 import { SubscriptionItem } from './subscription-item';
+import { recoveryPaymentWindow } from './subscription-payment-window';
 import { assertCurrencyMatchesCountry, trialWindow } from './subscription-trial-window';
 import {
   GRACE_DAYS,
   PURGE_DAYS_NEVER_PAID,
   PURGE_DAYS_PAID,
   type SelectionChange,
+  type ReversedChargeFacts,
   type SelectionPreview,
   type StartSubscriptionInput,
   type SubscriptionCycle,
@@ -39,7 +46,9 @@ const SYSTEM_ACTOR = 'SYSTEM';
  * The tenant's subscription (1 per tenant): status ladder, entitlement and plan. Entitlement is
  * computed, never stored. The aggregate never reads a clock or configuration: every state-changing
  * method takes `now`, and the platform-owner protection arrives as a flag the caller resolved.
- * The payment-driven transitions (M26) are not here: each is added by the first M26 story that needs it.
+ * The payment-driven transitions (M26) are added by the first M26 story that needs each one; the
+ * provider-confirmed paid and reversed facts of the webhook (UC-114) are `markPeriodPaid`,
+ * `reactivateOnPayment` and `reversePayment`.
  */
 export class Subscription extends AggregateRoot {
   readonly id: string;
@@ -63,7 +72,7 @@ export class Subscription extends AggregateRoot {
   private _suspendedAt: Date | null;
   private _purgeWarning30SentAt: Date | null;
   private _purgeWarning7SentAt: Date | null;
-  private readonly _hasEverPaid: boolean;
+  private _hasEverPaid: boolean;
   private _exempt: boolean;
   private _items: SubscriptionItem[];
   private _version: number | undefined;
@@ -366,6 +375,132 @@ export class Subscription extends AggregateRoot {
     this.clearSuspension();
     this.addReactivated(now, suspendedAt, correlationId, recipientEmail);
     return true;
+  }
+
+  /**
+   * A `PERIOD` charge was paid (UC-114). Always records `hasEverPaid`. `TRIALING` stays as it is
+   * (the status sweep writes the period at trial end); an exempt subscription and an `OPERATOR`
+   * suspension are never changed by a payment. Otherwise the subscription is `ACTIVE`: the period
+   * end moves to `max(current end, the charge's end)`, the start to the charge's start only when
+   * that day is today or earlier (an invoice issued early does not change the current period),
+   * `pastDueSince` / `graceUntil` clear, and a payment suspension ends (raising
+   * `SubscriptionReactivated`). The period is the charge's own: `anchorDay` and `nextDueDate`
+   * belong to the issue of the next charge and are never touched here. Returns whether the
+   * subscription changed.
+   */
+  markPeriodPaid(
+    periodStart: CalendarDate,
+    periodEnd: CalendarDate,
+    now: Date,
+    correlationId: string,
+    recipientEmail: string | null,
+  ): boolean {
+    const everPaid = this._hasEverPaid;
+    this._hasEverPaid = true;
+    const paidFlagChanged = !everPaid;
+    if (this._exempt || this._status === 'TRIALING') return paidFlagChanged;
+    if (this._status === 'SUSPENDED' && this._suspensionReason === 'OPERATOR') {
+      return paidFlagChanged;
+    }
+    const suspendedAt = this._status === 'SUSPENDED' ? this._suspendedAt : null;
+    const tz = this.timezone.value;
+    const endsAt = localDateEndUTC(periodEnd.value, tz);
+    if (this._currentPeriodEnd === null || endsAt.getTime() > this._currentPeriodEnd.getTime()) {
+      this._currentPeriodEnd = endsAt;
+    }
+    if (periodStart.value <= utcDateToLocalDate(now, tz)) {
+      this._currentPeriodStart = localDateStartUTC(periodStart.value, tz);
+    }
+    this._status = 'ACTIVE';
+    this._pastDueSince = null;
+    this._graceUntil = null;
+    if (suspendedAt !== null) {
+      this.clearSuspension();
+      this._cancelAt = null;
+      this.addReactivated(now, suspendedAt, correlationId, recipientEmail);
+    }
+    return true;
+  }
+
+  /**
+   * A `RECOVERY` charge was paid (UC-114, UC-134): a payment suspension (`NON_PAYMENT`, `CANCELED`,
+   * `PAYMENT_REVERSED`) ends. The subscription is `ACTIVE`, the suspension and its purge clock are
+   * cleared, the new month starts at the payment moment and renews on the payment's tenant-local
+   * day clamped to 28, and the next invoice falls due the day after the month ends. Raises
+   * `SubscriptionReactivated`. Always records `hasEverPaid`; an exempt subscription, an `OPERATOR`
+   * suspension and a subscription that is not suspended are left as they are (a payment never lifts
+   * an operator suspension). Returns whether the subscription changed.
+   */
+  reactivateOnPayment(
+    paidAt: Date,
+    now: Date,
+    correlationId: string,
+    recipientEmail: string | null,
+  ): boolean {
+    const everPaid = this._hasEverPaid;
+    this._hasEverPaid = true;
+    const paidFlagChanged = !everPaid;
+    if (this._exempt || this._status !== 'SUSPENDED' || this._suspendedAt === null) {
+      return paidFlagChanged;
+    }
+    if (this._suspensionReason === 'OPERATOR') return paidFlagChanged;
+    const suspendedAt = this._suspendedAt;
+    const window = recoveryPaymentWindow(paidAt, this.timezone);
+    this._status = 'ACTIVE';
+    this.clearSuspension();
+    this._cancelAt = null;
+    this._pastDueSince = null;
+    this._graceUntil = null;
+    this._currentPeriodStart = paidAt;
+    this._currentPeriodEnd = window.periodEnd;
+    this._anchorDay = window.anchorDay;
+    this._nextDueDate = window.nextDueDate;
+    this.addReactivated(now, suspendedAt, correlationId, recipientEmail);
+    return true;
+  }
+
+  /**
+   * A full refund or a lost chargeback of a charge that **settled the current period** suspends
+   * with `PAYMENT_REVERSED` and raises `SubscriptionSuspended`. A `PERIOD` charge settles it when
+   * its days cover today in the subscription's zone; a `RECOVERY` charge when its payment moment is
+   * the current period's start. Any other charge (an older period, a future one) changes no access,
+   * and neither does `TRIALING` (nothing settled is being reversed), `SUSPENDED` (already off), an
+   * exempt subscription or an `OPERATOR` suspension. Returns whether the subscription changed.
+   */
+  reversePayment(
+    settled: ReversedChargeFacts,
+    now: Date,
+    correlationId: string,
+    recipientEmail: string | null,
+  ): boolean {
+    if (this._exempt || (this._status !== 'ACTIVE' && this._status !== 'PAST_DUE')) return false;
+    if (!this.settlesCurrentPeriod(settled, now)) return false;
+    this._status = 'SUSPENDED';
+    this._suspensionReason = 'PAYMENT_REVERSED';
+    this._suspendedAt = now;
+    this.addDomainEvent(
+      new SubscriptionSuspended(this.tenantId, correlationId, {
+        subscriptionId: this.id,
+        reason: 'PAYMENT_REVERSED',
+        suspendedAt: now.toISOString(),
+        purgeAt: this.purgeAtFrom(now).toISOString(),
+        recipientEmail,
+      }),
+    );
+    return true;
+  }
+
+  private settlesCurrentPeriod(settled: ReversedChargeFacts, now: Date): boolean {
+    if (settled.kind === 'RECOVERY') {
+      return (
+        settled.paidAt !== null &&
+        this._currentPeriodStart !== null &&
+        settled.paidAt.getTime() === this._currentPeriodStart.getTime()
+      );
+    }
+    if (settled.periodStart === null || settled.periodEnd === null) return false;
+    const today = utcDateToLocalDate(now, this.timezone.value);
+    return settled.periodStart.value <= today && today <= settled.periodEnd.value;
   }
 
   /**

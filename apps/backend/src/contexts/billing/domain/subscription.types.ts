@@ -74,3 +74,11 @@ export interface SelectionChange {
 export interface SelectionPreview {
   readonly changes: SelectionChange[];
 }
+
+/** What a refunded or charged-back charge says about the period it paid for (`Subscription.reversePayment`). */
+export interface ReversedChargeFacts {
+  readonly kind: 'PERIOD' | 'RECOVERY';
+  readonly periodStart: CalendarDate | null;
+  readonly periodEnd: CalendarDate | null;
+  readonly paidAt: Date | null;
+}

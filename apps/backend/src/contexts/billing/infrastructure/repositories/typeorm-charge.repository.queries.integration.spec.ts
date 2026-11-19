@@ -5,6 +5,7 @@ import {
   ChargeLineEntityBuilder,
   SubscriptionEntityBuilder,
 } from '../../../../test/builders/billing';
+import { InMemoryOutboxPublisher } from '../../../../test/infrastructure/in-memory-outbox-publisher';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { PROVIDER_CREATION_LEASE_MINUTES } from '../../domain/billing-constants';
 import { Charge } from '../../domain/charge.aggregate';
@@ -83,7 +84,10 @@ describe('TypeOrmChargeRepository queries, claim and isolation (integration)', (
 
   beforeAll(async () => {
     dataSource = await createTestDataSource();
-    repo = new TypeOrmChargeRepository(dataSource.getRepository(ChargeEntity));
+    repo = new TypeOrmChargeRepository(
+      dataSource.getRepository(ChargeEntity),
+      new InMemoryOutboxPublisher(),
+    );
   });
 
   afterEach(async () => {

@@ -1,5 +1,8 @@
 import { IBillingAccountRepository } from '../../../contexts/billing/application/ports/billing-account-repository.port';
-import type { BillingAccount } from '../../../contexts/billing/domain/billing-account.aggregate';
+import type {
+  BillingAccount,
+  BillingProvider,
+} from '../../../contexts/billing/domain/billing-account.aggregate';
 import { BillingAccountAlreadyExistsError } from '../../../contexts/billing/domain/errors/billing-domain.error';
 
 export class InMemoryBillingAccountRepository implements IBillingAccountRepository {
@@ -7,6 +10,18 @@ export class InMemoryBillingAccountRepository implements IBillingAccountReposito
 
   async findByTenantId(tenantId: string): Promise<BillingAccount | null> {
     return this.saved.find((account) => account.tenantId === tenantId) ?? null;
+  }
+
+  async findByProviderCustomerIdForJob(
+    provider: BillingProvider,
+    providerCustomerId: string,
+  ): Promise<BillingAccount | null> {
+    return (
+      this.saved.find(
+        (account) =>
+          account.provider === provider && account.providerCustomerId === providerCustomerId,
+      ) ?? null
+    );
   }
 
   // Mirrors `UNIQUE(tenant_id)`: a second account for one tenant is refused.

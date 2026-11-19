@@ -1,3 +1,4 @@
+import { AggregateRoot } from '../../../shared/domain/aggregate-root';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import type { CalendarDate } from '../../../shared/value-objects/calendar-date.vo';
 import type { BillingProvider } from './billing-account.aggregate';
@@ -9,8 +10,10 @@ import type {
   ChargeStatus,
   NewChargeInput,
 } from './charge.types';
+import { assertChargeShape } from './charge-shape';
 import { ChargeInvariantError } from './errors/billing-domain.error';
 import { IllegalChargeTransitionError } from './errors/illegal-charge-transition.error';
+import { ChargePaid } from './events/charge-paid.event';
 import type { PaymentMethod } from './provider-events';
 import { MinorAmount } from './value-objects/minor-amount.vo';
 
@@ -22,11 +25,12 @@ export * from './charge.types';
  * provider fields move, through the transition table in docs/DOMAIN_MODEL.md § Aggregate: Charge.
  *
  * Like `Subscription`, it never reads a clock: a method that needs an instant takes it. It raises no
- * domain event yet: the Billing events arrive with M26-S03 and are raised by the use cases.
+ * domain event but one: `markPaid` raises `ChargePaid`, which the charge repository drains into the
+ * outbox in the transaction of the save (the same shape as `Subscription`).
  * The creation lease (`provider_creation_attempts` / `_last_attempt_at`) belongs to the repository's
  * claim, so the aggregate only carries those two values and never changes them.
  */
-export class Charge {
+export class Charge extends AggregateRoot {
   readonly id: string;
   readonly tenantId: string;
   readonly subscriptionId: string;
@@ -56,6 +60,7 @@ export class Charge {
   private _version: number | undefined;
 
   private constructor(props: ChargeProps) {
+    super();
     this.id = props.id;
     this.tenantId = props.tenantId;
     this.subscriptionId = props.subscriptionId;
@@ -89,7 +94,7 @@ export class Charge {
    * lines and the amount equals it (Brazil is tax-inclusive; the field exists so M28 can add tax).
    */
   static create(input: NewChargeInput): Charge {
-    Charge.assertShape(input);
+    assertChargeShape(input);
     const subtotal = MinorAmount.create(
       input.lines.reduce((sum, line) => sum + line.unitPriceMinor, 0),
       input.currency,
@@ -125,23 +130,6 @@ export class Charge {
 
   static reconstitute(props: ChargeProps): Charge {
     return new Charge(props);
-  }
-
-  private static assertShape(input: NewChargeInput): void {
-    if (input.lines.length === 0) {
-      throw new ChargeInvariantError('A charge needs at least one line');
-    }
-    if (input.lines.some((line) => line.unitPrice.currency !== input.currency)) {
-      throw new ChargeInvariantError(`Every line must be priced in ${input.currency}`);
-    }
-    const hasPeriod = input.periodStart !== null && input.periodEnd !== null;
-    const hasNoPeriod = input.periodStart === null && input.periodEnd === null;
-    if (input.kind === 'PERIOD' && !hasPeriod) {
-      throw new ChargeInvariantError('A PERIOD charge needs both period dates');
-    }
-    if (input.kind === 'RECOVERY' && !hasNoPeriod) {
-      throw new ChargeInvariantError('A RECOVERY charge has no period dates');
-    }
   }
 
   get lines(): readonly ChargeLine[] {
@@ -215,9 +203,17 @@ export class Charge {
    * `ApplyChargeFactUseCase`): legal from `PENDING`, `OVERDUE` and `CANCELED` (the provider could
    * not cancel it because it was already paid, UC-114 step 4), a no-op on `PAID` (the first signal
    * wins, a later one is ignored), illegal once refunded, charged back or failed. A paid charge
-   * needs no provider cancel any more, so the retry flag is cleared.
+   * needs no provider cancel any more, so the retry flag is cleared. Raises `ChargePaid` once: a
+   * repeat is a no-op with no second event. `recipientEmail` is the billing email the caller
+   * resolved (`resolveBillingRecipientEmail`).
    */
-  markPaid(method: PaymentMethod | null, paidAt: Date, receiptUrl: string | null): void {
+  markPaid(
+    method: PaymentMethod | null,
+    paidAt: Date,
+    receiptUrl: string | null,
+    correlationId: string,
+    recipientEmail: string | null,
+  ): void {
     if (this._status === 'PAID') return;
     if (this._status !== 'PENDING' && this._status !== 'OVERDUE' && this._status !== 'CANCELED') {
       throw this.illegal('be paid');
@@ -227,6 +223,9 @@ export class Charge {
     this._paidAt = paidAt;
     this._receiptUrl = receiptUrl;
     this._providerCancelPending = false;
+    this.addDomainEvent(
+      ChargePaid.forCharge(this, correlationId, method, paidAt, receiptUrl, recipientEmail),
+    );
   }
 
   /** `PENDING` → `OVERDUE` when the tenant-local due date has passed; a repeat is a no-op. */

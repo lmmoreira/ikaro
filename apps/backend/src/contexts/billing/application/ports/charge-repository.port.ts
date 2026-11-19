@@ -24,6 +24,13 @@ export interface IChargeRepository {
    */
   findByIdForUpdate(tenantId: string, id: string): Promise<Charge | null>;
 
+  /**
+   * Cross-tenant job lookup by our own charge id (the id sent to the provider as the external
+   * reference), for the webhook that outruns the provider customer's save. It takes no tenant, so
+   * the caller must compare the charge's tenant with the one it already resolved. Primary key.
+   */
+  findByIdForJob(id: string): Promise<Charge | null>;
+
   /** The webhook has resolved the tenant already; the provider is part of the key (`UQ_billing_charges_provider_charge`). */
   findByProviderChargeId(
     tenantId: string,

@@ -1,3 +1,5 @@
+import { drainDomainEvents } from '../../../shared/infrastructure/outbox/drain-domain-events';
+import type { IOutboxPublisher } from '../../../shared/ports/outbox-publisher.port';
 import {
   ChargeRef,
   IChargeRepository,
@@ -22,6 +24,8 @@ interface Claim {
  */
 export class InMemoryChargeRepository implements IChargeRepository {
   readonly saved: Charge[] = [];
+
+  constructor(private readonly outboxPublisher: IOutboxPublisher = { publish: async () => {} }) {}
 
   private readonly claims = new Map<string, Claim>();
 
@@ -86,9 +90,15 @@ export class InMemoryChargeRepository implements IChargeRepository {
   }
 
   async save(charge: Charge): Promise<void> {
-    if (this.saved.includes(charge)) return;
-    this.assertUnique(charge);
-    this.saved.push(charge);
+    if (!this.saved.includes(charge)) {
+      this.assertUnique(charge);
+      this.saved.push(charge);
+    }
+    await drainDomainEvents(charge, this.outboxPublisher);
+  }
+
+  async findByIdForJob(id: string): Promise<Charge | null> {
+    return this.saved.find((c) => c.id === id) ?? null;
   }
 
   async claimForProviderCreation(tenantId: string, chargeId: string, now: Date): Promise<boolean> {

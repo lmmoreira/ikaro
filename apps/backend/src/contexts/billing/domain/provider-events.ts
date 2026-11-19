@@ -34,6 +34,10 @@ export type NormalizedProviderEvent =
   | (ProviderChargeEventBase & { readonly type: 'PaymentCancelled' })
   | (ProviderChargeEventBase & { readonly type: 'PaymentRefunded' })
   | (ProviderChargeEventBase & { readonly type: 'PaymentPartiallyRefunded' })
+  // A dispute the provider has only *opened*: access never changes, it is logged (UC-114 A5).
+  | (ProviderChargeEventBase & { readonly type: 'PaymentDisputeOpened' })
+  // A dispute the provider *decided against* the merchant. No Asaas event is verified for it yet
+  // (docs/ASAAS_PROVIDER.md A11 / G5), so only the fake produces it until M26-S37.
   | (ProviderChargeEventBase & { readonly type: 'PaymentChargeback' })
   | (ProviderEventBase & {
       readonly type: 'AutoBillingAuthorized' | 'AutoBillingRevoked';
@@ -58,6 +62,10 @@ export interface NormalizedChargeStatus {
   readonly paymentMethod: PaymentMethod | null;
   readonly paidAt: Date | null;
   readonly receiptUrl: string | null;
+  /** What the provider charged, in minor units: the truth the webhook's own amount is checked against. */
+  readonly amountMinor: number;
+  /** A dispute is open on a charge that is still `PAID`: never a reason to change access. */
+  readonly disputeOpen: boolean;
 }
 
 export interface ProviderAccountHealth {

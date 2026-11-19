@@ -28,7 +28,7 @@ describe('normalizeAsaasWebhook', () => {
     ['PAYMENT_DELETED', 'PaymentCancelled'],
     ['PAYMENT_REFUNDED', 'PaymentRefunded'],
     ['PAYMENT_PARTIALLY_REFUNDED', 'PaymentPartiallyRefunded'],
-    ['PAYMENT_CHARGEBACK_REQUESTED', 'PaymentChargeback'],
+    ['PAYMENT_CHARGEBACK_REQUESTED', 'PaymentDisputeOpened'],
   ])('maps %s to %s', (event, expectedType) => {
     const result = normalizeAsaasWebhook(body(event));
 
@@ -40,6 +40,15 @@ describe('normalizeAsaasWebhook', () => {
       chargeReference: '0192f5a0-0000-7000-8000-000000000001',
       amountMinor: 4900,
     });
+  });
+
+  it('never maps a chargeback event of its own: only a caller-supplied name yields PaymentChargeback', () => {
+    expect(normalizeAsaasWebhook(body('PAYMENT_CHARGEBACK_DONE')).type).toBe('Ignored');
+    expect(
+      normalizeAsaasWebhook(body('PAYMENT_CHARGEBACK_DONE'), {
+        PAYMENT_CHARGEBACK_DONE: 'PaymentChargeback',
+      }).type,
+    ).toBe('PaymentChargeback');
   });
 
   it.each(['PAYMENT_CREATED', 'PAYMENT_CHECKOUT_VIEWED', 'PAYMENT_UPDATED', 'SOMETHING_NEW'])(

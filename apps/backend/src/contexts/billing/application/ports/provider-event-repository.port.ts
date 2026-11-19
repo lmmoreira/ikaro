@@ -1,3 +1,4 @@
+import type { BillingProvider } from '../../domain/billing-account.aggregate';
 import type { ProviderEvent } from '../../domain/provider-event';
 
 export const PROVIDER_EVENT_REPOSITORY = Symbol('IProviderEventRepository');
@@ -11,4 +12,11 @@ export interface IProviderEventRepository {
    * commits (or rolls back) with the local change and the outbox rows.
    */
   insertIfAbsent(event: ProviderEvent): Promise<boolean>;
+
+  /**
+   * A cheap read-only check by `(provider, eventId)`, run before the provider re-read so a replayed
+   * delivery costs no provider call (the provider's rate limit). Not the dedupe itself:
+   * `insertIfAbsent` inside the transaction stays authoritative.
+   */
+  exists(provider: BillingProvider, eventId: string): Promise<boolean>;
 }

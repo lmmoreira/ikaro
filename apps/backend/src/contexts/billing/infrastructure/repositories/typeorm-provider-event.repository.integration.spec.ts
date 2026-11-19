@@ -124,4 +124,13 @@ describe('TypeOrmProviderEventRepository (integration)', () => {
 
     expect(await rowsFor(event.eventId)).toHaveLength(0);
   });
+
+  it('exists answers true for a stored event and false for another event id or another provider', async () => {
+    const event = new ProviderEventBuilder().withTenantId(newTenant()).build();
+    await repo.insertIfAbsent(event);
+
+    expect(await repo.exists('ASAAS', event.eventId)).toBe(true);
+    expect(await repo.exists('ASAAS', `${event.eventId}-other`)).toBe(false);
+    expect(await repo.exists('STRIPE', event.eventId)).toBe(false);
+  });
 });

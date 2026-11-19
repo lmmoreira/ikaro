@@ -121,6 +121,41 @@ describe('TypeOrmBillingAccountRepository', () => {
     });
   });
 
+  describe('findByProviderCustomerIdForJob', () => {
+    it('looks the account up by provider and provider customer id, with no tenant, then reads its own subscription country', async () => {
+      const row = new BillingAccountEntityBuilder()
+        .withTenantId(TENANT)
+        .withProvider('ASAAS', 'cus_123')
+        .build();
+      manager.findOne.mockImplementation((entity: unknown) =>
+        Promise.resolve(
+          entity === BillingAccountEntity
+            ? row
+            : new SubscriptionEntityBuilder().withTenantId(TENANT).build(),
+        ),
+      );
+
+      const account = await repo.findByProviderCustomerIdForJob('ASAAS', 'cus_123');
+
+      expect(account?.tenantId).toBe(TENANT);
+      expect(manager.findOne).toHaveBeenNthCalledWith(1, BillingAccountEntity, {
+        where: { provider: 'ASAAS', providerCustomerId: 'cus_123' },
+      });
+      expect(manager.findOne).toHaveBeenNthCalledWith(
+        2,
+        SubscriptionEntity,
+        expect.objectContaining({ where: { tenantId: TENANT } }),
+      );
+    });
+
+    it('returns null for an unknown customer without reading any subscription', async () => {
+      manager.findOne.mockResolvedValueOnce(null);
+
+      expect(await repo.findByProviderCustomerIdForJob('ASAAS', 'cus_unknown')).toBeNull();
+      expect(manager.findOne).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('save', () => {
     it("updates the tenant's own row by (id, tenant_id) and writes neither the country nor the identity", async () => {
       const account = new BillingAccountBuilder()

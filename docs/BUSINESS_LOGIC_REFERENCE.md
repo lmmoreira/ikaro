@@ -813,7 +813,7 @@ stateDiagram-v2
     PAID --> CHARGEBACK: markChargeback
 ```
 
-`markPaid` is called **only with a provider-verified fact** (the re-read of `ApplyChargeFactUseCase`), so it carries no provenance flag; it clears `providerCancelPending`. `markCreationReady` (provider, id, link, expiry) is legal on a charge of any status, a `PAID` or `CANCELED` one included, and never touches the status. `markProviderCancelPending` is legal only on a `CANCELED` charge.
+`markPaid` is called **only with a provider-verified fact** (the re-read of `ApplyChargeFactUseCase`), so it carries no provenance flag; it clears `providerCancelPending` and raises `ChargePaid` once (M26-S04; a repeated paid signal on a `PAID` charge is a no-op with no second event). `markCreationReady` (provider, id, link, expiry) is legal on a charge of any status, a `PAID` or `CANCELED` one included, and never touches the status. `markProviderCancelPending` is legal only on a `CANCELED` charge.
 
 **Two writers, one row: B-C1 and `version`.** The writes that follow a provider call (store `READY`, a creation failure, a cleared `provider_cancel_pending`) run without the subscription lock, so a webhook can mark the same charge `PAID` in between. Each such write is a short transaction that takes the charge row lock (`findByIdForUpdate`, `docs/LOCK_CATALOG.md` B-C1) and re-reads the charge; `charges.version` makes a stale `save()` fail with `ChargeConcurrentModificationError` if a caller forgot.
 

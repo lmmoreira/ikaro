@@ -65,6 +65,7 @@ export async function createTestApp(options: { realBackendHttp?: boolean } = {})
     delete: jest.fn(),
     getForPublic: jest.fn(),
     postForPublic: jest.fn(),
+    postWithoutTenant: jest.fn(),
     patchForPublic: jest.fn(),
   };
 

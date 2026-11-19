@@ -18,14 +18,16 @@ export function asaasBillingTypeOf(method: PaymentMethod | null): string {
   return entry?.[0] ?? 'UNDEFINED';
 }
 
-type ChargeEventType = Exclude<
+export type ChargeEventType = Exclude<
   NormalizedProviderEvent['type'],
   'AutoBillingAuthorized' | 'AutoBillingRevoked' | 'Ignored'
 >;
 
 // Asaas event names the sandbox run observed or the docs state (docs/ASAAS_PROVIDER.md A1, A11).
 // The paid signal is the first of CONFIRMED or RECEIVED; the second is a no-op downstream. Anything
-// not listed (PAYMENT_CREATED, PAYMENT_CHECKOUT_VIEWED, ...) normalises to `Ignored`.
+// not listed (PAYMENT_CREATED, PAYMENT_CHECKOUT_VIEWED, ...) normalises to `Ignored`. An opened
+// dispute is `PaymentDisputeOpened`, never `PaymentChargeback`: only a lost dispute is a reversal,
+// and the Asaas event that finalises one is unobserved (docs/ASAAS_PROVIDER.md A11 / G5).
 const CHARGE_EVENT_TYPES: Readonly<Record<string, ChargeEventType>> = {
   PAYMENT_CONFIRMED: 'PaymentConfirmed',
   PAYMENT_RECEIVED: 'PaymentConfirmed',
@@ -33,7 +35,7 @@ const CHARGE_EVENT_TYPES: Readonly<Record<string, ChargeEventType>> = {
   PAYMENT_DELETED: 'PaymentCancelled',
   PAYMENT_REFUNDED: 'PaymentRefunded',
   PAYMENT_PARTIALLY_REFUNDED: 'PaymentPartiallyRefunded',
-  PAYMENT_CHARGEBACK_REQUESTED: 'PaymentChargeback',
+  PAYMENT_CHARGEBACK_REQUESTED: 'PaymentDisputeOpened',
 };
 
 type JsonRecord = Record<string, unknown>;
@@ -111,14 +113,17 @@ function buildChargeEvent(
 }
 
 /** Pure: the same body always yields the same event and `providerEventId`. De-duplication is the inbox's. */
-export function normalizeAsaasWebhook(rawBody: string): NormalizedProviderEvent {
+export function normalizeAsaasWebhook(
+  rawBody: string,
+  // Event names only a test double emits (the fake's lost chargeback): never part of the Asaas table.
+  extraEventTypes: Readonly<Record<string, ChargeEventType>> = {},
+): NormalizedProviderEvent {
   const body = parseBody(rawBody);
   const providerEventId = requireString(body, 'id');
   const eventName = requireString(body, 'event');
   const occurredAt = parseAsaasDateTime(requireString(body, 'dateCreated'));
-  const type = Object.hasOwn(CHARGE_EVENT_TYPES, eventName)
-    ? CHARGE_EVENT_TYPES[eventName]
-    : undefined;
+  const eventTypes = { ...CHARGE_EVENT_TYPES, ...extraEventTypes };
+  const type = Object.hasOwn(eventTypes, eventName) ? eventTypes[eventName] : undefined;
   if (type === undefined) {
     return { type: 'Ignored', providerEventId, occurredAt, providerEventName: eventName };
   }

@@ -228,4 +228,22 @@ describe('TypeOrmBillingAccountRepository (integration)', () => {
 
     expect(await accounts.findByTenantId(tenantB)).toBeNull();
   });
+
+  it('findByProviderCustomerIdForJob resolves the tenant from the provider customer with no tenant context, and refuses another provider', async () => {
+    const tenantId = newTenant();
+    await startSubscription(tenantId, 'BR');
+    await save(
+      new BillingAccountBuilder()
+        .withTenantId(tenantId)
+        .withProvider('ASAAS', `cus_${tenantId}`)
+        .build(),
+    );
+
+    const found = await accounts.findByProviderCustomerIdForJob('ASAAS', `cus_${tenantId}`);
+
+    expect(found?.tenantId).toBe(tenantId);
+    expect(found?.countryCode.value).toBe('BR');
+    expect(await accounts.findByProviderCustomerIdForJob('STRIPE', `cus_${tenantId}`)).toBeNull();
+    expect(await accounts.findByProviderCustomerIdForJob('ASAAS', 'cus_unknown')).toBeNull();
+  });
 });
