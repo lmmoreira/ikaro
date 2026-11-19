@@ -277,7 +277,7 @@ visitor opens `/ikaro-trial` (S33), signs up with Google, tax id and terms (S24)
 
 ## Wave 1 — Money loop on the fake provider (backend)
 
-### M26-S01 — Provider secrets, the live-provider flag and the webhook env contract
+### M26-S01 — Provider secrets and the webhook env contract ✅ Done
 
 **Agent:** `devops + backend-ts`
 **Complexity:** M
