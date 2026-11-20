@@ -807,7 +807,7 @@ Ikaro charging its tenants (`docs/DOMAIN_MODEL.md` § Billing Context, `docs/USE
 - **Consumers:** Notification (receipt); `audit-log`
 
 #### **SubscriptionPastDue**
-- **Trigger:** a `PERIOD` charge of an `ACTIVE` subscription went `OVERDUE` (status sweep, UC-115)
+- **Trigger:** a `PERIOD` charge of an `ACTIVE` subscription went `OVERDUE` (status sweep, UC-115) *(built, M26-S06: raised by `Subscription.markPastDue`; `suspendsAt` is the end of the grace, the operator's `graceUntil` when one is set)*
 - **Data:** `subscriptionId`, `pastDueSince`, `suspendsAt`, `recipientEmail?`
 - **Consumers:** Notification (dunning); `audit-log`
 
