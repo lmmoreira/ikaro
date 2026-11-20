@@ -1260,7 +1260,7 @@ Ikaro charges its tenants through **Asaas for BRL** (the first adapter, Brazil) 
 | Cloud SQL db-f1-micro | $15 | 0.6 GB RAM, 100 GB storage |
 | Pub/Sub | $5 | 10K events/day |
 | Cloud Storage (media only) | $1 | Tenant photo uploads |
-| Cloud Scheduler | $1 | 8 cron jobs ($0.10/job/month) |
+| Cloud Scheduler | $1 | 9 cron jobs ($0.10/job/month) |
 | Secret Manager | $1 | ~15 secrets |
 | **TOTAL** | **~$43/month** | Lean, production-ready |
 
@@ -1272,7 +1272,7 @@ Ikaro charges its tenants through **Asaas for BRL** (the first adapter, Brazil) 
 | Cloud SQL db-n1-standard-1 | $100 | 3.75 GB RAM, 500 GB storage |
 | Pub/Sub | $40 | 100K events/day |
 | Cloud Storage (media) | $10 | Growing photo library |
-| Cloud Scheduler | $1 | 8 cron jobs |
+| Cloud Scheduler | $1 | 9 cron jobs |
 | Secret Manager | $1 | ~15 secrets |
 | **TOTAL** | **~$272/month** | Proven traffic |
 
@@ -1284,7 +1284,7 @@ Ikaro charges its tenants through **Asaas for BRL** (the first adapter, Brazil) 
 | Cloud SQL db-n1-standard-4 | $300 | 15 GB RAM, read replicas |
 | Pub/Sub | $100 | 500K events/day |
 | Cloud Storage (media) | $30 | Large photo library |
-| Cloud Scheduler | $1 | 8 cron jobs |
+| Cloud Scheduler | $1 | 9 cron jobs |
 | Secret Manager | $1 | ~15 secrets |
 | **TOTAL** | **~$732/month** | Approaching scale |
 

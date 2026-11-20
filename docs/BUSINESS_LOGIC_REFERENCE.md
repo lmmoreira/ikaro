@@ -795,7 +795,7 @@ Today only the operator suspend produces `SubscriptionSuspended` (`reason: OPERA
 
 ## Billing — The Charge: status table, concurrent writers and the recovery rule (M26-S02)
 
-The model: `Charge` (`charge.aggregate.ts`), `ChargeLine`, `RecoveryChargeFactory` and the two repositories. The provider webhook that drives it is built (M26-S04) and described in the next section; the issue job (UC-113: `IssueNextChargesJob`, `IssueChargeForSubscriptionUseCase`, the shared `ProviderChargeCreationService` and the creation retry) is built (M26-S05); the other use cases (sweep, reactivate, reconcile) are M26-S06 onwards and are not described as built here. Shape and field list: `docs/DOMAIN_MODEL.md` § Aggregate: Charge; columns and indexes: `docs/DATABASE_SCHEMA.md` § `billing.charges`.
+The model: `Charge` (`charge.aggregate.ts`), `ChargeLine`, `RecoveryChargeFactory` and the two repositories. The provider webhook that drives it is built (M26-S04) and described in the next section; the issue job (UC-113) is built (M26-S05) and described in the section after the next; the other use cases (sweep, reactivate, reconcile) are M26-S06 onwards and are not described as built here. Shape and field list: `docs/DOMAIN_MODEL.md` § Aggregate: Charge; columns and indexes: `docs/DATABASE_SCHEMA.md` § `billing.charges`.
 
 **Status table.** One method per row, a repeat is a no-op, anything else throws `IllegalChargeTransitionError`. `FAILED` has no transition into it (reserved for M29).
 
@@ -878,6 +878,45 @@ flowchart TD
 **Refund and chargeback.** A partial refund and an opened dispute change nothing (the dispute is logged as `billing_dispute_opened`). A full refund or a lost chargeback records `REFUNDED` / `CHARGEBACK`, and suspends with `PAYMENT_REVERSED` only when the charge **funded the current period** (`Subscription.reversePayment`): a `PERIOD` charge whose days cover today and that does not start before the current period; a `RECOVERY` charge whose payment moment is the current period's start. An older period, an invoice issued early, a stale charge, a `TRIALING`, already-suspended or exempt tenant never suspends. The suspension inserts the `RECOVERY` charge `PENDING` in the same transaction; creating it at the provider is the creation retry's job.
 
 **Out of order.** A paid fact is legal for `PENDING`, `OVERDUE` and `CANCELED` charges and a no-op on `PAID`; for a `REFUNDED` / `CHARGEBACK` charge it is `ILLEGAL`, logged and left to reconcile. A refund that arrives before its payment is `ILLEGAL` too, and the later paid event then re-reads `REFUNDED` and is not applied, so the tenant is never reactivated by it.
+
+---
+
+## Billing — Issuing the next charge: due rule, period window and creation sequence (M26-S05)
+
+UC-113. Code: `IssueNextChargesJob` (`application/jobs/`), `IssueChargeForSubscriptionUseCase`, `RetryPendingChargeCreationUseCase`, `ProviderChargeCreationService` (`application/services/`), `Subscription.isDueForIssue` / `advanceToNextPeriod`, `issuedPeriodWindow`, `PeriodChargeFactory`. Locks are `docs/LOCK_CATALOG.md` (B-R1 then B-C1); the route and trigger contract is `docs/API_CONTRACTS.md` § Billing cron triggers.
+
+```mermaid
+flowchart TD
+  J["Daily trigger cron-billing-issue-charges"] --> P["Page of due subscriptions (keyset, 500)"]
+  P --> S{"Tenant active?<br/>Profile has an adapter?"}
+  S -- no --> K["Skip: nothing inserted,<br/>subscription stays due"]
+  S -- yes --> T1["Tx 1, B-R1: due in its own zone?<br/>identity billable? prices at period start?"]
+  T1 -- no --> K
+  T1 -- yes --> I["Insert PERIOD charge PENDING + lines,<br/>next_due_date advanced (same tx)"]
+  I --> C["Creation service: exempt / inactive / held gates,<br/>claim the lease"]
+  C --> X["ensureCustomer, then createCharge<br/>(externalReference = charge id)"]
+  X --> T2["Tx 2, B-R1 then B-C1: exempt now?<br/>markCreationReady"]
+  T2-- "open charge" --> E["ChargeIssued (after READY only)"]
+  T2 -- "cancelled meanwhile" --> Z["Cancel at the provider,<br/>clear provider_cancel_pending"]
+  P --> R["After the last page: creation retry<br/>(charges left PENDING)"]
+```
+
+**Selection.** `TRIALING` / `ACTIVE`, not exempt, `next_due_date <= UTC today + 10 + 1 day` (the extra day because the date is in each subscription's own zone), through the standalone partial index, in pages of `BILLING_JOB_PAGE_SIZE` ordered by `(next_due_date, tenant_id)`. The job pages on from the last row until a page is short: a subscription it skips keeps its due date, so asking for the head again would never get past it. The authoritative decision is `Subscription.isDueForIssue(today)` under B-R1, with `today` in the subscription's zone.
+
+| Case | Issued when the due date is within | Never issued |
+|---|---|---|
+| `ACTIVE`, or `TRIALING` with a confirmed plan | 10 days (`CHARGE_ISSUE_LEAD_DAYS`) | `PAST_DUE`, `SUSPENDED`, exempt, no due date |
+| `TRIALING`, plan not confirmed | 3 days (`PLAN_CONFIRM_FALLBACK_DAYS`, default selection) | a period starting at or after `cancelAt` |
+
+**Period window.** `dueDate = periodStart = next_due_date`; the next anchor is the same day of the next month set to `anchor_day` (at most 28, so every month has it); `periodEnd` is the day before it and `next_due_date` moves to it (a trial ending on the 31st runs Jan 31 to Feb 27 and renews on Feb 28; the arithmetic is shared with `recoveryPaymentWindow`). Each line's price is the version in force on `periodStart`, so an invoice issued early uses its future period's price. A subscription whose due date lags is caught up one period per run.
+
+**Skips leave the subscription due** (the next run resumes by itself): a deactivated tenant, a profile with no adapter yet, a missing renewable price (`billing_price_missing`, never a zero), and an identity that is not billable (no valid tax id or no full address): no charge row is inserted and `next_due_date` does not move. A `RECOVERY` charge held for the same reason is inserted `PENDING` and created at the provider later by the retry; a hold makes no provider call and counts no attempt.
+
+**Creation sequence** (`ProviderChargeCreationService`, outside any transaction except the last two): `NOT_PENDING` / `EXEMPT` / `TENANT_INACTIVE` / `PROVIDER_UNSUPPORTED` / `HELD` stop before the lease; the lease (`claimForProviderCreation`) is the only place attempts are counted; the provider customer is saved with a single-column update (so it cannot overwrite an identity saved meanwhile) and a different customer already bound fails the attempt; a provider failure leaves the charge `PENDING` for the retry. The READY write re-reads the exemption under B-R1 and the charge under B-C1: a charge cancelled meanwhile keeps the provider fields, raises no `ChargeIssued`, and is cancelled at the provider right away (the pending flag stays set only if that call fails, for the reconcile retry).
+
+**Retry.** Open charges still `PENDING` at the provider with a free lease, ordered like `IDX_billing_charges_creation_retry` (never attempted first, then last attempt, then id) and paged by that keyset; a suspended tenant's recovery charge is reached too.
+
+**Failure isolation.** Each subscription (and each retried charge) runs on its own; a failure is kept, the rest of the page and the next pages still run, the run logs one `billing_issue_charges_run` line and then rethrows the first failure so the trigger is redelivered.
 
 ---
 
