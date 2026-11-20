@@ -66,6 +66,15 @@ import { RetryPendingChargeCreationUseCase } from './application/use-cases/retry
 import { ProviderChargeCreationService } from './application/services/provider-charge-creation.service';
 import { CronBillingController } from './infrastructure/controllers/cron-billing.controller';
 import { IssueNextChargesTriggerHandler } from './infrastructure/events/issue-next-charges-trigger.handler';
+import { PROVIDER_HEALTH_REPOSITORY } from './application/ports/provider-health-repository.port';
+import { SweepSubscriptionStatusesJob } from './application/jobs/sweep-subscription-statuses.job';
+import { ProviderChargeCancellationService } from './application/services/provider-charge-cancellation.service';
+import { SweepOneSubscriptionUseCase } from './application/use-cases/sweep-one-subscription.use-case';
+import { RecoveryChargePlanner } from './application/services/recovery-charge-planner.service';
+import { SubscriptionSweepRules } from './application/services/subscription-sweep-rules.service';
+import { ProviderHealthEntity } from './infrastructure/entities/provider-health.entity';
+import { StatusSweepTriggerHandler } from './infrastructure/events/status-sweep-trigger.handler';
+import { TypeOrmProviderHealthRepository } from './infrastructure/repositories/typeorm-provider-health.repository';
 import { InternalBillingAccessController } from './infrastructure/controllers/internal-billing-access.controller';
 import { BILLING_PROVIDER_REGISTRY } from './application/ports/billing-provider.port';
 import {
@@ -98,6 +107,7 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
       ChargeEntity,
       ChargeLineEntity,
       ProviderEventEntity,
+      ProviderHealthEntity,
     ]),
   ],
   controllers: [
@@ -121,6 +131,9 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     // The money model (M26-S02): consumed by the M26 use cases (S04 onwards).
     { provide: CHARGE_REPOSITORY, useClass: TypeOrmChargeRepository },
     { provide: PROVIDER_EVENT_REPOSITORY, useClass: TypeOrmProviderEventRepository },
+    // Platform-wide, one row per merchant profile key: read by the status sweep's freeze lookup,
+    // written by reconcile and self-heal (M26-S07, S08).
+    { provide: PROVIDER_HEALTH_REPOSITORY, useClass: TypeOrmProviderHealthRepository },
     // Written by the operator use cases (M25-S15b), in the same transaction as the change they audit.
     { provide: OPERATOR_AUDIT_REPOSITORY, useClass: TypeOrmOperatorAuditRepository },
     { provide: BILLING_APP_ENV, useFactory: () => resolveAppEnv(process.env) },
@@ -153,6 +166,7 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     BillingAuditLogHandler,
     // The provider webhook (M26-S04): the use case the controller calls and the shared service
     // that writes a verified paid / refunded / charged-back fact.
+    RecoveryChargePlanner,
     ApplyChargeFactService,
     ProcessProviderWebhookUseCase,
     // The charge issue job (M26-S05): the shared creation step, the per-subscription issue, the
@@ -162,6 +176,13 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     RetryPendingChargeCreationUseCase,
     IssueNextChargesJob,
     IssueNextChargesTriggerHandler,
+    // The status sweep (M26-S06): the rules for one subscription, the provider-side cancel the
+    // later cancel stories share, the per-subscription use case, the hourly job and its trigger.
+    SubscriptionSweepRules,
+    ProviderChargeCancellationService,
+    SweepOneSubscriptionUseCase,
+    SweepSubscriptionStatusesJob,
+    StatusSweepTriggerHandler,
   ],
   // The shared access port is consumed by every context (M25-S16 onwards). The registration and
   // the five operator use cases are injected by this module's own controllers, which the

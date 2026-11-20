@@ -11,6 +11,7 @@ import { OperatorAuditEntity } from '../../contexts/billing/infrastructure/entit
 import { ChargeLineEntity } from '../../contexts/billing/infrastructure/entities/charge-line.entity';
 import { ChargeEntity } from '../../contexts/billing/infrastructure/entities/charge.entity';
 import { ProviderEventEntity } from '../../contexts/billing/infrastructure/entities/provider-event.entity';
+import { ProviderHealthEntity } from '../../contexts/billing/infrastructure/entities/provider-health.entity';
 import { SubscriptionItemEntity } from '../../contexts/billing/infrastructure/entities/subscription-item.entity';
 import { SubscriptionEntity } from '../../contexts/billing/infrastructure/entities/subscription.entity';
 import { BillingModule } from '../../contexts/billing/billing.module';
@@ -69,6 +70,7 @@ export async function createBillingIntegrationApp(
           ChargeEntity,
           ChargeLineEntity,
           ProviderEventEntity,
+          ProviderHealthEntity,
           InboxRecordEntity,
           // BillingModule imports PlatformSettingsModule (the access resolver's tenant-info read).
           TenantEntity,

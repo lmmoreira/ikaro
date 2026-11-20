@@ -16,5 +16,9 @@
 POST {{baseUrl}}/cron/billing-issue-charges
 X-Internal-Key: {{internalKey}}
 
+### Sweep the subscription statuses (UC-115): overdue charges, trial end, grace end and scheduled cancels
+POST {{baseUrl}}/cron/billing-status-sweep
+X-Internal-Key: {{internalKey}}
+
 ### Without the internal key: refused with 401 (the route is internal-only, behind InternalApiGuard)
 POST {{baseUrl}}/cron/billing-issue-charges

@@ -8,8 +8,9 @@ import { resolveMerchantProfileKey } from '../../domain/merchant-profile-key';
 import type { NormalizedChargeStatus, NormalizedProviderEvent } from '../../domain/provider-events';
 import type { ProviderEvent } from '../../domain/provider-event';
 import type { Subscription } from '../../domain/subscription.aggregate';
-import type { ChargeFact } from '../helpers/charge-fact';
 import { ApplyChargeFactService } from '../services/apply-charge-fact.service';
+import { type ChargeEvent, toChargeFact, verifyChargeEvent } from '../helpers/provider-event-fact';
+import { ProviderChargeCreationService } from '../services/provider-charge-creation.service';
 import { resolveBillingRecipientEmail } from '../helpers/billing-recipient-email.helper';
 import {
   BILLING_ACCOUNT_REPOSITORY,
@@ -57,11 +58,6 @@ export type ProcessProviderWebhookUseCaseResult =
   | 'NOT_CONFIRMED'
   | 'ILLEGAL';
 
-type ChargeEvent = Exclude<
-  NormalizedProviderEvent,
-  { type: 'AutoBillingAuthorized' | 'AutoBillingRevoked' | 'Ignored' }
->;
-
 interface Target {
   charge: Charge;
   subscription: Subscription;
@@ -98,6 +94,8 @@ export class ProcessProviderWebhookUseCase {
     @Inject(CHARGE_REPOSITORY) private readonly charges: IChargeRepository,
     @Inject(PROVIDER_EVENT_REPOSITORY) private readonly providerEvents: IProviderEventRepository,
     private readonly applyFact: ApplyChargeFactService,
+    @Inject(ProviderChargeCreationService)
+    private readonly creation: Pick<ProviderChargeCreationService, 'execute'>,
     @Inject(CLOCK) private readonly clock: IClock,
   ) {}
 
@@ -189,16 +187,16 @@ export class ProcessProviderWebhookUseCase {
       // Provider I/O: before any transaction opens (the `transactional-io` rule).
       const adapter = this.registry.resolve(target.subscription.merchantProfileKey);
       status = await adapter.fetchChargeStatus(event.providerChargeId);
-      const refusal = verify(event, status, target.charge);
+      const refusal = verifyChargeEvent(event, status, target.charge);
       if (refusal !== null) {
         this.logger.warn('billing_webhook_not_confirmed', { eventType: event.type, refusal });
         return 'NOT_CONFIRMED';
       }
     }
-    const fact = toFact(event, status);
+    const fact = toChargeFact(event, status);
     const inbox = this.inboxRow(input.provider, event, target.charge.tenantId);
     if (fact === null) return this.record(event, inbox);
-    const result = await this.applyFact.execute({
+    const report = await this.applyFact.executeWithReport({
       tenantId: target.charge.tenantId,
       chargeId: target.charge.id,
       fact,
@@ -206,7 +204,34 @@ export class ProcessProviderWebhookUseCase {
       correlationId: input.correlationId,
       inbox,
     });
-    return result === 'CHARGE_NOT_FOUND' ? 'UNKNOWN_TARGET' : result;
+    if (report.recoveryChargeId !== null) {
+      await this.createRecoveryAtProvider(
+        target.charge.tenantId,
+        report.recoveryChargeId,
+        input.correlationId,
+      );
+    }
+    return report.result === 'CHARGE_NOT_FOUND' ? 'UNKNOWN_TARGET' : report.result;
+  }
+
+  // After commit, outside any transaction: a reversal suspended the tenant and inserted its recovery
+  // charge `PENDING`; this makes it payable now, so the manager lands on a payment link. It never
+  // fails the webhook (the fact is already applied and acknowledged): a charge left `PENDING` is
+  // picked up by S05's creation retry.
+  private async createRecoveryAtProvider(
+    tenantId: string,
+    chargeId: string,
+    correlationId: string,
+  ): Promise<void> {
+    try {
+      await this.creation.execute({ tenantId, chargeId, correlationId });
+    } catch (err) {
+      this.logger.error(
+        'billing_recovery_creation_failed: left for the retry',
+        err instanceof Error ? err.stack : String(err),
+        { tenantId, chargeId },
+      );
+    }
   }
 
   // An event that changes no state still leaves its inbox row (the dedupe), and an opened dispute
@@ -236,44 +261,5 @@ export class ProcessProviderWebhookUseCase {
       receivedAt: now,
       processedAt: now,
     };
-  }
-}
-
-/** Why the re-read does not confirm the webhook, or `null` when it does. */
-function verify(event: ChargeEvent, status: NormalizedChargeStatus, charge: Charge): string | null {
-  if (status.amountMinor !== charge.amount.amountMinor) return 'AMOUNT_MISMATCH';
-  // A charge the provider id is not stored on yet (the webhook outran the READY write) is bound to
-  // this payment only by the reference the provider holds, never by the webhook's own copy of it.
-  if (charge.providerChargeId === null && status.externalReference !== charge.id) {
-    return 'REFERENCE_MISMATCH';
-  }
-  switch (event.type) {
-    case 'PaymentConfirmed':
-      return status.state === 'PAID' || status.state === 'PARTIALLY_REFUNDED' ? null : 'NOT_PAID';
-    case 'PaymentRefunded':
-      return status.state === 'REFUNDED' ? null : 'NOT_REFUNDED';
-    case 'PaymentChargeback':
-      return status.state === 'CHARGEBACK' ? null : 'NOT_CHARGED_BACK';
-    default:
-      return null;
-  }
-}
-
-/** The fact a verified event applies, or `null` for an event that changes no state. */
-function toFact(event: ChargeEvent, status: NormalizedChargeStatus | null): ChargeFact | null {
-  switch (event.type) {
-    case 'PaymentConfirmed':
-      return {
-        type: 'PAID',
-        method: status?.paymentMethod ?? event.paymentMethod,
-        paidAt: status?.paidAt ?? event.occurredAt,
-        receiptUrl: status?.receiptUrl ?? event.receiptUrl,
-      };
-    case 'PaymentRefunded':
-      return { type: 'REFUNDED' };
-    case 'PaymentChargeback':
-      return { type: 'CHARGEBACK' };
-    default:
-      return null;
   }
 }

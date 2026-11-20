@@ -1,12 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, In, QueryFailedError, Repository, SelectQueryBuilder } from 'typeorm';
+import { EntityManager, In, Not, QueryFailedError, Repository, SelectQueryBuilder } from 'typeorm';
 import { drainDomainEvents } from '../../../../shared/infrastructure/outbox/drain-domain-events';
 import { runInNewTransaction } from '../../../../shared/infrastructure/run-in-new-transaction';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
 import {
   ChargeRef,
+  OverdueChargeRef,
   PendingCreationRef,
   IChargeRepository,
   ListChargesQuery,
@@ -25,7 +26,14 @@ import {
   chargeToEntity,
   chargeUpdateSet,
 } from './typeorm-charge.mapper';
-import { afterPendingCreation, CLAIM_FOR_PROVIDER_CREATION_SQL } from './typeorm-charge.sql';
+import {
+  buildOpenDueQuery,
+  buildOpenQuery,
+  buildOverdueCandidatesQuery,
+  buildPendingCreationQuery,
+  buildProviderCancelPendingQuery,
+} from './typeorm-charge.job-queries';
+import { CLAIM_FOR_PROVIDER_CREATION_SQL } from './typeorm-charge.sql';
 
 const PERIOD_UNIQUE_INDEX = 'UQ_billing_charges_period';
 const OPEN_RECOVERY_UNIQUE_INDEX = 'UQ_billing_charges_open_recovery';
@@ -80,6 +88,18 @@ export class TypeOrmChargeRepository implements IChargeRepository {
     );
   }
 
+  // The earliest period start that is not cancelled, so a re-issued charge stands in for the one it
+  // replaced; served by `UQ_billing_charges_period`.
+  async findFirstPeriodCharge(tenantId: string, subscriptionId: string): Promise<Charge | null> {
+    const manager = this.readManager();
+    const entity = await manager.findOne(ChargeEntity, {
+      where: { tenantId, subscriptionId, kind: 'PERIOD', status: Not('CANCELED') },
+      order: { periodStart: 'ASC' },
+    });
+    if (!entity) return null;
+    return (await this.hydrate(manager, tenantId, [entity]))[0] ?? null;
+  }
+
   async listByTenantPage(
     tenantId: string,
     query: ListChargesQuery,
@@ -118,24 +138,36 @@ export class TypeOrmChargeRepository implements IChargeRepository {
     limit: number,
     after?: PendingCreationRef,
   ): Promise<PendingCreationRef[]> {
-    return this.buildPendingCreationQuery(now, limit, after).getRawMany<PendingCreationRef>();
+    return buildPendingCreationQuery(this.repo, now, limit, after).getRawMany<PendingCreationRef>();
   }
 
-  async listOpenDueForJob(dueOnOrBefore: string, limit: number): Promise<ChargeRef[]> {
-    return this.refs(this.buildOpenDueQuery(dueOnOrBefore, limit));
+  listOverdueCandidatesForJob(
+    dueOnOrBefore: string,
+    limit: number,
+    after?: OverdueChargeRef,
+  ): Promise<OverdueChargeRef[]> {
+    return buildOverdueCandidatesQuery(
+      this.repo,
+      dueOnOrBefore,
+      limit,
+      after,
+    ).getRawMany<OverdueChargeRef>();
   }
 
-  async listOpenForJob(limit: number): Promise<ChargeRef[]> {
-    return this.refs(this.buildOpenQuery(limit));
+  listOpenDueForJob(dueOnOrBefore: string, limit: number): Promise<ChargeRef[]> {
+    return buildOpenDueQuery(this.repo, dueOnOrBefore, limit).getRawMany<ChargeRef>();
   }
 
-  async listProviderCancelPendingForJob(limit: number): Promise<ChargeRef[]> {
-    return this.refs(this.buildProviderCancelPendingQuery(limit));
+  listOpenForJob(limit: number): Promise<ChargeRef[]> {
+    return buildOpenQuery(this.repo, limit).getRawMany<ChargeRef>();
   }
 
-  // The page query and the job queries are public so the integration spec can `EXPLAIN` the exact
-  // SQL that runs: the page is served by `IDX_billing_charges_history`, each job by its own
-  // standalone partial index.
+  listProviderCancelPendingForJob(limit: number): Promise<ChargeRef[]> {
+    return buildProviderCancelPendingQuery(this.repo, limit).getRawMany<ChargeRef>();
+  }
+
+  // The page query is public so the integration spec can `EXPLAIN` the exact SQL that runs: it is
+  // served by `IDX_billing_charges_history`. The job queries are in `typeorm-charge.job-queries`.
   buildPageQuery(
     manager: EntityManager,
     tenantId: string,
@@ -148,65 +180,6 @@ export class TypeOrmChargeRepository implements IChargeRepository {
       .addOrderBy('c.id', 'DESC')
       .take(query.limit)
       .skip(query.offset);
-  }
-
-  buildPendingCreationQuery(
-    now: Date,
-    limit: number,
-    after?: PendingCreationRef,
-  ): SelectQueryBuilder<ChargeEntity> {
-    const query = this.refQuery()
-      .addSelect('c.providerCreationLastAttemptAt', 'lastAttemptAt')
-      .where('c.status IN (:...statuses)', { statuses: OPEN_STATUSES })
-      .andWhere(`c.providerCreationStatus = 'PENDING' AND c.providerChargeId IS NULL`)
-      .andWhere(
-        `(c.providerCreationLastAttemptAt IS NULL OR c.providerCreationLastAttemptAt < :cutoff)`,
-        { cutoff: new Date(now.getTime() - PROVIDER_CREATION_LEASE_MINUTES * 60_000) },
-      );
-    if (after) query.andWhere(...afterPendingCreation(after));
-    return query
-      .orderBy('c.providerCreationLastAttemptAt', 'ASC', 'NULLS FIRST')
-      .addOrderBy('c.id', 'ASC')
-      .limit(limit);
-  }
-
-  buildOpenDueQuery(dueOnOrBefore: string, limit: number): SelectQueryBuilder<ChargeEntity> {
-    return this.refQuery()
-      .where('c.status IN (:...statuses)', { statuses: OPEN_STATUSES })
-      .andWhere('c.dueDate <= :dueOnOrBefore', { dueOnOrBefore })
-      .orderBy('c.dueDate', 'ASC')
-      .addOrderBy('c.id', 'ASC')
-      .limit(limit);
-  }
-
-  buildOpenQuery(limit: number): SelectQueryBuilder<ChargeEntity> {
-    return this.refQuery()
-      .where('c.status IN (:...statuses)', { statuses: OPEN_STATUSES })
-      .orderBy('c.dueDate', 'ASC')
-      .addOrderBy('c.id', 'ASC')
-      .limit(limit);
-  }
-
-  // A flagged charge is always `CANCELED`; the status equality lets the (status, due_date) partial
-  // index serve the order.
-  buildProviderCancelPendingQuery(limit: number): SelectQueryBuilder<ChargeEntity> {
-    return this.refQuery()
-      .where('c.status = :status', { status: 'CANCELED' })
-      .andWhere('c.providerCancelPending = true')
-      .orderBy('c.dueDate', 'ASC')
-      .addOrderBy('c.id', 'ASC')
-      .limit(limit);
-  }
-
-  private refQuery(): SelectQueryBuilder<ChargeEntity> {
-    return this.repo
-      .createQueryBuilder('c')
-      .select('c.tenantId', 'tenantId')
-      .addSelect('c.id', 'id');
-  }
-
-  private refs(query: SelectQueryBuilder<ChargeEntity>): Promise<ChargeRef[]> {
-    return query.getRawMany<ChargeRef>();
   }
 
   // Reads join the caller's transaction when there is one, so a charge written earlier in it is seen.

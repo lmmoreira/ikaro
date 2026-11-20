@@ -44,6 +44,14 @@ export interface IChargeRepository {
   /** The subscription's one open `RECOVERY` charge (`UQ_billing_charges_open_recovery`), if any. */
   findOpenRecoveryBySubscription(tenantId: string, subscriptionId: string): Promise<Charge | null>;
 
+  /**
+   * The subscription's first `PERIOD` charge: the one with the earliest period start that is not
+   * `CANCELED` (a re-issued charge replaces a cancelled one). It is the trial's invoice for the
+   * status sweep (UC-115 rules 2 and 5); `null` when none was ever issued. Served by
+   * `UQ_billing_charges_period (tenant_id, subscription_id, period_start)`.
+   */
+  findFirstPeriodCharge(tenantId: string, subscriptionId: string): Promise<Charge | null>;
+
   /** One page of a tenant's history, newest due date first (id as tiebreak), with the unpaged total. */
   listByTenantPage(
     tenantId: string,
@@ -88,6 +96,21 @@ export interface IChargeRepository {
     after?: PendingCreationRef,
   ): Promise<PendingCreationRef[]>;
 
+  /**
+   * Cross-tenant job selector (UC-115 rule 1, M26-S06): one page of the `PENDING` charges whose
+   * provider creation is `READY` (the payer has a payment link) and whose due date is on or before
+   * `dueOnOrBefore`, ordered by `(due_date, id)`, at most `limit`, after the `after` row. The date
+   * is the caller's UTC date (each charge's due date is in its subscription's own zone, so the
+   * sweep re-checks the local date). A charge the sweep skips stays selected, so the caller pages on
+   * from the last row. Served by `IDX_billing_charges_open`; `status = 'PENDING'` repeats its
+   * predicate literally and the `READY` filter is residual.
+   */
+  listOverdueCandidatesForJob(
+    dueOnOrBefore: string,
+    limit: number,
+    after?: OverdueChargeRef,
+  ): Promise<OverdueChargeRef[]>;
+
   /** Open charges whose due date is `<= dueOnOrBefore` (due soon / overdue sweep): `IDX_billing_charges_open`. */
   listOpenDueForJob(dueOnOrBefore: string, limit: number): Promise<ChargeRef[]>;
 
@@ -102,6 +125,12 @@ export interface IChargeRepository {
 export interface ChargeRef {
   tenantId: string;
   id: string;
+}
+
+/** A charge the overdue rule may be due on, with its place in the selection order. */
+export interface OverdueChargeRef extends ChargeRef {
+  /** `YYYY-MM-DD`. */
+  dueDate: string;
 }
 
 /** A charge the creation retry may attempt, with its place in the retry order. */

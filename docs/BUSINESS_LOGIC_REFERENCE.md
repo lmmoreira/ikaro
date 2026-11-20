@@ -920,6 +920,55 @@ flowchart TD
 
 ---
 
+## Billing — The status sweep: rule order, margins, freeze and recovery path (M26-S06)
+
+UC-115. Code: `SweepSubscriptionStatusesJob` (`application/jobs/`), `SweepOneSubscriptionUseCase`, `SubscriptionSweepRules`, `RecoveryChargePlanner`, `ProviderChargeCancellationService` and `ProviderChargeCreationService` (`application/services/`), the `Subscription` transitions `markPastDue` / `suspendForNonPayment` / `suspendCanceled` / `activateAfterTrial` and the pure date rules in `subscription-sweep-window.ts`. Locks are `docs/LOCK_CATALOG.md` (B-R1, then B-C1 one charge at a time); the trigger contract is `docs/API_CONTRACTS.md` § Billing cron triggers.
+
+```mermaid
+flowchart TD
+  J["Hourly trigger cron-billing-status-sweep (minute 40)"] --> F["Read the frozen merchant keys once"]
+  F --> P["Five selections, each paged by keyset:<br/>overdue charges, cancel-at, trial ended, grace over"]
+  P --> V{"Already swept<br/>in this run?"}
+  V -- yes --> N["Skip"]
+  V -- no --> A["Before the transaction:<br/>trial past its margin, not frozen?<br/>ask the provider about the first charge"]
+  A -- "paid (a missed webhook)" --> AP["Apply the payment (own transaction)"]
+  A -- "unpaid / unreachable / unverified" --> T
+  AP --> T["One transaction, B-R1: re-check every rule<br/>on the locked state, in order"]
+  T --> R1["1 overdue: READY charge past its local due date<br/>→ OVERDUE (+ ACTIVE → PAST_DUE)"]
+  R1 --> R4{"4 cancel-at reached?"}
+  R4 -- yes --> C["SUSPENDED (CANCELED): no recovery charge,<br/>not held back by the freeze"]
+  R4 -- no --> R25["5 trial paid → ACTIVE<br/>2 trial unpaid past the margin → SUSPENDED (NON_PAYMENT)"]
+  R25 --> R3["3 PAST_DUE past its grace → SUSPENDED (NON_PAYMENT)"]
+  R3 --> S["NON_PAYMENT: cancel the stale charge locally (flagged),<br/>insert the RECOVERY charge PENDING (same transaction)"]
+  S --> AC["After commit: cancel the stale charge at the provider,<br/>make the recovery charge payable"]
+```
+
+**Selection.** Each rule has its own standalone index and a keyset page on `(instant, tenant_id)` of `BILLING_JOB_PAGE_SIZE`: overdue candidates are `PENDING` charges with a payment link (`provider_creation_status = 'READY'`) whose due date is on or before the UTC date (`IDX_billing_charges_open`); trials are `TRIALING` with `trial_ends_at <= now` (`IDX_billing_subscriptions_trial_ends_at`); grace is `PAST_DUE` with `past_due_since <= now - 14 days` and no later `grace_until` (`IDX_billing_subscriptions_status_past_due_since`); cancel-at is `cancel_at <= now` on a status that still has access (`IDX_billing_subscriptions_cancel_at`, the status a residual filter, so a suspended subscription never matches and its row stays in the index only for the clean-up delay of 90 to 180 days). Charges are due in the subscription's own zone, so the selection takes the UTC date and every subscription re-checks the local date; the instants need no slack. A subscription the sweep leaves unchanged (a trial inside its margin, a frozen profile) stays selected, so a head-only limit would starve the rows behind it. One tenant matched by two rules is swept once per run.
+
+**One subscription, in this order** (the order settles every overlap):
+
+| # | Rule | Fires when | Does |
+|---|---|---|---|
+| 1 | Overdue | a `PENDING` charge **with a payment link** has a tenant-local due date before today | `OVERDUE`; a `PERIOD` charge also moves an `ACTIVE` subscription to `PAST_DUE` (`past_due_since = now`, `SubscriptionPastDue` announcing the grace end). A charge with no link is neither: nobody could pay it |
+| 4 | Cancel-at | `cancel_at` reached, status still has access | `SUSPENDED (CANCELED)`, no recovery charge, **not held back by a freeze** (the manager's own decision at a known date) |
+| 5 | Trial → paid | trial over and the first charge is `PAID` | `ACTIVE`: the period starts at `trial_ends_at` and is the first charge's own month, the anchor day is the trial-end local day clamped to 28, `next_due_date` stays where the issue job put it |
+| 2 | Trial end | trial over, margin passed, first charge unpaid, none, or `REFUNDED` | straight to `SUSPENDED (NON_PAYMENT)`: there is no `PAST_DUE` after a trial |
+| 3 | Past due | `now` is past `grace_until` when one is set (it replaces the 14 days and is never shorter), else past `past_due_since` + 14 days | `SUSPENDED (NON_PAYMENT)` |
+
+Cancel-at runs before the non-payment rules, so a tenant that cancelled and lapsed in the same run is suspended `CANCELED` and is not asked to pay a month to reactivate. A suspended subscription never changes reason: a `NON_PAYMENT` suspension whose `cancel_at` arrives keeps its reason and its open recovery charge.
+
+**Settlement margin (rule 2).** `now > trial_ends_at + 24 h` (`PAYMENT_SETTLEMENT_MARGIN_HOURS`, literal hours), or, when the manager already returned from the payment page while the first charge is still open (a boleto that has not compensated), the start of the tenant-local day three business days after the trial's last day (`PAYMENT_PENDING_MARGIN_BUSINESS_DAYS`, Monday to Friday of the tenant calendar, **no holiday calendar** — a known limitation; the days are counted on the local date, so a DST change never moves the boundary).
+
+**The first charge is asked about before it is judged.** A trial whose margin has passed and whose first charge the provider knows is re-read at the provider **before** the transaction opens (provider I/O is never inside one). If the provider says it is paid (a webhook was missed), the payment is applied through `ApplyChargeFactService` and rule 5 then activates the subscription; if it says "not paid" the sweep records the charge id as verified; if the provider cannot be reached, or its answer does not describe the charge (amount or reference differ), nothing is suspended this run and the next hourly run tries again. The rules suspend such a trial only for a charge the provider has just said is unpaid, whatever the snapshot read earlier said.
+
+**Suspension freeze.** `billing.provider_health` holds one platform-wide row per `merchant_profile_key`; the job reads the keys with `freeze_active` once per run. A frozen profile still gets `OVERDUE` / `PAST_DUE`, and its trials still activate, but no `NON_PAYMENT` suspension (rules 2 and 3) is applied and the provider is not asked. No row means not frozen; a frozen profile never freezes another. A freeze that cannot be read fails the run before anything is suspended.
+
+**Recovery path.** Every `NON_PAYMENT` suspension, in the same transaction: the stale open charges (any kind but `RECOVERY`) are cancelled locally and, when the provider knows them, flagged `provider_cancel_pending`; the `RECOVERY` charge is built by `RecoveryChargePlanner` (the selected plan, each price in force on the subscription-timezone date, one price lookup per distinct item per run) and inserted `PENDING`. After commit: `ProviderChargeCancellationService` cancels the flagged charges at the provider and clears the flag; if the provider refuses because a charge was just paid, that charge is the payment and goes through `ApplyChargeFactService` (the tenant is reactivated and the recovery charge cancelled); any other failure leaves the flag for reconcile (M26-S07). `ProviderChargeCreationService` then makes the recovery charge payable, so the manager lands on "Pague 1 mês para reativar" within the same run; a tenant whose billing identity is incomplete keeps it `PENDING` (held, no provider call) until the identity is saved and S05's creation retry picks it up. A failing cancel or creation never undoes the suspension.
+
+**Failure isolation.** Each subscription runs in its own transaction; a failure is kept, the rest of the page and the next pages still run, the run logs one `billing_status_sweep_run` line with its counts per transition and then rethrows the first failure so the trigger is redelivered. Every transition is idempotent: a second run finds the statuses already moved.
+
+---
+
 ## Other bounded contexts
 
 Billing has the section above for its M25 (operator-driven) part; the rest of Billing arrives with M26. The other contexts are not yet written as sections in this doc. **Loyalty is not logic-free** — points earning and redemption on `BookingCompleted` (the section above), the expiry cron, the weekly expiring-points warning and manual redemption are implemented; until a section is written here, read them from `docs/BOUNDED_CONTEXTS.md` § 2. Loyalty Context, `docs/DOMAIN_MODEL.md` § Loyalty Context (and § Expiration window), `docs/USE_CASES.md` UC-009 / UC-016 / UC-016b, and the code under `apps/backend/src/contexts/loyalty/`. Likewise there is no booking status-machine section here: the transition table is CLAUDE.md §5 / `.copilot/context.md` §5 and the aggregate (`booking-status-transition.ts`). Platform has one section above (the hotsite template catalogue); add another here the next time a story in Customer, Staff, Loyalty, Notification, or Platform introduces business logic complex enough to earn one — see this doc's own header for the "incremental, not upfront" rule, and `/story-discovery`'s checklist item that flags the decision at discovery time.

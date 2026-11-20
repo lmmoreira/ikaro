@@ -41,6 +41,7 @@ import { OperatorAuditEntity } from '../contexts/billing/infrastructure/entities
 import { ChargeLineEntity } from '../contexts/billing/infrastructure/entities/charge-line.entity';
 import { ChargeEntity } from '../contexts/billing/infrastructure/entities/charge.entity';
 import { ProviderEventEntity } from '../contexts/billing/infrastructure/entities/provider-event.entity';
+import { ProviderHealthEntity } from '../contexts/billing/infrastructure/entities/provider-health.entity';
 import { SubscriptionItemEntity } from '../contexts/billing/infrastructure/entities/subscription-item.entity';
 import { SubscriptionEntity } from '../contexts/billing/infrastructure/entities/subscription.entity';
 import { ChatbotMessageEntity } from '../contexts/platform/infrastructure/entities/chatbot-message.entity';
@@ -120,6 +121,7 @@ export async function createTestDataSource(): Promise<DataSource> {
       ChargeEntity,
       ChargeLineEntity,
       ProviderEventEntity,
+      ProviderHealthEntity,
       LeadFormSubmissionEntity,
       LeadFormAnswerEntity,
     ],

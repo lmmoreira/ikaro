@@ -11,6 +11,7 @@ import type {
   ISubscriptionRepository,
   ListOperatorSubscriptionsQuery,
   OperatorSubscriptionSummary,
+  SweepDueRef,
 } from '../../application/ports/subscription-repository.port';
 import type { FeatureTier } from '../../domain/feature-price.aggregate';
 import {
@@ -123,6 +124,19 @@ export class CachingSubscriptionRepository implements ISubscriptionRepository {
     after?: DueIssueRef,
   ): Promise<DueIssueRef[]> {
     return this.repo.findDueForIssueForJob(dueOnOrBefore, limit, after);
+  }
+
+  // The status sweep's selectors are cross-tenant batch reads: forwarded uncached.
+  findTrialEndedForJob(now: Date, limit: number, after?: SweepDueRef): Promise<SweepDueRef[]> {
+    return this.repo.findTrialEndedForJob(now, limit, after);
+  }
+
+  findGraceExpiredForJob(now: Date, limit: number, after?: SweepDueRef): Promise<SweepDueRef[]> {
+    return this.repo.findGraceExpiredForJob(now, limit, after);
+  }
+
+  findCancelDueForJob(now: Date, limit: number, after?: SweepDueRef): Promise<SweepDueRef[]> {
+    return this.repo.findCancelDueForJob(now, limit, after);
   }
 
   listSummaries(

@@ -1,7 +1,10 @@
 import { Controller, HttpCode, HttpStatus, Inject, Post } from '@nestjs/common';
 import { NoFeatureGate, SuspensionAccess } from '@ikaro/nestjs-http';
 import { ITriggerBus, TRIGGER_BUS } from '../../../../shared/ports/trigger-bus.port';
-import { CRON_BILLING_ISSUE_CHARGES_TRIGGER } from '../events/cron-trigger-names.constants';
+import {
+  CRON_BILLING_ISSUE_CHARGES_TRIGGER,
+  CRON_BILLING_STATUS_SWEEP_TRIGGER,
+} from '../events/cron-trigger-names.constants';
 
 // Thin publisher (the local / manual path of the Billing crons, `docs/API_CONTRACTS.md` § Billing
 // cron triggers): it publishes the trigger onto the channel Cloud Scheduler publishes to in prod,
@@ -19,6 +22,13 @@ export class CronBillingController {
   @HttpCode(HttpStatus.OK)
   async issueCharges(): Promise<{ ok: boolean }> {
     await this.triggerBus.publishTrigger(CRON_BILLING_ISSUE_CHARGES_TRIGGER);
+    return { ok: true };
+  }
+
+  @Post('billing-status-sweep')
+  @HttpCode(HttpStatus.OK)
+  async statusSweep(): Promise<{ ok: boolean }> {
+    await this.triggerBus.publishTrigger(CRON_BILLING_STATUS_SWEEP_TRIGGER);
     return { ok: true };
   }
 }

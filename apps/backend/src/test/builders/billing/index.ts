@@ -11,6 +11,8 @@ export * from './operator-audit.builder';
 export * from './operator-audit-entity.builder';
 export * from './provider-event.builder';
 export * from './provider-event-entity.builder';
+export * from './provider-health.builder';
+export * from './provider-health-entity.builder';
 export * from './signup-registration.builder';
 export * from './signup-registration-entity.builder';
 export * from './subscription.builder';

@@ -14,6 +14,7 @@ import {
   WebhookProviderSlugSchema,
 } from '../../application/dtos/provider-webhook.dto';
 import { ApplyChargeFactService } from '../../application/services/apply-charge-fact.service';
+import { RecoveryChargePlanner } from '../../application/services/recovery-charge-planner.service';
 import { ProcessProviderWebhookUseCase } from '../../application/use-cases/process-provider-webhook.use-case';
 import { BillingProviderRegistry } from '../providers/billing-provider.registry';
 import { FakeBillingProvider } from '../providers/fake-billing.provider';
@@ -31,7 +32,7 @@ function buildController(fake: FakeBillingProvider): InternalBillingWebhookContr
     subscriptions,
     charges,
     providerEvents,
-    new InMemoryFeaturePriceRepository(),
+    new RecoveryChargePlanner(charges, new InMemoryFeaturePriceRepository()),
     txManager,
     clock,
   );
@@ -44,6 +45,7 @@ function buildController(fake: FakeBillingProvider): InternalBillingWebhookContr
       charges,
       providerEvents,
       applyFact,
+      { execute: async () => 'NOT_FOUND' },
       clock,
     ),
   );

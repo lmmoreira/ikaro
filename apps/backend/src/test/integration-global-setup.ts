@@ -83,6 +83,7 @@ import { OperatorAuditEntity } from '../contexts/billing/infrastructure/entities
 import { ChargeLineEntity } from '../contexts/billing/infrastructure/entities/charge-line.entity';
 import { ChargeEntity } from '../contexts/billing/infrastructure/entities/charge.entity';
 import { ProviderEventEntity } from '../contexts/billing/infrastructure/entities/provider-event.entity';
+import { ProviderHealthEntity } from '../contexts/billing/infrastructure/entities/provider-health.entity';
 import { SubscriptionItemEntity } from '../contexts/billing/infrastructure/entities/subscription-item.entity';
 import { SubscriptionEntity } from '../contexts/billing/infrastructure/entities/subscription.entity';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
@@ -196,6 +197,7 @@ export default async function globalSetup(): Promise<void> {
       ChargeEntity,
       ChargeLineEntity,
       ProviderEventEntity,
+      ProviderHealthEntity,
       LeadFormSubmissionEntity,
       LeadFormAnswerEntity,
       ResourceEntity,

@@ -293,6 +293,12 @@
     ]
   },
   {
+    "event": "cron-billing-status-sweep",
+    "consumers": [
+      "billing-status-sweep"
+    ]
+  },
+  {
     "event": "cron-chatbot-balance-poll",
     "consumers": [
       "chatbot-balance-poll"

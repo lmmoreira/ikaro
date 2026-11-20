@@ -2,6 +2,7 @@ import { drainDomainEvents } from '../../../shared/infrastructure/outbox/drain-d
 import type { IOutboxPublisher } from '../../../shared/ports/outbox-publisher.port';
 import {
   ChargeRef,
+  OverdueChargeRef,
   PendingCreationRef,
   IChargeRepository,
   ListChargesQuery,
@@ -80,6 +81,22 @@ export class InMemoryChargeRepository implements IChargeRepository {
     );
   }
 
+  // The earliest period start that is not cancelled, like the production query.
+  async findFirstPeriodCharge(tenantId: string, subscriptionId: string): Promise<Charge | null> {
+    return (
+      this.saved
+        .filter(
+          (c) =>
+            c.tenantId === tenantId &&
+            c.subscriptionId === subscriptionId &&
+            c.kind === 'PERIOD' &&
+            c.status !== 'CANCELED' &&
+            c.periodStart !== null,
+        )
+        .sort((a, b) => a.periodStart!.value.localeCompare(b.periodStart!.value))[0] ?? null
+    );
+  }
+
   async listByTenantPage(
     tenantId: string,
     query: ListChargesQuery,
@@ -133,6 +150,27 @@ export class InMemoryChargeRepository implements IChargeRepository {
         id: c.id,
         lastAttemptAt: this.leaseOf(c)?.lastAttemptAt ?? null,
       }))
+      .filter((ref) => after === undefined || key(ref) > key(after))
+      .sort((a, b) => key(a).localeCompare(key(b)))
+      .slice(0, limit);
+  }
+
+  // `PENDING` charges with a payment link due on or before the date, in the production order
+  // (due date, then id), one page after the given row.
+  async listOverdueCandidatesForJob(
+    dueOnOrBefore: string,
+    limit: number,
+    after?: OverdueChargeRef,
+  ): Promise<OverdueChargeRef[]> {
+    const key = (ref: OverdueChargeRef): string => `${ref.dueDate}|${ref.id}`;
+    return this.saved
+      .filter(
+        (c) =>
+          c.status === 'PENDING' &&
+          c.providerCreationStatus === 'READY' &&
+          c.dueDate.value <= dueOnOrBefore,
+      )
+      .map((c) => ({ tenantId: c.tenantId, id: c.id, dueDate: c.dueDate.value }))
       .filter((ref) => after === undefined || key(ref) > key(after))
       .sort((a, b) => key(a).localeCompare(key(b)))
       .slice(0, limit);

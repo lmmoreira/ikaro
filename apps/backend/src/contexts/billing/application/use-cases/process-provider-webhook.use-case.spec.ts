@@ -27,6 +27,11 @@ import { BillingProviderRegistry } from '../../infrastructure/providers/billing-
 import { FakeBillingProvider } from '../../infrastructure/providers/fake-billing.provider';
 import type { FakeWebhookDelivery } from '../../infrastructure/providers/fake-billing.types';
 import { ApplyChargeFactService } from '../services/apply-charge-fact.service';
+import type {
+  CreateProviderChargeCommand,
+  ProviderChargeCreationResult,
+} from '../services/provider-charge-creation.service';
+import { RecoveryChargePlanner } from '../services/recovery-charge-planner.service';
 import {
   ProcessProviderWebhookUseCase,
   type ProcessProviderWebhookUseCaseResult,
@@ -60,6 +65,17 @@ interface Seeded {
   providerCustomerId: string;
 }
 
+// What the after-commit step asked the shared creation service to make payable, and an error it can be told to raise.
+const createdAtProvider: CreateProviderChargeCommand[] = [];
+let creationError: Error | null = null;
+const recordCreation = async (
+  command: CreateProviderChargeCommand,
+): Promise<ProviderChargeCreationResult> => {
+  createdAtProvider.push(command);
+  if (creationError !== null) throw creationError;
+  return 'READY';
+};
+
 describe('ProcessProviderWebhookUseCase', () => {
   let clock: AdvanceableClock;
   let fake: CountingFakeProvider;
@@ -71,6 +87,8 @@ describe('ProcessProviderWebhookUseCase', () => {
   let useCase: ProcessProviderWebhookUseCase;
 
   beforeEach(() => {
+    createdAtProvider.length = 0;
+    creationError = null;
     clock = new AdvanceableClock(NOW);
     fake = new CountingFakeProvider(clock);
     const txManager = new InMemoryTransactionManager();
@@ -89,7 +107,7 @@ describe('ProcessProviderWebhookUseCase', () => {
       subscriptions,
       charges,
       providerEvents,
-      prices,
+      new RecoveryChargePlanner(charges, prices),
       txManager,
       clock,
     );
@@ -101,6 +119,7 @@ describe('ProcessProviderWebhookUseCase', () => {
       charges,
       providerEvents,
       applyFact,
+      { execute: recordCreation },
       clock,
     );
   });
@@ -580,6 +599,52 @@ describe('ProcessProviderWebhookUseCase', () => {
         await charges.findOpenRecoveryBySubscription(subscription.tenantId, subscription.id),
       ).toMatchObject({ kind: 'RECOVERY', status: 'PENDING' });
       expect(eventNames()).toEqual(['SubscriptionSuspended']);
+    });
+
+    it('after commit, makes the recovery charge payable at the provider through the shared creation step', async () => {
+      const { subscription, providerChargeId } = await seed('ACTIVE', { period: currentPeriod });
+      fake.simulatePayment(providerChargeId, 'CARD');
+      await deliverAll();
+      fake.simulateRefund(providerChargeId, 'FULL');
+
+      await deliverAll();
+
+      const recovery = await charges.findOpenRecoveryBySubscription(
+        subscription.tenantId,
+        subscription.id,
+      );
+      expect(createdAtProvider).toEqual([
+        {
+          tenantId: subscription.tenantId,
+          chargeId: recovery!.id,
+          correlationId: expect.any(String),
+        },
+      ]);
+    });
+
+    it('never fails the webhook when the creation step throws: the charge stays PENDING for the retry', async () => {
+      const { subscription, providerChargeId } = await seed('ACTIVE', { period: currentPeriod });
+      fake.simulatePayment(providerChargeId, 'CARD');
+      await deliverAll();
+      fake.simulateRefund(providerChargeId, 'FULL');
+      creationError = new Error('database unavailable');
+
+      expect(await deliverAll()).toEqual(['APPLIED']);
+
+      expect(
+        await charges.findOpenRecoveryBySubscription(subscription.tenantId, subscription.id),
+      ).toMatchObject({ status: 'PENDING', providerCreationStatus: 'PENDING' });
+    });
+
+    it('creates nothing at the provider when no reversal suspended the tenant', async () => {
+      const { providerChargeId } = await seed('TRIALING', { period: currentPeriod });
+      fake.simulatePayment(providerChargeId, 'CARD');
+      await deliverAll();
+      fake.simulateRefund(providerChargeId, 'FULL');
+
+      await deliverAll();
+
+      expect(createdAtProvider).toEqual([]);
     });
 
     it('a lost chargeback (driven by the fake only) does the same', async () => {

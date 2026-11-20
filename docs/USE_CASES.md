@@ -3509,7 +3509,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 | UC-112 | Operator maintains the list prices *(planned, not built)* | Operator | Dated `feature_price_versions` (exact or percentage adjustment); `SubscriptionPriceChangeAnnounced` per affected tenant |
 | UC-113 | System issues the next charge *(built, M26-S05)* | System | `PERIOD` `Charge` + lines + provider payment link; `ChargeIssued` after `READY` |
 | UC-114 | System handles a provider webhook *(built, M26-S04)* | Provider → System | Idempotent `provider_events` insert + charge/subscription transition in one transaction; exact `200` |
-| UC-115 | System sweeps statuses *(planned, not built)* | System | `OVERDUE` / `PAST_DUE` / `SUSPENDED` / `ACTIVE` per the ladder; stale charge cancelled + recovery charge issued |
+| UC-115 | System sweeps statuses *(built, M26-S06)* | System | `OVERDUE` / `PAST_DUE` / `SUSPENDED` / `ACTIVE` per the ladder; stale charge cancelled + recovery charge issued |
 | UC-116 | System reconciles charges with the provider *(planned, not built)* | System | Drift corrected; `provider_health` updated; at-risk tenants hourly |
 | UC-117 | Manager views the billing page *(planned, not built)* | Manager | Read-only: status, features, total, open charge, history; the only reachable page while suspended (identity is edited in the Dados tab, UC-118) |
 | UC-118 | Manager updates the billing identity *(planned, not built)* | Manager | Country-driven identity and address saved; synced to the provider customer at the next charge |
