@@ -1,4 +1,3 @@
-import { DateTime } from 'luxon';
 import {
   addDaysUTC,
   localDateEndUTC,
@@ -6,6 +5,7 @@ import {
 } from '../../../shared/utils/calendar-date';
 import { CalendarDate } from '../../../shared/value-objects/calendar-date.vo';
 import type { Timezone } from '../../../shared/value-objects/timezone.vo';
+import { nextAnchorDate } from './subscription-issue-window';
 import { ANCHOR_DAY_MAX } from './subscription.types';
 
 export interface RecoveryPaymentWindow {
@@ -26,10 +26,7 @@ export interface RecoveryPaymentWindow {
 export function recoveryPaymentWindow(paidAt: Date, timezone: Timezone): RecoveryPaymentWindow {
   const paidLocal = utcDateToLocalDate(paidAt, timezone.value);
   const anchorDay = Math.min(Number(paidLocal.slice(8, 10)), ANCHOR_DAY_MAX);
-  const nextDue = DateTime.fromISO(paidLocal, { zone: 'utc' })
-    .plus({ months: 1 })
-    .set({ day: anchorDay })
-    .toISODate()!;
+  const nextDue = nextAnchorDate(paidLocal, anchorDay);
   return {
     anchorDay,
     periodEnd: localDateEndUTC(addDaysUTC(nextDue, -1), timezone.value),

@@ -12,6 +12,18 @@ export interface IssuedPeriodWindow {
 }
 
 /**
+ * The anchor day one month after `date` (a `YYYY-MM-DD`): the same day of the next month, set to the
+ * anchor day. The anchor is at most 28, so every month has it; shared by the issue window and the
+ * recovery payment window so the two can never step a month differently.
+ */
+export function nextAnchorDate(date: string, anchorDay: number): string {
+  return DateTime.fromISO(date, { zone: 'utc' })
+    .plus({ months: 1 })
+    .set({ day: anchorDay })
+    .toISODate()!;
+}
+
+/**
  * The service period the next invoice covers (UC-113 step 1): it starts on the subscription's
  * `next_due_date`, renews on the anchor day (at most 28, so every month has it) and ends the day
  * before the next anchor. Calendar maths on the tenant-local date, so a DST change never shifts a
@@ -21,10 +33,7 @@ export function issuedPeriodWindow(
   nextDueDate: CalendarDate,
   anchorDay: number,
 ): IssuedPeriodWindow {
-  const following = DateTime.fromISO(nextDueDate.value, { zone: 'utc' })
-    .plus({ months: 1 })
-    .set({ day: anchorDay })
-    .toISODate()!;
+  const following = nextAnchorDate(nextDueDate.value, anchorDay);
   return {
     periodStart: nextDueDate,
     periodEnd: CalendarDate.reconstitute(addDaysUTC(following, -1)),
