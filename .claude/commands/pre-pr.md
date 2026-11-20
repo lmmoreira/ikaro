@@ -120,6 +120,12 @@ For changed `*.controller.ts` files (backend + BFF), verify use-case calls use `
 ### correlationId from event — never generated
 For changed event handler files (`*.handler.ts`, `*.listener.ts`), verify the DTO passed to the use case uses `event.correlationId` — not `uuidv7()` or any newly generated UUID. Handlers pass through, never originate correlation IDs.
 
+### A new job's home, a changed selector's order, a new persistence import
+These three each failed a PR after a green local run (M26-S05), and `/pre-pr` is where they are cheapest to catch:
+- A class that loops over many rows and calls use cases is a job: it lives in `application/jobs/` as `*.job.ts` and no `*.use-case.ts` imports another use case (`pnpm dep-cruise` fails on it; `docs/ENGINEERING_RULES_BACKEND.md` § Layering inside `application/`).
+- A changed `ORDER BY` or keyset on a job selector is written in the column order of the index that serves it, and its integration spec `EXPLAIN`s the exact SQL (`docs/ENGINEERING_RULES_TESTING.md` § An `EXPLAIN` assertion that passes locally proves little).
+- A new `import … from 'typeorm'` (even `import type`) outside a `typeorm-*.repository.ts` adapter or another reviewed path in `architecture-policy.json` § `raw-persistence-api` is a finding: a helper that only builds SQL returns plain strings and parameters instead.
+
 ### Cron jobs and cron-published Commands (`*.job.ts`, `domain/commands/*.command.ts`)
 For every changed or new job under `application/jobs/`, verify against `docs/ENGINEERING_RULES_BACKEND.md` § Adding a cron-published event (items 1–11): a per-tenant job loops over tenants only through `TenantJobRunner` (`WindowedTenantJob` is the Booking-local convenience over it for the reminder jobs; a job such as `AvailabilityAlertSweepJob` may call the runner directly) with `REMINDER_WINDOW`/`ALERT_SWEEP_WINDOW` from `tenant-local-window.helpers.ts` (no copied `WINDOW_START`/`WINDOW_END`, no `catch` that only logs, no loop that aborts on the first tenant's error); no `await` inside a `for` loop (use `mapSequentially`), including the publish loop inside `txManager.run()`; reads happen before `txManager.run()`; every Command extends `Command` with a deterministic `dedupKey`; and a new Command with a consumer has its `pubsub-catalog.json` entry regenerated and the story's post-merge Foundation-apply step named. A new Command's payload follows item 11 (booking-side: the contact, like booking events; customer-record-based: ids only).
 
