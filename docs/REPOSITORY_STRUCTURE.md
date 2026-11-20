@@ -115,7 +115,7 @@ The BFF mirrors backend ownership by feature slice. Domain-owned code uses the c
 apps/bff/src/
 ├── features/
 │   ├── auth/                 # technical slice: OAuth, JWT issuance, tenant selection
-│   ├── billing/              # domain slice (partly built): `GET /v1/billing/access` (M25-S13, role-reduced); manager billing routes, provider webhooks and public prices are planned
+│   ├── billing/              # domain slice (partly built): `GET /v1/billing/access` (M25-S13, role-reduced); the Asaas provider webhook route (`billing.webhook.public.controller.ts`, M26-S04); manager billing routes and public prices are planned
 │   ├── booking/              # domain slice: bookings, schedule, services, attachments
 │   ├── customer/             # domain slice
 │   ├── loyalty/              # domain slice

@@ -795,7 +795,7 @@ Today only the operator suspend produces `SubscriptionSuspended` (`reason: OPERA
 
 ## Billing — The Charge: status table, concurrent writers and the recovery rule (M26-S02)
 
-The model only: `Charge` (`charge.aggregate.ts`), `ChargeLine`, `RecoveryChargeFactory` and the two repositories. The use cases that drive it (webhook, issue, sweep, reactivate, reconcile) are M26-S04 onwards and are not described as built here. Shape and field list: `docs/DOMAIN_MODEL.md` § Aggregate: Charge; columns and indexes: `docs/DATABASE_SCHEMA.md` § `billing.charges`.
+The model: `Charge` (`charge.aggregate.ts`), `ChargeLine`, `RecoveryChargeFactory` and the two repositories. The provider webhook that drives it is built (M26-S04) and described in the next section; the other use cases (issue, sweep, reactivate, reconcile) are M26-S05 onwards and are not described as built here. Shape and field list: `docs/DOMAIN_MODEL.md` § Aggregate: Charge; columns and indexes: `docs/DATABASE_SCHEMA.md` § `billing.charges`.
 
 **Status table.** One method per row, a repeat is a no-op, anything else throws `IllegalChargeTransitionError`. `FAILED` has no transition into it (reserved for M29).
 
@@ -833,6 +833,51 @@ sequenceDiagram
 **The creation lease.** `claimForProviderCreation(tenantId, chargeId, now)` is the single place `provider_creation_attempts` is incremented: one conditional `UPDATE` on the repository's own connection (never the caller's transaction), only for an open charge (`status` `PENDING` or `OVERDUE`, so a cancelled or paid one never gets a provider bill) whose `provider_creation_status` is `PENDING` with no provider id and whose last attempt is null or older than `PROVIDER_CREATION_LEASE_MINUTES` (10), `now` being the caller's `IClock`. It returns whether this caller owns the creation. The lease is not mutual exclusion past those 10 minutes: a provider call that outlasts it lets a second creator claim the charge, and `createCharge` being idempotent per charge id is what prevents a duplicate bill. `save()` never writes the two claim columns, so a stale aggregate cannot undo an increment.
 
 **The recovery rule.** `RecoveryChargeFactory.build` is the single place it lives (UC-115 step 3, UC-134, UC-113 A2): a one-month `RECOVERY` charge, lines = the items it is given, each priced from the map the caller resolved for **that day** (a missing price throws, never a zero), due `RECOVERY_CHARGE_DUE_DAYS` (7) after the subscription-timezone date it is given, no period dates (the period lives on the subscription and starts at `paidAt`), `merchantProfileKey` copied from the subscription. At most one is open per subscription (`UQ_billing_charges_open_recovery`): the repository throws `RecoveryChargeAlreadyOpenError` and the caller re-reads the existing one; a second period charge for one period is `ChargeAlreadyExistsError` (`UQ_billing_charges_period`, a cancelled charge does not count).
+
+---
+
+## Billing — The provider webhook: applying a verified fact (M26-S04)
+
+UC-114. Only what the code does is described here; the route contract is `docs/API_CONTRACTS.md` § Provider webhooks and the locks are `docs/LOCK_CATALOG.md` (B-R1 → B-C1).
+
+```mermaid
+flowchart TD
+    A[BFF: asaas-access-token, timing-safe, 401 if wrong or unset] --> B[Backend: adapter.parseWebhook]
+    B -->|unreadable body| Z1[200, logged, nothing stored]
+    B --> C{event type}
+    C -->|Ignored, auto-billing| Z2[200, nothing stored]
+    C --> D{inbox row exists?}
+    D -->|yes| Z3[200, no provider call]
+    D -->|no| E[resolve tenant and charge: provider customer, else externalReference]
+    E -->|unknown tenant or charge| Z4[200, nothing stored]
+    E --> F{needs a re-read?}
+    F -->|paid, refunded, chargeback, overdue| G[fetchChargeStatus BEFORE the transaction]
+    G -->|state, amount or reference differ| Z5[200, not applied, nothing stored]
+    G --> H[ApplyChargeFactService: one transaction]
+    F -->|log-only types| I[inbox row only]
+    H --> J[inbox insert, B-R1 subscription, B-C1 charge, apply, save, outbox rows]
+```
+
+**What is verified before anything is written.** The webhook is a hint, the re-read is the truth: a paid fact applies only when the provider says `PAID` (or partly refunded), the amount equals the local charge's, and, for a local charge that has no provider id yet (the webhook outran the `READY` write), the provider's own stored `externalReference` equals the local charge id. Resolution never crosses tenants: a charge of another tenant than the provider customer's, or one stored under a different provider id, is not used.
+
+**Which events leave an inbox row.** An event that is processed: applied, or a log-only type (`PaymentCancelled`, `PaymentPartiallyRefunded`, `PaymentDisputeOpened`, the confirm-only `PaymentOverdue`) whose tenant and charge resolve. Ignored events, unknown targets and events the re-read does not confirm leave none, so the same event id is evaluated again if it is delivered again once the provider's state has caught up. The pre-check costs no provider call for an event already stored; two deliveries of one event in flight together can each cost one re-read, and the unique insert lets exactly one apply.
+
+**What a paid fact writes** (`ApplyChargeFactService`, `Subscription.markPeriodPaid` / `reactivateOnPayment`):
+
+| Charge | Subscription | Result |
+|---|---|---|
+| `PERIOD` | `TRIALING` | charge `PAID`, `has_ever_paid` set; period untouched (the sweep writes it at trial end) |
+| `PERIOD` | `ACTIVE` | `current_period_end = max(end, charge end)`; the start moves **forward only** and only when the charge starts today or earlier; `anchor_day` and `next_due_date` untouched |
+| `PERIOD` | `PAST_DUE` | `ACTIVE`, overdue and grace marks cleared, the charge's own period |
+| `PERIOD` | payment-`SUSPENDED` | the stale charge is the payment: `ACTIVE`, `SubscriptionReactivated`, and the open `RECOVERY` charge is cancelled (flagged for the provider cancel when it already has a provider id) |
+| `RECOVERY` | payment-`SUSPENDED` | `ACTIVE`; a month starting at the payment moment, `anchor_day` = the payment's tenant-local day clamped to 28, `next_due_date` the day after the month ends |
+| any | `OPERATOR` suspension, exempt | charge `PAID`; the subscription is never changed by a payment |
+
+**The second payment.** If both the stale charge and the recovery charge are ever paid, the second is recorded `REFUNDED` (the actual refund is made in the provider console): a `RECOVERY` paid for a tenant that is no longer suspended, or a `PERIOD` charge that starts on an earlier tenant-local day than the current period (`Subscription.hasMovedPast`), whose payment also never moves the period back.
+
+**Refund and chargeback.** A partial refund and an opened dispute change nothing (the dispute is logged as `billing_dispute_opened`). A full refund or a lost chargeback records `REFUNDED` / `CHARGEBACK`, and suspends with `PAYMENT_REVERSED` only when the charge **funded the current period** (`Subscription.reversePayment`): a `PERIOD` charge whose days cover today and that does not start before the current period; a `RECOVERY` charge whose payment moment is the current period's start. An older period, an invoice issued early, a stale charge, a `TRIALING`, already-suspended or exempt tenant never suspends. The suspension inserts the `RECOVERY` charge `PENDING` in the same transaction; creating it at the provider is the creation retry's job.
+
+**Out of order.** A paid fact is legal for `PENDING`, `OVERDUE` and `CANCELED` charges and a no-op on `PAID`; for a `REFUNDED` / `CHARGEBACK` charge it is `ILLEGAL`, logged and left to reconcile. A refund that arrives before its payment is `ILLEGAL` too, and the later paid event then re-reads `REFUNDED` and is not applied, so the tenant is never reactivated by it.
 
 ---
 

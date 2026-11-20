@@ -3505,7 +3505,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 | UC-111 | Operator extends grace or suspends a tenant *(built, M25-S15b)* | Operator | `graceUntil` set, or `SUSPENDED` (`OPERATOR`) / `unsuspend`; audited |
 | UC-112 | Operator maintains the list prices *(planned, not built)* | Operator | Dated `feature_price_versions` (exact or percentage adjustment); `SubscriptionPriceChangeAnnounced` per affected tenant |
 | UC-113 | System issues the next charge *(planned, not built)* | System | `PERIOD` `Charge` + lines + provider payment link; `ChargeIssued` after `READY` |
-| UC-114 | System handles a provider webhook *(planned, not built)* | Provider → System | Idempotent `provider_events` insert + charge/subscription transition in one transaction; exact `200` |
+| UC-114 | System handles a provider webhook *(built, M26-S04)* | Provider → System | Idempotent `provider_events` insert + charge/subscription transition in one transaction; exact `200` |
 | UC-115 | System sweeps statuses *(planned, not built)* | System | `OVERDUE` / `PAST_DUE` / `SUSPENDED` / `ACTIVE` per the ladder; stale charge cancelled + recovery charge issued |
 | UC-116 | System reconciles charges with the provider *(planned, not built)* | System | Drift corrected; `provider_health` updated; at-risk tenants hourly |
 | UC-117 | Manager views the billing page *(planned, not built)* | Manager | Read-only: status, features, total, open charge, history; the only reachable page while suspended (identity is edited in the Dados tab, UC-118) |
