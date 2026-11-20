@@ -100,6 +100,10 @@ When drafting a new job of this shape, check the table's existing indexes for a 
 
 `packages/architecture-check/architecture-policy.json`'s `testDataHarnessRegistrations` section is the machine-checked source of truth for this — one entry per file that declares a TypeORM `entities:`/`migrations:` array (`integration-global-setup.ts` plus the 6 `src/test/utils/*-integration-app.ts`/`test-datasource.ts` helpers). `integration-global-setup.ts` is declared `"complete"` and must carry every production entity/migration; the rest are `"partial"` with an explicit, intentional `entities` subset. Adding a new entity to one of the partial helpers' code array without updating its matching policy entry (or vice versa) is flagged as drift by `pnpm architecture-check`'s `test-harness-registration` detector (TD37-S07) — update both in the same commit, not just the code.
 
+### An `EXPLAIN` assertion that passes locally proves little about a small test table
+
+An integration test that asserts which index a job's query uses (`EXPLAIN` with `enable_seqscan = off`) can pass on a developer's nearly empty test database and fail in CI, where the planner weighs row counts and statistics differently (M26-S05: the creation-retry query was reordered by charge id, still used its index locally, and walked the primary key in CI). When a job selector needs a new `ORDER BY` or a keyset page, make it match the **column order of the index that serves it** (the partial index's own leading columns, `NULLS FIRST` included), and write the keyset predicate in that same order, so the planner has no cheaper path to prefer. Never reorder a job selector by `id` only because `id` is the natural tiebreak. A green local `EXPLAIN` test is the floor, not the proof; CI's run is the check.
+
 ### BFF tests
 
 Two test files per controller: `.spec.ts` (unit) + `.component.spec.ts` (component). Helper-file isolation:
@@ -149,6 +153,8 @@ Set `--max-old-space-size` explicitly on every Jest entry point that can run a l
 
 **Host RAM is a separate limit from the heap setting.** The backend integration suite starts a 6 GB heap plus Docker. On an 8 GB host, running it beside another heavy job gets background shells reaped (exit 143, "system is running low on memory"). Run it alone, check `free -m` first (about 5 GB available), and never restart a reaped job automatically: report it, then use CI's result or ask. (M25-S06: two background runs were killed.)
 
+
+**The ceiling follows the suite as it grows (M26-S05).** The integration suite ran at about 4.9 GB of its 5120 MB ceiling at its last suite, so two more files ran it out of heap on three consecutive CI runs ("JavaScript heap out of memory" at the end of the log, never at a failing assertion). Slimming one's own spec was not enough; the ceiling was raised to 6144 MB (a public repository's `ubuntu-latest` has 16 GB). Before adding integration suites to a story, check headroom on the last green run: its duration and where a heap warning would appear (`gh api repos/lmmoreira/ikaro/actions/jobs/<id>/logs`). If a story pushes it over, raise the ceiling in `apps/backend/package.json` for `test` and `test:integration` together, update the value cited above, and say so in the PR; growth that outpaces the ceiling again is a case for finding which suites retain memory, not for another bump.
 
 ## An integration test seeding fixtures under fixed/hardcoded tenant UUIDs needs symmetric, complete setup/teardown — CI's Testcontainers reuse can carry a prior run's corruption into an unrelated later run
 

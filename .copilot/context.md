@@ -354,7 +354,7 @@ A doc with a `§` or "only" is read at that section (`grep -n '^## ' <doc>` for 
 | Web → BFF transport | `docs/BFF_ARCHITECTURE.md` § Web → BFF Transport Layer |
 | Architecture question; repo layout / new file location | `docs/ARCHITECTURE.md` (10 KB) + `docs/BOUNDED_CONTEXTS.md` § Context Descriptions (the context concerned) + `docs/REPOSITORY_STRUCTURE.md` § Web target structure (or the Backend / BFF one); §11 below has the quick summary |
 | Multi-tenancy / isolation; access gate | `docs/TENANT_ISOLATION_STRATEGY.md` (17 KB) + `docs/ENGINEERING_RULES_SHARED.md` § Tenant access enforcement |
-| Testing patterns | `docs/TESTING_STRATEGY.md` § Mandatory Patterns (+ the layer's section) + `docs/ENGINEERING_RULES_TESTING.md` (56 KB, read whole); billing: § Testing the billing provider |
+| Testing patterns | `docs/TESTING_STRATEGY.md` § Mandatory Patterns (+ the layer's section) + `docs/ENGINEERING_RULES_TESTING.md` (62 KB, read whole); billing: § Testing the billing provider |
 | apps/web test infrastructure | `docs/TESTING_STRATEGY.md` § apps/web Testing Infrastructure |
 | Value objects / mappers | `docs/VALUE_OBJECTS_REFERENCE.md` + `docs/ENGINEERING_RULES_SHARED.md` (57 KB) |
 | CI / pipelines | `docs/CI_CD_PIPELINE.md` + `docs/GITHUB_WORKFLOWS_GUIDELINES.md` (21 KB) |
