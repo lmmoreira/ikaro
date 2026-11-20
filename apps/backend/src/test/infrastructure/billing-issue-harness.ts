@@ -2,7 +2,6 @@ import { IssueChargeForSubscriptionUseCase } from '../../contexts/billing/applic
 import { IssueNextChargesJob } from '../../contexts/billing/application/jobs/issue-next-charges.job';
 import { RetryPendingChargeCreationUseCase } from '../../contexts/billing/application/use-cases/retry-pending-charge-creation.use-case';
 import { ProviderChargeCreationService } from '../../contexts/billing/application/services/provider-charge-creation.service';
-import type { BillingProvisioningConfig } from '../../contexts/billing/application/ports/billing-provisioning-config.port';
 import type { Subscription } from '../../contexts/billing/domain/subscription.aggregate';
 import { BillingProviderRegistry } from '../../contexts/billing/infrastructure/providers/billing-provider.registry';
 import { FakeBillingProvider } from '../../contexts/billing/infrastructure/providers/fake-billing.provider';
@@ -18,6 +17,7 @@ import { InMemoryChargeRepository } from '../repositories/billing/in-memory-char
 import { InMemoryFeaturePriceRepository } from '../repositories/billing/in-memory-feature-price.repository';
 import { InMemorySubscriptionRepository } from '../repositories/billing/in-memory-subscription.repository';
 import { AdvanceableClock } from './advanceable-clock';
+import { InMemoryApplicationConfig } from './in-memory-application-config';
 import { InMemoryBillingPlatformPort } from './in-memory-billing-platform.port';
 import { InMemoryOutboxPublisher } from './in-memory-outbox-publisher';
 import { InMemoryTransactionManager } from './in-memory-transaction-manager';
@@ -42,11 +42,7 @@ export function createIssueHarness() {
   const charges = new InMemoryChargeRepository(outbox);
   const prices = new InMemoryFeaturePriceRepository();
   const platform = new InMemoryBillingPlatformPort();
-  const config: BillingProvisioningConfig = {
-    appEnv: 'local',
-    platformOwnerSlug: null,
-    frontendUrl: ISSUE_FRONTEND_URL,
-  };
+  const config = new InMemoryApplicationConfig({ FRONTEND_URL: ISSUE_FRONTEND_URL });
   const creation = new ProviderChargeCreationService(
     new BillingProviderRegistry('local', provider),
     accounts,

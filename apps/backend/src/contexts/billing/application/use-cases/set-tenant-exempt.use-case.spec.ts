@@ -35,7 +35,7 @@ describe('SetTenantExemptUseCase', () => {
       txManager,
       new AdvanceableClock(NOW),
       platform,
-      { appEnv: 'local', platformOwnerSlug: OWNER_SLUG, frontendUrl: 'http://localhost:3000' },
+      { appEnv: 'local', platformOwnerSlug: OWNER_SLUG },
     );
   });
 

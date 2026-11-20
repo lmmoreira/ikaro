@@ -9,6 +9,7 @@ import {
   SubscriptionItemEntityBuilder,
 } from '../../../../test/builders/billing';
 import { AddressBuilder } from '../../../../test/builders/shared';
+import { InMemoryApplicationConfig } from '../../../../test/infrastructure/in-memory-application-config';
 import { InMemoryBillingPlatformPort } from '../../../../test/infrastructure/in-memory-billing-platform.port';
 import { InMemoryOutboxPublisher } from '../../../../test/infrastructure/in-memory-outbox-publisher';
 import { createTestDataSource } from '../../../../test/test-datasource';
@@ -110,7 +111,7 @@ describe('IssueNextChargesJob (integration, UC-113)', () => {
       subscriptions,
       charges,
       platform,
-      { appEnv: 'local', platformOwnerSlug: null, frontendUrl: 'http://localhost:3000' },
+      new InMemoryApplicationConfig({ FRONTEND_URL: 'http://localhost:3000' }),
       txManager,
       clock,
     );

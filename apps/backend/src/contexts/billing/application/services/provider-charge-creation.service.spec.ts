@@ -5,6 +5,7 @@ import {
 } from '../../../../test/builders/billing';
 import { AddressBuilder } from '../../../../test/builders/shared';
 import { AdvanceableClock } from '../../../../test/infrastructure/advanceable-clock';
+import { InMemoryApplicationConfig } from '../../../../test/infrastructure/in-memory-application-config';
 import { InMemoryBillingPlatformPort } from '../../../../test/infrastructure/in-memory-billing-platform.port';
 import { InMemoryOutboxPublisher } from '../../../../test/infrastructure/in-memory-outbox-publisher';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
@@ -21,7 +22,6 @@ import type {
   CreatedProviderCharge,
   ProviderCustomerIdentity,
 } from '../ports/billing-provider.port';
-import type { BillingProvisioningConfig } from '../ports/billing-provisioning-config.port';
 import { ProviderChargeCreationService } from './provider-charge-creation.service';
 
 const NOW = new Date('2026-03-10T15:00:00Z');
@@ -82,11 +82,7 @@ describe('ProviderChargeCreationService', () => {
     accounts = new InMemoryBillingAccountRepository();
     charges = new InMemoryChargeRepository(outbox);
     platform = new InMemoryBillingPlatformPort();
-    const config: BillingProvisioningConfig = {
-      appEnv: 'local',
-      platformOwnerSlug: null,
-      frontendUrl: FRONTEND_URL,
-    };
+    const config = new InMemoryApplicationConfig({ FRONTEND_URL });
     service = new ProviderChargeCreationService(
       new BillingProviderRegistry('local', provider),
       accounts,

@@ -1,5 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { AppLogger } from '../../../../shared/observability/app-logger';
+import {
+  APPLICATION_CONFIG,
+  type IApplicationConfig,
+} from '../../../../shared/ports/application-config.port';
 import { CLOCK, type IClock } from '../../../../shared/ports/clock.port';
 import {
   ITransactionManager,
@@ -24,10 +28,6 @@ import {
   type CreateProviderChargeInput,
   type CreatedProviderCharge,
 } from '../ports/billing-provider.port';
-import {
-  BILLING_PROVISIONING_CONFIG,
-  type BillingProvisioningConfig,
-} from '../ports/billing-provisioning-config.port';
 import { CHARGE_REPOSITORY, IChargeRepository } from '../ports/charge-repository.port';
 import {
   ISubscriptionRepository,
@@ -77,7 +77,7 @@ export class ProviderChargeCreationService {
     @Inject(SUBSCRIPTION_REPOSITORY) private readonly subscriptions: ISubscriptionRepository,
     @Inject(CHARGE_REPOSITORY) private readonly charges: IChargeRepository,
     @Inject(BILLING_PLATFORM_PORT) private readonly platform: IBillingPlatformPort,
-    @Inject(BILLING_PROVISIONING_CONFIG) private readonly config: BillingProvisioningConfig,
+    @Inject(APPLICATION_CONFIG) private readonly config: IApplicationConfig,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     @Inject(CLOCK) private readonly clock: IClock,
   ) {}
@@ -249,7 +249,7 @@ export class ProviderChargeCreationService {
       description: `Ikaro ${charge.periodStart?.value ?? charge.dueDate.value}`,
       externalReference: charge.id,
       // S28 reads the charge id from the marker and asks for exactly that charge's payment return.
-      returnUrl: `${this.config.frontendUrl}/dashboard/billing?payment=return&charge=${charge.id}`,
+      returnUrl: `${this.config.getOrThrow('FRONTEND_URL')}/dashboard/billing?payment=return&charge=${charge.id}`,
     };
   }
 

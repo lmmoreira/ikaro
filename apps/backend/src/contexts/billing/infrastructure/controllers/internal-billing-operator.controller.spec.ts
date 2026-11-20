@@ -52,7 +52,6 @@ describe('InternalBillingOperatorController', () => {
         {
           appEnv: 'local',
           platformOwnerSlug: null,
-          frontendUrl: 'http://localhost:3000',
         },
       ),
       new ListTenantBillingStatusUseCase(subscriptions),

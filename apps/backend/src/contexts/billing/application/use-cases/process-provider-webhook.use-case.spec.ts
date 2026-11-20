@@ -95,7 +95,7 @@ describe('ProcessProviderWebhookUseCase', () => {
     );
     useCase = new ProcessProviderWebhookUseCase(
       new BillingProviderRegistry('local', fake),
-      { appEnv: 'local', platformOwnerSlug: null, frontendUrl: 'http://localhost:3000' },
+      { appEnv: 'local', platformOwnerSlug: null },
       accounts,
       subscriptions,
       charges,

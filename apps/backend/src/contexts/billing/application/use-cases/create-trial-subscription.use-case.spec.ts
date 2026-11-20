@@ -46,7 +46,6 @@ describe('CreateTrialSubscriptionUseCase', () => {
     config = {
       appEnv: 'local',
       platformOwnerSlug: OWNER_SLUG,
-      frontendUrl: 'http://localhost:3000',
     };
     useCase = new CreateTrialSubscriptionUseCase(
       subscriptions,
@@ -147,7 +146,7 @@ describe('CreateTrialSubscriptionUseCase', () => {
     });
 
     it('takes the merchant profile from the environment and the country, never the tenant', async () => {
-      config = { appEnv: 'staging', platformOwnerSlug: null, frontendUrl: 'http://localhost:3000' };
+      config = { appEnv: 'staging', platformOwnerSlug: null };
       useCase = new CreateTrialSubscriptionUseCase(
         subscriptions,
         accounts,
@@ -190,7 +189,7 @@ describe('CreateTrialSubscriptionUseCase', () => {
     });
 
     it('does not make an ordinary tenant exempt when no owner slug is configured', async () => {
-      config = { appEnv: 'local', platformOwnerSlug: null, frontendUrl: 'http://localhost:3000' };
+      config = { appEnv: 'local', platformOwnerSlug: null };
       useCase = new CreateTrialSubscriptionUseCase(
         subscriptions,
         accounts,

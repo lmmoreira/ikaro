@@ -39,6 +39,7 @@ import { TypeOrmFeaturePriceRepository } from './infrastructure/repositories/typ
 import { CachingSubscriptionRepository } from './infrastructure/repositories/caching-subscription.repository';
 import { TypeOrmSubscriptionRepository } from './infrastructure/repositories/typeorm-subscription.repository';
 import { type AppEnv, resolveAppEnv } from '../../shared/database/resolve-app-env';
+import { ApplicationConfigModule } from '../../shared/infrastructure/application-config.module';
 import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.module';
 import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cache.module';
 import { TENANT_ACCESS_PORT } from '../../shared/ports/tenant-access.port';
@@ -82,6 +83,7 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
 @Global()
 @Module({
   imports: [
+    ApplicationConfigModule,
     PlatformSettingsModule,
     SharedCacheModule,
     AuditLogModule,
@@ -134,7 +136,6 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
       useFactory: (config: ConfigService, appEnv: AppEnv): BillingProvisioningConfig => ({
         appEnv,
         platformOwnerSlug: config.get<string>('PLATFORM_OWNER_TENANT_SLUG') ?? null,
-        frontendUrl: config.getOrThrow<string>('FRONTEND_URL'),
       }),
     },
     { provide: BILLING_PLATFORM_PORT, useClass: BillingPlatformAdapter },
