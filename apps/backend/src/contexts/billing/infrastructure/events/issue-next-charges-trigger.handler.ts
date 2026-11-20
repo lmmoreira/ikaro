@@ -17,7 +17,8 @@ export class IssueNextChargesTriggerHandler implements OnModuleInit {
   private readonly logger = new AppLogger(IssueNextChargesTriggerHandler.name);
 
   constructor(
-    private readonly issueNextCharges: IssueNextChargesJob,
+    @Inject(IssueNextChargesJob)
+    private readonly issueNextCharges: Pick<IssueNextChargesJob, 'run'>,
     @Inject(TRIGGER_BUS) private readonly triggerBus: ITriggerBus,
   ) {}
 

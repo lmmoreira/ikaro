@@ -1,4 +1,3 @@
-import { countrySpec } from '@ikaro/i18n';
 import { INestApplication } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
@@ -7,12 +6,12 @@ import {
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
 import { addDaysUTC, todayUTC } from '../../../../shared/utils/calendar-date';
-import { Address } from '../../../../shared/value-objects/address';
 import {
   BillingAccountBuilder,
   SubscriptionEntityBuilder,
   SubscriptionItemEntityBuilder,
 } from '../../../../test/builders/billing';
+import { AddressBuilder } from '../../../../test/builders/shared';
 import { InMemoryBillingPlatformPort } from '../../../../test/infrastructure/in-memory-billing-platform.port';
 import { RoutingInMemoryEventBus } from '../../../../test/infrastructure/routing-in-memory-event-bus';
 import { createBillingIntegrationApp } from '../../../../test/utils/billing-integration-app';
@@ -56,18 +55,6 @@ describe('IssueNextChargesJob (integration, UC-113)', () => {
   const platform = new InMemoryBillingPlatformPort();
   const tenants: string[] = [];
 
-  const address = Address.create(
-    {
-      street: 'Rua das Flores',
-      number: '100',
-      neighborhood: 'Centro',
-      city: 'Belo Horizonte',
-      state: 'MG',
-      zipCode: '30130-110',
-    },
-    countrySpec('BR').address,
-  );
-
   // A subscription due in five days with one HOTSITE item and a billable account.
   const seedTenant = async (options: { billable?: boolean } = {}): Promise<string> => {
     const tenantId = uuidv7();
@@ -87,7 +74,8 @@ describe('IssueNextChargesJob (integration, UC-113)', () => {
           .build(),
       );
     const account = new BillingAccountBuilder().withTenantId(tenantId);
-    if (options.billable !== false) account.withTaxId('11144477735', 'CPF').withAddress(address);
+    if (options.billable !== false)
+      account.withTaxId('11144477735', 'CPF').withAddress(new AddressBuilder().build());
     await txManager.run(() => accounts.save(account.build()));
     platform.seed({
       tenantId,
@@ -228,12 +216,29 @@ describe('IssueNextChargesJob (integration, UC-113)', () => {
     expect(pending.providerCreationStatus).toBe('PENDING');
     jest.restoreAllMocks();
 
-    const results = await Promise.all([
-      creation.execute({ tenantId, chargeId: pending.id, correlationId: 'corr-a' }),
-      creation.execute({ tenantId, chargeId: pending.id, correlationId: 'corr-b' }),
-    ]);
+    // The first creator is held at the provider call, so the lease is provably taken while the
+    // second one tries.
+    let release!: () => void;
+    let reached!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const atProvider = new Promise<void>((resolve) => (reached = resolve));
+    const original = provider.createCharge.bind(provider);
+    jest.spyOn(provider, 'createCharge').mockImplementation(async (input) => {
+      reached();
+      await gate;
+      return original(input);
+    });
+    const first = creation.execute({ tenantId, chargeId: pending.id, correlationId: 'corr-a' });
+    await atProvider;
+    let second: string;
+    try {
+      second = await creation.execute({ tenantId, chargeId: pending.id, correlationId: 'corr-b' });
+    } finally {
+      release();
+    }
 
-    expect([...results].sort()).toEqual(['NOT_CLAIMED', 'READY']);
+    expect(second).toBe('NOT_CLAIMED');
+    expect(await first).toBe('READY');
     expect(provider.charges.size - before).toBe(1);
     expect(issuedEvents(tenantId)).toHaveLength(1);
   });
@@ -318,7 +323,7 @@ describe('IssueNextChargesJob (integration, UC-113)', () => {
           .withId(account!.id)
           .withTenantId(tenantId)
           .withTaxId('11144477735', 'CPF')
-          .withAddress(address)
+          .withAddress(new AddressBuilder().build())
           .build(),
       ),
     );

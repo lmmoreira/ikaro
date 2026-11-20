@@ -166,10 +166,16 @@ describe('IssueChargeForSubscriptionUseCase (UC-113)', () => {
       expect(subscription.nextDueDate?.value).toBe(DUE_IN_LEAD);
     });
 
-    it('an unknown tenant is NOT_FOUND', async () => {
+    it('another tenant cannot issue a subscription: its id finds nothing and the real one is untouched', async () => {
+      const subscription = activeSubscription().build();
+      await h.seedTenant(subscription);
+
       await expect(
-        h.issueOne.execute({ tenantId: 'nobody', correlationId: 'corr-1' }),
+        h.issueOne.execute({ tenantId: 'another-tenant', correlationId: 'corr-1' }),
       ).resolves.toEqual({ outcome: 'NOT_FOUND' });
+
+      expect(storedCharges(subscription)).toHaveLength(0);
+      expect(subscription.nextDueDate?.value).toBe(DUE_IN_LEAD);
     });
   });
 
@@ -205,6 +211,11 @@ describe('IssueChargeForSubscriptionUseCase (UC-113)', () => {
     await h.seedTenant(subscription);
 
     await expect(issue(subscription)).resolves.toMatchObject({ outcome: 'ISSUED' });
+
+    // The same instant a day later in the due date is out of the lead by the local date.
+    const outside = activeSubscription('2026-03-31').build();
+    await h.seedTenant(outside);
+    await expect(issue(outside)).resolves.toEqual({ outcome: 'NOT_DUE' });
   });
 
   describe('trials', () => {
@@ -213,6 +224,7 @@ describe('IssueChargeForSubscriptionUseCase (UC-113)', () => {
         .withStatus('TRIALING')
         .withAnchorDay(20)
         .withNextDueDate(nextDueDate)
+        .withTrialEndsAt(new Date(`${nextDueDate}T03:00:00Z`))
         .withPlanConfirmedAt(confirmed ? new Date('2026-03-01T12:00:00Z') : null)
         .withItems([h.hotsiteItem()])
         .build();

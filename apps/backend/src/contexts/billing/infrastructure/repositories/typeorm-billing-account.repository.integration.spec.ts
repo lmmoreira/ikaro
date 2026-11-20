@@ -284,7 +284,11 @@ describe('TypeOrmBillingAccountRepository (integration)', () => {
 
       expect(await accounts.assignProviderCustomer(tenantId, 'ASAAS', 'cus_1')).toBe(true);
       expect(await accounts.assignProviderCustomer(tenantId, 'ASAAS', 'cus_2')).toBe(false);
-      expect((await accounts.findByTenantId(tenantId))?.providerCustomerId).toBe('cus_1');
+      // The same customer id under another provider is another customer: refused, nothing repointed.
+      expect(await accounts.assignProviderCustomer(tenantId, 'STRIPE', 'cus_1')).toBe(false);
+      const found = await accounts.findByTenantId(tenantId);
+      expect(found?.providerCustomerId).toBe('cus_1');
+      expect(found?.provider).toBe('ASAAS');
     });
 
     it("never touches another tenant's account, and reports a tenant with no account", async () => {

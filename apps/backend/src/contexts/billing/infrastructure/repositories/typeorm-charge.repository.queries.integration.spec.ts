@@ -279,8 +279,22 @@ describe('TypeOrmChargeRepository queries, claim and isolation (integration)', (
 
       expect(ids(await repo.listOpenForJob(100)).sort()).toEqual([pending.id, overdue.id].sort());
       expect(ids(await repo.listOpenDueForJob('2026-03-10', 100))).toEqual([pending.id]);
-      expect(ids(await repo.listPendingCreationForJob(now, 100))).toEqual([pending.id, overdue.id]);
+      expect(ids(await repo.listPendingCreationForJob(now, 100))).toEqual(
+        [pending.id, overdue.id].sort(),
+      );
       expect(ids(await repo.listProviderCancelPendingForJob(100))).toEqual([cancelled.id]);
+    });
+
+    it('the creation retry pages on from the last charge id it was given', async () => {
+      const t = await newTenant();
+      const a = await seed(t, (b) => b.withPeriod('2026-06-01', '2026-06-30'));
+      const b = await seed(t, (builder) => builder.withPeriod('2026-07-01', '2026-07-31'));
+      const mineIds = (refs: { id: string }[]): string[] =>
+        refs.filter((r) => [a.id, b.id].includes(r.id)).map((r) => r.id);
+      const [low, high] = [a.id, b.id].sort();
+
+      expect(mineIds(await repo.listPendingCreationForJob(new Date(), 100, low))).toEqual([high]);
+      expect(mineIds(await repo.listPendingCreationForJob(new Date(), 100, high))).toEqual([]);
     });
 
     it('the creation retry skips a charge whose lease is still held', async () => {

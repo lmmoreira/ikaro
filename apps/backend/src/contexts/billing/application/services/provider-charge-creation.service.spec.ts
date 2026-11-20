@@ -1,10 +1,9 @@
-import { countrySpec } from '@ikaro/i18n';
-import { Address } from '../../../../shared/value-objects/address';
 import {
   BillingAccountBuilder,
   ChargeBuilder,
   SubscriptionBuilder,
 } from '../../../../test/builders/billing';
+import { AddressBuilder } from '../../../../test/builders/shared';
 import { AdvanceableClock } from '../../../../test/infrastructure/advanceable-clock';
 import { InMemoryBillingPlatformPort } from '../../../../test/infrastructure/in-memory-billing-platform.port';
 import { InMemoryOutboxPublisher } from '../../../../test/infrastructure/in-memory-outbox-publisher';
@@ -49,19 +48,6 @@ class RecordingProvider extends FakeBillingProvider {
   }
 }
 
-const address = (): Address =>
-  Address.create(
-    {
-      street: 'Rua das Flores',
-      number: '100',
-      neighborhood: 'Centro',
-      city: 'Belo Horizonte',
-      state: 'MG',
-      zipCode: '30130-110',
-    },
-    countrySpec('BR').address,
-  );
-
 describe('ProviderChargeCreationService', () => {
   let clock: AdvanceableClock;
   let outbox: InMemoryOutboxPublisher;
@@ -81,7 +67,7 @@ describe('ProviderChargeCreationService', () => {
       new BillingAccountBuilder()
         .withTenantId(tenantId)
         .withTaxId('11144477735', 'CPF')
-        .withAddress(address()),
+        .withAddress(new AddressBuilder().build()),
     ).build();
     await accounts.save(account);
     return account;
@@ -204,6 +190,14 @@ describe('ProviderChargeCreationService', () => {
       .withMerchantProfileKey('USD_FAKE')
       .build();
     await subscriptions.save(other);
+    platform.seed({
+      tenantId: other.tenantId,
+      slug: 'tenant-us',
+      countryCode: 'US',
+      timezone: 'America/New_York',
+      createdAt: NOW,
+      isActive: true,
+    });
     const usCharge = new ChargeBuilder()
       .withTenantId(other.tenantId)
       .withSubscriptionId(other.id)
@@ -295,6 +289,63 @@ describe('ProviderChargeCreationService', () => {
       expect(provider.inputs).toHaveLength(0);
     },
   );
+
+  it('EXEMPT: a charge left PENDING before the tenant became exempt is never sent to the provider', async () => {
+    await seedAccount();
+    const exempt = new SubscriptionBuilder().withStatus('ACTIVE').withExempt(true).build();
+    await subscriptions.save(exempt);
+    const orphan = new ChargeBuilder()
+      .withTenantId(exempt.tenantId)
+      .withSubscriptionId(exempt.id)
+      .build();
+    await charges.save(orphan);
+
+    await expect(
+      service.execute({
+        tenantId: exempt.tenantId,
+        chargeId: orphan.id,
+        correlationId: CORRELATION_ID,
+      }),
+    ).resolves.toBe('EXEMPT');
+
+    expect(provider.inputs).toHaveLength(0);
+    expect(await charges.claimForProviderCreation(exempt.tenantId, orphan.id, clock.now())).toBe(
+      true,
+    );
+  });
+
+  it('TENANT_INACTIVE: a deactivated tenant is never sent to the provider, the retry path included', async () => {
+    await seedAccount();
+    platform.seed({
+      tenantId,
+      slug: 'lavacar-bh',
+      countryCode: 'BR',
+      timezone: 'America/Sao_Paulo',
+      createdAt: NOW,
+      isActive: false,
+    });
+
+    await expect(run()).resolves.toBe('TENANT_INACTIVE');
+
+    expect(provider.inputs).toHaveLength(0);
+  });
+
+  it('flags a charge cancelled while the provider call was in flight, so the cancel retry removes it', async () => {
+    await seedAccount();
+    provider.beforeCreate = async () => {
+      const cancelled = await charges.findById(tenantId, charge.id);
+      cancelled?.cancel();
+      if (cancelled) await charges.save(cancelled);
+    };
+
+    await expect(run()).resolves.toBe('READY');
+
+    const stored = await charges.findById(tenantId, charge.id);
+    expect(stored?.status).toBe('CANCELED');
+    expect(stored?.providerChargeId).not.toBeNull();
+    expect(stored?.providerCancelPending).toBe(true);
+    expect(outbox.published.filter((e) => e.eventName === 'ChargeIssued')).toHaveLength(0);
+  });
 
   it('NOT_FOUND: another tenant cannot reach the charge', async () => {
     await seedAccount();

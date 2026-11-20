@@ -1,5 +1,6 @@
 import { ChargeBuilder, SubscriptionBuilder } from '../../../../test/builders/billing';
 import { createIssueHarness } from '../../../../test/infrastructure/billing-issue-harness';
+import { BILLING_JOB_PAGE_SIZE } from '../../domain/billing-constants';
 import type { Charge } from '../../domain/charge.aggregate';
 import type { Subscription } from '../../domain/subscription.aggregate';
 
@@ -73,5 +74,31 @@ describe('RetryPendingChargeCreationUseCase (UC-113 A2)', () => {
     await h.charges.claimForProviderCreation(subscription.tenantId, charge.id, h.clock.now());
 
     await expect(run()).resolves.toEqual({ selected: 0, ready: 0 });
+  });
+
+  it('a page of held charges never starves a healthy one behind them', async () => {
+    const padded = (n: number): string => `00000000-0000-7000-8000-${String(n).padStart(12, '0')}`;
+    for (let i = 0; i < BILLING_JOB_PAGE_SIZE; i++) {
+      const held = new SubscriptionBuilder().withStatus('ACTIVE').build();
+      await h.seedTenant(held, { billable: false });
+      await h.charges.save(
+        new ChargeBuilder()
+          .withId(padded(i))
+          .withTenantId(held.tenantId)
+          .withSubscriptionId(held.id)
+          .build(),
+      );
+    }
+    const healthy = new SubscriptionBuilder().withStatus('ACTIVE').build();
+    await h.seedTenant(healthy);
+    await h.charges.save(
+      new ChargeBuilder()
+        .withId('ffffffff-0000-7000-8000-000000000001')
+        .withTenantId(healthy.tenantId)
+        .withSubscriptionId(healthy.id)
+        .build(),
+    );
+
+    await expect(run()).resolves.toEqual({ selected: BILLING_JOB_PAGE_SIZE + 1, ready: 1 });
   });
 });

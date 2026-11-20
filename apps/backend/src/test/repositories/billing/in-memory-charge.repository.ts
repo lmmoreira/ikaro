@@ -110,14 +110,25 @@ export class InMemoryChargeRepository implements IChargeRepository {
     return true;
   }
 
-  async listPendingCreationForJob(now: Date, limit: number): Promise<ChargeRef[]> {
-    return this.refs(
-      this.saved.filter((c) => {
+  // In charge-id order, one page after `afterId`, like the production query.
+  async listPendingCreationForJob(
+    now: Date,
+    limit: number,
+    afterId?: string,
+  ): Promise<ChargeRef[]> {
+    return this.saved
+      .filter((c) => {
         const claim = this.leaseOf(c);
-        return c.open && this.awaitingCreation(c) && (!claim || this.leaseFree(claim, now));
-      }),
-      limit,
-    );
+        return (
+          c.open &&
+          this.awaitingCreation(c) &&
+          (!claim || this.leaseFree(claim, now)) &&
+          (afterId === undefined || c.id > afterId)
+        );
+      })
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .slice(0, limit)
+      .map((c) => ({ tenantId: c.tenantId, id: c.id }));
   }
 
   async listOpenDueForJob(dueOnOrBefore: string, limit: number): Promise<ChargeRef[]> {

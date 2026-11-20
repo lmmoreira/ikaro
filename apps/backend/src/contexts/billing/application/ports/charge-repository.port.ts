@@ -75,10 +75,12 @@ export interface IChargeRepository {
 
   /**
    * Open charges waiting for the provider whose lease is free at `now` (never attempted, or last
-   * attempted more than the lease ago), least recently attempted first: the creation retry.
+   * attempted more than the lease ago), ordered by charge id, one page after `afterId`: the creation
+   * retry. A charge the retry skips (held identity, a profile with no adapter) stays selected, so
+   * the caller pages on from the last id it was given instead of asking for the head again.
    * `IDX_billing_charges_creation_retry`.
    */
-  listPendingCreationForJob(now: Date, limit: number): Promise<ChargeRef[]>;
+  listPendingCreationForJob(now: Date, limit: number, afterId?: string): Promise<ChargeRef[]>;
 
   /** Open charges whose due date is `<= dueOnOrBefore` (due soon / overdue sweep): `IDX_billing_charges_open`. */
   listOpenDueForJob(dueOnOrBefore: string, limit: number): Promise<ChargeRef[]>;

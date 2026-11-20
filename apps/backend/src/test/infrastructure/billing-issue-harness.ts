@@ -1,5 +1,3 @@
-import { countrySpec } from '@ikaro/i18n';
-import { Address } from '../../shared/value-objects/address';
 import { IssueChargeForSubscriptionUseCase } from '../../contexts/billing/application/use-cases/issue-charge-for-subscription.use-case';
 import { IssueNextChargesJob } from '../../contexts/billing/application/jobs/issue-next-charges.job';
 import { RetryPendingChargeCreationUseCase } from '../../contexts/billing/application/use-cases/retry-pending-charge-creation.use-case';
@@ -14,6 +12,7 @@ import {
   FeaturePriceVersionBuilder,
   SubscriptionItemBuilder,
 } from '../builders/billing';
+import { AddressBuilder } from '../builders/shared';
 import { InMemoryBillingAccountRepository } from '../repositories/billing/in-memory-billing-account.repository';
 import { InMemoryChargeRepository } from '../repositories/billing/in-memory-charge.repository';
 import { InMemoryFeaturePriceRepository } from '../repositories/billing/in-memory-feature-price.repository';
@@ -63,25 +62,12 @@ export function createIssueHarness() {
     accounts,
     charges,
     prices,
-    platform,
     txManager,
     clock,
     creation,
   );
   const retry = new RetryPendingChargeCreationUseCase(charges, clock, creation);
   const issueNext = new IssueNextChargesJob(subscriptions, clock, issueOne, retry);
-
-  const address = Address.create(
-    {
-      street: 'Rua das Flores',
-      number: '100',
-      neighborhood: 'Centro',
-      city: 'Belo Horizonte',
-      state: 'MG',
-      zipCode: '30130-110',
-    },
-    countrySpec('BR').address,
-  );
 
   // HOTSITE STANDARD at R$ 49,00 since the start of the year.
   prices.seed(
@@ -101,7 +87,8 @@ export function createIssueHarness() {
   ): Promise<void> {
     await subscriptions.save(subscription);
     const account = new BillingAccountBuilder().withTenantId(subscription.tenantId);
-    if (options.billable !== false) account.withTaxId('11144477735', 'CPF').withAddress(address);
+    if (options.billable !== false)
+      account.withTaxId('11144477735', 'CPF').withAddress(new AddressBuilder().build());
     await accounts.save(account.build());
     platform.seed({
       tenantId: subscription.tenantId,

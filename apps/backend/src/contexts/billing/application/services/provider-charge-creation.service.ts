@@ -7,7 +7,9 @@ import {
 } from '../../../../shared/ports/transaction-manager.port';
 import type { BillingAccount, BillingProvider } from '../../domain/billing-account.aggregate';
 import type { Charge } from '../../domain/charge.aggregate';
+import { BillingTenantNotFoundError } from '../../domain/errors/billing-domain.error';
 import { ProviderNotSupportedError } from '../../domain/errors/billing-provider.errors';
+import type { Subscription } from '../../domain/subscription.aggregate';
 import { providerOfMerchantProfileKey } from '../../domain/merchant-profile-key';
 import { resolveBillingRecipientEmail } from '../helpers/billing-recipient-email.helper';
 import {
@@ -20,6 +22,7 @@ import {
   type BillingProviderPort,
   type BillingProviderRegistryPort,
   type CreateProviderChargeInput,
+  type CreatedProviderCharge,
 } from '../ports/billing-provider.port';
 import {
   BILLING_PROVISIONING_CONFIG,
@@ -39,8 +42,8 @@ export interface CreateProviderChargeCommand {
 
 /**
  * What became of one creation attempt. Only `READY` and `ALREADY_READY` leave a payable charge;
- * every other outcome leaves the charge `PENDING` for the retry query (or, for `NOT_PENDING` and
- * `NOT_CLAIMED`, belongs to someone else), and none of them throws: a provider failure is part of
+ * every other outcome leaves the charge `PENDING` for the retry query (or, for `NOT_PENDING`,
+ * `EXEMPT`, `TENANT_INACTIVE` and `NOT_CLAIMED`, is not this attempt's to make), and none of them throws: a provider failure is part of
  * the design, not an error of the run.
  */
 export type ProviderChargeCreationResult =
@@ -48,6 +51,8 @@ export type ProviderChargeCreationResult =
   | 'ALREADY_READY'
   | 'NOT_FOUND'
   | 'NOT_PENDING'
+  | 'EXEMPT'
+  | 'TENANT_INACTIVE'
   | 'HELD'
   | 'PROVIDER_UNSUPPORTED'
   | 'NOT_CLAIMED'
@@ -84,12 +89,15 @@ export class ProviderChargeCreationService {
     if (!charge.open || charge.providerCreationStatus === 'READY') return 'NOT_PENDING';
     const subscription = await this.subscriptions.findByTenantId(tenantId);
     if (subscription === null) return 'NOT_FOUND';
+    // Free access and a deactivated tenant are never invoiced, whichever path inserted the charge.
+    if (subscription.exempt) return 'EXEMPT';
+    if (!(await this.tenantIsActive(tenantId))) return 'TENANT_INACTIVE';
 
     const adapter = this.resolveAdapter(subscription.merchantProfileKey, tenantId);
     if (adapter === null) return 'PROVIDER_UNSUPPORTED';
 
     const account = await this.accounts.findByTenantId(tenantId);
-    if (account === null || !account.hasBillableIdentity()) {
+    if (!account?.hasBillableIdentity()) {
       // A hold, not a failure: no claim, no attempt counted, so it never trips the stuck alert.
       this.logger.log('billing_charge_creation_held', { tenantId, chargeId });
       return 'HELD';
@@ -100,15 +108,7 @@ export class ProviderChargeCreationService {
     }
     try {
       const provider = providerOfMerchantProfileKey(subscription.merchantProfileKey);
-      const providerCustomerId = await this.ensureCustomer(
-        adapter,
-        account,
-        provider,
-        subscription.exempt,
-      );
-      const created = await adapter.createCharge(
-        this.providerInput(charge, account, providerCustomerId),
-      );
+      const created = await this.createAtProvider(adapter, charge, account, subscription);
       await this.storeReady(command, account, subscription.exempt, provider, created);
       return 'READY';
     } catch (err) {
@@ -120,6 +120,34 @@ export class ProviderChargeCreationService {
         error: err instanceof Error ? err.message : String(err),
       });
       return 'PROVIDER_FAILED';
+    }
+  }
+
+  // The customer first (saved before the charge, so a fast webhook can resolve the tenant), then the
+  // charge, whose id is the provider's idempotency key.
+  private async createAtProvider(
+    adapter: BillingProviderPort,
+    charge: Charge,
+    account: BillingAccount,
+    subscription: Subscription,
+  ): Promise<CreatedProviderCharge> {
+    const provider = providerOfMerchantProfileKey(subscription.merchantProfileKey);
+    const providerCustomerId = await this.ensureCustomer(
+      adapter,
+      account,
+      provider,
+      subscription.exempt,
+    );
+    return adapter.createCharge(this.providerInput(charge, account, providerCustomerId));
+  }
+
+  /** A deactivated tenant is never invoiced (UC-113 A11); one Platform no longer knows is treated the same. */
+  async tenantIsActive(tenantId: string): Promise<boolean> {
+    try {
+      return (await this.platform.getTenantInfo(tenantId)).isActive;
+    } catch (err) {
+      if (err instanceof BillingTenantNotFoundError) return false;
+      throw err;
     }
   }
 
@@ -205,6 +233,9 @@ export class ProviderChargeCreationService {
         created.expiresAt,
         { correlationId: command.correlationId, recipientEmail },
       );
+      // Cancelled locally while the provider call was in flight: the provider now holds a payable
+      // charge nobody wants, so the cancel retry has to remove it.
+      if (locked.status === 'CANCELED') locked.markProviderCancelPending();
       await this.charges.save(locked);
     });
   }

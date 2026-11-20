@@ -10,10 +10,7 @@ import { mapSequentially } from '../../../../shared/utils/sequential';
 import { CalendarDate } from '../../../../shared/value-objects/calendar-date.vo';
 import type { Charge } from '../../domain/charge.aggregate';
 import { chargePriceKey } from '../../domain/charge-price-key';
-import {
-  BillingTenantNotFoundError,
-  FeaturePriceNotFoundError,
-} from '../../domain/errors/billing-domain.error';
+import { FeaturePriceNotFoundError } from '../../domain/errors/billing-domain.error';
 import { ChargeAlreadyExistsError } from '../../domain/errors/charge-already-exists.error';
 import { PeriodChargeFactory } from '../../domain/period-charge.factory';
 import type { SelectionEntry } from '../../domain/plan-selection';
@@ -25,7 +22,6 @@ import {
   BILLING_ACCOUNT_REPOSITORY,
   IBillingAccountRepository,
 } from '../ports/billing-account-repository.port';
-import { BILLING_PLATFORM_PORT, type IBillingPlatformPort } from '../ports/billing-platform.port';
 import { CHARGE_REPOSITORY, IChargeRepository } from '../ports/charge-repository.port';
 import {
   FEATURE_PRICE_REPOSITORY,
@@ -83,7 +79,6 @@ export class IssueChargeForSubscriptionUseCase {
     @Inject(BILLING_ACCOUNT_REPOSITORY) private readonly accounts: IBillingAccountRepository,
     @Inject(CHARGE_REPOSITORY) private readonly charges: IChargeRepository,
     @Inject(FEATURE_PRICE_REPOSITORY) private readonly prices: IFeaturePriceRepository,
-    @Inject(BILLING_PLATFORM_PORT) private readonly platform: IBillingPlatformPort,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     @Inject(CLOCK) private readonly clock: IClock,
     private readonly creation: ProviderChargeCreationService,
@@ -95,7 +90,7 @@ export class IssueChargeForSubscriptionUseCase {
     const { tenantId } = input;
     const subscription = await this.subscriptions.findByTenantId(tenantId);
     if (subscription === null) return { outcome: 'NOT_FOUND' };
-    if (!(await this.tenantIsActive(tenantId))) return { outcome: 'TENANT_INACTIVE' };
+    if (!(await this.creation.tenantIsActive(tenantId))) return { outcome: 'TENANT_INACTIVE' };
     if (!this.creation.supportsProfile(subscription.merchantProfileKey, tenantId)) {
       return { outcome: 'PROVIDER_UNSUPPORTED' };
     }
@@ -108,16 +103,6 @@ export class IssueChargeForSubscriptionUseCase {
       correlationId: input.correlationId,
     });
     return { outcome: 'ISSUED', creation };
-  }
-
-  // A deactivated tenant is never invoiced (A11); one Platform no longer knows is treated the same.
-  private async tenantIsActive(tenantId: string): Promise<boolean> {
-    try {
-      return (await this.platform.getTenantInfo(tenantId)).isActive;
-    } catch (err) {
-      if (err instanceof BillingTenantNotFoundError) return false;
-      throw err;
-    }
   }
 
   private async insertPeriodCharge(
@@ -152,7 +137,7 @@ export class IssueChargeForSubscriptionUseCase {
     }
 
     const account = await this.accounts.findByTenantId(tenantId);
-    if (account === null || !account.hasBillableIdentity()) {
+    if (!account?.hasBillableIdentity()) {
       this.logger.log('billing_issue_held: no valid tax id or billing address', { tenantId });
       return { outcome: 'HELD' };
     }

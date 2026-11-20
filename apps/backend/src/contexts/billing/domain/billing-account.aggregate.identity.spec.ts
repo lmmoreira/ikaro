@@ -1,32 +1,18 @@
-import { countrySpec } from '@ikaro/i18n';
-import { Address } from '../../../shared/value-objects/address';
 import { BillingAccountBuilder } from '../../../test/builders/billing';
-
-const address = (): Address =>
-  Address.create(
-    {
-      street: 'Rua das Flores',
-      number: '100',
-      neighborhood: 'Centro',
-      city: 'Belo Horizonte',
-      state: 'MG',
-      zipCode: '30130-110',
-    },
-    countrySpec('BR').address,
-  );
+import { AddressBuilder } from '../../../test/builders/shared';
 
 describe('BillingAccount.hasBillableIdentity (UC-113 A8 / A9)', () => {
   it('is true with a tax id and a full address', () => {
     const account = new BillingAccountBuilder()
       .withTaxId('11144477735', 'CPF')
-      .withAddress(address())
+      .withAddress(new AddressBuilder().build())
       .build();
 
     expect(account.hasBillableIdentity()).toBe(true);
   });
 
   it('A8: is false without the tax id Brazil requires', () => {
-    const account = new BillingAccountBuilder().withAddress(address()).build();
+    const account = new BillingAccountBuilder().withAddress(new AddressBuilder().build()).build();
 
     expect(account.hasBillableIdentity()).toBe(false);
   });

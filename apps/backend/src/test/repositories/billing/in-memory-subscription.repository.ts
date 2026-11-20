@@ -2,6 +2,7 @@ import type { FeatureKey } from '@ikaro/validation';
 import { drainDomainEvents } from '../../../shared/infrastructure/outbox/drain-domain-events';
 import { IOutboxPublisher } from '../../../shared/ports/outbox-publisher.port';
 import {
+  DueIssueRef,
   ISubscriptionRepository,
   ListOperatorSubscriptionsQuery,
   OperatorSubscriptionSummary,
@@ -43,19 +44,26 @@ export class InMemorySubscriptionRepository implements ISubscriptionRepository {
       .map((subscription) => subscription.tenantId);
   }
 
-  // The TRIALING / ACTIVE, non-exempt subscriptions due on or before the date, soonest first.
-  async findDueForIssueForJob(dueOnOrBefore: string, limit: number): Promise<string[]> {
+  // The TRIALING / ACTIVE, non-exempt subscriptions due on or before the date, in the production
+  // order (due date, then tenant), one page after the given row.
+  async findDueForIssueForJob(
+    dueOnOrBefore: string,
+    limit: number,
+    after?: DueIssueRef,
+  ): Promise<DueIssueRef[]> {
+    const key = (ref: DueIssueRef): string => `${ref.nextDueDate}|${ref.tenantId}`;
     return this.saved
-      .filter(
-        (subscription) =>
-          (subscription.status === 'TRIALING' || subscription.status === 'ACTIVE') &&
-          !subscription.exempt &&
-          subscription.nextDueDate !== null &&
-          subscription.nextDueDate.value <= dueOnOrBefore,
+      .flatMap((subscription) =>
+        (subscription.status === 'TRIALING' || subscription.status === 'ACTIVE') &&
+        !subscription.exempt &&
+        subscription.nextDueDate !== null &&
+        subscription.nextDueDate.value <= dueOnOrBefore
+          ? [{ tenantId: subscription.tenantId, nextDueDate: subscription.nextDueDate.value }]
+          : [],
       )
-      .sort((a, b) => (a.nextDueDate?.value ?? '').localeCompare(b.nextDueDate?.value ?? ''))
-      .slice(0, limit)
-      .map((subscription) => subscription.tenantId);
+      .filter((ref) => after === undefined || key(ref) > key(after))
+      .sort((a, b) => key(a).localeCompare(key(b)))
+      .slice(0, limit);
   }
 
   // Operational and not on a trial (a trial grants every feature): no active item for the feature.

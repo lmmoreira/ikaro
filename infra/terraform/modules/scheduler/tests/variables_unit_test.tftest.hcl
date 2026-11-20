@@ -78,7 +78,7 @@ run "rejects_cron_topic_ids_with_an_orphan_cron_topic" {
       cron-chatbot-balance-poll               = "projects/ikaro-test/topics/ikaro-cron-chatbot-balance-poll"
       cron-lead-form-retention                = "projects/ikaro-test/topics/ikaro-cron-lead-form-retention"
       cron-resource-occupancy-retention-purge = "projects/ikaro-test/topics/ikaro-cron-resource-occupancy-retention-purge"
-    cron-billing-issue-charges              = "projects/ikaro-test/topics/ikaro-cron-billing-issue-charges"
+      cron-billing-issue-charges              = "projects/ikaro-test/topics/ikaro-cron-billing-issue-charges"
       # A 10th cron-* topic from the pubsub catalog with no matching Scheduler
       # job in locals.jobs — the exact drift this validation guards against.
       cron-something-new = "projects/ikaro-test/topics/ikaro-cron-something-new"

@@ -14,5 +14,5 @@ export const CHARGE_ISSUE_LEAD_DAYS = 10;
 /** A trial whose plan is still unconfirmed is invoiced from the default selection this many days before it ends (UC-113 A10). */
 export const PLAN_CONFIRM_FALLBACK_DAYS = 3;
 
-/** The most subscriptions one run of the issue job selects; a full batch logs a warning and the rest wait for the next run. */
-export const BILLING_ISSUE_JOB_BATCH_LIMIT = 500;
+/** How many rows one page of a Billing job's selection returns; a run pages on until the selection is exhausted. */
+export const BILLING_JOB_PAGE_SIZE = 500;

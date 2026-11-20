@@ -1,6 +1,6 @@
 import { SubscriptionBuilder } from '../../../../test/builders/billing';
 import { createIssueHarness } from '../../../../test/infrastructure/billing-issue-harness';
-import { BILLING_ISSUE_JOB_BATCH_LIMIT } from '../../domain/billing-constants';
+import { BILLING_JOB_PAGE_SIZE } from '../../domain/billing-constants';
 import type { Subscription } from '../../domain/subscription.aggregate';
 
 // The harness clock is 12:00 São Paulo on 2026-03-10: the lead reaches 03-20, the query's slack 03-21.
@@ -99,17 +99,33 @@ describe('IssueNextChargesJob (UC-113)', () => {
     expect(chargesOf(stuck)[0].providerCreationStatus).toBe('READY');
   });
 
-  it('a full batch is capped at the limit and the rest wait for the next run', async () => {
-    const subscriptions = Array.from({ length: BILLING_ISSUE_JOB_BATCH_LIMIT + 1 }, () =>
+  it('pages through every due subscription, not just the first page', async () => {
+    const subscriptions = Array.from({ length: BILLING_JOB_PAGE_SIZE + 1 }, () =>
       subscriptionDue('2026-03-20'),
     );
-    for (const subscription of subscriptions) await h.subscriptions.save(subscription);
+    for (const subscription of subscriptions) await h.seedTenant(subscription);
 
-    const selected = await h.subscriptions.findDueForIssueForJob(
-      '2026-03-21',
-      BILLING_ISSUE_JOB_BATCH_LIMIT,
-    );
+    const result = await run();
 
-    expect(selected).toHaveLength(BILLING_ISSUE_JOB_BATCH_LIMIT);
+    expect(result).toMatchObject({
+      selected: BILLING_JOB_PAGE_SIZE + 1,
+      outcomes: { ISSUED: BILLING_JOB_PAGE_SIZE + 1 },
+    });
+    expect(h.charges.saved).toHaveLength(BILLING_JOB_PAGE_SIZE + 1);
+  });
+
+  it('a page of subscriptions that stay due (held identity) never starves a healthy one behind them', async () => {
+    // Earlier due dates sort first: with a head-only selection, a full page of held subscriptions
+    // would be returned again and again and the healthy one would never be reached.
+    for (let i = 0; i < BILLING_JOB_PAGE_SIZE; i++) {
+      await h.seedTenant(subscriptionDue('2026-03-05'), { billable: false });
+    }
+    const healthy = subscriptionDue('2026-03-20');
+    await h.seedTenant(healthy);
+
+    const result = await run();
+
+    expect(result.outcomes).toEqual({ HELD: BILLING_JOB_PAGE_SIZE, ISSUED: 1 });
+    expect(chargesOf(healthy)).toHaveLength(1);
   });
 });

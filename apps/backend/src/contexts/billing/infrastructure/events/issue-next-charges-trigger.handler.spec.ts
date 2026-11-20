@@ -15,10 +15,7 @@ describe('IssueNextChargesTriggerHandler', () => {
         .mockResolvedValue({ selected: 0, outcomes: {}, retrySelected: 0, retryReady: 0 }),
     };
     triggerBus = new InMemoryEventBus();
-    handler = new IssueNextChargesTriggerHandler(
-      useCase as unknown as IssueNextChargesJob,
-      triggerBus,
-    );
+    handler = new IssueNextChargesTriggerHandler(useCase, triggerBus);
   });
 
   it('registers cron-billing-issue-charges with the billing-issue-next-charges consumer on init', () => {
@@ -32,6 +29,20 @@ describe('IssueNextChargesTriggerHandler', () => {
       IssueNextChargesTriggerHandler.CONSUMER_NAME,
     );
     expect(CRON_BILLING_ISSUE_CHARGES_TRIGGER).toBe('cron-billing-issue-charges');
+  });
+
+  it('the registered callback runs the job, and a failed run propagates so the message is nacked', async () => {
+    let registered: (() => Promise<void>) | undefined;
+    jest.spyOn(triggerBus, 'registerTrigger').mockImplementation((_name, callback) => {
+      registered = callback;
+    });
+    handler.onModuleInit();
+
+    await registered?.();
+    expect(useCase.run).toHaveBeenCalledTimes(1);
+
+    useCase.run.mockRejectedValue(new Error('boom'));
+    await expect(registered?.()).rejects.toThrow('boom');
   });
 
   it('calls the one job with a fresh correlation id for each run', async () => {

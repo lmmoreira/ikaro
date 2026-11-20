@@ -8,6 +8,7 @@ import { getActiveEntityManager } from '../../../../shared/infrastructure/transa
 import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
 import { mapSequentially } from '../../../../shared/utils/sequential';
 import {
+  DueIssueRef,
   ISubscriptionRepository,
   ListOperatorSubscriptionsQuery,
   OperatorSubscriptionSummary,
@@ -85,11 +86,12 @@ export class TypeOrmSubscriptionRepository implements ISubscriptionRepository {
   // Cross-tenant job selector (M26-S05). The two predicates are literals on purpose: the partial
   // index `IDX_billing_subscriptions_issuing` (status IN TRIALING/ACTIVE AND NOT exempt) is used
   // only when the planner can prove the query implies it, which a bound parameter would hide.
-  async findDueForIssueForJob(dueOnOrBefore: string, limit: number): Promise<string[]> {
-    const rows = await this.buildDueForIssueQuery(dueOnOrBefore, limit).getRawMany<{
-      tenantId: string;
-    }>();
-    return rows.map((row) => row.tenantId);
+  async findDueForIssueForJob(
+    dueOnOrBefore: string,
+    limit: number,
+    after?: DueIssueRef,
+  ): Promise<DueIssueRef[]> {
+    return this.buildDueForIssueQuery(dueOnOrBefore, limit, after).getRawMany<DueIssueRef>();
   }
 
   async listSummaries(
@@ -131,16 +133,23 @@ export class TypeOrmSubscriptionRepository implements ISubscriptionRepository {
   buildDueForIssueQuery(
     dueOnOrBefore: string,
     limit: number,
+    after?: DueIssueRef,
   ): SelectQueryBuilder<SubscriptionEntity> {
-    return this.repo
+    const query = this.repo
       .createQueryBuilder('s')
       .select('s.tenantId', 'tenantId')
+      // A raw `date` column is not turned into the entity's string here, so it is cast.
+      .addSelect('CAST(s.nextDueDate AS text)', 'nextDueDate')
       .where("s.status IN ('TRIALING', 'ACTIVE')")
       .andWhere('NOT s.exempt')
-      .andWhere('s.nextDueDate <= :dueOnOrBefore', { dueOnOrBefore })
-      .orderBy('s.nextDueDate', 'ASC')
-      .addOrderBy('s.tenantId', 'ASC')
-      .limit(limit);
+      .andWhere('s.nextDueDate <= :dueOnOrBefore', { dueOnOrBefore });
+    if (after) {
+      query.andWhere('(s.nextDueDate, s.tenantId) > (:afterDate, :afterTenant)', {
+        afterDate: after.nextDueDate,
+        afterTenant: after.tenantId,
+      });
+    }
+    return query.orderBy('s.nextDueDate', 'ASC').addOrderBy('s.tenantId', 'ASC').limit(limit);
   }
 
   buildNotEntitledQuery(featureKey: FeatureKey, now: Date): SelectQueryBuilder<SubscriptionEntity> {

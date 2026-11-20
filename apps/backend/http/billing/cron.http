@@ -15,3 +15,6 @@
 ### Issue the next charges (UC-113): every subscription due within 10 days, then the creation retry
 POST {{baseUrl}}/cron/billing-issue-charges
 X-Internal-Key: {{internalKey}}
+
+### Without the internal key: refused with 401 (the route is internal-only, behind InternalApiGuard)
+POST {{baseUrl}}/cron/billing-issue-charges

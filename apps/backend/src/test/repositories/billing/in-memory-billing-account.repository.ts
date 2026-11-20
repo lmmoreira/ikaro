@@ -33,7 +33,7 @@ export class InMemoryBillingAccountRepository implements IBillingAccountReposito
     const account = this.saved.find((row) => row.tenantId === tenantId);
     if (!account) return false;
     account.assignProviderCustomer(provider, providerCustomerId);
-    return account.providerCustomerId === providerCustomerId;
+    return account.provider === provider && account.providerCustomerId === providerCustomerId;
   }
 
   // Mirrors `UNIQUE(tenant_id)`: a second account for one tenant is refused.

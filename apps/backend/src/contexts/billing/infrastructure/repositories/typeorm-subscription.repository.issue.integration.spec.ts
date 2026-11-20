@@ -84,7 +84,8 @@ describe('TypeOrmSubscriptionRepository.findDueForIssueForJob (integration, UC-1
   });
 
   // Other tests' rows share the table, so every assertion looks at this spec's own tenants only.
-  const mine = (ids: string[]): string[] => ids.filter((id) => tenants.includes(id));
+  const mine = (refs: { tenantId: string }[]): string[] =>
+    refs.map((ref) => ref.tenantId).filter((id) => tenants.includes(id));
 
   it('selects TRIALING and ACTIVE subscriptions due on or before the date, soonest first', async () => {
     const later = await seed('ACTIVE', '2026-03-20');
@@ -105,6 +106,22 @@ describe('TypeOrmSubscriptionRepository.findDueForIssueForJob (integration, UC-1
     const ids = await repo.findDueForIssueForJob('2026-03-21', 1000);
 
     expect(mine(ids)).toEqual([]);
+  });
+
+  it('pages on from the row it is given, past subscriptions that stay due', async () => {
+    const first = await seed('ACTIVE', '2026-03-01');
+    const second = await seed('ACTIVE', '2026-03-02');
+    const third = await seed('TRIALING', '2026-03-03');
+
+    const all = await repo.findDueForIssueForJob('2026-03-21', 1000);
+    const start = all.findIndex((ref) => ref.tenantId === first);
+    const afterFirst = await repo.findDueForIssueForJob('2026-03-21', 1000, all[start]);
+
+    expect(all[start].nextDueDate).toBe('2026-03-01');
+    expect(mine(afterFirst)).toEqual([second, third]);
+    const pageOfOne = await repo.findDueForIssueForJob('2026-03-21', 1, all[start]);
+    expect(pageOfOne).toHaveLength(1);
+    expect(pageOfOne[0].tenantId).toBe(all[start + 1].tenantId);
   });
 
   it('is capped at the limit', async () => {

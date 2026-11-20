@@ -112,8 +112,12 @@ export class TypeOrmChargeRepository implements IChargeRepository {
     return rows.length === 1;
   }
 
-  async listPendingCreationForJob(now: Date, limit: number): Promise<ChargeRef[]> {
-    return this.refs(this.buildPendingCreationQuery(now, limit));
+  async listPendingCreationForJob(
+    now: Date,
+    limit: number,
+    afterId?: string,
+  ): Promise<ChargeRef[]> {
+    return this.refs(this.buildPendingCreationQuery(now, limit, afterId));
   }
 
   async listOpenDueForJob(dueOnOrBefore: string, limit: number): Promise<ChargeRef[]> {
@@ -145,18 +149,21 @@ export class TypeOrmChargeRepository implements IChargeRepository {
       .skip(query.offset);
   }
 
-  buildPendingCreationQuery(now: Date, limit: number): SelectQueryBuilder<ChargeEntity> {
-    return this.refQuery()
+  buildPendingCreationQuery(
+    now: Date,
+    limit: number,
+    afterId?: string,
+  ): SelectQueryBuilder<ChargeEntity> {
+    const query = this.refQuery()
       .where('c.status IN (:...statuses)', { statuses: OPEN_STATUSES })
       .andWhere('c.providerCreationStatus = :creationStatus', { creationStatus: 'PENDING' })
       .andWhere('c.providerChargeId IS NULL')
       .andWhere(
         `(c.providerCreationLastAttemptAt IS NULL OR c.providerCreationLastAttemptAt < :cutoff)`,
         { cutoff: new Date(now.getTime() - PROVIDER_CREATION_LEASE_MINUTES * 60_000) },
-      )
-      .orderBy('c.providerCreationLastAttemptAt', 'ASC', 'NULLS FIRST')
-      .addOrderBy('c.id', 'ASC')
-      .limit(limit);
+      );
+    if (afterId !== undefined) query.andWhere('c.id > :afterId', { afterId });
+    return query.orderBy('c.id', 'ASC').limit(limit);
   }
 
   buildOpenDueQuery(dueOnOrBefore: string, limit: number): SelectQueryBuilder<ChargeEntity> {

@@ -90,9 +90,10 @@ export class TypeOrmBillingAccountRepository implements IBillingAccountRepositor
       .update(BillingAccountEntity)
       .set({ provider, providerCustomerId })
       .where('tenant_id = :tenantId', { tenantId })
-      .andWhere('(provider_customer_id IS NULL OR provider_customer_id = :providerCustomerId)', {
-        providerCustomerId,
-      })
+      .andWhere(
+        '(provider_customer_id IS NULL OR (provider = :provider AND provider_customer_id = :providerCustomerId))',
+        { provider, providerCustomerId },
+      )
       .execute();
     return result.affected === 1;
   }
