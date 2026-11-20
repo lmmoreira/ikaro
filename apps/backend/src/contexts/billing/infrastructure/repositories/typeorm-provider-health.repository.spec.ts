@@ -78,8 +78,8 @@ describe('TypeOrmProviderHealthRepository', () => {
 
   it('lists only the keys of frozen rows, by the freeze flag and in key order', async () => {
     own.find.mockResolvedValueOnce([
-      { merchantProfileKey: 'A' } as ProviderHealthEntity,
-      { merchantProfileKey: 'B' } as ProviderHealthEntity,
+      new ProviderHealthEntityBuilder().withMerchantProfileKey('A').build(),
+      new ProviderHealthEntityBuilder().withMerchantProfileKey('B').build(),
     ]);
 
     await expect(repo.listFrozenKeys()).resolves.toEqual(['A', 'B']);

@@ -922,7 +922,7 @@ flowchart TD
 
 ## Billing — The status sweep: rule order, margins, freeze and recovery path (M26-S06)
 
-UC-115. Code: `SweepSubscriptionStatusesJob` (`application/jobs/`), `SweepOneSubscriptionUseCase`, `SubscriptionSweepRules`, `RecoveryChargePlanner`, `ProviderChargeCancellationService` and `ProviderChargeCreationService` (`application/services/`), the `Subscription` transitions `markPastDue` / `suspendForNonPayment` / `suspendCanceled` / `activateAfterTrial` and the pure date rules in `subscription-sweep-window.ts`. Locks are `docs/LOCK_CATALOG.md` (B-R1, then B-C1 one charge at a time); the trigger contract is `docs/API_CONTRACTS.md` § Billing cron triggers.
+UC-115. Code: `SweepSubscriptionStatusesJob` (`application/jobs/`), `SweepOneSubscriptionUseCase`, `SubscriptionSweepRules`, `RecoveryChargePlanner`, `ProviderChargeCancellationService` and `ProviderChargeCreationService` (`application/services/`), the `Subscription` transitions `markPastDue` / `suspendForNonPayment` / `suspendCanceled` / `activateAfterTrial` and the pure date rules in `subscription-sweep-window.ts`. Locks are `docs/LOCK_CATALOG.md` (B-R1, then B-C1 on every charge the run may touch in one batched, ordered query); the trigger contract is `docs/API_CONTRACTS.md` § Billing cron triggers.
 
 ```mermaid
 flowchart TD
@@ -951,7 +951,7 @@ flowchart TD
 |---|---|---|---|
 | 1 | Overdue | a `PENDING` charge **with a payment link** has a tenant-local due date before today | `OVERDUE`; a `PERIOD` charge also moves an `ACTIVE` subscription to `PAST_DUE` (`past_due_since = now`, `SubscriptionPastDue` announcing the grace end). A charge with no link is neither: nobody could pay it |
 | 4 | Cancel-at | `cancel_at` reached, status still has access | `SUSPENDED (CANCELED)`, no recovery charge, **not held back by a freeze** (the manager's own decision at a known date) |
-| 5 | Trial → paid | trial over and the first charge is `PAID` | `ACTIVE`: the period starts at `trial_ends_at` and is the first charge's own month, the anchor day is the trial-end local day clamped to 28, `next_due_date` stays where the issue job put it |
+| 5 | Trial → paid | trial over and the current trial's first charge is `PAID` (its period starts on the day the trial ends, so an older paid invoice of a subscription that was exempted and cleared never stands in for it) | `ACTIVE`: the period starts at `trial_ends_at` and is the first charge's own month, the anchor day is the trial-end local day clamped to 28, `next_due_date` stays where the issue job put it |
 | 2 | Trial end | trial over, margin passed, first charge unpaid, none, or `REFUNDED` | straight to `SUSPENDED (NON_PAYMENT)`: there is no `PAST_DUE` after a trial |
 | 3 | Past due | `now` is past `grace_until` when one is set (it replaces the 14 days and is never shorter), else past `past_due_since` + 14 days | `SUSPENDED (NON_PAYMENT)` |
 

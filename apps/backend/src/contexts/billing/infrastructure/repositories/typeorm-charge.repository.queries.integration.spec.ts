@@ -15,6 +15,7 @@ import { SubscriptionEntity } from '../entities/subscription.entity';
 import {
   buildOpenDueQuery,
   buildOpenQuery,
+  buildPageQuery,
   buildPendingCreationQuery,
   buildProviderCancelPendingQuery,
 } from './typeorm-charge.job-queries';
@@ -331,7 +332,7 @@ describe('TypeOrmChargeRepository queries, claim and isolation (integration)', (
       const chargeRepo = dataSource.getRepository(ChargeEntity);
 
       expect(
-        await indexesUsed(repo.buildPageQuery(manager, t.tenantId, { limit: 10, offset: 0 })),
+        await indexesUsed(buildPageQuery(manager, t.tenantId, { limit: 10, offset: 0 })),
       ).toContain('IDX_billing_charges_history');
       expect(
         await indexesUsed(buildPendingCreationQuery(chargeRepo, new Date(), 10), [

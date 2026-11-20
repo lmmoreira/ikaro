@@ -184,7 +184,7 @@ run_check "15. All new @Injectable() classes registered in module"
 # 25. New entity files declare tenant_id column
 # The platform-wide tables with no tenant owner are the documented exemptions of
 # docs/TENANT_ISOLATION_STRATEGY.md (billing.provider_health: one row per merchant profile key).
-TENANT_FREE_ENTITIES='provider-health\.entity\.ts$'
+TENANT_FREE_ENTITIES='contexts/billing/infrastructure/entities/provider-health\.entity\.ts$'
 > "$TMP"
 while IFS= read -r f; do
   [ -z "$f" ] || [ ! -f "$f" ] && continue

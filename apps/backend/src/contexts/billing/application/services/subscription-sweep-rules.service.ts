@@ -1,6 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { todayInTimezone } from '../../../../shared/utils/calendar-date';
-import { mapSequentially } from '../../../../shared/utils/sequential';
 import type { Charge } from '../../domain/charge.aggregate';
 import type { Subscription } from '../../domain/subscription.aggregate';
 import { CHARGE_REPOSITORY, IChargeRepository } from '../ports/charge-repository.port';
@@ -40,8 +39,8 @@ export interface SweepChanges {
 }
 
 /**
- * One run over one subscription: the charges it locked (a second ask for the same id returns the
- * same instance, so two rules never save two copies of one charge) and what it changed.
+ * One run over one subscription: the charges it locked (once, in one query, so a charge two rules
+ * touch is one instance and is saved once) and what it changed.
  */
 class SweepRun {
   readonly changes: SweepChanges = {
@@ -52,21 +51,28 @@ class SweepRun {
     cancelAtProvider: [],
     deferred: false,
   };
-  private readonly locked = new Map<string, Charge>();
+  private locked: readonly Charge[] = [];
+  private firstChargeId: string | null = null;
 
   constructor(
     readonly subscription: Subscription,
     readonly ctx: SweepContext,
-    private readonly charges: IChargeRepository,
   ) {}
 
-  /** B-C1 (`docs/LOCK_CATALOG.md`), after the subscription row the caller already holds. */
-  async lock(chargeId: string): Promise<Charge | null> {
-    const known = this.locked.get(chargeId);
-    if (known) return known;
-    const charge = await this.charges.findByIdForUpdate(this.subscription.tenantId, chargeId);
-    if (charge) this.locked.set(chargeId, charge);
-    return charge;
+  /** The charges the run holds `FOR UPDATE` (B-C1), in id order, and which of them is the trial's first. */
+  holds(locked: readonly Charge[], firstChargeId: string | null): void {
+    this.locked = locked;
+    this.firstChargeId = firstChargeId;
+  }
+
+  /** The locked charges that can still be paid. */
+  openCharges(): Charge[] {
+    return this.locked.filter((charge) => charge.open);
+  }
+
+  /** The current trial's first invoice, locked, whatever its status; `null` when there is none. */
+  firstCharge(): Charge | null {
+    return this.locked.find((charge) => charge.id === this.firstChargeId) ?? null;
   }
 
   changed(charge: Charge): void {
@@ -87,10 +93,11 @@ class SweepRun {
  * The status sweep's rules for one subscription (UC-115), each a separate private step, applied in
  * the order that settles every overlap: overdue (1), cancel-at (4), trial end and trial to paid (2
  * and 5), past due (3). Cancel-at therefore wins over non-payment, so a tenant who cancelled is not
- * asked to pay a month to reactivate. It reads, locks and mutates aggregates and builds the recovery
- * charge; the caller owns the transaction and the saves, and every provider call is outside it.
- * A suspended subscription never changes reason: the predicates only fire for a status that still
- * has access.
+ * asked to pay a month to reactivate. It locks every charge it may touch in **one** batched,
+ * ordered query (B-C1, after the subscription row the caller holds), then reads, mutates and builds
+ * the recovery charge on those locked instances; the caller owns the transaction and the saves, and
+ * every provider call is outside it. A suspended subscription never changes reason: the predicates
+ * only fire for a status that still has access.
  */
 @Injectable()
 export class SubscriptionSweepRules {
@@ -100,29 +107,43 @@ export class SubscriptionSweepRules {
   ) {}
 
   async apply(subscription: Subscription, ctx: SweepContext): Promise<SweepChanges> {
-    const run = new SweepRun(subscription, ctx, this.charges);
-    await this.markOverdue(run);
+    const run = new SweepRun(subscription, ctx);
+    await this.lockCharges(run);
+    this.markOverdue(run);
     if (this.cancelDue(run)) return run.changes;
     await this.settleTrial(run);
     await this.suspendPastDue(run);
     return run.changes;
   }
 
+  // The charges every rule may touch, locked together: the open ones (overdue, stale) and, once the
+  // trial window is over, the first invoice of the current trial (paid or not). The lists are read
+  // under the subscription lock, so they cannot change meanwhile; the locked rows are what the rules
+  // then judge, so a status moved by a short post-provider-call transaction is seen.
+  private async lockCharges(run: SweepRun): Promise<void> {
+    const { subscription, ctx } = run;
+    const open = await this.charges.findOpenByTenant(subscription.tenantId);
+    const from = subscription.firstInvoiceFrom;
+    const first =
+      subscription.hasTrialEnded(ctx.now) && from !== null
+        ? await this.charges.findFirstPeriodCharge(subscription.tenantId, subscription.id, from)
+        : null;
+    const ids = [...new Set([...open.map((c) => c.id), ...(first ? [first.id] : [])])];
+    run.holds(await this.charges.findByIdsForUpdate(subscription.tenantId, ids), first?.id ?? null);
+  }
+
   // Rule 1: a `PENDING` charge the payer could pay (provider creation `READY`) whose tenant-local
   // due date has passed becomes `OVERDUE`; a `PERIOD` one also moves an `ACTIVE` subscription to
   // `PAST_DUE`. A charge with no payment link yet is neither: nobody could pay it.
-  private async markOverdue(run: SweepRun): Promise<void> {
+  private markOverdue(run: SweepRun): void {
     const { subscription, ctx } = run;
     const today = todayInTimezone(subscription.timezone.value, ctx.now);
-    const open = await this.charges.findOpenByTenant(subscription.tenantId);
-    await mapSequentially(open, async (candidate) => {
+    for (const charge of run.openCharges()) {
       const isOverdue =
-        candidate.status === 'PENDING' &&
-        candidate.providerCreationStatus === 'READY' &&
-        candidate.dueDate.value < today;
-      if (!isOverdue) return;
-      const charge = await run.lock(candidate.id);
-      if (charge?.status !== 'PENDING') return;
+        charge.status === 'PENDING' &&
+        charge.providerCreationStatus === 'READY' &&
+        charge.dueDate.value < today;
+      if (!isOverdue) continue;
       charge.markOverdue();
       run.changed(charge);
       run.step('OVERDUE');
@@ -130,7 +151,7 @@ export class SubscriptionSweepRules {
         charge.kind === 'PERIOD' &&
         subscription.markPastDue(ctx.now, ctx.correlationId, ctx.recipientEmail);
       if (pastDue) run.subscriptionMoved('PAST_DUE');
-    });
+    }
   }
 
   // Rule 4: `cancelAt` reached. Not a payment judgement, so the freeze never holds it back, and no
@@ -149,8 +170,7 @@ export class SubscriptionSweepRules {
   private async settleTrial(run: SweepRun): Promise<void> {
     const { subscription, ctx } = run;
     if (!subscription.hasTrialEnded(ctx.now)) return;
-    const found = await this.charges.findFirstPeriodCharge(subscription.tenantId, subscription.id);
-    const first = found === null ? null : await run.lock(found.id);
+    const first = run.firstCharge();
     if (first?.status === 'PAID') {
       if (subscription.activateAfterTrial(ctx.now)) run.subscriptionMoved('TRIAL_ACTIVATED');
       return;
@@ -185,24 +205,19 @@ export class SubscriptionSweepRules {
     const { subscription, ctx } = run;
     if (!subscription.suspendForNonPayment(ctx.now, ctx.correlationId, ctx.recipientEmail)) return;
     run.subscriptionMoved(step);
-    await this.cancelStale(run);
+    this.cancelStale(run);
     run.changes.recovery = await this.planner.plan(subscription, ctx.now, ctx.priceCache);
   }
 
-  private async cancelStale(run: SweepRun): Promise<void> {
-    const open = await this.charges.findOpenByTenant(run.subscription.tenantId);
-    await mapSequentially(
-      open.filter((candidate) => candidate.kind !== 'RECOVERY'),
-      async (candidate) => {
-        const charge = await run.lock(candidate.id);
-        if (!charge?.open) return;
-        charge.cancel();
-        if (charge.providerChargeId !== null) {
-          charge.markProviderCancelPending();
-          run.changes.cancelAtProvider.push(charge.id);
-        }
-        run.changed(charge);
-      },
-    );
+  private cancelStale(run: SweepRun): void {
+    for (const charge of run.openCharges()) {
+      if (charge.kind === 'RECOVERY') continue;
+      charge.cancel();
+      if (charge.providerChargeId !== null) {
+        charge.markProviderCancelPending();
+        run.changes.cancelAtProvider.push(charge.id);
+      }
+      run.changed(charge);
+    }
   }
 }

@@ -1,3 +1,4 @@
+import { AppLogger } from '../../../../shared/observability/app-logger';
 import { ProviderHealthBuilder, SubscriptionBuilder } from '../../../../test/builders/billing';
 import {
   createSweepHarness,
@@ -174,6 +175,29 @@ describe('SweepSubscriptionStatusesJob (UC-115)', () => {
 
       expect(healthy.status).toBe('SUSPENDED');
       expect(broken.status).toBe('PAST_DUE');
+    });
+
+    it('the run line counts every subscription visited, the failed ones included, and every failed subscription once', async () => {
+      const brokenA = await pastDue();
+      const brokenB = await pastDue();
+      await pastDue();
+      const original = h.subscriptions.findByTenantIdForUpdate.bind(h.subscriptions);
+      jest.spyOn(h.subscriptions, 'findByTenantIdForUpdate').mockImplementation((tenantId) => {
+        if (tenantId === brokenA.tenantId || tenantId === brokenB.tenantId) {
+          throw new Error('lock failed');
+        }
+        return original(tenantId);
+      });
+      const logged = jest.spyOn(AppLogger.prototype, 'log');
+
+      await expect(run()).rejects.toThrow('2 subscriptions failed to sweep');
+
+      const [, context] = logged.mock.calls.find(
+        ([message]) => message === 'billing_status_sweep_run',
+      )!;
+      // Two failures in one page are two failed subscriptions (not one failed page), and the
+      // failing tenants were visited like the healthy one.
+      expect(context).toMatchObject({ selected: 3, failed: 2, selectionFailed: 0 });
     });
 
     it('pages through every candidate, not just the first page', async () => {

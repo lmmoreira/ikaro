@@ -37,6 +37,8 @@ export interface SweepSubscriptionStatusesJobResult {
   steps: Partial<Record<SweepStep, number>>;
   /** Suspensions that were due but waited for a provider answer. */
   deferred: number;
+  /** The subscriptions whose sweep threw (a failed selection page is counted apart, in the run log). */
+  failed: number;
 }
 
 /** One selection page: a `tenantId` and whatever the next page's keyset needs. */
@@ -51,6 +53,8 @@ interface SweepRun {
   readonly visited: Set<string>;
   readonly result: SweepSubscriptionStatusesJobResult;
   readonly failures: unknown[];
+  /** Selection pages that could not be read: their subscriptions were not visited this run. */
+  selectionFailures: number;
 }
 
 /**
@@ -85,8 +89,9 @@ export class SweepSubscriptionStatusesJob {
       frozenProfileKeys: new Set(await this.health.listFrozenKeys()),
       priceCache: new Map(),
       visited: new Set(),
-      result: { selected: 0, outcomes: {}, steps: {}, deferred: 0 },
+      result: { selected: 0, outcomes: {}, steps: {}, deferred: 0, failed: 0 },
       failures: [],
+      selectionFailures: 0,
     };
     // Charges are due in each subscription's own zone, so the selection takes the UTC date and
     // each subscription re-checks its local date (a charge due today UTC can still be a day ahead).
@@ -106,7 +111,7 @@ export class SweepSubscriptionStatusesJob {
     this.logger.log('billing_status_sweep_run', {
       correlationId: input.correlationId,
       ...sweep.result,
-      failed: sweep.failures.length,
+      selectionFailed: sweep.selectionFailures,
     });
     if (sweep.failures.length > 0) throw sweep.failures[0];
     return sweep.result;
@@ -120,6 +125,7 @@ export class SweepSubscriptionStatusesJob {
   ): Promise<void> {
     const page = await fetch(after).catch((err: unknown) => {
       sweep.failures.push(err);
+      sweep.selectionFailures += 1;
       return null;
     });
     if (page === null) return;
@@ -139,6 +145,7 @@ export class SweepSubscriptionStatusesJob {
       tenantIds,
       async (tenantId) => {
         sweep.visited.add(tenantId);
+        sweep.result.selected += 1;
         const swept = await this.sweepOne.execute({
           tenantId,
           correlationId: sweep.input.correlationId,
@@ -148,12 +155,14 @@ export class SweepSubscriptionStatusesJob {
         this.tally(sweep.result, swept);
       },
       {
-        onFailure: (tenantId, err) =>
+        onFailure: (tenantId, err) => {
+          sweep.result.failed += 1;
           this.logger.error('billing_sweep_failed', undefined, {
             tenantId,
             correlationId: sweep.input.correlationId,
             error: err instanceof Error ? err.message : String(err),
-          }),
+          });
+        },
         summarize: (failed) => `${failed.length} subscriptions failed to sweep`,
       },
     );
@@ -163,7 +172,6 @@ export class SweepSubscriptionStatusesJob {
     result: SweepSubscriptionStatusesJobResult,
     swept: { outcome: SweepOneOutcome; steps: readonly SweepStep[]; deferred: boolean },
   ): void {
-    result.selected += 1;
     result.outcomes[swept.outcome] = (result.outcomes[swept.outcome] ?? 0) + 1;
     for (const step of swept.steps) result.steps[step] = (result.steps[step] ?? 0) + 1;
     if (swept.deferred) result.deferred += 1;

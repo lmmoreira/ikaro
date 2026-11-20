@@ -34,7 +34,12 @@ describe('SweepOneSubscriptionUseCase (UC-115)', () => {
       .withItems([h.hotsiteItem()])
       .build();
     await h.seedTenant(subscription);
-    const first = await h.seedCharge(subscription, { dueDate: '2026-03-09', ...options });
+    // The trial's invoice covers the month from the day the trial ends.
+    const first = await h.seedCharge(subscription, {
+      dueDate: '2026-03-09',
+      period: ['2026-03-09', '2026-04-08'],
+      ...options,
+    });
     return { subscription, first };
   };
   const pastDue = async (options: { billable?: boolean } = {}) => {
@@ -74,6 +79,20 @@ describe('SweepOneSubscriptionUseCase (UC-115)', () => {
     expect(result.outcome).toBe('EXEMPT');
     expect(subscription.status).toBe('ACTIVE');
     expect(h.outbox.published).toEqual([]);
+  });
+
+  it('sweeping one tenant never touches another tenant that is also due', async () => {
+    const other = await pastDue();
+    const swept = await pastDue();
+    h.outbox.published.length = 0;
+
+    await sweep(swept.subscription);
+
+    expect(swept.subscription.status).toBe('SUSPENDED');
+    expect(other.subscription.status).toBe('PAST_DUE');
+    expect(other.stale.status).toBe('OVERDUE');
+    expect(recoveryOf(other.subscription)).toBeUndefined();
+    expect(h.outbox.published.every((e) => e.tenantId === swept.subscription.tenantId)).toBe(true);
   });
 
   it('decides exemption on the locked row: a stale snapshot that says "not exempt" does not get a tenant suspended', async () => {
@@ -122,6 +141,21 @@ describe('SweepOneSubscriptionUseCase (UC-115)', () => {
       expect(subscription.status).toBe('SUSPENDED');
       expect(subscription.suspensionReason).toBe('NON_PAYMENT');
       expect(result.steps).toEqual(expect.arrayContaining(['TRIAL_SUSPENDED']));
+    });
+
+    it('never trusts an "unpaid" answer that does not describe the charge: the suspension waits', async () => {
+      const { subscription } = await unpaidTrial();
+      const real = h.provider.fetchChargeStatus.bind(h.provider);
+      // The provider's charge is for another amount than ours: it cannot be the same invoice.
+      jest
+        .spyOn(h.provider, 'fetchChargeStatus')
+        .mockImplementation(async (id) => ({ ...(await real(id)), amountMinor: 1 }));
+
+      const result = await sweep(subscription);
+
+      expect(result.deferred).toBe(true);
+      expect(subscription.status).toBe('TRIALING');
+      expect(recoveryOf(subscription)).toBeUndefined();
     });
 
     it('leaves the trial alone when the provider cannot be asked, and suspends on the next run', async () => {

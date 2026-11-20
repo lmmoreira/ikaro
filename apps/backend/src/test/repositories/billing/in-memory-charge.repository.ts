@@ -45,6 +45,13 @@ export class InMemoryChargeRepository implements IChargeRepository {
     return this.findById(tenantId, id);
   }
 
+  // No real row lock here, but the same contract: the tenant's charges among the ids, in id order.
+  async findByIdsForUpdate(tenantId: string, ids: readonly string[]): Promise<Charge[]> {
+    return this.saved
+      .filter((c) => c.tenantId === tenantId && ids.includes(c.id))
+      .sort((a, b) => a.id.localeCompare(b.id));
+  }
+
   async findByProviderChargeId(
     tenantId: string,
     provider: BillingProvider,
@@ -81,8 +88,12 @@ export class InMemoryChargeRepository implements IChargeRepository {
     );
   }
 
-  // The earliest period start that is not cancelled, like the production query.
-  async findFirstPeriodCharge(tenantId: string, subscriptionId: string): Promise<Charge | null> {
+  // The earliest period start of the current trial that is not cancelled, like the production query.
+  async findFirstPeriodCharge(
+    tenantId: string,
+    subscriptionId: string,
+    periodStartOnOrAfter: string,
+  ): Promise<Charge | null> {
     return (
       this.saved
         .filter(
@@ -91,7 +102,8 @@ export class InMemoryChargeRepository implements IChargeRepository {
             c.subscriptionId === subscriptionId &&
             c.kind === 'PERIOD' &&
             c.status !== 'CANCELED' &&
-            c.periodStart !== null,
+            c.periodStart !== null &&
+            c.periodStart.value >= periodStartOnOrAfter,
         )
         .sort((a, b) => a.periodStart!.value.localeCompare(b.periodStart!.value))[0] ?? null
     );

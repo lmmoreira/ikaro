@@ -20,12 +20,12 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const at = (iso: string): Date => new Date(iso);
 const ago = (days: number): Date => new Date(NOW.getTime() - days * DAY_MS);
 
-// Records which charge rows were locked (B-C1) and in which order.
+// Records every batch of charge rows locked (B-C1): one call, the ids in the order asked for.
 class RecordingCharges extends InMemoryChargeRepository {
-  readonly locked: string[] = [];
-  override async findByIdForUpdate(tenantId: string, id: string): Promise<Charge | null> {
-    this.locked.push(id);
-    return super.findByIdForUpdate(tenantId, id);
+  readonly lockCalls: string[][] = [];
+  override async findByIdsForUpdate(tenantId: string, ids: readonly string[]): Promise<Charge[]> {
+    this.lockCalls.push([...ids]);
+    return super.findByIdsForUpdate(tenantId, ids);
   }
 }
 
@@ -72,6 +72,8 @@ describe('SubscriptionSweepRules (UC-115)', () => {
       providerChargeId?: string;
       returned?: boolean;
       recovery?: boolean;
+      /** The current trial's first invoice: its period starts on the day the trial ends. */
+      first?: boolean;
     },
   ): Promise<Charge> => {
     const builder = new ChargeBuilder()
@@ -79,7 +81,12 @@ describe('SubscriptionSweepRules (UC-115)', () => {
       .withSubscriptionId(subscription.id)
       .withDueDate(options.dueDate);
     if (options.recovery) builder.asRecovery();
-    else builder.withPeriod(...(options.period ?? ['2026-02-10', '2026-03-09']));
+    else if (options.first) {
+      const from = subscription.firstInvoiceFrom!;
+      const until = new Date(`${from}T00:00:00Z`);
+      until.setUTCDate(until.getUTCDate() + 29);
+      builder.withPeriod(from, until.toISOString().slice(0, 10));
+    } else builder.withPeriod(...(options.period ?? ['2026-02-10', '2026-03-09']));
     if (options.ready !== false) {
       builder.withProviderReady('ASAAS', options.providerChargeId ?? `prov-${options.dueDate}`);
     }
@@ -221,7 +228,7 @@ describe('SubscriptionSweepRules (UC-115)', () => {
       ['past the 24 h margin', ended, true],
     ])('%s → suspended = %s', async (_name, trialEndsAt, suspended) => {
       const subscription = trial(trialEndsAt);
-      const first = await chargeOf(subscription, { dueDate: '2026-03-09' });
+      const first = await chargeOf(subscription, { first: true, dueDate: '2026-03-09' });
 
       await rules.apply(subscription, ctx({ verifiedUnpaidChargeId: first.id }));
 
@@ -230,7 +237,7 @@ describe('SubscriptionSweepRules (UC-115)', () => {
 
     it('suspends directly with NON_PAYMENT (no PAST_DUE), cancels the stale first charge and issues the recovery charge', async () => {
       const subscription = trial();
-      const first = await chargeOf(subscription, { dueDate: '2026-03-09' });
+      const first = await chargeOf(subscription, { first: true, dueDate: '2026-03-09' });
 
       const changes = await rules.apply(subscription, ctx({ verifiedUnpaidChargeId: first.id }));
 
@@ -259,7 +266,11 @@ describe('SubscriptionSweepRules (UC-115)', () => {
 
     it('a stale charge with no payment link is cancelled locally only (nothing to cancel at the provider)', async () => {
       const subscription = trial();
-      const first = await chargeOf(subscription, { dueDate: '2026-03-09', ready: false });
+      const first = await chargeOf(subscription, {
+        first: true,
+        dueDate: '2026-03-09',
+        ready: false,
+      });
 
       const changes = await rules.apply(subscription, ctx());
 
@@ -281,17 +292,38 @@ describe('SubscriptionSweepRules (UC-115)', () => {
 
     it('a REFUNDED first charge counts as unpaid', async () => {
       const subscription = trial();
-      await chargeOf(subscription, { dueDate: '2026-03-09', status: 'REFUNDED' });
+      await chargeOf(subscription, { first: true, dueDate: '2026-03-09', status: 'REFUNDED' });
 
       await rules.apply(subscription, ctx());
 
       expect(subscription.status).toBe('SUSPENDED');
     });
 
+    it('an older trial’s paid invoice is not this trial’s first charge (exempted, then cleared: a new trial on the same history)', async () => {
+      const subscription = trial();
+      // Paid long before the current trial started: its period began before the trial's last day.
+      await chargeOf(subscription, {
+        dueDate: '2025-06-01',
+        period: ['2025-06-01', '2025-06-30'],
+        status: 'PAID',
+      });
+      const current = await chargeOf(subscription, { first: true, dueDate: '2026-03-09' });
+
+      const changes = await rules.apply(subscription, ctx({ verifiedUnpaidChargeId: current.id }));
+
+      expect(subscription.status).toBe('SUSPENDED');
+      expect(changes.steps).not.toContain('TRIAL_ACTIVATED');
+    });
+
     it('a return from the payment page only lengthens the margin while the first charge is still open', async () => {
       // Closed on Friday: the three-business-day margin would run to Wednesday and has not passed.
       const subscription = trial(at('2026-03-06T03:00:00Z'));
-      await chargeOf(subscription, { dueDate: '2026-03-05', status: 'REFUNDED', returned: true });
+      await chargeOf(subscription, {
+        first: true,
+        dueDate: '2026-03-05',
+        status: 'REFUNDED',
+        returned: true,
+      });
 
       await rules.apply(subscription, ctx());
 
@@ -312,7 +344,7 @@ describe('SubscriptionSweepRules (UC-115)', () => {
 
     it('waits for the provider’s fresh answer on a charge the provider knows, and tries again next run', async () => {
       const subscription = trial();
-      const first = await chargeOf(subscription, { dueDate: '2026-03-09' });
+      const first = await chargeOf(subscription, { first: true, dueDate: '2026-03-09' });
 
       const changes = await rules.apply(subscription, ctx({ verifiedUnpaidChargeId: null }));
 
@@ -324,7 +356,7 @@ describe('SubscriptionSweepRules (UC-115)', () => {
 
     it('an answer about another charge does not release the suspension', async () => {
       const subscription = trial();
-      await chargeOf(subscription, { dueDate: '2026-03-09' });
+      await chargeOf(subscription, { first: true, dueDate: '2026-03-09' });
 
       const changes = await rules.apply(subscription, ctx({ verifiedUnpaidChargeId: 'other' }));
 
@@ -334,7 +366,7 @@ describe('SubscriptionSweepRules (UC-115)', () => {
 
     it('a freeze holds the suspension back, with nothing else changed', async () => {
       const subscription = trial();
-      const first = await chargeOf(subscription, { dueDate: '2026-03-09' });
+      const first = await chargeOf(subscription, { first: true, dueDate: '2026-03-09' });
 
       const changes = await rules.apply(
         subscription,
@@ -354,7 +386,11 @@ describe('SubscriptionSweepRules (UC-115)', () => {
         ['trial closed Friday: Wednesday midnight is ahead', at('2026-03-06T03:00:00Z'), false],
       ])('%s → suspended = %s', async (_name, trialEndsAt, suspended) => {
         const subscription = trial(trialEndsAt);
-        const first = await chargeOf(subscription, { dueDate: '2026-03-05', returned: true });
+        const first = await chargeOf(subscription, {
+          first: true,
+          dueDate: '2026-03-05',
+          returned: true,
+        });
 
         await rules.apply(subscription, ctx({ verifiedUnpaidChargeId: first.id }));
 
@@ -369,7 +405,7 @@ describe('SubscriptionSweepRules (UC-115)', () => {
       const subscription = subscriptionOf(
         new SubscriptionBuilder().withStatus('TRIALING').withTrialEndsAt(trialEndsAt),
       );
-      await chargeOf(subscription, { dueDate: '2026-03-05', status: 'PAID' });
+      await chargeOf(subscription, { first: true, dueDate: '2026-03-05', status: 'PAID' });
 
       const changes = await rules.apply(subscription, ctx());
 
@@ -385,7 +421,7 @@ describe('SubscriptionSweepRules (UC-115)', () => {
           .withStatus('TRIALING')
           .withTrialEndsAt(at('2026-03-11T03:00:00Z')),
       );
-      await chargeOf(subscription, { dueDate: '2026-03-11', status: 'PAID' });
+      await chargeOf(subscription, { first: true, dueDate: '2026-03-11', status: 'PAID' });
 
       const changes = await rules.apply(subscription, ctx());
 
@@ -399,7 +435,7 @@ describe('SubscriptionSweepRules (UC-115)', () => {
           .withStatus('TRIALING')
           .withTrialEndsAt(at('2026-03-05T03:00:00Z')),
       );
-      await chargeOf(subscription, { dueDate: '2026-03-05', status: 'PAID' });
+      await chargeOf(subscription, { first: true, dueDate: '2026-03-05', status: 'PAID' });
 
       await rules.apply(subscription, ctx({ frozen: true }));
 
@@ -528,8 +564,25 @@ describe('SubscriptionSweepRules (UC-115)', () => {
 
       await rules.apply(subscription, ctx());
 
-      expect(charges.locked).toEqual([charge.id]);
+      expect(charges.lockCalls).toEqual([[charge.id]]);
       expect(charge.status).not.toBe('PAID');
+    });
+
+    it('locks every charge it may touch in one batched call, never one call per charge', async () => {
+      const subscription = subscriptionOf(new SubscriptionBuilder().withStatus('ACTIVE'));
+      const older = await chargeOf(subscription, {
+        dueDate: '2026-03-01',
+        period: ['2026-02-01', '2026-02-28'],
+      });
+      const newer = await chargeOf(subscription, {
+        dueDate: '2026-03-20',
+        period: ['2026-03-20', '2026-04-19'],
+      });
+
+      await rules.apply(subscription, ctx());
+
+      expect(charges.lockCalls).toHaveLength(1);
+      expect([...charges.lockCalls[0]].sort()).toEqual([older.id, newer.id].sort());
     });
 
     it('locks a charge once even when two rules touch it (one instance, one save)', async () => {
@@ -541,7 +594,7 @@ describe('SubscriptionSweepRules (UC-115)', () => {
 
       const changes = await rules.apply(subscription, ctx());
 
-      expect(charges.locked).toEqual([charge.id]);
+      expect(charges.lockCalls).toEqual([[charge.id]]);
       expect(changes.charges).toEqual([charge]);
       expect(charge.status).toBe('CANCELED');
     });

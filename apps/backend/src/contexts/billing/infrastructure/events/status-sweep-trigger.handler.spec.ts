@@ -10,7 +10,9 @@ describe('StatusSweepTriggerHandler', () => {
 
   beforeEach(() => {
     job = {
-      run: jest.fn().mockResolvedValue({ selected: 0, outcomes: {}, steps: {}, deferred: 0 }),
+      run: jest
+        .fn()
+        .mockResolvedValue({ selected: 0, outcomes: {}, steps: {}, deferred: 0, failed: 0 }),
     };
     triggerBus = new InMemoryEventBus();
     handler = new StatusSweepTriggerHandler(job, triggerBus);

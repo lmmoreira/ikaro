@@ -261,6 +261,49 @@ describe('Subscription — the status sweep (UC-115)', () => {
     });
   });
 
+  describe('what the sweep reads must not outlive the state it describes', () => {
+    it('an operator unsuspend returns the subscription without the PAST_DUE clock it carried in', () => {
+      const subscription = new SubscriptionBuilder()
+        .withStatus('PAST_DUE')
+        .withPastDueSince(at('2026-02-20T12:00:00Z'))
+        .withGraceUntil(at('2026-03-30T12:00:00Z'))
+        .withTrialEndsAt(null)
+        .build();
+      subscription.suspendByOperator(NOW, CORRELATION, EMAIL);
+
+      subscription.unsuspendOperator(NOW, CORRELATION, EMAIL);
+
+      expect(subscription.status).toBe('ACTIVE');
+      expect(subscription.pastDueSince).toBeNull();
+      expect(subscription.graceUntil).toBeNull();
+    });
+
+    it('a later PAST_DUE then judges its own 14 days, not the old operator grace', () => {
+      const subscription = new SubscriptionBuilder()
+        .withStatus('PAST_DUE')
+        .withPastDueSince(at('2026-02-20T12:00:00Z'))
+        .withGraceUntil(at('2026-03-30T12:00:00Z'))
+        .withTrialEndsAt(null)
+        .build();
+      subscription.suspendByOperator(NOW, CORRELATION, EMAIL);
+      subscription.unsuspendOperator(NOW, CORRELATION, EMAIL);
+      subscription.markPastDue(NOW, CORRELATION, EMAIL);
+
+      expect(subscription.isGraceOver(at('2026-03-24T15:00:00.001Z'))).toBe(true);
+    });
+
+    it('firstInvoiceFrom is the tenant-local day the trial ends', () => {
+      // 2026-03-24T02:30Z is still 2026-03-23 in São Paulo (UTC-3).
+      const subscription = new SubscriptionBuilder()
+        .withStatus('TRIALING')
+        .withTrialEndsAt(at('2026-03-24T02:30:00Z'))
+        .build();
+
+      expect(subscription.firstInvoiceFrom).toBe('2026-03-23');
+      expect(new SubscriptionBuilder().withTrialEndsAt(null).build().firstInvoiceFrom).toBeNull();
+    });
+  });
+
   describe('due predicates', () => {
     const trialEndsAt = at('2026-03-24T03:00:00Z');
     const trial = (): SubscriptionBuilder =>

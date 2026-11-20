@@ -1,4 +1,4 @@
-import { addDaysUTC, todayUTC } from '../../../../shared/utils/calendar-date';
+import { addDaysUTC, todayUTC, utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
 import { BillingAccountBuilder } from '../../../../test/builders/billing';
 import { AddressBuilder } from '../../../../test/builders/shared';
 import {
@@ -180,10 +180,18 @@ describe('SweepOneSubscriptionUseCase (integration, UC-115)', () => {
         configure: (b) => b.withStatus('TRIALING').withTrialEndsAt(world.daysAgo(2)),
       });
     const firstChargeDue = () => addDaysUTC(todayUTC(), -2);
+    // The trial's invoice covers the month from the tenant-local day the trial ended.
+    const firstInvoice = () => {
+      const from = utcDateToLocalDate(world.daysAgo(2), 'America/Sao_Paulo');
+      return {
+        dueDate: firstChargeDue(),
+        period: [from, addDaysUTC(from, 29)] as [string, string],
+      };
+    };
 
     it('a payment the webhook missed activates the trial instead of suspending it', async () => {
       const tenant = await trial();
-      const first = await world.seedCharge(tenant, { dueDate: firstChargeDue() });
+      const first = await world.seedCharge(tenant, firstInvoice());
       world.provider.simulatePayment(first.providerChargeId!, 'PIX');
 
       await sweep(tenant);
@@ -197,7 +205,7 @@ describe('SweepOneSubscriptionUseCase (integration, UC-115)', () => {
 
     it('an unpaid first charge suspends the trial directly and makes the recovery charge payable', async () => {
       const tenant = await trial();
-      const first = await world.seedCharge(tenant, { dueDate: firstChargeDue() });
+      const first = await world.seedCharge(tenant, firstInvoice());
 
       await sweep(tenant);
 
@@ -209,7 +217,7 @@ describe('SweepOneSubscriptionUseCase (integration, UC-115)', () => {
 
     it('a provider that cannot be asked leaves the trial untouched', async () => {
       const tenant = await trial();
-      await world.seedCharge(tenant, { dueDate: firstChargeDue() });
+      await world.seedCharge(tenant, firstInvoice());
       world.provider.failNextCall('UNAVAILABLE');
 
       const result = await sweep(tenant);

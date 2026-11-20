@@ -9,7 +9,11 @@ import { mapSequentially } from '../../../../shared/utils/sequential';
 import type { Charge } from '../../domain/charge.aggregate';
 import type { Subscription } from '../../domain/subscription.aggregate';
 import { resolveBillingRecipientEmail } from '../helpers/billing-recipient-email.helper';
-import { isPaidAtProvider, paidFactFromStatus } from '../helpers/charge-status-verification';
+import {
+  chargeStatusMismatch,
+  isPaidAtProvider,
+  paidFactFromStatus,
+} from '../helpers/charge-status-verification';
 import {
   BILLING_ACCOUNT_REPOSITORY,
   IBillingAccountRepository,
@@ -124,8 +128,9 @@ export class SweepOneSubscriptionUseCase {
     snapshot: Subscription,
     ctx: SweepContext,
   ): Promise<string | null> {
-    if (ctx.frozen || !snapshot.hasTrialEnded(ctx.now)) return null;
-    const first = await this.charges.findFirstPeriodCharge(snapshot.tenantId, snapshot.id);
+    const from = snapshot.firstInvoiceFrom;
+    if (ctx.frozen || !snapshot.hasTrialEnded(ctx.now) || from === null) return null;
+    const first = await this.charges.findFirstPeriodCharge(snapshot.tenantId, snapshot.id, from);
     if (first === null || !first.open || first.providerChargeId === null) return null;
     if (!snapshot.isTrialSettlementOver(ctx.now, first.paymentReturnSeenAt !== null)) return null;
     try {
@@ -161,8 +166,10 @@ export class SweepOneSubscriptionUseCase {
       });
       return null;
     }
-    // Paid at the provider but not matching this charge (amount, reference): never trusted either way.
-    return isPaidAtProvider(status) ? null : first.id;
+    // An answer that does not describe this charge (amount, reference) is never trusted either way:
+    // neither as a payment nor as "unpaid", so the suspension waits for the next run.
+    if (chargeStatusMismatch(status, first) !== null || isPaidAtProvider(status)) return null;
+    return first.id;
   }
 
   // One transaction, B-R1 first. The saves stay inline in this callback (the `transactional-save`

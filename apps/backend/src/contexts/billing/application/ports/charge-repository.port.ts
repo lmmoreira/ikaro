@@ -25,6 +25,16 @@ export interface IChargeRepository {
   findByIdForUpdate(tenantId: string, id: string): Promise<Charge | null>;
 
   /**
+   * Lock B-C1 on several charges of one tenant at once: **one** query, `ORDER BY id`, `FOR UPDATE`,
+   * their lines loaded in the same transaction. A use case that must lock more than one charge takes
+   * them here, never one `findByIdForUpdate` after another (one round trip while the subscription
+   * row is held, and one deterministic order). Answers the charges found, in id order; an unknown
+   * id is simply absent. Must run inside an active `ITransactionManager.run()`; throws outside one.
+   * Taken after B-R1.
+   */
+  findByIdsForUpdate(tenantId: string, ids: readonly string[]): Promise<Charge[]>;
+
+  /**
    * Cross-tenant job lookup by our own charge id (the id sent to the provider as the external
    * reference), for the webhook that outruns the provider customer's save. It takes no tenant, so
    * the caller must compare the charge's tenant with the one it already resolved. Primary key.
@@ -45,12 +55,19 @@ export interface IChargeRepository {
   findOpenRecoveryBySubscription(tenantId: string, subscriptionId: string): Promise<Charge | null>;
 
   /**
-   * The subscription's first `PERIOD` charge: the one with the earliest period start that is not
-   * `CANCELED` (a re-issued charge replaces a cancelled one). It is the trial's invoice for the
-   * status sweep (UC-115 rules 2 and 5); `null` when none was ever issued. Served by
-   * `UQ_billing_charges_period (tenant_id, subscription_id, period_start)`.
+   * The first `PERIOD` charge of the subscription's **current trial**: the one with the earliest
+   * period start on or after `periodStartOnOrAfter` that is not `CANCELED` (a re-issued charge
+   * replaces a cancelled one). A trial's invoice starts on the day the trial ends, so the caller
+   * passes that tenant-local date: a subscription that was exempted and then cleared starts a new
+   * trial but keeps its id and its history, and an older paid invoice must never stand in for the
+   * new trial's. The trial's invoice for the status sweep (UC-115 rules 2 and 5); `null` when none
+   * was issued. Served by `UQ_billing_charges_period (tenant_id, subscription_id, period_start)`.
    */
-  findFirstPeriodCharge(tenantId: string, subscriptionId: string): Promise<Charge | null>;
+  findFirstPeriodCharge(
+    tenantId: string,
+    subscriptionId: string,
+    periodStartOnOrAfter: string,
+  ): Promise<Charge | null>;
 
   /** One page of a tenant's history, newest due date first (id as tiebreak), with the unpaged total. */
   listByTenantPage(

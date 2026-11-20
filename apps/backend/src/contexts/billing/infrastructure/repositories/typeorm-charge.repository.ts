@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, In, Not, QueryFailedError, Repository, SelectQueryBuilder } from 'typeorm';
+import { EntityManager, In, MoreThanOrEqual, Not, QueryFailedError, Repository } from 'typeorm';
 import { drainDomainEvents } from '../../../../shared/infrastructure/outbox/drain-domain-events';
 import { runInNewTransaction } from '../../../../shared/infrastructure/run-in-new-transaction';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
@@ -30,6 +30,7 @@ import {
   buildOpenDueQuery,
   buildOpenQuery,
   buildOverdueCandidatesQuery,
+  buildPageQuery,
   buildPendingCreationQuery,
   buildProviderCancelPendingQuery,
 } from './typeorm-charge.job-queries';
@@ -63,6 +64,21 @@ export class TypeOrmChargeRepository implements IChargeRepository {
     return this.loadOne(manager, { tenantId, id }, true);
   }
 
+  // One query, ordered by id: the deterministic order every multi-charge lock takes (B-C1).
+  async findByIdsForUpdate(tenantId: string, ids: readonly string[]): Promise<Charge[]> {
+    const manager = getActiveEntityManager();
+    if (!manager) {
+      throw new Error('findByIdsForUpdate must be called inside an active transaction');
+    }
+    if (ids.length === 0) return [];
+    const entities = await manager.find(ChargeEntity, {
+      where: { tenantId, id: In([...ids]) },
+      order: { id: 'ASC' },
+      lock: { mode: 'pessimistic_write' },
+    });
+    return this.hydrate(manager, tenantId, entities);
+  }
+
   findByProviderChargeId(
     tenantId: string,
     provider: BillingProvider,
@@ -88,12 +104,22 @@ export class TypeOrmChargeRepository implements IChargeRepository {
     );
   }
 
-  // The earliest period start that is not cancelled, so a re-issued charge stands in for the one it
-  // replaced; served by `UQ_billing_charges_period`.
-  async findFirstPeriodCharge(tenantId: string, subscriptionId: string): Promise<Charge | null> {
+  // The earliest period start of the current trial that is not cancelled, so a re-issued charge
+  // stands in for the one it replaced; served by `UQ_billing_charges_period`.
+  async findFirstPeriodCharge(
+    tenantId: string,
+    subscriptionId: string,
+    periodStartOnOrAfter: string,
+  ): Promise<Charge | null> {
     const manager = this.readManager();
     const entity = await manager.findOne(ChargeEntity, {
-      where: { tenantId, subscriptionId, kind: 'PERIOD', status: Not('CANCELED') },
+      where: {
+        tenantId,
+        subscriptionId,
+        kind: 'PERIOD',
+        status: Not('CANCELED'),
+        periodStart: MoreThanOrEqual(periodStartOnOrAfter),
+      },
       order: { periodStart: 'ASC' },
     });
     if (!entity) return null;
@@ -105,7 +131,7 @@ export class TypeOrmChargeRepository implements IChargeRepository {
     query: ListChargesQuery,
   ): Promise<{ items: Charge[]; total: number }> {
     const manager = this.readManager();
-    const [rows, total] = await this.buildPageQuery(manager, tenantId, query).getManyAndCount();
+    const [rows, total] = await buildPageQuery(manager, tenantId, query).getManyAndCount();
     return { items: await this.hydrate(manager, tenantId, rows), total };
   }
 
@@ -164,22 +190,6 @@ export class TypeOrmChargeRepository implements IChargeRepository {
 
   listProviderCancelPendingForJob(limit: number): Promise<ChargeRef[]> {
     return buildProviderCancelPendingQuery(this.repo, limit).getRawMany<ChargeRef>();
-  }
-
-  // The page query is public so the integration spec can `EXPLAIN` the exact SQL that runs: it is
-  // served by `IDX_billing_charges_history`. The job queries are in `typeorm-charge.job-queries`.
-  buildPageQuery(
-    manager: EntityManager,
-    tenantId: string,
-    query: ListChargesQuery,
-  ): SelectQueryBuilder<ChargeEntity> {
-    return manager
-      .createQueryBuilder(ChargeEntity, 'c')
-      .where('c.tenantId = :tenantId', { tenantId })
-      .orderBy('c.dueDate', 'DESC')
-      .addOrderBy('c.id', 'DESC')
-      .take(query.limit)
-      .skip(query.offset);
   }
 
   // Reads join the caller's transaction when there is one, so a charge written earlier in it is seen.

@@ -1,5 +1,6 @@
-import { Repository, SelectQueryBuilder } from 'typeorm';
+import { EntityManager, Repository, SelectQueryBuilder } from 'typeorm';
 import type {
+  ListChargesQuery,
   OverdueChargeRef,
   PendingCreationRef,
 } from '../../application/ports/charge-repository.port';
@@ -15,6 +16,21 @@ const OPEN_STATUSES = ['PENDING', 'OVERDUE'];
 
 function refQuery(repo: Repository<ChargeEntity>): SelectQueryBuilder<ChargeEntity> {
   return repo.createQueryBuilder('c').select('c.tenantId', 'tenantId').addSelect('c.id', 'id');
+}
+
+/** The manager's charge history page (`IDX_billing_charges_history`): tenant-scoped, newest due date first. */
+export function buildPageQuery(
+  manager: EntityManager,
+  tenantId: string,
+  query: ListChargesQuery,
+): SelectQueryBuilder<ChargeEntity> {
+  return manager
+    .createQueryBuilder(ChargeEntity, 'c')
+    .where('c.tenantId = :tenantId', { tenantId })
+    .orderBy('c.dueDate', 'DESC')
+    .addOrderBy('c.id', 'DESC')
+    .take(query.limit)
+    .skip(query.offset);
 }
 
 export function buildPendingCreationQuery(

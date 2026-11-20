@@ -1,8 +1,10 @@
 import { DataSource, SelectQueryBuilder } from 'typeorm';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
+import { TypeOrmTransactionManager } from '../../../../shared/infrastructure/typeorm-transaction-manager';
 import { ChargeBuilder, SubscriptionEntityBuilder } from '../../../../test/builders/billing';
 import { InMemoryOutboxPublisher } from '../../../../test/infrastructure/in-memory-outbox-publisher';
 import { createTestDataSource } from '../../../../test/test-datasource';
+import { databaseNow, waitForBlockedLock } from '../../../../test/utils/booking-lock-race-world';
 import type { Charge } from '../../domain/charge.aggregate';
 import { ChargeEntity } from '../entities/charge.entity';
 import { SubscriptionEntity } from '../entities/subscription.entity';
@@ -186,7 +188,7 @@ describe('TypeOrmChargeRepository status-sweep reads (integration, UC-115)', () 
   });
 
   describe('findFirstPeriodCharge', () => {
-    it('answers the earliest period that is not cancelled, never a recovery charge or another tenant’s', async () => {
+    it('answers the earliest period of the trial that is not cancelled, never a recovery charge or another tenant’s', async () => {
       const t = await newTenant();
       const other = await newTenant();
       await seed(t, (b) => b.withPeriod('2026-01-10', '2026-02-09').withStatus('CANCELED'));
@@ -195,17 +197,101 @@ describe('TypeOrmChargeRepository status-sweep reads (integration, UC-115)', () 
       await seed(t, (b) => b.asRecovery());
       await seed(other, (b) => b.withPeriod('2025-12-10', '2026-01-09'));
 
-      const found = await repo.findFirstPeriodCharge(t.tenantId, t.subscriptionId);
+      const found = await repo.findFirstPeriodCharge(t.tenantId, t.subscriptionId, '2026-01-01');
 
       expect(found?.id).toBe(first.id);
       expect(found?.lines).toHaveLength(1);
+    });
+
+    it('is scoped to the current trial: an older paid invoice of the same subscription is not its first charge', async () => {
+      const t = await newTenant();
+      await seed(t, (b) =>
+        b.withPeriod('2025-06-01', '2025-06-30').withPaid('PIX', new Date('2025-06-02T12:00:00Z')),
+      );
+      const current = await seed(t, (b) => b.withPeriod('2026-03-09', '2026-04-08'));
+
+      const found = await repo.findFirstPeriodCharge(t.tenantId, t.subscriptionId, '2026-03-09');
+
+      expect(found?.id).toBe(current.id);
+      await expect(
+        repo.findFirstPeriodCharge(t.tenantId, t.subscriptionId, '2026-03-10'),
+      ).resolves.toBeNull();
     });
 
     it('answers null when the subscription never had one', async () => {
       const t = await newTenant();
       await seed(t, (b) => b.asRecovery());
 
-      await expect(repo.findFirstPeriodCharge(t.tenantId, t.subscriptionId)).resolves.toBeNull();
+      await expect(
+        repo.findFirstPeriodCharge(t.tenantId, t.subscriptionId, '2026-01-01'),
+      ).resolves.toBeNull();
+    });
+  });
+
+  describe('findByIdsForUpdate (B-C1, several charges in one query)', () => {
+    let txManager: TypeOrmTransactionManager;
+
+    beforeAll(() => {
+      txManager = new TypeOrmTransactionManager(dataSource);
+    });
+
+    it('answers the tenant’s charges among the ids, with their lines, in id order, and no other tenant’s', async () => {
+      const t = await newTenant();
+      const other = await newTenant();
+      const a = await seed(t, (b) => b.withPeriod('2026-01-10', '2026-02-09'));
+      const b = await seed(t, (builder) => builder.withPeriod('2026-02-10', '2026-03-09'));
+      const foreign = await seed(other, (builder) =>
+        builder.withPeriod('2026-02-10', '2026-03-09'),
+      );
+
+      const locked = await txManager.run(() =>
+        repo.findByIdsForUpdate(t.tenantId, [b.id, foreign.id, a.id, uuidv7()]),
+      );
+
+      expect(locked.map((c) => c.id)).toEqual([a.id, b.id].sort());
+      expect(locked.every((c) => c.lines.length === 1)).toBe(true);
+    });
+
+    it('answers nothing for no ids, and refuses to run outside a transaction', async () => {
+      const t = await newTenant();
+
+      await expect(txManager.run(() => repo.findByIdsForUpdate(t.tenantId, []))).resolves.toEqual(
+        [],
+      );
+      await expect(repo.findByIdsForUpdate(t.tenantId, ['x'])).rejects.toThrow(
+        'must be called inside an active transaction',
+      );
+    });
+
+    it('two overlapping batches asked in opposite orders serialise on the rows (no deadlock): the second sees the first’s committed state', async () => {
+      const t = await newTenant();
+      const a = await seed(t, (b) => b.withPeriod('2026-01-10', '2026-02-09'));
+      const b = await seed(t, (builder) => builder.withPeriod('2026-02-10', '2026-03-09'));
+      let release!: () => void;
+      let signalLocked!: () => void;
+      const gate = new Promise<void>((resolve) => (release = resolve));
+      const locked = new Promise<void>((resolve) => (signalLocked = resolve));
+      const holder = txManager.run(async () => {
+        const rows = await repo.findByIdsForUpdate(t.tenantId, [b.id, a.id]);
+        for (const row of rows) {
+          row.cancel();
+          await repo.save(row);
+        }
+        signalLocked();
+        await gate;
+      });
+      await locked;
+
+      const since = await databaseNow(dataSource);
+      const second = txManager.run(() => repo.findByIdsForUpdate(t.tenantId, [a.id, b.id]));
+      try {
+        await waitForBlockedLock(dataSource, 'row', since);
+      } finally {
+        release();
+        await holder;
+      }
+
+      expect((await second).map((c) => c.status)).toEqual(['CANCELED', 'CANCELED']);
     });
   });
 });

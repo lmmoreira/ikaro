@@ -25,6 +25,23 @@ describe('RecoveryChargePlanner', () => {
     planner = new RecoveryChargePlanner(charges, prices);
   });
 
+  // HOTSITE STANDARD: R$ 49,00 from the start of the year and R$ 59,00 from 2026-03-11, so a lookup
+  // on one side of that day returns a different amount from the other side.
+  const seedPrices = (): void =>
+    prices.seed(
+      new FeaturePriceBuilder()
+        .withVersions([
+          new FeaturePriceVersionBuilder()
+            .withAmountMinor(4900)
+            .withEffectiveFrom('2026-01-01')
+            .build(),
+          new FeaturePriceVersionBuilder()
+            .withAmountMinor(5900)
+            .withEffectiveFrom('2026-03-11')
+            .build(),
+        ])
+        .build(),
+    );
   const seedPrice = (effectiveFrom: string, amountMinor = 4900): void =>
     prices.seed(
       new FeaturePriceBuilder()
@@ -87,16 +104,19 @@ describe('RecoveryChargePlanner', () => {
   });
 
   describe('the per-run price cache', () => {
-    it('asks the price list once per distinct item however many subscriptions are priced', async () => {
-      seedPrice('2026-01-01');
+    it('asks the price list once per distinct item however many subscriptions are priced, and every one gets the same amount', async () => {
+      seedPrices();
       const lookups = jest.spyOn(prices, 'findByNaturalKey');
       const cache: RecoveryPriceCache = new Map();
 
-      await planner.plan(suspended(), NOW, cache);
-      await planner.plan(suspended(), NOW, cache);
-      await planner.plan(suspended(), NOW, cache);
+      const first = await planner.plan(suspended(), NOW, cache);
+      const second = await planner.plan(suspended(), NOW, cache);
+      const third = await planner.plan(suspended(), NOW, cache);
 
       expect(lookups).toHaveBeenCalledTimes(1);
+      expect([first, second, third].map((charge) => charge?.amount.amountMinor)).toEqual([
+        4900, 4900, 4900,
+      ]);
     });
 
     it('is opt-in: without a cache every call asks the price list', async () => {
@@ -110,14 +130,17 @@ describe('RecoveryChargePlanner', () => {
     });
 
     it('never mixes dates: another local date is another price', async () => {
-      seedPrice('2026-01-01');
+      seedPrices();
       const lookups = jest.spyOn(prices, 'findByNaturalKey');
       const cache: RecoveryPriceCache = new Map();
 
-      await planner.plan(suspended(), NOW, cache);
-      await planner.plan(suspended('Pacific/Auckland'), NOW, cache);
+      // 12:00 on 2026-03-10 in São Paulo, already 2026-03-11 in Auckland: the day the price changes.
+      const saoPaulo = await planner.plan(suspended(), NOW, cache);
+      const auckland = await planner.plan(suspended('Pacific/Auckland'), NOW, cache);
 
       expect(lookups).toHaveBeenCalledTimes(2);
+      expect(saoPaulo?.amount.amountMinor).toBe(4900);
+      expect(auckland?.amount.amountMinor).toBe(5900);
     });
   });
 });

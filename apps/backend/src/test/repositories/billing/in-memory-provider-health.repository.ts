@@ -13,7 +13,7 @@ export class InMemoryProviderHealthRepository implements IProviderHealthReposito
     return this.saved
       .filter((row) => row.freezeActive)
       .map((row) => row.merchantProfileKey)
-      .sort();
+      .sort((a, b) => a.localeCompare(b));
   }
 
   async save(health: ProviderHealth): Promise<void> {

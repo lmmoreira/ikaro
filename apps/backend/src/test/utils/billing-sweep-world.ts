@@ -28,6 +28,7 @@ import { uuidv7 } from '../../shared/domain/uuid-v7';
 import { SystemClock } from '../../shared/infrastructure/clock/system-clock.adapter';
 import { TypeOrmTransactionManager } from '../../shared/infrastructure/typeorm-transaction-manager';
 import { addDaysUTC, todayUTC } from '../../shared/utils/calendar-date';
+import { mapSequentially } from '../../shared/utils/sequential';
 import {
   BillingAccountBuilder,
   ChargeBuilder,
@@ -237,18 +238,21 @@ export async function createSweepWorld() {
 
   async function cleanup(): Promise<void> {
     if (tenants.length > 0) {
-      for (const table of [
-        'charge_lines',
-        'charges',
-        'provider_events',
-        'billing_accounts',
-        'subscription_items',
-        'subscriptions',
-      ]) {
-        await ds.query(`DELETE FROM "billing"."${table}" WHERE "tenant_id" = ANY($1::uuid[])`, [
-          tenants,
-        ]);
-      }
+      // Children first (the composite foreign keys), one table after another.
+      await mapSequentially(
+        [
+          'charge_lines',
+          'charges',
+          'provider_events',
+          'billing_accounts',
+          'subscription_items',
+          'subscriptions',
+        ],
+        (table) =>
+          ds.query(`DELETE FROM "billing"."${table}" WHERE "tenant_id" = ANY($1::uuid[])`, [
+            tenants,
+          ]),
+      );
       tenants.length = 0;
     }
     if (healthKeys.length > 0) {

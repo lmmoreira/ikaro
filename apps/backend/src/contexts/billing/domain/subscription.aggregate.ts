@@ -415,6 +415,17 @@ export class Subscription extends AggregateRoot {
     return true;
   }
 
+  /**
+   * The tenant-local date the current trial's first invoice covers from: the day the trial ends
+   * (UC-113 issues it with that due date). `null` without a trial window. A subscription that was
+   * exempted and cleared starts a new trial with a new date, so an older paid invoice is not its.
+   */
+  get firstInvoiceFrom(): string | null {
+    return this._trialEndsAt === null
+      ? null
+      : utcDateToLocalDate(this._trialEndsAt, this.timezone.value);
+  }
+
   /** The trial window is over (rules 2 and 5): `TRIALING`, not exempt, `trialEndsAt` reached. */
   hasTrialEnded(now: Date): boolean {
     return (
@@ -470,6 +481,11 @@ export class Subscription extends AggregateRoot {
     const trialRunning = this._trialEndsAt !== null && this._trialEndsAt.getTime() > now.getTime();
     this._status = trialRunning ? 'TRIALING' : 'ACTIVE';
     this.clearSuspension();
+    // Access returns as `TRIALING` or `ACTIVE`, never `PAST_DUE`: a grace clock the subscription
+    // carried into the suspension must not outlive it, or the status sweep would judge a later
+    // `PAST_DUE` against the old instants.
+    this._pastDueSince = null;
+    this._graceUntil = null;
     this.addReactivated(now, suspendedAt, correlationId, recipientEmail);
     return true;
   }
