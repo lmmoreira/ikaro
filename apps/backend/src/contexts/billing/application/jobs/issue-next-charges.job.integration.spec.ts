@@ -1,10 +1,7 @@
-import { INestApplication } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
-import {
-  ITransactionManager,
-  TRANSACTION_MANAGER,
-} from '../../../../shared/ports/transaction-manager.port';
+import { TypeOrmTransactionManager } from '../../../../shared/infrastructure/typeorm-transaction-manager';
+import { SystemClock } from '../../../../shared/infrastructure/clock/system-clock.adapter';
 import { addDaysUTC, todayUTC } from '../../../../shared/utils/calendar-date';
 import {
   BillingAccountBuilder,
@@ -13,44 +10,43 @@ import {
 } from '../../../../test/builders/billing';
 import { AddressBuilder } from '../../../../test/builders/shared';
 import { InMemoryBillingPlatformPort } from '../../../../test/infrastructure/in-memory-billing-platform.port';
-import { RoutingInMemoryEventBus } from '../../../../test/infrastructure/routing-in-memory-event-bus';
-import { createBillingIntegrationApp } from '../../../../test/utils/billing-integration-app';
+import { InMemoryOutboxPublisher } from '../../../../test/infrastructure/in-memory-outbox-publisher';
+import { createTestDataSource } from '../../../../test/test-datasource';
 import { databaseNow, waitForBlockedLock } from '../../../../test/utils/booking-lock-race-world';
+import { BillingAccountEntity } from '../../infrastructure/entities/billing-account.entity';
 import { ChargeLineEntity } from '../../infrastructure/entities/charge-line.entity';
 import { ChargeEntity } from '../../infrastructure/entities/charge.entity';
+import { FeaturePriceVersionEntity } from '../../infrastructure/entities/feature-price-version.entity';
+import { FeaturePriceEntity } from '../../infrastructure/entities/feature-price.entity';
 import { SubscriptionItemEntity } from '../../infrastructure/entities/subscription-item.entity';
 import { SubscriptionEntity } from '../../infrastructure/entities/subscription.entity';
+import { BillingProviderRegistry } from '../../infrastructure/providers/billing-provider.registry';
 import { FakeBillingProvider } from '../../infrastructure/providers/fake-billing.provider';
-import {
-  BILLING_ACCOUNT_REPOSITORY,
-  IBillingAccountRepository,
-} from '../ports/billing-account-repository.port';
-import { BILLING_PLATFORM_PORT } from '../ports/billing-platform.port';
-import { CHARGE_REPOSITORY, IChargeRepository } from '../ports/charge-repository.port';
-import {
-  ISubscriptionRepository,
-  SUBSCRIPTION_REPOSITORY,
-} from '../ports/subscription-repository.port';
+import { TypeOrmBillingAccountRepository } from '../../infrastructure/repositories/typeorm-billing-account.repository';
+import { TypeOrmChargeRepository } from '../../infrastructure/repositories/typeorm-charge.repository';
+import { TypeOrmFeaturePriceRepository } from '../../infrastructure/repositories/typeorm-feature-price.repository';
+import { TypeOrmSubscriptionRepository } from '../../infrastructure/repositories/typeorm-subscription.repository';
 import { ProviderChargeCreationService } from '../services/provider-charge-creation.service';
 import { IssueChargeForSubscriptionUseCase } from '../use-cases/issue-charge-for-subscription.use-case';
-import { IssueNextChargesJob } from './issue-next-charges.job';
 import { RetryPendingChargeCreationUseCase } from '../use-cases/retry-pending-charge-creation.use-case';
+import { IssueNextChargesJob } from './issue-next-charges.job';
 
 // The real repositories and row locks against Postgres (docs/LOCK_CATALOG.md B-R1, B-C1 and the
-// creation lease). The clock is the real one, so every date is relative to today. The seeded BR
+// creation lease), composed by hand rather than through a booted Nest application: the module's own
+// DI wiring is already exercised by the provider webhook controller's integration spec, and this
+// suite stays small. The clock is the real one, so every date is relative to today. The seeded BR
 // price list (M25-S04) prices HOTSITE STANDARD at R$ 49,00 from 2026-01-01.
 describe('IssueNextChargesJob (integration, UC-113)', () => {
-  let app: INestApplication;
   let ds: DataSource;
-  let eventBus: RoutingInMemoryEventBus;
+  let outbox: InMemoryOutboxPublisher;
   let issueOne: IssueChargeForSubscriptionUseCase;
   let issueNext: IssueNextChargesJob;
   let retry: RetryPendingChargeCreationUseCase;
   let creation: ProviderChargeCreationService;
-  let txManager: ITransactionManager;
-  let subscriptions: ISubscriptionRepository;
-  let accounts: IBillingAccountRepository;
-  let charges: IChargeRepository;
+  let txManager: TypeOrmTransactionManager;
+  let subscriptions: TypeOrmSubscriptionRepository;
+  let accounts: TypeOrmBillingAccountRepository;
+  let charges: TypeOrmChargeRepository;
   let provider: FakeBillingProvider;
   const platform = new InMemoryBillingPlatformPort();
   const tenants: string[] = [];
@@ -93,21 +89,42 @@ describe('IssueNextChargesJob (integration, UC-113)', () => {
   const nextDueDateOf = async (tenantId: string): Promise<string | null> =>
     (await ds.getRepository(SubscriptionEntity).findOneByOrFail({ tenantId })).nextDueDate;
   const issuedEvents = (tenantId: string) =>
-    eventBus.published.filter((e) => e.eventName === 'ChargeIssued' && e.tenantId === tenantId);
+    outbox.published.filter((e) => e.eventName === 'ChargeIssued' && e.tenantId === tenantId);
 
   beforeAll(async () => {
-    ({ app, ds, eventBus } = await createBillingIntegrationApp({
-      overrideProviders: [{ provide: BILLING_PLATFORM_PORT, useValue: platform }],
-    }));
-    issueOne = app.get(IssueChargeForSubscriptionUseCase);
-    issueNext = app.get(IssueNextChargesJob);
-    retry = app.get(RetryPendingChargeCreationUseCase);
-    creation = app.get(ProviderChargeCreationService);
-    txManager = app.get<ITransactionManager>(TRANSACTION_MANAGER);
-    subscriptions = app.get<ISubscriptionRepository>(SUBSCRIPTION_REPOSITORY);
-    accounts = app.get<IBillingAccountRepository>(BILLING_ACCOUNT_REPOSITORY);
-    charges = app.get<IChargeRepository>(CHARGE_REPOSITORY);
-    provider = app.get(FakeBillingProvider);
+    ds = await createTestDataSource();
+    txManager = new TypeOrmTransactionManager(ds);
+    outbox = new InMemoryOutboxPublisher();
+    const clock = new SystemClock();
+    provider = new FakeBillingProvider(clock);
+    subscriptions = new TypeOrmSubscriptionRepository(ds.getRepository(SubscriptionEntity), outbox);
+    accounts = new TypeOrmBillingAccountRepository(ds.getRepository(BillingAccountEntity));
+    charges = new TypeOrmChargeRepository(ds.getRepository(ChargeEntity), outbox);
+    const prices = new TypeOrmFeaturePriceRepository(
+      ds.getRepository(FeaturePriceEntity),
+      ds.getRepository(FeaturePriceVersionEntity),
+    );
+    creation = new ProviderChargeCreationService(
+      new BillingProviderRegistry('local', provider),
+      accounts,
+      subscriptions,
+      charges,
+      platform,
+      { appEnv: 'local', platformOwnerSlug: null, frontendUrl: 'http://localhost:3000' },
+      txManager,
+      clock,
+    );
+    issueOne = new IssueChargeForSubscriptionUseCase(
+      subscriptions,
+      accounts,
+      charges,
+      prices,
+      txManager,
+      clock,
+      creation,
+    );
+    retry = new RetryPendingChargeCreationUseCase(charges, clock, creation);
+    issueNext = new IssueNextChargesJob(subscriptions, clock, issueOne, retry);
   });
 
   afterEach(async () => {
@@ -129,7 +146,7 @@ describe('IssueNextChargesJob (integration, UC-113)', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    await ds.destroy();
   });
 
   it('one run issues each due tenant its own charge, with its own lines, and never mixes tenants', async () => {

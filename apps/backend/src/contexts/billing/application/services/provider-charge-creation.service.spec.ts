@@ -330,7 +330,7 @@ describe('ProviderChargeCreationService', () => {
     expect(provider.inputs).toHaveLength(0);
   });
 
-  it('A1: a tenant exempted while the provider call was in flight gets the charge cancelled, flagged for the cancel retry and announced to nobody', async () => {
+  it('A1: a tenant exempted while the provider call was in flight gets the charge cancelled at the provider and announced to nobody', async () => {
     await seedAccount();
     provider.beforeCreate = async () => {
       const subscription = await subscriptions.findByTenantId(tenantId);
@@ -343,16 +343,20 @@ describe('ProviderChargeCreationService', () => {
     const stored = await charges.findById(tenantId, charge.id);
     expect(stored?.status).toBe('CANCELED');
     expect(stored?.providerChargeId).not.toBeNull();
-    expect(stored?.providerCancelPending).toBe(true);
+    // Removed at the provider right away, so nothing is left to retry.
+    expect(provider.charges.get(stored?.providerChargeId ?? '')?.state).toBe('CANCELED');
+    expect(stored?.providerCancelPending).toBe(false);
     expect(outbox.published.filter((e) => e.eventName === 'ChargeIssued')).toHaveLength(0);
   });
 
-  it('flags a charge cancelled while the provider call was in flight, so the cancel retry removes it', async () => {
+  it('cancels at the provider a charge cancelled while the call was in flight, and keeps the flag for the retry when that cancel fails', async () => {
     await seedAccount();
     provider.beforeCreate = async () => {
       const cancelled = await charges.findById(tenantId, charge.id);
       cancelled?.cancel();
       if (cancelled) await charges.save(cancelled);
+      // The next provider call is the cancel: it fails.
+      provider.failNextCall('UNAVAILABLE');
     };
 
     await expect(run()).resolves.toBe('READY');

@@ -106,21 +106,60 @@ export class ProviderChargeCreationService {
     if (!(await this.charges.claimForProviderCreation(tenantId, chargeId, this.clock.now()))) {
       return 'NOT_CLAIMED';
     }
+    return this.createClaimed(command, adapter, charge, account, subscription);
+  }
+
+  // The lease is ours: the provider calls, then the READY write. A provider failure leaves the charge
+  // PENDING (the claim already counted the attempt) for the retry once the lease is free.
+  private async createClaimed(
+    command: CreateProviderChargeCommand,
+    adapter: BillingProviderPort,
+    charge: Charge,
+    account: BillingAccount,
+    subscription: Subscription,
+  ): Promise<ProviderChargeCreationResult> {
+    let toCancel: string | null;
     try {
       const provider = providerOfMerchantProfileKey(subscription.merchantProfileKey);
       const created = await this.createAtProvider(adapter, charge, account, subscription);
-      await this.storeReady(command, account, subscription.exempt, provider, created);
-      return 'READY';
+      toCancel = await this.storeReady(command, account, subscription.exempt, provider, created);
     } catch (err) {
-      // The charge stays PENDING and the claim already counted the attempt: the retry query
-      // tries again once the lease is free.
       this.logger.warn('billing_charge_creation_failed: left for the retry', {
-        tenantId,
-        chargeId,
+        tenantId: command.tenantId,
+        chargeId: command.chargeId,
         error: err instanceof Error ? err.message : String(err),
       });
       return 'PROVIDER_FAILED';
     }
+    if (toCancel !== null) await this.cancelAtProvider(adapter, command, toCancel);
+    return 'READY';
+  }
+
+  // The charge was cancelled while the provider call was in flight (a tenant exempted, a plan
+  // change): the provider holds a payable charge nobody wants, so it is cancelled there now. The
+  // `providerCancelPending` flag stays set when this fails, for the reconcile job to retry; a charge
+  // the provider reports as already paid is the payment itself, and the webhook settles it.
+  private async cancelAtProvider(
+    adapter: BillingProviderPort,
+    command: CreateProviderChargeCommand,
+    providerChargeId: string,
+  ): Promise<void> {
+    try {
+      await adapter.cancelCharge(providerChargeId);
+    } catch (err) {
+      this.logger.warn('billing_provider_cancel_failed: left flagged for the retry', {
+        tenantId: command.tenantId,
+        chargeId: command.chargeId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return;
+    }
+    await this.txManager.run(async () => {
+      const locked = await this.charges.findByIdForUpdate(command.tenantId, command.chargeId);
+      if (locked === null) return;
+      locked.clearProviderCancelPending();
+      await this.charges.save(locked);
+    });
   }
 
   // The customer first (saved before the charge, so a fast webhook can resolve the tenant), then the
@@ -215,22 +254,24 @@ export class ProviderChargeCreationService {
   }
 
   // The post-provider-call write: its own short transaction, on a fresh read under B-C1.
+  // The post-provider-call write: its own short transaction, on a fresh read under B-C1. Answers the
+  // provider charge to cancel when the charge ended up cancelled, `null` otherwise.
   private async storeReady(
     command: CreateProviderChargeCommand,
     account: BillingAccount,
     exempt: boolean,
     provider: BillingProvider,
     created: { providerChargeId: string; paymentUrl: string; expiresAt: Date },
-  ): Promise<void> {
+  ): Promise<string | null> {
     const recipientEmail = resolveBillingRecipientEmail(exempt, account);
-    await this.txManager.run(async () => {
+    return this.txManager.run(async () => {
       // B-R1 then B-C1 (docs/LOCK_CATALOG.md): exemption is decided under the subscription lock, not
       // from the snapshot read before the provider call.
       const current = await this.subscriptions.findByTenantIdForUpdate(command.tenantId);
       const locked = await this.charges.findByIdForUpdate(command.tenantId, command.chargeId);
-      if (locked === null) return;
-      // Exempted while the provider call was in flight (UC-113 A1): the charge is cancelled here, so
-      // it announces nothing, and the provider charge is removed by the cancel retry below.
+      if (locked === null) return null;
+      // Exempted while the provider call was in flight (UC-113 A1): cancelled here, so it
+      // announces nothing.
       if (current?.exempt && locked.open) locked.cancel();
       locked.markCreationReady(
         provider,
@@ -239,10 +280,13 @@ export class ProviderChargeCreationService {
         created.expiresAt,
         { correlationId: command.correlationId, recipientEmail },
       );
-      // Cancelled while the provider call was in flight (just above, or by a plan change or a
-      // cancel): the provider now holds a payable charge nobody wants, so the cancel retry removes it.
-      if (locked.status === 'CANCELED') locked.markProviderCancelPending();
+      if (locked.status !== 'CANCELED') {
+        await this.charges.save(locked);
+        return null;
+      }
+      locked.markProviderCancelPending();
       await this.charges.save(locked);
+      return created.providerChargeId;
     });
   }
 }
