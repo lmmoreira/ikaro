@@ -103,7 +103,7 @@ run "accepts_non_cron_topics_alongside_the_9_required_ones" {
       cron-chatbot-balance-poll               = "projects/ikaro-test/topics/ikaro-cron-chatbot-balance-poll"
       cron-lead-form-retention                = "projects/ikaro-test/topics/ikaro-cron-lead-form-retention"
       cron-resource-occupancy-retention-purge = "projects/ikaro-test/topics/ikaro-cron-resource-occupancy-retention-purge"
-    cron-billing-issue-charges              = "projects/ikaro-test/topics/ikaro-cron-billing-issue-charges"
+      cron-billing-issue-charges              = "projects/ikaro-test/topics/ikaro-cron-billing-issue-charges"
       # module.pubsub.topic_ids is the FULL catalog — domain-event topics
       # (non "cron-" prefixed) must never trip the orphan-topic validation.
       BookingInfoSubmitted = "projects/ikaro-test/topics/ikaro-BookingInfoSubmitted"
