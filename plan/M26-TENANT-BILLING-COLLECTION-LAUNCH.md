@@ -453,7 +453,7 @@ Define the Billing events M26's use cases publish, **before** any use case publi
 
 ---
 
-### M26-S04 — Provider webhook — BFF route, internal processing, exact-200 contract (UC-114)
+### M26-S04 — Provider webhook — BFF route, internal processing, exact-200 contract (UC-114) ✅ Done
 
 **Agent:** `bff-ts + backend-ts`
 **Complexity:** L
