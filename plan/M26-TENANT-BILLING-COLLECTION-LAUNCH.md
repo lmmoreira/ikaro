@@ -554,7 +554,7 @@ Access-cache invalidation after commit is **automatic**: `CachingSubscriptionRep
 
 ### M26-S05 — Issue the next charge, creation retry and the `cron-billing-issue-charges` trigger (UC-113) ✅ Done
 
-  - ⚠️ The `gcloud pubsub topics get-iam-policy` read-back and one manual `gcloud scheduler jobs run ikaro-cron-billing-issue-charges` (with its `billing_issue_charges_run` line) were not executed; the Foundation apply logs of run 44806901761 show the scheduler publisher, backend publisher, DLQ publisher and subscriber grants created in staging and prod — tracked in M26-S39 (which enables the production jobs and observes each item), 2026-11-20
+  - ✅ Live state verified from CI logs only (user decision, 2026-11-20): the Foundation apply logs of run 44806901761 show the scheduler publisher, backend publisher, DLQ publisher and subscriber grants created in staging and prod; no gcloud read-back or manual scheduler run
 
 **Agent:** `backend-ts + devops`
 **Complexity:** L
