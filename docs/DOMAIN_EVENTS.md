@@ -803,7 +803,7 @@ Ikaro charging its tenants (`docs/DOMAIN_MODEL.md` § Billing Context, `docs/USE
 
 #### **ChargePaid**
 - **Trigger:** the first of the provider's paid signals for a charge (webhook, reconcile or on-demand refresh; UC-114)
-- **Data:** `chargeId`, `amountMinor`, `currency`, `method` (`CARD` | `PIX` | `BOLETO`), `paidAt`, `receiptUrl?`, `recipientEmail?`
+- **Data:** `chargeId`, `amountMinor`, `currency`, `method` (`CARD` | `PIX` | `BOLETO`; `null` only when the provider reported none for a paid charge), `paidAt`, `receiptUrl?`, `recipientEmail?` *(built, M26-S04: raised once by `Charge.markPaid`, so a repeated paid signal raises none, and drained into the outbox by the charge repository in the transaction of the write)*
 - **Consumers:** Notification (receipt); `audit-log`
 
 #### **SubscriptionPastDue**

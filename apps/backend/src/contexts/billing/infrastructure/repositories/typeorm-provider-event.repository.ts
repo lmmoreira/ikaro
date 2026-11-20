@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { IProviderEventRepository } from '../../application/ports/provider-event-repository.port';
+import type { BillingProvider } from '../../domain/billing-account.aggregate';
 import type { ProviderEvent } from '../../domain/provider-event';
 import { ProviderEventEntity } from '../entities/provider-event.entity';
 
@@ -22,6 +23,11 @@ export class TypeOrmProviderEventRepository implements IProviderEventRepository 
     @InjectRepository(ProviderEventEntity)
     private readonly repo: Repository<ProviderEventEntity>,
   ) {}
+
+  async exists(provider: BillingProvider, eventId: string): Promise<boolean> {
+    const manager = getActiveEntityManager() ?? this.repo.manager;
+    return manager.exists(ProviderEventEntity, { where: { provider, eventId } });
+  }
 
   async insertIfAbsent(event: ProviderEvent): Promise<boolean> {
     // Joins the caller's transaction: the row commits with the local change and the outbox rows.

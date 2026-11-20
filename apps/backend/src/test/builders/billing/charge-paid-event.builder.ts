@@ -8,7 +8,7 @@ export class ChargePaidEventBuilder {
   private chargeId: string = uuidv7();
   private amountMinor: number = 4990;
   private currency: string = 'BRL';
-  private method: PaymentMethod = 'PIX';
+  private method: PaymentMethod | null = 'PIX';
   private paidAt: Date = new Date(Date.now() - 60_000);
   private receiptUrl: string | null = 'https://receipt.example.test/charge-1';
   private recipientEmail: string | null = 'billing@example.test';
@@ -38,7 +38,7 @@ export class ChargePaidEventBuilder {
     return this;
   }
 
-  withMethod(method: PaymentMethod): this {
+  withMethod(method: PaymentMethod | null): this {
     this.method = method;
     return this;
   }

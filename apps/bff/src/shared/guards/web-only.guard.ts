@@ -1,9 +1,9 @@
 import { CanActivate, ExecutionContext, HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
-import * as crypto from 'node:crypto';
 import { AuthErrorCode } from '@ikaro/types';
 import { throwProblemDetail } from '../http/problem-detail';
+import { secretsMatch } from '../http/timing-safe-secret';
 import { BYPASS_WEB_ONLY_GUARD_KEY } from '../decorators/bypass-web-only-guard.decorator';
 
 // TD38: BFF's Cloud Run ingress is locked to internal-only and its `allUsers` public invoker
@@ -39,15 +39,7 @@ export class WebOnlyGuard implements CanActivate {
 
     const storedKey = this.config.getOrThrow<string>('WEB_INTERNAL_KEY');
 
-    // Hash both sides to normalise length before timingSafeEqual (prevents key-length leaks) —
-    // same construction as InternalApiGuard.
-    const storedHash = crypto.createHash('sha256').update(storedKey).digest();
-    const incomingHash = crypto
-      .createHash('sha256')
-      .update(incomingKey ?? '')
-      .digest();
-
-    if (!incomingKey || !crypto.timingSafeEqual(storedHash, incomingHash)) {
+    if (!secretsMatch(storedKey, incomingKey)) {
       throw throwProblemDetail(
         HttpStatus.UNAUTHORIZED,
         AuthErrorCode.UNAUTHORIZED,

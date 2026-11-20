@@ -37,6 +37,7 @@ export function fakeBillingHarness(
       settleCard: async (id) => fake.simulateCardSettlement(id),
       overdue: async (id) => fake.simulateOverdue(id),
       refund: async (id, kind) => fake.simulateRefund(id, kind),
+      openDispute: async (id) => fake.simulateDisputeOpened(id),
       chargeback: async (id) => fake.simulateChargeback(id),
       failNextCall: (reason) => fake.failNextCall(reason),
       pauseWebhookQueue: () => fake.pauseWebhookQueue(),

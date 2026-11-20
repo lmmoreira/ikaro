@@ -455,6 +455,23 @@ describe('FakeBillingProvider', () => {
       await expect(act(fake, id)).rejects.toThrow(/The fake cannot/);
     });
 
+    it('opens a dispute without changing the charge state', async () => {
+      const { fake } = setup();
+      const id = await charge(fake);
+      fake.simulatePayment(id, 'CARD');
+
+      fake.simulateDisputeOpened(id);
+
+      expect(await fake.fetchChargeStatus(id)).toMatchObject({ state: 'PAID', disputeOpen: true });
+    });
+
+    it('refuses to open a dispute on an unpaid charge', async () => {
+      const { fake } = setup();
+      const id = await charge(fake);
+
+      expect(() => fake.simulateDisputeOpened(id)).toThrow(/The fake cannot/);
+    });
+
     it('fails exactly one call and then recovers', async () => {
       const { fake } = setup();
       fake.failNextCall('UNAVAILABLE');

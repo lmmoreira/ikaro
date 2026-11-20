@@ -1397,7 +1397,7 @@ Items carry **no price** and there are **no trial rows**: at trial start one def
 | refunded_amount_minor | BIGINT | NOT NULL DEFAULT 0 — partial-refund total; `status = REFUNDED` only for a full refund |
 | provider_creation_status | VARCHAR(10) | NOT NULL DEFAULT `'PENDING'` — `PENDING` \| `READY` \| `FAILED`; CHECK: `READY` ⇒ `provider_charge_id` NOT NULL. Every charge is inserted `PENDING`; a durable retry query inside the issuing job owns remote creation after local commit |
 | provider_creation_attempts / provider_creation_last_attempt_at | INT NOT NULL DEFAULT 0 / TIMESTAMP WITH TIME ZONE NULLABLE | retry observability **and the claim**: before any provider create call a short transaction claims the charge (an open `PENDING` / `OVERDUE` charge whose creation is `PENDING` with no provider id, `last_attempt_at` null or older than 10 minutes, `attempts` + 1, `FOR UPDATE SKIP LOCKED`), so two concurrent creators do not both call the provider **within the lease**: a provider call that outlasts the 10 minutes lets a second creator claim the charge, which is why `createCharge` is idempotent per charge id (it is the provider-side guard against a duplicate bill) |
-| provider_cancel_pending | BOOLEAN | NOT NULL DEFAULT false — set before the post-commit provider cancel of a locally cancelled charge, cleared when the provider confirms; reconcile retries every charge still flagged (a provider answer "already paid" goes through `ApplyChargeFactUseCase`) |
+| provider_cancel_pending | BOOLEAN | NOT NULL DEFAULT false — set before the post-commit provider cancel of a locally cancelled charge, cleared when the provider confirms; reconcile retries every charge still flagged (a provider answer "already paid" goes through `ApplyChargeFactService`) |
 | version | INT | NOT NULL DEFAULT 0 — optimistic-concurrency version (M26-S02, migration `1748500000046`): `save()` of an existing charge is guarded by it, the second line of defence next to the charge row lock B-C1 (`docs/LOCK_CATALOG.md`). The creation claim never bumps it and `save()` never writes the claim columns |
 | created_at / updated_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
 | **UNIQUE** — `UQ_billing_charges_period` | (tenant_id, subscription_id, period_start) WHERE kind = 'PERIOD' AND status <> 'CANCELED' | the issuing cron is idempotent; a cancelled (plan-change re-issue) charge does not block its replacement |
@@ -1429,7 +1429,7 @@ Immutable tax snapshot, zero or more per US charge: `tenant_id`, `charge_id` (co
 |--------|------|-------------|
 | provider | VARCHAR(10) | NOT NULL |
 | event_id | VARCHAR(100) | NOT NULL — the provider's event id |
-| tenant_id | UUID | NOT NULL — **resolved from `billing_accounts` before insert**; events for unknown customers are acknowledged and logged, not stored |
+| tenant_id | UUID | NOT NULL — **resolved before insert** from `billing_accounts` (the provider customer id) or, when that customer is not stored yet, from the charge's `external_reference`, which is our own charge id (M26-S04); events whose tenant resolves neither way are acknowledged and logged, not stored |
 | event_type | VARCHAR(60) | NOT NULL |
 | received_at / processed_at | TIMESTAMP WITH TIME ZONE | NOT NULL — `processed_at` is set in the same transaction as the local change and the outbox rows |
 | **PRIMARY KEY** | (provider, event_id) | tenant-first exemption (see above) |

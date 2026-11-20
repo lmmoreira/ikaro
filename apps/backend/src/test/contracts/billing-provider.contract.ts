@@ -32,6 +32,9 @@ export interface ContractScenarios {
   settleCard(providerChargeId: string): Promise<void>;
   overdue(providerChargeId: string): Promise<void>;
   refund(providerChargeId: string, kind: 'FULL' | 'PARTIAL'): Promise<void>;
+  /** A dispute is opened: the charge stays paid. */
+  openDispute(providerChargeId: string): Promise<void>;
+  /** A dispute is lost. The Asaas event that finalises one is unobserved (G5), so this is fake-only until M26-S37. */
   chargeback(providerChargeId: string): Promise<void>;
   failNextCall(reason: ProviderRequestFailure): void;
   pauseWebhookQueue(): void;
@@ -155,7 +158,15 @@ function registerCoreCases(
     expect(created.totalMinor).toBe(4900);
     expect(created.tax.totalTaxMinor).toBe(0);
     const status = await harness.provider.fetchChargeStatus(created.providerChargeId);
-    expect(status).toMatchObject({ state: 'PENDING', paidAt: null, receiptUrl: null });
+    expect(status).toMatchObject({
+      state: 'PENDING',
+      paidAt: null,
+      receiptUrl: null,
+      amountMinor: 4900,
+      disputeOpen: false,
+      // The provider echoes the reference the charge was created with: the binding is authoritative.
+      externalReference: expect.stringMatching(/^contract-charge-/),
+    });
   });
 
   it('returns the same charge when created twice with one external reference', async () => {
@@ -365,13 +376,35 @@ function registerLifecycleCases(
     });
   }
   if (capabilities.chargeback) {
-    it('opens a chargeback on a paid charge', async () => {
+    it('reports an opened dispute as an observation, never a chargeback', async () => {
+      const harness = await create();
+      const { providerChargeId } = await newCharge(harness);
+      await scenario(harness, 'pay')(providerChargeId, 'CARD');
+      await drainEvents(harness);
+
+      await scenario(harness, 'openDispute')(providerChargeId);
+
+      expect(await harness.provider.fetchChargeStatus(providerChargeId)).toMatchObject({
+        state: 'PAID',
+        disputeOpen: true,
+      });
+      expect((await drainEvents(harness)).map((event) => event.type)).toEqual([
+        'PaymentDisputeOpened',
+      ]);
+    });
+
+    it('reports a lost dispute as a chargeback (fake only until the Asaas event is verified)', async () => {
       const harness = await create();
       const { providerChargeId } = await newCharge(harness);
       await scenario(harness, 'pay')(providerChargeId, 'CARD');
       await drainEvents(harness);
 
       await scenario(harness, 'chargeback')(providerChargeId);
+
+      expect(await harness.provider.fetchChargeStatus(providerChargeId)).toMatchObject({
+        state: 'CHARGEBACK',
+        disputeOpen: false,
+      });
 
       expect((await drainEvents(harness)).map((event) => event.type)).toEqual([
         'PaymentChargeback',

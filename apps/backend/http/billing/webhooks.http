@@ -1,0 +1,62 @@
+# Billing — Provider webhook, internal route (M26-S04, UC-114)
+# POST /internal/billing/webhooks/{provider}: the provider's JSON, forwarded by the BFF after it
+# verified the provider token (the backend never sees the token). Tenant-less: the tenant is
+# resolved from the provider customer id, or from the charge's externalReference. Answers EXACTLY
+# 200 with an empty body; any non-2xx makes the provider retry. InternalApiGuard only.
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run seed
+#   4. pnpm --filter @ikaro/backend run dev
+#   Locally the provider is the in-process fake (BRL_FAKE): a paid event only applies to a charge the
+#   fake knows, so these requests show the contract (status codes), not a payment; the end-to-end
+#   money loop is covered by the integration spec and by M26-S35's E2E.
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@baseUrl     = {{backendUrl}}
+@internalKey = {{$dotenv INTERNAL_API_KEY}}
+
+### A well-formed event for an unknown customer and an unknown charge: 200, no state change
+POST {{baseUrl}}/internal/billing/webhooks/asaas
+X-Internal-Key: {{internalKey}}
+Content-Type: application/json
+
+{
+  "id": "evt_00000000000000000000000000000000&1",
+  "event": "PAYMENT_RECEIVED",
+  "dateCreated": "2026-11-19 12:00:00",
+  "payment": {
+    "id": "pay_unknown",
+    "customer": "cus_unknown",
+    "value": 49.0,
+    "billingType": "PIX",
+    "externalReference": "00000000-0000-4000-8000-000000000000"
+  }
+}
+
+### An event type Ikaro does not act on: 200, nothing stored
+POST {{baseUrl}}/internal/billing/webhooks/asaas
+X-Internal-Key: {{internalKey}}
+Content-Type: application/json
+
+{
+  "id": "evt_00000000000000000000000000000000&2",
+  "event": "PAYMENT_CHECKOUT_VIEWED",
+  "dateCreated": "2026-11-19 12:00:00",
+  "payment": { "id": "pay_unknown", "value": 49.0 }
+}
+
+### A provider this release cannot read (stripe is M28): 400
+POST {{baseUrl}}/internal/billing/webhooks/stripe
+X-Internal-Key: {{internalKey}}
+Content-Type: application/json
+
+{}
+
+### Missing internal key: 401
+POST {{baseUrl}}/internal/billing/webhooks/asaas
+Content-Type: application/json
+
+{}

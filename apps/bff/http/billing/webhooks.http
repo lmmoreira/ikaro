@@ -1,0 +1,47 @@
+# BFF — Provider webhook (M26-S04, UC-114)
+# POST /v1/public/billing/webhooks/asaas: public, called by Asaas through the ikaro-web same-origin
+# gateway (it attaches the shared-secret header; a direct call to the BFF needs X-Web-Internal-Key
+# below). The BFF checks the `asaas-access-token` header against ASAAS_WEBHOOK_TOKEN (timing-safe;
+# unset or wrong answers 401 and calls no backend), then forwards the JSON body to the backend.
+# Answers EXACTLY 200 with an empty body (Asaas counts 201/204 as failures); a backend failure is
+# forwarded as non-2xx so Asaas retries. Not rate limited (a retry storm must never meet a 429).
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run dev  (port 3001)
+#   4. pnpm --filter @ikaro/bff run dev      (port 3002)
+#   5. ASAAS_WEBHOOK_TOKEN set in apps/bff/.env.local (any value, 1+ characters)
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@webInternalKey = {{$dotenv WEB_INTERNAL_KEY}}
+@asaasToken     = {{$dotenv ASAAS_WEBHOOK_TOKEN}}
+
+### Right token: 200 (the event is for an unknown customer, so nothing changes)
+POST {{bffUrl}}/v1/public/billing/webhooks/asaas
+X-Web-Internal-Key: {{webInternalKey}}
+asaas-access-token: {{asaasToken}}
+Content-Type: application/json
+
+{
+  "id": "evt_00000000000000000000000000000000&1",
+  "event": "PAYMENT_RECEIVED",
+  "dateCreated": "2026-11-19 12:00:00",
+  "payment": { "id": "pay_unknown", "customer": "cus_unknown", "value": 49.0 }
+}
+
+### Wrong token: 401, nothing reaches the backend
+POST {{bffUrl}}/v1/public/billing/webhooks/asaas
+X-Web-Internal-Key: {{webInternalKey}}
+asaas-access-token: not-the-token
+Content-Type: application/json
+
+{}
+
+### Missing token: 401
+POST {{bffUrl}}/v1/public/billing/webhooks/asaas
+X-Web-Internal-Key: {{webInternalKey}}
+Content-Type: application/json
+
+{}

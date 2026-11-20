@@ -4,7 +4,7 @@ import { EntityManager, QueryFailedError, Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
 import { IBillingAccountRepository } from '../../application/ports/billing-account-repository.port';
-import { BillingAccount } from '../../domain/billing-account.aggregate';
+import { BillingAccount, type BillingProvider } from '../../domain/billing-account.aggregate';
 import {
   BillingAccountAlreadyExistsError,
   BillingAccountSubscriptionMissingError,
@@ -29,7 +29,26 @@ export class TypeOrmBillingAccountRepository implements IBillingAccountRepositor
   async findByTenantId(tenantId: string): Promise<BillingAccount | null> {
     const manager = getActiveEntityManager() ?? this.repo.manager;
     const entity = await manager.findOne(BillingAccountEntity, { where: { tenantId } });
+    return this.hydrate(manager, entity);
+  }
+
+  async findByProviderCustomerIdForJob(
+    provider: BillingProvider,
+    providerCustomerId: string,
+  ): Promise<BillingAccount | null> {
+    const manager = getActiveEntityManager() ?? this.repo.manager;
+    const entity = await manager.findOne(BillingAccountEntity, {
+      where: { provider, providerCustomerId },
+    });
+    return this.hydrate(manager, entity);
+  }
+
+  private async hydrate(
+    manager: EntityManager,
+    entity: BillingAccountEntity | null,
+  ): Promise<BillingAccount | null> {
     if (!entity) return null;
+    const tenantId = entity.tenantId;
     // The billing country is the subscription's, immutable there: read it, never copy it.
     const subscription = await manager.findOne(SubscriptionEntity, {
       where: { tenantId },

@@ -35,6 +35,9 @@ import {
 
 const FAKE_PAYMENT_URL_BASE = 'https://fake-billing.invalid/i';
 const LINK_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+/** The fake's own name for a lost dispute: the Asaas event that finalises one is unobserved (G5). */
+export const FAKE_CHARGEBACK_LOST_EVENT = 'FAKE_PAYMENT_CHARGEBACK_LOST';
+const FAKE_ONLY_EVENT_TYPES = { [FAKE_CHARGEBACK_LOST_EVENT]: 'PaymentChargeback' } as const;
 const PAID_STATES: ReadonlySet<FakeCharge['state']> = new Set(['PAID', 'PARTIALLY_REFUNDED']);
 
 /**
@@ -126,6 +129,9 @@ export class FakeBillingProvider implements BillingProviderPort {
       paymentMethod: charge.paymentMethod,
       paidAt: charge.paidAt,
       receiptUrl: receiptUrlOf(charge),
+      amountMinor: charge.amountMinor,
+      disputeOpen: charge.disputeOpen,
+      externalReference: charge.externalReference,
     };
   }
 
@@ -140,7 +146,7 @@ export class FakeBillingProvider implements BillingProviderPort {
   }
 
   parseWebhook(rawBody: string, _headers: WebhookHeaders): NormalizedProviderEvent {
-    return normalizeAsaasWebhook(rawBody);
+    return normalizeAsaasWebhook(rawBody, FAKE_ONLY_EVENT_TYPES);
   }
 
   // ---- Scenario controls (the fake's own surface, not the port's) ----
@@ -195,11 +201,21 @@ export class FakeBillingProvider implements BillingProviderPort {
     );
   }
 
+  /** A dispute is *opened*: the charge stays `PAID` and the re-read reports `disputeOpen`. */
+  simulateDisputeOpened(providerChargeId: string): void {
+    const charge = this.chargeOrThrow(providerChargeId);
+    this.assertState(charge, ['PAID'], 'open a dispute on');
+    charge.disputeOpen = true;
+    this.enqueue('PAYMENT_CHARGEBACK_REQUESTED', charge, 'CHARGEBACK_REQUESTED');
+  }
+
+  /** A dispute is *lost* by the merchant (fake only until M26-S37 observes Asaas's own event). */
   simulateChargeback(providerChargeId: string): void {
     const charge = this.chargeOrThrow(providerChargeId);
     this.assertState(charge, ['PAID'], 'charge back');
     charge.state = 'CHARGEBACK';
-    this.enqueue('PAYMENT_CHARGEBACK_REQUESTED', charge, 'CHARGEBACK_REQUESTED');
+    charge.disputeOpen = false;
+    this.enqueue(FAKE_CHARGEBACK_LOST_EVENT, charge, 'CHARGEBACK_DONE');
   }
 
   /**
@@ -275,6 +291,7 @@ export class FakeBillingProvider implements BillingProviderPort {
       state: 'PENDING',
       paymentMethod: null,
       paidAt: null,
+      disputeOpen: false,
     };
     this.charges.set(id, charge);
     this.enqueue('PAYMENT_CREATED', charge, 'PENDING');

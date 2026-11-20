@@ -67,6 +67,18 @@ export class BackendHttpService {
     );
   }
 
+  // A caller with no user and no tenant: the provider's webhook. `post()` takes its headers from the
+  // request's user and `postForPublic()` needs a tenant id, so neither fits. It sends the internal key
+  // and the correlation id, never a tenant header (the backend resolves the tenant from the body).
+  async postWithoutTenant<T>(path: string, body: unknown): Promise<T> {
+    return this.call(
+      this.http.post<T>(`${this.baseUrl}${path}`, body, {
+        headers: this.tenantlessHeaders(),
+        timeout: 10_000,
+      }),
+    );
+  }
+
   async getForPublic<T>(
     path: string,
     tenantId: string,
@@ -129,6 +141,14 @@ export class BackendHttpService {
   private headers(): Record<string, string> {
     return {
       ...buildBackendHeaders(this.req),
+      'X-Internal-Key': this.config.getOrThrow('INTERNAL_API_KEY'),
+    };
+  }
+
+  private tenantlessHeaders(): Record<string, string> {
+    const correlationId = this.req.headers['x-correlation-id'] as string | undefined;
+    return {
+      ...(correlationId ? { 'X-Correlation-ID': correlationId } : {}),
       'X-Internal-Key': this.config.getOrThrow('INTERNAL_API_KEY'),
     };
   }

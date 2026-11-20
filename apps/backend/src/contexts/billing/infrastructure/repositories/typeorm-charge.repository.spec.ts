@@ -6,6 +6,7 @@ import {
   ChargeLineBuilder,
   ChargeLineEntityBuilder,
 } from '../../../../test/builders/billing';
+import { InMemoryOutboxPublisher } from '../../../../test/infrastructure/in-memory-outbox-publisher';
 import { PROVIDER_CREATION_LEASE_MINUTES } from '../../domain/billing-constants';
 import { ChargeAlreadyExistsError } from '../../domain/errors/charge-already-exists.error';
 import { ChargeConcurrentModificationError } from '../../domain/errors/charge-concurrent-modification.error';
@@ -53,15 +54,18 @@ function mockManager(): Mocks {
 describe('TypeOrmChargeRepository', () => {
   let mocks: Mocks;
   let repo: TypeOrmChargeRepository;
+  let outbox: InMemoryOutboxPublisher;
 
   const inTransaction = <T>(work: () => Promise<T>): Promise<T> =>
     runWithEntityManager(mocks.manager, work);
 
   beforeEach(() => {
     mocks = mockManager();
-    repo = new TypeOrmChargeRepository({
-      manager: mocks.manager,
-    } as unknown as Repository<ChargeEntity>);
+    outbox = new InMemoryOutboxPublisher();
+    repo = new TypeOrmChargeRepository(
+      { manager: mocks.manager } as unknown as Repository<ChargeEntity>,
+      outbox,
+    );
   });
 
   describe('reads', () => {
@@ -86,6 +90,29 @@ describe('TypeOrmChargeRepository', () => {
         ChargeLineEntity,
         expect.objectContaining({ where: expect.objectContaining({ tenantId: TENANT }) }),
       );
+    });
+
+    it('findByIdForJob looks the charge up by its own id with no tenant, then reads its lines for that charge tenant', async () => {
+      const entity = new ChargeEntityBuilder().withTenantId(TENANT).build();
+      mocks.manager.findOne.mockResolvedValueOnce(entity);
+      mocks.manager.find.mockResolvedValueOnce([]);
+
+      const found = await repo.findByIdForJob(entity.id);
+
+      expect(found?.tenantId).toBe(TENANT);
+      expect(mocks.manager.findOne).toHaveBeenCalledWith(ChargeEntity, {
+        where: { id: entity.id },
+      });
+      expect(mocks.manager.find).toHaveBeenCalledWith(
+        ChargeLineEntity,
+        expect.objectContaining({ where: expect.objectContaining({ tenantId: TENANT }) }),
+      );
+    });
+
+    it('findByIdForJob answers null for an unknown id', async () => {
+      mocks.manager.findOne.mockResolvedValueOnce(null);
+
+      expect(await repo.findByIdForJob('missing')).toBeNull();
     });
 
     it('findById answers null for a charge that does not exist, without reading lines', async () => {
@@ -239,6 +266,17 @@ describe('TypeOrmChargeRepository', () => {
       expect(charge.version).toBe(4);
     });
 
+    it('drains the ChargePaid the aggregate raised into the outbox, once, in the same save', async () => {
+      const charge = new ChargeBuilder().withTenantId(TENANT).withVersion(3).build();
+      charge.markPaid('PIX', new Date('2026-03-10T15:00:00Z'), null, 'corr-paid', 'a@example.test');
+
+      await inTransaction(() => repo.save(charge));
+      await inTransaction(() => repo.save(charge));
+
+      expect(outbox.published.map((event) => event.eventName)).toEqual(['ChargePaid']);
+      expect(outbox.published[0]).toMatchObject({ tenantId: TENANT, correlationId: 'corr-paid' });
+    });
+
     it('never writes the claim columns, the lines, the amounts or the identity on an update', async () => {
       const charge = new ChargeBuilder().withVersion(1).withCreationAttempts(2, NOW).build();
       charge.markOverdue();
@@ -323,9 +361,10 @@ describe('TypeOrmChargeRepository', () => {
     it('runs on the repository’s own manager, never the caller’s transaction', async () => {
       const own = mockManager();
       own.manager.query.mockResolvedValueOnce([]);
-      const claimRepo = new TypeOrmChargeRepository({
-        manager: own.manager,
-      } as unknown as Repository<ChargeEntity>);
+      const claimRepo = new TypeOrmChargeRepository(
+        { manager: own.manager } as unknown as Repository<ChargeEntity>,
+        new InMemoryOutboxPublisher(),
+      );
 
       await inTransaction(() => claimRepo.claimForProviderCreation(TENANT, 'c-1', NOW));
 

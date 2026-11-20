@@ -166,6 +166,33 @@ describe('BackendHttpService', () => {
     });
   });
 
+  describe('postWithoutTenant()', () => {
+    it('sends the internal key and the correlation id, and no tenant or actor header (a caller with no user and no tenant)', async () => {
+      const { service, http } = makeService(undefined, 'corr-webhook');
+      http.post.mockReturnValue(axiosOf(undefined));
+
+      await service.postWithoutTenant('/internal/billing/webhooks/asaas', { id: 'evt_1' });
+
+      expect(http.post).toHaveBeenCalledWith(
+        'http://backend:3001/internal/billing/webhooks/asaas',
+        { id: 'evt_1' },
+        {
+          headers: { 'X-Internal-Key': INTERNAL_KEY, 'X-Correlation-ID': 'corr-webhook' },
+          timeout: 10_000,
+        },
+      );
+    });
+
+    it('forwards a backend non-2xx as the same status so the provider retries', async () => {
+      const { service, http } = makeService();
+      const err = new AxiosError('boom');
+      err.response = { status: 503, data: { title: 'Unavailable' } } as AxiosResponse;
+      http.post.mockReturnValue(throwError(() => err));
+
+      await expect(service.postWithoutTenant('/x', {})).rejects.toMatchObject({ status: 503 });
+    });
+  });
+
   describe('postForPublic()', () => {
     it('defaults to the same 10s timeout as every other method when none is given', async () => {
       const { service, http } = makeService({ tenantId: 'tid-actor' });

@@ -11,6 +11,8 @@ export interface FakeCharge {
   state: NormalizedChargeState;
   paymentMethod: PaymentMethod | null;
   paidAt: Date | null;
+  /** A dispute is open on a charge that is still `PAID`. */
+  disputeOpen: boolean;
 }
 
 export function receiptUrlOf(charge: FakeCharge): string | null {

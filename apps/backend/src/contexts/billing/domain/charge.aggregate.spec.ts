@@ -79,12 +79,51 @@ describe('Charge', () => {
   });
 
   describe('markPaid', () => {
+    it('raises one ChargePaid carrying the amount, method, receipt and recipient', () => {
+      const charge = chargeIn('PENDING');
+
+      charge.markPaid(
+        'PIX',
+        PAID_AT,
+        'https://receipt.example/1',
+        'corr-paid',
+        'billing@example.test',
+      );
+
+      const events = charge.clearDomainEvents();
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({
+        eventName: 'ChargePaid',
+        tenantId: charge.tenantId,
+        correlationId: 'corr-paid',
+        data: {
+          chargeId: charge.id,
+          amountMinor: charge.amount.amountMinor,
+          currency: charge.amount.currency,
+          method: 'PIX',
+          paidAt: PAID_AT.toISOString(),
+          receiptUrl: 'https://receipt.example/1',
+          recipientEmail: 'billing@example.test',
+        },
+      });
+    });
+
+    it('raises no second ChargePaid for a repeated paid fact', () => {
+      const charge = chargeIn('PENDING');
+      charge.markPaid('PIX', PAID_AT, null, 'corr-1', null);
+      charge.clearDomainEvents();
+
+      charge.markPaid('PIX', PAID_AT, null, 'corr-2', null);
+
+      expect(charge.clearDomainEvents()).toEqual([]);
+    });
+
     it.each(['PENDING', 'OVERDUE', 'CANCELED'] as ChargeStatus[])(
       'a provider paid fact turns a %s charge PAID and stores the method, instant and receipt',
       (status) => {
         const charge = chargeIn(status);
 
-        charge.markPaid('PIX', PAID_AT, 'https://receipt.example/1');
+        charge.markPaid('PIX', PAID_AT, 'https://receipt.example/1', 'corr-1', null);
 
         expect(charge.status).toBe('PAID');
         expect(charge.method).toBe('PIX');
@@ -96,16 +135,16 @@ describe('Charge', () => {
     it('stores a null receipt when the provider gave none', () => {
       const charge = chargeIn('PENDING');
 
-      charge.markPaid('BOLETO', PAID_AT, null);
+      charge.markPaid('BOLETO', PAID_AT, null, 'corr-1', null);
 
       expect(charge.receiptUrl).toBeNull();
     });
 
     it('is idempotent: a second paid fact on a PAID charge changes nothing', () => {
       const charge = chargeIn('PENDING');
-      charge.markPaid('PIX', PAID_AT, 'https://receipt.example/1');
+      charge.markPaid('PIX', PAID_AT, 'https://receipt.example/1', 'corr-1', null);
 
-      charge.markPaid('CARD', new Date('2026-04-01T00:00:00Z'), null);
+      charge.markPaid('CARD', new Date('2026-04-01T00:00:00Z'), null, 'corr-1', null);
 
       expect(charge.method).toBe('PIX');
       expect(charge.paidAt).toBe(PAID_AT);
@@ -115,7 +154,7 @@ describe('Charge', () => {
     it.each(['REFUNDED', 'CHARGEBACK', 'FAILED'] as ChargeStatus[])(
       'is illegal on a %s charge',
       (status) => {
-        expect(() => chargeIn(status).markPaid('PIX', PAID_AT, null)).toThrow(
+        expect(() => chargeIn(status).markPaid('PIX', PAID_AT, null, 'corr-1', null)).toThrow(
           IllegalChargeTransitionError,
         );
       },
@@ -124,7 +163,7 @@ describe('Charge', () => {
     it('clears the provider cancel flag: a paid charge needs no provider cancel any more', () => {
       const charge = new ChargeBuilder().withStatus('CANCELED').withProviderCancelPending().build();
 
-      charge.markPaid('PIX', PAID_AT, null);
+      charge.markPaid('PIX', PAID_AT, null, 'corr-1', null);
 
       expect(charge.providerCancelPending).toBe(false);
     });
@@ -235,7 +274,7 @@ describe('Charge', () => {
 
   describe('status table invariants', () => {
     const methods: Record<string, (charge: Charge) => void> = {
-      markPaid: (c) => c.markPaid('PIX', PAID_AT, null),
+      markPaid: (c) => c.markPaid('PIX', PAID_AT, null, 'corr-1', null),
       markOverdue: (c) => c.markOverdue(),
       cancel: (c) => c.cancel(),
       markRefunded: (c) => c.markRefunded(brl(4900)),

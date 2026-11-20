@@ -2,8 +2,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { FeatureKey } from '@ikaro/validation';
 import { CalendarDate } from '../../../../shared/value-objects/calendar-date.vo';
 import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
-import { FeaturePriceNotFoundError } from '../../domain/errors/billing-domain.error';
 import type { FeaturePriceCycle, FeatureTier } from '../../domain/feature-price.aggregate';
+import { findFeaturePriceInForce } from '../helpers/feature-price-lookup.helper';
 import {
   FEATURE_PRICE_REPOSITORY,
   IFeaturePriceRepository,
@@ -43,23 +43,14 @@ export class GetFeaturePriceAtUseCase {
     const countryCode = CountryCode.create(dto.countryCode);
     const at = CalendarDate.create(dto.at);
 
-    const price = await this.repo.findByNaturalKey(
+    const { price, version } = await findFeaturePriceInForce(
+      this.repo,
       dto.featureKey,
       countryCode,
       dto.tier,
       dto.cycle,
+      at,
     );
-    if (!price) {
-      throw new FeaturePriceNotFoundError(
-        `No price for ${dto.featureKey}/${countryCode.value}/${dto.tier}/${dto.cycle}`,
-      );
-    }
-    const version = price.versionInForceAt(at);
-    if (!version) {
-      throw new FeaturePriceNotFoundError(
-        `No price version in force for ${dto.featureKey}/${countryCode.value}/${dto.tier}/${dto.cycle} on ${at.value}`,
-      );
-    }
     return {
       featureKey: price.featureKey,
       countryCode: price.countryCode.value,

@@ -6,6 +6,9 @@ import {
   ChargeLineBuilder,
   SubscriptionEntityBuilder,
 } from '../../../../test/builders/billing';
+import { OutboxEventEntity } from '../../../../shared/infrastructure/outbox/outbox-event.entity';
+import { TypeOrmOutboxRepository } from '../../../../shared/infrastructure/outbox/typeorm-outbox.repository';
+import { InMemoryOutboxPublisher } from '../../../../test/infrastructure/in-memory-outbox-publisher';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { waitForBlockedRowLock } from '../../../../test/utils/wait-for-blocked-row-lock';
 import { Charge } from '../../domain/charge.aggregate';
@@ -20,6 +23,7 @@ describe('TypeOrmChargeRepository (integration)', () => {
   let dataSource: DataSource;
   let txManager: TypeOrmTransactionManager;
   let repo: TypeOrmChargeRepository;
+  let outbox: InMemoryOutboxPublisher;
   // A fresh tenant (and subscription) per scenario: nothing is shared, so a failing scenario
   // leaves nothing another test can trip over; rows are deleted after each test.
   const tenants: string[] = [];
@@ -53,11 +57,15 @@ describe('TypeOrmChargeRepository (integration)', () => {
   beforeAll(async () => {
     dataSource = await createTestDataSource();
     txManager = new TypeOrmTransactionManager(dataSource);
-    repo = new TypeOrmChargeRepository(dataSource.getRepository(ChargeEntity));
+    outbox = new InMemoryOutboxPublisher();
+    repo = new TypeOrmChargeRepository(dataSource.getRepository(ChargeEntity), outbox);
   });
 
   afterEach(async () => {
     if (tenants.length > 0) {
+      await dataSource.query(`DELETE FROM shared.outbox WHERE tenant_id = ANY($1::uuid[])`, [
+        tenants,
+      ]);
       for (const table of ['charge_lines', 'charges', 'subscription_items', 'subscriptions']) {
         await dataSource.query(`DELETE FROM billing.${table} WHERE tenant_id = ANY($1::uuid[])`, [
           tenants,
@@ -234,7 +242,7 @@ describe('TypeOrmChargeRepository (integration)', () => {
       await save(created);
       const creator = await repo.findById(t.tenantId, created.id);
       const webhook = await repo.findById(t.tenantId, created.id);
-      webhook?.markPaid('PIX', new Date(), null);
+      webhook?.markPaid('PIX', new Date(), null, 'corr-int', null);
       await save(webhook as Charge);
       creator?.markCreationReady('ASAAS', 'pay_1', 'https://pay.example/1', null);
 
@@ -245,6 +253,68 @@ describe('TypeOrmChargeRepository (integration)', () => {
       await save(reread as Charge);
       const final = await repo.findById(t.tenantId, created.id);
       expect([final?.status, final?.providerChargeId]).toEqual(['PAID', 'pay_1']);
+    });
+
+    it('findByIdForJob finds a charge by its own id with no tenant context, lines included', async () => {
+      const t = await newTenant();
+      const created = period(t);
+      await save(created);
+
+      const found = await repo.findByIdForJob(created.id);
+
+      expect(found?.tenantId).toBe(t.tenantId);
+      expect(found?.lines).toHaveLength(created.lines.length);
+      expect(await repo.findByIdForJob(uuidv7())).toBeNull();
+    });
+
+    // The real outbox repository: its insert refuses to run outside a transaction, so these two
+    // tests fail if the drain ever moves out of the save's own transaction.
+    describe('ChargePaid through the real outbox', () => {
+      const outboxRows = (tenantId: string): Promise<OutboxEventEntity[]> =>
+        dataSource.getRepository(OutboxEventEntity).find({ where: { tenantId } });
+      const realOutboxRepo = (): TypeOrmChargeRepository => {
+        const rows = new TypeOrmOutboxRepository(dataSource.getRepository(OutboxEventEntity));
+        return new TypeOrmChargeRepository(dataSource.getRepository(ChargeEntity), {
+          publish: async (event) => {
+            await rows.insert(event, event.eventId);
+          },
+        });
+      };
+
+      it('commits the paid charge and its ChargePaid outbox row together', async () => {
+        const t = await newTenant();
+        const created = period(t);
+        await save(created);
+        const chargeRepo = realOutboxRepo();
+        const loaded = (await chargeRepo.findById(t.tenantId, created.id)) as Charge;
+        loaded.markPaid('PIX', new Date(), null, 'corr-int', 'a@example.test');
+
+        await txManager.run(() => chargeRepo.save(loaded));
+
+        expect((await repo.findById(t.tenantId, created.id))?.status).toBe('PAID');
+        const rows = await outboxRows(t.tenantId);
+        expect(rows.map((row) => row.eventName)).toEqual(['ChargePaid']);
+        expect(rows[0].payload).toMatchObject({ data: { chargeId: created.id } });
+      });
+
+      it('rolls both back when the transaction fails after the save: no paid charge, no outbox row', async () => {
+        const t = await newTenant();
+        const created = period(t);
+        await save(created);
+        const chargeRepo = realOutboxRepo();
+        const loaded = (await chargeRepo.findById(t.tenantId, created.id)) as Charge;
+        loaded.markPaid('PIX', new Date(), null, 'corr-int', null);
+
+        await expect(
+          txManager.run(async () => {
+            await chargeRepo.save(loaded);
+            throw new Error('fail after the save');
+          }),
+        ).rejects.toThrow('fail after the save');
+
+        expect((await repo.findById(t.tenantId, created.id))?.status).toBe('PENDING');
+        expect(await outboxRows(t.tenantId)).toEqual([]);
+      });
     });
 
     it('migration 1748500000046 gives an existing row version 0', async () => {

@@ -5,6 +5,7 @@ import {
   ChargeLineEntityBuilder,
   SubscriptionEntityBuilder,
 } from '../../../../test/builders/billing';
+import { InMemoryOutboxPublisher } from '../../../../test/infrastructure/in-memory-outbox-publisher';
 import { createTestDataSource } from '../../../../test/test-datasource';
 import { PROVIDER_CREATION_LEASE_MINUTES } from '../../domain/billing-constants';
 import { Charge } from '../../domain/charge.aggregate';
@@ -52,14 +53,22 @@ describe('TypeOrmChargeRepository queries, claim and isolation (integration)', (
   };
 
   // Plans the exact SQL the repository runs, with sequential scans disabled for the transaction so
-  // a near-empty test table cannot make the planner's choice meaningless.
-  const indexesUsed = async (query: SelectQueryBuilder<ChargeEntity>): Promise<string[]> => {
+  // a near-empty test table cannot make the planner's choice meaningless. Even then two partial
+  // indexes that can both serve a query tie on the statistics of an empty table (an autovacuum
+  // `ANALYZE` after other specs' inserts and deletes), so a caller names the competitors to take
+  // away: the plan is made in a transaction that is rolled back, and Postgres DDL is transactional.
+  // The query is then served by the named index or by no index at all, whatever the statistics say.
+  const indexesUsed = async (
+    query: SelectQueryBuilder<ChargeEntity>,
+    withoutIndexes: readonly string[] = [],
+  ): Promise<string[]> => {
     const [sql, parameters] = query.getQueryAndParameters();
     const runner = dataSource.createQueryRunner();
     await runner.connect();
     await runner.startTransaction();
     try {
       await runner.query('SET LOCAL enable_seqscan = off');
+      for (const index of withoutIndexes) await runner.query(`DROP INDEX "billing"."${index}"`);
       const [{ 'QUERY PLAN': plan }] = await runner.query(
         `EXPLAIN (FORMAT JSON) ${sql}`,
         parameters,
@@ -83,7 +92,10 @@ describe('TypeOrmChargeRepository queries, claim and isolation (integration)', (
 
   beforeAll(async () => {
     dataSource = await createTestDataSource();
-    repo = new TypeOrmChargeRepository(dataSource.getRepository(ChargeEntity));
+    repo = new TypeOrmChargeRepository(
+      dataSource.getRepository(ChargeEntity),
+      new InMemoryOutboxPublisher(),
+    );
   });
 
   afterEach(async () => {
@@ -295,9 +307,11 @@ describe('TypeOrmChargeRepository queries, claim and isolation (integration)', (
       expect(
         await indexesUsed(repo.buildPageQuery(manager, t.tenantId, { limit: 10, offset: 0 })),
       ).toContain('IDX_billing_charges_history');
-      expect(await indexesUsed(repo.buildPendingCreationQuery(new Date(), 10))).toContain(
-        'IDX_billing_charges_creation_retry',
-      );
+      expect(
+        await indexesUsed(repo.buildPendingCreationQuery(new Date(), 10), [
+          'IDX_billing_charges_open',
+        ]),
+      ).toContain('IDX_billing_charges_creation_retry');
       expect(await indexesUsed(repo.buildOpenDueQuery('2026-12-31', 10))).toContain(
         'IDX_billing_charges_open',
       );

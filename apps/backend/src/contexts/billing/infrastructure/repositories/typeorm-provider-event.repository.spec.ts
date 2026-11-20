@@ -5,7 +5,7 @@ import { ProviderEventEntity } from '../entities/provider-event.entity';
 import { TypeOrmProviderEventRepository } from './typeorm-provider-event.repository';
 
 const fakeManager = (): jest.Mocked<EntityManager> =>
-  ({ query: jest.fn() }) as unknown as jest.Mocked<EntityManager>;
+  ({ query: jest.fn(), exists: jest.fn() }) as unknown as jest.Mocked<EntityManager>;
 
 describe('TypeOrmProviderEventRepository', () => {
   let own: jest.Mocked<EntityManager>;
@@ -63,5 +63,21 @@ describe('TypeOrmProviderEventRepository', () => {
     expect(inserted).toBe(true);
     expect(tx.query).toHaveBeenCalledTimes(1);
     expect(own.query).not.toHaveBeenCalled();
+  });
+
+  describe('exists', () => {
+    it.each([true, false])(
+      'answers %s from a read-only lookup by provider and event id',
+      async (found) => {
+        own.exists.mockResolvedValueOnce(found);
+
+        expect(await repo.exists('ASAAS', 'evt_1&1')).toBe(found);
+
+        expect(own.exists).toHaveBeenCalledWith(ProviderEventEntity, {
+          where: { provider: 'ASAAS', eventId: 'evt_1&1' },
+        });
+        expect(own.query).not.toHaveBeenCalled();
+      },
+    );
   });
 });
