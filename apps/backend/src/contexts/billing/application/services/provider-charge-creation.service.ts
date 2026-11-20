@@ -224,8 +224,14 @@ export class ProviderChargeCreationService {
   ): Promise<void> {
     const recipientEmail = resolveBillingRecipientEmail(exempt, account);
     await this.txManager.run(async () => {
+      // B-R1 then B-C1 (docs/LOCK_CATALOG.md): exemption is decided under the subscription lock, not
+      // from the snapshot read before the provider call.
+      const current = await this.subscriptions.findByTenantIdForUpdate(command.tenantId);
       const locked = await this.charges.findByIdForUpdate(command.tenantId, command.chargeId);
       if (locked === null) return;
+      // Exempted while the provider call was in flight (UC-113 A1): the charge is cancelled here, so
+      // it announces nothing, and the provider charge is removed by the cancel retry below.
+      if (current?.exempt && locked.open) locked.cancel();
       locked.markCreationReady(
         provider,
         created.providerChargeId,
@@ -233,8 +239,8 @@ export class ProviderChargeCreationService {
         created.expiresAt,
         { correlationId: command.correlationId, recipientEmail },
       );
-      // Cancelled locally while the provider call was in flight: the provider now holds a payable
-      // charge nobody wants, so the cancel retry has to remove it.
+      // Cancelled while the provider call was in flight (just above, or by a plan change or a
+      // cancel): the provider now holds a payable charge nobody wants, so the cancel retry removes it.
       if (locked.status === 'CANCELED') locked.markProviderCancelPending();
       await this.charges.save(locked);
     });

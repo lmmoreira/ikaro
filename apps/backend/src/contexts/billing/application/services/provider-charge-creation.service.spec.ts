@@ -330,6 +330,23 @@ describe('ProviderChargeCreationService', () => {
     expect(provider.inputs).toHaveLength(0);
   });
 
+  it('A1: a tenant exempted while the provider call was in flight gets the charge cancelled, flagged for the cancel retry and announced to nobody', async () => {
+    await seedAccount();
+    provider.beforeCreate = async () => {
+      const subscription = await subscriptions.findByTenantId(tenantId);
+      subscription?.setExempt(NOW, 'operator', 'corr-exempt');
+      if (subscription) await subscriptions.save(subscription);
+    };
+
+    await expect(run()).resolves.toBe('READY');
+
+    const stored = await charges.findById(tenantId, charge.id);
+    expect(stored?.status).toBe('CANCELED');
+    expect(stored?.providerChargeId).not.toBeNull();
+    expect(stored?.providerCancelPending).toBe(true);
+    expect(outbox.published.filter((e) => e.eventName === 'ChargeIssued')).toHaveLength(0);
+  });
+
   it('flags a charge cancelled while the provider call was in flight, so the cancel retry removes it', async () => {
     await seedAccount();
     provider.beforeCreate = async () => {
