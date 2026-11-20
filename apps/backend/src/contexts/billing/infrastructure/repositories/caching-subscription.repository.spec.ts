@@ -217,5 +217,32 @@ describe('CachingSubscriptionRepository', () => {
       ]);
       expect(cache.getCalls).toHaveLength(0);
     });
+
+    it('forwards the status sweep selectors (UC-115) to the repository, uncached, paging included', async () => {
+      const ended = new SubscriptionBuilder()
+        .withStatus('TRIALING')
+        .withTrialEndsAt(new Date(NOW.getTime() - 3 * 86_400_000))
+        .build();
+      const lapsed = new SubscriptionBuilder()
+        .withStatus('PAST_DUE')
+        .withPastDueSince(new Date(NOW.getTime() - 20 * 86_400_000))
+        .build();
+      const cancelling = new SubscriptionBuilder()
+        .withStatus('ACTIVE')
+        .withCancelAt(new Date(NOW.getTime() - 86_400_000))
+        .build();
+      for (const subscription of [ended, lapsed, cancelling]) await inner.save(subscription);
+
+      const trial = await repo.findTrialEndedForJob(NOW, 10);
+      const grace = await repo.findGraceExpiredForJob(NOW, 10);
+      const cancel = await repo.findCancelDueForJob(NOW, 10);
+
+      expect(trial.map((ref) => ref.tenantId)).toEqual([ended.tenantId]);
+      expect(grace.map((ref) => ref.tenantId)).toEqual([lapsed.tenantId]);
+      expect(cancel.map((ref) => ref.tenantId)).toEqual([cancelling.tenantId]);
+      // The keyset reaches the repository: a page after the only row is empty.
+      await expect(repo.findTrialEndedForJob(NOW, 10, trial[0])).resolves.toEqual([]);
+      expect(cache.getCalls).toHaveLength(0);
+    });
   });
 });

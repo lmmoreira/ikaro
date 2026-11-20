@@ -31,6 +31,7 @@ import { addDaysUTC, todayUTC } from '../../shared/utils/calendar-date';
 import {
   BillingAccountBuilder,
   ChargeBuilder,
+  ProviderHealthEntityBuilder,
   SubscriptionEntityBuilder,
   SubscriptionItemEntityBuilder,
 } from '../builders/billing';
@@ -219,15 +220,14 @@ export async function createSweepWorld() {
   /** Saves a health row under a key no other suite uses; it is removed with the rest of the world's rows. */
   async function seedHealthKey(key: string, freezeSince: Date | null) {
     healthKeys.push(key);
-    await ds.getRepository(ProviderHealthEntity).insert({
-      merchantProfileKey: key,
-      lastReconcileOkAt: null,
-      lastFullReconcileAt: null,
-      webhookStatus: 'UNKNOWN',
-      freezeActive: freezeSince !== null,
-      freezeSince,
-      updatedAt: new Date(),
-    });
+    await ds
+      .getRepository(ProviderHealthEntity)
+      .insert(
+        new ProviderHealthEntityBuilder()
+          .withMerchantProfileKey(key)
+          .withFreeze(freezeSince)
+          .build(),
+      );
   }
 
   const chargeRows = (tenantId: string) =>
