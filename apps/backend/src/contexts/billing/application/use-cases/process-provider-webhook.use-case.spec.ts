@@ -337,6 +337,21 @@ describe('ProcessProviderWebhookUseCase', () => {
     const run = (rawBody: string): Promise<ProcessProviderWebhookUseCaseResult> =>
       useCase.execute({ provider: 'ASAAS', rawBody, headers: {}, correlationId: 'c' });
 
+    it('an event the re-read does not confirm leaves no inbox row, so the same event id is applied when delivered again once the provider confirms it', async () => {
+      const { charge, subscription, providerChargeId, providerCustomerId } = await seed('PAST_DUE');
+      const early = forgedPaid(providerChargeId, providerCustomerId, charge.id);
+
+      expect(await run(early)).toBe('NOT_CONFIRMED');
+      expect(providerEvents.saved).toEqual([]);
+
+      fake.simulatePayment(providerChargeId, 'PIX');
+      expect(await run(early)).toBe('APPLIED');
+
+      expect(charge.status).toBe('PAID');
+      expect(subscription.status).toBe('ACTIVE');
+      expect(providerEvents.saved).toHaveLength(1);
+    });
+
     it('a forged paid event for a charge the provider says is unpaid is not applied', async () => {
       const { charge, providerChargeId, providerCustomerId } = await seed('PAST_DUE');
 
