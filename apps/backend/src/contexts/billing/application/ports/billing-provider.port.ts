@@ -9,7 +9,8 @@ export const BILLING_PROVIDER_REGISTRY = Symbol('BillingProviderRegistry');
 
 export interface ProviderCustomerIdentity {
   readonly name: string;
-  readonly email: string;
+  /** `null` when the account holds no billing email: the provider's own notifications are off, so none is needed. */
+  readonly email: string | null;
   /** Asaas enforces the CPF/CNPJ when a charge is created, so it is sent at customer creation. */
   readonly taxId: string | null;
   readonly countryCode: string;

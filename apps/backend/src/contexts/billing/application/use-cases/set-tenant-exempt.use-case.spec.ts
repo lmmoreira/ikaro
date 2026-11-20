@@ -35,7 +35,7 @@ describe('SetTenantExemptUseCase', () => {
       txManager,
       new AdvanceableClock(NOW),
       platform,
-      { appEnv: 'local', platformOwnerSlug: OWNER_SLUG },
+      { appEnv: 'local', platformOwnerSlug: OWNER_SLUG, frontendUrl: 'http://localhost:3000' },
     );
   });
 
@@ -46,6 +46,7 @@ describe('SetTenantExemptUseCase', () => {
       countryCode: 'BR',
       timezone: 'America/Sao_Paulo',
       createdAt: NOW,
+      isActive: true,
     });
 
   it('sets exempt on a trialing tenant: ACTIVE and exempt, audited', async () => {

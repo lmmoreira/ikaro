@@ -59,6 +59,16 @@ export interface ISubscriptionRepository {
   findTenantIdsNotEntitledTo(featureKey: FeatureKey, now: Date): Promise<string[]>;
 
   /**
+   * Cross-tenant job selector (UC-113, M26-S05): tenant ids of the `TRIALING` / `ACTIVE`, non-exempt
+   * subscriptions whose `next_due_date` is on or before `dueOnOrBefore` (a `YYYY-MM-DD` the caller
+   * widened by one day of slack, because the date is in each subscription's own zone), soonest due
+   * first, at most `limit`. Ids only: the job re-reads each one under B-R1 and re-checks the date
+   * in the subscription's zone. Served by the standalone partial index
+   * `IDX_billing_subscriptions_issuing`; the predicate must repeat the index's literally.
+   */
+  findDueForIssueForJob(dueOnOrBefore: string, limit: number): Promise<string[]>;
+
+  /**
    * Cross-tenant operator read (UC-111): one page of subscription summaries, newest-created first
    * (id as tiebreak), optionally narrowed to one status, with the unpaged total. It reads the
    * subscription row only (no items, no other context's data) and serves a manual lookup over one

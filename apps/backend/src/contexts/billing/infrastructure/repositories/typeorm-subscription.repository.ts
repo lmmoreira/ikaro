@@ -82,6 +82,16 @@ export class TypeOrmSubscriptionRepository implements ISubscriptionRepository {
     return rows.map((row) => row.tenantId);
   }
 
+  // Cross-tenant job selector (M26-S05). The two predicates are literals on purpose: the partial
+  // index `IDX_billing_subscriptions_issuing` (status IN TRIALING/ACTIVE AND NOT exempt) is used
+  // only when the planner can prove the query implies it, which a bound parameter would hide.
+  async findDueForIssueForJob(dueOnOrBefore: string, limit: number): Promise<string[]> {
+    const rows = await this.buildDueForIssueQuery(dueOnOrBefore, limit).getRawMany<{
+      tenantId: string;
+    }>();
+    return rows.map((row) => row.tenantId);
+  }
+
   async listSummaries(
     query: ListOperatorSubscriptionsQuery,
   ): Promise<{ items: OperatorSubscriptionSummary[]; total: number }> {
@@ -116,6 +126,21 @@ export class TypeOrmSubscriptionRepository implements ISubscriptionRepository {
       .select('s.tenantId', 'tenantId')
       .where('s.status = :status', { status: 'SUSPENDED' })
       .orderBy('s.suspendedAt', 'ASC');
+  }
+
+  buildDueForIssueQuery(
+    dueOnOrBefore: string,
+    limit: number,
+  ): SelectQueryBuilder<SubscriptionEntity> {
+    return this.repo
+      .createQueryBuilder('s')
+      .select('s.tenantId', 'tenantId')
+      .where("s.status IN ('TRIALING', 'ACTIVE')")
+      .andWhere('NOT s.exempt')
+      .andWhere('s.nextDueDate <= :dueOnOrBefore', { dueOnOrBefore })
+      .orderBy('s.nextDueDate', 'ASC')
+      .addOrderBy('s.tenantId', 'ASC')
+      .limit(limit);
   }
 
   buildNotEntitledQuery(featureKey: FeatureKey, now: Date): SelectQueryBuilder<SubscriptionEntity> {

@@ -34,6 +34,59 @@ describe('Charge — provider creation, cancel flag and payment return', () => {
       },
     );
 
+    it('raises ChargeIssued once, with the link, when it is given a notice', () => {
+      const charge = new ChargeBuilder().build();
+
+      charge.markCreationReady('ASAAS', 'pay_1', 'https://pay.example/1', EXPIRES, {
+        correlationId: 'corr-1',
+        recipientEmail: 'billing@acme.test',
+      });
+
+      const events = charge.clearDomainEvents();
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({
+        correlationId: 'corr-1',
+        data: {
+          chargeId: charge.id,
+          kind: 'PERIOD',
+          dueDate: charge.dueDate.value,
+          amountMinor: charge.amount.amountMinor,
+          currency: 'BRL',
+          paymentUrl: 'https://pay.example/1',
+          recipientEmail: 'billing@acme.test',
+        },
+      });
+    });
+
+    it('raises nothing without a notice, and not again on an idempotent repeat', () => {
+      const charge = new ChargeBuilder().build();
+      const notice = { correlationId: 'corr-1', recipientEmail: null };
+
+      charge.markCreationReady('ASAAS', 'pay_1', 'https://pay.example/1', EXPIRES);
+      expect(charge.clearDomainEvents()).toHaveLength(0);
+
+      const other = new ChargeBuilder().build();
+      other.markCreationReady('ASAAS', 'pay_2', 'https://pay.example/2', EXPIRES, notice);
+      other.clearDomainEvents();
+      other.markCreationReady('ASAAS', 'pay_2', 'https://pay.example/2', EXPIRES, notice);
+      expect(other.clearDomainEvents()).toHaveLength(0);
+    });
+
+    it.each(['PAID', 'CANCELED'] as ChargeStatus[])(
+      'raises no ChargeIssued for a %s charge: it is stored but nobody is told to pay it',
+      (status) => {
+        const charge = new ChargeBuilder().withStatus(status).build();
+
+        charge.markCreationReady('ASAAS', 'pay_1', 'https://pay.example/1', EXPIRES, {
+          correlationId: 'corr-1',
+          recipientEmail: null,
+        });
+
+        expect(charge.providerCreationStatus).toBe('READY');
+        expect(charge.clearDomainEvents()).toHaveLength(0);
+      },
+    );
+
     it('is idempotent for the same provider charge', () => {
       const charge = new ChargeBuilder().build();
       charge.markCreationReady('ASAAS', 'pay_1', 'https://pay.example/1', null);

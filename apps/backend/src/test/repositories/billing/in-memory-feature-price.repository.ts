@@ -15,6 +15,11 @@ export class InMemoryFeaturePriceRepository implements IFeaturePriceRepository {
     this.store.push(...prices);
   }
 
+  /** Test seam: forgets every seeded price (a spec for a missing renewable price). */
+  clear(): void {
+    this.store.length = 0;
+  }
+
   async findByNaturalKey(
     featureKey: FeatureKey,
     countryCode: CountryCode,

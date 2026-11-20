@@ -43,6 +43,21 @@ export class InMemorySubscriptionRepository implements ISubscriptionRepository {
       .map((subscription) => subscription.tenantId);
   }
 
+  // The TRIALING / ACTIVE, non-exempt subscriptions due on or before the date, soonest first.
+  async findDueForIssueForJob(dueOnOrBefore: string, limit: number): Promise<string[]> {
+    return this.saved
+      .filter(
+        (subscription) =>
+          (subscription.status === 'TRIALING' || subscription.status === 'ACTIVE') &&
+          !subscription.exempt &&
+          subscription.nextDueDate !== null &&
+          subscription.nextDueDate.value <= dueOnOrBefore,
+      )
+      .sort((a, b) => (a.nextDueDate?.value ?? '').localeCompare(b.nextDueDate?.value ?? ''))
+      .slice(0, limit)
+      .map((subscription) => subscription.tenantId);
+  }
+
   // Operational and not on a trial (a trial grants every feature): no active item for the feature.
   async findTenantIdsNotEntitledTo(featureKey: FeatureKey, now: Date): Promise<string[]> {
     return this.saved

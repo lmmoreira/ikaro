@@ -116,6 +116,10 @@ export class CachingSubscriptionRepository implements ISubscriptionRepository {
     return this.repo.listSuspendedTenantIds();
   }
 
+  findDueForIssueForJob(dueOnOrBefore: string, limit: number): Promise<string[]> {
+    return this.repo.findDueForIssueForJob(dueOnOrBefore, limit);
+  }
+
   listSummaries(
     query: ListOperatorSubscriptionsQuery,
   ): Promise<{ items: OperatorSubscriptionSummary[]; total: number }> {

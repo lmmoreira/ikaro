@@ -19,4 +19,9 @@ export class AdvanceableClock implements IClock {
   advanceMs(ms: number): void {
     this.current += ms;
   }
+
+  /** Jumps to an absolute instant (a spec that needs a different day, not an elapsed time). */
+  setTo(instant: Date): void {
+    this.current = instant.getTime();
+  }
 }

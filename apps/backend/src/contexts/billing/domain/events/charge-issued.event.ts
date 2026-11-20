@@ -1,5 +1,7 @@
 import { DomainEvent } from '../../../../shared/domain/domain-event';
 import type { ChargeKind } from '../charge.types';
+import type { CalendarDate } from '../../../../shared/value-objects/calendar-date.vo';
+import type { MinorAmount } from '../value-objects/minor-amount.vo';
 
 interface ChargeIssuedData extends Record<string, unknown> {
   chargeId: string;
@@ -25,5 +27,29 @@ export class ChargeIssued extends DomainEvent<ChargeIssuedData> {
   constructor(tenantId: string, correlationId: string, data: ChargeIssuedData) {
     super(tenantId, correlationId);
     this.data = data;
+  }
+
+  /** The event for a charge that just became payable; the aggregate passes itself, structurally. */
+  static forCharge(
+    charge: {
+      readonly tenantId: string;
+      readonly id: string;
+      readonly kind: ChargeKind;
+      readonly dueDate: CalendarDate;
+      readonly amount: MinorAmount;
+    },
+    correlationId: string,
+    paymentUrl: string,
+    recipientEmail: string | null,
+  ): ChargeIssued {
+    return new ChargeIssued(charge.tenantId, correlationId, {
+      chargeId: charge.id,
+      kind: charge.kind,
+      dueDate: charge.dueDate.value,
+      amountMinor: charge.amount.amountMinor,
+      currency: charge.amount.currency,
+      paymentUrl,
+      recipientEmail,
+    });
   }
 }

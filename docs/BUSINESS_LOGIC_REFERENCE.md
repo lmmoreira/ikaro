@@ -795,7 +795,7 @@ Today only the operator suspend produces `SubscriptionSuspended` (`reason: OPERA
 
 ## Billing — The Charge: status table, concurrent writers and the recovery rule (M26-S02)
 
-The model: `Charge` (`charge.aggregate.ts`), `ChargeLine`, `RecoveryChargeFactory` and the two repositories. The provider webhook that drives it is built (M26-S04) and described in the next section; the other use cases (issue, sweep, reactivate, reconcile) are M26-S05 onwards and are not described as built here. Shape and field list: `docs/DOMAIN_MODEL.md` § Aggregate: Charge; columns and indexes: `docs/DATABASE_SCHEMA.md` § `billing.charges`.
+The model: `Charge` (`charge.aggregate.ts`), `ChargeLine`, `RecoveryChargeFactory` and the two repositories. The provider webhook that drives it is built (M26-S04) and described in the next section; the issue job (UC-113: `IssueNextChargesJob`, `IssueChargeForSubscriptionUseCase`, the shared `ProviderChargeCreationService` and the creation retry) is built (M26-S05); the other use cases (sweep, reactivate, reconcile) are M26-S06 onwards and are not described as built here. Shape and field list: `docs/DOMAIN_MODEL.md` § Aggregate: Charge; columns and indexes: `docs/DATABASE_SCHEMA.md` § `billing.charges`.
 
 **Status table.** One method per row, a repeat is a no-op, anything else throws `IllegalChargeTransitionError`. `FAILED` has no transition into it (reserved for M29).
 

@@ -22,4 +22,17 @@ export interface IBillingAccountRepository {
 
   /** Inserts or updates the account; never writes the country (it lives on the subscription). */
   save(account: BillingAccount): Promise<void>;
+
+  /**
+   * Stores the provider customer after `ensureCustomer`, **only** those two columns, in their own
+   * statement: a whole-aggregate `save()` of an account read before the provider call could
+   * overwrite an identity the manager saved in between (S16). Idempotent for the same customer;
+   * a different customer already stored is never replaced. Resolves whether the tenant's account
+   * now holds `providerCustomerId` (`false` for no account, or another customer already stored).
+   */
+  assignProviderCustomer(
+    tenantId: string,
+    provider: BillingProvider,
+    providerCustomerId: string,
+  ): Promise<boolean>;
 }

@@ -38,7 +38,7 @@ function buildController(fake: FakeBillingProvider): InternalBillingWebhookContr
   return new InternalBillingWebhookController(
     new ProcessProviderWebhookUseCase(
       new BillingProviderRegistry('local', fake),
-      { appEnv: 'local', platformOwnerSlug: null },
+      { appEnv: 'local', platformOwnerSlug: null, frontendUrl: 'http://localhost:3000' },
       new InMemoryBillingAccountRepository(),
       subscriptions,
       charges,

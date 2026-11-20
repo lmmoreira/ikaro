@@ -3,7 +3,7 @@ import type { MerchantProfileAppEnv } from '../../domain/merchant-profile-key';
 export const BILLING_PROVISIONING_CONFIG = Symbol('BillingProvisioningConfig');
 
 /**
- * The two deployment facts a new subscription is created from. Both are fixed for the life of the
+ * The deployment facts Billing's use cases are built from. Both are fixed for the life of the
  * process, so `BillingModule` provides them once as a plain value (no port, no adapter): the use
  * case never reads `process.env`.
  */
@@ -16,4 +16,6 @@ export interface BillingProvisioningConfig {
   readonly appEnv: MerchantProfileAppEnv;
   /** The slug of Ikaro's own tenant, whose subscription is permanently exempt; `null` when unset. */
   readonly platformOwnerSlug: string | null;
+  /** `FRONTEND_URL`: the web origin the provider's hosted payment page returns to (`returnUrl`). */
+  readonly frontendUrl: string;
 }

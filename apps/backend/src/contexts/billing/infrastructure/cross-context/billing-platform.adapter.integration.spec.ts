@@ -49,6 +49,7 @@ describe('BillingPlatformAdapter (integration)', () => {
       countryCode: 'BR',
       timezone: 'America/Sao_Paulo',
       createdAt,
+      isActive: true,
     });
   });
 

@@ -12,10 +12,11 @@ export interface GetTenantBillingInfoUseCaseResult {
   countryCode: string;
   timezone: string;
   createdAt: Date;
+  isActive: boolean;
 }
 
 /**
- * The narrow, stable read Billing needs about a tenant (M25-S13): exactly these five values and
+ * The narrow, stable read Billing needs about a tenant (M25-S13): exactly these six values and
  * nothing else. `GetTenantByIdUseCase` returns the whole `settings` blob and no `createdAt`.
  */
 @Injectable()
@@ -33,6 +34,7 @@ export class GetTenantBillingInfoUseCase {
       countryCode: tenant.settings.localization.countryCode,
       timezone: tenant.settings.businessHours.timezone,
       createdAt: tenant.createdAt,
+      isActive: tenant.isActive,
     };
   }
 }

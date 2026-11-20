@@ -63,3 +63,9 @@ export interface NewChargeInput {
   lines: readonly ChargeLine[];
   currency: string;
 }
+
+/** What `markCreationReady` needs to announce the charge: the correlation id and the billing email. */
+export interface ChargeIssuedNotice {
+  readonly correlationId: string;
+  readonly recipientEmail: string | null;
+}

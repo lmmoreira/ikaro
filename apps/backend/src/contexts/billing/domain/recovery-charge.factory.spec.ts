@@ -2,7 +2,8 @@ import { CalendarDate } from '../../../shared/value-objects/calendar-date.vo';
 import { SubscriptionBuilder } from '../../../test/builders/billing';
 import { RECOVERY_CHARGE_DUE_DAYS } from './billing-constants';
 import { ChargeInvariantError } from './errors/billing-domain.error';
-import { RecoveryChargeFactory, recoveryPriceKey } from './recovery-charge.factory';
+import { chargePriceKey } from './charge-price-key';
+import { RecoveryChargeFactory } from './recovery-charge.factory';
 import type { Subscription } from './subscription.aggregate';
 import { MinorAmount } from './value-objects/minor-amount.vo';
 
@@ -14,9 +15,9 @@ const subscription = (): Subscription =>
     .build();
 
 const prices = new Map<string, MinorAmount>([
-  [recoveryPriceKey('HOTSITE', 'STANDARD'), MinorAmount.create(4900, 'BRL')],
-  [recoveryPriceKey('BOOKING', 'STANDARD'), MinorAmount.create(10900, 'BRL')],
-  [recoveryPriceKey('CHATBOT', 'PLUS'), MinorAmount.create(7900, 'BRL')],
+  [chargePriceKey('HOTSITE', 'STANDARD'), MinorAmount.create(4900, 'BRL')],
+  [chargePriceKey('BOOKING', 'STANDARD'), MinorAmount.create(10900, 'BRL')],
+  [chargePriceKey('CHATBOT', 'PLUS'), MinorAmount.create(7900, 'BRL')],
 ]);
 
 const input = (today: string, items = [{ featureKey: 'HOTSITE', tier: 'STANDARD' }]) => ({

@@ -7,6 +7,8 @@ export interface BillingTenantInfo {
   countryCode: string;
   timezone: string;
   createdAt: Date;
+  /** `platform.tenants.is_active`: a deactivated tenant is never invoiced (UC-113 A11). */
+  isActive: boolean;
 }
 
 /**
