@@ -6,6 +6,7 @@ import { BILLING_JOB_PAGE_SIZE } from '../../domain/billing-constants';
 import {
   CHARGE_REPOSITORY,
   type ChargeRef,
+  type PendingCreationRef,
   IChargeRepository,
 } from '../ports/charge-repository.port';
 import {
@@ -59,21 +60,21 @@ export class RetryPendingChargeCreationUseCase {
     return { selected: retry.selected, ready: retry.ready };
   }
 
-  // Page by page from the last id it was given: a charge the retry skips stays selected, so asking
+  // Page by page from the last row it was given: a charge the retry skips stays selected, so asking
   // for the head again would never get past the skipped ones. A page's failure is kept and the next
   // page still runs.
-  private async retryFrom(retry: RetryRun, afterId?: string): Promise<void> {
+  private async retryFrom(retry: RetryRun, after?: PendingCreationRef): Promise<void> {
     const page = await this.charges.listPendingCreationForJob(
       retry.now,
       BILLING_JOB_PAGE_SIZE,
-      afterId,
+      after,
     );
     retry.selected += page.length;
     await this.retryPage(retry, page).catch((err: unknown) => {
       retry.failures.push(err);
     });
     if (page.length < BILLING_JOB_PAGE_SIZE) return;
-    await this.retryFrom(retry, page[page.length - 1].id);
+    await this.retryFrom(retry, page[page.length - 1]);
   }
 
   private async retryPage(retry: RetryRun, page: readonly ChargeRef[]): Promise<void> {

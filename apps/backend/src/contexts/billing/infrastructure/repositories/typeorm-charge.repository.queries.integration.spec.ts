@@ -285,16 +285,21 @@ describe('TypeOrmChargeRepository queries, claim and isolation (integration)', (
       expect(ids(await repo.listProviderCancelPendingForJob(100))).toEqual([cancelled.id]);
     });
 
-    it('the creation retry pages on from the last charge id it was given', async () => {
+    it('the creation retry pages on from the last row it was given, never-attempted charges first', async () => {
       const t = await newTenant();
       const a = await seed(t, (b) => b.withPeriod('2026-06-01', '2026-06-30'));
       const b = await seed(t, (builder) => builder.withPeriod('2026-07-01', '2026-07-31'));
-      const mineIds = (refs: { id: string }[]): string[] =>
-        refs.filter((r) => [a.id, b.id].includes(r.id)).map((r) => r.id);
-      const [low, high] = [a.id, b.id].sort();
+      const mineRows = <T extends { id: string }>(rows: T[]): T[] =>
+        rows.filter((r) => [a.id, b.id].includes(r.id));
+      const now = new Date();
 
-      expect(mineIds(await repo.listPendingCreationForJob(new Date(), 100, low))).toEqual([high]);
-      expect(mineIds(await repo.listPendingCreationForJob(new Date(), 100, high))).toEqual([]);
+      const all = mineRows(await repo.listPendingCreationForJob(now, 1000));
+      expect(all.map((r) => r.id).sort()).toEqual([a.id, b.id].sort());
+      expect(all.every((r) => r.lastAttemptAt === null)).toBe(true);
+
+      const afterFirst = mineRows(await repo.listPendingCreationForJob(now, 1000, all[0]));
+      expect(afterFirst.map((r) => r.id)).toEqual([all[1].id]);
+      expect(mineRows(await repo.listPendingCreationForJob(now, 1000, all[1]))).toEqual([]);
     });
 
     it('the creation retry skips a charge whose lease is still held', async () => {

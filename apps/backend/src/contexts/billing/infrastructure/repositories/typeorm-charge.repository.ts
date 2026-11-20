@@ -7,6 +7,7 @@ import { getActiveEntityManager } from '../../../../shared/infrastructure/transa
 import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
 import {
   ChargeRef,
+  PendingCreationRef,
   IChargeRepository,
   ListChargesQuery,
 } from '../../application/ports/charge-repository.port';
@@ -24,7 +25,7 @@ import {
   chargeToEntity,
   chargeUpdateSet,
 } from './typeorm-charge.mapper';
-import { CLAIM_FOR_PROVIDER_CREATION_SQL } from './typeorm-charge.sql';
+import { afterPendingCreation, CLAIM_FOR_PROVIDER_CREATION_SQL } from './typeorm-charge.sql';
 
 const PERIOD_UNIQUE_INDEX = 'UQ_billing_charges_period';
 const OPEN_RECOVERY_UNIQUE_INDEX = 'UQ_billing_charges_open_recovery';
@@ -115,9 +116,9 @@ export class TypeOrmChargeRepository implements IChargeRepository {
   async listPendingCreationForJob(
     now: Date,
     limit: number,
-    afterId?: string,
-  ): Promise<ChargeRef[]> {
-    return this.refs(this.buildPendingCreationQuery(now, limit, afterId));
+    after?: PendingCreationRef,
+  ): Promise<PendingCreationRef[]> {
+    return this.buildPendingCreationQuery(now, limit, after).getRawMany<PendingCreationRef>();
   }
 
   async listOpenDueForJob(dueOnOrBefore: string, limit: number): Promise<ChargeRef[]> {
@@ -152,18 +153,21 @@ export class TypeOrmChargeRepository implements IChargeRepository {
   buildPendingCreationQuery(
     now: Date,
     limit: number,
-    afterId?: string,
+    after?: PendingCreationRef,
   ): SelectQueryBuilder<ChargeEntity> {
     const query = this.refQuery()
+      .addSelect('c.providerCreationLastAttemptAt', 'lastAttemptAt')
       .where('c.status IN (:...statuses)', { statuses: OPEN_STATUSES })
-      .andWhere('c.providerCreationStatus = :creationStatus', { creationStatus: 'PENDING' })
-      .andWhere('c.providerChargeId IS NULL')
+      .andWhere(`c.providerCreationStatus = 'PENDING' AND c.providerChargeId IS NULL`)
       .andWhere(
         `(c.providerCreationLastAttemptAt IS NULL OR c.providerCreationLastAttemptAt < :cutoff)`,
         { cutoff: new Date(now.getTime() - PROVIDER_CREATION_LEASE_MINUTES * 60_000) },
       );
-    if (afterId !== undefined) query.andWhere('c.id > :afterId', { afterId });
-    return query.orderBy('c.id', 'ASC').limit(limit);
+    if (after) query.andWhere(...afterPendingCreation(after));
+    return query
+      .orderBy('c.providerCreationLastAttemptAt', 'ASC', 'NULLS FIRST')
+      .addOrderBy('c.id', 'ASC')
+      .limit(limit);
   }
 
   buildOpenDueQuery(dueOnOrBefore: string, limit: number): SelectQueryBuilder<ChargeEntity> {

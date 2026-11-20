@@ -2,6 +2,7 @@ import { drainDomainEvents } from '../../../shared/infrastructure/outbox/drain-d
 import type { IOutboxPublisher } from '../../../shared/ports/outbox-publisher.port';
 import {
   ChargeRef,
+  PendingCreationRef,
   IChargeRepository,
   ListChargesQuery,
 } from '../../../contexts/billing/application/ports/charge-repository.port';
@@ -110,25 +111,28 @@ export class InMemoryChargeRepository implements IChargeRepository {
     return true;
   }
 
-  // In charge-id order, one page after `afterId`, like the production query.
+  // Least recently attempted first (never attempted first), id breaking ties, one page after the
+  // given row: the production order.
   async listPendingCreationForJob(
     now: Date,
     limit: number,
-    afterId?: string,
-  ): Promise<ChargeRef[]> {
+    after?: PendingCreationRef,
+  ): Promise<PendingCreationRef[]> {
+    const key = (ref: PendingCreationRef): string =>
+      `${ref.lastAttemptAt === null ? '0' : `1${ref.lastAttemptAt.toISOString()}`}|${ref.id}`;
     return this.saved
       .filter((c) => {
         const claim = this.leaseOf(c);
-        return (
-          c.open &&
-          this.awaitingCreation(c) &&
-          (!claim || this.leaseFree(claim, now)) &&
-          (afterId === undefined || c.id > afterId)
-        );
+        return c.open && this.awaitingCreation(c) && (!claim || this.leaseFree(claim, now));
       })
-      .sort((a, b) => a.id.localeCompare(b.id))
-      .slice(0, limit)
-      .map((c) => ({ tenantId: c.tenantId, id: c.id }));
+      .map((c) => ({
+        tenantId: c.tenantId,
+        id: c.id,
+        lastAttemptAt: this.leaseOf(c)?.lastAttemptAt ?? null,
+      }))
+      .filter((ref) => after === undefined || key(ref) > key(after))
+      .sort((a, b) => key(a).localeCompare(key(b)))
+      .slice(0, limit);
   }
 
   async listOpenDueForJob(dueOnOrBefore: string, limit: number): Promise<ChargeRef[]> {
