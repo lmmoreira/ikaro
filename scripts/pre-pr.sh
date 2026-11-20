@@ -182,12 +182,15 @@ done <<< "$ts_new_prod"
 run_check "15. All new @Injectable() classes registered in module"
 
 # 25. New entity files declare tenant_id column
+# The platform-wide tables with no tenant owner are the documented exemptions of
+# docs/TENANT_ISOLATION_STRATEGY.md (billing.provider_health: one row per merchant profile key).
+TENANT_FREE_ENTITIES='provider-health\.entity\.ts$'
 > "$TMP"
 while IFS= read -r f; do
   [ -z "$f" ] || [ ! -f "$f" ] && continue
   grep -q "tenant_id" "$f" 2>/dev/null || \
     printf "%s — no tenant_id column found (multi-tenancy invariant)\n" "$f" >> "$TMP"
-done <<< "$(echo "$added" | grep -E '\.entity\.ts$' | grep -v '\.spec\.' || true)"
+done <<< "$(echo "$added" | grep -E '\.entity\.ts$' | grep -v '\.spec\.' | grep -v -E "$TENANT_FREE_ENTITIES" || true)"
 run_check "25. New entity files declare tenant_id column"
 
 # ── Web checks ────────────────────────────────────────────────────────────────

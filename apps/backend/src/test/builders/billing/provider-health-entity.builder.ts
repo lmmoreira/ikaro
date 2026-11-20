@@ -5,7 +5,6 @@ export class ProviderHealthEntityBuilder {
   private lastReconcileOkAt: Date | null = new Date(Date.now() - 60_000);
   private lastFullReconcileAt: Date | null = new Date(Date.now() - 60_000);
   private webhookStatus = 'OK';
-  private freezeActive = false;
   private freezeSince: Date | null = null;
   private updatedAt = new Date(Date.now() - 1000);
 
@@ -29,10 +28,14 @@ export class ProviderHealthEntityBuilder {
     return this;
   }
 
-  /** The freeze is on: `freeze_active` and `freeze_since` always move together (the table's CHECK). */
-  withFreeze(freezeSince: Date): this {
-    this.freezeActive = true;
+  /** The freeze is on from this instant; `freeze_active` follows it (the table's CHECK keeps them together). */
+  withFreeze(freezeSince: Date | null): this {
     this.freezeSince = freezeSince;
+    return this;
+  }
+
+  withUpdatedAt(updatedAt: Date): this {
+    this.updatedAt = updatedAt;
     return this;
   }
 
@@ -42,7 +45,7 @@ export class ProviderHealthEntityBuilder {
     e.lastReconcileOkAt = this.lastReconcileOkAt;
     e.lastFullReconcileAt = this.lastFullReconcileAt;
     e.webhookStatus = this.webhookStatus;
-    e.freezeActive = this.freezeActive;
+    e.freezeActive = this.freezeSince !== null;
     e.freezeSince = this.freezeSince;
     e.updatedAt = this.updatedAt;
     return e;

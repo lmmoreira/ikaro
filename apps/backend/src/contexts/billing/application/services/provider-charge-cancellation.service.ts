@@ -37,7 +37,7 @@ export interface CancelProviderChargesCommand {
 /**
  * What became of each charge. `CANCELLED`: the provider cancelled it and the flag is cleared.
  * `PAID`: the provider refused because it was just paid, so that charge is the payment and went
- * through `ApplyChargeFactService` (UC-114 step 4). `LEFT_FLAGGED`: any other failure; the flag
+ * through `ApplyChargeFactService` (UC-114 step 4). `LEFT_FLAGGED`: every other failure; the flag
  * stays and reconcile (M26-S07) retries. `SKIPPED`: nothing to do at the provider (not flagged,
  * or the provider never knew the charge).
  */

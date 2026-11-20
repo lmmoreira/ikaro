@@ -360,7 +360,7 @@ export class Subscription extends AggregateRoot {
   }
 
   /**
-   * A cancellation takes effect (UC-115 rule 4, and the immediate cancel of a later story, M26-S20, reuses it): any
+   * A cancellation takes effect (UC-115 rule 4; the immediate cancel of M26-S20 reuses it): a
    * status that still has access goes to `SUSPENDED` with reason `CANCELED`. An already suspended
    * subscription keeps its own reason, so a payment suspension is never relabelled and its recovery
    * charge stays payable. Exempt: refused. Returns whether it changed.
