@@ -255,6 +255,27 @@ describe('SweepOneSubscriptionUseCase (integration, UC-115)', () => {
     expect((await recoveryRows(tenant))[0].providerCreationStatus).toBe('READY');
   });
 
+  it('a plan with no price in force fails the sweep and suspends nobody: the transaction rolls back, the tenant keeps its state', async () => {
+    // The seeded price list covers BR and US only: no price is in force for this country.
+    const tenant = await world.seedSubscription({
+      configure: (b) =>
+        b
+          .withStatus('PAST_DUE')
+          .withPastDueSince(world.daysAgo(15))
+          .withTrialEndsAt(null)
+          .withCountryCode('AR')
+          .withCurrency('ARS'),
+    });
+
+    await expect(sweep(tenant)).rejects.toThrow();
+
+    expect(await world.subscriptionRow(tenant.tenantId)).toMatchObject({
+      status: 'PAST_DUE',
+      suspensionReason: null,
+    });
+    expect(await world.chargeRows(tenant.tenantId)).toEqual([]);
+  });
+
   it('touches only its own tenant: another tenant that is also due keeps its state and its charges', async () => {
     const swept = await pastDue();
     const other = await pastDue();

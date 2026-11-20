@@ -30,7 +30,7 @@ export interface SweepSubscriptionStatusesJobInput {
 }
 
 export interface SweepSubscriptionStatusesJobResult {
-  /** The distinct subscriptions the five selections returned and the sweep visited. */
+  /** The distinct subscriptions the four selections returned and the sweep visited. */
   selected: number;
   outcomes: Partial<Record<SweepOneOutcome, number>>;
   /** What the run changed, per transition. */
@@ -55,7 +55,7 @@ interface SweepRun {
 
 /**
  * UC-115, the hourly job: it selects its own subscriptions (no tenant id in the trigger) through
- * five selections, each served by its own standalone index (overdue charges, trials that ended,
+ * four selections, each served by its own standalone index (overdue charges, trials that ended,
  * subscriptions past their grace, subscriptions whose `cancelAt` is reached), pages each by keyset
  * until none is left, and sweeps every tenant it finds once, in its own transaction. A subscription
  * the sweep leaves as it is (a trial inside its margin, a frozen profile) stays selected, so asking

@@ -76,6 +76,30 @@ describe('SweepOneSubscriptionUseCase (UC-115)', () => {
     expect(h.outbox.published).toEqual([]);
   });
 
+  it('decides exemption on the locked row: a stale snapshot that says "not exempt" does not get a tenant suspended', async () => {
+    const subscription = new SubscriptionBuilder()
+      .withStatus('PAST_DUE')
+      .withPastDueSince(ago(30))
+      .withExempt(true)
+      .withItems([h.hotsiteItem()])
+      .build();
+    await h.seedTenant(subscription);
+    // The cached read an earlier request left behind: the same tenant, before it became exempt.
+    const stale = new SubscriptionBuilder()
+      .withTenantId(subscription.tenantId)
+      .withStatus('PAST_DUE')
+      .withPastDueSince(ago(30))
+      .withItems([h.hotsiteItem()])
+      .build();
+    jest.spyOn(h.subscriptions, 'findByTenantId').mockResolvedValueOnce(stale);
+
+    const result = await sweep(subscription);
+
+    expect(result).toEqual({ outcome: 'EXEMPT', steps: [], deferred: false });
+    expect(subscription.status).toBe('PAST_DUE');
+    expect(recoveryOf(subscription)).toBeUndefined();
+  });
+
   describe('the trial-end re-read (a missed webhook never locks out a paying tenant)', () => {
     it('applies a payment the webhook missed and activates the trial instead of suspending it', async () => {
       const { subscription, first } = await unpaidTrial();

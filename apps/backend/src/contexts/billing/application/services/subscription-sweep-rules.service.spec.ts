@@ -8,6 +8,7 @@ import {
 import { InMemoryChargeRepository } from '../../../../test/repositories/billing/in-memory-charge.repository';
 import { InMemoryFeaturePriceRepository } from '../../../../test/repositories/billing/in-memory-feature-price.repository';
 import type { Charge } from '../../domain/charge.aggregate';
+import { FeaturePriceNotFoundError } from '../../domain/errors/billing-domain.error';
 import type { Subscription } from '../../domain/subscription.aggregate';
 import { RecoveryChargePlanner } from './recovery-charge-planner.service';
 import { type SweepContext, SubscriptionSweepRules } from './subscription-sweep-rules.service';
@@ -186,6 +187,17 @@ describe('SubscriptionSweepRules (UC-115)', () => {
       expect(changes.subscriptionChanged).toBe(false);
     });
 
+    it('only a PERIOD charge moves an ACTIVE subscription to PAST_DUE: an overdue RECOVERY charge does not', async () => {
+      const subscription = subscriptionOf(new SubscriptionBuilder().withStatus('ACTIVE'));
+      const recovery = await chargeOf(subscription, { dueDate: '2026-03-09', recovery: true });
+
+      const changes = await rules.apply(subscription, ctx());
+
+      expect(recovery.status).toBe('OVERDUE');
+      expect(subscription.status).toBe('ACTIVE');
+      expect(changes.steps).toEqual(['OVERDUE']);
+    });
+
     it('still marks OVERDUE / PAST_DUE under a freeze (it only holds suspensions back)', async () => {
       const subscription = subscriptionOf(new SubscriptionBuilder().withStatus('ACTIVE'));
       const charge = await chargeOf(subscription, { dueDate: '2026-03-09' });
@@ -274,6 +286,28 @@ describe('SubscriptionSweepRules (UC-115)', () => {
       await rules.apply(subscription, ctx());
 
       expect(subscription.status).toBe('SUSPENDED');
+    });
+
+    it('a return from the payment page only lengthens the margin while the first charge is still open', async () => {
+      // Closed on Friday: the three-business-day margin would run to Wednesday and has not passed.
+      const subscription = trial(at('2026-03-06T03:00:00Z'));
+      await chargeOf(subscription, { dueDate: '2026-03-05', status: 'REFUNDED', returned: true });
+
+      await rules.apply(subscription, ctx());
+
+      expect(subscription.status).toBe('SUSPENDED');
+    });
+
+    it('a plan with no price in force fails with a typed error, never a zero-priced recovery charge', async () => {
+      const noPrices = new SubscriptionSweepRules(
+        charges,
+        new RecoveryChargePlanner(charges, new InMemoryFeaturePriceRepository()),
+      );
+      const subscription = trial();
+
+      await expect(noPrices.apply(subscription, ctx())).rejects.toBeInstanceOf(
+        FeaturePriceNotFoundError,
+      );
     });
 
     it('waits for the provider’s fresh answer on a charge the provider knows, and tries again next run', async () => {

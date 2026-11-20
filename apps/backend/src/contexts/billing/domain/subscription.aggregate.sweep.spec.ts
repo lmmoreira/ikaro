@@ -211,6 +211,23 @@ describe('Subscription — the status sweep (UC-115)', () => {
       expect(subscription.currentPeriodEnd).toEqual(at('2026-02-28T02:59:59.999Z'));
     });
 
+    it('keeps the first month on tenant-local days across a DST change', () => {
+      // New York: the trial closes at the start of 2026-03-01 (EST, UTC-5); DST starts on 03-08, so
+      // the month ends on the last local millisecond of 03-31 in EDT (UTC-4), not 24 h multiples.
+      const closed = at('2026-03-01T05:00:00Z');
+      const subscription = new SubscriptionBuilder()
+        .withStatus('TRIALING')
+        .withTimezone('America/New_York')
+        .withTrialEndsAt(closed)
+        .build();
+
+      subscription.activateAfterTrial(closed);
+
+      expect(subscription.anchorDay).toBe(1);
+      expect(subscription.currentPeriodStart).toEqual(closed);
+      expect(subscription.currentPeriodEnd).toEqual(at('2026-04-01T03:59:59.999Z'));
+    });
+
     it('clears a leftover pastDueSince and graceUntil', () => {
       const subscription = new SubscriptionBuilder()
         .withStatus('TRIALING')

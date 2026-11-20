@@ -97,7 +97,9 @@ export class SweepOneSubscriptionUseCase {
     };
     const verifiedUnpaidChargeId = await this.askProviderAboutFirstCharge(snapshot, base);
     const changes = await this.sweepLocked(tenantId, { ...base, verifiedUnpaidChargeId });
-    if (changes === null) return { outcome: 'NOT_FOUND', steps: [], deferred: false };
+    if (changes === 'NOT_FOUND' || changes === 'EXEMPT') {
+      return { outcome: changes, steps: [], deferred: false };
+    }
     await this.afterCommit(tenantId, changes, input.correlationId);
     if (changes.steps.length > 0) {
       this.logger.log('billing_subscription_swept', {
@@ -165,10 +167,15 @@ export class SweepOneSubscriptionUseCase {
 
   // One transaction, B-R1 first. The saves stay inline in this callback (the `transactional-save`
   // rule); every read and decision is in the rules service.
-  private async sweepLocked(tenantId: string, ctx: SweepContext): Promise<SweepChanges | null> {
+  private async sweepLocked(
+    tenantId: string,
+    ctx: SweepContext,
+  ): Promise<SweepChanges | 'NOT_FOUND' | 'EXEMPT'> {
     return this.txManager.run(async () => {
       const subscription = await this.subscriptions.findByTenantIdForUpdate(tenantId);
-      if (subscription === null || subscription.exempt) return null;
+      // The snapshot may be a cached copy: exemption is decided on the locked row.
+      if (subscription === null) return 'NOT_FOUND';
+      if (subscription.exempt) return 'EXEMPT';
       const changes = await this.rules.apply(subscription, ctx);
       await mapSequentially(changes.charges, (charge) => this.charges.save(charge));
       if (changes.subscriptionChanged) await this.subscriptions.save(subscription);
