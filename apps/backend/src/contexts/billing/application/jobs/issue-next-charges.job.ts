@@ -98,8 +98,9 @@ export class IssueNextChargesJob {
     await this.issuePage(issue, page).catch((err: unknown) => {
       issue.failures.push(err);
     });
-    if (page.length < BILLING_JOB_PAGE_SIZE) return;
-    await this.issueFrom(issue, page[page.length - 1]);
+    const last = page.at(-1);
+    if (page.length < BILLING_JOB_PAGE_SIZE || last === undefined) return;
+    await this.issueFrom(issue, last);
   }
 
   private async issuePage(issue: IssueRun, page: readonly DueIssueRef[]): Promise<void> {

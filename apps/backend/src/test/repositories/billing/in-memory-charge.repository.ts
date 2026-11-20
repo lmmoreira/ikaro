@@ -118,8 +118,11 @@ export class InMemoryChargeRepository implements IChargeRepository {
     limit: number,
     after?: PendingCreationRef,
   ): Promise<PendingCreationRef[]> {
-    const key = (ref: PendingCreationRef): string =>
-      `${ref.lastAttemptAt === null ? '0' : `1${ref.lastAttemptAt.toISOString()}`}|${ref.id}`;
+    // Never-attempted charges (prefix 0) sort before the attempted ones (prefix 1).
+    const key = (ref: PendingCreationRef): string => {
+      const attempt = ref.lastAttemptAt === null ? '0' : `1${ref.lastAttemptAt.toISOString()}`;
+      return `${attempt}|${ref.id}`;
+    };
     return this.saved
       .filter((c) => {
         const claim = this.leaseOf(c);

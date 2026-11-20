@@ -73,8 +73,9 @@ export class RetryPendingChargeCreationUseCase {
     await this.retryPage(retry, page).catch((err: unknown) => {
       retry.failures.push(err);
     });
-    if (page.length < BILLING_JOB_PAGE_SIZE) return;
-    await this.retryFrom(retry, page[page.length - 1]);
+    const last = page.at(-1);
+    if (page.length < BILLING_JOB_PAGE_SIZE || last === undefined) return;
+    await this.retryFrom(retry, last);
   }
 
   private async retryPage(retry: RetryRun, page: readonly ChargeRef[]): Promise<void> {

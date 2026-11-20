@@ -4,8 +4,8 @@ import { Address } from '../../../shared/value-objects/address';
 /** A valid Brazilian address (`Address.create` against the BR spec); a spec overrides only what it varies. */
 export class AddressBuilder {
   private street = 'Rua das Flores';
-  private number = '100';
-  private neighborhood = 'Centro';
+  private readonly number = '100';
+  private readonly neighborhood = 'Centro';
   private city = 'Belo Horizonte';
   private state = 'MG';
   private zipCode = '30130-110';
