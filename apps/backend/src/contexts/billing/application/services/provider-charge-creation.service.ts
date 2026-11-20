@@ -12,7 +12,10 @@ import {
 import type { BillingAccount, BillingProvider } from '../../domain/billing-account.aggregate';
 import type { Charge } from '../../domain/charge.aggregate';
 import { BillingTenantNotFoundError } from '../../domain/errors/billing-domain.error';
-import { ProviderNotSupportedError } from '../../domain/errors/billing-provider.errors';
+import {
+  ProviderNotSupportedError,
+  ProviderRequestError,
+} from '../../domain/errors/billing-provider.errors';
 import type { Subscription } from '../../domain/subscription.aggregate';
 import { providerOfMerchantProfileKey } from '../../domain/merchant-profile-key';
 import { resolveBillingRecipientEmail } from '../helpers/billing-recipient-email.helper';
@@ -41,14 +44,16 @@ export interface CreateProviderChargeCommand {
 }
 
 /**
- * What became of one creation attempt. Only `READY` and `ALREADY_READY` leave a payable charge;
- * every other outcome leaves the charge `PENDING` for the retry query (or, for `NOT_PENDING`,
- * `EXEMPT`, `TENANT_INACTIVE` and `NOT_CLAIMED`, is not this attempt's to make), and none of them throws: a provider failure is part of
- * the design, not an error of the run.
+ * What became of one creation attempt. `READY` is the only outcome that leaves a payable charge.
+ * `CANCELED` created it at the provider and then cancelled it there, because the charge was
+ * cancelled (or its tenant exempted) while the call was in flight. `PROVIDER_FAILED` leaves it
+ * `PENDING` for the retry query. `NOT_FOUND`, `NOT_PENDING`, `EXEMPT`, `TENANT_INACTIVE`, `HELD`,
+ * `PROVIDER_UNSUPPORTED` and `NOT_CLAIMED` make no provider call at all. None of them throws: a
+ * provider failure is part of the design, not an error of the run.
  */
 export type ProviderChargeCreationResult =
   | 'READY'
-  | 'ALREADY_READY'
+  | 'CANCELED'
   | 'NOT_FOUND'
   | 'NOT_PENDING'
   | 'EXEMPT'
@@ -124,15 +129,21 @@ export class ProviderChargeCreationService {
       const created = await this.createAtProvider(adapter, charge, account, subscription);
       toCancel = await this.storeReady(command, account, subscription.exempt, provider, created);
     } catch (err) {
-      this.logger.warn('billing_charge_creation_failed: left for the retry', {
+      // A provider that is down is expected (warn); anything else (a provider charge id that
+      // differs for one reference, a broken invariant, a bound customer mismatch) is a bug to read.
+      const message = 'billing_charge_creation_failed: left for the retry';
+      const context = {
         tenantId: command.tenantId,
         chargeId: command.chargeId,
         error: err instanceof Error ? err.message : String(err),
-      });
+      };
+      if (err instanceof ProviderRequestError) this.logger.warn(message, context);
+      else this.logger.error(message, err instanceof Error ? err.stack : undefined, context);
       return 'PROVIDER_FAILED';
     }
-    if (toCancel !== null) await this.cancelAtProvider(adapter, command, toCancel);
-    return 'READY';
+    if (toCancel === null) return 'READY';
+    await this.cancelAtProvider(adapter, command, toCancel);
+    return 'CANCELED';
   }
 
   // The charge was cancelled while the provider call was in flight (a tenant exempted, a plan
@@ -222,7 +233,14 @@ export class ProviderChargeCreationService {
     });
     // Committed before `createCharge`, so a fast webhook can resolve the tenant from the customer.
     // Its own statement: it must not overwrite an identity the manager saves meanwhile (S16).
-    await this.accounts.assignProviderCustomer(account.tenantId, provider, providerCustomerId);
+    const stored = await this.accounts.assignProviderCustomer(
+      account.tenantId,
+      provider,
+      providerCustomerId,
+    );
+    // The account already holds another customer (a provider switch, a non-idempotent adapter): a
+    // charge created against this one could not be traced back to the tenant by its webhooks.
+    if (!stored) throw new Error('The billing account is bound to another provider customer');
     return providerCustomerId;
   }
 
@@ -253,7 +271,6 @@ export class ProviderChargeCreationService {
     };
   }
 
-  // The post-provider-call write: its own short transaction, on a fresh read under B-C1.
   // The post-provider-call write: its own short transaction, on a fresh read under B-C1. Answers the
   // provider charge to cancel when the charge ended up cancelled, `null` otherwise.
   private async storeReady(

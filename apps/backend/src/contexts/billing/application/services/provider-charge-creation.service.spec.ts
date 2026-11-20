@@ -230,6 +230,16 @@ describe('ProviderChargeCreationService', () => {
     expect(provider.charges.size).toBe(1);
   });
 
+  it('PROVIDER_FAILED: an account already bound to another provider customer never gets a charge created against a different one', async () => {
+    await seedAccount((b) => b.withProvider('ASAAS', 'cus_bound_elsewhere'));
+
+    await expect(run()).resolves.toBe('PROVIDER_FAILED');
+
+    expect(provider.inputs).toHaveLength(0);
+    expect((await charges.findById(tenantId, charge.id))?.providerCreationStatus).toBe('PENDING');
+    expect(provider.charges.size).toBe(0);
+  });
+
   it('NOT_CLAIMED: a creator that does not win the lease makes no provider call', async () => {
     await seedAccount();
     await charges.claimForProviderCreation(tenantId, charge.id, clock.now());
@@ -334,7 +344,7 @@ describe('ProviderChargeCreationService', () => {
       if (subscription) await subscriptions.save(subscription);
     };
 
-    await expect(run()).resolves.toBe('READY');
+    await expect(run()).resolves.toBe('CANCELED');
 
     const stored = await charges.findById(tenantId, charge.id);
     expect(stored?.status).toBe('CANCELED');
@@ -355,7 +365,7 @@ describe('ProviderChargeCreationService', () => {
       provider.failNextCall('UNAVAILABLE');
     };
 
-    await expect(run()).resolves.toBe('READY');
+    await expect(run()).resolves.toBe('CANCELED');
 
     const stored = await charges.findById(tenantId, charge.id);
     expect(stored?.status).toBe('CANCELED');

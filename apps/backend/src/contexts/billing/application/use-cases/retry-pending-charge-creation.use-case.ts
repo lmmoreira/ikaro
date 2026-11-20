@@ -25,13 +25,6 @@ export interface RetryPendingChargeCreationUseCaseResult {
   ready: number;
 }
 
-/**
- * UC-113 A2: re-attempts the provider creation of every open charge still `PENDING` there, through
- * the same lease and the same idempotent `createCharge` as the first attempt, so it can never insert a
- * second period charge or create a second provider charge. It reaches a `SUSPENDED` tenant's
- * recovery charge too (the selection has no status filter). A charge held for lack of identity or
- * a profile with no adapter is selected every run and costs nothing: no provider call, no attempt.
- */
 /** One run's state: the instant its lease cutoff is read at, what it counted and what failed. */
 interface RetryRun {
   readonly input: RetryPendingChargeCreationUseCaseInput;
@@ -41,6 +34,13 @@ interface RetryRun {
   readonly failures: unknown[];
 }
 
+/**
+ * UC-113 A2: re-attempts the provider creation of every open charge still `PENDING` there, through
+ * the same lease and the same idempotent `createCharge` as the first attempt, so it can never insert a
+ * second period charge or create a second provider charge. It reaches a `SUSPENDED` tenant's
+ * recovery charge too (the selection has no status filter). A charge held for lack of identity or
+ * a profile with no adapter is selected every run and costs nothing: no provider call, no attempt.
+ */
 @Injectable()
 export class RetryPendingChargeCreationUseCase {
   private readonly logger = new AppLogger(RetryPendingChargeCreationUseCase.name);

@@ -132,8 +132,8 @@ export class BillingAccount extends AggregateRoot {
 
   /**
    * Records the provider customer `ensureCustomer` returned. The first customer is kept for good:
-   * the same one again is a no-op and a different one is refused, so a retry can never repoint the
-   * account at another provider customer. Returns whether anything changed.
+   * the same one again is a no-op and a different one is not stored (it answers `false`), so a retry
+   * can never repoint the account at another provider customer. Returns whether anything changed.
    */
   assignProviderCustomer(provider: BillingProvider, providerCustomerId: string): boolean {
     if (this._providerCustomerId !== null) return false;

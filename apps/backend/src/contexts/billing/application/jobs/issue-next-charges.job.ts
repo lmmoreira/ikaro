@@ -44,10 +44,11 @@ interface IssueRun {
  * standalone partial index on `next_due_date`, with the UTC date plus the lead plus one day of
  * slack because each due date is in its subscription's own zone (each subscription re-checks it
  * there), issues each in its own transactions, page by page until none is left, then runs the
- * creation retry. One subscription's
- * failure never stops the others and a phase's failure never skips the next one: every unit is
- * tried, the run logs its one `billing_issue_charges_run` line (S36's alerts read it) and then
- * rethrows the first failure, so the trigger message is nacked and redelivered.
+ * creation retry. One subscription's failure never stops the others and a phase's failure never
+ * skips the next one: every unit is tried, the run logs its one `billing_issue_charges_run` line
+ * (S36's alerts read it) and then rethrows the first failure, so the trigger message is nacked and
+ * redelivered. A subscription whose due date lags (held for months, then released) is caught up one
+ * period per run.
  */
 @Injectable()
 export class IssueNextChargesJob {
