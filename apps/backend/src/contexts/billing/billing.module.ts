@@ -39,6 +39,7 @@ import { TypeOrmFeaturePriceRepository } from './infrastructure/repositories/typ
 import { CachingSubscriptionRepository } from './infrastructure/repositories/caching-subscription.repository';
 import { TypeOrmSubscriptionRepository } from './infrastructure/repositories/typeorm-subscription.repository';
 import { type AppEnv, resolveAppEnv } from '../../shared/database/resolve-app-env';
+import { ApplicationConfigModule } from '../../shared/infrastructure/application-config.module';
 import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.module';
 import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cache.module';
 import { TENANT_ACCESS_PORT } from '../../shared/ports/tenant-access.port';
@@ -59,6 +60,12 @@ import { InternalBillingOperatorController } from './infrastructure/controllers/
 import { ApplyChargeFactService } from './application/services/apply-charge-fact.service';
 import { ProcessProviderWebhookUseCase } from './application/use-cases/process-provider-webhook.use-case';
 import { InternalBillingWebhookController } from './infrastructure/controllers/internal-billing-webhook.controller';
+import { IssueChargeForSubscriptionUseCase } from './application/use-cases/issue-charge-for-subscription.use-case';
+import { IssueNextChargesJob } from './application/jobs/issue-next-charges.job';
+import { RetryPendingChargeCreationUseCase } from './application/use-cases/retry-pending-charge-creation.use-case';
+import { ProviderChargeCreationService } from './application/services/provider-charge-creation.service';
+import { CronBillingController } from './infrastructure/controllers/cron-billing.controller';
+import { IssueNextChargesTriggerHandler } from './infrastructure/events/issue-next-charges-trigger.handler';
 import { InternalBillingAccessController } from './infrastructure/controllers/internal-billing-access.controller';
 import { BILLING_PROVIDER_REGISTRY } from './application/ports/billing-provider.port';
 import {
@@ -76,6 +83,7 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
 @Global()
 @Module({
   imports: [
+    ApplicationConfigModule,
     PlatformSettingsModule,
     SharedCacheModule,
     AuditLogModule,
@@ -97,6 +105,7 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     InternalBillingAccessController,
     InternalBillingOperatorController,
     InternalBillingWebhookController,
+    CronBillingController,
   ],
   providers: [
     { provide: SIGNUP_REGISTRATION_REPOSITORY, useClass: TypeOrmSignupRegistrationRepository },
@@ -146,6 +155,13 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     // that writes a verified paid / refunded / charged-back fact.
     ApplyChargeFactService,
     ProcessProviderWebhookUseCase,
+    // The charge issue job (M26-S05): the shared creation step, the per-subscription issue, the
+    // creation retry, the job and its daily trigger handler.
+    ProviderChargeCreationService,
+    IssueChargeForSubscriptionUseCase,
+    RetryPendingChargeCreationUseCase,
+    IssueNextChargesJob,
+    IssueNextChargesTriggerHandler,
   ],
   // The shared access port is consumed by every context (M25-S16 onwards). The registration and
   // the five operator use cases are injected by this module's own controllers, which the

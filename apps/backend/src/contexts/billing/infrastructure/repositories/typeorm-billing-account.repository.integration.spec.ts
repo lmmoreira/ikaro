@@ -246,4 +246,60 @@ describe('TypeOrmBillingAccountRepository (integration)', () => {
     expect(await accounts.findByProviderCustomerIdForJob('STRIPE', `cus_${tenantId}`)).toBeNull();
     expect(await accounts.findByProviderCustomerIdForJob('ASAAS', 'cus_unknown')).toBeNull();
   });
+
+  describe('assignProviderCustomer (M26-S05)', () => {
+    it('stores the provider customer and touches no other column, so a concurrent identity save survives', async () => {
+      const tenantId = newTenant();
+      await startSubscription(tenantId, 'BR');
+      const stale = new BillingAccountBuilder()
+        .withTenantId(tenantId)
+        .withLegalName('Antes')
+        .build();
+      await save(stale);
+      // The manager saves a new identity after the issue job read the account above.
+      const edited = await accounts.findByTenantId(tenantId);
+      await save(
+        new BillingAccountBuilder()
+          .withId(edited!.id)
+          .withTenantId(tenantId)
+          .withLegalName('Depois')
+          .build(),
+      );
+
+      await expect(
+        txManager.run(() => accounts.assignProviderCustomer(tenantId, 'ASAAS', 'cus_1')),
+      ).resolves.toBe(true);
+
+      const found = await accounts.findByTenantId(tenantId);
+      expect(found?.providerCustomerId).toBe('cus_1');
+      expect(found?.provider).toBe('ASAAS');
+      expect(found?.legalName).toBe('Depois');
+    });
+
+    it('is idempotent for the same customer and never replaces a different one', async () => {
+      const tenantId = newTenant();
+      await startSubscription(tenantId, 'BR');
+      await save(new BillingAccountBuilder().withTenantId(tenantId).build());
+      await accounts.assignProviderCustomer(tenantId, 'ASAAS', 'cus_1');
+
+      expect(await accounts.assignProviderCustomer(tenantId, 'ASAAS', 'cus_1')).toBe(true);
+      expect(await accounts.assignProviderCustomer(tenantId, 'ASAAS', 'cus_2')).toBe(false);
+      // The same customer id under another provider is another customer: refused, nothing repointed.
+      expect(await accounts.assignProviderCustomer(tenantId, 'STRIPE', 'cus_1')).toBe(false);
+      const found = await accounts.findByTenantId(tenantId);
+      expect(found?.providerCustomerId).toBe('cus_1');
+      expect(found?.provider).toBe('ASAAS');
+    });
+
+    it("never touches another tenant's account, and reports a tenant with no account", async () => {
+      const tenantA = newTenant();
+      const tenantB = newTenant();
+      await startSubscription(tenantA, 'BR');
+      await startSubscription(tenantB, 'BR');
+      await save(new BillingAccountBuilder().withTenantId(tenantA).build());
+
+      expect(await accounts.assignProviderCustomer(tenantB, 'ASAAS', 'cus_b')).toBe(false);
+      expect((await accounts.findByTenantId(tenantA))?.providerCustomerId).toBeNull();
+    });
+  });
 });

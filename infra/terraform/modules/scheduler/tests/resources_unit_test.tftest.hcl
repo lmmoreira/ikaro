@@ -19,15 +19,16 @@ variables {
     cron-chatbot-balance-poll               = "projects/ikaro-test/topics/ikaro-cron-chatbot-balance-poll"
     cron-lead-form-retention                = "projects/ikaro-test/topics/ikaro-cron-lead-form-retention"
     cron-resource-occupancy-retention-purge = "projects/ikaro-test/topics/ikaro-cron-resource-occupancy-retention-purge"
+    cron-billing-issue-charges              = "projects/ikaro-test/topics/ikaro-cron-billing-issue-charges"
   }
 }
 
-run "all_eight_jobs_exist_with_correct_cadence_and_topic" {
+run "all_nine_jobs_exist_with_correct_cadence_and_topic" {
   command = plan
 
   assert {
-    condition     = length(google_cloud_scheduler_job.cron) == 8
-    error_message = "Exactly 8 cron jobs must exist: reminders, loyalty-expiry, loyalty-expiry-warning, outbox-relay, chatbot-retention-purge, chatbot-balance-poll, lead-form-retention, resource-occupancy-retention-purge."
+    condition     = length(google_cloud_scheduler_job.cron) == 9
+    error_message = "Exactly 9 cron jobs must exist: reminders, loyalty-expiry, loyalty-expiry-warning, outbox-relay, chatbot-retention-purge, chatbot-balance-poll, lead-form-retention, resource-occupancy-retention-purge, billing-issue-charges."
   }
 
   assert {
@@ -95,6 +96,14 @@ run "all_eight_jobs_exist_with_correct_cadence_and_topic" {
   }
 
   assert {
+    condition = (
+      google_cloud_scheduler_job.cron["ikaro-cron-billing-issue-charges"].schedule == "30 4 * * *" &&
+      google_cloud_scheduler_job.cron["ikaro-cron-billing-issue-charges"].pubsub_target[0].topic_name == var.cron_topic_ids["cron-billing-issue-charges"]
+    )
+    error_message = "ikaro-cron-billing-issue-charges must fire daily at 04:30 UTC against the cron-billing-issue-charges topic (M26-S05)."
+  }
+
+  assert {
     condition = alltrue([
       for job in google_cloud_scheduler_job.cron : job.time_zone == "UTC"
     ])
@@ -110,5 +119,39 @@ run "jobs_carry_empty_json_payload_not_a_service_account" {
       for job in google_cloud_scheduler_job.cron : job.pubsub_target[0].data == base64encode("{}")
     ])
     error_message = "Every job's pubsub_target must carry an empty JSON payload — a cron tick is 'run now', not a domain event with a real tenantId."
+  }
+}
+
+run "jobs_are_not_paused_by_default" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      for job in google_cloud_scheduler_job.cron : job.paused == false
+    ])
+    error_message = "With paused_job_keys empty (the default) no job may be paused."
+  }
+}
+
+run "only_jobs_in_paused_job_keys_are_paused" {
+  command = plan
+
+  variables {
+    paused_job_keys = ["ikaro-cron-billing-issue-charges", "ikaro-cron-not-a-job-yet"]
+  }
+
+  assert {
+    condition     = google_cloud_scheduler_job.cron["ikaro-cron-billing-issue-charges"].paused == true
+    error_message = "A job whose key is in paused_job_keys must be created paused."
+  }
+
+  assert {
+    condition     = google_cloud_scheduler_job.cron["ikaro-cron-reminders"].paused == false
+    error_message = "A job not in paused_job_keys must not be paused."
+  }
+
+  assert {
+    condition     = length(google_cloud_scheduler_job.cron) == 9
+    error_message = "An unknown key in paused_job_keys must be harmless (no extra job)."
   }
 }

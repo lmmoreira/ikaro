@@ -20,3 +20,22 @@ export const CLAIM_FOR_PROVIDER_CREATION_SQL = `
   )
   RETURNING "id"
 `;
+
+// The keyset of the creation retry's order (`provider_creation_last_attempt_at` NULLS FIRST, then
+// id): the rows after the last one of the previous page. Never-attempted charges (NULL) come first.
+export function afterPendingCreation(after: {
+  id: string;
+  lastAttemptAt: Date | null;
+}): [string, Record<string, unknown>] {
+  if (after.lastAttemptAt === null) {
+    return [
+      '(c.providerCreationLastAttemptAt IS NOT NULL OR c.id > :afterId)',
+      { afterId: after.id },
+    ];
+  }
+  return [
+    `(c.providerCreationLastAttemptAt > :afterAt
+      OR (c.providerCreationLastAttemptAt = :afterAt AND c.id > :afterId))`,
+    { afterAt: after.lastAttemptAt, afterId: after.id },
+  ];
+}

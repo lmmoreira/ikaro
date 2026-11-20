@@ -7,6 +7,7 @@ import { CalendarDate } from '../../../../shared/value-objects/calendar-date.vo'
 import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
 import { Timezone } from '../../../../shared/value-objects/timezone.vo';
 import type {
+  DueIssueRef,
   ISubscriptionRepository,
   ListOperatorSubscriptionsQuery,
   OperatorSubscriptionSummary,
@@ -114,6 +115,14 @@ export class CachingSubscriptionRepository implements ISubscriptionRepository {
 
   listSuspendedTenantIds(): Promise<string[]> {
     return this.repo.listSuspendedTenantIds();
+  }
+
+  findDueForIssueForJob(
+    dueOnOrBefore: string,
+    limit: number,
+    after?: DueIssueRef,
+  ): Promise<DueIssueRef[]> {
+    return this.repo.findDueForIssueForJob(dueOnOrBefore, limit, after);
   }
 
   listSummaries(

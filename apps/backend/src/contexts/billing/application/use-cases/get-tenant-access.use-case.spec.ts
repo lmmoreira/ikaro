@@ -32,6 +32,7 @@ describe('GetTenantAccessUseCase', () => {
       countryCode: 'BR',
       timezone: 'America/Sao_Paulo',
       createdAt: new Date(NOW.getTime() - minutesOld * MINUTE_MS),
+      isActive: true,
     });
   };
 

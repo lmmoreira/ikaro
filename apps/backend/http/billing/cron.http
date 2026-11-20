@@ -1,0 +1,20 @@
+# Billing — Cron triggers (manual publishers)
+# UC-113: the local / manual path of the Billing crons. Cloud Scheduler publishes the same trigger in
+# staging and production; these routes only publish it, behind InternalApiGuard. The job runs in the
+# trigger handler, so read its structured log line (billing_issue_charges_run) to see the result.
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run dev
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@baseUrl     = {{backendUrl}}
+@internalKey = {{$dotenv INTERNAL_API_KEY}}
+
+### Issue the next charges (UC-113): every subscription due within 10 days, then the creation retry
+POST {{baseUrl}}/cron/billing-issue-charges
+X-Internal-Key: {{internalKey}}
+
+### Without the internal key: refused with 401 (the route is internal-only, behind InternalApiGuard)
+POST {{baseUrl}}/cron/billing-issue-charges

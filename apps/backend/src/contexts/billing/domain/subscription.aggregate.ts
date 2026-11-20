@@ -6,10 +6,12 @@ import { CountryCode } from '../../../shared/value-objects/country-code.vo';
 import { Timezone } from '../../../shared/value-objects/timezone.vo';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import {
+  addDaysUTC,
   localDateEndUTC,
   localDateStartUTC,
   utcDateToLocalDate,
 } from '../../../shared/utils/calendar-date';
+import { CHARGE_ISSUE_LEAD_DAYS, PLAN_CONFIRM_FALLBACK_DAYS } from './billing-constants';
 import {
   ExemptProtectedError,
   GraceNotAllowedError,
@@ -20,6 +22,7 @@ import { SubscriptionReactivated } from './events/subscription-reactivated.event
 import { SubscriptionSuspended } from './events/subscription-suspended.event';
 import { defaultSelection, type SelectionEntry, validateSelection } from './plan-selection';
 import { SubscriptionItem } from './subscription-item';
+import { type IssuedPeriodWindow, issuedPeriodWindow } from './subscription-issue-window';
 import { recoveryPaymentWindow } from './subscription-payment-window';
 import { assertCurrencyMatchesCountry, trialWindow } from './subscription-trial-window';
 import {
@@ -607,6 +610,40 @@ export class Subscription extends AggregateRoot {
     this._planConfirmedAt = null;
     this.replacePlan(now, window.trialEndsAt, actor);
     return true;
+  }
+
+  /**
+   * Whether the next `PERIOD` charge is to be issued today (UC-113): the subscription is `TRIALING`
+   * or `ACTIVE`, not `exempt` and has a due date; the due date is within `CHARGE_ISSUE_LEAD_DAYS`
+   * of `today`, or within `PLAN_CONFIRM_FALLBACK_DAYS` for a trial whose plan is still unconfirmed
+   * (A10); and the period it starts is not past `cancelAt` (A5). `today` is the date in the
+   * subscription's own zone, resolved by the caller. A `PAST_DUE` or `SUSPENDED` subscription is
+   * never due: its `next_due_date` stays put until payment makes it `ACTIVE` again.
+   */
+  isDueForIssue(today: CalendarDate): boolean {
+    if (this._exempt || this._nextDueDate === null) return false;
+    if (this._status !== 'TRIALING' && this._status !== 'ACTIVE') return false;
+    const unconfirmedTrial = this._status === 'TRIALING' && this._planConfirmedAt === null;
+    const leadDays = unconfirmedTrial ? PLAN_CONFIRM_FALLBACK_DAYS : CHARGE_ISSUE_LEAD_DAYS;
+    if (this._nextDueDate.value > addDaysUTC(today.value, leadDays)) return false;
+    if (this._cancelAt === null) return true;
+    return localDateStartUTC(this._nextDueDate.value, this.timezone.value) < this._cancelAt;
+  }
+
+  /**
+   * Issues the next period: returns the window the new charge covers and moves `next_due_date` one
+   * cycle forward, in the same transaction as the charge insert, so an issued period is never
+   * selected again (UC-113 step 3). The caller checked `isDueForIssue`.
+   */
+  advanceToNextPeriod(): IssuedPeriodWindow {
+    if (this._nextDueDate === null) {
+      throw new SubscriptionInvariantError(
+        'A subscription with no due date has no period to issue',
+      );
+    }
+    const window = issuedPeriodWindow(this._nextDueDate, this._anchorDay);
+    this._nextDueDate = window.nextDueDate;
+    return window;
   }
 
   /** Called by the repository after a successful insert/update with the version now stored. */

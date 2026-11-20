@@ -554,6 +554,18 @@ module "scheduler" {
 
   cron_topic_ids        = module.pubsub.topic_ids
   outbox_relay_schedule = var.outbox_relay_schedule
+
+  # Billing collection is not launched in prod yet: the jobs exist but stay
+  # paused. Keys not yet in the module's jobs (added by later M26 stories) are
+  # ignored until they exist.
+  paused_job_keys = [
+    "ikaro-cron-billing-issue-charges",
+    "ikaro-cron-billing-status-sweep",
+    "ikaro-cron-billing-reminders",
+    "ikaro-cron-billing-reconcile",
+    "ikaro-cron-billing-self-heal",
+    "ikaro-cron-billing-provider-events-purge",
+  ]
 }
 
 # Dashboards, alerts & uptime checks as code (M17-S35, narrowed 2026-08-08 —

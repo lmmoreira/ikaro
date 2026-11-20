@@ -24,6 +24,18 @@ export class InMemoryBillingAccountRepository implements IBillingAccountReposito
     );
   }
 
+  // Mirrors the single-column UPDATE: the first customer is kept, the same one again succeeds.
+  async assignProviderCustomer(
+    tenantId: string,
+    provider: BillingProvider,
+    providerCustomerId: string,
+  ): Promise<boolean> {
+    const account = this.saved.find((row) => row.tenantId === tenantId);
+    if (!account) return false;
+    account.assignProviderCustomer(provider, providerCustomerId);
+    return account.provider === provider && account.providerCustomerId === providerCustomerId;
+  }
+
   // Mirrors `UNIQUE(tenant_id)`: a second account for one tenant is refused.
   async save(account: BillingAccount): Promise<void> {
     const index = this.saved.findIndex((row) => row.tenantId === account.tenantId);

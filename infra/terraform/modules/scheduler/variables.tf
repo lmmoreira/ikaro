@@ -26,15 +26,15 @@ variable "region" {
 }
 
 variable "cron_topic_ids" {
-  description = "Map of cron trigger name -> full Pub/Sub topic resource id (module.pubsub.topic_ids from the env root — the full topic map, not just the 8 cron ones; this module only looks up the keys it needs). Must contain an entry for every topic_key referenced in this module's locals.jobs (cron-reminders, cron-loyalty-expiry, cron-loyalty-expiry-warning, cron-outbox-relay, cron-chatbot-retention-purge, cron-chatbot-balance-poll, cron-lead-form-retention, cron-resource-occupancy-retention-purge)."
+  description = "Map of cron trigger name -> full Pub/Sub topic resource id (module.pubsub.topic_ids from the env root — the full topic map, not just the 9 cron ones; this module only looks up the keys it needs). Must contain an entry for every topic_key referenced in this module's locals.jobs (cron-reminders, cron-loyalty-expiry, cron-loyalty-expiry-warning, cron-outbox-relay, cron-chatbot-retention-purge, cron-chatbot-balance-poll, cron-lead-form-retention, cron-resource-occupancy-retention-purge, cron-billing-issue-charges)."
   type        = map(string)
 
   validation {
     condition = alltrue([
-      for key in ["cron-reminders", "cron-loyalty-expiry", "cron-loyalty-expiry-warning", "cron-outbox-relay", "cron-chatbot-retention-purge", "cron-chatbot-balance-poll", "cron-lead-form-retention", "cron-resource-occupancy-retention-purge"] :
+      for key in ["cron-reminders", "cron-loyalty-expiry", "cron-loyalty-expiry-warning", "cron-outbox-relay", "cron-chatbot-retention-purge", "cron-chatbot-balance-poll", "cron-lead-form-retention", "cron-resource-occupancy-retention-purge", "cron-billing-issue-charges"] :
       contains(keys(var.cron_topic_ids), key)
     ])
-    error_message = "cron_topic_ids must include all 8 cron topics: cron-reminders, cron-loyalty-expiry, cron-loyalty-expiry-warning, cron-outbox-relay, cron-chatbot-retention-purge, cron-chatbot-balance-poll, cron-lead-form-retention, cron-resource-occupancy-retention-purge."
+    error_message = "cron_topic_ids must include all 9 cron topics: cron-reminders, cron-loyalty-expiry, cron-loyalty-expiry-warning, cron-outbox-relay, cron-chatbot-retention-purge, cron-chatbot-balance-poll, cron-lead-form-retention, cron-resource-occupancy-retention-purge, cron-billing-issue-charges."
   }
 
   # Scheduler jobs are hand-authored (locals.jobs), not scanner-derived like
@@ -52,6 +52,12 @@ variable "cron_topic_ids" {
     ])
     error_message = "cron_topic_ids contains a cron-* topic with no matching Scheduler job in this module's locals.jobs (main.tf) — add an entry there for the new trigger before it can ship."
   }
+}
+
+variable "paused_job_keys" {
+  description = "Keys of locals.jobs (scheduler job names, e.g. ikaro-cron-billing-issue-charges) to create in the paused state. Unknown keys are ignored, so an env can list jobs that later stories add."
+  type        = set(string)
+  default     = []
 }
 
 variable "outbox_relay_schedule" {

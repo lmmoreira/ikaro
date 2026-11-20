@@ -27,7 +27,7 @@ describe('GetTenantBillingInfoUseCase', () => {
     );
   });
 
-  it('returns exactly tenantId, slug, countryCode, timezone and createdAt', async () => {
+  it('returns exactly tenantId, slug, countryCode, timezone, createdAt and isActive', async () => {
     const tenant = new TenantBuilder().withSlug('lavacar-bh').build();
     await repo.save(tenant);
 
@@ -39,6 +39,17 @@ describe('GetTenantBillingInfoUseCase', () => {
       countryCode: tenant.settings.localization.countryCode,
       timezone: tenant.settings.businessHours.timezone,
       createdAt: tenant.createdAt,
+      isActive: true,
+    });
+  });
+
+  it('reports a deactivated tenant as not active', async () => {
+    const tenant = new TenantBuilder().build();
+    tenant.deactivate();
+    await repo.save(tenant);
+
+    await expect(useCase.execute({ tenantId: tenant.id })).resolves.toMatchObject({
+      isActive: false,
     });
   });
 });

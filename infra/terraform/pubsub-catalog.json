@@ -287,6 +287,12 @@
     ]
   },
   {
+    "event": "cron-billing-issue-charges",
+    "consumers": [
+      "billing-issue-next-charges"
+    ]
+  },
+  {
     "event": "cron-chatbot-balance-poll",
     "consumers": [
       "chatbot-balance-poll"

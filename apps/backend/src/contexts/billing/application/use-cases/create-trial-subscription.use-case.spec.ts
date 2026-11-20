@@ -43,7 +43,10 @@ describe('CreateTrialSubscriptionUseCase', () => {
     prices.seed(new FeaturePriceBuilder().withCountryCode('BR').build());
     inbox = new InMemoryInboxRepository();
     txManager = new InMemoryTransactionManager();
-    config = { appEnv: 'local', platformOwnerSlug: OWNER_SLUG };
+    config = {
+      appEnv: 'local',
+      platformOwnerSlug: OWNER_SLUG,
+    };
     useCase = new CreateTrialSubscriptionUseCase(
       subscriptions,
       accounts,

@@ -52,6 +52,10 @@ locals {
       topic_key = "cron-resource-occupancy-retention-purge"
       schedule  = "0 3 * * *"
     }
+    ikaro-cron-billing-issue-charges = {
+      topic_key = "cron-billing-issue-charges"
+      schedule  = "30 4 * * *"
+    }
   }
 }
 
@@ -64,6 +68,9 @@ resource "google_cloud_scheduler_job" "cron" {
   description = "Ikaro cron tick — publishes to Pub/Sub topic ${each.value.topic_key}."
   schedule    = each.value.schedule
   time_zone   = "UTC"
+  # Jobs listed in var.paused_job_keys are created but never fire (e.g. billing
+  # jobs in prod until collection launches).
+  paused = contains(var.paused_job_keys, each.key)
 
   pubsub_target {
     topic_name = var.cron_topic_ids[each.value.topic_key]

@@ -4,6 +4,7 @@ import type { CalendarDate } from '../../../shared/value-objects/calendar-date.v
 import type { BillingProvider } from './billing-account.aggregate';
 import type { ChargeLine } from './charge-line';
 import type {
+  ChargeIssuedNotice,
   ChargeKind,
   ChargeProps,
   ChargeProviderCreationStatus,
@@ -13,6 +14,7 @@ import type {
 import { assertChargeShape } from './charge-shape';
 import { ChargeInvariantError } from './errors/billing-domain.error';
 import { IllegalChargeTransitionError } from './errors/illegal-charge-transition.error';
+import { ChargeIssued } from './events/charge-issued.event';
 import { ChargePaid } from './events/charge-paid.event';
 import type { PaymentMethod } from './provider-events';
 import { MinorAmount } from './value-objects/minor-amount.vo';
@@ -271,13 +273,16 @@ export class Charge extends AggregateRoot {
   /**
    * The provider created the charge: store its provider, id, link and expiry. Legal on a charge of
    * any status, a `PAID` or `CANCELED` one included (a webhook can land between the insert and this
-   * write, and the provider did create it), and it never touches the status.
+   * write, and the provider did create it), and it never touches the status. With a `notice` it
+   * raises `ChargeIssued` once, and only for a charge that can still be paid: a charge a webhook
+   * already settled (or a local cancel closed) gets its provider fields but no invoice email.
    */
   markCreationReady(
     provider: BillingProvider,
     providerChargeId: string,
     paymentUrl: string,
     paymentUrlExpiresAt: Date | null,
+    notice?: ChargeIssuedNotice,
   ): void {
     if (providerChargeId.trim() === '') {
       throw new ChargeInvariantError('A provider charge needs a non-empty id');
@@ -291,6 +296,11 @@ export class Charge extends AggregateRoot {
     this._paymentUrl = paymentUrl;
     this._paymentUrlExpiresAt = paymentUrlExpiresAt;
     this._providerCreationStatus = 'READY';
+    if (notice && this.open) {
+      this.addDomainEvent(
+        ChargeIssued.forCharge(this, notice.correlationId, paymentUrl, notice.recipientEmail),
+      );
+    }
   }
 
   /**

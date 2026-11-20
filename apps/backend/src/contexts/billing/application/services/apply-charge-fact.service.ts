@@ -10,7 +10,8 @@ import {
 import { CalendarDate } from '../../../../shared/value-objects/calendar-date.vo';
 import type { Charge } from '../../domain/charge.aggregate';
 import type { ProviderEvent } from '../../domain/provider-event';
-import { RecoveryChargeFactory, recoveryPriceKey } from '../../domain/recovery-charge.factory';
+import { chargePriceKey } from '../../domain/charge-price-key';
+import { RecoveryChargeFactory } from '../../domain/recovery-charge.factory';
 import type { Subscription } from '../../domain/subscription.aggregate';
 import { MinorAmount } from '../../domain/value-objects/minor-amount.vo';
 import {
@@ -155,7 +156,7 @@ export class ApplyChargeFactService {
         'MONTHLY',
         todayDate,
       );
-      return [recoveryPriceKey(item.featureKey, item.tier), version.amount] as const;
+      return [chargePriceKey(item.featureKey, item.tier), version.amount] as const;
     });
     const prices = new Map<string, MinorAmount>(amounts);
     return RecoveryChargeFactory.build({

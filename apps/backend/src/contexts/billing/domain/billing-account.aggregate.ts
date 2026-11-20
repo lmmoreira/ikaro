@@ -68,8 +68,8 @@ export class BillingAccount extends AggregateRoot {
   readonly legalName: string | null;
   readonly billingEmail: Email | null;
   readonly address: Address | null;
-  readonly provider: BillingProvider | null;
-  readonly providerCustomerId: string | null;
+  private _provider: BillingProvider | null;
+  private _providerCustomerId: string | null;
   readonly autoBilling: AutoBilling;
   readonly autoBillingStatus: AutoBillingStatus;
   readonly autoBillingLabel: string | null;
@@ -84,8 +84,8 @@ export class BillingAccount extends AggregateRoot {
     this.legalName = props.legalName;
     this.billingEmail = props.billingEmail;
     this.address = props.address;
-    this.provider = props.provider;
-    this.providerCustomerId = props.providerCustomerId;
+    this._provider = props.provider;
+    this._providerCustomerId = props.providerCustomerId;
     this.autoBilling = props.autoBilling;
     this.autoBillingStatus = props.autoBillingStatus;
     this.autoBillingLabel = props.autoBillingLabel;
@@ -120,6 +120,38 @@ export class BillingAccount extends AggregateRoot {
   /** Never validates: an exempt tenant's shell has no tax id, whatever its country requires. */
   static reconstitute(props: BillingAccountProps): BillingAccount {
     return new BillingAccount(props);
+  }
+
+  get provider(): BillingProvider | null {
+    return this._provider;
+  }
+
+  get providerCustomerId(): string | null {
+    return this._providerCustomerId;
+  }
+
+  /**
+   * Records the provider customer `ensureCustomer` returned. The first customer is kept for good:
+   * the same one again is a no-op and a different one is not stored (it answers `false`), so a retry
+   * can never repoint the account at another provider customer. Returns whether anything changed.
+   */
+  assignProviderCustomer(provider: BillingProvider, providerCustomerId: string): boolean {
+    if (this._providerCustomerId !== null) return false;
+    this._provider = provider;
+    this._providerCustomerId = providerCustomerId;
+    return true;
+  }
+
+  /**
+   * Whether a provider charge can be created for this account (UC-113 A8 / A9): the tax id the
+   * country requires (a CPF / CNPJ in Brazil, built through `TaxId`, so a stored one is valid) and
+   * the full billing address (`Address` is validated at creation; the provider's automatic NFS-e
+   * needs the payer's address). The one rule the issue job, the creation retry and the identity
+   * save share.
+   */
+  hasBillableIdentity(): boolean {
+    const taxIdMissing = this.countryCode.spec.taxId.required && this.taxId === null;
+    return !taxIdMissing && this.address !== null;
   }
 
   private static resolveTaxId(input: CreateBillingAccountInput): TaxId | null {

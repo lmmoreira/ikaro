@@ -1,3 +1,5 @@
+import type { BillingProvider } from './billing-account.aggregate';
+
 /**
  * The immutable `merchant_profile_key` a new subscription is created with (M25-S07).
  *
@@ -64,6 +66,14 @@ function isMerchantProfileAppEnv(value: string): value is MerchantProfileAppEnv 
 
 function isSupportedCountry(value: string): value is SupportedCountry {
   return value === 'BR' || value === 'US';
+}
+
+/**
+ * The payment provider a merchant profile belongs to: the BRL profiles are Asaas (the fake emulates
+ * it), the USD ones Stripe. Written onto a charge when its provider creation succeeds.
+ */
+export function providerOfMerchantProfileKey(key: string): BillingProvider {
+  return key.startsWith('USD_') ? 'STRIPE' : 'ASAAS';
 }
 
 export function resolveMerchantProfileKey(appEnv: string, countryCode: string): MerchantProfileKey {

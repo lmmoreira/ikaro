@@ -46,6 +46,7 @@ describe('SetTenantExemptUseCase', () => {
       countryCode: 'BR',
       timezone: 'America/Sao_Paulo',
       createdAt: NOW,
+      isActive: true,
     });
 
   it('sets exempt on a trialing tenant: ACTIVE and exempt, audited', async () => {

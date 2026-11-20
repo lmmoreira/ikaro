@@ -79,6 +79,25 @@ export class TypeOrmBillingAccountRepository implements IBillingAccountRepositor
     await this.insert(manager, entity);
   }
 
+  async assignProviderCustomer(
+    tenantId: string,
+    provider: BillingProvider,
+    providerCustomerId: string,
+  ): Promise<boolean> {
+    const manager = getActiveEntityManager() ?? this.repo.manager;
+    const result = await manager
+      .createQueryBuilder()
+      .update(BillingAccountEntity)
+      .set({ provider, providerCustomerId })
+      .where('tenant_id = :tenantId', { tenantId })
+      .andWhere(
+        '(provider_customer_id IS NULL OR (provider = :provider AND provider_customer_id = :providerCustomerId))',
+        { provider, providerCustomerId },
+      )
+      .execute();
+    return result.affected === 1;
+  }
+
   private async insert(manager: EntityManager, entity: BillingAccountEntity): Promise<void> {
     try {
       await manager.insert(BillingAccountEntity, entity);

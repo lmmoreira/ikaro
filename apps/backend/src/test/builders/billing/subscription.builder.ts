@@ -69,16 +69,16 @@ export class SubscriptionBuilder {
   private countryCode = 'BR';
   private currency: string | null = null;
   private timezone = 'America/Sao_Paulo';
-  private readonly merchantProfileKey = 'BRL_FAKE';
-  private readonly anchorDay = 15;
+  private merchantProfileKey = 'BRL_FAKE';
+  private anchorDay = 15;
   private trialEndsAt: Date | null = new Date(Date.now() + 7 * DAY_MS);
   private currentPeriodStart: Date | null = null;
   private currentPeriodEnd: Date | null = null;
   private nextDueDate: CalendarDate | null = null;
   private pastDueSince: Date | null = null;
   private graceUntil: Date | null = null;
-  private readonly cancelAt: Date | null = null;
-  private readonly planConfirmedAt: Date | null = null;
+  private cancelAt: Date | null = null;
+  private planConfirmedAt: Date | null = null;
   private suspendedAt: Date | null = null;
   private purgeWarning30SentAt: Date | null = null;
   private purgeWarning7SentAt: Date | null = null;
@@ -137,6 +137,26 @@ export class SubscriptionBuilder {
 
   withNextDueDate(nextDueDate: string | null): this {
     this.nextDueDate = nextDueDate === null ? null : CalendarDate.create(nextDueDate);
+    return this;
+  }
+
+  withMerchantProfileKey(merchantProfileKey: string): this {
+    this.merchantProfileKey = merchantProfileKey;
+    return this;
+  }
+
+  withAnchorDay(anchorDay: number): this {
+    this.anchorDay = anchorDay;
+    return this;
+  }
+
+  withCancelAt(cancelAt: Date | null): this {
+    this.cancelAt = cancelAt;
+    return this;
+  }
+
+  withPlanConfirmedAt(planConfirmedAt: Date | null): this {
+    this.planConfirmedAt = planConfirmedAt;
     return this;
   }
 

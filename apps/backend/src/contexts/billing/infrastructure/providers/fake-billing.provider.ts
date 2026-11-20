@@ -50,7 +50,7 @@ const PAID_STATES: ReadonlySet<FakeCharge['state']> = new Set(['PAID', 'PARTIALL
 export class FakeBillingProvider implements BillingProviderPort {
   private readonly customerByTenant = new Map<string, string>();
   private readonly identityByCustomer = new Map<string, ProviderCustomerIdentity>();
-  private readonly charges = new Map<string, FakeCharge>();
+  readonly charges = new Map<string, FakeCharge>();
   private readonly autoBillingCustomers = new Set<string>();
   private readonly emitter: FakeAsaasWebhookEmitter;
   private pending: FakeWebhookDelivery[] = [];

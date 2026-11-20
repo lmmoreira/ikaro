@@ -20,6 +20,13 @@ export interface OperatorSubscriptionSummary {
   hasEverPaid: boolean;
 }
 
+/** A subscription the issue job may be due to invoice, and its place in the selection order. */
+export interface DueIssueRef {
+  tenantId: string;
+  /** `YYYY-MM-DD`. */
+  nextDueDate: string;
+}
+
 export interface ListOperatorSubscriptionsQuery {
   status?: SubscriptionStatus;
   limit: number;
@@ -57,6 +64,23 @@ export interface ISubscriptionRepository {
    * trial grants every feature) and have no item for `featureKey` active at `now`. Ids only.
    */
   findTenantIdsNotEntitledTo(featureKey: FeatureKey, now: Date): Promise<string[]>;
+
+  /**
+   * Cross-tenant job selector (UC-113, M26-S05): one page of the `TRIALING` / `ACTIVE`, non-exempt
+   * subscriptions whose `next_due_date` is on or before `dueOnOrBefore` (a `YYYY-MM-DD` the caller
+   * widened by one day of slack, because the date is in each subscription's own zone), ordered by
+   * `(next_due_date, tenant_id)`, at most `limit`, starting after the `after` row. A subscription
+   * the job skips (held identity, deactivated tenant, missing price) stays due, so the caller pages
+   * on from the last row it was given instead of asking for the head again, or it would never get
+   * past the skipped ones. Ids and dates only: the job re-reads each one under B-R1 and re-checks
+   * the date in the subscription's zone. Served by the standalone partial index
+   * `IDX_billing_subscriptions_issuing`; the predicate must repeat the index's literally.
+   */
+  findDueForIssueForJob(
+    dueOnOrBefore: string,
+    limit: number,
+    after?: DueIssueRef,
+  ): Promise<DueIssueRef[]>;
 
   /**
    * Cross-tenant operator read (UC-111): one page of subscription summaries, newest-created first

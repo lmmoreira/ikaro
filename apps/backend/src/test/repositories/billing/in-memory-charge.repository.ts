@@ -2,6 +2,7 @@ import { drainDomainEvents } from '../../../shared/infrastructure/outbox/drain-d
 import type { IOutboxPublisher } from '../../../shared/ports/outbox-publisher.port';
 import {
   ChargeRef,
+  PendingCreationRef,
   IChargeRepository,
   ListChargesQuery,
 } from '../../../contexts/billing/application/ports/charge-repository.port';
@@ -110,14 +111,31 @@ export class InMemoryChargeRepository implements IChargeRepository {
     return true;
   }
 
-  async listPendingCreationForJob(now: Date, limit: number): Promise<ChargeRef[]> {
-    return this.refs(
-      this.saved.filter((c) => {
+  // Least recently attempted first (never attempted first), id breaking ties, one page after the
+  // given row: the production order.
+  async listPendingCreationForJob(
+    now: Date,
+    limit: number,
+    after?: PendingCreationRef,
+  ): Promise<PendingCreationRef[]> {
+    // Never-attempted charges (prefix 0) sort before the attempted ones (prefix 1).
+    const key = (ref: PendingCreationRef): string => {
+      const attempt = ref.lastAttemptAt === null ? '0' : `1${ref.lastAttemptAt.toISOString()}`;
+      return `${attempt}|${ref.id}`;
+    };
+    return this.saved
+      .filter((c) => {
         const claim = this.leaseOf(c);
         return c.open && this.awaitingCreation(c) && (!claim || this.leaseFree(claim, now));
-      }),
-      limit,
-    );
+      })
+      .map((c) => ({
+        tenantId: c.tenantId,
+        id: c.id,
+        lastAttemptAt: this.leaseOf(c)?.lastAttemptAt ?? null,
+      }))
+      .filter((ref) => after === undefined || key(ref) > key(after))
+      .sort((a, b) => key(a).localeCompare(key(b)))
+      .slice(0, limit);
   }
 
   async listOpenDueForJob(dueOnOrBefore: string, limit: number): Promise<ChargeRef[]> {

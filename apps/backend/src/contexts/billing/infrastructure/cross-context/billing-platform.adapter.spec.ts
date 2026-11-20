@@ -23,6 +23,7 @@ describe('BillingPlatformAdapter', () => {
       countryCode: tenant.settings.localization.countryCode,
       timezone: tenant.settings.businessHours.timezone,
       createdAt: tenant.createdAt,
+      isActive: true,
     });
   });
 

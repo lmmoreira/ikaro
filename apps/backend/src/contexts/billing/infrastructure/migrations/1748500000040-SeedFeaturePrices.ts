@@ -14,7 +14,7 @@ import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 const SEED_EFFECTIVE_FROM = '2026-01-01';
 const SEED_REASON = 'Initial catalog (M25-S02)';
 
-interface SeedPrice {
+export interface SeedPrice {
   featureKey: string;
   tier: string;
   amountMinor: number;
@@ -23,7 +23,7 @@ interface SeedPrice {
 // Launch BR list (monthly, tax-inclusive), settled in M25-S02: HOTSITE R$ 49, BOOKING R$ 109
 // (recurrence and availability alerts included), LOYALTY R$ 29, CHATBOT Básico R$ 39 / Plus R$ 79,
 // LEAD_FORM R$ 19.
-const BR_PRICES: SeedPrice[] = [
+export const BR_PRICES: SeedPrice[] = [
   { featureKey: 'HOTSITE', tier: 'STANDARD', amountMinor: 4900 },
   { featureKey: 'BOOKING', tier: 'STANDARD', amountMinor: 10900 },
   { featureKey: 'LOYALTY', tier: 'STANDARD', amountMinor: 2900 },
@@ -35,7 +35,7 @@ const BR_PRICES: SeedPrice[] = [
 // US list: the BR list plus 40% (the owner's call, 2026-11-10), exact and unrounded, seeded in
 // every environment like the BR list. Operators change it later through UC-112's price endpoints
 // (M26), as dated versions.
-const US_PRICES: SeedPrice[] = [
+export const US_PRICES: SeedPrice[] = [
   { featureKey: 'HOTSITE', tier: 'STANDARD', amountMinor: 6860 },
   { featureKey: 'BOOKING', tier: 'STANDARD', amountMinor: 15260 },
   { featureKey: 'LOYALTY', tier: 'STANDARD', amountMinor: 4060 },
