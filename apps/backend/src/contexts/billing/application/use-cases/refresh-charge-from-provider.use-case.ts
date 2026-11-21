@@ -10,6 +10,8 @@ export interface RefreshChargeFromProviderUseCaseInput {
   correlationId: string;
 }
 
+export type RefreshChargeFromProviderUseCaseResult = Charge | null;
+
 /**
  * UC-116's on-demand path, one charge of one tenant: the payment page's return calls this so the
  * manager sees the new state on the next poll without waiting for the webhook (UC-119). One
@@ -27,7 +29,9 @@ export class RefreshChargeFromProviderUseCase {
     @Inject(CHARGE_REPOSITORY) private readonly charges: IChargeRepository,
   ) {}
 
-  async execute(input: RefreshChargeFromProviderUseCaseInput): Promise<Charge | null> {
+  async execute(
+    input: RefreshChargeFromProviderUseCaseInput,
+  ): Promise<RefreshChargeFromProviderUseCaseResult> {
     const charge = await this.charges.findById(input.tenantId, input.chargeId);
     if (charge === null) return null;
     try {

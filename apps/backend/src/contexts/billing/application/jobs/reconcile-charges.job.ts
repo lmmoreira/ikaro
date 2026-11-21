@@ -12,6 +12,7 @@ import {
   RECONCILE_AT_RISK_TRIAL_DAYS,
   RECONCILE_CONCURRENCY,
   RECONCILE_PAID_WINDOW_DAYS,
+  RECONCILE_RUN_BUDGET_MS,
   RECONCILE_RUN_LIMIT,
 } from '../../domain/billing-constants';
 import {
@@ -72,6 +73,8 @@ interface Run {
   /** The provider accounts a read succeeded for. */
   readonly okKeys: Set<string>;
   readonly failures: unknown[];
+  /** The instant (ms) after which the run starts no further read. */
+  readonly deadline: number;
   remaining: number;
 }
 
@@ -83,9 +86,10 @@ interface Run {
  * days. It selects its own charges (no tenant in the trigger): each selection is served by its own
  * index and paged by keyset, because a charge the pass leaves open stays selected and the head of a
  * selection asked for again would starve the rows behind it. At most `RECONCILE_RUN_LIMIT` charges
- * are read per run, `RECONCILE_CONCURRENCY` at a time, so a run ends well inside the push
- * subscription's ack deadline; a run that hits it is truncated and advances nothing (no cursor: the
- * next run re-selects, oldest first). `last_reconcile_ok_at` advances per provider account only on a
+ * are read per run, `RECONCILE_CONCURRENCY` at a time, and none is started after
+ * `RECONCILE_RUN_BUDGET_MS`, so a run ends well inside the push subscription's ack deadline whatever
+ * the provider's latency; a run that hits either bound is truncated and advances nothing (no cursor:
+ * the next run re-selects, oldest first). `last_reconcile_ok_at` advances per provider account only on a
  * run that was not truncated and in which that account answered; `last_full_reconcile_at` only when
  * the full pass also read every charge and every selection page without a failure. One charge's failure never stops the others: every
  * charge is tried, the run logs its one `billing_reconcile_run` line (S36's alerts read it) and then
@@ -125,6 +129,7 @@ export class ReconcileChargesJob {
       visited: new Set(),
       okKeys: new Set(),
       failures: [],
+      deadline: now.getTime() + RECONCILE_RUN_BUDGET_MS,
       remaining: RECONCILE_RUN_LIMIT,
     };
     // The pending provider cancels go first: they are few, and a truncated read pass would otherwise
@@ -205,13 +210,32 @@ export class ReconcileChargesJob {
     if (take.length < fresh.length) run.result.truncated = true;
     for (const row of take) run.visited.add(row.id);
     run.remaining -= take.length;
-    await mapConcurrentlyIsolated(take, RECONCILE_CONCURRENCY, work, {
-      onFailure: (row, err) => this.noteChargeFailure(run, row, err),
-      summarize: (failed) => `${failed.length} charges failed to reconcile`,
-    }).catch(() => undefined);
+    await mapConcurrentlyIsolated(
+      take,
+      RECONCILE_CONCURRENCY,
+      (row) => this.inBudget(run, row, work),
+      {
+        onFailure: (row, err) => this.noteChargeFailure(run, row, err),
+        summarize: (failed) => `${failed.length} charges failed to reconcile`,
+      },
+    ).catch(() => undefined);
     const last = rows.at(-1);
     if (run.result.truncated || rows.length < BILLING_JOB_PAGE_SIZE || last === undefined) return;
     await this.page(run, fetch, work, last);
+  }
+
+  // The count limit does not bound the time (a slow provider makes 1,500 reads outlast the ack
+  // deadline): past the run's deadline a charge is not started, and the run is truncated.
+  private async inBudget<T extends ChargeRef>(
+    run: Run,
+    row: T,
+    work: (ref: T) => Promise<void>,
+  ): Promise<void> {
+    if (this.clock.now().getTime() >= run.deadline) {
+      run.result.truncated = true;
+      return;
+    }
+    await work(row);
   }
 
   private async reconcileUnit(run: Run, ref: ChargeRef): Promise<void> {

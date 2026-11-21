@@ -40,11 +40,19 @@ export const RECONCILE_AT_RISK_TRIAL_DAYS = 14;
 export const RECONCILE_PAID_WINDOW_DAYS = 35;
 
 /**
- * UC-116: the most charges one reconcile run reads at the provider. The push subscription's ack
- * deadline is 60 s, so a run must end well inside it: 1,500 reads at 10 in flight and about 250 ms
- * each is about 40 s. A run that reaches it is truncated and advances nothing.
+ * UC-116: the most charges one reconcile run reads at the provider: a ceiling on the count, with
+ * `RECONCILE_RUN_BUDGET_MS` as the bound on the time. A run that reaches it is truncated and
+ * advances nothing.
  */
 export const RECONCILE_RUN_LIMIT = 1500;
+
+/**
+ * UC-116: how long a reconcile run keeps starting provider reads. The push subscription's ack
+ * deadline is 60 s, so a run must end well inside it whatever the provider's latency: once this
+ * much time has passed no further charge is read, the run is truncated and advances nothing (the
+ * reads already in flight finish, which leaves the rest of the 60 s for them).
+ */
+export const RECONCILE_RUN_BUDGET_MS = 40_000;
 
 /** UC-116: provider reads in flight at once (the provider allows 50 concurrent GETs). */
 export const RECONCILE_CONCURRENCY = 10;

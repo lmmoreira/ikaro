@@ -1,5 +1,5 @@
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
-import { addDaysUTC, todayUTC } from '../../../../shared/utils/calendar-date';
+import { addDaysUTC, todayInTimezone, todayUTC } from '../../../../shared/utils/calendar-date';
 import {
   createReconcileWorld,
   type ReconcileWorld,
@@ -58,7 +58,10 @@ describe('ReconcileChargesJob (integration, UC-116)', () => {
     const tenant = await world.seedSubscription({
       configure: (b) => b.withStatus('ACTIVE').withTrialEndsAt(null),
     });
-    const charge = await world.seedCharge(tenant, { dueDate: todayUTC() });
+    // The subscription's own "today" (São Paulo): the job's UTC date selection is a superset of it.
+    const charge = await world.seedCharge(tenant, {
+      dueDate: todayInTimezone('America/Sao_Paulo'),
+    });
     world.provider.simulatePayment(charge.providerChargeId!, 'CARD');
 
     await run();

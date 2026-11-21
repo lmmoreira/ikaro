@@ -37,7 +37,12 @@ export async function createReconcileWorld() {
     recordPass,
   );
   world.trackHealthKey('BRL_FAKE');
-  return { ...world, sync, reconcileOne, retryCancel, recordPass, refresh, reconcile };
+  // `cleanup` clears the tracked keys, and the job writes this row in every test: track it again.
+  const cleanup = async (): Promise<void> => {
+    await world.cleanup();
+    world.trackHealthKey('BRL_FAKE');
+  };
+  return { ...world, cleanup, sync, reconcileOne, retryCancel, recordPass, refresh, reconcile };
 }
 
 export type ReconcileWorld = Awaited<ReturnType<typeof createReconcileWorld>>;

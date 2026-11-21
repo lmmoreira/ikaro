@@ -17,6 +17,10 @@ export class InMemoryProviderHealthRepository implements IProviderHealthReposito
   }
 
   async save(health: ProviderHealth): Promise<void> {
+    this.replace(health);
+  }
+
+  private replace(health: ProviderHealth): void {
     const index = this.saved.findIndex(
       (row) => row.merchantProfileKey === health.merchantProfileKey,
     );
@@ -26,8 +30,9 @@ export class InMemoryProviderHealthRepository implements IProviderHealthReposito
 
   // Column-scoped like the real upsert: the freeze and the webhook status of an existing row stay.
   async recordReconcileOk(merchantProfileKey: string, at: Date, fullPass: boolean): Promise<void> {
-    const current = await this.findByKey(merchantProfileKey);
-    await this.save(
+    // Read and replace without yielding, like the one upsert statement it stands for.
+    const current = this.saved.find((row) => row.merchantProfileKey === merchantProfileKey);
+    this.replace(
       ProviderHealth.reconstitute({
         merchantProfileKey,
         webhookStatus: current?.webhookStatus ?? 'UNKNOWN',

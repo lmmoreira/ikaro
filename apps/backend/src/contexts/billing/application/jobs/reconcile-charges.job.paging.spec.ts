@@ -4,6 +4,7 @@ import {
   createReconcileHarness,
   SWEEP_NOW,
 } from '../../../../test/infrastructure/billing-reconcile-harness';
+import { RECONCILE_RUN_BUDGET_MS } from '../../domain/billing-constants';
 import type { Charge } from '../../domain/charge.aggregate';
 
 // A page of 2 and a run limit of 5, so paging and truncation are reachable with a handful of rows.
@@ -11,6 +12,7 @@ jest.mock('../../domain/billing-constants', () => ({
   ...jest.requireActual('../../domain/billing-constants'),
   BILLING_JOB_PAGE_SIZE: 2,
   RECONCILE_RUN_LIMIT: 5,
+  RECONCILE_CONCURRENCY: 2,
 }));
 
 const KEY = 'BRL_FAKE';
@@ -73,6 +75,24 @@ describe('ReconcileChargesJob paging and the run limit (UC-116)', () => {
       'billing_reconcile_run',
       expect.objectContaining({ truncated: true }),
     );
+  });
+
+  it('a run that outlasts its time budget starts no further read, is truncated and advances nothing', async () => {
+    const charges = await overdueCharges(5);
+    const original = h.provider.fetchChargeStatus.bind(h.provider);
+    // A slow provider: the first read takes the run past its budget.
+    const spy = jest.spyOn(h.provider, 'fetchChargeStatus').mockImplementation(async (id) => {
+      h.clock.setTo(new Date(SWEEP_NOW.getTime() + RECONCILE_RUN_BUDGET_MS));
+      return original(id);
+    });
+
+    const result = await run();
+
+    expect(result).toMatchObject({ checked: 2, truncated: true, advanced: 0 });
+    expect(spy.mock.calls.map(([id]) => id)).toEqual(
+      charges.slice(0, 2).map((c) => c.providerChargeId),
+    );
+    expect((await h.health.findByKey(KEY))?.lastReconcileOkAt).toEqual(lastOkBefore);
   });
 
   it('there is no cursor between runs: the next run selects again from the start, oldest first', async () => {
