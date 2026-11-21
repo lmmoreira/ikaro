@@ -2,6 +2,7 @@ import type { FeatureKey } from '@ikaro/validation';
 import { CalendarDate } from '../../../../shared/value-objects/calendar-date.vo';
 import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
 import { Timezone } from '../../../../shared/value-objects/timezone.vo';
+import type { OperatorSubscriptionSummary } from '../../application/ports/subscription-repository.port';
 import type { FeatureTier } from '../../domain/feature-price.aggregate';
 import {
   Subscription,
@@ -130,4 +131,21 @@ export function itemToEntity(item: SubscriptionItem, tenantId: string, subscript
   row.endsAt = item.endsAt;
   row.createdBy = item.createdBy;
   return row;
+}
+
+/** The operator list's row (UC-111): the subscription's own state only, never its items. */
+export function subscriptionToOperatorSummary(
+  row: SubscriptionEntity,
+): OperatorSubscriptionSummary {
+  return {
+    tenantId: row.tenantId,
+    status: row.status as OperatorSubscriptionSummary['status'],
+    suspensionReason: row.suspensionReason as OperatorSubscriptionSummary['suspensionReason'],
+    exempt: row.exempt,
+    trialEndsAt: row.trialEndsAt,
+    graceUntil: row.graceUntil,
+    pastDueSince: row.pastDueSince,
+    suspendedAt: row.suspendedAt,
+    hasEverPaid: row.hasEverPaid,
+  };
 }

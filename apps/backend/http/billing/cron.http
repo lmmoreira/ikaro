@@ -20,5 +20,9 @@ X-Internal-Key: {{internalKey}}
 POST {{baseUrl}}/cron/billing-status-sweep
 X-Internal-Key: {{internalKey}}
 
+### Reconcile the charges with the provider (UC-116): the at-risk scope, plus the full pass once a day
+POST {{baseUrl}}/cron/billing-reconcile
+X-Internal-Key: {{internalKey}}
+
 ### Without the internal key: refused with 401 (the route is internal-only, behind InternalApiGuard)
 POST {{baseUrl}}/cron/billing-issue-charges

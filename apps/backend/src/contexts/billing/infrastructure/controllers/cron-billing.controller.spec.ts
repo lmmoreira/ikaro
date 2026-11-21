@@ -4,6 +4,7 @@ import { NO_FEATURE_GATE_KEY, SUSPENSION_ACCESS_KEY } from '@ikaro/nestjs-http';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import {
   CRON_BILLING_ISSUE_CHARGES_TRIGGER,
+  CRON_BILLING_RECONCILE_TRIGGER,
   CRON_BILLING_STATUS_SWEEP_TRIGGER,
 } from '../events/cron-trigger-names.constants';
 import { CronBillingController } from './cron-billing.controller';
@@ -52,6 +53,25 @@ describe('CronBillingController', () => {
 
       expect(triggerBus.publishedTriggers).toEqual([CRON_BILLING_STATUS_SWEEP_TRIGGER]);
       expect(CRON_BILLING_STATUS_SWEEP_TRIGGER).toBe('cron-billing-status-sweep');
+    });
+  });
+
+  describe('POST /cron/billing-reconcile', () => {
+    it('answers exactly 200', () => {
+      expect(Reflect.getMetadata('__httpCode__', CronBillingController.prototype.reconcile)).toBe(
+        HttpStatus.OK,
+      );
+    });
+
+    it('returns { ok: true }', async () => {
+      await expect(controller.reconcile()).resolves.toEqual({ ok: true });
+    });
+
+    it('publishes the cron-billing-reconcile trigger and no other', async () => {
+      await controller.reconcile();
+
+      expect(triggerBus.publishedTriggers).toEqual([CRON_BILLING_RECONCILE_TRIGGER]);
+      expect(CRON_BILLING_RECONCILE_TRIGGER).toBe('cron-billing-reconcile');
     });
   });
 });

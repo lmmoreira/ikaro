@@ -218,6 +218,15 @@ describe('CachingSubscriptionRepository', () => {
       expect(cache.getCalls).toHaveLength(0);
     });
 
+    it('forwards the merchant profile keys read of reconcile (UC-116) to the repository, uncached', async () => {
+      await inner.save(new SubscriptionBuilder().withMerchantProfileKey('BRL_FAKE').build());
+      await inner.save(new SubscriptionBuilder().withMerchantProfileKey('BRL_FAKE').build());
+      await inner.save(new SubscriptionBuilder().withMerchantProfileKey('USD_FAKE').build());
+
+      await expect(repo.listMerchantProfileKeys()).resolves.toEqual(['BRL_FAKE', 'USD_FAKE']);
+      expect(cache.getCalls).toHaveLength(0);
+    });
+
     it('forwards the status sweep selectors (UC-115) to the repository, uncached, paging included', async () => {
       const ended = new SubscriptionBuilder()
         .withStatus('TRIALING')

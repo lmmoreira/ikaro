@@ -3,6 +3,7 @@ import { NoFeatureGate, SuspensionAccess } from '@ikaro/nestjs-http';
 import { ITriggerBus, TRIGGER_BUS } from '../../../../shared/ports/trigger-bus.port';
 import {
   CRON_BILLING_ISSUE_CHARGES_TRIGGER,
+  CRON_BILLING_RECONCILE_TRIGGER,
   CRON_BILLING_STATUS_SWEEP_TRIGGER,
 } from '../events/cron-trigger-names.constants';
 
@@ -29,6 +30,13 @@ export class CronBillingController {
   @HttpCode(HttpStatus.OK)
   async statusSweep(): Promise<{ ok: boolean }> {
     await this.triggerBus.publishTrigger(CRON_BILLING_STATUS_SWEEP_TRIGGER);
+    return { ok: true };
+  }
+
+  @Post('billing-reconcile')
+  @HttpCode(HttpStatus.OK)
+  async reconcile(): Promise<{ ok: boolean }> {
+    await this.triggerBus.publishTrigger(CRON_BILLING_RECONCILE_TRIGGER);
     return { ok: true };
   }
 }

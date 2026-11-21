@@ -139,6 +139,10 @@ export class CachingSubscriptionRepository implements ISubscriptionRepository {
     return this.repo.findCancelDueForJob(now, limit, after);
   }
 
+  listMerchantProfileKeys(): Promise<string[]> {
+    return this.repo.listMerchantProfileKeys();
+  }
+
   listSummaries(
     query: ListOperatorSubscriptionsQuery,
   ): Promise<{ items: OperatorSubscriptionSummary[]; total: number }> {

@@ -967,6 +967,33 @@ Cancel-at runs before the non-payment rules, so a tenant that cancelled and laps
 
 **Failure isolation.** Each subscription runs in its own transaction; a failure is kept, the rest of the page and the next pages still run, the run logs one `billing_status_sweep_run` line with its counts per transition and then rethrows the first failure so the trigger is redelivered. Every transition is idempotent: a second run finds the statuses already moved.
 
+## Billing — Reconcile: scopes, the run budget and the health write (M26-S07)
+
+UC-116. Code: `ReconcileChargesJob` (`application/jobs/`), `ReconcileOneChargeUseCase`, `RefreshChargeFromProviderUseCase`, `RecordReconcilePassUseCase`, `RetryProviderChargeCancelUseCase` (`application/use-cases/`) and `ChargeProviderSyncService` (`application/services/`), over `ApplyChargeFactService` (the webhook's apply) and the selectors of `typeorm-charge.reconcile-queries.ts`. A missed webhook must never leave a paying tenant locked out, so every hour (minute 10, before the sweep at minute 40) the job asks the provider about the charges that could be wrong.
+
+```mermaid
+flowchart TD
+  J["Hourly trigger cron-billing-reconcile (minute 10)"] --> S{"At or past 04:00 UTC and some<br/>account has no complete full pass<br/>in the last 24 h?"}
+  S -- no --> AR["AT_RISK: three selections, each paged by keyset:<br/>open charges due today or earlier,<br/>open RECOVERY charges,<br/>open charges of trials ending within 14 days"]
+  S -- yes --> FU["FULL: the three above, plus every open charge<br/>and every charge paid in the last 35 days"]
+  AR --> C["Cancels still pending at the provider"]
+  FU --> C
+  C --> R["Per charge, 10 at a time, within the run limit (1,500):<br/>read the provider, check it describes our charge,<br/>apply the fact through ApplyChargeFactService"]
+  R --> T{"Reached the limit<br/>with rows left?"}
+  T -- yes --> TR["Truncated: advance nothing,<br/>log truncated=true"]
+  T -- no --> H["Per provider account: ask its health if nothing was read,<br/>then stamp last_reconcile_ok_at<br/>(and last_full_reconcile_at on a FULL pass)"]
+```
+
+**Scopes.** At-risk is a union of three selections, not one query: renewals are issued 10 days ahead (`CHARGE_ISSUE_LEAD_DAYS`), so "due within 14 days" would match about a third of every `ACTIVE` tenant's open charges. Each selection has its own index (`IDX_billing_charges_open`, `UQ_billing_charges_open_recovery`, the trial index into `UQ_billing_charges_period`) and a per-run `visited` set reads a charge two of them return once. A selection is paged by keyset because a charge the pass leaves open stays selected: the head asked for again would starve everything behind it.
+
+**What a read can change.** The provider's state maps to a fact only for paid or partially refunded (`PAID`), refunded and charged back; overdue, pending and cancelled change nothing locally (the sweep owns overdue; an open charge the provider cancelled is logged as a drift). A read that does not describe our charge (another amount, another reference) is skipped and logged, never applied. A reversal suspends the tenant and inserts its recovery charge in the apply transaction; the sync then makes that charge payable at the provider after the commit, as the webhook does, and a failure there is logged and left to S05's creation retry.
+
+**The run budget.** The push subscription's ack deadline is 60 s, so a run reads at most 1,500 charges, 10 at a time, and starts no read once 40 s (`RECONCILE_RUN_BUDGET_MS`) have passed, whatever the provider's latency (a count alone would outlast the deadline at 500 ms a read). A run that reaches either bound with rows left is truncated and advances nothing; there is no cursor between runs, so the next run selects again from the start, oldest first, and a charge leaves the set once it is settled. Past roughly 1,500 charges in one daily full pass the full pass could never finish, which is the point to add a cursor.
+
+**The health write.** `last_reconcile_ok_at` advances per merchant profile key, only on a run that was not truncated and in which at least one provider read for that key succeeded (a failed charge read does not block it: one bad charge must not freeze every suspension); `last_full_reconcile_at` advances only when the full pass also read every charge and every selection page without a failure, or the redelivery would run as the at-risk scope and skip the rest of the day's pass; a key with nothing to read is asked for its account health first, so an empty at-risk set cannot report success while the provider is down (the freeze, M26-S08, reads that column). The write is a column-scoped upsert: it sets only the reconcile columns, so a freeze or webhook status another writer set while the run was in flight survives it. A key whose health read fails stays unstamped and fails the run (the trigger message is nacked and redelivered). The pending provider cancels run first, so a truncated read pass cannot starve them. An open local charge the provider has cancelled is logged as `billing_reconcile_drift_unapplied` and left alone.
+
+**On-demand refresh.** `RefreshChargeFromProviderUseCase` is the same read and apply for one tenant's one charge, for the payment page's return (UC-119, S15): it never throws on a provider error and returns the charge unchanged, and another tenant's charge id is "not found".
+
 ---
 
 ## Other bounded contexts

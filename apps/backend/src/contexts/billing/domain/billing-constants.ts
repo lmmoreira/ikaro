@@ -26,3 +26,33 @@ export const PAYMENT_SETTLEMENT_MARGIN_HOURS = 24;
  * Monday to Friday of the tenant-local calendar, with no holiday calendar (a known limitation).
  */
 export const PAYMENT_PENDING_MARGIN_BUSINESS_DAYS = 3;
+
+/** UC-116: the UTC hour from which the daily full reconcile pass runs (the hourly job runs it once it is due). */
+export const FULL_RECONCILE_HOUR_UTC = 4;
+
+/** UC-116: a full reconcile pass is due again once the last complete one is older than this many hours. */
+export const FULL_RECONCILE_INTERVAL_HOURS = 24;
+
+/** UC-116: the at-risk scope covers trials ending within this many days. */
+export const RECONCILE_AT_RISK_TRIAL_DAYS = 14;
+
+/** UC-116: the full pass re-reads charges paid within this many days (a card `RECEIVED` lands about 32 days after `CONFIRMED`). */
+export const RECONCILE_PAID_WINDOW_DAYS = 35;
+
+/**
+ * UC-116: the most charges one reconcile run reads at the provider: a ceiling on the count, with
+ * `RECONCILE_RUN_BUDGET_MS` as the bound on the time. A run that reaches it is truncated and
+ * advances nothing.
+ */
+export const RECONCILE_RUN_LIMIT = 1500;
+
+/**
+ * UC-116: how long a reconcile run keeps starting provider reads. The push subscription's ack
+ * deadline is 60 s, so a run must end well inside it whatever the provider's latency: once this
+ * much time has passed no further charge is read, the run is truncated and advances nothing (the
+ * reads already in flight finish, which leaves the rest of the 60 s for them).
+ */
+export const RECONCILE_RUN_BUDGET_MS = 40_000;
+
+/** UC-116: provider reads in flight at once (the provider allows 50 concurrent GETs). */
+export const RECONCILE_CONCURRENCY = 10;
