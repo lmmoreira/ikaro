@@ -315,6 +315,52 @@ describe('ReconcileChargesJob (UC-116)', () => {
       );
     });
 
+    describe('a full pass that did not read everything is not stamped as done', () => {
+      const staleFullPass = new Date(SWEEP_NOW.getTime() - 30 * HOUR_MS);
+      const needsFullPass = () =>
+        h.health.save(
+          new ProviderHealthBuilder()
+            .withMerchantProfileKey(KEY)
+            .withLastFullReconcileAt(staleFullPass)
+            .build(),
+        );
+
+      it('a charge whose read failed leaves last_full_reconcile_at alone, while the account that answered is still stamped', async () => {
+        await needsFullPass();
+        await h.seedCharge(await tenant('PAST_DUE'), { dueDate: '2026-03-01' });
+        await h.seedCharge(await tenant('PAST_DUE'), { dueDate: '2026-03-02' });
+        h.provider.failNextCall('UNAVAILABLE'); // the first read of the run fails
+        jest.spyOn(AppLogger.prototype, 'error').mockImplementation();
+
+        await expect(run()).rejects.toBeDefined();
+
+        expect(await healthRow()).toMatchObject({
+          lastFullReconcileAt: staleFullPass,
+          lastReconcileOkAt: SWEEP_NOW,
+        });
+      });
+
+      it('a selection page that could not be read leaves it alone too: the whole selection went unread', async () => {
+        await needsFullPass();
+        await h.seedCharge(await tenant('PAST_DUE'), { dueDate: '2026-03-01' });
+        jest.spyOn(h.charges, 'listRecentlyPaidForJob').mockRejectedValue(new Error('timeout'));
+
+        await expect(run()).rejects.toThrow('timeout');
+
+        expect((await healthRow())?.lastFullReconcileAt).toEqual(staleFullPass);
+      });
+
+      it('the next run, which reads everything, stamps it', async () => {
+        await needsFullPass();
+        await h.seedCharge(await tenant('PAST_DUE'), { dueDate: '2026-03-01' });
+
+        const result = await run();
+
+        expect(result.scope).toBe('FULL');
+        expect((await healthRow())?.lastFullReconcileAt).toEqual(SWEEP_NOW);
+      });
+    });
+
     it('a selection page that cannot be read is counted and the other selections still run', async () => {
       const charge = await h.seedCharge(await tenant('PAST_DUE'), { dueDate: '2026-03-01' });
       h.provider.simulatePayment(charge.providerChargeId!, 'PIX');

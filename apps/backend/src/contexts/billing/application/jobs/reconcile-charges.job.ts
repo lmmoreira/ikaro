@@ -82,7 +82,8 @@ interface Run {
  * are read per run, `RECONCILE_CONCURRENCY` at a time, so a run ends well inside the push
  * subscription's ack deadline; a run that hits it is truncated and advances nothing (no cursor: the
  * next run re-selects, oldest first). `last_reconcile_ok_at` advances per provider account only on a
- * complete run in which that account answered. One charge's failure never stops the others: every
+ * run that was not truncated and in which that account answered; `last_full_reconcile_at` only when
+ * the full pass also read every charge and every selection page without a failure. One charge's failure never stops the others: every
  * charge is tried, the run logs its one `billing_reconcile_run` line (S36's alerts read it) and then
  * rethrows the first failure, so the trigger message is nacked and redelivered.
  */
@@ -122,12 +123,14 @@ export class ReconcileChargesJob {
       failures: [],
       remaining: RECONCILE_RUN_LIMIT,
     };
-    await this.readSelections(run, now, scope);
+    // The pending provider cancels go first: they are few, and a truncated read pass would otherwise
+    // starve them (a cancelled charge no read selection returns), though one may already be paid.
     await this.page<DueChargeRef>(
       run,
       (after) => this.charges.listProviderCancelPendingForJob(BILLING_JOB_PAGE_SIZE, after),
       (ref) => this.cancelUnit(run, ref),
     );
+    await this.readSelections(run, now, scope);
     if (!run.result.truncated) await this.advance(run, keys, now);
     this.logger.log('billing_reconcile_run', { correlationId: input.correlationId, ...run.result });
     if (run.failures.length > 0) throw run.failures[0];
@@ -228,7 +231,15 @@ export class ReconcileChargesJob {
     });
   }
 
-  // A complete run stamps each provider account that answered; an account with no charge to read is
+  // A full pass counts as done only when every charge was read and every selection page was
+  // fetched: a failed read leaves the rest of the day without it otherwise, since the redelivery
+  // would run as the at-risk scope. (`last_reconcile_ok_at` only says the account answered.)
+  private fullPassComplete(run: Run): boolean {
+    const { scope, failed, selectionFailed } = run.result;
+    return scope === 'FULL' && failed === 0 && selectionFailed === 0;
+  }
+
+  // A run that was not truncated stamps each provider account that answered; an account with no charge to read is
   // asked for its health first. An account that fails stays unstamped and fails the run.
   private async advance(run: Run, keys: readonly string[], now: Date): Promise<void> {
     await mapSequentiallyIsolated(
@@ -237,7 +248,7 @@ export class ReconcileChargesJob {
         await this.recordPass.execute({
           merchantProfileKey: key,
           at: now,
-          fullPass: run.result.scope === 'FULL',
+          fullPass: this.fullPassComplete(run),
           providerReadSucceeded: run.okKeys.has(key),
         });
         run.result.advanced += 1;

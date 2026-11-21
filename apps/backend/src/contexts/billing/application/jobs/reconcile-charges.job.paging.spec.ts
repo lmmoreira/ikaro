@@ -100,6 +100,26 @@ describe('ReconcileChargesJob paging and the run limit (UC-116)', () => {
     expect(second.truncated).toBe(false);
   });
 
+  it('the pending provider cancels run before the reads, so a truncated read pass never starves them', async () => {
+    const subscription = new SubscriptionBuilder()
+      .withStatus('ACTIVE')
+      .withItems([h.hotsiteItem()])
+      .build();
+    await h.seedTenant(subscription);
+    const cancelled = await h.seedCharge(subscription, {
+      dueDate: '2026-02-01',
+      period: ['2026-01-01', '2026-01-31'],
+    });
+    cancelled.cancel();
+    cancelled.markProviderCancelPending();
+    await overdueCharges(6);
+
+    const result = await run();
+
+    expect(result.truncated).toBe(true);
+    expect(cancelled.providerCancelPending).toBe(false);
+  });
+
   it('a truncated full pass leaves last_full_reconcile_at alone, so the next hour tries it again', async () => {
     await overdueCharges(6);
     const stale = new Date(SWEEP_NOW.getTime() - 30 * HOUR_MS);
