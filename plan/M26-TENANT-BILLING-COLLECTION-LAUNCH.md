@@ -644,7 +644,9 @@ Issue every due charge exactly once. A cron publisher `CronBillingController` (`
 
 ---
 
-### M26-S06 — Status sweep and the `cron-billing-status-sweep` trigger (UC-115)
+### M26-S06 — Status sweep and the `cron-billing-status-sweep` trigger (UC-115) ✅ Done
+
+  - ⚠️ Live check partly observed: topic, subscription, `-dlq`, scheduler job and every IAM grant were applied in staging and prod (infra run 44893425483, Foundation run 44893662860, PR #823 comment "Re: live verification"). A real scheduler invocation and its `billing_status_sweep_run` log line were not observed; to be run with the other live checks in M26-S39, 2026-11-21.
 
 **Agent:** `backend-ts + devops`
 **Complexity:** L
