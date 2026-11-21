@@ -27,6 +27,16 @@ export interface DueIssueRef {
   nextDueDate: string;
 }
 
+/**
+ * A subscription one of the status sweep's rules may be due on, and its place in that rule's
+ * selection order: the instant the rule's index is keyed by (`trial_ends_at`, `past_due_since` or
+ * `cancel_at`), then the tenant id.
+ */
+export interface SweepDueRef {
+  tenantId: string;
+  dueAt: Date;
+}
+
 export interface ListOperatorSubscriptionsQuery {
   status?: SubscriptionStatus;
   limit: number;
@@ -81,6 +91,34 @@ export interface ISubscriptionRepository {
     limit: number,
     after?: DueIssueRef,
   ): Promise<DueIssueRef[]>;
+
+  /**
+   * Cross-tenant job selector (UC-115 rules 2 and 5, M26-S06): one page of the `TRIALING`,
+   * non-exempt subscriptions whose `trial_ends_at` is on or before `now`, ordered by
+   * `(trial_ends_at, tenant_id)`, at most `limit`, after the `after` row. A trial inside its
+   * settlement margin or under a freeze stays selected, so the job pages on from the last row
+   * instead of asking for the head again. Ids and instants only: the sweep re-reads each one under
+   * B-R1. Served by the standalone partial index `IDX_billing_subscriptions_trial_ends_at`; the
+   * `status = 'TRIALING'` predicate must repeat the index's literally.
+   */
+  findTrialEndedForJob(now: Date, limit: number, after?: SweepDueRef): Promise<SweepDueRef[]>;
+
+  /**
+   * Cross-tenant job selector (UC-115 rule 3): one page of the non-exempt `PAST_DUE` subscriptions
+   * whose grace has run out at `now` (`past_due_since` plus 14 days has passed and no later
+   * operator `grace_until` is set), ordered by `(past_due_since, tenant_id)`, after the `after`
+   * row. Served by `IDX_billing_subscriptions_status_past_due_since`.
+   */
+  findGraceExpiredForJob(now: Date, limit: number, after?: SweepDueRef): Promise<SweepDueRef[]>;
+
+  /**
+   * Cross-tenant job selector (UC-115 rule 4): one page of the non-exempt `TRIALING`, `ACTIVE` and
+   * `PAST_DUE` subscriptions whose `cancel_at` is on or before `now`, ordered by
+   * `(cancel_at, tenant_id)`, after the `after` row. A `SUSPENDED` subscription never matches (it
+   * keeps its reason, and its `cancel_at` would otherwise stay selected for the whole clean-up
+   * delay). Served by `IDX_billing_subscriptions_cancel_at`, the status as a residual filter.
+   */
+  findCancelDueForJob(now: Date, limit: number, after?: SweepDueRef): Promise<SweepDueRef[]>;
 
   /**
    * Cross-tenant operator read (UC-111): one page of subscription summaries, newest-created first

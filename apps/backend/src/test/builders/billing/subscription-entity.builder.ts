@@ -11,15 +11,15 @@ export class SubscriptionEntityBuilder {
   private countryCode = 'BR';
   private currency = 'BRL';
   private readonly timezone = 'America/Sao_Paulo';
-  private readonly merchantProfileKey = 'BRL_FAKE';
+  private merchantProfileKey = 'BRL_FAKE';
   private readonly anchorDay = 15;
   private trialEndsAt: Date | null = new Date(Date.now() + 7 * DAY_MS);
   private readonly currentPeriodStart: Date | null = null;
   private readonly currentPeriodEnd: Date | null = null;
   private nextDueDate: string | null = null;
   private pastDueSince: Date | null = null;
-  private readonly graceUntil: Date | null = null;
-  private readonly cancelAt: Date | null = null;
+  private graceUntil: Date | null = null;
+  private cancelAt: Date | null = null;
   private readonly planConfirmedAt: Date | null = null;
   private suspendedAt: Date | null = null;
   private readonly purgeWarning30SentAt: Date | null = null;
@@ -50,6 +50,11 @@ export class SubscriptionEntityBuilder {
     return this;
   }
 
+  withMerchantProfileKey(merchantProfileKey: string): this {
+    this.merchantProfileKey = merchantProfileKey;
+    return this;
+  }
+
   withCountryCode(countryCode: string): this {
     this.countryCode = countryCode;
     return this;
@@ -72,6 +77,16 @@ export class SubscriptionEntityBuilder {
 
   withPastDueSince(pastDueSince: Date | null): this {
     this.pastDueSince = pastDueSince;
+    return this;
+  }
+
+  withGraceUntil(graceUntil: Date | null): this {
+    this.graceUntil = graceUntil;
+    return this;
+  }
+
+  withCancelAt(cancelAt: Date | null): this {
+    this.cancelAt = cancelAt;
     return this;
   }
 

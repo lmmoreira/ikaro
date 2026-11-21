@@ -18,6 +18,7 @@ import type { Subscription } from '../../domain/subscription.aggregate';
 import type { SuspensionReason } from '../../domain/subscription.types';
 import type { ChargeFact } from '../helpers/charge-fact';
 import { ApplyChargeFactService } from './apply-charge-fact.service';
+import { RecoveryChargePlanner } from './recovery-charge-planner.service';
 
 // São Paulo is UTC-3 with no DST: NOW is 12:00 local on 2026-03-10.
 const NOW = new Date('2026-03-10T15:00:00Z');
@@ -76,7 +77,7 @@ describe('ApplyChargeFactService', () => {
       subscriptions,
       charges,
       providerEvents,
-      prices,
+      new RecoveryChargePlanner(charges, prices),
       txManager,
       new AdvanceableClock(NOW),
     );

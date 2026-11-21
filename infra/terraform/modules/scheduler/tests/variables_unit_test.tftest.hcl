@@ -17,6 +17,7 @@ variables {
     cron-lead-form-retention                = "projects/ikaro-test/topics/ikaro-cron-lead-form-retention"
     cron-resource-occupancy-retention-purge = "projects/ikaro-test/topics/ikaro-cron-resource-occupancy-retention-purge"
     cron-billing-issue-charges              = "projects/ikaro-test/topics/ikaro-cron-billing-issue-charges"
+    cron-billing-status-sweep               = "projects/ikaro-test/topics/ikaro-cron-billing-status-sweep"
   }
 }
 
@@ -79,7 +80,8 @@ run "rejects_cron_topic_ids_with_an_orphan_cron_topic" {
       cron-lead-form-retention                = "projects/ikaro-test/topics/ikaro-cron-lead-form-retention"
       cron-resource-occupancy-retention-purge = "projects/ikaro-test/topics/ikaro-cron-resource-occupancy-retention-purge"
       cron-billing-issue-charges              = "projects/ikaro-test/topics/ikaro-cron-billing-issue-charges"
-      # A 10th cron-* topic from the pubsub catalog with no matching Scheduler
+      cron-billing-status-sweep               = "projects/ikaro-test/topics/ikaro-cron-billing-status-sweep"
+      # An 11th cron-* topic from the pubsub catalog with no matching Scheduler
       # job in locals.jobs — the exact drift this validation guards against.
       cron-something-new = "projects/ikaro-test/topics/ikaro-cron-something-new"
     }
@@ -90,7 +92,7 @@ run "rejects_cron_topic_ids_with_an_orphan_cron_topic" {
   ]
 }
 
-run "accepts_non_cron_topics_alongside_the_9_required_ones" {
+run "accepts_non_cron_topics_alongside_the_10_required_ones" {
   command = plan
 
   variables {
@@ -104,6 +106,7 @@ run "accepts_non_cron_topics_alongside_the_9_required_ones" {
       cron-lead-form-retention                = "projects/ikaro-test/topics/ikaro-cron-lead-form-retention"
       cron-resource-occupancy-retention-purge = "projects/ikaro-test/topics/ikaro-cron-resource-occupancy-retention-purge"
       cron-billing-issue-charges              = "projects/ikaro-test/topics/ikaro-cron-billing-issue-charges"
+      cron-billing-status-sweep               = "projects/ikaro-test/topics/ikaro-cron-billing-status-sweep"
       # module.pubsub.topic_ids is the FULL catalog — domain-event topics
       # (non "cron-" prefixed) must never trip the orphan-topic validation.
       BookingInfoSubmitted = "projects/ikaro-test/topics/ikaro-BookingInfoSubmitted"

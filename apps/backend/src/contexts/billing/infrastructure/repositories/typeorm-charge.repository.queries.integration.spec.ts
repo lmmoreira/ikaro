@@ -12,6 +12,13 @@ import { Charge } from '../../domain/charge.aggregate';
 import { ChargeEntity } from '../entities/charge.entity';
 import { ChargeLineEntity } from '../entities/charge-line.entity';
 import { SubscriptionEntity } from '../entities/subscription.entity';
+import {
+  buildOpenDueQuery,
+  buildOpenQuery,
+  buildPageQuery,
+  buildPendingCreationQuery,
+  buildProviderCancelPendingQuery,
+} from './typeorm-charge.job-queries';
 import { TypeOrmChargeRepository } from './typeorm-charge.repository';
 
 interface PlanNode {
@@ -322,20 +329,23 @@ describe('TypeOrmChargeRepository queries, claim and isolation (integration)', (
       const t = await newTenant();
       await seed(t, (b) => b);
       const manager: EntityManager = dataSource.manager;
+      const chargeRepo = dataSource.getRepository(ChargeEntity);
 
       expect(
-        await indexesUsed(repo.buildPageQuery(manager, t.tenantId, { limit: 10, offset: 0 })),
+        await indexesUsed(buildPageQuery(manager, t.tenantId, { limit: 10, offset: 0 })),
       ).toContain('IDX_billing_charges_history');
       expect(
-        await indexesUsed(repo.buildPendingCreationQuery(new Date(), 10), [
+        await indexesUsed(buildPendingCreationQuery(chargeRepo, new Date(), 10), [
           'IDX_billing_charges_open',
         ]),
       ).toContain('IDX_billing_charges_creation_retry');
-      expect(await indexesUsed(repo.buildOpenDueQuery('2026-12-31', 10))).toContain(
+      expect(await indexesUsed(buildOpenDueQuery(chargeRepo, '2026-12-31', 10))).toContain(
         'IDX_billing_charges_open',
       );
-      expect(await indexesUsed(repo.buildOpenQuery(10))).toContain('IDX_billing_charges_open');
-      expect(await indexesUsed(repo.buildProviderCancelPendingQuery(10))).toContain(
+      expect(await indexesUsed(buildOpenQuery(chargeRepo, 10))).toContain(
+        'IDX_billing_charges_open',
+      );
+      expect(await indexesUsed(buildProviderCancelPendingQuery(chargeRepo, 10))).toContain(
         'IDX_billing_charges_cancel_pending',
       );
     });

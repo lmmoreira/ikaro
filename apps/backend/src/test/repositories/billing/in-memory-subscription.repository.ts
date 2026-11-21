@@ -6,8 +6,10 @@ import {
   ISubscriptionRepository,
   ListOperatorSubscriptionsQuery,
   OperatorSubscriptionSummary,
+  SweepDueRef,
 } from '../../../contexts/billing/application/ports/subscription-repository.port';
 import { SubscriptionAlreadyExistsError } from '../../../contexts/billing/domain/errors/billing-domain.error';
+import { GRACE_DAYS } from '../../../contexts/billing/domain/subscription.types';
 import type { Subscription } from '../../../contexts/billing/domain/subscription.aggregate';
 
 export class InMemorySubscriptionRepository implements ISubscriptionRepository {
@@ -61,6 +63,72 @@ export class InMemorySubscriptionRepository implements ISubscriptionRepository {
           ? [{ tenantId: subscription.tenantId, nextDueDate: subscription.nextDueDate.value }]
           : [],
       )
+      .filter((ref) => after === undefined || key(ref) > key(after))
+      .sort((a, b) => key(a).localeCompare(key(b)))
+      .slice(0, limit);
+  }
+
+  // The status sweep's selectors: the production predicates, ordered by (instant, tenant) and
+  // paged by the same keyset.
+  async findTrialEndedForJob(
+    now: Date,
+    limit: number,
+    after?: SweepDueRef,
+  ): Promise<SweepDueRef[]> {
+    return this.sweepPage(
+      this.saved.flatMap((s) =>
+        s.status === 'TRIALING' &&
+        !s.exempt &&
+        s.trialEndsAt !== null &&
+        s.trialEndsAt.getTime() <= now.getTime()
+          ? [{ tenantId: s.tenantId, dueAt: s.trialEndsAt }]
+          : [],
+      ),
+      limit,
+      after,
+    );
+  }
+
+  async findGraceExpiredForJob(
+    now: Date,
+    limit: number,
+    after?: SweepDueRef,
+  ): Promise<SweepDueRef[]> {
+    const cutoff = now.getTime() - GRACE_DAYS * 24 * 60 * 60 * 1000;
+    return this.sweepPage(
+      this.saved.flatMap((s) =>
+        s.status === 'PAST_DUE' &&
+        !s.exempt &&
+        s.pastDueSince !== null &&
+        s.pastDueSince.getTime() <= cutoff &&
+        (s.graceUntil === null || s.graceUntil.getTime() <= now.getTime())
+          ? [{ tenantId: s.tenantId, dueAt: s.pastDueSince }]
+          : [],
+      ),
+      limit,
+      after,
+    );
+  }
+
+  async findCancelDueForJob(now: Date, limit: number, after?: SweepDueRef): Promise<SweepDueRef[]> {
+    return this.sweepPage(
+      this.saved.flatMap((s) =>
+        s.cancelAt !== null &&
+        s.cancelAt.getTime() <= now.getTime() &&
+        !s.exempt &&
+        s.status !== 'SUSPENDED'
+          ? [{ tenantId: s.tenantId, dueAt: s.cancelAt }]
+          : [],
+      ),
+      limit,
+      after,
+    );
+  }
+
+  private sweepPage(refs: SweepDueRef[], limit: number, after?: SweepDueRef): SweepDueRef[] {
+    const key = (ref: SweepDueRef): string =>
+      `${String(ref.dueAt.getTime()).padStart(16, '0')}|${ref.tenantId}`;
+    return refs
       .filter((ref) => after === undefined || key(ref) > key(after))
       .sort((a, b) => key(a).localeCompare(key(b)))
       .slice(0, limit);

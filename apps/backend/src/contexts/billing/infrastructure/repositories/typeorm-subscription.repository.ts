@@ -12,6 +12,7 @@ import {
   ISubscriptionRepository,
   ListOperatorSubscriptionsQuery,
   OperatorSubscriptionSummary,
+  SweepDueRef,
 } from '../../application/ports/subscription-repository.port';
 import {
   SubscriptionAlreadyExistsError,
@@ -26,6 +27,11 @@ import {
   subscriptionToEntity,
   subscriptionUpdateSet,
 } from './typeorm-subscription.mapper';
+import {
+  buildCancelDueQuery,
+  buildGraceExpiredQuery,
+  buildTrialEndedQuery,
+} from './typeorm-subscription.sweep-queries';
 
 const SUBSCRIPTION_TENANT_UNIQUE_INDEX = 'UQ_billing_subscriptions_tenant';
 
@@ -92,6 +98,19 @@ export class TypeOrmSubscriptionRepository implements ISubscriptionRepository {
     after?: DueIssueRef,
   ): Promise<DueIssueRef[]> {
     return this.buildDueForIssueQuery(dueOnOrBefore, limit, after).getRawMany<DueIssueRef>();
+  }
+
+  // The status sweep's selectors (M26-S06): the queries live in `typeorm-subscription.sweep-queries`.
+  findTrialEndedForJob(now: Date, limit: number, after?: SweepDueRef): Promise<SweepDueRef[]> {
+    return buildTrialEndedQuery(this.repo, now, limit, after).getRawMany<SweepDueRef>();
+  }
+
+  findGraceExpiredForJob(now: Date, limit: number, after?: SweepDueRef): Promise<SweepDueRef[]> {
+    return buildGraceExpiredQuery(this.repo, now, limit, after).getRawMany<SweepDueRef>();
+  }
+
+  findCancelDueForJob(now: Date, limit: number, after?: SweepDueRef): Promise<SweepDueRef[]> {
+    return buildCancelDueQuery(this.repo, now, limit, after).getRawMany<SweepDueRef>();
   }
 
   async listSummaries(

@@ -1,19 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
 import { AppLogger } from '../../../../shared/observability/app-logger';
-import { mapSequentially } from '../../../../shared/utils/sequential';
 import { CLOCK, type IClock } from '../../../../shared/ports/clock.port';
 import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { CalendarDate } from '../../../../shared/value-objects/calendar-date.vo';
 import type { Charge } from '../../domain/charge.aggregate';
 import type { ProviderEvent } from '../../domain/provider-event';
-import { chargePriceKey } from '../../domain/charge-price-key';
-import { RecoveryChargeFactory } from '../../domain/recovery-charge.factory';
 import type { Subscription } from '../../domain/subscription.aggregate';
-import { MinorAmount } from '../../domain/value-objects/minor-amount.vo';
 import {
   applyChargeFact,
   type ChargeFact,
@@ -21,7 +15,6 @@ import {
   type ChargeFactOutcome,
   type ChargeFactResult,
 } from '../helpers/charge-fact';
-import { findFeaturePriceInForce } from '../helpers/feature-price-lookup.helper';
 import { loadSubscriptionForUpdate } from '../helpers/operator-billing.helpers';
 import { CHARGE_REPOSITORY, IChargeRepository } from '../ports/charge-repository.port';
 import {
@@ -29,13 +22,10 @@ import {
   PROVIDER_EVENT_REPOSITORY,
 } from '../ports/provider-event-repository.port';
 import {
-  FEATURE_PRICE_REPOSITORY,
-  IFeaturePriceRepository,
-} from '../ports/feature-price-repository.port';
-import {
   ISubscriptionRepository,
   SUBSCRIPTION_REPOSITORY,
 } from '../ports/subscription-repository.port';
+import { RecoveryChargePlanner } from './recovery-charge-planner.service';
 
 export interface ApplyChargeFactInput {
   tenantId: string;
@@ -52,6 +42,12 @@ export interface ApplyChargeFactInput {
 }
 
 export type ApplyChargeFactResult = ChargeFactResult | 'DUPLICATE' | 'CHARGE_NOT_FOUND';
+
+export interface ApplyChargeFactReport {
+  result: ApplyChargeFactResult;
+  /** The `RECOVERY` charge a reversal inserted `PENDING` in the same transaction, to create at the provider after commit. */
+  recoveryChargeId: string | null;
+}
 
 interface FollowUps {
   /** The open `RECOVERY` charge the stale payment made unnecessary, cancelled. */
@@ -76,19 +72,28 @@ export class ApplyChargeFactService {
     @Inject(SUBSCRIPTION_REPOSITORY) private readonly subscriptions: ISubscriptionRepository,
     @Inject(CHARGE_REPOSITORY) private readonly charges: IChargeRepository,
     @Inject(PROVIDER_EVENT_REPOSITORY) private readonly providerEvents: IProviderEventRepository,
-    @Inject(FEATURE_PRICE_REPOSITORY) private readonly prices: IFeaturePriceRepository,
+    private readonly planner: RecoveryChargePlanner,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     @Inject(CLOCK) private readonly clock: IClock,
   ) {}
 
   async execute(input: ApplyChargeFactInput): Promise<ApplyChargeFactResult> {
+    return (await this.executeWithReport(input)).result;
+  }
+
+  /**
+   * `execute`, plus what the caller needs after commit: the id of the `RECOVERY` charge a reversal
+   * inserted `PENDING` in this transaction (`null` when none was). Creating it at the provider is
+   * the caller's step, outside any transaction.
+   */
+  async executeWithReport(input: ApplyChargeFactInput): Promise<ApplyChargeFactReport> {
     return this.txManager.run(async () => {
       if (input.inbox && !(await this.providerEvents.insertIfAbsent(input.inbox))) {
-        return 'DUPLICATE';
+        return { result: 'DUPLICATE', recoveryChargeId: null };
       }
       const subscription = await loadSubscriptionForUpdate(this.subscriptions, input.tenantId);
       const charge = await this.charges.findByIdForUpdate(input.tenantId, input.chargeId);
-      if (charge === null) return 'CHARGE_NOT_FOUND';
+      if (charge === null) return { result: 'CHARGE_NOT_FOUND', recoveryChargeId: null };
       const ctx: ChargeFactContext = {
         now: this.clock.now(),
         correlationId: input.correlationId,
@@ -101,7 +106,7 @@ export class ApplyChargeFactService {
       if (followUps.cancelledRecovery) await this.charges.save(followUps.cancelledRecovery);
       if (followUps.newRecovery) await this.charges.save(followUps.newRecovery);
       this.logOutcome(input, outcome);
-      return outcome.result;
+      return { result: outcome.result, recoveryChargeId: followUps.newRecovery?.id ?? null };
     });
   }
 
@@ -115,7 +120,7 @@ export class ApplyChargeFactService {
       return { cancelledRecovery: await this.cancelOpenRecovery(subscription), newRecovery: null };
     }
     if (outcome.suspendedByReversal) {
-      return { cancelledRecovery: null, newRecovery: await this.buildRecovery(subscription, now) };
+      return { cancelledRecovery: null, newRecovery: await this.planner.plan(subscription, now) };
     }
     return { cancelledRecovery: null, newRecovery: null };
   }
@@ -133,38 +138,6 @@ export class ApplyChargeFactService {
     locked.cancel();
     if (locked.providerChargeId !== null) locked.markProviderCancelPending();
     return locked;
-  }
-
-  // A reversal suspends with `PAYMENT_REVERSED`: the recovery charge is inserted `PENDING` here, in
-  // the same transaction; creating it at the provider is the creation retry's job after commit.
-  private async buildRecovery(subscription: Subscription, now: Date): Promise<Charge | null> {
-    const existing = await this.charges.findOpenRecoveryBySubscription(
-      subscription.tenantId,
-      subscription.id,
-    );
-    if (existing !== null) return null;
-    const today = utcDateToLocalDate(now, subscription.timezone.value);
-    const todayDate = CalendarDate.create(today);
-    const items = subscription.selection;
-    // One transaction connection: the reads queue anyway, so they run one after another.
-    const amounts = await mapSequentially(items, async (item) => {
-      const { version } = await findFeaturePriceInForce(
-        this.prices,
-        item.featureKey,
-        subscription.countryCode,
-        item.tier,
-        'MONTHLY',
-        todayDate,
-      );
-      return [chargePriceKey(item.featureKey, item.tier), version.amount] as const;
-    });
-    const prices = new Map<string, MinorAmount>(amounts);
-    return RecoveryChargeFactory.build({
-      subscription,
-      items,
-      prices,
-      today: todayDate,
-    });
   }
 
   private logOutcome(input: ApplyChargeFactInput, outcome: ChargeFactOutcome): void {

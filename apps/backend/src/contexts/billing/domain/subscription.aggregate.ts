@@ -18,14 +18,17 @@ import {
   SubscriptionInvariantError,
   UnsuspendNotAllowedError,
 } from './errors/billing-domain.error';
+import { SubscriptionPastDue } from './events/subscription-past-due.event';
 import { SubscriptionReactivated } from './events/subscription-reactivated.event';
 import { SubscriptionSuspended } from './events/subscription-suspended.event';
 import { defaultSelection, type SelectionEntry, validateSelection } from './plan-selection';
 import { SubscriptionItem } from './subscription-item';
 import { type IssuedPeriodWindow, issuedPeriodWindow } from './subscription-issue-window';
 import { recoveryPaymentWindow } from './subscription-payment-window';
+import { graceEndsAt, trialSettlementDeadline } from './subscription-sweep-window';
 import { assertCurrencyMatchesCountry, trialWindow } from './subscription-trial-window';
 import {
+  ANCHOR_DAY_MAX,
   GRACE_DAYS,
   PURGE_DAYS_NEVER_PAID,
   PURGE_DAYS_PAID,
@@ -337,25 +340,127 @@ export class Subscription extends AggregateRoot {
    * without a payment, which UC-111 forbids. Returns whether the state changed.
    */
   suspendByOperator(now: Date, correlationId: string, recipientEmail: string | null): boolean {
-    if (this._exempt) {
-      throw new ExemptProtectedError(
-        'An exempt subscription is never suspended: clear exempt first',
-      );
-    }
+    this.assertNotExempt();
     if (this._status === 'SUSPENDED') return false;
-    this._status = 'SUSPENDED';
-    this._suspensionReason = 'OPERATOR';
-    this._suspendedAt = now;
+    this.suspend('OPERATOR', now, correlationId, recipientEmail);
+    return true;
+  }
+
+  /**
+   * The status sweep's non-payment suspension (UC-115 rules 2 and 3): an unpaid `TRIALING`
+   * subscription goes straight to `SUSPENDED`, a `PAST_DUE` one when its grace has run out. The
+   * caller decides it is due (`isTrialSettlementOver`, `isGraceOver`); a subscription in any other
+   * status, or already suspended, is left as it is. Exempt: refused. Returns whether it changed.
+   */
+  suspendForNonPayment(now: Date, correlationId: string, recipientEmail: string | null): boolean {
+    this.assertNotExempt();
+    if (this._status !== 'TRIALING' && this._status !== 'PAST_DUE') return false;
+    this.suspend('NON_PAYMENT', now, correlationId, recipientEmail);
+    return true;
+  }
+
+  /**
+   * A cancellation takes effect (UC-115 rule 4; the immediate cancel of M26-S20 reuses it): a
+   * status that still has access goes to `SUSPENDED` with reason `CANCELED`. An already suspended
+   * subscription keeps its own reason, so a payment suspension is never relabelled and its recovery
+   * charge stays payable. Exempt: refused. Returns whether it changed.
+   */
+  suspendCanceled(now: Date, correlationId: string, recipientEmail: string | null): boolean {
+    this.assertNotExempt();
+    if (this._status === 'SUSPENDED') return false;
+    this.suspend('CANCELED', now, correlationId, recipientEmail);
+    return true;
+  }
+
+  /**
+   * `ACTIVE` → `PAST_DUE` when a `PERIOD` charge has gone overdue (UC-115 rule 1): records
+   * `pastDueSince` and raises `SubscriptionPastDue`, whose `suspendsAt` is the end of the grace.
+   * Only `ACTIVE` moves: `TRIALING` has no `PAST_DUE`, and a suspended or exempt subscription is
+   * left alone. Returns whether it changed.
+   */
+  markPastDue(now: Date, correlationId: string, recipientEmail: string | null): boolean {
+    if (this._exempt || this._status !== 'ACTIVE') return false;
+    this._status = 'PAST_DUE';
+    this._pastDueSince = now;
     this.addDomainEvent(
-      new SubscriptionSuspended(this.tenantId, correlationId, {
+      new SubscriptionPastDue(this.tenantId, correlationId, {
         subscriptionId: this.id,
-        reason: 'OPERATOR',
-        suspendedAt: now.toISOString(),
-        purgeAt: this.purgeAtFrom(now).toISOString(),
+        pastDueSince: now.toISOString(),
+        suspendsAt: graceEndsAt(now, this._graceUntil).toISOString(),
         recipientEmail,
       }),
     );
     return true;
+  }
+
+  /**
+   * `TRIALING` → `ACTIVE` once the trial window is over and the first charge is paid (UC-115 rule
+   * 5). The period starts at `trialEndsAt` and is the first charge's own: one cycle on the anchor
+   * day, which is the trial-end local day clamped to 28; `nextDueDate` stays where the issue job
+   * moved it. Any other status, a trial still running and an exempt subscription are left as they
+   * are. Returns whether it changed.
+   */
+  activateAfterTrial(now: Date): boolean {
+    if (!this.hasTrialEnded(now) || this._trialEndsAt === null) return false;
+    const zone = this.timezone.value;
+    const endDate = utcDateToLocalDate(this._trialEndsAt, zone);
+    const anchorDay = Math.min(Number(endDate.slice(8, 10)), ANCHOR_DAY_MAX);
+    const window = issuedPeriodWindow(CalendarDate.reconstitute(endDate), anchorDay);
+    this._status = 'ACTIVE';
+    this._anchorDay = anchorDay;
+    this._currentPeriodStart = this._trialEndsAt;
+    this._currentPeriodEnd = localDateEndUTC(window.periodEnd.value, zone);
+    this._pastDueSince = null;
+    this._graceUntil = null;
+    return true;
+  }
+
+  /**
+   * The tenant-local date the current trial's first invoice covers from: the day the trial ends
+   * (UC-113 issues it with that due date). `null` without a trial window. A subscription that was
+   * exempted and cleared starts a new trial with a new date, so an older paid invoice is not its.
+   */
+  get firstInvoiceFrom(): string | null {
+    return this._trialEndsAt === null
+      ? null
+      : utcDateToLocalDate(this._trialEndsAt, this.timezone.value);
+  }
+
+  /** The trial window is over (rules 2 and 5): `TRIALING`, not exempt, `trialEndsAt` reached. */
+  hasTrialEnded(now: Date): boolean {
+    return (
+      !this._exempt &&
+      this._status === 'TRIALING' &&
+      this._trialEndsAt !== null &&
+      now.getTime() >= this._trialEndsAt.getTime()
+    );
+  }
+
+  /**
+   * Rule 2 is due: the trial is over and its settlement margin has passed. `paymentReturnSeen` says
+   * the manager came back from the payment page while the first charge is still open, which
+   * lengthens the margin from 24 hours to 3 business days.
+   */
+  isTrialSettlementOver(now: Date, paymentReturnSeen: boolean): boolean {
+    if (!this.hasTrialEnded(now) || this._trialEndsAt === null) return false;
+    const deadline = trialSettlementDeadline(this._trialEndsAt, this.timezone, paymentReturnSeen);
+    return now.getTime() > deadline.getTime();
+  }
+
+  /** Rule 3 is due: `PAST_DUE`, not exempt, and past `graceUntil` or `pastDueSince` + 14 days. */
+  isGraceOver(now: Date): boolean {
+    if (this._exempt || this._status !== 'PAST_DUE' || this._pastDueSince === null) return false;
+    return now.getTime() > graceEndsAt(this._pastDueSince, this._graceUntil).getTime();
+  }
+
+  /** Rule 4 is due: `cancelAt` reached while the subscription still has access (a suspended one keeps its reason). */
+  isCancelDue(now: Date): boolean {
+    return (
+      !this._exempt &&
+      this._status !== 'SUSPENDED' &&
+      this._cancelAt !== null &&
+      now.getTime() >= this._cancelAt.getTime()
+    );
   }
 
   /**
@@ -376,6 +481,11 @@ export class Subscription extends AggregateRoot {
     const trialRunning = this._trialEndsAt !== null && this._trialEndsAt.getTime() > now.getTime();
     this._status = trialRunning ? 'TRIALING' : 'ACTIVE';
     this.clearSuspension();
+    // Access returns as `TRIALING` or `ACTIVE`, never `PAST_DUE`: a grace clock the subscription
+    // carried into the suspension must not outlive it, or the status sweep would judge a later
+    // `PAST_DUE` against the old instants.
+    this._pastDueSince = null;
+    this._graceUntil = null;
     this.addReactivated(now, suspendedAt, correlationId, recipientEmail);
     return true;
   }
@@ -483,18 +593,7 @@ export class Subscription extends AggregateRoot {
   ): boolean {
     if (this._exempt || (this._status !== 'ACTIVE' && this._status !== 'PAST_DUE')) return false;
     if (!this.settlesCurrentPeriod(settled, now)) return false;
-    this._status = 'SUSPENDED';
-    this._suspensionReason = 'PAYMENT_REVERSED';
-    this._suspendedAt = now;
-    this.addDomainEvent(
-      new SubscriptionSuspended(this.tenantId, correlationId, {
-        subscriptionId: this.id,
-        reason: 'PAYMENT_REVERSED',
-        suspendedAt: now.toISOString(),
-        purgeAt: this.purgeAtFrom(now).toISOString(),
-        recipientEmail,
-      }),
-    );
+    this.suspend('PAYMENT_REVERSED', now, correlationId, recipientEmail);
     return true;
   }
 
@@ -650,6 +749,36 @@ export class Subscription extends AggregateRoot {
   markPersisted(version: number): void {
     this._version = version;
     this._itemsDirty = false;
+  }
+
+  private assertNotExempt(): void {
+    if (this._exempt) {
+      throw new ExemptProtectedError(
+        'An exempt subscription is never suspended: clear exempt first',
+      );
+    }
+  }
+
+  // The one place a suspension is written, so every reason starts the clean-up clock and raises
+  // `SubscriptionSuspended` the same way. The caller has checked that the transition is legal.
+  private suspend(
+    reason: SuspensionReason,
+    now: Date,
+    correlationId: string,
+    recipientEmail: string | null,
+  ): void {
+    this._status = 'SUSPENDED';
+    this._suspensionReason = reason;
+    this._suspendedAt = now;
+    this.addDomainEvent(
+      new SubscriptionSuspended(this.tenantId, correlationId, {
+        subscriptionId: this.id,
+        reason,
+        suspendedAt: now.toISOString(),
+        purgeAt: this.purgeAtFrom(now).toISOString(),
+        recipientEmail,
+      }),
+    );
   }
 
   private purgeAtFrom(suspendedAt: Date): Date {

@@ -25,6 +25,16 @@ export interface IChargeRepository {
   findByIdForUpdate(tenantId: string, id: string): Promise<Charge | null>;
 
   /**
+   * Lock B-C1 on several charges of one tenant at once: **one** query, `ORDER BY id`, `FOR UPDATE`,
+   * their lines loaded in the same transaction. A use case that must lock more than one charge takes
+   * them here, never one `findByIdForUpdate` after another (one round trip while the subscription
+   * row is held, and one deterministic order). Answers the charges found, in id order; an unknown
+   * id is simply absent. Must run inside an active `ITransactionManager.run()`; throws outside one.
+   * Taken after B-R1.
+   */
+  findByIdsForUpdate(tenantId: string, ids: readonly string[]): Promise<Charge[]>;
+
+  /**
    * Cross-tenant job lookup by our own charge id (the id sent to the provider as the external
    * reference), for the webhook that outruns the provider customer's save. It takes no tenant, so
    * the caller must compare the charge's tenant with the one it already resolved. Primary key.
@@ -43,6 +53,21 @@ export interface IChargeRepository {
 
   /** The subscription's one open `RECOVERY` charge (`UQ_billing_charges_open_recovery`), if any. */
   findOpenRecoveryBySubscription(tenantId: string, subscriptionId: string): Promise<Charge | null>;
+
+  /**
+   * The first `PERIOD` charge of the subscription's **current trial**: the one with the earliest
+   * period start on or after `periodStartOnOrAfter` that is not `CANCELED` (a re-issued charge
+   * replaces a cancelled one). A trial's invoice starts on the day the trial ends, so the caller
+   * passes that tenant-local date: a subscription that was exempted and then cleared starts a new
+   * trial but keeps its id and its history, and an older paid invoice must never stand in for the
+   * new trial's. The trial's invoice for the status sweep (UC-115 rules 2 and 5); `null` when none
+   * was issued. Served by `UQ_billing_charges_period (tenant_id, subscription_id, period_start)`.
+   */
+  findFirstPeriodCharge(
+    tenantId: string,
+    subscriptionId: string,
+    periodStartOnOrAfter: string,
+  ): Promise<Charge | null>;
 
   /** One page of a tenant's history, newest due date first (id as tiebreak), with the unpaged total. */
   listByTenantPage(
@@ -88,6 +113,21 @@ export interface IChargeRepository {
     after?: PendingCreationRef,
   ): Promise<PendingCreationRef[]>;
 
+  /**
+   * Cross-tenant job selector (UC-115 rule 1, M26-S06): one page of the `PENDING` charges whose
+   * provider creation is `READY` (the payer has a payment link) and whose due date is on or before
+   * `dueOnOrBefore`, ordered by `(due_date, id)`, at most `limit`, after the `after` row. The date
+   * is the caller's UTC date (each charge's due date is in its subscription's own zone, so the
+   * sweep re-checks the local date). A charge the sweep skips stays selected, so the caller pages on
+   * from the last row. Served by `IDX_billing_charges_open`; `status = 'PENDING'` repeats its
+   * predicate literally and the `READY` filter is residual.
+   */
+  listOverdueCandidatesForJob(
+    dueOnOrBefore: string,
+    limit: number,
+    after?: OverdueChargeRef,
+  ): Promise<OverdueChargeRef[]>;
+
   /** Open charges whose due date is `<= dueOnOrBefore` (due soon / overdue sweep): `IDX_billing_charges_open`. */
   listOpenDueForJob(dueOnOrBefore: string, limit: number): Promise<ChargeRef[]>;
 
@@ -102,6 +142,12 @@ export interface IChargeRepository {
 export interface ChargeRef {
   tenantId: string;
   id: string;
+}
+
+/** A charge the overdue rule may be due on, with its place in the selection order. */
+export interface OverdueChargeRef extends ChargeRef {
+  /** `YYYY-MM-DD`. */
+  dueDate: string;
 }
 
 /** A charge the creation retry may attempt, with its place in the retry order. */

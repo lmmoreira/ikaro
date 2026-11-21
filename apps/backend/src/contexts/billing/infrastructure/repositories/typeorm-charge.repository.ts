@@ -1,12 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, In, QueryFailedError, Repository, SelectQueryBuilder } from 'typeorm';
+import { EntityManager, In, MoreThanOrEqual, Not, QueryFailedError, Repository } from 'typeorm';
 import { drainDomainEvents } from '../../../../shared/infrastructure/outbox/drain-domain-events';
 import { runInNewTransaction } from '../../../../shared/infrastructure/run-in-new-transaction';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
 import {
   ChargeRef,
+  OverdueChargeRef,
   PendingCreationRef,
   IChargeRepository,
   ListChargesQuery,
@@ -25,7 +26,15 @@ import {
   chargeToEntity,
   chargeUpdateSet,
 } from './typeorm-charge.mapper';
-import { afterPendingCreation, CLAIM_FOR_PROVIDER_CREATION_SQL } from './typeorm-charge.sql';
+import {
+  buildOpenDueQuery,
+  buildOpenQuery,
+  buildOverdueCandidatesQuery,
+  buildPageQuery,
+  buildPendingCreationQuery,
+  buildProviderCancelPendingQuery,
+} from './typeorm-charge.job-queries';
+import { CLAIM_FOR_PROVIDER_CREATION_SQL } from './typeorm-charge.sql';
 
 const PERIOD_UNIQUE_INDEX = 'UQ_billing_charges_period';
 const OPEN_RECOVERY_UNIQUE_INDEX = 'UQ_billing_charges_open_recovery';
@@ -55,6 +64,21 @@ export class TypeOrmChargeRepository implements IChargeRepository {
     return this.loadOne(manager, { tenantId, id }, true);
   }
 
+  // One query, ordered by id: the deterministic order every multi-charge lock takes (B-C1).
+  async findByIdsForUpdate(tenantId: string, ids: readonly string[]): Promise<Charge[]> {
+    const manager = getActiveEntityManager();
+    if (!manager) {
+      throw new Error('findByIdsForUpdate must be called inside an active transaction');
+    }
+    if (ids.length === 0) return [];
+    const entities = await manager.find(ChargeEntity, {
+      where: { tenantId, id: In([...ids]) },
+      order: { id: 'ASC' },
+      lock: { mode: 'pessimistic_write' },
+    });
+    return this.hydrate(manager, tenantId, entities);
+  }
+
   findByProviderChargeId(
     tenantId: string,
     provider: BillingProvider,
@@ -80,12 +104,34 @@ export class TypeOrmChargeRepository implements IChargeRepository {
     );
   }
 
+  // The earliest period start of the current trial that is not cancelled, so a re-issued charge
+  // stands in for the one it replaced; served by `UQ_billing_charges_period`.
+  async findFirstPeriodCharge(
+    tenantId: string,
+    subscriptionId: string,
+    periodStartOnOrAfter: string,
+  ): Promise<Charge | null> {
+    const manager = this.readManager();
+    const entity = await manager.findOne(ChargeEntity, {
+      where: {
+        tenantId,
+        subscriptionId,
+        kind: 'PERIOD',
+        status: Not('CANCELED'),
+        periodStart: MoreThanOrEqual(periodStartOnOrAfter),
+      },
+      order: { periodStart: 'ASC' },
+    });
+    if (!entity) return null;
+    return (await this.hydrate(manager, tenantId, [entity]))[0] ?? null;
+  }
+
   async listByTenantPage(
     tenantId: string,
     query: ListChargesQuery,
   ): Promise<{ items: Charge[]; total: number }> {
     const manager = this.readManager();
-    const [rows, total] = await this.buildPageQuery(manager, tenantId, query).getManyAndCount();
+    const [rows, total] = await buildPageQuery(manager, tenantId, query).getManyAndCount();
     return { items: await this.hydrate(manager, tenantId, rows), total };
   }
 
@@ -118,95 +164,32 @@ export class TypeOrmChargeRepository implements IChargeRepository {
     limit: number,
     after?: PendingCreationRef,
   ): Promise<PendingCreationRef[]> {
-    return this.buildPendingCreationQuery(now, limit, after).getRawMany<PendingCreationRef>();
+    return buildPendingCreationQuery(this.repo, now, limit, after).getRawMany<PendingCreationRef>();
   }
 
-  async listOpenDueForJob(dueOnOrBefore: string, limit: number): Promise<ChargeRef[]> {
-    return this.refs(this.buildOpenDueQuery(dueOnOrBefore, limit));
-  }
-
-  async listOpenForJob(limit: number): Promise<ChargeRef[]> {
-    return this.refs(this.buildOpenQuery(limit));
-  }
-
-  async listProviderCancelPendingForJob(limit: number): Promise<ChargeRef[]> {
-    return this.refs(this.buildProviderCancelPendingQuery(limit));
-  }
-
-  // The page query and the job queries are public so the integration spec can `EXPLAIN` the exact
-  // SQL that runs: the page is served by `IDX_billing_charges_history`, each job by its own
-  // standalone partial index.
-  buildPageQuery(
-    manager: EntityManager,
-    tenantId: string,
-    query: ListChargesQuery,
-  ): SelectQueryBuilder<ChargeEntity> {
-    return manager
-      .createQueryBuilder(ChargeEntity, 'c')
-      .where('c.tenantId = :tenantId', { tenantId })
-      .orderBy('c.dueDate', 'DESC')
-      .addOrderBy('c.id', 'DESC')
-      .take(query.limit)
-      .skip(query.offset);
-  }
-
-  buildPendingCreationQuery(
-    now: Date,
+  listOverdueCandidatesForJob(
+    dueOnOrBefore: string,
     limit: number,
-    after?: PendingCreationRef,
-  ): SelectQueryBuilder<ChargeEntity> {
-    const query = this.refQuery()
-      .addSelect('c.providerCreationLastAttemptAt', 'lastAttemptAt')
-      .where('c.status IN (:...statuses)', { statuses: OPEN_STATUSES })
-      .andWhere(`c.providerCreationStatus = 'PENDING' AND c.providerChargeId IS NULL`)
-      .andWhere(
-        `(c.providerCreationLastAttemptAt IS NULL OR c.providerCreationLastAttemptAt < :cutoff)`,
-        { cutoff: new Date(now.getTime() - PROVIDER_CREATION_LEASE_MINUTES * 60_000) },
-      );
-    if (after) query.andWhere(...afterPendingCreation(after));
-    return query
-      .orderBy('c.providerCreationLastAttemptAt', 'ASC', 'NULLS FIRST')
-      .addOrderBy('c.id', 'ASC')
-      .limit(limit);
+    after?: OverdueChargeRef,
+  ): Promise<OverdueChargeRef[]> {
+    return buildOverdueCandidatesQuery(
+      this.repo,
+      dueOnOrBefore,
+      limit,
+      after,
+    ).getRawMany<OverdueChargeRef>();
   }
 
-  buildOpenDueQuery(dueOnOrBefore: string, limit: number): SelectQueryBuilder<ChargeEntity> {
-    return this.refQuery()
-      .where('c.status IN (:...statuses)', { statuses: OPEN_STATUSES })
-      .andWhere('c.dueDate <= :dueOnOrBefore', { dueOnOrBefore })
-      .orderBy('c.dueDate', 'ASC')
-      .addOrderBy('c.id', 'ASC')
-      .limit(limit);
+  listOpenDueForJob(dueOnOrBefore: string, limit: number): Promise<ChargeRef[]> {
+    return buildOpenDueQuery(this.repo, dueOnOrBefore, limit).getRawMany<ChargeRef>();
   }
 
-  buildOpenQuery(limit: number): SelectQueryBuilder<ChargeEntity> {
-    return this.refQuery()
-      .where('c.status IN (:...statuses)', { statuses: OPEN_STATUSES })
-      .orderBy('c.dueDate', 'ASC')
-      .addOrderBy('c.id', 'ASC')
-      .limit(limit);
+  listOpenForJob(limit: number): Promise<ChargeRef[]> {
+    return buildOpenQuery(this.repo, limit).getRawMany<ChargeRef>();
   }
 
-  // A flagged charge is always `CANCELED`; the status equality lets the (status, due_date) partial
-  // index serve the order.
-  buildProviderCancelPendingQuery(limit: number): SelectQueryBuilder<ChargeEntity> {
-    return this.refQuery()
-      .where('c.status = :status', { status: 'CANCELED' })
-      .andWhere('c.providerCancelPending = true')
-      .orderBy('c.dueDate', 'ASC')
-      .addOrderBy('c.id', 'ASC')
-      .limit(limit);
-  }
-
-  private refQuery(): SelectQueryBuilder<ChargeEntity> {
-    return this.repo
-      .createQueryBuilder('c')
-      .select('c.tenantId', 'tenantId')
-      .addSelect('c.id', 'id');
-  }
-
-  private refs(query: SelectQueryBuilder<ChargeEntity>): Promise<ChargeRef[]> {
-    return query.getRawMany<ChargeRef>();
+  listProviderCancelPendingForJob(limit: number): Promise<ChargeRef[]> {
+    return buildProviderCancelPendingQuery(this.repo, limit).getRawMany<ChargeRef>();
   }
 
   // Reads join the caller's transaction when there is one, so a charge written earlier in it is seen.

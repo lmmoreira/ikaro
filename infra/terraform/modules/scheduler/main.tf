@@ -56,6 +56,10 @@ locals {
       topic_key = "cron-billing-issue-charges"
       schedule  = "30 4 * * *"
     }
+    ikaro-cron-billing-status-sweep = {
+      topic_key = "cron-billing-status-sweep"
+      schedule  = "40 * * * *"
+    }
   }
 }
 
