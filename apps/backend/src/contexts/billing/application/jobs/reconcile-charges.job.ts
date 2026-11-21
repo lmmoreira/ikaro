@@ -57,6 +57,10 @@ export interface ReconcileChargesJobResult {
   advanced: number;
 }
 
+// An instant `days` whole days away (24 h each: these bound a selection, not a calendar day).
+const instantAfterDays = (from: Date, days: number): Date =>
+  new Date(from.getTime() + days * 24 * 60 * 60 * 1000);
+
 type Fetch<T extends ChargeRef> = (after?: T) => Promise<T[]>;
 
 /** One run's state: what it may still read, what it already read and every failure it kept going past. */
@@ -165,7 +169,7 @@ export class ReconcileChargesJob {
       (after) => this.charges.listOpenRecoveryForJob(size, after),
       read,
     );
-    const trialCutoff = new Date(now.getTime() + RECONCILE_AT_RISK_TRIAL_DAYS * 86_400_000);
+    const trialCutoff = instantAfterDays(now, RECONCILE_AT_RISK_TRIAL_DAYS);
     await this.page<DueChargeRef>(
       run,
       (after) => this.charges.listOpenTrialChargesForJob(trialCutoff, size, after),
@@ -173,7 +177,7 @@ export class ReconcileChargesJob {
     );
     if (scope === 'AT_RISK') return;
     await this.page<DueChargeRef>(run, (after) => this.charges.listOpenForJob(size, after), read);
-    const paidSince = new Date(now.getTime() - RECONCILE_PAID_WINDOW_DAYS * 86_400_000);
+    const paidSince = instantAfterDays(now, -RECONCILE_PAID_WINDOW_DAYS);
     await this.page<PaidChargeRef>(
       run,
       (after) => this.charges.listRecentlyPaidForJob(paidSince, size, after),
