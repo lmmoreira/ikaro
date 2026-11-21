@@ -109,6 +109,29 @@ describe('TypeOrmProviderHealthRepository', () => {
     expect(upserts[0].values).toMatchObject({ merchantProfileKey: 'BRL_FAKE' });
   });
 
+  it('records a reconcile pass as a column-scoped upsert that never names the freeze or the webhook status', async () => {
+    const at = new Date('2026-03-10T15:00:00Z');
+
+    await repo.recordReconcileOk('BRL_FAKE', at, false);
+    await repo.recordReconcileOk('BRL_FAKE', at, true);
+
+    expect(upserts.map((call) => call.overwritten)).toEqual([
+      ['last_reconcile_ok_at', 'updated_at'],
+      ['last_reconcile_ok_at', 'last_full_reconcile_at', 'updated_at'],
+    ]);
+    expect(upserts.every((call) => call.conflictTarget[0] === 'merchant_profile_key')).toBe(true);
+    // A new row is inserted with those columns only, so the freeze and the webhook status take the
+    // table's defaults (not frozen, unknown).
+    expect(Object.keys(upserts[0].values as object).sort()).toEqual([
+      'lastFullReconcileAt',
+      'lastReconcileOkAt',
+      'merchantProfileKey',
+      'updatedAt',
+    ]);
+    expect(upserts[0].values).toMatchObject({ lastFullReconcileAt: null, lastReconcileOkAt: at });
+    expect(upserts[1].values).toMatchObject({ lastFullReconcileAt: at });
+  });
+
   it('joins the caller’s transaction when there is one', async () => {
     const tx = fakeManager();
     tx.findOne.mockResolvedValueOnce(new ProviderHealthEntityBuilder().build());

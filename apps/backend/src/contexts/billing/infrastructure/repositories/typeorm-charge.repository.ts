@@ -6,9 +6,6 @@ import { runInNewTransaction } from '../../../../shared/infrastructure/run-in-ne
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
 import {
-  ChargeRef,
-  OverdueChargeRef,
-  PendingCreationRef,
   IChargeRepository,
   ListChargesQuery,
 } from '../../application/ports/charge-repository.port';
@@ -26,14 +23,9 @@ import {
   chargeToEntity,
   chargeUpdateSet,
 } from './typeorm-charge.mapper';
-import {
-  buildOpenDueQuery,
-  buildOpenQuery,
-  buildOverdueCandidatesQuery,
-  buildPageQuery,
-  buildPendingCreationQuery,
-  buildProviderCancelPendingQuery,
-} from './typeorm-charge.job-queries';
+import { buildPageQuery } from './typeorm-charge.job-queries';
+import {} from './typeorm-charge.reconcile-queries';
+import { ChargeJobSelectors } from './typeorm-charge.job-selectors';
 import { CLAIM_FOR_PROVIDER_CREATION_SQL } from './typeorm-charge.sql';
 
 const PERIOD_UNIQUE_INDEX = 'UQ_billing_charges_period';
@@ -41,12 +33,14 @@ const OPEN_RECOVERY_UNIQUE_INDEX = 'UQ_billing_charges_open_recovery';
 const OPEN_STATUSES = ['PENDING', 'OVERDUE'];
 
 @Injectable()
-export class TypeOrmChargeRepository implements IChargeRepository {
+export class TypeOrmChargeRepository extends ChargeJobSelectors implements IChargeRepository {
   constructor(
     @InjectRepository(ChargeEntity)
-    private readonly repo: Repository<ChargeEntity>,
+    repo: Repository<ChargeEntity>,
     @Inject(OUTBOX_PUBLISHER) private readonly outboxPublisher: IOutboxPublisher,
-  ) {}
+  ) {
+    super(repo);
+  }
 
   findById(tenantId: string, id: string): Promise<Charge | null> {
     return this.loadOne(this.readManager(), { tenantId, id }, false);
@@ -157,39 +151,6 @@ export class TypeOrmChargeRepository implements IChargeRepository {
     // TypeORM's UPDATE ... RETURNING may be [rows, rowCount] (see the outbox claim).
     const rows = (Array.isArray(result[0]) ? result[0] : result) as { id: string }[];
     return rows.length === 1;
-  }
-
-  async listPendingCreationForJob(
-    now: Date,
-    limit: number,
-    after?: PendingCreationRef,
-  ): Promise<PendingCreationRef[]> {
-    return buildPendingCreationQuery(this.repo, now, limit, after).getRawMany<PendingCreationRef>();
-  }
-
-  listOverdueCandidatesForJob(
-    dueOnOrBefore: string,
-    limit: number,
-    after?: OverdueChargeRef,
-  ): Promise<OverdueChargeRef[]> {
-    return buildOverdueCandidatesQuery(
-      this.repo,
-      dueOnOrBefore,
-      limit,
-      after,
-    ).getRawMany<OverdueChargeRef>();
-  }
-
-  listOpenDueForJob(dueOnOrBefore: string, limit: number): Promise<ChargeRef[]> {
-    return buildOpenDueQuery(this.repo, dueOnOrBefore, limit).getRawMany<ChargeRef>();
-  }
-
-  listOpenForJob(limit: number): Promise<ChargeRef[]> {
-    return buildOpenQuery(this.repo, limit).getRawMany<ChargeRef>();
-  }
-
-  listProviderCancelPendingForJob(limit: number): Promise<ChargeRef[]> {
-    return buildProviderCancelPendingQuery(this.repo, limit).getRawMany<ChargeRef>();
   }
 
   // Reads join the caller's transaction when there is one, so a charge written earlier in it is seen.

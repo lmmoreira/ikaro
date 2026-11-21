@@ -128,14 +128,47 @@ export interface IChargeRepository {
     after?: OverdueChargeRef,
   ): Promise<OverdueChargeRef[]>;
 
-  /** Open charges whose due date is `<= dueOnOrBefore` (due soon / overdue sweep): `IDX_billing_charges_open`. */
-  listOpenDueForJob(dueOnOrBefore: string, limit: number): Promise<ChargeRef[]>;
+  // The reconcile selectors (UC-116, M26-S07). Each is one page of ids, at most `limit`, after the
+  // `after` row, in its own index's order, and is served by that index alone. A charge the pass
+  // leaves open stays selected, so the caller pages on from the last row it was given: asking for
+  // the head again would return the same oldest rows and starve the rest.
 
-  /** Every open charge, for the reconcile pass: `IDX_billing_charges_open`. */
-  listOpenForJob(limit: number): Promise<ChargeRef[]>;
+  /** Open charges whose due date is on or before `dueOnOrBefore`, by `(due_date, id)`: `IDX_billing_charges_open`. */
+  listOpenDueForJob(
+    dueOnOrBefore: string,
+    limit: number,
+    after?: DueChargeRef,
+  ): Promise<DueChargeRef[]>;
 
-  /** Locally cancelled charges whose provider cancel is still to do: `IDX_billing_charges_cancel_pending`. */
-  listProviderCancelPendingForJob(limit: number): Promise<ChargeRef[]>;
+  /** Every open charge, by `(due_date, id)`: `IDX_billing_charges_open`. */
+  listOpenForJob(limit: number, after?: DueChargeRef): Promise<DueChargeRef[]>;
+
+  /**
+   * Open `RECOVERY` charges, by `(tenant_id, subscription_id)`: a suspended tenant's way back.
+   * `UQ_billing_charges_open_recovery` holds at most one per subscription, so the key is unique.
+   */
+  listOpenRecoveryForJob(limit: number, after?: RecoveryChargeRef): Promise<RecoveryChargeRef[]>;
+
+  /**
+   * Open charges of `TRIALING` subscriptions whose trial ends on or before `trialEndsOnOrBefore`,
+   * by `(due_date, id)`: the trial index (`IDX_billing_subscriptions_trial_ends_at`) into the
+   * charge's own `(tenant_id, subscription_id, period_start)` unique index.
+   */
+  listOpenTrialChargesForJob(
+    trialEndsOnOrBefore: Date,
+    limit: number,
+    after?: DueChargeRef,
+  ): Promise<DueChargeRef[]>;
+
+  /** Charges paid at or after `paidSince`, by `(paid_at, id)`: `IDX_billing_charges_paid_recent`. */
+  listRecentlyPaidForJob(
+    paidSince: Date,
+    limit: number,
+    after?: PaidChargeRef,
+  ): Promise<PaidChargeRef[]>;
+
+  /** Locally cancelled charges whose provider cancel is still to do, by `(due_date, id)`: `IDX_billing_charges_cancel_pending`. */
+  listProviderCancelPendingForJob(limit: number, after?: DueChargeRef): Promise<DueChargeRef[]>;
 }
 
 /** A job selects ids and reads each charge through its own tenant-scoped, locked path. */
@@ -144,10 +177,23 @@ export interface ChargeRef {
   id: string;
 }
 
-/** A charge the overdue rule may be due on, with its place in the selection order. */
-export interface OverdueChargeRef extends ChargeRef {
+/** A charge with its place in a `(due_date, id)` selection order. */
+export interface DueChargeRef extends ChargeRef {
   /** `YYYY-MM-DD`. */
   dueDate: string;
+}
+
+/** A charge the overdue rule may be due on, with its place in the selection order. */
+export type OverdueChargeRef = DueChargeRef;
+
+/** A charge with its place in the `(paid_at, id)` order of the recently-paid selection. */
+export interface PaidChargeRef extends ChargeRef {
+  paidAt: Date;
+}
+
+/** An open `RECOVERY` charge with the subscription that keys its selection order. */
+export interface RecoveryChargeRef extends ChargeRef {
+  subscriptionId: string;
 }
 
 /** A charge the creation retry may attempt, with its place in the retry order. */

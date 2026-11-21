@@ -1489,7 +1489,7 @@ One row per `merchant_profile_key`: `last_reconcile_ok_at`, `last_full_reconcile
 | `freeze_since` | TIMESTAMPTZ | NULLABLE; CHECK `freeze_active = (freeze_since IS NOT NULL)` |
 | `updated_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() |
 
-Types are the minimum M25-S03 needs (the discovery data model lists column names only). Written by the reconcile and provider-health jobs; read by the status sweep, which applies no `NON_PAYMENT` suspension while `freeze_active` (a scheduled-cancel suspension, `cancelAt` reached, is unaffected).
+Types are the minimum M25-S03 needs (the discovery data model lists column names only). Written by the reconcile job (built, M26-S07: `last_reconcile_ok_at` and, on a complete full pass, `last_full_reconcile_at`, by a column-scoped upsert that never touches the freeze columns, so a freeze written while a run was in flight survives it) and the self-heal job (M26-S08: the webhook status and the freeze); read by the status sweep, which applies no `NON_PAYMENT` suspension while `freeze_active` (a scheduled-cancel suspension, `cancelAt` reached, is unaffected).
 
 ### `billing.operator_audit` — who changed what
 | Column | Type | Constraints |

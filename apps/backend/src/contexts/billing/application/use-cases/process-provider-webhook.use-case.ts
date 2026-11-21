@@ -12,6 +12,7 @@ import { ApplyChargeFactService } from '../services/apply-charge-fact.service';
 import { type ChargeEvent, toChargeFact, verifyChargeEvent } from '../helpers/provider-event-fact';
 import { ProviderChargeCreationService } from '../services/provider-charge-creation.service';
 import { resolveBillingRecipientEmail } from '../helpers/billing-recipient-email.helper';
+import { createRecoveryChargeAtProvider } from '../helpers/create-recovery-at-provider';
 import {
   BILLING_ACCOUNT_REPOSITORY,
   IBillingAccountRepository,
@@ -205,33 +206,13 @@ export class ProcessProviderWebhookUseCase {
       inbox,
     });
     if (report.recoveryChargeId !== null) {
-      await this.createRecoveryAtProvider(
-        target.charge.tenantId,
-        report.recoveryChargeId,
-        input.correlationId,
-      );
+      await createRecoveryChargeAtProvider(this.creation, this.logger, {
+        tenantId: target.charge.tenantId,
+        chargeId: report.recoveryChargeId,
+        correlationId: input.correlationId,
+      });
     }
     return report.result === 'CHARGE_NOT_FOUND' ? 'UNKNOWN_TARGET' : report.result;
-  }
-
-  // After commit, outside any transaction: a reversal suspended the tenant and inserted its recovery
-  // charge `PENDING`; this makes it payable now, so the manager lands on a payment link. It never
-  // fails the webhook (the fact is already applied and acknowledged): a charge left `PENDING` is
-  // picked up by S05's creation retry.
-  private async createRecoveryAtProvider(
-    tenantId: string,
-    chargeId: string,
-    correlationId: string,
-  ): Promise<void> {
-    try {
-      await this.creation.execute({ tenantId, chargeId, correlationId });
-    } catch (err) {
-      this.logger.error(
-        'billing_recovery_creation_failed: left for the retry',
-        err instanceof Error ? err.stack : String(err),
-        { tenantId, chargeId },
-      );
-    }
   }
 
   // An event that changes no state still leaves its inbox row (the dedupe), and an opened dispute

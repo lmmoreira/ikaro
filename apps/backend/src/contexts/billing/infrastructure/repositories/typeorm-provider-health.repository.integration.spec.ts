@@ -116,4 +116,75 @@ describe('TypeOrmProviderHealthRepository (integration)', () => {
     expect(await repo.findByKey(key)).toMatchObject({ freezeActive: false, freezeSince: null });
     expect(await repo.listFrozenKeys()).not.toContain(key);
   });
+
+  describe('recordReconcileOk (UC-116)', () => {
+    const at = new Date('2026-03-10T15:00:00Z');
+
+    it('creates the row of a key with none, with the table defaults for what it does not write', async () => {
+      const key = newKey();
+
+      await repo.recordReconcileOk(key, at, false);
+
+      expect(await repo.findByKey(key)).toMatchObject({
+        lastReconcileOkAt: at,
+        lastFullReconcileAt: null,
+        webhookStatus: 'UNKNOWN',
+        freezeActive: false,
+        freezeSince: null,
+      });
+    });
+
+    it('never overwrites a freeze or a webhook status written by another writer', async () => {
+      const key = newKey();
+      const since = new Date('2026-03-10T10:00:00Z');
+      await repo.save(
+        new ProviderHealthBuilder()
+          .withMerchantProfileKey(key)
+          .withFreeze(since)
+          .withWebhookStatus('PAUSED')
+          .build(),
+      );
+
+      await repo.recordReconcileOk(key, at, true);
+
+      expect(await repo.findByKey(key)).toMatchObject({
+        freezeActive: true,
+        freezeSince: since,
+        webhookStatus: 'PAUSED',
+        lastReconcileOkAt: at,
+        lastFullReconcileAt: at,
+      });
+      expect(await repo.listFrozenKeys()).toContain(key);
+    });
+
+    it('a freeze written while a reconcile was running survives the reconcile\u2019s write', async () => {
+      const key = newKey();
+      await repo.recordReconcileOk(key, at, false);
+      // Reconcile read the row (not frozen) and ran for minutes; self-heal freezes it meanwhile.
+      const staleRead = await repo.findByKey(key);
+      await repo.save(
+        new ProviderHealthBuilder()
+          .withMerchantProfileKey(key)
+          .withFreeze(new Date('2026-03-10T15:05:00Z'))
+          .build(),
+      );
+
+      await repo.recordReconcileOk(key, new Date('2026-03-10T15:10:00Z'), false);
+
+      expect(staleRead?.freezeActive).toBe(false);
+      expect(await repo.listFrozenKeys()).toContain(key);
+    });
+
+    it('an at-risk pass leaves the last full pass as it was', async () => {
+      const key = newKey();
+      await repo.recordReconcileOk(key, at, true);
+
+      await repo.recordReconcileOk(key, new Date('2026-03-10T16:00:00Z'), false);
+
+      expect(await repo.findByKey(key)).toMatchObject({
+        lastReconcileOkAt: new Date('2026-03-10T16:00:00Z'),
+        lastFullReconcileAt: at,
+      });
+    });
+  });
 });

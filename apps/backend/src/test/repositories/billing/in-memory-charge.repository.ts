@@ -1,9 +1,11 @@
 import { drainDomainEvents } from '../../../shared/infrastructure/outbox/drain-domain-events';
 import type { IOutboxPublisher } from '../../../shared/ports/outbox-publisher.port';
 import {
-  ChargeRef,
+  DueChargeRef,
   OverdueChargeRef,
+  PaidChargeRef,
   PendingCreationRef,
+  RecoveryChargeRef,
   IChargeRepository,
   ListChargesQuery,
 } from '../../../contexts/billing/application/ports/charge-repository.port';
@@ -188,24 +190,81 @@ export class InMemoryChargeRepository implements IChargeRepository {
       .slice(0, limit);
   }
 
-  async listOpenDueForJob(dueOnOrBefore: string, limit: number): Promise<ChargeRef[]> {
-    return this.refs(
+  async listOpenDueForJob(
+    dueOnOrBefore: string,
+    limit: number,
+    after?: DueChargeRef,
+  ): Promise<DueChargeRef[]> {
+    return this.dueRefs(
       this.saved.filter((c) => c.open && c.dueDate.value <= dueOnOrBefore),
       limit,
+      after,
     );
   }
 
-  async listOpenForJob(limit: number): Promise<ChargeRef[]> {
-    return this.refs(
+  async listOpenForJob(limit: number, after?: DueChargeRef): Promise<DueChargeRef[]> {
+    return this.dueRefs(
       this.saved.filter((c) => c.open),
       limit,
+      after,
     );
   }
 
-  async listProviderCancelPendingForJob(limit: number): Promise<ChargeRef[]> {
-    return this.refs(
+  // The unique index's order: the subscription's tenant, then the subscription.
+  async listOpenRecoveryForJob(
+    limit: number,
+    after?: RecoveryChargeRef,
+  ): Promise<RecoveryChargeRef[]> {
+    const key = (ref: RecoveryChargeRef): string => `${ref.tenantId}|${ref.subscriptionId}`;
+    return this.saved
+      .filter((c) => c.kind === 'RECOVERY' && c.open)
+      .map((c) => ({ tenantId: c.tenantId, id: c.id, subscriptionId: c.subscriptionId }))
+      .filter((ref) => after === undefined || key(ref) > key(after))
+      .sort((a, b) => key(a).localeCompare(key(b)))
+      .slice(0, limit);
+  }
+
+  // The charge store knows no subscriptions: a spec says which ones are trials, by setting
+  // `trialEnds` (`${tenantId}|${subscriptionId}` to the trial's end), as the real query joins them.
+  readonly trialEnds = new Map<string, Date>();
+
+  async listOpenTrialChargesForJob(
+    trialEndsOnOrBefore: Date,
+    limit: number,
+    after?: DueChargeRef,
+  ): Promise<DueChargeRef[]> {
+    return this.dueRefs(
+      this.saved.filter((c) => {
+        const endsAt = this.trialEnds.get(`${c.tenantId}|${c.subscriptionId}`);
+        return c.open && endsAt !== undefined && endsAt <= trialEndsOnOrBefore;
+      }),
+      limit,
+      after,
+    );
+  }
+
+  async listRecentlyPaidForJob(
+    paidSince: Date,
+    limit: number,
+    after?: PaidChargeRef,
+  ): Promise<PaidChargeRef[]> {
+    const key = (ref: PaidChargeRef): string => `${ref.paidAt.toISOString()}|${ref.id}`;
+    return this.saved
+      .filter((c) => c.status === 'PAID' && c.paidAt !== null && c.paidAt >= paidSince)
+      .map((c) => ({ tenantId: c.tenantId, id: c.id, paidAt: c.paidAt as Date }))
+      .filter((ref) => after === undefined || key(ref) > key(after))
+      .sort((a, b) => key(a).localeCompare(key(b)))
+      .slice(0, limit);
+  }
+
+  async listProviderCancelPendingForJob(
+    limit: number,
+    after?: DueChargeRef,
+  ): Promise<DueChargeRef[]> {
+    return this.dueRefs(
       this.saved.filter((c) => c.providerCancelPending),
       limit,
+      after,
     );
   }
 
@@ -230,11 +289,13 @@ export class InMemoryChargeRepository implements IChargeRepository {
     return claim.lastAttemptAt.getTime() < now.getTime() - PROVIDER_CREATION_LEASE_MINUTES * 60_000;
   }
 
-  private refs(charges: Charge[], limit: number): ChargeRef[] {
-    return [...charges]
-      .sort((a, b) => a.dueDate.value.localeCompare(b.dueDate.value) || a.id.localeCompare(b.id))
-      .slice(0, limit)
-      .map((c) => ({ tenantId: c.tenantId, id: c.id }));
+  private dueRefs(charges: Charge[], limit: number, after?: DueChargeRef): DueChargeRef[] {
+    const key = (ref: DueChargeRef): string => `${ref.dueDate}|${ref.id}`;
+    return charges
+      .map((c) => ({ tenantId: c.tenantId, id: c.id, dueDate: c.dueDate.value }))
+      .filter((ref) => after === undefined || key(ref) > key(after))
+      .sort((a, b) => key(a).localeCompare(key(b)))
+      .slice(0, limit);
   }
 
   // `UQ_billing_charges_period` ignores a cancelled charge; `UQ_billing_charges_open_recovery`

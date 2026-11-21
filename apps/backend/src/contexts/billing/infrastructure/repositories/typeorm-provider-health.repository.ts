@@ -75,4 +75,26 @@ export class TypeOrmProviderHealthRepository implements IProviderHealthRepositor
       .orUpdate(OVERWRITTEN_COLUMNS, [KEY_COLUMN])
       .execute();
   }
+
+  async recordReconcileOk(merchantProfileKey: string, at: Date, fullPass: boolean): Promise<void> {
+    const manager = getActiveEntityManager() ?? this.repo.manager;
+    await manager
+      .createQueryBuilder()
+      .insert()
+      .into(ProviderHealthEntity)
+      .values({
+        merchantProfileKey,
+        lastReconcileOkAt: at,
+        lastFullReconcileAt: fullPass ? at : null,
+        updatedAt: at,
+      })
+      // Only these columns: the freeze and the webhook status belong to the self-heal (M26-S08).
+      .orUpdate(
+        fullPass
+          ? ['last_reconcile_ok_at', 'last_full_reconcile_at', 'updated_at']
+          : ['last_reconcile_ok_at', 'updated_at'],
+        [KEY_COLUMN],
+      )
+      .execute();
+  }
 }
