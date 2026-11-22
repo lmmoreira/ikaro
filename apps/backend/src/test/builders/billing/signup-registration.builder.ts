@@ -20,10 +20,15 @@ export class SignupRegistrationBuilder {
     acceptedAt: new Date(Date.now() - 60_000),
   };
   private exempt = false;
-  private readonly createdAt = new Date(Date.now() - 60_000);
+  private createdAt = new Date(Date.now() - 60_000);
 
   withId(id: string): this {
     this.id = id;
+    return this;
+  }
+
+  withCreatedAt(createdAt: Date): this {
+    this.createdAt = createdAt;
     return this;
   }
 

@@ -996,6 +996,43 @@ flowchart TD
 
 ---
 
+## Billing — Self-heal: repair, provider health and the suspension freeze (M26-S08)
+
+UC-140. Code: `SelfHealJob` (`application/jobs/`), `RepairMissingSubscriptionsStep` (`repair-missing-subscriptions.helpers.ts`), `ReleaseStaleSignupRegistrationsUseCase`, `CheckProviderHealthUseCase`, `EvaluateSuspensionFreezeUseCase` (`application/use-cases/`), over `IBillingPlatformPort.listTenantsCreatedBefore`, `ISubscriptionRepository.findExistingTenantIds`, `ISignupRegistrationRepository.releaseExpiredReservations`, `IProviderHealthRepository` and `IProviderEventRepository.existsProcessedAfter`. Hourly at minute 25 (`cron-billing-self-heal`).
+
+```mermaid
+flowchart TD
+    A[hourly trigger] --> R[1 repair: page tenants older than 15 min by keyset]
+    R --> R1{active and no subscription?}
+    R1 -- yes --> R2[CreateTrialSubscriptionUseCase: no registration, no event, starts now]
+    R1 -- no --> R3[skip]
+    A --> L[1b release RESERVED registrations older than 1 hour]
+    A --> H[2 per provider account: read health]
+    H --> H1{read failed?}
+    H1 -- yes --> H2[health_read_failures + 1]
+    H1 -- no --> H3{paused?}
+    H3 -- yes --> H4[re-enable once, alert RAISED, stamp updated_at]
+    H3 -- no --> H5{stored PAUSED?}
+    H5 -- yes --> H6{processed delivery newer than updated_at?}
+    H6 -- yes --> H7[alert CLOSED, status OK]
+    H6 -- no --> H8[alert stays RAISED]
+    A --> F[3 per provider account: freeze]
+    F --> F1{row exists?}
+    F1 -- no --> F2[not frozen]
+    F1 -- yes --> F3{reconcile older than 24 h or 2 failed reads?}
+    F3 -- yes --> F4[freeze_active and freeze_since set together]
+    F3 -- no --> F5{frozen and a reconcile success after freeze_since and the last read ok?}
+    F5 -- yes --> F6[cleared together]
+```
+
+**Repair.** Tenants come from Platform's keyset listing (`created_at ASC, id ASC`, served by `IDX_platform_tenants_created_at`), diffed per page against Billing's own `subscriptions`; no query joins across contexts. An inactive tenant is skipped and never repaired. The trial starts at the injected clock's now (a full trial, never at the tenant's creation) with the tenant's country, timezone and slug; there is no `adminEmail`, `registrationId` or `eventId`, so the repaired subscription is a default (non-exempt, no tax id) trial and an operator fixes an exempt tenant with UC-137. A healthy tenant stays in the listing, so a run always walks from the oldest tenant and stops at `SELF_HEAL_TENANT_SCAN_LIMIT` (20,000), logging `truncated`.
+
+**The alert is a log line, not a row.** `billing_provider_health` carries `webhookAlert` (`NONE`, `RAISED`, `CLOSED`) on every run. The stored `webhook_status` is `PAUSED` while the alert is open; it closes only when a `provider_events` row received after the re-enable (`provider_health.updated_at`) exists, never because the provider's flag cleared (a wrong token keeps answering `401` and pauses the queue again). Only the re-enable moves `updated_at`; reconcile's write also does, which can only delay the close, never advance it.
+
+**The freeze.** Set when `last_reconcile_ok_at` (or `updated_at` when it is NULL) is older than 24 h, or after two consecutive failed health reads (`health_read_failures`, reset by a successful read); cleared only by a reconcile success newer than `freeze_since` and a successful read. No row means not frozen. The status sweep reads `listFrozenKeys()` and the dunning job skips the day-12 reminder while a key is frozen.
+
+---
+
 ## Other bounded contexts
 
 Billing has the section above for its M25 (operator-driven) part; the rest of Billing arrives with M26. The other contexts are not yet written as sections in this doc. **Loyalty is not logic-free** — points earning and redemption on `BookingCompleted` (the section above), the expiry cron, the weekly expiring-points warning and manual redemption are implemented; until a section is written here, read them from `docs/BOUNDED_CONTEXTS.md` § 2. Loyalty Context, `docs/DOMAIN_MODEL.md` § Loyalty Context (and § Expiration window), `docs/USE_CASES.md` UC-009 / UC-016 / UC-016b, and the code under `apps/backend/src/contexts/loyalty/`. Likewise there is no booking status-machine section here: the transition table is CLAUDE.md §5 / `.copilot/context.md` §5 and the aggregate (`booking-status-transition.ts`). Platform has one section above (the hotsite template catalogue); add another here the next time a story in Customer, Staff, Loyalty, Notification, or Platform introduces business logic complex enough to earn one — see this doc's own header for the "incremental, not upfront" rule, and `/story-discovery`'s checklist item that flags the decision at discovery time.

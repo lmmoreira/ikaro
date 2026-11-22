@@ -3,7 +3,11 @@ import { CACHE_PORT, CachePort } from '../../../../shared/ports/cache.port';
 import { scheduleAfterCommit } from '../../../../shared/infrastructure/transaction-context';
 import { toDate } from '../../../../shared/utils/date';
 import { Slug } from '../../../../shared/value-objects/slug.vo';
-import { ITenantRepository, TenantFilters } from '../../application/ports/tenant-repository.port';
+import {
+  ITenantRepository,
+  TenantAgeCursor,
+  TenantFilters,
+} from '../../application/ports/tenant-repository.port';
 import { Tenant } from '../../domain/tenant.aggregate';
 import { TenantSettings } from '../../domain/value-objects/tenant-settings.vo';
 import { AppLogger } from '../../../../shared/observability/app-logger';
@@ -69,6 +73,12 @@ export class CachingTenantRepository implements ITenantRepository {
 
   async findAllActive(): Promise<Tenant[]> {
     return this.repo.findAllActive();
+  }
+
+  // Uncached: a cross-tenant listing by age is a job's read, and the caching decorator stays the
+  // one place tenant read caching lives (it caches single-tenant reads only).
+  async findCreatedBefore(cutoff: Date, limit: number, after?: TenantAgeCursor): Promise<Tenant[]> {
+    return this.repo.findCreatedBefore(cutoff, limit, after);
   }
 
   async save(tenant: Tenant): Promise<void> {

@@ -5,6 +5,7 @@ import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-even
 import {
   CRON_BILLING_ISSUE_CHARGES_TRIGGER,
   CRON_BILLING_RECONCILE_TRIGGER,
+  CRON_BILLING_SELF_HEAL_TRIGGER,
   CRON_BILLING_STATUS_SWEEP_TRIGGER,
 } from '../events/cron-trigger-names.constants';
 import { CronBillingController } from './cron-billing.controller';
@@ -72,6 +73,25 @@ describe('CronBillingController', () => {
 
       expect(triggerBus.publishedTriggers).toEqual([CRON_BILLING_RECONCILE_TRIGGER]);
       expect(CRON_BILLING_RECONCILE_TRIGGER).toBe('cron-billing-reconcile');
+    });
+  });
+
+  describe('POST /cron/billing-self-heal', () => {
+    it('answers exactly 200', () => {
+      expect(Reflect.getMetadata('__httpCode__', CronBillingController.prototype.selfHeal)).toBe(
+        HttpStatus.OK,
+      );
+    });
+
+    it('returns { ok: true }', async () => {
+      await expect(controller.selfHeal()).resolves.toEqual({ ok: true });
+    });
+
+    it('publishes the cron-billing-self-heal trigger and no other', async () => {
+      await controller.selfHeal();
+
+      expect(triggerBus.publishedTriggers).toEqual([CRON_BILLING_SELF_HEAL_TRIGGER]);
+      expect(CRON_BILLING_SELF_HEAL_TRIGGER).toBe('cron-billing-self-heal');
     });
   });
 });

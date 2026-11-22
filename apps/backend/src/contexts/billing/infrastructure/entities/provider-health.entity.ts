@@ -23,6 +23,9 @@ export class ProviderHealthEntity {
   @Column({ name: 'freeze_since', type: 'timestamptz', nullable: true })
   freezeSince!: Date | null;
 
+  @Column({ name: 'health_read_failures', type: 'smallint', default: 0 })
+  healthReadFailures!: number;
+
   @Column({ name: 'updated_at', type: 'timestamptz' })
   updatedAt!: Date;
 }

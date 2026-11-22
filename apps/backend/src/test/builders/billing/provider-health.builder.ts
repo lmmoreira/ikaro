@@ -11,6 +11,7 @@ export class ProviderHealthBuilder {
   private lastFullReconcileAt: Date | null = new Date(Date.now() - 60_000);
   private webhookStatus: ProviderWebhookStatus = 'OK';
   private freezeSince: Date | null = null;
+  private healthReadFailures = 0;
   private updatedAt = new Date(Date.now() - 1000);
 
   withMerchantProfileKey(merchantProfileKey: string): this {
@@ -39,6 +40,11 @@ export class ProviderHealthBuilder {
     return this;
   }
 
+  withHealthReadFailures(healthReadFailures: number): this {
+    this.healthReadFailures = healthReadFailures;
+    return this;
+  }
+
   withUpdatedAt(updatedAt: Date): this {
     this.updatedAt = updatedAt;
     return this;
@@ -52,6 +58,7 @@ export class ProviderHealthBuilder {
       webhookStatus: this.webhookStatus,
       freezeActive: this.freezeSince !== null,
       freezeSince: this.freezeSince,
+      healthReadFailures: this.healthReadFailures,
       updatedAt: this.updatedAt,
     });
   }

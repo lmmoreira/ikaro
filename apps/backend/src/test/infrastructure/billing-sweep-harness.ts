@@ -205,6 +205,7 @@ export function createSweepHarness() {
     accounts,
     charges,
     prices,
+    providerEvents,
     health,
     platform,
     creation,

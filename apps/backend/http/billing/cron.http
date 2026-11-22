@@ -24,5 +24,10 @@ X-Internal-Key: {{internalKey}}
 POST {{baseUrl}}/cron/billing-reconcile
 X-Internal-Key: {{internalKey}}
 
+### Self-heal (UC-140): provisioning repair, stale registration release, provider health, suspension freeze
+# Read the billing_self_heal_run log line for the four step results.
+POST {{baseUrl}}/cron/billing-self-heal
+X-Internal-Key: {{internalKey}}
+
 ### Without the internal key: refused with 401 (the route is internal-only, behind InternalApiGuard)
 POST {{baseUrl}}/cron/billing-issue-charges

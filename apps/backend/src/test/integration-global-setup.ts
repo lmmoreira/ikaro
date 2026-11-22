@@ -98,6 +98,8 @@ import { CreateLoyaltyLoyaltyEntries1748000000016 } from '../contexts/loyalty/in
 import { CreateLoyaltyBalancesRedemptionsExpiryLog1748000000017 } from '../contexts/loyalty/infrastructure/migrations/1748000000017-CreateLoyaltyBalancesRedemptionsExpiryLog';
 import { AddLoyaltyRedemptionPointsPerCurrencyUnit1748400000003 } from '../contexts/loyalty/infrastructure/migrations/1748400000003-AddLoyaltyRedemptionPointsPerCurrencyUnit';
 import { AddLoyaltyExpirySweepStateAndEntriesExpiresAtIndex1748500000045 } from '../contexts/loyalty/infrastructure/migrations/1748500000045-AddLoyaltyExpirySweepStateAndEntriesExpiresAtIndex';
+import { AddTenantsCreatedAtIndex1748500000047 } from '../contexts/platform/infrastructure/migrations/1748500000047-AddTenantsCreatedAtIndex';
+import { AddHealthReadFailuresToProviderHealth1748500000048 } from '../contexts/billing/infrastructure/migrations/1748500000048-AddHealthReadFailuresToProviderHealth';
 import { AddChargeVersion1748500000046 } from '../contexts/billing/infrastructure/migrations/1748500000046-AddChargeVersion';
 import { NotificationLogEntity } from '../contexts/notification/infrastructure/entities/notification-log.entity';
 import { NotificationTemplateEntity } from '../contexts/notification/infrastructure/entities/notification-template.entity';
@@ -297,6 +299,8 @@ export default async function globalSetup(): Promise<void> {
       AddTenantUnavailableCustomerTemplate1748500000044,
       AddLoyaltyExpirySweepStateAndEntriesExpiresAtIndex1748500000045,
       AddChargeVersion1748500000046,
+      AddTenantsCreatedAtIndex1748500000047,
+      AddHealthReadFailuresToProviderHealth1748500000048,
     ],
     synchronize: false,
     migrationsRun: false,

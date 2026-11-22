@@ -9,6 +9,7 @@ import { TENANT_REPOSITORY } from './application/ports/tenant-repository.port';
 import { GetHotsiteBookingPickerUseCase } from './application/use-cases/get-hotsite-booking-picker.use-case';
 import { GetTenantBillingInfoUseCase } from './application/use-cases/get-tenant-billing-info.use-case';
 import { GetTenantByIdUseCase } from './application/use-cases/get-tenant-by-id.use-case';
+import { ListTenantsCreatedBeforeUseCase } from './application/use-cases/list-tenants-created-before.use-case';
 import { GetTenantsUseCase } from './application/use-cases/get-tenants.use-case';
 import { GetTenantBusinessHoursForUpdateUseCase } from './application/use-cases/get-tenant-business-hours-for-update.use-case';
 import { HotsiteConfigEntity } from './infrastructure/entities/hotsite-config.entity';
@@ -36,10 +37,12 @@ import { TypeOrmTenantRepository } from './infrastructure/repositories/typeorm-t
     GetTenantBusinessHoursForUpdateUseCase,
     GetHotsiteBookingPickerUseCase,
     GetTenantBillingInfoUseCase,
+    ListTenantsCreatedBeforeUseCase,
   ],
   exports: [
     GetTenantByIdUseCase,
     GetTenantBillingInfoUseCase,
+    ListTenantsCreatedBeforeUseCase,
     GetTenantsUseCase,
     GetTenantBusinessHoursForUpdateUseCase,
     GetHotsiteBookingPickerUseCase,

@@ -143,6 +143,11 @@ export class CachingSubscriptionRepository implements ISubscriptionRepository {
     return this.repo.listMerchantProfileKeys();
   }
 
+  // Uncached: a job's existence check must see the committed rows, never a cached answer.
+  findExistingTenantIds(tenantIds: readonly string[]): Promise<string[]> {
+    return this.repo.findExistingTenantIds(tenantIds);
+  }
+
   listSummaries(
     query: ListOperatorSubscriptionsQuery,
   ): Promise<{ items: OperatorSubscriptionSummary[]; total: number }> {

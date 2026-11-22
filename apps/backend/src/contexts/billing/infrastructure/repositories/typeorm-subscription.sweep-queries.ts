@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon';
-import { Repository, SelectQueryBuilder } from 'typeorm';
+import { EntityManager, Repository, SelectQueryBuilder } from 'typeorm';
 import type { SweepDueRef } from '../../application/ports/subscription-repository.port';
 import { GRACE_DAYS } from '../../domain/subscription.types';
 import { SubscriptionEntity } from '../entities/subscription.entity';
@@ -104,4 +104,19 @@ export async function listDistinctMerchantProfileKeys(
     .orderBy('s.merchantProfileKey', 'ASC')
     .getRawMany<{ merchantProfileKey: string }>();
   return rows.map((row) => row.merchantProfileKey);
+}
+
+// The tenants, among those asked for, that already have a subscription row (UC-140): the self-heal
+// job diffs a page of tenants Platform listed against it. It reads `UNIQUE (tenant_id)`.
+export async function findExistingSubscriptionTenantIds(
+  manager: EntityManager,
+  tenantIds: readonly string[],
+): Promise<string[]> {
+  if (tenantIds.length === 0) return [];
+  const rows = await manager
+    .createQueryBuilder(SubscriptionEntity, 's')
+    .select('s.tenantId', 'tenantId')
+    .where('s.tenantId IN (:...tenantIds)', { tenantIds })
+    .getRawMany<{ tenantId: string }>();
+  return rows.map((row) => row.tenantId);
 }

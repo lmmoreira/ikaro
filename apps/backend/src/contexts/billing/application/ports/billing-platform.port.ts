@@ -11,6 +11,12 @@ export interface BillingTenantInfo {
   isActive: boolean;
 }
 
+/** The keyset position of the last tenant of a page: the next page starts after it. */
+export interface BillingTenantCursor {
+  createdAt: Date;
+  id: string;
+}
+
 /**
  * Read-only tenant info for Billing. An unknown tenant is a typed
  * `BillingTenantNotFoundError`, never a transient error: the access resolver must not fail open
@@ -18,4 +24,15 @@ export interface BillingTenantInfo {
  */
 export interface IBillingPlatformPort {
   getTenantInfo(tenantId: string): Promise<BillingTenantInfo>;
+
+  /**
+   * One keyset page of the tenants created strictly before `cutoff`, oldest first (`created_at`,
+   * then `id`), active and inactive alike, starting after `after` when given. The self-heal job
+   * (UC-140) walks it and diffs each page against Billing's own subscriptions.
+   */
+  listTenantsCreatedBefore(
+    cutoff: Date,
+    limit: number,
+    after?: BillingTenantCursor,
+  ): Promise<BillingTenantInfo[]>;
 }

@@ -75,6 +75,12 @@ import { SubscriptionSweepRules } from './application/services/subscription-swee
 import { ProviderHealthEntity } from './infrastructure/entities/provider-health.entity';
 import { StatusSweepTriggerHandler } from './infrastructure/events/status-sweep-trigger.handler';
 import { ReconcileChargesJob } from './application/jobs/reconcile-charges.job';
+import { SelfHealJob } from './application/jobs/self-heal.job';
+import { CheckProviderHealthUseCase } from './application/use-cases/check-provider-health.use-case';
+import { EvaluateSuspensionFreezeUseCase } from './application/use-cases/evaluate-suspension-freeze.use-case';
+import { ReleaseStaleSignupRegistrationsUseCase } from './application/use-cases/release-stale-signup-registrations.use-case';
+import { RepairMissingSubscriptionsStep } from './application/jobs/repair-missing-subscriptions.helpers';
+import { SelfHealTriggerHandler } from './infrastructure/events/self-heal-trigger.handler';
 import { ChargeProviderSyncService } from './application/services/charge-provider-sync.service';
 import { ReconcileOneChargeUseCase } from './application/use-cases/reconcile-one-charge.use-case';
 import { RecordReconcilePassUseCase } from './application/use-cases/record-reconcile-pass.use-case';
@@ -197,6 +203,12 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     RefreshChargeFromProviderUseCase,
     ReconcileChargesJob,
     ReconcileTriggerHandler,
+    RepairMissingSubscriptionsStep,
+    ReleaseStaleSignupRegistrationsUseCase,
+    CheckProviderHealthUseCase,
+    EvaluateSuspensionFreezeUseCase,
+    SelfHealJob,
+    SelfHealTriggerHandler,
   ],
   // The shared access port is consumed by every context (M25-S16 onwards). The registration and
   // the five operator use cases are injected by this module's own controllers, which the

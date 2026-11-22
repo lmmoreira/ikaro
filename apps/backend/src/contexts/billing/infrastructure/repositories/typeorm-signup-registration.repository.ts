@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { LessThan, Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { ISignupRegistrationRepository } from '../../application/ports/signup-registration-repository.port';
 import type { SignupRegistration } from '../../domain/signup-registration';
@@ -83,5 +83,16 @@ export class TypeOrmSignupRegistrationRepository implements ISignupRegistrationR
       .where('id = :id AND status = :reserved', { id: registration.id, reserved: 'RESERVED' })
       .execute();
     if (result.affected !== 1) throw new SignupRegistrationNotAvailableError(registration.id);
+  }
+
+  // The table is tiny (in-flight signups plus one row per tenant) and this runs once an hour, so
+  // the filter `status = 'RESERVED' AND created_at < cutoff` needs no index of its own.
+  async releaseExpiredReservations(cutoff: Date): Promise<number> {
+    const manager = getActiveEntityManager() ?? this.repo.manager;
+    const result = await manager.delete(SignupRegistrationEntity, {
+      status: 'RESERVED',
+      createdAt: LessThan(cutoff),
+    });
+    return result.affected ?? 0;
   }
 }

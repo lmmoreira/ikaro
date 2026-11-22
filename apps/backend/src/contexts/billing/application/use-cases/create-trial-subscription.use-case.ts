@@ -39,8 +39,11 @@ export interface CreateTrialSubscriptionUseCaseInput {
   slug: string;
   countryCode: string;
   timezone: string;
-  /** The first manager's address: the signing user's email for a `SELF_SIGNUP` registration. */
-  adminEmail: string;
+  /**
+   * The first manager's address: the signing user's email for a `SELF_SIGNUP` registration. Absent
+   * for the self-heal repair (UC-140), which has no registration to stamp it on.
+   */
+  adminEmail?: string;
   /** The tenant's provisioning instant (ISO-8601), the start of its trial: never the wall clock. */
   occurredAt: string;
   correlationId: string;
@@ -162,7 +165,7 @@ export class CreateTrialSubscriptionUseCase {
         ? {
             version: registration.terms.version,
             acceptedAt: registration.terms.acceptedAt,
-            acceptedBy: selfSignup ? input.adminEmail : null,
+            acceptedBy: selfSignup ? (input.adminEmail ?? null) : null,
           }
         : null,
     });

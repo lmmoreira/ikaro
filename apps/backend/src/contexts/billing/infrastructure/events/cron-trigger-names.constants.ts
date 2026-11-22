@@ -5,3 +5,4 @@
 export const CRON_BILLING_ISSUE_CHARGES_TRIGGER = 'cron-billing-issue-charges';
 export const CRON_BILLING_STATUS_SWEEP_TRIGGER = 'cron-billing-status-sweep';
 export const CRON_BILLING_RECONCILE_TRIGGER = 'cron-billing-reconcile';
+export const CRON_BILLING_SELF_HEAL_TRIGGER = 'cron-billing-self-heal';

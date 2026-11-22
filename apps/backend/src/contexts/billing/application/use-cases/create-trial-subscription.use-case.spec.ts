@@ -219,6 +219,18 @@ describe('CreateTrialSubscriptionUseCase', () => {
   });
 
   describe('the billing account and the registration', () => {
+    it('creates a default trial without an adminEmail, a registration or an event (the self-heal repair)', async () => {
+      const tenantId = uuidv7();
+      const request = input({ tenantId });
+      delete request.adminEmail;
+      delete request.eventId;
+
+      await expect(useCase.execute(request)).resolves.toEqual({ created: true });
+
+      expect(subscriptions.saved[0].status).toBe('TRIALING');
+      expect(accounts.saved[0].acceptedTerms).toBeNull();
+    });
+
     it('copies a self-signup tax id and terms to the account, signed by the admin email, and completes the registration', async () => {
       const tenantId = uuidv7();
       const taxId = TaxId.create(CPF, countrySpec('BR').taxId);

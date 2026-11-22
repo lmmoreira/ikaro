@@ -15,7 +15,13 @@ interface UpsertCall {
   conflictTarget: string[];
 }
 
-const fakeManager = (upserts: UpsertCall[] = []) => {
+interface UpdateCall {
+  set: unknown;
+  where: string;
+  params: unknown;
+}
+
+const fakeManager = (upserts: UpsertCall[] = [], updates: UpdateCall[] = [], affected = 1) => {
   const builder = {
     insert: () => builder,
     into: () => builder,
@@ -27,11 +33,21 @@ const fakeManager = (upserts: UpsertCall[] = []) => {
       Object.assign(upserts[upserts.length - 1], { overwritten, conflictTarget });
       return builder;
     },
-    execute: jest.fn().mockResolvedValue(undefined),
+    update: () => builder,
+    set: (set: unknown) => {
+      updates.push({ set, where: '', params: undefined });
+      return builder;
+    },
+    where: (where: string, params: unknown) => {
+      Object.assign(updates[updates.length - 1], { where, params });
+      return builder;
+    },
+    execute: jest.fn().mockResolvedValue({ affected }),
   };
   return {
     findOne: jest.fn(),
     find: jest.fn(),
+    query: jest.fn(),
     createQueryBuilder: () => builder,
   } as unknown as jest.Mocked<EntityManager>;
 };
@@ -39,11 +55,13 @@ const fakeManager = (upserts: UpsertCall[] = []) => {
 describe('TypeOrmProviderHealthRepository', () => {
   let own: jest.Mocked<EntityManager>;
   let upserts: UpsertCall[];
+  let updates: UpdateCall[];
   let repo: TypeOrmProviderHealthRepository;
 
   beforeEach(() => {
     upserts = [];
-    own = fakeManager(upserts);
+    updates = [];
+    own = fakeManager(upserts, updates);
     repo = new TypeOrmProviderHealthRepository({
       manager: own,
     } as unknown as Repository<ProviderHealthEntity>);
@@ -104,6 +122,7 @@ describe('TypeOrmProviderHealthRepository', () => {
       'webhook_status',
       'freeze_active',
       'freeze_since',
+      'health_read_failures',
       'updated_at',
     ]);
     expect(upserts[0].values).toMatchObject({ merchantProfileKey: 'BRL_FAKE' });
@@ -130,6 +149,64 @@ describe('TypeOrmProviderHealthRepository', () => {
     ]);
     expect(upserts[0].values).toMatchObject({ lastFullReconcileAt: null, lastReconcileOkAt: at });
     expect(upserts[1].values).toMatchObject({ lastFullReconcileAt: at });
+  });
+
+  it('records a successful health read as a column-scoped upsert: the re-enable alone moves updated_at', async () => {
+    const at = new Date('2026-03-10T15:00:00Z');
+
+    await repo.recordHealthReadOk('BRL_FAKE', 'OK', at, false);
+    await repo.recordHealthReadOk('BRL_FAKE', 'PAUSED', at, true);
+
+    expect(upserts.map((call) => call.overwritten)).toEqual([
+      ['webhook_status', 'health_read_failures'],
+      ['webhook_status', 'health_read_failures', 'updated_at'],
+    ]);
+    expect(upserts[0].values).toMatchObject({ webhookStatus: 'OK', healthReadFailures: 0 });
+    // Never the freeze or the reconcile instants.
+    for (const call of upserts) {
+      expect(call.overwritten).not.toContain('freeze_active');
+      expect(call.overwritten).not.toContain('last_reconcile_ok_at');
+    }
+  });
+
+  it('counts a failed health read with one atomic increment statement and returns the new count', async () => {
+    own.query.mockResolvedValueOnce([{ health_read_failures: 2 }]);
+    const at = new Date('2026-03-10T15:00:00Z');
+
+    await expect(repo.recordHealthReadFailure('BRL_FAKE', at)).resolves.toBe(2);
+
+    const [sql, params] = own.query.mock.calls[0];
+    expect(sql).toContain('"health_read_failures" + 1');
+    expect(sql).toContain('ON CONFLICT ("merchant_profile_key")');
+    expect(params).toEqual(['BRL_FAKE', at]);
+  });
+
+  it('reads the count from an [rows, count] driver result too', async () => {
+    own.query.mockResolvedValueOnce([[{ health_read_failures: 1 }], 1]);
+
+    await expect(repo.recordHealthReadFailure('BRL_FAKE', new Date())).resolves.toBe(1);
+  });
+
+  it('starts and ends the freeze with both columns in one conditional update', async () => {
+    const since = new Date('2026-03-10T15:00:00Z');
+
+    await expect(repo.setFreeze('BRL_FAKE', since)).resolves.toBe(true);
+    await expect(repo.setFreeze('BRL_FAKE', null)).resolves.toBe(true);
+
+    expect(updates.map((call) => call.set)).toEqual([
+      { freezeActive: true, freezeSince: since },
+      { freezeActive: false, freezeSince: null },
+    ]);
+    expect(updates[0].params).toMatchObject({ merchantProfileKey: 'BRL_FAKE', previous: false });
+    expect(updates[1].params).toMatchObject({ previous: true });
+  });
+
+  it('reports that nothing changed when the row was already in the requested state', async () => {
+    const none = new TypeOrmProviderHealthRepository({
+      manager: fakeManager([], [], 0),
+    } as unknown as Repository<ProviderHealthEntity>);
+
+    await expect(none.setFreeze('BRL_FAKE', new Date())).resolves.toBe(false);
   });
 
   it('joins the caller’s transaction when there is one', async () => {

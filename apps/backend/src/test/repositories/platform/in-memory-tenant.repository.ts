@@ -2,6 +2,7 @@ import { drainDomainEvents } from '../../../shared/infrastructure/outbox/drain-d
 import { IOutboxPublisher } from '../../../shared/ports/outbox-publisher.port';
 import {
   ITenantRepository,
+  TenantAgeCursor,
   TenantFilters,
 } from '../../../contexts/platform/application/ports/tenant-repository.port';
 import { Tenant } from '../../../contexts/platform/domain/tenant.aggregate';
@@ -51,6 +52,19 @@ export class InMemoryTenantRepository implements ITenantRepository {
 
   async findAllActive(): Promise<Tenant[]> {
     return [...this.store.values()].filter((t) => t.isActive);
+  }
+
+  async findCreatedBefore(cutoff: Date, limit: number, after?: TenantAgeCursor): Promise<Tenant[]> {
+    return [...this.store.values()]
+      .filter((t) => t.createdAt.getTime() < cutoff.getTime())
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id))
+      .filter(
+        (t) =>
+          after === undefined ||
+          t.createdAt.getTime() > after.createdAt.getTime() ||
+          (t.createdAt.getTime() === after.createdAt.getTime() && t.id > after.id),
+      )
+      .slice(0, limit);
   }
 
   async save(tenant: Tenant): Promise<void> {

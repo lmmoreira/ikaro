@@ -255,6 +255,7 @@ describe('CreateTrialSubscriptionUseCase (integration)', () => {
       findGoogleSubHistory: (sub) => real.findGoogleSubHistory(sub),
       isTaxIdHeldByUnpaid: (taxId) => real.isTaxIdHeldByUnpaid(taxId),
       save: (registration) => real.save(registration),
+      releaseExpiredReservations: (cutoff) => real.releaseExpiredReservations(cutoff),
       findById: (id) => real.findById(id),
       complete: async (registration: SignupRegistration) => {
         if (failComplete) throw new Error('simulated failure after the subscription was written');
@@ -290,6 +291,7 @@ describe('CreateTrialSubscriptionUseCase (integration)', () => {
       findGoogleSubHistory: (sub) => real.findGoogleSubHistory(sub),
       isTaxIdHeldByUnpaid: (taxId) => real.isTaxIdHeldByUnpaid(taxId),
       save: (registration) => real.save(registration),
+      releaseExpiredReservations: (cutoff) => real.releaseExpiredReservations(cutoff),
       complete: (registration) => real.complete(registration),
       findById: async (id) => {
         const registration = await real.findById(id);

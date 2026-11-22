@@ -56,3 +56,19 @@ export const RECONCILE_RUN_BUDGET_MS = 40_000;
 
 /** UC-116: provider reads in flight at once (the provider allows 50 concurrent GETs). */
 export const RECONCILE_CONCURRENCY = 10;
+
+/** UC-140: a `RESERVED` signup registration older than this is an orphan (a failed signup step) and is released. */
+export const STALE_SIGNUP_RESERVATION_HOURS = 1;
+
+/** UC-140: the suspension freeze starts when no reconcile pass has succeeded for this many hours. */
+export const SUSPENSION_FREEZE_RECONCILE_STALE_HOURS = 24;
+
+/** UC-140: the freeze also starts after this many consecutive failed provider health reads. */
+export const SUSPENSION_FREEZE_FAILED_HEALTH_READS = 2;
+
+/**
+ * UC-140: the most tenants one self-heal run scans for a missing subscription. A healthy tenant
+ * stays in the listing (it is old and has its subscription), so a run walks the keyset from the
+ * oldest tenant; past this cap the run logs `truncated` and the tail waits for a later run.
+ */
+export const SELF_HEAL_TENANT_SCAN_LIMIT = 20_000;

@@ -9,6 +9,12 @@ export class InMemoryProviderEventRepository implements IProviderEventRepository
     return this.saved.some((row) => row.provider === provider && row.eventId === eventId);
   }
 
+  async existsProcessedAfter(provider: BillingProvider, since: Date): Promise<boolean> {
+    return this.saved.some(
+      (row) => row.provider === provider && row.receivedAt.getTime() > since.getTime(),
+    );
+  }
+
   async insertIfAbsent(event: ProviderEvent): Promise<boolean> {
     const exists = this.saved.some(
       (row) => row.provider === event.provider && row.eventId === event.eventId,

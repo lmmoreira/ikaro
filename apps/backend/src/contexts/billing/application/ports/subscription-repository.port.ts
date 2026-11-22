@@ -128,6 +128,13 @@ export interface ISubscriptionRepository {
   listMerchantProfileKeys(): Promise<string[]>;
 
   /**
+   * The ids, among `tenantIds`, that already have a subscription row (UC-140): the self-heal job
+   * diffs a page of tenants Platform listed against this, so no query joins across contexts. Reads
+   * the `UNIQUE (tenant_id)` index; an empty input answers empty without a query.
+   */
+  findExistingTenantIds(tenantIds: readonly string[]): Promise<string[]>;
+
+  /**
    * Cross-tenant operator read (UC-111): one page of subscription summaries, newest-created first
    * (id as tiebreak), optionally narrowed to one status, with the unpaged total. It reads the
    * subscription row only (no items, no other context's data) and serves a manual lookup over one

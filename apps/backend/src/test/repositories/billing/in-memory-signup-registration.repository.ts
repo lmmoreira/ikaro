@@ -40,6 +40,15 @@ export class InMemorySignupRegistrationRepository implements ISignupRegistration
     return this.saved.find((row) => row.id === id) ?? null;
   }
 
+  async releaseExpiredReservations(cutoff: Date): Promise<number> {
+    const before = this.saved.length;
+    const kept = this.saved.filter(
+      (row) => !(row.status === 'RESERVED' && row.createdAt.getTime() < cutoff.getTime()),
+    );
+    this.saved.splice(0, this.saved.length, ...kept);
+    return before - kept.length;
+  }
+
   // Mirrors the adapter's conditional UPDATE: only a stored RESERVED row completes.
   async complete(registration: SignupRegistration): Promise<void> {
     const index = this.saved.findIndex((row) => row.id === registration.id);

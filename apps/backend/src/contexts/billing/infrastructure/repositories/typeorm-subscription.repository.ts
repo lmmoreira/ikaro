@@ -30,6 +30,7 @@ import {
 } from './typeorm-subscription.mapper';
 import {
   buildCancelDueQuery,
+  findExistingSubscriptionTenantIds,
   listDistinctMerchantProfileKeys,
   buildGraceExpiredQuery,
   buildTrialEndedQuery,
@@ -117,6 +118,13 @@ export class TypeOrmSubscriptionRepository implements ISubscriptionRepository {
 
   listMerchantProfileKeys(): Promise<string[]> {
     return listDistinctMerchantProfileKeys(this.repo);
+  }
+
+  findExistingTenantIds(tenantIds: readonly string[]): Promise<string[]> {
+    return findExistingSubscriptionTenantIds(
+      getActiveEntityManager() ?? this.repo.manager,
+      tenantIds,
+    );
   }
 
   async listSummaries(
