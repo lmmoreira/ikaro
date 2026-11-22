@@ -833,7 +833,18 @@ Ikaro charging its tenants (`docs/DOMAIN_MODEL.md` § Billing Context, `docs/USE
 
 #### **BillingReminderDue** *(a Command — see the note below the Billing events; not an audited domain event)*
 - **Trigger:** the daily reminders job (UC-139), once per milestone, deduped by `(subscription, kind, daysOffset, chargeId)`
-- **Data:** `subscriptionId`, `kind` (`PLAN_CONFIRMATION` | `TRIAL_ENDING` | `CHARGE_DUE_SOON` | `CHARGE_OVERDUE` | `RECOVERY_CHARGE_OPEN`), `daysOffset`, `chargeId?`, `paymentUrl?`, `recipientEmail?`
+- **Data:** `subscriptionId`, `kind` (`PLAN_CONFIRMATION` | `TRIAL_ENDING` | `CHARGE_DUE_SOON` | `CHARGE_OVERDUE` | `RECOVERY_CHARGE_OPEN`), `daysOffset`, `chargeId?`, `paymentUrl?`, `recipientEmail?`, and (M26-S09) `dueDate?`, `trialEndsOn?`, `suspendsOn?` (local `YYYY-MM-DD` in the subscription's timezone), `amountMinor?`, `currency?`. Every `?` means "may be null". Notification has no Billing read port, so the copy's dates and amount come from these fields. Only `subscriptionId`, `kind`, `daysOffset` and `chargeId` are in the `dedup_key`.
+- **`daysOffset` (a non-negative day count from the kind's anchor) and which fields each kind fills:**
+
+  | `kind` | `daysOffset` | Anchor | `chargeId` | Fields filled besides `subscriptionId`, `kind`, `daysOffset`, `recipientEmail` |
+  |---|---|---|---|---|
+  | `PLAN_CONFIRMATION` | 10, 7, 4 | days **before** the local trial end date | always `null` | `trialEndsOn` |
+  | `TRIAL_ENDING` | 7, 3, 0 | days **before** the local trial end date | always `null` | `trialEndsOn`; `dueDate`, `amountMinor`, `currency`, `paymentUrl` when the first invoice exists |
+  | `CHARGE_DUE_SOON` | 3 | days **before** the due date | the charge | `dueDate`, `amountMinor`, `currency`, `paymentUrl?` |
+  | `CHARGE_OVERDUE` | 1, 3, 7, 12 | days **after** the due date | the charge | `dueDate`, `amountMinor`, `currency`, `paymentUrl?`; `suspendsOn` only at 12 |
+  | `RECOVERY_CHARGE_OPEN` | 3, 8, 14 | days **since issue** (issue date = due date − 7; 8 and 14 are the "1 and 7 days after due") | the charge | `dueDate`, `amountMinor`, `currency`, `paymentUrl?` |
+
+  The trial kinds carry no `chargeId` so a retried run after the first invoice appeared cannot mint a second key for the same milestone.
 - **Consumers:** Notification (dunning email; one template key per kind). **Freshness is Billing's job:** Billing re-checks "charge still open" and "tenant not exempt" immediately before writing the outbox row; Notification does no re-check and has no read port into Billing. A small stale window is accepted and the copy is tolerant
 
 #### **SubscriptionPriceChangeAnnounced**

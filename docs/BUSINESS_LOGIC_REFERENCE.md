@@ -1033,6 +1033,39 @@ flowchart TD
 
 ---
 
+## Billing — Dunning reminders: milestones, anchors and dedup (M26-S09)
+
+UC-139. Code: `PublishBillingRemindersJob` (`application/jobs/`), `PublishSubscriptionRemindersUseCase`, the pure table-driven `ReminderSchedule` (`domain/reminder-schedule.ts`), over `ISubscriptionRepository.findTrialEndingForJob`, `IChargeRepository.listOpenDueBetweenForJob`, `IBillingAccountRepository`, `IProviderHealthRepository.listFrozenKeys` and the outbox. Daily at 11:00 UTC, after the status sweep (`:40`) and the issue job (04:30). `BillingReminderDue` is a Command: its `dedup_key` (`BillingReminderDue:{tenant}:{subscription}:{kind}:{daysOffset}:{chargeId|none}`) is the `UNIQUE` column of `shared.outbox`, so a rerun, a manual `POST /cron/billing-reminders` or a redelivery writes nothing twice; the date, amount, `recipientEmail` and `paymentUrl` fields are payload, not key. The milestone table, anchors and which fields each kind fills are in `docs/DOMAIN_EVENTS.md` § BillingReminderDue.
+
+```mermaid
+flowchart TD
+    A[daily trigger] --> F[read frozen merchant keys once; a failed read fails the run]
+    F --> S1[trial selector: TRIALING, non-exempt, trial_ends_at in a window]
+    F --> S2[charge selector: open charges, due_date in a window]
+    S1 --> U[per subscription: re-read subscription, account and charge in one short transaction]
+    S2 --> U
+    U --> X{exempt, or charge no longer open?}
+    X -- yes --> N[publish nothing]
+    X -- no --> M[ReminderSchedule: local date vs the kind's anchor]
+    M --> E{exact offset today?}
+    E -- no --> N
+    E -- yes --> Z{day-12 overdue and the key is frozen?}
+    Z -- yes --> N
+    Z -- no --> P[write one outbox row per milestone, dedup_key ignores payload]
+```
+
+**Rules per kind.** Every kind needs a non-exempt subscription; the charge kinds also need a still-open charge. `PLAN_CONFIRMATION`: `TRIALING` and `plan_confirmed_at` NULL. `TRIAL_ENDING`: `TRIALING`. `CHARGE_DUE_SOON`: subscription not `TRIALING` (a trial's only open charge is its first, covered by `TRIAL_ENDING`) and the charge not `RECOVERY`. `CHARGE_OVERDUE`: subscription `PAST_DUE`. `RECOVERY_CHARGE_OPEN`: `SUSPENDED` with reason `NON_PAYMENT` or `PAYMENT_REVERSED` and a `RECOVERY` charge; it stops when the charge is paid or cancelled.
+
+**Selection and windows.** Two cross-tenant selectors, each on its own standalone index and paged by keyset to the end: trials with `trial_ends_at` in about today−2 d … today+11 d (`IDX_billing_subscriptions_trial_ends_at`), and open charges with `due_date` in about today−13 d … today+4 d (`IDX_billing_charges_open`). Both are wider than the milestones by a day, because every subscription re-checks its own local date; a skipped row stays selected, so the job pages past it. The window is what keeps a never-paid charge from being read every day until the M27 clean-up.
+
+**Exact days, no back-fill.** A milestone exists only on the one local day where the offset matches; a cron day that did not run loses it for good. The recovery charge's issue date is its due date minus 7 days (`RECOVERY_CHARGE_DUE_DAYS`), so all three recovery offsets (3, 8, 14 days since issue) derive from the due date and no created-at column is read.
+
+**Freshness, no lock.** The re-read and the outbox write share one short transaction with no `FOR UPDATE`: a reminder moves no money or access and UC-139 accepts a small stale window (the copy says "Se você já pagou, desconsidere este aviso"), so no B-R1 path is added. A null payment link still publishes.
+
+**The freeze.** The day-12 reminder states `graceEndsAt(pastDueSince, graceUntil)` in the subscription's timezone as `suspendsOn`, and is not published while the subscription's merchant key is frozen (a frozen provider suspends nobody); days 1, 3 and 7 are unaffected, and a later run with the freeze cleared does not back-fill day 12.
+
+---
+
 ## Other bounded contexts
 
 Billing has the section above for its M25 (operator-driven) part; the rest of Billing arrives with M26. The other contexts are not yet written as sections in this doc. **Loyalty is not logic-free** — points earning and redemption on `BookingCompleted` (the section above), the expiry cron, the weekly expiring-points warning and manual redemption are implemented; until a section is written here, read them from `docs/BOUNDED_CONTEXTS.md` § 2. Loyalty Context, `docs/DOMAIN_MODEL.md` § Loyalty Context (and § Expiration window), `docs/USE_CASES.md` UC-009 / UC-016 / UC-016b, and the code under `apps/backend/src/contexts/loyalty/`. Likewise there is no booking status-machine section here: the transition table is CLAUDE.md §5 / `.copilot/context.md` §5 and the aggregate (`booking-status-transition.ts`). Platform has one section above (the hotsite template catalogue); add another here the next time a story in Customer, Staff, Loyalty, Notification, or Platform introduces business logic complex enough to earn one — see this doc's own header for the "incremental, not upfront" rule, and `/story-discovery`'s checklist item that flags the decision at discovery time.
