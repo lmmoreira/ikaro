@@ -627,7 +627,7 @@ The relay VM is on-demand and destroyed after use, so its journal disappears wit
 
 ---
 
-### Story 9 — Skip a billing key with no adapter instead of nacking: one `tryResolve`, used by every registry caller, and a CI guard for the keys still unserved 🔴
+### Story 9 — Skip a billing key with no adapter instead of nacking: one `tryResolve`, used by every registry caller, and a CI guard for the keys still unserved 🔴 ✅ Done
 
 **Agent:** backend-ts
 **Complexity:** M
