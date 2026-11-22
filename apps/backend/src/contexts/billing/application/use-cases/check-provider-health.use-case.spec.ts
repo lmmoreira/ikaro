@@ -38,7 +38,7 @@ describe('CheckProviderHealthUseCase (UC-140 step 2)', () => {
     expect(result).toMatchObject({ webhookAlert: 'RAISED', reenableAttempted: true });
     expect(await h.health.findByKey(KEY)).toMatchObject({
       webhookStatus: 'PAUSED',
-      updatedAt: h.clock.now(),
+      webhookReenabledAt: h.clock.now(),
     });
   });
 
@@ -56,7 +56,7 @@ describe('CheckProviderHealthUseCase (UC-140 step 2)', () => {
   it('an unprocessed-looking older delivery (received before the re-enable) leaves it raised', async () => {
     h.provider.pauseWebhookQueue();
     await check();
-    const reenabledAt = (await h.health.findByKey(KEY))!.updatedAt;
+    const reenabledAt = (await h.health.findByKey(KEY))!.webhookReenabledAt!;
     await h.providerEvents.insertIfAbsent(
       new ProviderEventBuilder().withReceivedAt(new Date(reenabledAt.getTime() - 1000)).build(),
     );
@@ -68,7 +68,7 @@ describe('CheckProviderHealthUseCase (UC-140 step 2)', () => {
   it('a processed delivery received after the re-enable closes the alert', async () => {
     h.provider.pauseWebhookQueue();
     await check();
-    const reenabledAt = (await h.health.findByKey(KEY))!.updatedAt;
+    const reenabledAt = (await h.health.findByKey(KEY))!.webhookReenabledAt!;
     await h.providerEvents.insertIfAbsent(
       new ProviderEventBuilder().withReceivedAt(secondsAfter(reenabledAt, 5)).build(),
     );
@@ -126,11 +126,28 @@ describe('CheckProviderHealthUseCase (UC-140 step 2)', () => {
   it('a plain read never moves the re-enable instant', async () => {
     const stamped = new Date(SWEEP_NOW.getTime() - 5 * 3_600_000);
     await h.health.save(
-      new ProviderHealthBuilder().withMerchantProfileKey(KEY).withUpdatedAt(stamped).build(),
+      new ProviderHealthBuilder()
+        .withMerchantProfileKey(KEY)
+        .withWebhookReenabledAt(stamped)
+        .build(),
     );
 
     await check();
 
-    expect((await h.health.findByKey(KEY))?.updatedAt).toEqual(stamped);
+    expect((await h.health.findByKey(KEY))?.webhookReenabledAt).toEqual(stamped);
+  });
+
+  it('a reconcile write after the re-enable does not move the instant a delivery must post-date', async () => {
+    h.provider.pauseWebhookQueue();
+    await check();
+    const reenabledAt = (await h.health.findByKey(KEY))!.webhookReenabledAt!;
+    await h.providerEvents.insertIfAbsent(
+      new ProviderEventBuilder().withReceivedAt(secondsAfter(reenabledAt, 5)).build(),
+    );
+    // Reconcile ran after that delivery (it writes updated_at, never webhook_reenabled_at).
+    await h.health.recordReconcileOk(KEY, secondsAfter(reenabledAt, 60), false);
+    h.clock.advanceMs(3_600_000);
+
+    expect((await check()).webhookAlert).toBe('CLOSED');
   });
 });

@@ -15,6 +15,7 @@ const OVERWRITTEN_COLUMNS = [
   'freeze_active',
   'freeze_since',
   'health_read_failures',
+  'webhook_reenabled_at',
   'updated_at',
 ];
 
@@ -27,6 +28,7 @@ function toDomain(entity: ProviderHealthEntity): ProviderHealth {
     freezeActive: entity.freezeActive,
     freezeSince: entity.freezeSince,
     healthReadFailures: entity.healthReadFailures,
+    webhookReenabledAt: entity.webhookReenabledAt,
     updatedAt: entity.updatedAt,
   });
 }
@@ -40,6 +42,7 @@ function toEntity(health: ProviderHealth): ProviderHealthEntity {
   entity.freezeActive = health.freezeActive;
   entity.freezeSince = health.freezeSince;
   entity.healthReadFailures = health.healthReadFailures;
+  entity.webhookReenabledAt = health.webhookReenabledAt;
   entity.updatedAt = health.updatedAt;
   return entity;
 }
@@ -113,19 +116,25 @@ export class TypeOrmProviderHealthRepository implements IProviderHealthRepositor
     merchantProfileKey: string,
     webhookStatus: ProviderWebhookStatus,
     at: Date,
-    reenabled: boolean,
+    reenabledAt: Date | null,
   ): Promise<void> {
     const manager = getActiveEntityManager() ?? this.repo.manager;
     await manager
       .createQueryBuilder()
       .insert()
       .into(ProviderHealthEntity)
-      .values({ merchantProfileKey, webhookStatus, healthReadFailures: 0, updatedAt: at })
-      // `updated_at` is the re-enable instant the alert-closing rule compares a delivery against,
-      // so only the re-enable moves it (a plain read must not push the instant forward).
+      .values({
+        merchantProfileKey,
+        webhookStatus,
+        healthReadFailures: 0,
+        updatedAt: at,
+        ...(reenabledAt ? { webhookReenabledAt: reenabledAt } : {}),
+      })
+      // `webhook_reenabled_at` is the instant the alert-closing rule compares a delivery against:
+      // only a re-enable writes it, so a reconcile write can never push it forward.
       .orUpdate(
-        reenabled
-          ? ['webhook_status', 'health_read_failures', 'updated_at']
+        reenabledAt
+          ? ['webhook_status', 'health_read_failures', 'webhook_reenabled_at']
           : ['webhook_status', 'health_read_failures'],
         [KEY_COLUMN],
       )
@@ -146,15 +155,20 @@ export class TypeOrmProviderHealthRepository implements IProviderHealthRepositor
   async setFreeze(merchantProfileKey: string, since: Date | null): Promise<boolean> {
     const manager = getActiveEntityManager() ?? this.repo.manager;
     // Both columns in one statement (the table's CHECK keeps them together), and only when the
-    // state really changes, so two overlapping runs agree on who changed it.
+    // state really changes, so two overlapping runs agree on who changed it. Clearing also checks
+    // its own conditions in the statement (no failed read, a reconcile success after the freeze
+    // started), so a failed read written after the caller's snapshot cannot be cleared over.
     const result = await manager
       .createQueryBuilder()
       .update(ProviderHealthEntity)
       .set({ freezeActive: since !== null, freezeSince: since })
-      .where('merchantProfileKey = :merchantProfileKey AND freezeActive = :previous', {
-        merchantProfileKey,
-        previous: since === null,
-      })
+      .where(
+        since === null
+          ? `merchantProfileKey = :merchantProfileKey AND freezeActive = :previous
+             AND healthReadFailures = 0 AND lastReconcileOkAt > freezeSince`
+          : 'merchantProfileKey = :merchantProfileKey AND freezeActive = :previous',
+        { merchantProfileKey, previous: since === null },
+      )
       .execute();
     return (result.affected ?? 0) > 0;
   }

@@ -106,7 +106,7 @@ describe('Billing self-heal repository methods (integration, UC-140)', () => {
       await health.setFreeze(key, new Date(Date.now() - 2 * HOUR_MS));
       await health.recordHealthReadFailure(key, new Date());
 
-      await health.recordHealthReadOk(key, 'OK', new Date(), false);
+      await health.recordHealthReadOk(key, 'OK', new Date(), null);
 
       expect(await row(key)).toMatchObject({
         healthReadFailures: 0,
@@ -116,32 +116,50 @@ describe('Billing self-heal repository methods (integration, UC-140)', () => {
       });
     });
 
-    it('only a re-enable moves updated_at (the instant a delivery must post-date)', async () => {
+    it('only a re-enable writes webhook_reenabled_at, and a reconcile write never moves it', async () => {
       const key = newKey();
       const first = new Date(Date.now() - 3 * HOUR_MS);
-      await health.recordHealthReadOk(key, 'PAUSED', first, true);
+      await health.recordHealthReadOk(key, 'PAUSED', first, first);
 
-      await health.recordHealthReadOk(key, 'PAUSED', new Date(), false);
-      expect((await row(key)).updatedAt).toEqual(first);
+      await health.recordHealthReadOk(key, 'PAUSED', new Date(), null);
+      await health.recordReconcileOk(key, new Date(), true);
+      expect((await row(key)).webhookReenabledAt).toEqual(first);
 
       const reenabled = new Date();
-      await health.recordHealthReadOk(key, 'PAUSED', reenabled, true);
-      expect((await row(key)).updatedAt).toEqual(reenabled);
+      await health.recordHealthReadOk(key, 'PAUSED', reenabled, reenabled);
+      expect((await row(key)).webhookReenabledAt).toEqual(reenabled);
     });
 
     it('starts and ends the freeze with both columns together, so the table check never fires, and reports a no-op', async () => {
       const key = newKey();
-      await health.recordReconcileOk(key, new Date(), false);
-      const since = new Date();
+      await health.recordReconcileOk(key, new Date(Date.now() - 3 * HOUR_MS), false);
+      const since = new Date(Date.now() - HOUR_MS);
 
       await expect(health.setFreeze(key, since)).resolves.toBe(true);
       expect(await row(key)).toMatchObject({ freezeActive: true, freezeSince: since });
       await expect(health.setFreeze(key, since)).resolves.toBe(false);
       expect(await health.listFrozenKeys()).toContain(key);
 
+      // A reconcile success after the freeze started: it can now be cleared.
+      await health.recordReconcileOk(key, new Date(), false);
       await expect(health.setFreeze(key, null)).resolves.toBe(true);
       expect(await row(key)).toMatchObject({ freezeActive: false, freezeSince: null });
       await expect(health.setFreeze(key, null)).resolves.toBe(false);
+    });
+
+    it('does not clear a freeze over a failed health read or without a reconcile success after it started', async () => {
+      const key = newKey();
+      await health.recordReconcileOk(key, new Date(Date.now() - 3 * HOUR_MS), false);
+      await health.setFreeze(key, new Date(Date.now() - HOUR_MS));
+
+      // No reconcile success since the freeze started.
+      await expect(health.setFreeze(key, null)).resolves.toBe(false);
+
+      await health.recordReconcileOk(key, new Date(), false);
+      await health.recordHealthReadFailure(key, new Date());
+      // A reconcile success, but the latest health read failed: the statement itself refuses.
+      await expect(health.setFreeze(key, null)).resolves.toBe(false);
+      expect((await row(key)).freezeActive).toBe(true);
     });
 
     it('setting a freeze on a key with no row changes nothing (no row means not frozen)', async () => {

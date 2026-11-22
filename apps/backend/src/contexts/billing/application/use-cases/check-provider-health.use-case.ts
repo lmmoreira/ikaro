@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { AppLogger } from '../../../../shared/observability/app-logger';
+import { CLOCK, type IClock } from '../../../../shared/ports/clock.port';
 import { providerOfMerchantProfileKey } from '../../domain/merchant-profile-key';
 import type { ProviderWebhookStatus } from '../../domain/provider-health';
 import {
@@ -53,6 +54,7 @@ export class CheckProviderHealthUseCase {
     @Inject(BILLING_PROVIDER_REGISTRY) private readonly registry: BillingProviderRegistryPort,
     @Inject(PROVIDER_HEALTH_REPOSITORY) private readonly health: IProviderHealthRepository,
     @Inject(PROVIDER_EVENT_REPOSITORY) private readonly events: IProviderEventRepository,
+    @Inject(CLOCK) private readonly clock: IClock,
   ) {}
 
   async execute(input: CheckProviderHealthUseCaseInput): Promise<CheckProviderHealthUseCaseResult> {
@@ -74,9 +76,13 @@ export class CheckProviderHealthUseCase {
     if (paused) {
       result = await this.reenable(input, provider);
     } else if (previous?.webhookStatus === 'PAUSED') {
-      result = await this.closeIfDelivered(input, previous.updatedAt, reported);
+      result = await this.closeIfDelivered(
+        input,
+        previous.webhookReenabledAt ?? previous.updatedAt,
+        reported,
+      );
     } else {
-      await this.health.recordHealthReadOk(merchantProfileKey, reported, now, false);
+      await this.health.recordHealthReadOk(merchantProfileKey, reported, now, null);
       result = this.result(merchantProfileKey, 'NONE');
     }
 
@@ -119,7 +125,8 @@ export class CheckProviderHealthUseCase {
         error: err instanceof Error ? err.message : String(err),
       });
     }
-    await this.health.recordHealthReadOk(merchantProfileKey, 'PAUSED', now, true);
+    // Stamped after the call resolved: a delivery cannot predate a re-enable that has not happened.
+    await this.health.recordHealthReadOk(merchantProfileKey, 'PAUSED', now, this.clock.now());
     return {
       ...this.result(merchantProfileKey, 'RAISED'),
       reenableAttempted: true,
@@ -139,10 +146,10 @@ export class CheckProviderHealthUseCase {
     );
     if (!delivered) {
       // The provider says it is healthy again, but no delivery has proved it: the alert stays.
-      await this.health.recordHealthReadOk(merchantProfileKey, 'PAUSED', now, false);
+      await this.health.recordHealthReadOk(merchantProfileKey, 'PAUSED', now, null);
       return this.result(merchantProfileKey, 'RAISED');
     }
-    await this.health.recordHealthReadOk(merchantProfileKey, reported, now, false);
+    await this.health.recordHealthReadOk(merchantProfileKey, reported, now, null);
     return this.result(merchantProfileKey, 'CLOSED');
   }
 

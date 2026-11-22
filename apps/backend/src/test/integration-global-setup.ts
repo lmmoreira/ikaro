@@ -100,6 +100,7 @@ import { AddLoyaltyRedemptionPointsPerCurrencyUnit1748400000003 } from '../conte
 import { AddLoyaltyExpirySweepStateAndEntriesExpiresAtIndex1748500000045 } from '../contexts/loyalty/infrastructure/migrations/1748500000045-AddLoyaltyExpirySweepStateAndEntriesExpiresAtIndex';
 import { AddTenantsCreatedAtIndex1748500000047 } from '../contexts/platform/infrastructure/migrations/1748500000047-AddTenantsCreatedAtIndex';
 import { AddHealthReadFailuresToProviderHealth1748500000048 } from '../contexts/billing/infrastructure/migrations/1748500000048-AddHealthReadFailuresToProviderHealth';
+import { AddWebhookReenabledAtToProviderHealth1748500000049 } from '../contexts/billing/infrastructure/migrations/1748500000049-AddWebhookReenabledAtToProviderHealth';
 import { AddChargeVersion1748500000046 } from '../contexts/billing/infrastructure/migrations/1748500000046-AddChargeVersion';
 import { NotificationLogEntity } from '../contexts/notification/infrastructure/entities/notification-log.entity';
 import { NotificationTemplateEntity } from '../contexts/notification/infrastructure/entities/notification-template.entity';
@@ -301,6 +302,7 @@ export default async function globalSetup(): Promise<void> {
       AddChargeVersion1748500000046,
       AddTenantsCreatedAtIndex1748500000047,
       AddHealthReadFailuresToProviderHealth1748500000048,
+      AddWebhookReenabledAtToProviderHealth1748500000049,
     ],
     synchronize: false,
     migrationsRun: false,

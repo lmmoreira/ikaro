@@ -26,6 +26,9 @@ export class ProviderHealthEntity {
   @Column({ name: 'health_read_failures', type: 'smallint', default: 0 })
   healthReadFailures!: number;
 
+  @Column({ name: 'webhook_reenabled_at', type: 'timestamptz', nullable: true })
+  webhookReenabledAt!: Date | null;
+
   @Column({ name: 'updated_at', type: 'timestamptz' })
   updatedAt!: Date;
 }

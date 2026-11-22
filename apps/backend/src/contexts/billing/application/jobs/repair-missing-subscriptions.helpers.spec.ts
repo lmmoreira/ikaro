@@ -4,7 +4,7 @@ import {
   createSelfHealHarness,
   SWEEP_NOW,
 } from '../../../../test/infrastructure/billing-self-heal-harness';
-import { BILLING_JOB_PAGE_SIZE } from '../../domain/billing-constants';
+import { BILLING_JOB_PAGE_SIZE, SELF_HEAL_REPAIR_BUDGET_MS } from '../../domain/billing-constants';
 import { PROVISIONING_GRACE_MINUTES } from '../use-cases/get-tenant-access.use-case';
 
 const minutesBefore = (minutes: number): Date => new Date(SWEEP_NOW.getTime() - minutes * 60_000);
@@ -119,6 +119,34 @@ describe('RepairMissingSubscriptionsStep (UC-140 step 1)', () => {
 
     expect(result.repaired).toBe(1);
     expect(await h.subscriptions.findByTenantId(lastTenant)).not.toBeNull();
+  });
+
+  it('stops paging once the run budget has passed and says so, never reading past it', async () => {
+    for (let i = 0; i < BILLING_JOB_PAGE_SIZE; i += 1) {
+      const tenantId = seedTenant({ createdAt: minutesBefore(1000 + BILLING_JOB_PAGE_SIZE - i) });
+      await h.subscriptions.save(new SubscriptionBuilder().withTenantId(tenantId).build());
+    }
+    const beyondTheBudget = seedTenant({ createdAt: minutesBefore(30) });
+    const list = h.platform.listTenantsCreatedBefore.bind(h.platform);
+    const listing = jest
+      .spyOn(h.platform, 'listTenantsCreatedBefore')
+      .mockImplementation(async (...args) => {
+        const page = await list(...args);
+        h.clock.advanceMs(SELF_HEAL_REPAIR_BUDGET_MS);
+        return page;
+      });
+
+    const result = await run();
+
+    expect(result).toMatchObject({ truncated: true, repaired: 0 });
+    expect(listing).toHaveBeenCalledTimes(1);
+    expect(await h.subscriptions.findByTenantId(beyondTheBudget)).toBeNull();
+  });
+
+  it('a run inside its budget is not truncated', async () => {
+    seedTenant();
+
+    expect((await run()).truncated).toBe(false);
   });
 
   it("keeps going past one tenant's failure, logs it, and reports every failure", async () => {

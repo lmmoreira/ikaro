@@ -1,8 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { AppLogger } from '../../../../shared/observability/app-logger';
+import { CLOCK, type IClock } from '../../../../shared/ports/clock.port';
 import { mapSequentially } from '../../../../shared/utils/sequential';
-import { BILLING_JOB_PAGE_SIZE, SELF_HEAL_TENANT_SCAN_LIMIT } from '../../domain/billing-constants';
+import { BILLING_JOB_PAGE_SIZE, SELF_HEAL_REPAIR_BUDGET_MS } from '../../domain/billing-constants';
 import {
   BILLING_PLATFORM_PORT,
   type BillingTenantCursor,
@@ -30,7 +31,7 @@ export interface RepairMissingSubscriptionsStepResult {
   skippedInactive: number;
   /** Tenants whose repair threw; each one is logged with its id, and the run tried all the others. */
   failed: number;
-  /** The run reached `SELF_HEAL_TENANT_SCAN_LIMIT` before the listing was exhausted. */
+  /** The run reached `SELF_HEAL_REPAIR_BUDGET_MS` before the listing was exhausted. */
   truncated: boolean;
   /** Every failure the run kept going past, in order. */
   failures: readonly unknown[];
@@ -42,7 +43,7 @@ export interface RepairMissingSubscriptionsStepResult {
  * come from Platform's read-only keyset listing, one page at a time; each page is diffed against
  * Billing's own `subscriptions` by `findExistingTenantIds`, so no query joins across contexts. A
  * healthy tenant stays in the listing, so the walk always starts at the oldest tenant and runs to
- * the end or to `SELF_HEAL_TENANT_SCAN_LIMIT`.
+ * the end or to `SELF_HEAL_REPAIR_BUDGET_MS`.
  *
  * The repair has no registration and no event: the trial starts at the injected clock's now (a
  * full 14 days) with the tenant's country, timezone and slug, no `adminEmail` and no billing email
@@ -57,6 +58,7 @@ export class RepairMissingSubscriptionsStep {
     @Inject(BILLING_PLATFORM_PORT) private readonly platform: IBillingPlatformPort,
     @Inject(SUBSCRIPTION_REPOSITORY) private readonly subscriptions: ISubscriptionRepository,
     private readonly createTrial: CreateTrialSubscriptionUseCase,
+    @Inject(CLOCK) private readonly clock: IClock,
   ) {}
 
   async execute(
@@ -72,6 +74,7 @@ export class RepairMissingSubscriptionsStep {
     };
     const failures: unknown[] = [];
 
+    const deadline = this.clock.now().getTime() + SELF_HEAL_REPAIR_BUDGET_MS;
     let after: BillingTenantCursor | undefined;
     for (;;) {
       const page = await this.platform.listTenantsCreatedBefore(
@@ -83,7 +86,7 @@ export class RepairMissingSubscriptionsStep {
       await this.repairPage(page, input, result, failures);
       const last = page.at(-1);
       if (last === undefined || page.length < BILLING_JOB_PAGE_SIZE) break;
-      if (result.scanned >= SELF_HEAL_TENANT_SCAN_LIMIT) {
+      if (this.clock.now().getTime() >= deadline) {
         result.truncated = true;
         break;
       }

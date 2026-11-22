@@ -32,14 +32,16 @@ export interface IProviderHealthRepository {
   /**
    * Self-heal's write after a successful provider health read (UC-140): the webhook status and the
    * failed-read counter reset to 0, as a column-scoped upsert (it never touches the freeze or the
-   * reconcile instants). `reenabled` also stamps `updated_at`, the instant a webhook delivery must
-   * post-date to close the alert; a plain read leaves it. A key with no row gets one.
+   * reconcile instants). `reenabledAt`, when given, is stored as `webhook_reenabled_at`, the instant
+   * a processed delivery must post-date to close the alert; a plain read passes `null` and leaves
+   * it. Only a re-enable writes that column, so no other writer can move it. A key with no row
+   * gets one.
    */
   recordHealthReadOk(
     merchantProfileKey: string,
     webhookStatus: ProviderWebhookStatus,
     at: Date,
-    reenabled: boolean,
+    reenabledAt: Date | null,
   ): Promise<void>;
 
   /**
@@ -50,8 +52,10 @@ export interface IProviderHealthRepository {
 
   /**
    * Starts (`since` = an instant) or ends (`null`) the suspension freeze: `freeze_active` and
-   * `freeze_since` change together, and only when the state really changes. Returns `false` when
-   * the row was already in the requested state (or absent).
+   * `freeze_since` change together, and only when the state really changes. Clearing also requires,
+   * in the same statement, no failed health read and a reconcile success after the freeze started.
+   * Returns `false` when the row was already in the requested state, did not meet those conditions
+   * or is absent.
    */
   setFreeze(merchantProfileKey: string, since: Date | null): Promise<boolean>;
 }

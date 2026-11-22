@@ -1011,9 +1011,9 @@ flowchart TD
     H --> H1{read failed?}
     H1 -- yes --> H2[health_read_failures + 1]
     H1 -- no --> H3{paused?}
-    H3 -- yes --> H4[re-enable once, alert RAISED, stamp updated_at]
+    H3 -- yes --> H4[re-enable once, alert RAISED, stamp webhook_reenabled_at]
     H3 -- no --> H5{stored PAUSED?}
-    H5 -- yes --> H6{processed delivery newer than updated_at?}
+    H5 -- yes --> H6{processed delivery newer than webhook_reenabled_at?}
     H6 -- yes --> H7[alert CLOSED, status OK]
     H6 -- no --> H8[alert stays RAISED]
     A --> F[3 per provider account: freeze]
@@ -1022,12 +1022,12 @@ flowchart TD
     F1 -- yes --> F3{reconcile older than 24 h or 2 failed reads?}
     F3 -- yes --> F4[freeze_active and freeze_since set together]
     F3 -- no --> F5{frozen and a reconcile success after freeze_since and the last read ok?}
-    F5 -- yes --> F6[cleared together]
+    F5 -- yes --> F6[cleared together, conditions re-checked in the statement]
 ```
 
-**Repair.** Tenants come from Platform's keyset listing (`created_at ASC, id ASC`, served by `IDX_platform_tenants_created_at`), diffed per page against Billing's own `subscriptions`; no query joins across contexts. An inactive tenant is skipped and never repaired. The trial starts at the injected clock's now (a full trial, never at the tenant's creation) with the tenant's country, timezone and slug; there is no `adminEmail`, `registrationId` or `eventId`, so the repaired subscription is a default (non-exempt, no tax id) trial and an operator fixes an exempt tenant with UC-137. A healthy tenant stays in the listing, so a run always walks from the oldest tenant and stops at `SELF_HEAL_TENANT_SCAN_LIMIT` (20,000), logging `truncated`.
+**Repair.** Tenants come from Platform's keyset listing (`created_at ASC, id ASC`, served by `IDX_platform_tenants_created_at`), diffed per page against Billing's own `subscriptions`; no query joins across contexts. An inactive tenant is skipped and never repaired. The trial starts at the injected clock's now (a full trial, never at the tenant's creation) with the tenant's country, timezone and slug; there is no `adminEmail`, `registrationId` or `eventId`, so the repaired subscription is a default (non-exempt, no tax id) trial and an operator fixes an exempt tenant with UC-137. A healthy tenant stays in the listing, so a run always walks from the oldest tenant and stops at a 40 s time budget (`SELF_HEAL_REPAIR_BUDGET_MS`), logging `truncated`: a page is two indexed reads, so the budget is reached only at hundreds of thousands of tenants, and no cursor is kept between runs.
 
-**The alert is a log line, not a row.** `billing_provider_health` carries `webhookAlert` (`NONE`, `RAISED`, `CLOSED`) on every run. The stored `webhook_status` is `PAUSED` while the alert is open; it closes only when a `provider_events` row received after the re-enable (`provider_health.updated_at`) exists, never because the provider's flag cleared (a wrong token keeps answering `401` and pauses the queue again). Only the re-enable moves `updated_at`; reconcile's write also does, which can only delay the close, never advance it.
+**The alert is a log line, not a row.** `billing_provider_health` carries `webhookAlert` (`NONE`, `RAISED`, `CLOSED`) on every run. The stored `webhook_status` is `PAUSED` while the alert is open; it closes only when a `provider_events` row received after the re-enable (`provider_health.webhook_reenabled_at`, stamped after the re-enable call returned) exists, never because the provider's flag cleared (a wrong token keeps answering `401` and pauses the queue again). Only a re-enable writes that column, so reconcile's hourly `updated_at` write cannot move it.
 
 **The freeze.** Set when `last_reconcile_ok_at` (or `updated_at` when it is NULL) is older than 24 h, or after two consecutive failed health reads (`health_read_failures`, reset by a successful read); cleared only by a reconcile success newer than `freeze_since` and a successful read. No row means not frozen. The status sweep reads `listFrozenKeys()` and the dunning job skips the day-12 reminder while a key is frozen.
 

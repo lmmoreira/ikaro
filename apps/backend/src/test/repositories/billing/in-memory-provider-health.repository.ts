@@ -42,6 +42,7 @@ export class InMemoryProviderHealthRepository implements IProviderHealthReposito
         freezeActive: current?.freezeActive ?? false,
         freezeSince: current?.freezeSince ?? null,
         healthReadFailures: current?.healthReadFailures ?? 0,
+        webhookReenabledAt: current?.webhookReenabledAt ?? null,
         lastReconcileOkAt: at,
         lastFullReconcileAt: fullPass ? at : (current?.lastFullReconcileAt ?? null),
         updatedAt: at,
@@ -53,7 +54,7 @@ export class InMemoryProviderHealthRepository implements IProviderHealthReposito
     merchantProfileKey: string,
     webhookStatus: ProviderWebhookStatus,
     at: Date,
-    reenabled: boolean,
+    reenabledAt: Date | null,
   ): Promise<void> {
     const current = this.saved.find((row) => row.merchantProfileKey === merchantProfileKey);
     this.replace(
@@ -65,7 +66,8 @@ export class InMemoryProviderHealthRepository implements IProviderHealthReposito
         freezeActive: current?.freezeActive ?? false,
         freezeSince: current?.freezeSince ?? null,
         healthReadFailures: 0,
-        updatedAt: reenabled || !current ? at : current.updatedAt,
+        webhookReenabledAt: reenabledAt ?? current?.webhookReenabledAt ?? null,
+        updatedAt: current?.updatedAt ?? at,
       }),
     );
   }
@@ -82,6 +84,7 @@ export class InMemoryProviderHealthRepository implements IProviderHealthReposito
         freezeActive: current?.freezeActive ?? false,
         freezeSince: current?.freezeSince ?? null,
         healthReadFailures: failures,
+        webhookReenabledAt: current?.webhookReenabledAt ?? null,
         updatedAt: current?.updatedAt ?? at,
       }),
     );
@@ -91,6 +94,13 @@ export class InMemoryProviderHealthRepository implements IProviderHealthReposito
   async setFreeze(merchantProfileKey: string, since: Date | null): Promise<boolean> {
     const current = this.saved.find((row) => row.merchantProfileKey === merchantProfileKey);
     if (!current || current.freezeActive === (since !== null)) return false;
+    // The same conditions the real statement checks when it clears.
+    const clearable =
+      current.healthReadFailures === 0 &&
+      current.lastReconcileOkAt !== null &&
+      current.freezeSince !== null &&
+      current.lastReconcileOkAt.getTime() > current.freezeSince.getTime();
+    if (since === null && !clearable) return false;
     this.replace(
       ProviderHealth.reconstitute({
         merchantProfileKey,
@@ -100,6 +110,7 @@ export class InMemoryProviderHealthRepository implements IProviderHealthReposito
         freezeActive: since !== null,
         freezeSince: since,
         healthReadFailures: current.healthReadFailures,
+        webhookReenabledAt: current?.webhookReenabledAt ?? null,
         updatedAt: current.updatedAt,
       }),
     );

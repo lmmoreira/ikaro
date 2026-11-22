@@ -41,12 +41,19 @@ export class InMemorySignupRegistrationRepository implements ISignupRegistration
   }
 
   async releaseExpiredReservations(cutoff: Date): Promise<number> {
-    const before = this.saved.length;
-    const kept = this.saved.filter(
-      (row) => !(row.status === 'RESERVED' && row.createdAt.getTime() < cutoff.getTime()),
+    const expired = this.saved.filter(
+      (row) => row.status === 'RESERVED' && row.createdAt.getTime() < cutoff.getTime(),
     );
+    const kept = this.saved.filter((row) => !expired.includes(row));
     this.saved.splice(0, this.saved.length, ...kept);
-    return before - kept.length;
+    // `save()` seeded one RESERVED history entry per self-signup; releasing the row removes it too.
+    for (const row of expired) {
+      if (row.source !== 'SELF_SIGNUP' || row.googleSub === null) continue;
+      const entries = this.history.get(row.googleSub) ?? [];
+      const index = entries.findIndex((entry) => entry.status === 'RESERVED');
+      if (index !== -1) entries.splice(index, 1);
+    }
+    return expired.length;
   }
 
   // Mirrors the adapter's conditional UPDATE: only a stored RESERVED row completes.

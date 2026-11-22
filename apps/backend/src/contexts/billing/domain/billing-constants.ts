@@ -67,8 +67,10 @@ export const SUSPENSION_FREEZE_RECONCILE_STALE_HOURS = 24;
 export const SUSPENSION_FREEZE_FAILED_HEALTH_READS = 2;
 
 /**
- * UC-140: the most tenants one self-heal run scans for a missing subscription. A healthy tenant
- * stays in the listing (it is old and has its subscription), so a run walks the keyset from the
- * oldest tenant; past this cap the run logs `truncated` and the tail waits for a later run.
+ * UC-140: how long one self-heal run keeps paging tenants for a missing subscription, inside the
+ * push subscription's 60 s ack deadline. A healthy tenant stays in the listing (it is old and has
+ * its subscription), so every run walks the keyset from the oldest tenant to the end. A page is two
+ * indexed reads, so the budget is reached only at hundreds of thousands of tenants; past it the run
+ * logs `truncated` and the newest tenants are not reached (no cursor is kept between runs).
  */
-export const SELF_HEAL_TENANT_SCAN_LIMIT = 20_000;
+export const SELF_HEAL_REPAIR_BUDGET_MS = 40_000;

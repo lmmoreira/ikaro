@@ -1477,7 +1477,7 @@ Indexes: the partial unique `UQ_billing_tenant_purge_jobs_in_flight` on `(tenant
 Execution record only: the suspension timestamp decides eligibility, and the job is **not** a `Subscription` status. The `BILLING` step anonymizes in place: it keeps `subscriptions` (no personal data) and every `charges` / `charge_lines` / `charge_tax_lines` row for fiscal reasons (`tenant_id` stays as an opaque id), and deletes the `billing_accounts` personal fields, the `signup_registrations` row, `provider_events` and the `operator_audit` payloads.
 
 ### `billing.provider_health` *(no `tenant_id`)*
-One row per `merchant_profile_key`: `last_reconcile_ok_at`, `last_full_reconcile_at`, `webhook_status` (`OK` \| `PAUSED` \| `UNKNOWN`), `freeze_active`, `freeze_since`, `health_read_failures`, `updated_at`.
+One row per `merchant_profile_key`: `last_reconcile_ok_at`, `last_full_reconcile_at`, `webhook_status` (`OK` \| `PAUSED` \| `UNKNOWN`), `freeze_active`, `freeze_since`, `health_read_failures`, `webhook_reenabled_at`, `updated_at`.
 
 | Column | Type | Constraints |
 |---|---|---|
@@ -1488,9 +1488,10 @@ One row per `merchant_profile_key`: `last_reconcile_ok_at`, `last_full_reconcile
 | `freeze_active` | BOOLEAN | NOT NULL DEFAULT false |
 | `freeze_since` | TIMESTAMPTZ | NULLABLE; CHECK `freeze_active = (freeze_since IS NOT NULL)` |
 | `health_read_failures` | SMALLINT | NOT NULL DEFAULT 0; consecutive failed provider health reads (the second one starts the freeze; a successful read resets it). Added by `AddHealthReadFailuresToProviderHealth` (M26-S08, expand-only) |
+| `webhook_reenabled_at` | TIMESTAMPTZ | NULLABLE; when self-heal last re-enabled the provider's webhook queue; a processed `provider_events` row received after it closes the alert. Only a re-enable writes it. Added by `AddWebhookReenabledAtToProviderHealth` (M26-S08, expand-only) |
 | `updated_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() |
 
-Types are the minimum M25-S03 needs (the discovery data model lists column names only). Written by the reconcile job (built, M26-S07: `last_reconcile_ok_at` and, on a complete full pass, `last_full_reconcile_at`, by a column-scoped upsert that never touches the freeze columns, so a freeze written while a run was in flight survives it) and the self-heal job (built, M26-S08: the webhook status, the failed-read counter and the freeze, each by a column-scoped write; `updated_at` is moved by the webhook re-enable, the instant a delivery must post-date to close the alert, and by reconcile); read by the status sweep, which applies no `NON_PAYMENT` suspension while `freeze_active` (a scheduled-cancel suspension, `cancelAt` reached, is unaffected).
+Types are the minimum M25-S03 needs (the discovery data model lists column names only). Written by the reconcile job (built, M26-S07: `last_reconcile_ok_at` and, on a complete full pass, `last_full_reconcile_at`, by a column-scoped upsert that never touches the freeze columns, so a freeze written while a run was in flight survives it) and the self-heal job (built, M26-S08: the webhook status, the failed-read counter and the freeze, each by a column-scoped write; the instant a delivery must post-date to close the alert is `webhook_reenabled_at`, written only by a re-enable); read by the status sweep, which applies no `NON_PAYMENT` suspension while `freeze_active` (a scheduled-cancel suspension, `cancelAt` reached, is unaffected).
 
 ### `billing.operator_audit` — who changed what
 | Column | Type | Constraints |

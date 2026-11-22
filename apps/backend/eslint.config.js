@@ -183,6 +183,7 @@ const PERSISTENCE_BYPASS_IGNORES = [
   'src/contexts/billing/infrastructure/migrations/1748500000046-AddChargeVersion.ts',
   'src/contexts/platform/infrastructure/migrations/1748500000047-AddTenantsCreatedAtIndex.ts',
   'src/contexts/billing/infrastructure/migrations/1748500000048-AddHealthReadFailuresToProviderHealth.ts',
+  'src/contexts/billing/infrastructure/migrations/1748500000049-AddWebhookReenabledAtToProviderHealth.ts',
   'src/contexts/notification/infrastructure/migrations/1748500000044-AddTenantUnavailableCustomerTemplate.ts',
   'src/contexts/billing/infrastructure/repositories/typeorm-feature-price.repository.ts',
   'src/contexts/billing/infrastructure/repositories/typeorm-subscription.repository.ts',
@@ -217,6 +218,9 @@ const PERSISTENCE_BYPASS_IGNORES = [
   'src/contexts/platform/infrastructure/repositories/typeorm-hotsite-config.repository.ts',
   'src/contexts/platform/infrastructure/repositories/typeorm-lead-form-config.repository.ts',
   'src/contexts/platform/infrastructure/repositories/typeorm-lead-form-submission.repository.ts',
+  // A query-builder helper of the tenant repository, kept beside it so its integration spec can
+  // EXPLAIN the exact SQL (the same reviewed shape as typeorm-subscription.sweep-queries.ts): it
+  // only builds a `SelectQueryBuilder` for the allowlisted adapter to run, and publishes nothing.
   'src/contexts/platform/infrastructure/repositories/typeorm-tenant.age-query.ts',
   'src/contexts/platform/infrastructure/repositories/typeorm-tenant.repository.ts',
   'src/contexts/staff/infrastructure/migrations/1716600000002-CreateStaffStaff.ts',

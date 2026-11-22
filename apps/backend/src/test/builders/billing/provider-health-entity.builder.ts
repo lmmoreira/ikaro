@@ -7,6 +7,7 @@ export class ProviderHealthEntityBuilder {
   private webhookStatus = 'OK';
   private freezeSince: Date | null = null;
   private healthReadFailures = 0;
+  private webhookReenabledAt: Date | null = null;
   private updatedAt = new Date(Date.now() - 1000);
 
   withMerchantProfileKey(merchantProfileKey: string): this {
@@ -40,6 +41,11 @@ export class ProviderHealthEntityBuilder {
     return this;
   }
 
+  withWebhookReenabledAt(webhookReenabledAt: Date | null): this {
+    this.webhookReenabledAt = webhookReenabledAt;
+    return this;
+  }
+
   withUpdatedAt(updatedAt: Date): this {
     this.updatedAt = updatedAt;
     return this;
@@ -54,6 +60,7 @@ export class ProviderHealthEntityBuilder {
     e.freezeActive = this.freezeSince !== null;
     e.freezeSince = this.freezeSince;
     e.healthReadFailures = this.healthReadFailures;
+    e.webhookReenabledAt = this.webhookReenabledAt;
     e.updatedAt = this.updatedAt;
     return e;
   }

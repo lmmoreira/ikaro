@@ -15,9 +15,12 @@ import { SelfHealJob } from './self-heal.job';
 
 const HOUR_MS = 3_600_000;
 
-// The job over the real repositories and the fake provider. It selects across the whole database,
-// so the Platform side is the in-memory double (it lists only this spec's tenants) and the
-// provider accounts are this spec's: nothing here can repair, freeze or heal another suite's rows.
+// The job over the real repositories and the fake provider. Its repair and provider-account reads
+// select across the whole database, so the Platform side is the in-memory double (it lists only
+// this spec's tenants) and the provider accounts are the ones a test names: the job cannot repair,
+// freeze or heal another suite's rows. The status sweep a test runs afterwards is the existing
+// cross-tenant job and is isolated the way its own integration spec is: every other suite's rows
+// are recent or in the future, so none is due.
 describe('SelfHealJob (integration, UC-140)', () => {
   let world: SweepWorld;
   let job: SelfHealJob;
@@ -43,9 +46,19 @@ describe('SelfHealJob (integration, UC-140)', () => {
     job = new SelfHealJob(
       world.subscriptions,
       world.clock,
-      new RepairMissingSubscriptionsStep(world.platform, world.subscriptions, createTrial),
+      new RepairMissingSubscriptionsStep(
+        world.platform,
+        world.subscriptions,
+        createTrial,
+        world.clock,
+      ),
       new ReleaseStaleSignupRegistrationsUseCase(registrationRepo),
-      new CheckProviderHealthUseCase(world.registry, world.health, world.providerEvents),
+      new CheckProviderHealthUseCase(
+        world.registry,
+        world.health,
+        world.providerEvents,
+        world.clock,
+      ),
       evaluateFreeze,
     );
     // The accounts the run visits: none of the shared database's keys (BRL_FAKE belongs to every
@@ -231,20 +244,27 @@ describe('SelfHealJob (integration, UC-140)', () => {
     const before = await world.health.findByKey('BRL_FAKE');
     world.provider.pauseWebhookQueue();
 
-    const result = await run();
+    try {
+      const result = await run();
 
-    expect(result.health).toMatchObject({
-      ok: true,
-      value: [{ merchantProfileKey: 'BRL_FAKE', webhookAlert: 'RAISED', reenableAttempted: true }],
-    });
-    expect((await world.health.findByKey('BRL_FAKE'))?.webhookStatus).toBe('PAUSED');
-    // Put the shared row back the way this spec found it.
-    if (before === null) {
-      await world.ds.query(
-        `DELETE FROM "billing"."provider_health" WHERE "merchant_profile_key" = 'BRL_FAKE'`,
-      );
-    } else {
-      await world.health.save(before);
+      expect(result.health).toMatchObject({
+        ok: true,
+        value: [
+          { merchantProfileKey: 'BRL_FAKE', webhookAlert: 'RAISED', reenableAttempted: true },
+        ],
+      });
+      const row = await world.health.findByKey('BRL_FAKE');
+      expect(row?.webhookStatus).toBe('PAUSED');
+      expect(row?.webhookReenabledAt).not.toBeNull();
+    } finally {
+      // Put the shared row back the way this spec found it, even when an assertion failed.
+      if (before === null) {
+        await world.ds.query(
+          `DELETE FROM "billing"."provider_health" WHERE "merchant_profile_key" = 'BRL_FAKE'`,
+        );
+      } else {
+        await world.health.save(before);
+      }
     }
   });
 });

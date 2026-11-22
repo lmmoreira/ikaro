@@ -32,9 +32,19 @@ export function createSelfHealHarness() {
     base.txManager,
     provisioning,
   );
-  const repair = new RepairMissingSubscriptionsStep(base.platform, base.subscriptions, createTrial);
+  const repair = new RepairMissingSubscriptionsStep(
+    base.platform,
+    base.subscriptions,
+    createTrial,
+    base.clock,
+  );
   const release = new ReleaseStaleSignupRegistrationsUseCase(registrations);
-  const checkHealth = new CheckProviderHealthUseCase(registry, base.health, base.providerEvents);
+  const checkHealth = new CheckProviderHealthUseCase(
+    registry,
+    base.health,
+    base.providerEvents,
+    base.clock,
+  );
   const evaluateFreeze = new EvaluateSuspensionFreezeUseCase(base.health);
   const selfHeal = new SelfHealJob(
     base.subscriptions,

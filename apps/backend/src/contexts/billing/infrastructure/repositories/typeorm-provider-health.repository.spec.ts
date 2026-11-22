@@ -123,6 +123,7 @@ describe('TypeOrmProviderHealthRepository', () => {
       'freeze_active',
       'freeze_since',
       'health_read_failures',
+      'webhook_reenabled_at',
       'updated_at',
     ]);
     expect(upserts[0].values).toMatchObject({ merchantProfileKey: 'BRL_FAKE' });
@@ -151,15 +152,15 @@ describe('TypeOrmProviderHealthRepository', () => {
     expect(upserts[1].values).toMatchObject({ lastFullReconcileAt: at });
   });
 
-  it('records a successful health read as a column-scoped upsert: the re-enable alone moves updated_at', async () => {
+  it('records a successful health read as a column-scoped upsert: the re-enable alone writes webhook_reenabled_at', async () => {
     const at = new Date('2026-03-10T15:00:00Z');
 
-    await repo.recordHealthReadOk('BRL_FAKE', 'OK', at, false);
-    await repo.recordHealthReadOk('BRL_FAKE', 'PAUSED', at, true);
+    await repo.recordHealthReadOk('BRL_FAKE', 'OK', at, null);
+    await repo.recordHealthReadOk('BRL_FAKE', 'PAUSED', at, at);
 
     expect(upserts.map((call) => call.overwritten)).toEqual([
       ['webhook_status', 'health_read_failures'],
-      ['webhook_status', 'health_read_failures', 'updated_at'],
+      ['webhook_status', 'health_read_failures', 'webhook_reenabled_at'],
     ]);
     expect(upserts[0].values).toMatchObject({ webhookStatus: 'OK', healthReadFailures: 0 });
     // Never the freeze or the reconcile instants.
@@ -199,6 +200,10 @@ describe('TypeOrmProviderHealthRepository', () => {
     ]);
     expect(updates[0].params).toMatchObject({ merchantProfileKey: 'BRL_FAKE', previous: false });
     expect(updates[1].params).toMatchObject({ previous: true });
+    // Only the clearing statement carries the conditions that make it safe.
+    expect(updates[0].where).not.toContain('healthReadFailures = 0');
+    expect(updates[1].where).toContain('healthReadFailures = 0');
+    expect(updates[1].where).toContain('lastReconcileOkAt > freezeSince');
   });
 
   it('reports that nothing changed when the row was already in the requested state', async () => {
