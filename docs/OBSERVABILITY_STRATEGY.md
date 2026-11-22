@@ -143,7 +143,7 @@ Every policy emails the `notification_email` channel. Thresholds are module vari
 - charge creation stuck (`provider_creation_status = PENDING` with 3 or more attempts, or for more than 1 hour);
 - dispute opened (the webhook logs a structured line when a chargeback is requested: access is unchanged, but the evidence deadline is short);
 - billing job did not run (issue, sweep, reminders, reconcile: all six scheduler jobs are created paused in production, so a forgotten enable must page);
-- missing subscription (a tenant older than 30 minutes still has none, i.e. self-heal could not create it; the billing job names are in `docs/API_CONTRACTS.md` § Billing cron triggers (UC-113, UC-114, UC-115, UC-116, UC-132, UC-139, UC-140));
+- missing subscription (a tenant older than 90 minutes still has none, i.e. self-heal could not create it: the 15-minute provisioning window plus the next hourly run is 75 minutes at worst, so an earlier alert would fire before self-heal has had its run; the job logs one `billing_self_heal_run` line per run with the four step results, a `billing_self_heal_repair_failed` line per tenant it could not repair, and `billing_provider_health` per provider account, which the log-based metrics read; the billing job names are in `docs/API_CONTRACTS.md` § Billing cron triggers (UC-113, UC-114, UC-115, UC-116, UC-132, UC-139, UC-140));
 - purge step stuck;
 - missing platform billing template (UC-124 A1: a billing email could not be rendered; money-critical, so it alerts at runtime in addition to the startup/CI checks);
 - suspension freeze active.
