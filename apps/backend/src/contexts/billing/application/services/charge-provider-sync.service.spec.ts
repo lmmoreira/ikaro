@@ -250,4 +250,30 @@ describe('ChargeProviderSyncService (UC-116)', () => {
 
     expect(charge.status).toBe('PENDING');
   });
+
+  describe('a key no adapter serves yet', () => {
+    it('is SKIPPED, logged at warn and never reaches the provider, with no error', async () => {
+      const warn = jest.spyOn(AppLogger.prototype, 'warn').mockImplementation();
+      const error = jest.spyOn(AppLogger.prototype, 'error').mockImplementation();
+      const subscription = new SubscriptionBuilder()
+        .withStatus('ACTIVE')
+        .withMerchantProfileKey('BRL_ASAAS_SANDBOX')
+        .withItems([h.hotsiteItem()])
+        .build();
+      await h.seedTenant(subscription);
+      const charge = await h.seedCharge(subscription, { dueDate: '2026-03-10' });
+      const fetch = jest.spyOn(h.provider, 'fetchChargeStatus');
+
+      const result = await h.sync.sync(command(charge));
+
+      expect(result).toEqual({ outcome: 'SKIPPED', merchantProfileKey: null });
+      expect(fetch).not.toHaveBeenCalled();
+      expect(warn).toHaveBeenCalledWith('billing_provider_not_supported: skipped', {
+        tenantId: charge.tenantId,
+        chargeId: charge.id,
+        merchantProfileKey: 'BRL_ASAAS_SANDBOX',
+      });
+      expect(error).not.toHaveBeenCalled();
+    });
+  });
 });

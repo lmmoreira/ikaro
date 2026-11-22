@@ -206,4 +206,28 @@ describe('ReconcileChargesJob (integration, UC-116)', () => {
       expect(fetched).not.toHaveBeenCalled();
     });
   });
+
+  // The staging state: the M25-S05 backfill gave every tenant `BRL_ASAAS_SANDBOX`, and the registry
+  // has no adapter for it until M26-S37. The run used to throw on it, nack and dead-letter.
+  it('a subscription on a key no adapter serves yet does not fail the run: the served account is still reconciled', async () => {
+    const sandbox = await world.seedSubscription({
+      configure: (b) => b.withStatus('ACTIVE').withMerchantProfileKey('BRL_ASAAS_SANDBOX'),
+    });
+    const tenant = await overdueTenant();
+    const charge = await world.seedCharge(tenant, {
+      dueDate: addDaysUTC(todayUTC(), -5),
+      status: 'OVERDUE',
+    });
+    world.provider.simulatePayment(charge.providerChargeId!, 'PIX');
+
+    const result = await run();
+
+    expect(result.drifted).toBeGreaterThanOrEqual(1);
+    expect(await statusOf(tenant.tenantId)).toBe('ACTIVE');
+    expect((await world.subscriptionRow(sandbox.tenantId)).merchantProfileKey).toBe(
+      'BRL_ASAAS_SANDBOX',
+    );
+    expect(await world.health.findByKey('BRL_ASAAS_SANDBOX')).toBeNull();
+    expect((await world.health.findByKey('BRL_FAKE'))?.lastReconcileOkAt).not.toBeNull();
+  });
 });

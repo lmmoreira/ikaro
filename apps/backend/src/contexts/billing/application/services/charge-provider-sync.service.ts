@@ -82,7 +82,15 @@ export class ChargeProviderSyncService {
     if (target === null) return { outcome: 'SKIPPED', merchantProfileKey: null };
     const { charge, subscription } = target;
     const merchantProfileKey = subscription.merchantProfileKey;
-    const adapter = this.registry.resolve(merchantProfileKey);
+    // A key with no adapter yet is a skip, never a crash: no provider call was made.
+    const adapter = this.registry.tryResolve(merchantProfileKey);
+    if (adapter === null) {
+      this.logger.warn('billing_provider_not_supported: skipped', {
+        ...this.ids(command),
+        merchantProfileKey,
+      });
+      return { outcome: 'SKIPPED', merchantProfileKey: null };
+    }
     const status = await adapter.fetchChargeStatus(target.providerChargeId);
     const mismatch = chargeStatusMismatch(status, charge);
     if (mismatch !== null) {

@@ -31,9 +31,16 @@ export class BillingProviderRegistry implements BillingProviderRegistryPort {
   }
 
   resolve(merchantProfileKey: string): BillingProviderPort {
-    assertMerchantProfileKeyAllowed(this.appEnv, merchantProfileKey);
-    const adapter = this.adapters.get(merchantProfileKey);
+    const adapter = this.tryResolve(merchantProfileKey);
     if (!adapter) throw new ProviderNotSupportedError(`merchant profile key ${merchantProfileKey}`);
     return adapter;
+  }
+
+  // The environment rule still throws: only "no adapter" is a skip, never a key that must not run
+  // here. It looks the key up in the map and catches nothing, so an adapter's own
+  // `ProviderNotSupportedError` (an operation it lacks) is never mistaken for a missing adapter.
+  tryResolve(merchantProfileKey: string): BillingProviderPort | null {
+    assertMerchantProfileKeyAllowed(this.appEnv, merchantProfileKey);
+    return this.adapters.get(merchantProfileKey) ?? null;
   }
 }

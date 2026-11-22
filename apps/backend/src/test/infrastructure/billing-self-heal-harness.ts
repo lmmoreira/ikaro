@@ -1,4 +1,5 @@
 import { SelfHealJob } from '../../contexts/billing/application/jobs/self-heal.job';
+import { ProviderAccountsService } from '../../contexts/billing/application/services/provider-accounts.service';
 import type { BillingProvisioningConfig } from '../../contexts/billing/application/ports/billing-provisioning-config.port';
 import { CheckProviderHealthUseCase } from '../../contexts/billing/application/use-cases/check-provider-health.use-case';
 import { CreateTrialSubscriptionUseCase } from '../../contexts/billing/application/use-cases/create-trial-subscription.use-case';
@@ -46,8 +47,9 @@ export function createSelfHealHarness() {
     base.clock,
   );
   const evaluateFreeze = new EvaluateSuspensionFreezeUseCase(base.health);
+  const providerAccounts = new ProviderAccountsService(base.subscriptions, registry);
   const selfHeal = new SelfHealJob(
-    base.subscriptions,
+    providerAccounts,
     base.clock,
     repair,
     release,
@@ -57,6 +59,7 @@ export function createSelfHealHarness() {
   return {
     ...base,
     registry,
+    providerAccounts,
     registrations,
     inbox,
     createTrial,

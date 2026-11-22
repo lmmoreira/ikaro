@@ -103,6 +103,18 @@ export interface BillingProviderPort {
  * select it. Every use case injects the registry, never a bare `BillingProviderPort` token.
  */
 export interface BillingProviderRegistryPort {
-  /** Throws `MerchantProfileKeyNotAllowedError` or `ProviderNotSupportedError`. */
+  /**
+   * For a caller that must answer the user or fail loudly (the webhook, a manager action).
+   * Throws `MerchantProfileKeyNotAllowedError` or `ProviderNotSupportedError`.
+   */
   resolve(merchantProfileKey: string): BillingProviderPort;
+
+  /**
+   * For a background caller (a cron job, an event handler, a service a job calls): a key with no
+   * adapter yet (a sandbox key before M26-S37, a US key before M28, a live key whose secret is
+   * unset) answers `null`, and the caller logs `billing_provider_not_supported: skipped` at `warn`
+   * and moves on, so the message is acked and never retried. A key not allowed in this
+   * environment still throws `MerchantProfileKeyNotAllowedError`: that is misconfiguration.
+   */
+  tryResolve(merchantProfileKey: string): BillingProviderPort | null;
 }

@@ -5,6 +5,7 @@ import {
   SWEEP_NOW,
 } from '../../../../test/infrastructure/billing-reconcile-harness';
 import type { Charge } from '../../domain/charge.aggregate';
+import { MerchantProfileKeyNotAllowedError } from '../../domain/errors/billing-provider.errors';
 import type { Subscription } from '../../domain/subscription.aggregate';
 
 // SWEEP_NOW is 15:00 UTC on 2026-03-10 (12:00 in São Paulo): past the daily full-pass hour.
@@ -417,6 +418,52 @@ describe('ReconcileChargesJob (UC-116)', () => {
       await run();
 
       expect(charge.providerCancelPending).toBe(true);
+    });
+  });
+
+  describe('a provider account no adapter serves yet (a staging sandbox key before M26-S37)', () => {
+    beforeEach(fullPassDone);
+
+    it('is skipped and logged at warn, the served account is still reconciled, and the run does not fail', async () => {
+      const warn = jest.spyOn(AppLogger.prototype, 'warn').mockImplementation();
+      const error = jest.spyOn(AppLogger.prototype, 'error').mockImplementation();
+      await tenant('ACTIVE', (b) => b.withMerchantProfileKey('BRL_ASAAS_SANDBOX'));
+      await h.seedCharge(await tenant('PAST_DUE'), { dueDate: '2026-03-01' });
+
+      const result = await run();
+
+      expect(result.checked).toBe(1);
+      expect(result.advanced).toBe(1);
+      expect((await healthRow())?.lastReconcileOkAt).toEqual(SWEEP_NOW);
+      expect(await h.health.findByKey('BRL_ASAAS_SANDBOX')).toBeNull();
+      expect(warn).toHaveBeenCalledWith('billing_provider_not_supported: skipped', {
+        merchantProfileKey: 'BRL_ASAAS_SANDBOX',
+      });
+      expect(error).not.toHaveBeenCalled();
+    });
+
+    it('a run whose only account has no adapter succeeds and advances nothing', async () => {
+      jest.spyOn(AppLogger.prototype, 'warn').mockImplementation();
+      await tenant('ACTIVE', (b) => b.withMerchantProfileKey('BRL_ASAAS_SANDBOX'));
+      const health = jest.spyOn(h.provider, 'readAccountHealth');
+
+      const result = await run();
+
+      expect(result).toMatchObject({ checked: 0, advanced: 0, failed: 0 });
+      expect(health).not.toHaveBeenCalled();
+    });
+
+    // Only "no adapter" is skipped: a key the environment forbids fails its own account, loudly,
+    // while a charge of the served account is still read in the same run.
+    it('a key the environment forbids fails the run but never hides the served account', async () => {
+      jest.spyOn(AppLogger.prototype, 'error').mockImplementation();
+      await tenant('ACTIVE', (b) => b.withMerchantProfileKey('BRL_ASAAS_LIVE'));
+      const charge = await h.seedCharge(await tenant('PAST_DUE'), { dueDate: '2026-03-01' });
+      h.provider.simulatePayment(charge.providerChargeId!, 'PIX');
+
+      await expect(run()).rejects.toBeInstanceOf(MerchantProfileKeyNotAllowedError);
+
+      expect(charge.status).toBe('PAID');
     });
   });
 });

@@ -2,10 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import { CLOCK, type IClock } from '../../../../shared/ports/clock.port';
 import { mapSequentially } from '../../../../shared/utils/sequential';
-import {
-  ISubscriptionRepository,
-  SUBSCRIPTION_REPOSITORY,
-} from '../ports/subscription-repository.port';
+import { ProviderAccountsService } from '../services/provider-accounts.service';
 import {
   CheckProviderHealthUseCase,
   type CheckProviderHealthUseCaseResult,
@@ -43,7 +40,7 @@ export interface SelfHealJobResult {
  * (3) suspension freeze. A step's failure never stops the others; the run logs its one
  * `billing_self_heal_run` line with the four step results (S36's alerts read it), then rethrows the
  * first failure, so the trigger message is nacked and redelivered (every step is idempotent).
- * Provider accounts are the distinct `merchant_profile_key`s subscriptions use, as reconcile's.
+ * Provider accounts are the keys `ProviderAccountsService` serves (reconcile's too): a key no adapter serves yet is skipped and logged, never a failed step.
  *
  * Nothing here raises a domain event: a repaired trial raises nothing new.
  */
@@ -52,7 +49,7 @@ export class SelfHealJob {
   private readonly logger = new AppLogger(SelfHealJob.name);
 
   constructor(
-    @Inject(SUBSCRIPTION_REPOSITORY) private readonly subscriptions: ISubscriptionRepository,
+    private readonly providerAccounts: ProviderAccountsService,
     @Inject(CLOCK) private readonly clock: IClock,
     private readonly repair: RepairMissingSubscriptionsStep,
     private readonly release: ReleaseStaleSignupRegistrationsUseCase,
@@ -77,9 +74,7 @@ export class SelfHealJob {
       return counts;
     });
     const release = await attempt('release', () => this.release.execute({ now }));
-    const keys = await attempt('provider-accounts', () =>
-      this.subscriptions.listMerchantProfileKeys(),
-    );
+    const keys = await attempt('provider-accounts', () => this.providerAccounts.listServed());
     const accounts = keys.ok ? keys.value : [];
     const health = keys.ok
       ? await attempt('health', () =>

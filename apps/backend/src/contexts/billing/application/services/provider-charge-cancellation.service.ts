@@ -101,7 +101,16 @@ export class ProviderChargeCancellationService {
     if (charge === null || !charge.providerCancelPending || charge.providerChargeId === null) {
       return 'SKIPPED';
     }
-    const adapter = this.registry.resolve(subscription.merchantProfileKey);
+    // A key with no adapter yet leaves the flag for a later run, and is no failure.
+    const adapter = this.registry.tryResolve(subscription.merchantProfileKey);
+    if (adapter === null) {
+      this.logger.warn('billing_provider_not_supported: skipped', {
+        tenantId: input.tenantId,
+        chargeId,
+        merchantProfileKey: subscription.merchantProfileKey,
+      });
+      return 'SKIPPED';
+    }
     try {
       await adapter.cancelCharge(charge.providerChargeId);
     } catch (err) {

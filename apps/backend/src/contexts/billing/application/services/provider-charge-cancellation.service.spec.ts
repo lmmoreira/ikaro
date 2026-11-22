@@ -1,3 +1,4 @@
+import { AppLogger } from '../../../../shared/observability/app-logger';
 import { SubscriptionBuilder } from '../../../../test/builders/billing';
 import { createSweepHarness } from '../../../../test/infrastructure/billing-sweep-harness';
 import type { Charge } from '../../domain/charge.aggregate';
@@ -93,5 +94,37 @@ describe('ProviderChargeCancellationService', () => {
     });
 
     expect(result).toMatchObject({ skipped: 2 });
+  });
+
+  describe('a key no adapter serves yet', () => {
+    it('leaves the charge flagged, counts it skipped, logs at warn and never throws', async () => {
+      const warn = jest.spyOn(AppLogger.prototype, 'warn').mockImplementation();
+      const error = jest.spyOn(AppLogger.prototype, 'error').mockImplementation();
+      const other = new SubscriptionBuilder()
+        .withMerchantProfileKey('BRL_ASAAS_SANDBOX')
+        .withItems([h.hotsiteItem()])
+        .build();
+      await h.seedTenant(other);
+      const charge = await h.seedCharge(other, { dueDate: '2026-03-01' });
+      charge.cancel();
+      charge.markProviderCancelPending();
+      const cancel = jest.spyOn(h.provider, 'cancelCharge');
+
+      const result = await h.cancellation.execute({
+        tenantId: other.tenantId,
+        chargeIds: [charge.id],
+        correlationId: 'corr-cancel',
+      });
+
+      expect(result).toEqual({ cancelled: 0, paid: 0, leftFlagged: 0, skipped: 1 });
+      expect(charge.providerCancelPending).toBe(true);
+      expect(cancel).not.toHaveBeenCalled();
+      expect(warn).toHaveBeenCalledWith('billing_provider_not_supported: skipped', {
+        tenantId: other.tenantId,
+        chargeId: charge.id,
+        merchantProfileKey: 'BRL_ASAAS_SANDBOX',
+      });
+      expect(error).not.toHaveBeenCalled();
+    });
   });
 });

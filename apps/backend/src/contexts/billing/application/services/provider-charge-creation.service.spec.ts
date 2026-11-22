@@ -1,3 +1,4 @@
+import { AppLogger } from '../../../../shared/observability/app-logger';
 import {
   BillingAccountBuilder,
   ChargeBuilder,
@@ -181,6 +182,7 @@ describe('ProviderChargeCreationService', () => {
   });
 
   it('PROVIDER_UNSUPPORTED: a profile with no adapter yet is skipped without claiming', async () => {
+    const warn = jest.spyOn(AppLogger.prototype, 'warn').mockImplementation();
     const other = new SubscriptionBuilder()
       .withStatus('ACTIVE')
       .withMerchantProfileKey('USD_FAKE')
@@ -212,6 +214,10 @@ describe('ProviderChargeCreationService', () => {
     expect(await charges.claimForProviderCreation(other.tenantId, usCharge.id, clock.now())).toBe(
       true,
     );
+    expect(warn).toHaveBeenCalledWith('billing_provider_not_supported: skipped', {
+      tenantId: other.tenantId,
+      merchantProfileKey: 'USD_FAKE',
+    });
   });
 
   it('PROVIDER_FAILED: a provider failure leaves the charge PENDING, announces nothing, and the retry creates it', async () => {

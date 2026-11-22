@@ -12,10 +12,7 @@ import {
 import type { BillingAccount, BillingProvider } from '../../domain/billing-account.aggregate';
 import type { Charge } from '../../domain/charge.aggregate';
 import { BillingTenantNotFoundError } from '../../domain/errors/billing-domain.error';
-import {
-  ProviderNotSupportedError,
-  ProviderRequestError,
-} from '../../domain/errors/billing-provider.errors';
+import { ProviderRequestError } from '../../domain/errors/billing-provider.errors';
 import type { Subscription } from '../../domain/subscription.aggregate';
 import { providerOfMerchantProfileKey } from '../../domain/merchant-profile-key';
 import { resolveBillingRecipientEmail } from '../helpers/billing-recipient-email.helper';
@@ -209,13 +206,11 @@ export class ProviderChargeCreationService {
   // A key with no adapter yet (a US subscription before M28, a sandbox key before M26-S37) is a
   // skip, never a crash: the charge stays as it is and the job moves on.
   private resolveAdapter(merchantProfileKey: string, tenantId: string): BillingProviderPort | null {
-    try {
-      return this.registry.resolve(merchantProfileKey);
-    } catch (err) {
-      if (!(err instanceof ProviderNotSupportedError)) throw err;
-      this.logger.log('billing_provider_not_supported: skipped', { tenantId, merchantProfileKey });
-      return null;
+    const adapter = this.registry.tryResolve(merchantProfileKey);
+    if (adapter === null) {
+      this.logger.warn('billing_provider_not_supported: skipped', { tenantId, merchantProfileKey });
     }
+    return adapter;
   }
 
   private async ensureCustomer(

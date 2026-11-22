@@ -27,10 +27,7 @@ import {
   IProviderHealthRepository,
   PROVIDER_HEALTH_REPOSITORY,
 } from '../ports/provider-health-repository.port';
-import {
-  ISubscriptionRepository,
-  SUBSCRIPTION_REPOSITORY,
-} from '../ports/subscription-repository.port';
+import { ProviderAccountsService } from '../services/provider-accounts.service';
 import { ReconcileOneChargeUseCase } from '../use-cases/reconcile-one-charge.use-case';
 import { RecordReconcilePassUseCase } from '../use-cases/record-reconcile-pass.use-case';
 import { RetryProviderChargeCancelUseCase } from '../use-cases/retry-provider-charge-cancel.use-case';
@@ -100,7 +97,7 @@ export class ReconcileChargesJob {
   private readonly logger = new AppLogger(ReconcileChargesJob.name);
 
   constructor(
-    @Inject(SUBSCRIPTION_REPOSITORY) private readonly subscriptions: ISubscriptionRepository,
+    private readonly providerAccounts: ProviderAccountsService,
     @Inject(CHARGE_REPOSITORY) private readonly charges: IChargeRepository,
     @Inject(PROVIDER_HEALTH_REPOSITORY) private readonly health: IProviderHealthRepository,
     @Inject(CLOCK) private readonly clock: IClock,
@@ -111,7 +108,7 @@ export class ReconcileChargesJob {
 
   async run(input: ReconcileChargesJobInput): Promise<ReconcileChargesJobResult> {
     const now = this.clock.now();
-    const keys = await this.subscriptions.listMerchantProfileKeys();
+    const keys = await this.providerAccounts.listServed();
     const scope = await this.scopeOf(now, keys);
     const run: Run = {
       input,

@@ -71,4 +71,57 @@ describe('BillingProviderRegistry', () => {
       expect(() => registry.resolve(key)).toThrow(ProviderNotSupportedError);
     },
   );
+
+  describe('tryResolve: a key with no adapter is an answer, not a failure', () => {
+    it.each(['local', 'staging'] as const)('returns the fake for BRL_FAKE in %s', (appEnv) => {
+      const { registry, fake } = registryFor(appEnv);
+
+      expect(registry.tryResolve(MERCHANT_PROFILE_KEYS.BRL_FAKE)).toBe(fake);
+    });
+
+    it.each([
+      MERCHANT_PROFILE_KEYS.USD_FAKE,
+      MERCHANT_PROFILE_KEYS.BRL_ASAAS_SANDBOX,
+      MERCHANT_PROFILE_KEYS.USD_STRIPE_TEST,
+    ])('returns null for %s, which has no adapter yet, and never falls back to the fake', (key) => {
+      const { registry } = registryFor('local');
+
+      expect(registry.tryResolve(key)).toBeNull();
+    });
+
+    it('returns null for an unknown key', () => {
+      const { registry } = registryFor('local');
+
+      expect(registry.tryResolve('EUR_SOMETHING')).toBeNull();
+    });
+
+    it.each([MERCHANT_PROFILE_KEYS.BRL_ASAAS_LIVE, MERCHANT_PROFILE_KEYS.USD_STRIPE_LIVE])(
+      'returns null for the live key %s in production, where it is allowed but has no adapter yet',
+      (key) => {
+        const { registry } = registryFor('production');
+
+        expect(registry.tryResolve(key)).toBeNull();
+      },
+    );
+
+    // Negative guarantee: only "no adapter" is a skip. A key that must not run here is a
+    // misconfiguration and stays loud.
+    it.each([MERCHANT_PROFILE_KEYS.BRL_FAKE, MERCHANT_PROFILE_KEYS.BRL_ASAAS_SANDBOX])(
+      'still throws for %s in production',
+      (key) => {
+        const { registry } = registryFor('production');
+
+        expect(() => registry.tryResolve(key)).toThrow(MerchantProfileKeyNotAllowedError);
+      },
+    );
+
+    it.each([MERCHANT_PROFILE_KEYS.BRL_ASAAS_LIVE, MERCHANT_PROFILE_KEYS.USD_STRIPE_LIVE])(
+      'still throws for the live key %s outside production',
+      (key) => {
+        const { registry } = registryFor('staging');
+
+        expect(() => registry.tryResolve(key)).toThrow(MerchantProfileKeyNotAllowedError);
+      },
+    );
+  });
 });
