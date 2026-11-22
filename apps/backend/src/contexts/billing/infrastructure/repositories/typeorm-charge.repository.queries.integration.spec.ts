@@ -14,6 +14,7 @@ import { ChargeLineEntity } from '../entities/charge-line.entity';
 import { SubscriptionEntity } from '../entities/subscription.entity';
 import { buildPageQuery, buildPendingCreationQuery } from './typeorm-charge.job-queries';
 import {
+  buildOpenDueBetweenQuery,
   buildOpenDueQuery,
   buildOpenQuery,
   buildOpenRecoveryQuery,
@@ -366,6 +367,47 @@ describe('TypeOrmChargeRepository queries, claim and isolation (integration)', (
       expect(first.find((r) => r.id === open[0].id)?.dueDate).toBe('2026-03-05');
     });
 
+    it('lists the open charges due inside a date window, by due date, and pages on from the last row (the dunning reminders)', async () => {
+      const t = await newTenant();
+      // Each charge needs its own period start (the period's unique index).
+      let month = 0;
+      const dueIn = async (dueDate: string, status: 'PENDING' | 'OVERDUE' | 'PAID' = 'PENDING') => {
+        month += 1;
+        const mm = String(month).padStart(2, '0');
+        return seed(t, (b) => {
+          const built = b.withPeriod(`2027-${mm}-01`, `2027-${mm}-28`).withDueDate(dueDate);
+          return status === 'PAID'
+            ? built.withStatus('PAID').withPaid('CARD', new Date('2027-01-01T00:00:00Z'))
+            : built.withStatus(status);
+        });
+      };
+      const before = await dueIn('2027-03-01');
+      const first = await dueIn('2027-04-03');
+      const second = await dueIn('2027-05-10', 'OVERDUE');
+      const last = await dueIn('2027-06-20');
+      await dueIn('2027-07-15');
+      await dueIn('2027-05-05', 'PAID');
+      const own = [before, first, second, last].map((c) => c.id);
+      const mine = (refs: { id: string }[]): string[] =>
+        refs.filter((r) => own.includes(r.id)).map((r) => r.id);
+
+      const window = await repo.listOpenDueBetweenForJob('2027-04-03', '2027-06-20', 1000);
+      const after = await repo.listOpenDueBetweenForJob(
+        '2027-04-03',
+        '2027-06-20',
+        1000,
+        window.find((r) => r.id === first.id),
+      );
+
+      // Both ends are inclusive, a paid charge and one outside the window never match.
+      expect(mine(window)).toEqual([first.id, second.id, last.id]);
+      expect(mine(after)).toEqual([second.id, last.id]);
+      expect(window.find((r) => r.id === first.id)?.dueDate).toBe('2027-04-03');
+      expect(await repo.listOpenDueBetweenForJob('2027-04-03', '2027-06-20', 1, window[0])).toEqual(
+        [window[1]],
+      );
+    });
+
     it('lists the open recovery charges, the open charges of ending trials and the recently paid ones', async () => {
       const recoveryTenant = await newTenant();
       const trialTenant = await newTenant();
@@ -445,6 +487,12 @@ describe('TypeOrmChargeRepository queries, claim and isolation (integration)', (
       expect(await indexesUsed(buildOpenQuery(chargeRepo, 10, after))).toContain(
         'IDX_billing_charges_open',
       );
+      // The dunning reminders' due-date window (M26-S09), same standalone index.
+      expect(
+        await indexesUsed(
+          buildOpenDueBetweenQuery(chargeRepo, '2026-12-01', '2026-12-31', 10, after),
+        ),
+      ).toContain('IDX_billing_charges_open');
       expect(
         await indexesUsed(
           buildOpenRecoveryQuery(chargeRepo, 10, {

@@ -11,6 +11,11 @@ export class BillingReminderDueCommandBuilder {
   private chargeId: string | null = 'charge-1';
   private paymentUrl: string | null = 'https://pay.example.test/charge-1';
   private recipientEmail: string | null = 'billing@example.test';
+  private dueDate: string | null = '2026-12-10';
+  private trialEndsOn: string | null = null;
+  private suspendsOn: string | null = null;
+  private amountMinor: number | null = 4900;
+  private currency: string | null = 'BRL';
 
   withTenantId(tenantId: string): this {
     this.tenantId = tenantId;
@@ -52,6 +57,27 @@ export class BillingReminderDueCommandBuilder {
     return this;
   }
 
+  withDueDate(dueDate: string | null): this {
+    this.dueDate = dueDate;
+    return this;
+  }
+
+  withTrialEndsOn(trialEndsOn: string | null): this {
+    this.trialEndsOn = trialEndsOn;
+    return this;
+  }
+
+  withSuspendsOn(suspendsOn: string | null): this {
+    this.suspendsOn = suspendsOn;
+    return this;
+  }
+
+  withAmount(amountMinor: number | null, currency: string | null): this {
+    this.amountMinor = amountMinor;
+    this.currency = currency;
+    return this;
+  }
+
   build(): BillingReminderDue {
     return new BillingReminderDue(this.tenantId, this.correlationId, {
       subscriptionId: this.subscriptionId,
@@ -60,6 +86,11 @@ export class BillingReminderDueCommandBuilder {
       chargeId: this.chargeId,
       paymentUrl: this.paymentUrl,
       recipientEmail: this.recipientEmail,
+      dueDate: this.dueDate,
+      trialEndsOn: this.trialEndsOn,
+      suspendsOn: this.suspendsOn,
+      amountMinor: this.amountMinor,
+      currency: this.currency,
     });
   }
 }

@@ -68,6 +68,10 @@ locals {
       topic_key = "cron-billing-self-heal"
       schedule  = "25 * * * *"
     }
+    ikaro-cron-billing-reminders = {
+      topic_key = "cron-billing-reminders"
+      schedule  = "0 11 * * *"
+    }
   }
 }
 

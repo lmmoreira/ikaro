@@ -9,6 +9,7 @@ import {
   buildCancelDueQuery,
   buildGraceExpiredQuery,
   buildTrialEndedQuery,
+  buildTrialEndingQuery,
 } from './typeorm-subscription.sweep-queries';
 
 interface PlanNode {
@@ -138,6 +139,63 @@ describe('TypeOrmSubscriptionRepository status-sweep selectors (integration, UC-
 
       const used = await indexesUsed(
         buildTrialEndedQuery(dataSource.getRepository(SubscriptionEntity), NOW, 500),
+      );
+
+      expect(used.indexes).toContain('IDX_billing_subscriptions_trial_ends_at');
+      expect(used.seqScan).toBe(false);
+    });
+  });
+
+  describe('findTrialEndingForJob (the dunning reminders, UC-139)', () => {
+    const from = ago(2);
+    const to = new Date(NOW.getTime() + 11 * DAY_MS);
+
+    it('selects TRIALING, non-exempt subscriptions whose trial ends inside the window, soonest first', async () => {
+      const soon = await seed((b) =>
+        b.withStatus('TRIALING').withTrialEndsAt(new Date(NOW.getTime() + 2 * DAY_MS)),
+      );
+      const justEnded = await seed((b) => b.withStatus('TRIALING').withTrialEndsAt(ago(1)));
+      const farthest = await seed((b) =>
+        b.withStatus('TRIALING').withTrialEndsAt(new Date(NOW.getTime() + 10 * DAY_MS)),
+      );
+      await seed((b) => b.withStatus('TRIALING').withTrialEndsAt(ago(5)));
+      await seed((b) =>
+        b.withStatus('TRIALING').withTrialEndsAt(new Date(NOW.getTime() + 20 * DAY_MS)),
+      );
+      await seed((b) =>
+        b
+          .withStatus('TRIALING')
+          .withTrialEndsAt(new Date(NOW.getTime() + DAY_MS))
+          .withExempt(true),
+      );
+      await seed((b) => b.withStatus('ACTIVE').withTrialEndsAt(new Date(NOW.getTime() + DAY_MS)));
+
+      const refs = await repo.findTrialEndingForJob(from, to, 1000);
+
+      expect(mine(refs)).toEqual([justEnded, soon, farthest]);
+    });
+
+    it('includes both ends of the window and pages on from the row it is given', async () => {
+      const atFrom = await seed((b) => b.withStatus('TRIALING').withTrialEndsAt(from));
+      const middle = await seed((b) => b.withStatus('TRIALING').withTrialEndsAt(NOW));
+      const atTo = await seed((b) => b.withStatus('TRIALING').withTrialEndsAt(to));
+
+      const all = await repo.findTrialEndingForJob(from, to, 1000);
+      const start = all.findIndex((ref) => ref.tenantId === atFrom);
+
+      expect(mine(all)).toEqual([atFrom, middle, atTo]);
+      expect(mine(await repo.findTrialEndingForJob(from, to, 1000, all[start]))).toEqual([
+        middle,
+        atTo,
+      ]);
+      expect(await repo.findTrialEndingForJob(from, to, 1, all[start])).toEqual([all[start + 1]]);
+    });
+
+    it('is served by the standalone partial index on trial_ends_at, not a sequential scan', async () => {
+      await seed((b) => b.withStatus('TRIALING').withTrialEndsAt(NOW));
+
+      const used = await indexesUsed(
+        buildTrialEndingQuery(dataSource.getRepository(SubscriptionEntity), from, to, 500),
       );
 
       expect(used.indexes).toContain('IDX_billing_subscriptions_trial_ends_at');

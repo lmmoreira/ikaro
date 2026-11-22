@@ -53,6 +53,28 @@ export function buildTrialEndedQuery(
 }
 
 /**
+ * The dunning reminders' trial selection (UC-139, M26-S09): `TRIALING`, non-exempt subscriptions
+ * whose `trial_ends_at` lies in `[from, to]`, by `(trial_ends_at, tenant_id)`. Same partial index
+ * as rule 2, `status = 'TRIALING'` repeated literally; the window bounds the read to the trials a
+ * reminder can still be due for, and a row the job skips stays inside it, so the page keyset
+ * carries on past it.
+ */
+export function buildTrialEndingQuery(
+  repo: Repository<SubscriptionEntity>,
+  from: Date,
+  to: Date,
+  limit: number,
+  after?: SweepDueRef,
+): SelectQueryBuilder<SubscriptionEntity> {
+  const query = sweepQuery(repo, 's.trialEndsAt')
+    .where("s.status = 'TRIALING'")
+    .andWhere('NOT s.exempt')
+    .andWhere('s.trialEndsAt >= :from', { from })
+    .andWhere('s.trialEndsAt <= :to', { to });
+  return page(query, 's.trialEndsAt', limit, after);
+}
+
+/**
  * Rule 3: `IDX_billing_subscriptions_status_past_due_since`. The cutoff is computed here in UTC
  * (`now` minus the 14 days) so SQL does no day arithmetic in the session zone; a later operator
  * `grace_until` keeps the subscription out until that instant has passed.

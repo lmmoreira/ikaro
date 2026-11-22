@@ -29,5 +29,10 @@ X-Internal-Key: {{internalKey}}
 POST {{baseUrl}}/cron/billing-self-heal
 X-Internal-Key: {{internalKey}}
 
+### Dunning reminders (UC-139): trial, due-soon, overdue and recovery-charge reminders for today's milestones
+# Read the billing_reminders_run log line; each reminder is one shared.outbox row (a rerun writes none).
+POST {{baseUrl}}/cron/billing-reminders
+X-Internal-Key: {{internalKey}}
+
 ### Without the internal key: refused with 401 (the route is internal-only, behind InternalApiGuard)
 POST {{baseUrl}}/cron/billing-issue-charges

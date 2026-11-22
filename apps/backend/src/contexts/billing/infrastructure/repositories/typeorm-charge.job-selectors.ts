@@ -12,6 +12,7 @@ import {
   buildPendingCreationQuery,
 } from './typeorm-charge.job-queries';
 import {
+  buildOpenDueBetweenQuery,
   buildOpenDueQuery,
   buildOpenQuery,
   buildOpenRecoveryQuery,
@@ -52,6 +53,21 @@ export abstract class ChargeJobSelectors {
 
   listOpenDueForJob(due: string, limit: number, after?: DueChargeRef): Promise<DueChargeRef[]> {
     return buildOpenDueQuery(this.repo, due, limit, after).getRawMany<DueChargeRef>();
+  }
+
+  listOpenDueBetweenForJob(
+    fromDate: string,
+    toDate: string,
+    limit: number,
+    after?: DueChargeRef,
+  ): Promise<DueChargeRef[]> {
+    return buildOpenDueBetweenQuery(
+      this.repo,
+      fromDate,
+      toDate,
+      limit,
+      after,
+    ).getRawMany<DueChargeRef>();
   }
 
   listOpenForJob(limit: number, after?: DueChargeRef): Promise<DueChargeRef[]> {

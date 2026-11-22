@@ -26,6 +26,9 @@ describe('BillingReminderDue', () => {
     const second = base()
       .withRecipientEmail(null)
       .withPaymentUrl(null)
+      .withDueDate(null)
+      .withSuspendsOn('2026-12-31')
+      .withAmount(null, null)
       .withCorrelationId('corr-b')
       .build();
 
@@ -51,12 +54,17 @@ describe('BillingReminderDue', () => {
       tenantId: 'tenant-1',
     });
     expect(Object.keys(command.data).sort()).toEqual([
+      'amountMinor',
       'chargeId',
+      'currency',
       'daysOffset',
+      'dueDate',
       'kind',
       'paymentUrl',
       'recipientEmail',
       'subscriptionId',
+      'suspendsOn',
+      'trialEndsOn',
     ]);
   });
 });

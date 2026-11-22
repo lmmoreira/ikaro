@@ -104,6 +104,22 @@ export interface ISubscriptionRepository {
   findTrialEndedForJob(now: Date, limit: number, after?: SweepDueRef): Promise<SweepDueRef[]>;
 
   /**
+   * Cross-tenant job selector (UC-139, M26-S09): one page of the `TRIALING`, non-exempt
+   * subscriptions whose `trial_ends_at` lies in `[from, to]`, ordered by `(trial_ends_at,
+   * tenant_id)`, at most `limit`, after the `after` row: the trials a dunning reminder can still be
+   * due for. The window is wider than the reminder offsets by a day, so the job re-checks each
+   * subscription's own local date; a trial it skips stays selected, so it pages on from the last
+   * row. Ids and instants only. Served by `IDX_billing_subscriptions_trial_ends_at`; the
+   * `status = 'TRIALING'` predicate repeats the index's literally.
+   */
+  findTrialEndingForJob(
+    from: Date,
+    to: Date,
+    limit: number,
+    after?: SweepDueRef,
+  ): Promise<SweepDueRef[]>;
+
+  /**
    * Cross-tenant job selector (UC-115 rule 3): one page of the non-exempt `PAST_DUE` subscriptions
    * whose grace has run out at `now` (`past_due_since` plus 14 days has passed and no later
    * operator `grace_until` is set), ordered by `(past_due_since, tenant_id)`, after the `after`

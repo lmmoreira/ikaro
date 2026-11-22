@@ -131,6 +131,15 @@ export class CachingSubscriptionRepository implements ISubscriptionRepository {
     return this.repo.findTrialEndedForJob(now, limit, after);
   }
 
+  findTrialEndingForJob(
+    from: Date,
+    to: Date,
+    limit: number,
+    after?: SweepDueRef,
+  ): Promise<SweepDueRef[]> {
+    return this.repo.findTrialEndingForJob(from, to, limit, after);
+  }
+
   findGraceExpiredForJob(now: Date, limit: number, after?: SweepDueRef): Promise<SweepDueRef[]> {
     return this.repo.findGraceExpiredForJob(now, limit, after);
   }

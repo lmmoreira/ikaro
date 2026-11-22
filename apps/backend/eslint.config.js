@@ -194,6 +194,7 @@ const PERSISTENCE_BYPASS_IGNORES = [
   'src/contexts/billing/infrastructure/repositories/typeorm-provider-event.repository.ts',
   'src/contexts/billing/infrastructure/repositories/typeorm-provider-health.repository.ts',
   'src/contexts/billing/infrastructure/repositories/typeorm-subscription.sweep-queries.ts',
+  'src/contexts/billing/infrastructure/repositories/typeorm-subscription.sweep-selectors.ts',
   'src/contexts/billing/infrastructure/repositories/typeorm-charge.job-queries.ts',
   'src/contexts/billing/infrastructure/repositories/typeorm-charge.job-selectors.ts',
   'src/contexts/billing/infrastructure/repositories/typeorm-charge.reconcile-queries.ts',

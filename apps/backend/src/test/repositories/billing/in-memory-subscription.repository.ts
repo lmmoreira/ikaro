@@ -89,6 +89,27 @@ export class InMemorySubscriptionRepository implements ISubscriptionRepository {
     );
   }
 
+  async findTrialEndingForJob(
+    from: Date,
+    to: Date,
+    limit: number,
+    after?: SweepDueRef,
+  ): Promise<SweepDueRef[]> {
+    return this.sweepPage(
+      this.saved.flatMap((s) =>
+        s.status === 'TRIALING' &&
+        !s.exempt &&
+        s.trialEndsAt !== null &&
+        s.trialEndsAt.getTime() >= from.getTime() &&
+        s.trialEndsAt.getTime() <= to.getTime()
+          ? [{ tenantId: s.tenantId, dueAt: s.trialEndsAt }]
+          : [],
+      ),
+      limit,
+      after,
+    );
+  }
+
   async findGraceExpiredForJob(
     now: Date,
     limit: number,
