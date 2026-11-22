@@ -14,6 +14,10 @@ export interface ProviderHealthProps {
   freezeActive: boolean;
   /** When the freeze started; set exactly when `freezeActive` is (the table's CHECK). */
   freezeSince: Date | null;
+  /** Consecutive failed provider health reads (UC-140): the second one starts the freeze; a success resets it. */
+  healthReadFailures: number;
+  /** When self-heal last re-enabled the provider's webhook queue; a processed delivery after it closes the alert. */
+  webhookReenabledAt: Date | null;
   updatedAt: Date;
 }
 
@@ -30,6 +34,8 @@ export class ProviderHealth {
   readonly webhookStatus: ProviderWebhookStatus;
   readonly freezeActive: boolean;
   readonly freezeSince: Date | null;
+  readonly healthReadFailures: number;
+  readonly webhookReenabledAt: Date | null;
   readonly updatedAt: Date;
 
   private constructor(props: ProviderHealthProps) {
@@ -39,6 +45,8 @@ export class ProviderHealth {
     this.webhookStatus = props.webhookStatus;
     this.freezeActive = props.freezeActive;
     this.freezeSince = props.freezeSince;
+    this.healthReadFailures = props.healthReadFailures;
+    this.webhookReenabledAt = props.webhookReenabledAt;
     this.updatedAt = props.updatedAt;
   }
 

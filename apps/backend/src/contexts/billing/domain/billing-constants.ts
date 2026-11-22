@@ -56,3 +56,21 @@ export const RECONCILE_RUN_BUDGET_MS = 40_000;
 
 /** UC-116: provider reads in flight at once (the provider allows 50 concurrent GETs). */
 export const RECONCILE_CONCURRENCY = 10;
+
+/** UC-140: a `RESERVED` signup registration older than this is an orphan (a failed signup step) and is released. */
+export const STALE_SIGNUP_RESERVATION_HOURS = 1;
+
+/** UC-140: the suspension freeze starts when no reconcile pass has succeeded for this many hours. */
+export const SUSPENSION_FREEZE_RECONCILE_STALE_HOURS = 24;
+
+/** UC-140: the freeze also starts after this many consecutive failed provider health reads. */
+export const SUSPENSION_FREEZE_FAILED_HEALTH_READS = 2;
+
+/**
+ * UC-140: how long one self-heal run keeps paging tenants for a missing subscription, inside the
+ * push subscription's 60 s ack deadline. A healthy tenant stays in the listing (it is old and has
+ * its subscription), so every run walks the keyset from the oldest tenant to the end. A page is two
+ * indexed reads, so the budget is reached only at hundreds of thousands of tenants; past it the run
+ * logs `truncated` and the newest tenants are not reached (no cursor is kept between runs).
+ */
+export const SELF_HEAL_REPAIR_BUDGET_MS = 40_000;

@@ -1,5 +1,8 @@
 import { IProviderHealthRepository } from '../../../contexts/billing/application/ports/provider-health-repository.port';
-import { ProviderHealth } from '../../../contexts/billing/domain/provider-health';
+import {
+  ProviderHealth,
+  type ProviderWebhookStatus,
+} from '../../../contexts/billing/domain/provider-health';
 
 /** One row per merchant profile key, like the table: a save replaces the row of that key. */
 export class InMemoryProviderHealthRepository implements IProviderHealthRepository {
@@ -38,10 +41,79 @@ export class InMemoryProviderHealthRepository implements IProviderHealthReposito
         webhookStatus: current?.webhookStatus ?? 'UNKNOWN',
         freezeActive: current?.freezeActive ?? false,
         freezeSince: current?.freezeSince ?? null,
+        healthReadFailures: current?.healthReadFailures ?? 0,
+        webhookReenabledAt: current?.webhookReenabledAt ?? null,
         lastReconcileOkAt: at,
         lastFullReconcileAt: fullPass ? at : (current?.lastFullReconcileAt ?? null),
         updatedAt: at,
       }),
     );
+  }
+
+  async recordHealthReadOk(
+    merchantProfileKey: string,
+    webhookStatus: ProviderWebhookStatus,
+    at: Date,
+    reenabledAt: Date | null,
+  ): Promise<void> {
+    const current = this.saved.find((row) => row.merchantProfileKey === merchantProfileKey);
+    this.replace(
+      ProviderHealth.reconstitute({
+        merchantProfileKey,
+        lastReconcileOkAt: current?.lastReconcileOkAt ?? null,
+        lastFullReconcileAt: current?.lastFullReconcileAt ?? null,
+        webhookStatus,
+        freezeActive: current?.freezeActive ?? false,
+        freezeSince: current?.freezeSince ?? null,
+        healthReadFailures: 0,
+        webhookReenabledAt: reenabledAt ?? current?.webhookReenabledAt ?? null,
+        updatedAt: current?.updatedAt ?? at,
+      }),
+    );
+  }
+
+  async recordHealthReadFailure(merchantProfileKey: string, at: Date): Promise<number> {
+    const current = this.saved.find((row) => row.merchantProfileKey === merchantProfileKey);
+    const failures = (current?.healthReadFailures ?? 0) + 1;
+    this.replace(
+      ProviderHealth.reconstitute({
+        merchantProfileKey,
+        lastReconcileOkAt: current?.lastReconcileOkAt ?? null,
+        lastFullReconcileAt: current?.lastFullReconcileAt ?? null,
+        webhookStatus: current?.webhookStatus ?? 'UNKNOWN',
+        freezeActive: current?.freezeActive ?? false,
+        freezeSince: current?.freezeSince ?? null,
+        healthReadFailures: failures,
+        webhookReenabledAt: current?.webhookReenabledAt ?? null,
+        updatedAt: current?.updatedAt ?? at,
+      }),
+    );
+    return failures;
+  }
+
+  async setFreeze(merchantProfileKey: string, since: Date | null): Promise<boolean> {
+    const current = this.saved.find((row) => row.merchantProfileKey === merchantProfileKey);
+    if (!current || current.freezeActive === (since !== null)) return false;
+    // The same conditions the real statement checks when it clears.
+    const clearable =
+      current.healthReadFailures === 0 &&
+      current.lastReconcileOkAt !== null &&
+      current.freezeSince !== null &&
+      current.lastReconcileOkAt.getTime() > current.freezeSince.getTime();
+    if (since === null && !clearable) return false;
+    this.replace(
+      ProviderHealth.reconstitute({
+        merchantProfileKey,
+        lastReconcileOkAt: current.lastReconcileOkAt,
+        lastFullReconcileAt: current.lastFullReconcileAt,
+        webhookStatus: current.webhookStatus,
+        freezeActive: since !== null,
+        freezeSince: since,
+        healthReadFailures: current.healthReadFailures,
+        webhookReenabledAt: current?.webhookReenabledAt ?? null,
+        updatedAt: current.updatedAt,
+      }),
+    );
+    return true;
   }
 }

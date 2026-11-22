@@ -79,7 +79,7 @@ Owned by: **Platform Context** (`src/contexts/platform/`)
 | is_active | BOOLEAN | NOT NULL DEFAULT true |
 | created_at | TIMESTAMP WITH TIME ZONE | DEFAULT now() |
 | updated_at | TIMESTAMP WITH TIME ZONE | DEFAULT now() |
-| **INDEX** (standalone) *(planned, M26-S08 `AddTenantsCreatedAtIndex`, expand-only)* | (created_at) | Billing self-heal / provisioning window read through the tenant-info port; no `tenant_id`, so it is a cross-tenant-job index |
+| **INDEX** (standalone) *(built, M26-S08 `AddTenantsCreatedAtIndex`, expand-only)* | (created_at, id) | `IDX_platform_tenants_created_at`: the keyset listing Billing self-heal walks through the tenant-info port (`created_at ASC, id ASC`); no `tenant_id`, so it is a cross-tenant-job index |
 
 ### `platform.hotsite_configs`
 | Column | Type | Constraints |
@@ -1442,7 +1442,7 @@ Created **before** the tenant exists, by every provisioning path (self-signup th
 | id | UUID | PRIMARY KEY — the reservation id |
 | tenant_id | UUID | NULLABLE, UNIQUE when not null (`UNIQUE(tenant_id)`, Postgres allows many NULLs) — NULL until completed: set when the `TenantProvisioned` handler completes it. A tenant-id exemption (the row exists before the tenant) |
 | source | VARCHAR(12) | NOT NULL — `SELF_SIGNUP` \| `OPERATOR` |
-| status | VARCHAR(10) | NOT NULL — `RESERVED` \| `COMPLETED`; a `RESERVED` row older than one hour is released by the release sweep *(planned, M26-S08; nothing deletes it today)* |
+| status | VARCHAR(10) | NOT NULL — `RESERVED` \| `COMPLETED`; a `RESERVED` row older than one hour is released (deleted) by the self-heal job's release step *(built, M26-S08: `ReleaseStaleSignupRegistrationsUseCase`)*; the filter `status = 'RESERVED' AND created_at < cutoff` runs once an hour over a tiny table and needs no index of its own |
 | google_sub | VARCHAR(100) | NULLABLE — NOT NULL for `SELF_SIGNUP` |
 | tax_id_type / tax_id | VARCHAR(10) / VARCHAR(32) | NULLABLE (same types as `billing_accounts`) — copied to `billing_accounts` by the handler and **cleared from this row on completion** |
 | exempt | BOOLEAN | NOT NULL DEFAULT false — the tenant is provisioned free (`ACTIVE`, exempt subscription); only an `OPERATOR` registration may set it (the aggregate refuses it for `SELF_SIGNUP`); an exempt registration needs no tax id |
@@ -1477,7 +1477,7 @@ Indexes: the partial unique `UQ_billing_tenant_purge_jobs_in_flight` on `(tenant
 Execution record only: the suspension timestamp decides eligibility, and the job is **not** a `Subscription` status. The `BILLING` step anonymizes in place: it keeps `subscriptions` (no personal data) and every `charges` / `charge_lines` / `charge_tax_lines` row for fiscal reasons (`tenant_id` stays as an opaque id), and deletes the `billing_accounts` personal fields, the `signup_registrations` row, `provider_events` and the `operator_audit` payloads.
 
 ### `billing.provider_health` *(no `tenant_id`)*
-One row per `merchant_profile_key`: `last_reconcile_ok_at`, `last_full_reconcile_at`, `webhook_status` (`OK` \| `PAUSED` \| `UNKNOWN`), `freeze_active`, `freeze_since`, `updated_at`.
+One row per `merchant_profile_key`: `last_reconcile_ok_at`, `last_full_reconcile_at`, `webhook_status` (`OK` \| `PAUSED` \| `UNKNOWN`), `freeze_active`, `freeze_since`, `health_read_failures`, `webhook_reenabled_at`, `updated_at`.
 
 | Column | Type | Constraints |
 |---|---|---|
@@ -1487,9 +1487,11 @@ One row per `merchant_profile_key`: `last_reconcile_ok_at`, `last_full_reconcile
 | `webhook_status` | VARCHAR(16) | NOT NULL DEFAULT `'UNKNOWN'`, CHECK IN (`OK`, `PAUSED`, `UNKNOWN`) |
 | `freeze_active` | BOOLEAN | NOT NULL DEFAULT false |
 | `freeze_since` | TIMESTAMPTZ | NULLABLE; CHECK `freeze_active = (freeze_since IS NOT NULL)` |
+| `health_read_failures` | SMALLINT | NOT NULL DEFAULT 0; consecutive failed provider health reads (the second one starts the freeze; a successful read resets it). Added by `AddHealthReadFailuresToProviderHealth` (M26-S08, expand-only) |
+| `webhook_reenabled_at` | TIMESTAMPTZ | NULLABLE; when self-heal last re-enabled the provider's webhook queue; a processed `provider_events` row received after it closes the alert. Only a re-enable writes it. Added by `AddWebhookReenabledAtToProviderHealth` (M26-S08, expand-only) |
 | `updated_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() |
 
-Types are the minimum M25-S03 needs (the discovery data model lists column names only). Written by the reconcile job (built, M26-S07: `last_reconcile_ok_at` and, on a complete full pass, `last_full_reconcile_at`, by a column-scoped upsert that never touches the freeze columns, so a freeze written while a run was in flight survives it) and the self-heal job (M26-S08: the webhook status and the freeze); read by the status sweep, which applies no `NON_PAYMENT` suspension while `freeze_active` (a scheduled-cancel suspension, `cancelAt` reached, is unaffected).
+Types are the minimum M25-S03 needs (the discovery data model lists column names only). Written by the reconcile job (built, M26-S07: `last_reconcile_ok_at` and, on a complete full pass, `last_full_reconcile_at`, by a column-scoped upsert that never touches the freeze columns, so a freeze written while a run was in flight survives it) and the self-heal job (built, M26-S08: the webhook status, the failed-read counter and the freeze, each by a column-scoped write; the instant a delivery must post-date to close the alert is `webhook_reenabled_at`, written only by a re-enable); read by the status sweep, which applies no `NON_PAYMENT` suspension while `freeze_active` (a scheduled-cancel suspension, `cancelAt` reached, is unaffected).
 
 ### `billing.operator_audit` — who changed what
 | Column | Type | Constraints |
@@ -1503,7 +1505,7 @@ Types are the minimum M25-S03 needs (the discovery data model lists column names
 | **INDEX** | (tenant_id, occurred_at DESC) | append-only |
 
 ### Modified existing tables (Billing release)
-- `platform.tenants`: **one expand-only index**, a standalone `(created_at)` index (`AddTenantsCreatedAtIndex`, M26-S08) so the tenant-info port can list tenants by age for self-heal and the provisioning window; no column change — `is_active` keeps meaning offboarding; billing never flips it. `platform.hotsite_configs`: **no change** (`is_published` stays the manager's preference; the effective value is computed).
+- `platform.tenants`: **one expand-only index**, a standalone `(created_at)` index (`AddTenantsCreatedAtIndex`, built in M26-S08, `(created_at, id)`) so the tenant-info port can list tenants by age for self-heal and the provisioning window; no column change — `is_active` keeps meaning offboarding; billing never flips it. `platform.hotsite_configs`: **no change** (`is_published` stays the manager's preference; the effective value is computed).
 - Platform-level (`tenant_id IS NULL`) Billing notification templates are inserted by migration (one row per template key and locale; content comes from `packages/i18n/locales/{pt-BR,en}/notifications.json`).
 - `Slug` value object (`apps/backend/src/shared/value-objects/slug.vo.ts`, not a table): add length 3–30, no leading/trailing hyphen and a reserved-word list with a typed error; existing tenants are unaffected (`Tenant.reconstitute()` takes an already-built `Slug` and does not re-validate; `Slug` itself has only `isValid`/`create`).
 - `tenants.settings.chatbot.*` overrides become **derived from the chatbot tier** in code (`docs/TENANTS_SETTINGS_SCHEMA.md`); no column change.

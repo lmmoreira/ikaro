@@ -34,4 +34,11 @@ export interface ISignupRegistrationRepository {
    * Must run inside the same `ITransactionManager.run()` as the subscription it belongs to.
    */
   complete(registration: SignupRegistration): Promise<void>;
+
+  /**
+   * Deletes every `RESERVED` registration created strictly before `cutoff` (the one-hour backstop,
+   * UC-140 1b) and returns how many it deleted. A `COMPLETED` row and a younger one are never
+   * touched. "Released" is deletion: the status column has only `RESERVED | COMPLETED`.
+   */
+  releaseExpiredReservations(cutoff: Date): Promise<number>;
 }

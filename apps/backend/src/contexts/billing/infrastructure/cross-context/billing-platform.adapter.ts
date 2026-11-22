@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { PlatformErrorCode } from '@ikaro/types/protocol/errors';
 import { GetTenantBillingInfoUseCase } from '../../../platform/application/use-cases/get-tenant-billing-info.use-case';
+import { ListTenantsCreatedBeforeUseCase } from '../../../platform/application/use-cases/list-tenants-created-before.use-case';
 import type {
+  BillingTenantCursor,
   BillingTenantInfo,
   IBillingPlatformPort,
 } from '../../application/ports/billing-platform.port';
@@ -10,7 +12,18 @@ import { BillingTenantNotFoundError } from '../../domain/errors/billing-domain.e
 /** Billing's one read of Platform (a permitted edge): the tenant's creation time and settings basics. */
 @Injectable()
 export class BillingPlatformAdapter implements IBillingPlatformPort {
-  constructor(private readonly getTenantBillingInfo: GetTenantBillingInfoUseCase) {}
+  constructor(
+    private readonly getTenantBillingInfo: GetTenantBillingInfoUseCase,
+    private readonly listTenantsCreatedBeforeUseCase: ListTenantsCreatedBeforeUseCase,
+  ) {}
+
+  listTenantsCreatedBefore(
+    cutoff: Date,
+    limit: number,
+    after?: BillingTenantCursor,
+  ): Promise<BillingTenantInfo[]> {
+    return this.listTenantsCreatedBeforeUseCase.execute({ cutoff, limit, after });
+  }
 
   async getTenantInfo(tenantId: string): Promise<BillingTenantInfo> {
     try {

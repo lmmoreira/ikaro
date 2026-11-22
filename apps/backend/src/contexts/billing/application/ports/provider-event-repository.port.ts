@@ -19,4 +19,11 @@ export interface IProviderEventRepository {
    * `insertIfAbsent` inside the transaction stays authoritative.
    */
   exists(provider: BillingProvider, eventId: string): Promise<boolean>;
+
+  /**
+   * Whether the provider has a processed webhook delivery received strictly after `since` (UC-140:
+   * a real processed delivery after the webhook re-enable is what closes the alert, never a cleared
+   * flag). Served by `IDX_billing_provider_events_received_at`.
+   */
+  existsProcessedAfter(provider: BillingProvider, since: Date): Promise<boolean>;
 }

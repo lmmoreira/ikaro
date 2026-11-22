@@ -64,6 +64,10 @@ locals {
       topic_key = "cron-billing-reconcile"
       schedule  = "10 * * * *"
     }
+    ikaro-cron-billing-self-heal = {
+      topic_key = "cron-billing-self-heal"
+      schedule  = "25 * * * *"
+    }
   }
 }
 

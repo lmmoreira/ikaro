@@ -14,6 +14,8 @@ export class TenantBuilder {
   private adminEmail = DEFAULT_ADMIN_EMAIL;
   private id: string | undefined;
   private settings: TenantSettings | undefined;
+  private createdAt: Date | undefined;
+  private isActive = true;
 
   withName(name: string): this {
     this.name = name;
@@ -45,8 +47,23 @@ export class TenantBuilder {
     return this;
   }
 
+  withCreatedAt(createdAt: Date): this {
+    this.createdAt = createdAt;
+    return this;
+  }
+
+  withIsActive(isActive: boolean): this {
+    this.isActive = isActive;
+    return this;
+  }
+
   build(): Tenant {
-    if (this.id === undefined && this.settings === undefined) {
+    if (
+      this.id === undefined &&
+      this.settings === undefined &&
+      this.createdAt === undefined &&
+      this.isActive
+    ) {
       const tenant = Tenant.create(
         this.name,
         this.slug,
@@ -65,8 +82,8 @@ export class TenantBuilder {
       name: this.name.trim(),
       slug: Slug.create(this.slug),
       settings: this.settings ?? TenantSettings.default(this.timezone),
-      isActive: true,
-      createdAt: now,
+      isActive: this.isActive,
+      createdAt: this.createdAt ?? now,
       updatedAt: now,
     });
   }

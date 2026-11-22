@@ -8,10 +8,15 @@ import { escapeLikePattern } from '../../../../shared/utils/escape-like-pattern'
 import { toDate } from '../../../../shared/utils/date';
 import { Slug } from '../../../../shared/value-objects/slug.vo';
 import { SlugAlreadyTakenError } from '../../domain/errors/platform-domain.error';
-import { ITenantRepository, TenantFilters } from '../../application/ports/tenant-repository.port';
+import {
+  ITenantRepository,
+  TenantAgeCursor,
+  TenantFilters,
+} from '../../application/ports/tenant-repository.port';
 import { Tenant } from '../../domain/tenant.aggregate';
 import { TenantSettings } from '../../domain/value-objects/tenant-settings.vo';
 import { TenantEntity } from '../entities/tenant.entity';
+import { buildTenantsCreatedBeforeQuery } from './typeorm-tenant.age-query';
 
 @Injectable()
 export class TypeOrmTenantRepository implements ITenantRepository {
@@ -97,6 +102,16 @@ export class TypeOrmTenantRepository implements ITenantRepository {
 
   async findAllActive(): Promise<Tenant[]> {
     const entities = await this.repo.findBy({ isActive: true });
+    return entities.map((e) => this.toDomain(e));
+  }
+
+  async findCreatedBefore(cutoff: Date, limit: number, after?: TenantAgeCursor): Promise<Tenant[]> {
+    const entities = await buildTenantsCreatedBeforeQuery(
+      this.repo,
+      cutoff,
+      limit,
+      after,
+    ).getMany();
     return entities.map((e) => this.toDomain(e));
   }
 

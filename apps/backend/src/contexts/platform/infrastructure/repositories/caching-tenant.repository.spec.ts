@@ -173,6 +173,10 @@ describe('CachingTenantRepository', () => {
     await expect(repo.findMany()).resolves.toEqual([tenant]);
     await expect(repo.findAllActive()).resolves.toEqual([tenant]);
     await expect(repo.existsBySlug('slug-a')).resolves.toBe(true);
+    // The age listing (UC-140) is a job's cross-tenant read: forwarded, never cached.
+    await expect(
+      repo.findCreatedBefore(new Date(tenant.createdAt.getTime() + 1000), 10),
+    ).resolves.toEqual([tenant]);
     expect(cache.has('platform:tenant:tenant-id-8')).toBe(false);
   });
 });

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { MoreThan, Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { IProviderEventRepository } from '../../application/ports/provider-event-repository.port';
 import type { BillingProvider } from '../../domain/billing-account.aggregate';
@@ -27,6 +27,14 @@ export class TypeOrmProviderEventRepository implements IProviderEventRepository 
   async exists(provider: BillingProvider, eventId: string): Promise<boolean> {
     const manager = getActiveEntityManager() ?? this.repo.manager;
     return manager.exists(ProviderEventEntity, { where: { provider, eventId } });
+  }
+
+  async existsProcessedAfter(provider: BillingProvider, since: Date): Promise<boolean> {
+    const manager = getActiveEntityManager() ?? this.repo.manager;
+    // `processed_at` is NOT NULL: an inbox row only exists once its delivery was processed.
+    return manager.exists(ProviderEventEntity, {
+      where: { provider, receivedAt: MoreThan(since) },
+    });
   }
 
   async insertIfAbsent(event: ProviderEvent): Promise<boolean> {

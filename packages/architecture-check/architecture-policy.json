@@ -483,9 +483,10 @@
         "source": "apps/backend/src/contexts/billing/infrastructure/cross-context/billing-platform.adapter.ts",
         "target": "platform",
         "targetPaths": [
-          "apps/backend/src/contexts/platform/application/use-cases/get-tenant-billing-info.use-case.ts"
+          "apps/backend/src/contexts/platform/application/use-cases/get-tenant-billing-info.use-case.ts",
+          "apps/backend/src/contexts/platform/application/use-cases/list-tenants-created-before.use-case.ts"
         ],
-        "rationale": "Billing's access resolver reads a tenant's creation time for the 15-minute provisioning window (UC-120 A1), through the narrow GetTenantBillingInfoUseCase.",
+        "rationale": "Billing's access resolver reads a tenant's creation time for the 15-minute provisioning window (UC-120 A1), through the narrow GetTenantBillingInfoUseCase; the self-heal job (UC-140) pages tenants by age through the read-only ListTenantsCreatedBeforeUseCase.",
         "owner": "billing",
         "reviewBy": "2027-05-12"
       }

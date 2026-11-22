@@ -299,6 +299,12 @@
     ]
   },
   {
+    "event": "cron-billing-self-heal",
+    "consumers": [
+      "billing-self-heal"
+    ]
+  },
+  {
     "event": "cron-billing-status-sweep",
     "consumers": [
       "billing-status-sweep"

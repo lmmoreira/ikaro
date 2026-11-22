@@ -110,6 +110,11 @@ export class InMemorySubscriptionRepository implements ISubscriptionRepository {
     );
   }
 
+  async findExistingTenantIds(tenantIds: readonly string[]): Promise<string[]> {
+    const wanted = new Set(tenantIds);
+    return this.saved.filter((s) => wanted.has(s.tenantId)).map((s) => s.tenantId);
+  }
+
   async listMerchantProfileKeys(): Promise<string[]> {
     return [...new Set(this.saved.map((s) => s.merchantProfileKey))].sort((a, b) =>
       a.localeCompare(b),
