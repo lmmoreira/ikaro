@@ -1,4 +1,5 @@
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
+import { AppLogger } from '../../../../shared/observability/app-logger';
 import { ProviderHealthBuilder, SubscriptionBuilder } from '../../../../test/builders/billing';
 import {
   createSelfHealHarness,
@@ -101,5 +102,33 @@ describe('SelfHealJob (UC-140)', () => {
 
     expect(await h.health.listFrozenKeys()).toEqual([]);
     expect(h.health.saved).toHaveLength(0);
+  });
+
+  describe('a provider account no adapter serves yet (a staging sandbox key before M26-S37)', () => {
+    it('is skipped and logged at warn: the run succeeds and only the served account is checked', async () => {
+      const warn = jest.spyOn(AppLogger.prototype, 'warn').mockImplementation();
+      const error = jest.spyOn(AppLogger.prototype, 'error').mockImplementation();
+      await h.subscriptions.save(new SubscriptionBuilder().build());
+      await h.subscriptions.save(
+        new SubscriptionBuilder().withMerchantProfileKey('BRL_ASAAS_SANDBOX').build(),
+      );
+      const health = jest.spyOn(h.checkHealth, 'execute');
+      const freeze = jest.spyOn(h.evaluateFreeze, 'execute');
+
+      const result = await run();
+
+      expect(result.health).toMatchObject({ ok: true });
+      expect(result.freeze).toMatchObject({ ok: true });
+      expect(health).toHaveBeenCalledTimes(1);
+      expect(health).toHaveBeenCalledWith(
+        expect.objectContaining({ merchantProfileKey: 'BRL_FAKE' }),
+      );
+      expect(freeze).toHaveBeenCalledTimes(1);
+      expect(await h.health.findByKey('BRL_ASAAS_SANDBOX')).toBeNull();
+      expect(warn).toHaveBeenCalledWith('billing_provider_not_supported: skipped', {
+        merchantProfileKey: 'BRL_ASAAS_SANDBOX',
+      });
+      expect(error).not.toHaveBeenCalled();
+    });
   });
 });

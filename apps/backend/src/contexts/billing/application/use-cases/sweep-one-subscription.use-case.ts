@@ -151,9 +151,18 @@ export class SweepOneSubscriptionUseCase {
     providerChargeId: string,
     ctx: SweepContext,
   ): Promise<string | null> {
-    const status = await this.registry
-      .resolve(snapshot.merchantProfileKey)
-      .fetchChargeStatus(providerChargeId);
+    // A key with no adapter yet cannot answer: the same "left for the next run" as an unreachable
+    // provider, without the failure log.
+    const adapter = this.registry.tryResolve(snapshot.merchantProfileKey);
+    if (adapter === null) {
+      this.logger.warn('billing_provider_not_supported: skipped', {
+        tenantId: snapshot.tenantId,
+        chargeId: first.id,
+        merchantProfileKey: snapshot.merchantProfileKey,
+      });
+      return null;
+    }
+    const status = await adapter.fetchChargeStatus(providerChargeId);
     const paid = paidFactFromStatus(status, first, ctx.now);
     if (paid !== null) {
       // The webhook was missed: the payment is applied now and the rules find the charge paid.

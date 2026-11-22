@@ -11,6 +11,7 @@ import { CreateTrialSubscriptionUseCase } from '../use-cases/create-trial-subscr
 import { EvaluateSuspensionFreezeUseCase } from '../use-cases/evaluate-suspension-freeze.use-case';
 import { ReleaseStaleSignupRegistrationsUseCase } from '../use-cases/release-stale-signup-registrations.use-case';
 import { RepairMissingSubscriptionsStep } from './repair-missing-subscriptions.helpers';
+import { ProviderAccountsService } from '../services/provider-accounts.service';
 import { SelfHealJob } from './self-heal.job';
 
 const HOUR_MS = 3_600_000;
@@ -44,7 +45,7 @@ describe('SelfHealJob (integration, UC-140)', () => {
     );
     evaluateFreeze = new EvaluateSuspensionFreezeUseCase(world.health);
     job = new SelfHealJob(
-      world.subscriptions,
+      new ProviderAccountsService(world.subscriptions, world.registry),
       world.clock,
       new RepairMissingSubscriptionsStep(
         world.platform,
@@ -256,6 +257,39 @@ describe('SelfHealJob (integration, UC-140)', () => {
       const row = await world.health.findByKey('BRL_FAKE');
       expect(row?.webhookStatus).toBe('PAUSED');
       expect(row?.webhookReenabledAt).not.toBeNull();
+    } finally {
+      // Put the shared row back the way this spec found it, even when an assertion failed.
+      if (before === null) {
+        await world.ds.query(
+          `DELETE FROM "billing"."provider_health" WHERE "merchant_profile_key" = 'BRL_FAKE'`,
+        );
+      } else {
+        await world.health.save(before);
+      }
+    }
+  });
+
+  // The staging state: the M25-S05 backfill gave every tenant `BRL_ASAAS_SANDBOX`, and the registry
+  // has no adapter for it until M26-S37. The run used to throw on it, nack and dead-letter.
+  it('a subscription on a key no adapter serves yet does not fail the run: the served account is still checked', async () => {
+    const sandbox = await world.seedSubscription({
+      configure: (b) => b.withStatus('ACTIVE').withMerchantProfileKey('BRL_ASAAS_SANDBOX'),
+    });
+    accountKeys = ['BRL_ASAAS_SANDBOX', 'BRL_FAKE'];
+    const before = await world.health.findByKey('BRL_FAKE');
+
+    try {
+      const result = await run();
+
+      expect(result.health).toMatchObject({
+        ok: true,
+        value: [{ merchantProfileKey: 'BRL_FAKE' }],
+      });
+      expect(result.freeze).toMatchObject({ ok: true });
+      expect((await world.subscriptionRow(sandbox.tenantId)).merchantProfileKey).toBe(
+        'BRL_ASAAS_SANDBOX',
+      );
+      expect(await world.health.findByKey('BRL_ASAAS_SANDBOX')).toBeNull();
     } finally {
       // Put the shared row back the way this spec found it, even when an assertion failed.
       if (before === null) {

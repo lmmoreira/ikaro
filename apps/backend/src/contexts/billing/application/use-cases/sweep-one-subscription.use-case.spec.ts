@@ -1,3 +1,4 @@
+import { AppLogger } from '../../../../shared/observability/app-logger';
 import { SubscriptionBuilder } from '../../../../test/builders/billing';
 import {
   createSweepHarness,
@@ -323,5 +324,40 @@ describe('SweepOneSubscriptionUseCase (UC-115)', () => {
     expect(result.steps).toEqual(['CANCELED']);
     expect(subscription.suspensionReason).toBe('CANCELED');
     expect(recoveryOf(subscription)).toBeUndefined();
+  });
+
+  describe('a key no adapter serves yet', () => {
+    it('defers the trial-end re-read like an unreachable provider, logged at warn and not as a failed re-read', async () => {
+      const warn = jest.spyOn(AppLogger.prototype, 'warn').mockImplementation();
+      const error = jest.spyOn(AppLogger.prototype, 'error').mockImplementation();
+      const subscription = new SubscriptionBuilder()
+        .withStatus('TRIALING')
+        .withTrialEndsAt(TRIAL_ENDED)
+        .withMerchantProfileKey('BRL_ASAAS_SANDBOX')
+        .withItems([h.hotsiteItem()])
+        .build();
+      await h.seedTenant(subscription);
+      const first = await h.seedCharge(subscription, {
+        dueDate: '2026-03-09',
+        period: ['2026-03-09', '2026-04-08'],
+      });
+      const fetch = jest.spyOn(h.provider, 'fetchChargeStatus');
+
+      const result = await sweep(subscription);
+
+      expect(result.deferred).toBe(true);
+      expect(subscription.status).toBe('TRIALING');
+      expect(fetch).not.toHaveBeenCalled();
+      expect(warn).toHaveBeenCalledWith('billing_provider_not_supported: skipped', {
+        tenantId: subscription.tenantId,
+        chargeId: first.id,
+        merchantProfileKey: 'BRL_ASAAS_SANDBOX',
+      });
+      expect(warn).not.toHaveBeenCalledWith(
+        expect.stringContaining('billing_sweep_provider_reread_failed'),
+        expect.anything(),
+      );
+      expect(error).not.toHaveBeenCalled();
+    });
   });
 });

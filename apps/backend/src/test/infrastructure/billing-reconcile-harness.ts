@@ -1,5 +1,6 @@
 import { ReconcileChargesJob } from '../../contexts/billing/application/jobs/reconcile-charges.job';
 import { ChargeProviderSyncService } from '../../contexts/billing/application/services/charge-provider-sync.service';
+import { ProviderAccountsService } from '../../contexts/billing/application/services/provider-accounts.service';
 import { ReconcileOneChargeUseCase } from '../../contexts/billing/application/use-cases/reconcile-one-charge.use-case';
 import { RecordReconcilePassUseCase } from '../../contexts/billing/application/use-cases/record-reconcile-pass.use-case';
 import { RefreshChargeFromProviderUseCase } from '../../contexts/billing/application/use-cases/refresh-charge-from-provider.use-case';
@@ -31,8 +32,9 @@ export function createReconcileHarness() {
   const retryCancel = new RetryProviderChargeCancelUseCase(base.cancellation);
   const recordPass = new RecordReconcilePassUseCase(registry, base.health);
   const refresh = new RefreshChargeFromProviderUseCase(sync, base.charges);
+  const providerAccounts = new ProviderAccountsService(base.subscriptions, registry);
   const reconcile = new ReconcileChargesJob(
-    base.subscriptions,
+    providerAccounts,
     base.charges,
     base.health,
     base.clock,
@@ -40,5 +42,15 @@ export function createReconcileHarness() {
     retryCancel,
     recordPass,
   );
-  return { ...base, registry, sync, reconcileOne, retryCancel, recordPass, refresh, reconcile };
+  return {
+    ...base,
+    registry,
+    providerAccounts,
+    sync,
+    reconcileOne,
+    retryCancel,
+    recordPass,
+    refresh,
+    reconcile,
+  };
 }

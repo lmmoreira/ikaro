@@ -419,4 +419,37 @@ describe('ReconcileChargesJob (UC-116)', () => {
       expect(charge.providerCancelPending).toBe(true);
     });
   });
+
+  describe('a provider account no adapter serves yet (a staging sandbox key before M26-S37)', () => {
+    beforeEach(fullPassDone);
+
+    it('is skipped and logged at warn, the served account is still reconciled, and the run does not fail', async () => {
+      const warn = jest.spyOn(AppLogger.prototype, 'warn').mockImplementation();
+      const error = jest.spyOn(AppLogger.prototype, 'error').mockImplementation();
+      await tenant('ACTIVE', (b) => b.withMerchantProfileKey('BRL_ASAAS_SANDBOX'));
+      await h.seedCharge(await tenant('PAST_DUE'), { dueDate: '2026-03-01' });
+
+      const result = await run();
+
+      expect(result.checked).toBe(1);
+      expect(result.advanced).toBe(1);
+      expect((await healthRow())?.lastReconcileOkAt).toEqual(SWEEP_NOW);
+      expect(await h.health.findByKey('BRL_ASAAS_SANDBOX')).toBeNull();
+      expect(warn).toHaveBeenCalledWith('billing_provider_not_supported: skipped', {
+        merchantProfileKey: 'BRL_ASAAS_SANDBOX',
+      });
+      expect(error).not.toHaveBeenCalled();
+    });
+
+    it('a run whose only account has no adapter succeeds and advances nothing', async () => {
+      jest.spyOn(AppLogger.prototype, 'warn').mockImplementation();
+      await tenant('ACTIVE', (b) => b.withMerchantProfileKey('BRL_ASAAS_SANDBOX'));
+      const health = jest.spyOn(h.provider, 'readAccountHealth');
+
+      const result = await run();
+
+      expect(result).toMatchObject({ checked: 0, advanced: 0, failed: 0 });
+      expect(health).not.toHaveBeenCalled();
+    });
+  });
 });

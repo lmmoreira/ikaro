@@ -1,5 +1,6 @@
 import { ReconcileChargesJob } from '../../contexts/billing/application/jobs/reconcile-charges.job';
 import { ChargeProviderSyncService } from '../../contexts/billing/application/services/charge-provider-sync.service';
+import { ProviderAccountsService } from '../../contexts/billing/application/services/provider-accounts.service';
 import { ReconcileOneChargeUseCase } from '../../contexts/billing/application/use-cases/reconcile-one-charge.use-case';
 import { RecordReconcilePassUseCase } from '../../contexts/billing/application/use-cases/record-reconcile-pass.use-case';
 import { RefreshChargeFromProviderUseCase } from '../../contexts/billing/application/use-cases/refresh-charge-from-provider.use-case';
@@ -27,8 +28,9 @@ export async function createReconcileWorld() {
   const retryCancel = new RetryProviderChargeCancelUseCase(world.cancellation);
   const recordPass = new RecordReconcilePassUseCase(world.registry, world.health);
   const refresh = new RefreshChargeFromProviderUseCase(sync, world.charges);
+  const providerAccounts = new ProviderAccountsService(world.subscriptions, world.registry);
   const reconcile = new ReconcileChargesJob(
-    world.subscriptions,
+    providerAccounts,
     world.charges,
     world.health,
     world.clock,
@@ -42,7 +44,17 @@ export async function createReconcileWorld() {
     await world.cleanup();
     world.trackHealthKey('BRL_FAKE');
   };
-  return { ...world, cleanup, sync, reconcileOne, retryCancel, recordPass, refresh, reconcile };
+  return {
+    ...world,
+    cleanup,
+    providerAccounts,
+    sync,
+    reconcileOne,
+    retryCancel,
+    recordPass,
+    refresh,
+    reconcile,
+  };
 }
 
 export type ReconcileWorld = Awaited<ReturnType<typeof createReconcileWorld>>;

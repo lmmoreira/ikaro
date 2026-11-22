@@ -82,6 +82,7 @@ import { ReleaseStaleSignupRegistrationsUseCase } from './application/use-cases/
 import { RepairMissingSubscriptionsStep } from './application/jobs/repair-missing-subscriptions.helpers';
 import { SelfHealTriggerHandler } from './infrastructure/events/self-heal-trigger.handler';
 import { ChargeProviderSyncService } from './application/services/charge-provider-sync.service';
+import { ProviderAccountsService } from './application/services/provider-accounts.service';
 import { ReconcileOneChargeUseCase } from './application/use-cases/reconcile-one-charge.use-case';
 import { RecordReconcilePassUseCase } from './application/use-cases/record-reconcile-pass.use-case';
 import { RefreshChargeFromProviderUseCase } from './application/use-cases/refresh-charge-from-provider.use-case';
@@ -201,6 +202,7 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     RecordReconcilePassUseCase,
     RetryProviderChargeCancelUseCase,
     RefreshChargeFromProviderUseCase,
+    ProviderAccountsService,
     ReconcileChargesJob,
     ReconcileTriggerHandler,
     RepairMissingSubscriptionsStep,
