@@ -794,7 +794,7 @@ For each charge: `fetchChargeStatus` (provider call, outside any transaction, th
 
 ---
 
-### M26-S08 — Self-heal, provider health, suspension freeze and the `cron-billing-self-heal` trigger (UC-140)
+### M26-S08 — Self-heal, provider health, suspension freeze and the `cron-billing-self-heal` trigger (UC-140) ✅ Done
 
 **Agent:** `backend-ts + devops`
 **Complexity:** M
