@@ -725,7 +725,9 @@ Make time move the ladder. Hourly trigger `cron-billing-status-sweep` at minute 
 
 ---
 
-### M26-S07 — Reconcile, the on-demand refresh and the `cron-billing-reconcile` trigger (UC-116)
+### M26-S07 — Reconcile, the on-demand refresh and the `cron-billing-reconcile` trigger (UC-116) ✅ Done
+
+  - ⚠️ Live check partly observed: topic, `-dlq`, both subscriptions, scheduler job and every IAM grant were applied in staging and prod (infra run 45020626493, Foundation run 45020769264, PR #824 comment "Re: live verification"); the scheduler-run observation (`billing_reconcile_run` log line) is not yet seen — parked with S06's in M26-S39, 2026-11-22
 
 **Agent:** `backend-ts + devops`
 **Complexity:** M
