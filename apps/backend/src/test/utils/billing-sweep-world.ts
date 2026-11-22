@@ -231,6 +231,11 @@ export async function createSweepWorld() {
       );
   }
 
+  /** Registers a health row this world did not insert (a job wrote it), so `cleanup` removes it. */
+  function trackHealthKey(key: string): void {
+    healthKeys.push(key);
+  }
+
   const chargeRows = (tenantId: string) =>
     ds.getRepository(ChargeEntity).find({ where: { tenantId } });
   const subscriptionRow = (tenantId: string) =>
@@ -268,7 +273,9 @@ export async function createSweepWorld() {
     ds,
     txManager,
     outbox,
+    clock,
     provider,
+    registry,
     subscriptions,
     accounts,
     charges,
@@ -282,6 +289,7 @@ export async function createSweepWorld() {
     seedSubscription,
     seedCharge,
     seedHealthKey,
+    trackHealthKey,
     chargeRows,
     subscriptionRow,
     cleanup,

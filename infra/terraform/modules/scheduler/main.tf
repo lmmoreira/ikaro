@@ -60,6 +60,10 @@ locals {
       topic_key = "cron-billing-status-sweep"
       schedule  = "40 * * * *"
     }
+    ikaro-cron-billing-reconcile = {
+      topic_key = "cron-billing-reconcile"
+      schedule  = "10 * * * *"
+    }
   }
 }
 

@@ -121,6 +121,13 @@ export interface ISubscriptionRepository {
   findCancelDueForJob(now: Date, limit: number, after?: SweepDueRef): Promise<SweepDueRef[]>;
 
   /**
+   * Cross-tenant system read (UC-116): the distinct merchant profile keys subscriptions use, one
+   * per provider account, in key order. Reconcile reads each account's health through it. Keys
+   * only, never a tenant's state.
+   */
+  listMerchantProfileKeys(): Promise<string[]>;
+
+  /**
    * Cross-tenant operator read (UC-111): one page of subscription summaries, newest-created first
    * (id as tiebreak), optionally narrowed to one status, with the unpaged total. It reads the
    * subscription row only (no items, no other context's data) and serves a manual lookup over one

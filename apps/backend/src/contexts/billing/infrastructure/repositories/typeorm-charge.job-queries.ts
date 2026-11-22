@@ -54,44 +54,6 @@ export function buildPendingCreationQuery(
     .limit(limit);
 }
 
-export function buildOpenDueQuery(
-  repo: Repository<ChargeEntity>,
-  dueOnOrBefore: string,
-  limit: number,
-): SelectQueryBuilder<ChargeEntity> {
-  return refQuery(repo)
-    .where('c.status IN (:...statuses)', { statuses: OPEN_STATUSES })
-    .andWhere('c.dueDate <= :dueOnOrBefore', { dueOnOrBefore })
-    .orderBy('c.dueDate', 'ASC')
-    .addOrderBy('c.id', 'ASC')
-    .limit(limit);
-}
-
-export function buildOpenQuery(
-  repo: Repository<ChargeEntity>,
-  limit: number,
-): SelectQueryBuilder<ChargeEntity> {
-  return refQuery(repo)
-    .where('c.status IN (:...statuses)', { statuses: OPEN_STATUSES })
-    .orderBy('c.dueDate', 'ASC')
-    .addOrderBy('c.id', 'ASC')
-    .limit(limit);
-}
-
-// A flagged charge is always `CANCELED`; the status equality lets the (status, due_date) partial
-// index serve the order.
-export function buildProviderCancelPendingQuery(
-  repo: Repository<ChargeEntity>,
-  limit: number,
-): SelectQueryBuilder<ChargeEntity> {
-  return refQuery(repo)
-    .where('c.status = :status', { status: 'CANCELED' })
-    .andWhere('c.providerCancelPending = true')
-    .orderBy('c.dueDate', 'ASC')
-    .addOrderBy('c.id', 'ASC')
-    .limit(limit);
-}
-
 /**
  * The status sweep's rule 1 selector (UC-115, M26-S06): `PENDING` charges whose payer has a
  * payment link (`provider_creation_status = 'READY'`: a charge held for a missing billing address

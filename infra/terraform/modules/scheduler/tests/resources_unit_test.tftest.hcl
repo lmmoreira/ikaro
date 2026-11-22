@@ -21,15 +21,16 @@ variables {
     cron-resource-occupancy-retention-purge = "projects/ikaro-test/topics/ikaro-cron-resource-occupancy-retention-purge"
     cron-billing-issue-charges              = "projects/ikaro-test/topics/ikaro-cron-billing-issue-charges"
     cron-billing-status-sweep               = "projects/ikaro-test/topics/ikaro-cron-billing-status-sweep"
+    cron-billing-reconcile                  = "projects/ikaro-test/topics/ikaro-cron-billing-reconcile"
   }
 }
 
-run "all_ten_jobs_exist_with_correct_cadence_and_topic" {
+run "all_eleven_jobs_exist_with_correct_cadence_and_topic" {
   command = plan
 
   assert {
-    condition     = length(google_cloud_scheduler_job.cron) == 10
-    error_message = "Exactly 10 cron jobs must exist: reminders, loyalty-expiry, loyalty-expiry-warning, outbox-relay, chatbot-retention-purge, chatbot-balance-poll, lead-form-retention, resource-occupancy-retention-purge, billing-issue-charges, billing-status-sweep."
+    condition     = length(google_cloud_scheduler_job.cron) == 11
+    error_message = "Exactly 11 cron jobs must exist: reminders, loyalty-expiry, loyalty-expiry-warning, outbox-relay, chatbot-retention-purge, chatbot-balance-poll, lead-form-retention, resource-occupancy-retention-purge, billing-issue-charges, billing-status-sweep, billing-reconcile."
   }
 
   assert {
@@ -113,6 +114,14 @@ run "all_ten_jobs_exist_with_correct_cadence_and_topic" {
   }
 
   assert {
+    condition = (
+      google_cloud_scheduler_job.cron["ikaro-cron-billing-reconcile"].schedule == "10 * * * *" &&
+      google_cloud_scheduler_job.cron["ikaro-cron-billing-reconcile"].pubsub_target[0].topic_name == var.cron_topic_ids["cron-billing-reconcile"]
+    )
+    error_message = "ikaro-cron-billing-reconcile must fire hourly at minute 10 UTC, before the status sweep at minute 40, against the cron-billing-reconcile topic (M26-S07)."
+  }
+
+  assert {
     condition = alltrue([
       for job in google_cloud_scheduler_job.cron : job.time_zone == "UTC"
     ])
@@ -160,7 +169,7 @@ run "only_jobs_in_paused_job_keys_are_paused" {
   }
 
   assert {
-    condition     = length(google_cloud_scheduler_job.cron) == 10
+    condition     = length(google_cloud_scheduler_job.cron) == 11
     error_message = "An unknown key in paused_job_keys must be harmless (no extra job)."
   }
 }

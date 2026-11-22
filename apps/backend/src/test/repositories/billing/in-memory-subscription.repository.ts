@@ -110,6 +110,12 @@ export class InMemorySubscriptionRepository implements ISubscriptionRepository {
     );
   }
 
+  async listMerchantProfileKeys(): Promise<string[]> {
+    return [...new Set(this.saved.map((s) => s.merchantProfileKey))].sort((a, b) =>
+      a.localeCompare(b),
+    );
+  }
+
   async findCancelDueForJob(now: Date, limit: number, after?: SweepDueRef): Promise<SweepDueRef[]> {
     return this.sweepPage(
       this.saved.flatMap((s) =>

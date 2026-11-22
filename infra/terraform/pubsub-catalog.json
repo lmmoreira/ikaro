@@ -293,6 +293,12 @@
     ]
   },
   {
+    "event": "cron-billing-reconcile",
+    "consumers": [
+      "billing-reconcile"
+    ]
+  },
+  {
     "event": "cron-billing-status-sweep",
     "consumers": [
       "billing-status-sweep"

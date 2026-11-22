@@ -227,4 +227,15 @@ describe('TypeOrmSubscriptionRepository status-sweep selectors (integration, UC-
       expect(used.seqScan).toBe(false);
     });
   });
+
+  it('lists the distinct merchant profile keys in use, once each and in key order (UC-116)', async () => {
+    const base = uuidv7().slice(-8);
+    await seed((b) => b.withMerchantProfileKey(`ZZ_${base}_B`));
+    await seed((b) => b.withMerchantProfileKey(`ZZ_${base}_A`));
+    await seed((b) => b.withMerchantProfileKey(`ZZ_${base}_B`));
+
+    const keys = (await repo.listMerchantProfileKeys()).filter((key) => key.includes(base));
+
+    expect(keys).toEqual([`ZZ_${base}_A`, `ZZ_${base}_B`]);
+  });
 });

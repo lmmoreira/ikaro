@@ -90,3 +90,18 @@ export function buildCancelDueQuery(
     .andWhere('NOT s.exempt');
   return page(query, 's.cancelAt', limit, after);
 }
+
+// The provider accounts in use (UC-116): one row per distinct `merchant_profile_key`, so reconcile
+// can read each account's health even when it has no charge to check. A scan of a table with one
+// row per tenant, run once an hour: it needs no index of its own.
+export async function listDistinctMerchantProfileKeys(
+  repo: Repository<SubscriptionEntity>,
+): Promise<string[]> {
+  const rows = await repo
+    .createQueryBuilder('s')
+    .select('s.merchantProfileKey', 'merchantProfileKey')
+    .distinct(true)
+    .orderBy('s.merchantProfileKey', 'ASC')
+    .getRawMany<{ merchantProfileKey: string }>();
+  return rows.map((row) => row.merchantProfileKey);
+}

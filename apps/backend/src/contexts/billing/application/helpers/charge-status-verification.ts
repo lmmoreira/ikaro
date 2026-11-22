@@ -28,6 +28,30 @@ export function isPaidAtProvider(status: NormalizedChargeStatus): boolean {
 }
 
 /**
+ * The fact a verified provider read states (reconcile, UC-116), or `null` when it states none:
+ * paid or partially refunded is a payment, refunded and charged back are the two reversals, and
+ * pending, overdue (the sweep's) and cancelled change nothing locally. The caller has already
+ * checked `chargeStatusMismatch`; `fallbackPaidAt` stands in when the provider gives no payment
+ * instant.
+ */
+export function factFromStatus(
+  status: NormalizedChargeStatus,
+  fallbackPaidAt: Date,
+): ChargeFact | null {
+  if (isPaidAtProvider(status)) {
+    return {
+      type: 'PAID',
+      method: status.paymentMethod,
+      paidAt: status.paidAt ?? fallbackPaidAt,
+      receiptUrl: status.receiptUrl,
+    };
+  }
+  if (status.state === 'REFUNDED') return { type: 'REFUNDED' };
+  if (status.state === 'CHARGEBACK') return { type: 'CHARGEBACK' };
+  return null;
+}
+
+/**
  * The paid fact a verified provider re-read states, or `null` when the re-read does not describe
  * this charge or says it is not paid. `fallbackPaidAt` stands in when the provider gives no payment
  * instant.

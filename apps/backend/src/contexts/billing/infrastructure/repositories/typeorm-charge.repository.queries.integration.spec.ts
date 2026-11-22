@@ -12,13 +12,15 @@ import { Charge } from '../../domain/charge.aggregate';
 import { ChargeEntity } from '../entities/charge.entity';
 import { ChargeLineEntity } from '../entities/charge-line.entity';
 import { SubscriptionEntity } from '../entities/subscription.entity';
+import { buildPageQuery, buildPendingCreationQuery } from './typeorm-charge.job-queries';
 import {
   buildOpenDueQuery,
   buildOpenQuery,
-  buildPageQuery,
-  buildPendingCreationQuery,
+  buildOpenRecoveryQuery,
+  buildOpenTrialChargesQuery,
   buildProviderCancelPendingQuery,
-} from './typeorm-charge.job-queries';
+  buildRecentlyPaidQuery,
+} from './typeorm-charge.reconcile-queries';
 import { TypeOrmChargeRepository } from './typeorm-charge.repository';
 
 interface PlanNode {
@@ -325,6 +327,87 @@ describe('TypeOrmChargeRepository queries, claim and isolation (integration)', (
       ).toEqual([charge.id]);
     });
 
+    it('the reconcile selectors page by keyset, never repeating a row and never skipping one', async () => {
+      const t = await newTenant();
+      const open = await Promise.all(
+        ['2026-03-01', '2026-04-01', '2026-05-01'].map((start, index) =>
+          seed(t, (b) =>
+            b
+              .withPeriod(start, `2026-0${index + 3}-28`)
+              .withDueDate(`2026-0${index + 3}-05`)
+              .withStatus(index === 1 ? 'OVERDUE' : 'PENDING'),
+          ),
+        ),
+      );
+      const mine = (refs: { id: string }[]): string[] =>
+        refs.filter((r) => open.some((c) => c.id === r.id)).map((r) => r.id);
+      const pageThrough = async (): Promise<string[]> => {
+        const seen: string[] = [];
+        let after: Awaited<ReturnType<typeof repo.listOpenForJob>>[number] | undefined;
+        for (;;) {
+          const page = await repo.listOpenForJob(1000, after);
+          const rows = page.filter((r) => !seen.includes(r.id));
+          if (page.length === 0 || rows.length === 0) return seen;
+          seen.push(...rows.map((r) => r.id));
+          after = page.at(-1);
+        }
+      };
+      const first = await repo.listOpenForJob(1000);
+      const second = await repo.listOpenForJob(
+        1000,
+        first.find((r) => r.id === open[0].id),
+      );
+
+      expect(mine(first)).toEqual(open.map((c) => c.id));
+      expect(mine(second)).toEqual([open[1].id, open[2].id]);
+      expect((await pageThrough()).filter((id) => open.some((c) => c.id === id))).toEqual(
+        open.map((c) => c.id),
+      );
+      expect(first.find((r) => r.id === open[0].id)?.dueDate).toBe('2026-03-05');
+    });
+
+    it('lists the open recovery charges, the open charges of ending trials and the recently paid ones', async () => {
+      const recoveryTenant = await newTenant();
+      const trialTenant = await newTenant();
+      const activeTenant = await newTenant();
+      const trialEnds = new Date('2026-03-10T12:00:00Z');
+      await dataSource
+        .getRepository(SubscriptionEntity)
+        .update({ tenantId: trialTenant.tenantId }, { status: 'TRIALING', trialEndsAt: trialEnds });
+      const recovery = await seed(recoveryTenant, (b) =>
+        b.withPeriod('2026-03-01', '2026-03-31').asRecovery().withDueDate('2026-03-08'),
+      );
+      const trialCharge = await seed(trialTenant, (b) => b.withDueDate('2026-03-10'));
+      const activeCharge = await seed(activeTenant, (b) => b.withDueDate('2026-03-10'));
+      const paidAt = new Date('2026-03-01T12:00:00Z');
+      const paid = await seed(activeTenant, (b) =>
+        b.withPeriod('2026-02-01', '2026-02-28').withStatus('PAID').withPaid('CARD', paidAt),
+      );
+      const oldPaid = await seed(activeTenant, (b) =>
+        b
+          .withPeriod('2025-12-01', '2025-12-31')
+          .withStatus('PAID')
+          .withPaid('CARD', new Date('2025-12-05T12:00:00Z')),
+      );
+      const mine = (refs: { id: string }[]): string[] => {
+        const own = [recovery, trialCharge, activeCharge, paid, oldPaid].map((c) => c.id);
+        return refs.filter((r) => own.includes(r.id)).map((r) => r.id);
+      };
+
+      expect(mine(await repo.listOpenRecoveryForJob(100_000))).toEqual([recovery.id]);
+      // The active tenant's open charge is no trial's: only the trialing subscription's is listed,
+      // and only while the trial ends within the window.
+      expect(
+        mine(await repo.listOpenTrialChargesForJob(new Date('2026-03-20T00:00:00Z'), 100_000)),
+      ).toEqual([trialCharge.id]);
+      expect(
+        mine(await repo.listOpenTrialChargesForJob(new Date('2026-03-01T00:00:00Z'), 100_000)),
+      ).toEqual([]);
+      const recent = await repo.listRecentlyPaidForJob(new Date('2026-01-26T00:00:00Z'), 100_000);
+      expect(mine(recent)).toEqual([paid.id]);
+      expect(recent.find((r) => r.id === paid.id)?.paidAt).toEqual(paidAt);
+    });
+
     it('serves the page and every job from its own index (EXPLAIN asserted)', async () => {
       const t = await newTenant();
       await seed(t, (b) => b);
@@ -348,6 +431,43 @@ describe('TypeOrmChargeRepository queries, claim and isolation (integration)', (
       expect(await indexesUsed(buildProviderCancelPendingQuery(chargeRepo, 10))).toContain(
         'IDX_billing_charges_cancel_pending',
       );
+    });
+
+    it('serves each reconcile selector from its own index (EXPLAIN asserted)', async () => {
+      const t = await newTenant();
+      await seed(t, (b) => b);
+      const chargeRepo = dataSource.getRepository(ChargeEntity);
+      const after = { tenantId: t.tenantId, id: uuidv7(), dueDate: '2026-01-01' };
+
+      expect(await indexesUsed(buildOpenDueQuery(chargeRepo, '2026-12-31', 10, after))).toContain(
+        'IDX_billing_charges_open',
+      );
+      expect(await indexesUsed(buildOpenQuery(chargeRepo, 10, after))).toContain(
+        'IDX_billing_charges_open',
+      );
+      expect(
+        await indexesUsed(
+          buildOpenRecoveryQuery(chargeRepo, 10, {
+            tenantId: t.tenantId,
+            id: uuidv7(),
+            subscriptionId: t.subscriptionId,
+          }),
+          ['IDX_billing_charges_open'],
+        ),
+      ).toContain('UQ_billing_charges_open_recovery');
+      expect(
+        await indexesUsed(buildRecentlyPaidQuery(chargeRepo, new Date(0), 10), [
+          'IDX_billing_charges_open',
+        ]),
+      ).toContain('IDX_billing_charges_paid_recent');
+      // The trial index narrows the subscriptions, the charge's own unique index finds each one's
+      // open charge: neither side is a scan of the whole table.
+      const trialPlan = await indexesUsed(
+        buildOpenTrialChargesQuery(chargeRepo, new Date('2030-01-01T00:00:00Z'), 10, after),
+        ['IDX_billing_charges_open', 'IDX_billing_charges_history'],
+      );
+      expect(trialPlan).toContain('IDX_billing_subscriptions_trial_ends_at');
+      expect(trialPlan).toContain('UQ_billing_charges_period');
     });
   });
 });

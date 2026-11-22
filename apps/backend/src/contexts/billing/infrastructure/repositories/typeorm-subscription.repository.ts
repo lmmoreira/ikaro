@@ -25,10 +25,12 @@ import {
   itemToEntity,
   subscriptionToDomain,
   subscriptionToEntity,
+  subscriptionToOperatorSummary,
   subscriptionUpdateSet,
 } from './typeorm-subscription.mapper';
 import {
   buildCancelDueQuery,
+  listDistinctMerchantProfileKeys,
   buildGraceExpiredQuery,
   buildTrialEndedQuery,
 } from './typeorm-subscription.sweep-queries';
@@ -113,6 +115,10 @@ export class TypeOrmSubscriptionRepository implements ISubscriptionRepository {
     return buildCancelDueQuery(this.repo, now, limit, after).getRawMany<SweepDueRef>();
   }
 
+  listMerchantProfileKeys(): Promise<string[]> {
+    return listDistinctMerchantProfileKeys(this.repo);
+  }
+
   async listSummaries(
     query: ListOperatorSubscriptionsQuery,
   ): Promise<{ items: OperatorSubscriptionSummary[]; total: number }> {
@@ -124,20 +130,7 @@ export class TypeOrmSubscriptionRepository implements ISubscriptionRepository {
       .take(query.limit)
       .skip(query.offset)
       .getManyAndCount();
-    return {
-      items: rows.map((row) => ({
-        tenantId: row.tenantId,
-        status: row.status as OperatorSubscriptionSummary['status'],
-        suspensionReason: row.suspensionReason as OperatorSubscriptionSummary['suspensionReason'],
-        exempt: row.exempt,
-        trialEndsAt: row.trialEndsAt,
-        graceUntil: row.graceUntil,
-        pastDueSince: row.pastDueSince,
-        suspendedAt: row.suspendedAt,
-        hasEverPaid: row.hasEverPaid,
-      })),
-      total,
-    };
+    return { items: rows.map(subscriptionToOperatorSummary), total };
   }
 
   // The two batch queries are public so the integration spec can `EXPLAIN` the exact SQL that runs.

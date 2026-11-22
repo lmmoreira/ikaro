@@ -74,6 +74,13 @@ import { RecoveryChargePlanner } from './application/services/recovery-charge-pl
 import { SubscriptionSweepRules } from './application/services/subscription-sweep-rules.service';
 import { ProviderHealthEntity } from './infrastructure/entities/provider-health.entity';
 import { StatusSweepTriggerHandler } from './infrastructure/events/status-sweep-trigger.handler';
+import { ReconcileChargesJob } from './application/jobs/reconcile-charges.job';
+import { ChargeProviderSyncService } from './application/services/charge-provider-sync.service';
+import { ReconcileOneChargeUseCase } from './application/use-cases/reconcile-one-charge.use-case';
+import { RecordReconcilePassUseCase } from './application/use-cases/record-reconcile-pass.use-case';
+import { RefreshChargeFromProviderUseCase } from './application/use-cases/refresh-charge-from-provider.use-case';
+import { RetryProviderChargeCancelUseCase } from './application/use-cases/retry-provider-charge-cancel.use-case';
+import { ReconcileTriggerHandler } from './infrastructure/events/reconcile-trigger.handler';
 import { TypeOrmProviderHealthRepository } from './infrastructure/repositories/typeorm-provider-health.repository';
 import { InternalBillingAccessController } from './infrastructure/controllers/internal-billing-access.controller';
 import { BILLING_PROVIDER_REGISTRY } from './application/ports/billing-provider.port';
@@ -183,6 +190,13 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     SweepOneSubscriptionUseCase,
     SweepSubscriptionStatusesJob,
     StatusSweepTriggerHandler,
+    ChargeProviderSyncService,
+    ReconcileOneChargeUseCase,
+    RecordReconcilePassUseCase,
+    RetryProviderChargeCancelUseCase,
+    RefreshChargeFromProviderUseCase,
+    ReconcileChargesJob,
+    ReconcileTriggerHandler,
   ],
   // The shared access port is consumed by every context (M25-S16 onwards). The registration and
   // the five operator use cases are injected by this module's own controllers, which the
