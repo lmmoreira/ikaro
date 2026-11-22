@@ -1,4 +1,5 @@
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
+import { AppLogger } from '../../../../shared/observability/app-logger';
 import { InMemoryInboxRepository } from '../../../../test/infrastructure/in-memory-inbox.repository';
 import { createSweepWorld, type SweepWorld } from '../../../../test/utils/billing-sweep-world';
 import { BillingAccountEntity } from '../../infrastructure/entities/billing-account.entity';
@@ -28,6 +29,8 @@ describe('SelfHealJob (integration, UC-140)', () => {
   let evaluateFreeze: EvaluateSuspensionFreezeUseCase;
   const registrationIds: string[] = [];
   let accountKeys: string[] = [];
+  // A test that needs the real query sets it: the subscriptions it seeded are then discovered.
+  let useDatabaseKeys = false;
 
   beforeAll(async () => {
     world = await createSweepWorld();
@@ -63,14 +66,16 @@ describe('SelfHealJob (integration, UC-140)', () => {
       evaluateFreeze,
     );
     // The accounts the run visits: none of the shared database's keys (BRL_FAKE belongs to every
-    // suite), only the ones a test lists.
+    // suite), only the ones a test lists, unless it asks for the real query.
+    const databaseKeys = world.subscriptions.listMerchantProfileKeys.bind(world.subscriptions);
     jest
       .spyOn(world.subscriptions, 'listMerchantProfileKeys')
-      .mockImplementation(async () => accountKeys);
+      .mockImplementation(async () => (useDatabaseKeys ? databaseKeys() : accountKeys));
   });
 
   afterEach(async () => {
     accountKeys = [];
+    useDatabaseKeys = false;
     world.platform.clear();
     await world.ds.query(
       `DELETE FROM "billing"."signup_registrations" WHERE "id" = ANY($1::uuid[])`,
@@ -271,21 +276,27 @@ describe('SelfHealJob (integration, UC-140)', () => {
 
   // The staging state: the M25-S05 backfill gave every tenant `BRL_ASAAS_SANDBOX`, and the registry
   // has no adapter for it until M26-S37. The run used to throw on it, nack and dead-letter.
-  it('a subscription on a key no adapter serves yet does not fail the run: the served account is still checked', async () => {
+  it('a subscription on a key no adapter serves yet does not fail the run: the real key query finds it and the served account is still checked', async () => {
+    const warn = jest.spyOn(AppLogger.prototype, 'warn').mockImplementation();
     const sandbox = await world.seedSubscription({
       configure: (b) => b.withStatus('ACTIVE').withMerchantProfileKey('BRL_ASAAS_SANDBOX'),
     });
-    accountKeys = ['BRL_ASAAS_SANDBOX', 'BRL_FAKE'];
+    await world.seedSubscription({ configure: (b) => b.withStatus('ACTIVE') });
+    useDatabaseKeys = true;
     const before = await world.health.findByKey('BRL_FAKE');
 
     try {
       const result = await run();
 
-      expect(result.health).toMatchObject({
-        ok: true,
-        value: [{ merchantProfileKey: 'BRL_FAKE' }],
+      const checked = result.health.ok ? result.health.value.map((r) => r.merchantProfileKey) : [];
+      expect(result.health.ok).toBe(true);
+      expect(result.freeze.ok).toBe(true);
+      expect(checked).toContain('BRL_FAKE');
+      expect(checked).not.toContain('BRL_ASAAS_SANDBOX');
+      // Found by the real query, then dropped: the log is what proves the row was discovered.
+      expect(warn).toHaveBeenCalledWith('billing_provider_not_supported: skipped', {
+        merchantProfileKey: 'BRL_ASAAS_SANDBOX',
       });
-      expect(result.freeze).toMatchObject({ ok: true });
       expect((await world.subscriptionRow(sandbox.tenantId)).merchantProfileKey).toBe(
         'BRL_ASAAS_SANDBOX',
       );

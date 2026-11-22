@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { AppLogger } from '../../../../shared/observability/app-logger';
+import { MerchantProfileKeyNotAllowedError } from '../../domain/errors/billing-provider.errors';
 import {
   BILLING_PROVIDER_REGISTRY,
   type BillingProviderRegistryPort,
@@ -18,6 +19,10 @@ import {
  * whose secret is unset) is dropped and logged at `warn`, once per call: a job that threw on it
  * would nack, retry and dead-letter a message no retry can fix. A dropped key gets no health row
  * and no freeze evaluation, because there is no provider to be unhealthy.
+ *
+ * Only "no adapter" drops a key. A key this environment forbids (a live key outside production, a
+ * fake one in it) stays in the list: the step that uses it throws for that account alone, loudly,
+ * and every other account is still processed in the same run.
  */
 @Injectable()
 export class ProviderAccountsService {
@@ -31,9 +36,18 @@ export class ProviderAccountsService {
   async listServed(): Promise<string[]> {
     const keys = await this.subscriptions.listMerchantProfileKeys();
     return keys.filter((merchantProfileKey) => {
-      if (this.registry.tryResolve(merchantProfileKey) !== null) return true;
+      if (!this.hasNoAdapter(merchantProfileKey)) return true;
       this.logger.warn('billing_provider_not_supported: skipped', { merchantProfileKey });
       return false;
     });
+  }
+
+  private hasNoAdapter(merchantProfileKey: string): boolean {
+    try {
+      return this.registry.tryResolve(merchantProfileKey) === null;
+    } catch (err) {
+      if (err instanceof MerchantProfileKeyNotAllowedError) return false;
+      throw err;
+    }
   }
 }

@@ -3,7 +3,6 @@ import { FixedClock } from '../../../../test/infrastructure/fixed-clock';
 import { InMemoryOutboxPublisher } from '../../../../test/infrastructure/in-memory-outbox-publisher';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemorySubscriptionRepository } from '../../../../test/repositories/billing/in-memory-subscription.repository';
-import { MerchantProfileKeyNotAllowedError } from '../../domain/errors/billing-provider.errors';
 import { MERCHANT_PROFILE_KEYS } from '../../domain/merchant-profile-key';
 import { BillingProviderRegistry } from '../../infrastructure/providers/billing-provider.registry';
 import { FakeBillingProvider } from '../../infrastructure/providers/fake-billing.provider';
@@ -15,11 +14,6 @@ describe('ProviderAccountsService', () => {
   let warn: jest.SpyInstance;
   let error: jest.SpyInstance;
 
-  const build = (appEnv: 'local' | 'staging' | 'production' = 'local') => {
-    const registry = new BillingProviderRegistry(appEnv, new FakeBillingProvider(new FixedClock()));
-    service = new ProviderAccountsService(subscriptions, registry);
-  };
-
   beforeEach(() => {
     jest.restoreAllMocks();
     warn = jest.spyOn(AppLogger.prototype, 'warn').mockImplementation(() => undefined);
@@ -27,7 +21,10 @@ describe('ProviderAccountsService', () => {
     subscriptions = new InMemorySubscriptionRepository(
       new InMemoryOutboxPublisher(new InMemoryTransactionManager()),
     );
-    build();
+    service = new ProviderAccountsService(
+      subscriptions,
+      new BillingProviderRegistry('local', new FakeBillingProvider(new FixedClock())),
+    );
   });
 
   const keysAre = (keys: string[]) =>
@@ -71,12 +68,39 @@ describe('ProviderAccountsService', () => {
     expect(warn).not.toHaveBeenCalled();
   });
 
-  // Negative guarantee: only "no adapter" is skipped. A key that must not run in this environment
-  // is a misconfiguration and stops the run.
-  it('does not swallow a key the environment forbids', async () => {
-    build('production');
+  // Only "no adapter" drops a key. A key the environment forbids stays in the list, so the step
+  // that uses it fails for that account alone and the other accounts are still processed.
+  it('keeps a key the environment forbids, so its own step fails loudly and alone', async () => {
+    keysAre([MERCHANT_PROFILE_KEYS.BRL_ASAAS_LIVE, MERCHANT_PROFILE_KEYS.BRL_FAKE]);
+
+    await expect(service.listServed()).resolves.toEqual([
+      MERCHANT_PROFILE_KEYS.BRL_ASAAS_LIVE,
+      MERCHANT_PROFILE_KEYS.BRL_FAKE,
+    ]);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('rejects the list only for a failure other than "no adapter" or "key not allowed"', async () => {
+    const registry = new BillingProviderRegistry(
+      'production',
+      new FakeBillingProvider(new FixedClock()),
+    );
+    jest.spyOn(registry, 'tryResolve').mockImplementation(() => {
+      throw new Error('registry broke');
+    });
+    const production = new ProviderAccountsService(subscriptions, registry);
+    keysAre([MERCHANT_PROFILE_KEYS.BRL_ASAAS_LIVE]);
+
+    await expect(production.listServed()).rejects.toThrow('registry broke');
+  });
+
+  it('keeps a key production forbids in a production service too', async () => {
+    const production = new ProviderAccountsService(
+      subscriptions,
+      new BillingProviderRegistry('production', new FakeBillingProvider(new FixedClock())),
+    );
     keysAre([MERCHANT_PROFILE_KEYS.BRL_FAKE]);
 
-    await expect(service.listServed()).rejects.toBeInstanceOf(MerchantProfileKeyNotAllowedError);
+    await expect(production.listServed()).resolves.toEqual([MERCHANT_PROFILE_KEYS.BRL_FAKE]);
   });
 });

@@ -692,7 +692,7 @@ Decided: re-keying the staging rows to `BRL_FAKE` is out of scope (it hides the 
 - Integration:
   - [ ] `reconcile-charges.job.integration.spec.ts` and `self-heal.job.integration.spec.ts`: a real `BRL_ASAAS_SANDBOX` subscription row beside a `BRL_FAKE` one; the run completes, the fake one is processed, the sandbox one produces no provider health row and no thrown error.
 - Tenant isolation:
-  - [ ] The skip log carries the `tenantId` of the subscription it skipped, and a skipped tenant never affects another tenant's reconcile or health result.
+  - [ ] Each per-charge or per-subscription skip log (sync, cancellation, sweep, creation) carries the `tenantId` it skipped. The two jobs skip a provider key, which spans tenants, so their log carries `merchantProfileKey` only ("`tenantId` where the site has one", as the description says; the jobs' own `*_run` lines carry none either). A skipped tenant never affects another tenant's reconcile or health result.
 - E2E:
   - [ ] none — cron jobs have no Playwright surface; covered by the integration tier and the live check.
 - [ ] Coverage ≥80% on changed code

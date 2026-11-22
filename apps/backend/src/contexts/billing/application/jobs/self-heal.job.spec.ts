@@ -5,6 +5,7 @@ import {
   createSelfHealHarness,
   SWEEP_NOW,
 } from '../../../../test/infrastructure/billing-self-heal-harness';
+import { MerchantProfileKeyNotAllowedError } from '../../domain/errors/billing-provider.errors';
 
 describe('SelfHealJob (UC-140)', () => {
   let h: ReturnType<typeof createSelfHealHarness>;
@@ -130,5 +131,23 @@ describe('SelfHealJob (UC-140)', () => {
       });
       expect(error).not.toHaveBeenCalled();
     });
+  });
+
+  // Only "no adapter" is skipped: a key the environment forbids fails its own account, loudly,
+  // while the served one is still checked in the same run.
+  it('a key the environment forbids fails the run but never hides the served account', async () => {
+    jest.spyOn(AppLogger.prototype, 'error').mockImplementation();
+    await h.subscriptions.save(new SubscriptionBuilder().build());
+    await h.subscriptions.save(
+      new SubscriptionBuilder().withMerchantProfileKey('BRL_ASAAS_LIVE').build(),
+    );
+    const health = jest.spyOn(h.checkHealth, 'execute');
+
+    await expect(run()).rejects.toBeInstanceOf(MerchantProfileKeyNotAllowedError);
+
+    expect(health).toHaveBeenCalledWith(
+      expect.objectContaining({ merchantProfileKey: 'BRL_FAKE' }),
+    );
+    expect(await h.health.findByKey('BRL_FAKE')).not.toBeNull();
   });
 });
