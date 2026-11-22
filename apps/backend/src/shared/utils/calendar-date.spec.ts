@@ -1,6 +1,7 @@
 import {
   todayInTimezone,
   addDaysUTC,
+  daysBetweenUTC,
   addMonthsUTC,
   endOfDayUTC,
   getUtcWeekDayName,
@@ -120,6 +121,23 @@ describe('utcDateToLocalDate', () => {
 
   it('returns a YYYY-MM-DD string', () => {
     expect(utcDateToLocalDate(new Date('2026-06-01T12:00:00Z'), TZ)).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});
+
+describe('daysBetweenUTC', () => {
+  it.each([
+    ['2026-06-01', '2026-06-01', 0],
+    ['2026-06-01', '2026-06-06', 5],
+    ['2026-06-06', '2026-06-01', -5],
+    ['2026-02-26', '2026-03-07', 9],
+    ['2028-02-26', '2028-03-07', 10],
+    ['2026-12-28', '2027-01-04', 7],
+  ])('counts %s to %s as %i days', (from, to, days) => {
+    expect(daysBetweenUTC(from, to)).toBe(days);
+  });
+
+  it('is the inverse of addDaysUTC', () => {
+    expect(addDaysUTC('2026-03-08', daysBetweenUTC('2026-03-08', '2026-11-01'))).toBe('2026-11-01');
   });
 });
 

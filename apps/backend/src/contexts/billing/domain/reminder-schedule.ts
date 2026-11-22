@@ -1,4 +1,4 @@
-import { addDaysUTC } from '../../../shared/utils/calendar-date';
+import { addDaysUTC, daysBetweenUTC } from '../../../shared/utils/calendar-date';
 import { RECOVERY_CHARGE_DUE_DAYS } from './billing-constants';
 import type { BillingReminderKind } from './commands/billing-reminder-due.command';
 import type { ChargeKind } from './charge.types';
@@ -9,13 +9,6 @@ import type { SubscriptionStatus, SuspensionReason } from './subscription.types'
 // not change. The service is pure: it reads no clock and no database, takes "today" as the
 // subscription's own local date, and matches the EXACT offset, so a cron day that did not run loses
 // its milestone for good (accepted, UC-139).
-
-const DAY_MS = 86_400_000;
-
-/** Whole days from `from` to `to`, both `YYYY-MM-DD` (positive when `to` is later). */
-function daysBetween(from: string, to: string): number {
-  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY_MS);
-}
 
 /** What a rule needs to know about the subscription. */
 export interface ReminderSubscription {
@@ -105,9 +98,9 @@ export const SUSPENSION_DATE_OFFSET = 12;
 
 /** The days from the subscription's local today to the anchor date of a charge, as a rule counts them. */
 function chargeOffset(anchor: ChargeAnchor, localToday: string, dueDate: string): number {
-  if (anchor === 'BEFORE_DUE') return daysBetween(localToday, dueDate);
-  if (anchor === 'AFTER_DUE') return daysBetween(dueDate, localToday);
-  return daysBetween(addDaysUTC(dueDate, -RECOVERY_CHARGE_DUE_DAYS), localToday);
+  if (anchor === 'BEFORE_DUE') return daysBetweenUTC(localToday, dueDate);
+  if (anchor === 'AFTER_DUE') return daysBetweenUTC(dueDate, localToday);
+  return daysBetweenUTC(addDaysUTC(dueDate, -RECOVERY_CHARGE_DUE_DAYS), localToday);
 }
 
 /**
@@ -124,7 +117,7 @@ export function remindersDueToday(input: {
 
   const milestones: ReminderMilestone[] = [];
   if (subscription.trialEndsOn !== null) {
-    const daysToEnd = daysBetween(localToday, subscription.trialEndsOn);
+    const daysToEnd = daysBetweenUTC(localToday, subscription.trialEndsOn);
     for (const rule of TRIAL_RULES) {
       if (rule.applies(subscription) && rule.offsets.includes(daysToEnd)) {
         milestones.push({ kind: rule.kind, daysOffset: daysToEnd, chargeId: null });

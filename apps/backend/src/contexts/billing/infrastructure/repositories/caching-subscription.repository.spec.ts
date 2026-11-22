@@ -227,6 +227,26 @@ describe('CachingSubscriptionRepository', () => {
       expect(cache.getCalls).toHaveLength(0);
     });
 
+    it('forwards the dunning reminders trial selector (UC-139) to the repository, uncached, paging included', async () => {
+      const ending = new SubscriptionBuilder()
+        .withStatus('TRIALING')
+        .withTrialEndsAt(new Date(NOW.getTime() + 3 * 86_400_000))
+        .build();
+      const far = new SubscriptionBuilder()
+        .withStatus('TRIALING')
+        .withTrialEndsAt(new Date(NOW.getTime() + 30 * 86_400_000))
+        .build();
+      for (const subscription of [ending, far]) await inner.save(subscription);
+      const from = new Date(NOW.getTime() - 2 * 86_400_000);
+      const to = new Date(NOW.getTime() + 11 * 86_400_000);
+
+      const refs = await repo.findTrialEndingForJob(from, to, 10);
+
+      expect(refs.map((ref) => ref.tenantId)).toEqual([ending.tenantId]);
+      await expect(repo.findTrialEndingForJob(from, to, 10, refs[0])).resolves.toEqual([]);
+      expect(cache.getCalls).toHaveLength(0);
+    });
+
     it('forwards the status sweep selectors (UC-115) to the repository, uncached, paging included', async () => {
       const ended = new SubscriptionBuilder()
         .withStatus('TRIALING')

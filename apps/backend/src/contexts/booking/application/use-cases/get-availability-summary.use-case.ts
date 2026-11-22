@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { daysBetweenUTC } from '../../../../shared/utils/calendar-date';
 import type { BusinessHours } from '../../../../shared/value-objects/business-hours.vo';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { ResourceType } from '../../domain/resource.types';
@@ -149,7 +150,7 @@ export class GetAvailabilitySummaryUseCase {
     if (from > to) {
       throw new AvailabilityRangeInvalidError('from must not be after to');
     }
-    if (this.daysBetween(from, to) > maxBookingAdvanceDays) {
+    if (daysBetweenUTC(from, to) > maxBookingAdvanceDays) {
       throw new AvailabilityRangeInvalidError(
         `range exceeds maxBookingAdvanceDays (${maxBookingAdvanceDays})`,
       );
@@ -167,12 +168,5 @@ export class GetAvailabilitySummaryUseCase {
       if (!service.isActive) throw new BookingServiceNotActiveError(requestedId);
     }
     return services;
-  }
-
-  private daysBetween(from: string, to: string): number {
-    const msPerDay = 86_400_000;
-    return (
-      (new Date(`${to}T00:00:00Z`).getTime() - new Date(`${from}T00:00:00Z`).getTime()) / msPerDay
-    );
   }
 }

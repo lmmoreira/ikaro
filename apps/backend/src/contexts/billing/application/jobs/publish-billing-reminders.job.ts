@@ -11,6 +11,7 @@ import {
   TRIAL_WINDOW_AHEAD_DAYS,
   TRIAL_WINDOW_BEHIND_DAYS,
 } from '../../domain/reminder-schedule';
+import { pageThroughSelection } from '../helpers/page-through-selection';
 import {
   CHARGE_REPOSITORY,
   DueChargeRef,
@@ -45,8 +46,6 @@ export interface PublishBillingRemindersJobResult {
   /** The subscriptions whose reminders threw (a failed selection page is counted apart, in the run log). */
   failed: number;
 }
-
-type Fetch<T extends { tenantId: string }> = (after?: T) => Promise<T[]>;
 
 interface ReminderRun {
   readonly input: PublishBillingRemindersJobInput;
@@ -120,24 +119,18 @@ export class PublishBillingRemindersJob {
     return run.result;
   }
 
-  // Page by page from the last row it was given. A page's failure is kept and the next page still runs.
-  private async visitSelection<T extends { tenantId: string }>(
+  private visitSelection<T extends { tenantId: string }>(
     run: ReminderRun,
-    fetch: Fetch<T>,
-    after?: T,
+    fetch: (after?: T) => Promise<T[]>,
   ): Promise<void> {
-    const page = await fetch(after).catch((err: unknown) => {
-      run.failures.push(err);
-      run.selectionFailures += 1;
-      return null;
+    return pageThroughSelection<T>({
+      fetch,
+      onPage: (page) => this.visitPage(run, page),
+      onFailure: (error, stage) => {
+        run.failures.push(error);
+        if (stage === 'SELECTION') run.selectionFailures += 1;
+      },
     });
-    if (page === null) return;
-    await this.visitPage(run, page).catch((err: unknown) => {
-      run.failures.push(err);
-    });
-    const last = page.at(-1);
-    if (page.length < BILLING_JOB_PAGE_SIZE || last === undefined) return;
-    await this.visitSelection(run, fetch, last);
   }
 
   private async visitPage(run: ReminderRun, page: readonly { tenantId: string }[]): Promise<void> {

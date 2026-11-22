@@ -4,6 +4,7 @@ import { CLOCK, type IClock } from '../../../../shared/ports/clock.port';
 import { utcDateString } from '../../../../shared/utils/calendar-date';
 import { mapSequentiallyIsolated } from '../../../../shared/utils/sequential-isolated';
 import { BILLING_JOB_PAGE_SIZE } from '../../domain/billing-constants';
+import { pageThroughSelection } from '../helpers/page-through-selection';
 import {
   CHARGE_REPOSITORY,
   IChargeRepository,
@@ -117,24 +118,18 @@ export class SweepSubscriptionStatusesJob {
     return sweep.result;
   }
 
-  // Page by page from the last row it was given. A page's failure is kept and the next page still runs.
-  private async sweepSelection<T extends { tenantId: string }>(
+  private sweepSelection<T extends { tenantId: string }>(
     sweep: SweepRun,
     fetch: Fetch<T>,
-    after?: T,
   ): Promise<void> {
-    const page = await fetch(after).catch((err: unknown) => {
-      sweep.failures.push(err);
-      sweep.selectionFailures += 1;
-      return null;
+    return pageThroughSelection<T>({
+      fetch,
+      onPage: (page) => this.sweepPage(sweep, page),
+      onFailure: (error, stage) => {
+        sweep.failures.push(error);
+        if (stage === 'SELECTION') sweep.selectionFailures += 1;
+      },
     });
-    if (page === null) return;
-    await this.sweepPage(sweep, page).catch((err: unknown) => {
-      sweep.failures.push(err);
-    });
-    const last = page.at(-1);
-    if (page.length < BILLING_JOB_PAGE_SIZE || last === undefined) return;
-    await this.sweepSelection(sweep, fetch, last);
   }
 
   private async sweepPage(sweep: SweepRun, page: readonly { tenantId: string }[]): Promise<void> {
