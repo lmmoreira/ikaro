@@ -870,7 +870,7 @@ describe('RescheduleBookingUseCase', () => {
 
 | Environment (`APP_ENV`) | Provider (`merchant_profile_key`) | Email | Time |
 |---|---|---|---|
-| `local` | `BRL_FAKE` — `FakeBillingProvider` (`USD_FAKE` has no adapter until M28 and throws `ProviderNotSupportedError`); a real adapter can be opted into with a tunnel for webhooks | Mailhog | injectable `IClock`, "advance N days" |
+| `local` | `BRL_FAKE` — `FakeBillingProvider` (`USD_FAKE` has no adapter until M28: `resolve` throws `ProviderNotSupportedError` and `tryResolve` returns `null`, which a job skips and logs); a real adapter can be opted into with a tunnel for webhooks | Mailhog | injectable `IClock`, "advance N days" |
 | CI per PR | the fake | Mailhog | fixed clock |
 | CI nightly (scheduled) | none — the shared contract suite runs against the Asaas sandbox (Stripe test mode joins with slice E, M28) to catch drift between the fake and the real APIs | — | — |
 | `staging` | `BRL_FAKE` for test subscriptions until the Asaas adapter ships (M26-S37), so `simulate` reaches every state; then `BRL_ASAAS_SANDBOX` (the sandbox contract run is the nightly job above, not a per-subscription check); `USD_STRIPE_TEST` only with the Stripe slice (M28) | Brevo (real email; the recipients are your own test tenants) | operator "advance time" action |

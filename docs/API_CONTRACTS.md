@@ -1770,7 +1770,7 @@ interface BillingProviderPort {
 //   | AutoBillingAuthorized | AutoBillingRevoked | Ignored (any event the normaliser does not handle)
 ```
 
-`BillingProviderRegistry.resolve(merchantProfileKey)` returns the adapter of a subscription's key and is what every use case injects; today only the fake serves `BRL_FAKE`, and every other key (`USD_FAKE`, the sandbox and live keys) throws `ProviderNotSupportedError` until its adapter exists. A fake or sandbox key is rejected when `APP_ENV=production` and a live key anywhere else (`MerchantProfileKeyNotAllowedError`).
+`BillingProviderRegistry.resolve(merchantProfileKey)` returns the adapter of a subscription's key and is what every use case injects; today only the fake serves `BRL_FAKE`, and every other key (`USD_FAKE`, the sandbox and live keys) throws `ProviderNotSupportedError` until its adapter exists. `tryResolve(merchantProfileKey)` is the same lookup for a caller that must skip rather than fail (every cron job and provider-reading service): it returns `null` for a key with no adapter, which the caller logs at `warn` as `billing_provider_not_supported: skipped` and passes over, so the message is acked and never retried. A fake or sandbox key is rejected when `APP_ENV=production` and a live key anywhere else (`MerchantProfileKeyNotAllowedError`).
 
 There is no separate tax port (Stripe returns the breakdown when it finalizes the invoice) and no manual provider or manual mark-paid route.
 

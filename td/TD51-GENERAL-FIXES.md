@@ -625,6 +625,81 @@ The relay VM is on-demand and destroyed after use, so its journal disappears wit
 **Live-verification check:** the gate is the read-only IAM check, run after the Foundation apply: `gcloud projects get-iam-policy ikaro-staging --flatten=bindings --filter="bindings.role=roles/logging.logWriter" --format="value(bindings.members)"` lists the relay service account (same for `ikaro-prod`). Pass = both projects list it. The boot check (on the next relay boot, `gcloud logging read 'logName:"google_metadata_script_runner"' --project=ikaro-staging --limit=5` returns the startup lines and the journal no longer shows `PermissionDenied`) is recorded at the next natural relay boot (for example the next billing operator run), not a reason to boot a VM just for this story; `/mark-done` notes it as pending if it has not happened yet.
 **PR sequence:** the playbook's "new IAM grant on an already-live resource" row: **1 PR** (`modules/relay-vm/**` only, no `foundation/**` file changes, no `infra-app-mix-ok`) **+ 1 Foundation apply** as its own numbered step after the merge: dispatch `foundation-deploy.yml` with `apply=true` from `main`, approve `staging-foundation` then `production-foundation`, then run the IAM check above in both projects. The module is consumed by the Foundation roots (`foundation/envs/{staging,prod}/main.tf`), so the grant lives in Foundation state. Nothing in CI fails if the apply is skipped: `foundation-applied-check` only looks at commits under `foundation/**`, which this PR does not touch.
 
+---
+
+### Story 9 — Skip a billing key with no adapter instead of nacking: one `tryResolve`, used by every registry caller, and a CI guard for the keys still unserved 🔴
+
+**Agent:** backend-ts
+**Complexity:** M
+**Docs to load:** `docs/ENGINEERING_RULES_BACKEND.md` § Event Handlers, `docs/ENGINEERING_RULES_TESTING.md` (builders, `InMemoryXxx` ports, integration-global-setup registration), `docs/TESTING_STRATEGY.md` § Testing the billing provider, `docs/OBSERVABILITY_STRATEGY.md` § Where a change belongs, `plan/M26-TENANT-BILLING-COLLECTION-LAUNCH.md` (Known open items, "Staging has no provider adapter until S37"; "US tenants before M28"; S37)
+**Dependencies:** M26-S05, M26-S06, M26-S07, M26-S08 (the callers this fixes; all done). Edits M26-S37's plan text (one added criterion).
+**Pattern:** plain composition — no named pattern applies (one null-returning lookup on the existing registry port, called by each site).
+
+**Discovered:** 2026-11-22, staging alerts after M26-S06/S07/S08 merged: "ERROR log burst" (11 to 15 errors per 5 min, hourly) and two DLQ alerts (`ikaro-cron-billing-reconcile-billing-reconcile-dlq-inspect`, `…-self-heal-…-dlq-inspect`).
+**Root cause:** the reconcile and self-heal jobs take their provider accounts from `subscriptions.listMerchantProfileKeys()` (`reconcile-charges.job.ts:114`, `self-heal.job.ts:80`), then call `BillingProviderRegistry.resolve(key)` (`record-reconcile-pass.use-case.ts:37`, `check-provider-health.use-case.ts:62`, `charge-provider-sync.service.ts:85`). The registry registers only `BRL_FAKE` (`billing-provider.registry.ts`), and staging subscription rows carry `BRL_ASAAS_SANDBOX`, from the M25-S05 `BackfillExemptSubscriptions` migration and `CreateTrialSubscriptionUseCase`, both via `resolveMerchantProfileKey`. `resolve` throws `ProviderNotSupportedError`; the job rethrows; `ReconcileTriggerHandler` / `SelfHealTriggerHandler` nack; `/pubsub/push` answers 500; Pub/Sub redelivers about 5 times (3 ERROR lines per delivery), then dead-letters. M26 plan lines 44 and 270 already require skip-and-log in every registry caller; only S05's private `ProviderChargeCreationService.resolveAdapter()` does it, and S07/S08's tests only use `BRL_FAKE`.
+
+**Description:**
+Add `tryResolve(merchantProfileKey): BillingProviderPort | null` to `BillingProviderRegistryPort` and `BillingProviderRegistry`. It returns the adapter, returns `null` when the key has no adapter (`ProviderNotSupportedError`), and still throws `MerchantProfileKeyNotAllowedError` (a key not allowed in this environment is real misconfiguration). `resolve` keeps its current behaviour, so the callers that must fail loudly (webhook processing) are untouched. S05's private try/catch becomes a call to `tryResolve`.
+
+`tryResolve` returns `null` only for a key absent from the adapter map, so it never swallows an operation-level `ProviderNotSupportedError` thrown by an adapter (it runs the environment guard, then `adapters.get(key) ?? null`, with no try/catch). "No adapter by design" and "adapter not configured yet" are one case: M26's decision (S01 and D11) is that the Asaas secrets are optional and are themselves the switch, so production before launch legitimately has no live adapter; no boot-time requirement and no new error type are added.
+
+A skip is logged as `billing_provider_not_supported: skipped` at `warn` level (never ERROR: the staging alert counts `severity=ERROR`, and a retry cannot fix a missing adapter) with `tenantId` where the site has one and `merchantProfileKey`. The message is acked, never nacked.
+
+Sites (all five, decided at discovery: the plan, line "US tenants before M28", requires skip-and-log in every registry caller; sites 2 to 4 are defensive today, because each already returns `SKIPPED` or catches before it can see an unserved key, and they are kept so a re-keyed or US subscription cannot reach a throwing path later):
+1. **Reconcile and self-heal (the failing ones):** one new `ProviderAccountsService` (`application/services/`) lists the distinct `merchant_profile_key`s of the subscriptions, keeps the ones `tryResolve` serves and logs each dropped key once per run; both jobs call it instead of `subscriptions.listMerchantProfileKeys()` directly, so the filter and the log line exist once. `CheckProviderHealthUseCase`, `RecordReconcilePassUseCase`, the freeze evaluation and the per-key health rows then never see an unserved key, so a dropped key has no health row and no freeze evaluation (nothing to freeze on: there is no provider to be unhealthy).
+2. **`ChargeProviderSyncService.sync`:** an unserved key returns `{ outcome: 'SKIPPED', merchantProfileKey }` and logs, instead of throwing into the reconcile job's per-charge failure path or the on-demand refresh.
+3. **`ProviderChargeCancellationService.cancelOne`:** an unserved key returns `'SKIPPED'` (the `providerCancelPending` flag stays for a later run) and logs.
+4. **`SweepOneSubscriptionUseCase.verifyUnpaid` (S06):** already inside `askProviderAboutFirstCharge`'s try/catch, which logs `billing_sweep_provider_reread_failed` at `warn` and leaves the suspension for the next run, so it does not crash today. It moves to `tryResolve` so the skip is the same named, quiet line instead of a generic re-read failure.
+5. **`ProviderChargeCreationService.resolveAdapter` (S05):** reimplemented on `tryResolve`; behaviour and log line unchanged.
+
+A registry-coverage test replaces the safety the exception gave. It loops every key `resolveMerchantProfileKey` can return for every `APP_ENV` and country and asserts `tryResolve` is non-null, minus an explicit `KEYS_WITHOUT_ADAPTER_YET` allow-list (`BRL_ASAAS_SANDBOX`, `BRL_ASAAS_LIVE`, `USD_FAKE`, `USD_STRIPE_TEST`, `USD_STRIPE_LIVE`). It builds one registry per `APP_ENV` (the environment guard rejects a live key outside production, so a single registry cannot test every key). M26-S37 removes the Asaas keys from that list (and builds the registry with a test `ASAAS_API_KEY`) and M28 removes the Stripe ones, as lines added to S37 and the M28 reminder in the M26 plan; once it is empty the test is the permanent guard, and a new key without an adapter fails CI instead of skipping silently in production. A second assertion fails when a listed key now has an adapter, so the list cannot go stale.
+
+Decided: re-keying the staging rows to `BRL_FAKE` is out of scope (it hides the gap, and a US tenant before M28 hits the same path). A runtime alert on the skip line is out of scope (the coverage test is the guard). The stale DLQ messages are purged by hand after the deploy, never replayed.
+
+**Backend use case steps:** none new; each site's existing step gains the null branch described above.
+**Backend HTTP surface:** none.
+**New migration / i18n keys / env vars / feature flags:** none.
+
+**Files to create/modify:**
+- `apps/backend/src/contexts/billing/application/ports/billing-provider.port.ts` (modify — `tryResolve` on `BillingProviderRegistryPort`)
+- `apps/backend/src/contexts/billing/infrastructure/providers/billing-provider.registry.ts` (+ `billing-provider.registry.spec.ts`) (modify)
+- `apps/backend/src/contexts/billing/infrastructure/providers/billing-provider.registry.coverage.spec.ts` (create — sibling of `provider-config.guard.spec.ts`)
+- `apps/backend/src/contexts/billing/application/services/provider-accounts.service.ts` (+ `.spec.ts`) (create — sibling of `charge-provider-sync.service.ts`; registered in `billing.module.ts`)
+- `apps/backend/src/contexts/billing/billing.module.ts` (modify — provide `ProviderAccountsService`)
+- `apps/backend/src/contexts/billing/application/jobs/reconcile-charges.job.ts` (+ `.spec.ts`, `.integration.spec.ts`) (modify)
+- `apps/backend/src/contexts/billing/application/jobs/self-heal.job.ts` (+ `.spec.ts`, `.integration.spec.ts`) (modify)
+- `apps/backend/src/contexts/billing/application/services/charge-provider-sync.service.ts` (+ `.spec.ts`) (modify)
+- `apps/backend/src/contexts/billing/application/services/provider-charge-cancellation.service.ts` (+ `.spec.ts`) (modify)
+- `apps/backend/src/contexts/billing/application/use-cases/sweep-one-subscription.use-case.ts` (+ `.spec.ts`) (modify)
+- `apps/backend/src/contexts/billing/application/services/provider-charge-creation.service.ts` (+ `.spec.ts`) (modify)
+- any in-memory or stub implementation of `BillingProviderRegistryPort` under `apps/backend/src/test/` (modify — found by grep at implementation; none is named from memory)
+- `plan/M26-TENANT-BILLING-COLLECTION-LAUNCH.md` (modify — already written at discovery: S37's registry criterion, the "Stripe discovery and fake update" bullet's item (6), S39's "Live adapter present" criterion, the registry-caller rule added to the "US tenants before M28" bullet (background callers `tryResolve` and skip at `warn`, request-path callers `resolve` and map to `BILLING_PROVIDER_UNAVAILABLE`), S15's matching criterion and S36's "no alert policy" sentence; at implementation, only verify they still match the code)
+- `docs/API_CONTRACTS.md` (the registry paragraph, line about `resolve`) and `docs/TESTING_STRATEGY.md` (the `local` row of the billing provider table) (modify — already written at discovery; verify at implementation)
+
+**Acceptance criteria — product:**
+- [ ] On staging, the hourly reconcile (`:10`) and self-heal (`:25`) runs with `BRL_ASAAS_SANDBOX` subscriptions succeed: no ERROR line, no 500 on `/pubsub/push`, no DLQ message.
+- [ ] A subscription whose key has no adapter is never charged, reconciled, health-checked or cancelled at a provider, and is never suspended or frozen because of it.
+- [ ] A tenant on a served key (`BRL_FAKE`) is processed exactly as before, in the same run as an unserved one.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] `billing-provider.registry.spec.ts`: `tryResolve` returns the adapter for `BRL_FAKE`, `null` for `BRL_ASAAS_SANDBOX`, and still throws `MerchantProfileKeyNotAllowedError` for a key not allowed in the env.
+  - [ ] Coverage spec: every key from `resolveMerchantProfileKey` is served or listed in `KEYS_WITHOUT_ADAPTER_YET`; a listed key that is served fails the test.
+  - [ ] One test per site (reconcile job, self-heal job, `ChargeProviderSyncService`, `ProviderChargeCancellationService`, `SweepOneSubscriptionUseCase`, `ProviderChargeCreationService`): an unserved key is skipped, `billing_provider_not_supported: skipped` is logged at `warn` level, and processing of the other keys or charges continues.
+  - [ ] Negative guarantee, own test: a key not allowed in the environment still throws out of `tryResolve` and is not skipped.
+  - [ ] Negative guarantee, own test: the skip never logs at `error` and never throws, so the handler acks (no 500, no redelivery).
+  - [ ] `provider-accounts.service.spec.ts`: keeps served keys, drops unserved ones and logs each dropped key once per call; an empty key list returns an empty list.
+- Integration:
+  - [ ] `reconcile-charges.job.integration.spec.ts` and `self-heal.job.integration.spec.ts`: a real `BRL_ASAAS_SANDBOX` subscription row beside a `BRL_FAKE` one; the run completes, the fake one is processed, the sandbox one produces no provider health row and no thrown error.
+- Tenant isolation:
+  - [ ] The skip log carries the `tenantId` of the subscription it skipped, and a skipped tenant never affects another tenant's reconcile or health result.
+- E2E:
+  - [ ] none — cron jobs have no Playwright surface; covered by the integration tier and the live check.
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
+
+**Live-verification check:** after deploy to staging: (1) `gcloud logging read 'severity>=ERROR timestamp>="<deploy time>"' --project ikaro-staging` shows no `billing_*_failed` / `…TriggerHandler failed` line across the next `:10` and `:25` runs; (2) the same window shows `billing_provider_not_supported: skipped` at WARNING for `BRL_ASAAS_SANDBOX`; (3) no 500 on `/pubsub/push`; (4) purge the two existing DLQ messages (`gcloud pubsub subscriptions pull <dlq>-inspect --auto-ack`) and confirm the "ERROR log burst" and both DLQ alert policies recover. A failed or un-runnable check is a stuck condition.
+
 ## Self-dry-run findings
 
 - The two stories are sequenced because Story 1 must present the inheritance-correct effective buffer behavior from Story 0.
@@ -641,3 +716,4 @@ The relay VM is on-demand and destroyed after use, so its journal disappears wit
 - Story 6 discovery (2026-11-11) corrected the draft: the "at least 3:1" adversarial AC was unreachable on a bg-to-text path (white text on cream; text equal to a mid-grey secondary), so the derivation gained a black/white fallback; exact-path exemption would have lifted every raw-control ban in the three checkbox/radio files, so they get a type-aware variant of the input ban instead; removing the `shells/hotsite/**` entry would have put `HotsiteAuthBar.tsx` in a block that keeps `SECONDARY_SURFACE_SELECTOR`, so the intersection blocks become one per-file helper; `AvailabilityAlertPickers.tsx` needs no exemption (only a comment names `<select>`). `BrandedSelect` is a plain native `<select>` with the browser arrow (no chevron wrapper). Atomic-design review: three atoms in `shared/components/hotsite/`, no phone molecule below 3 copies. The prototypes were updated first (commit `f132f41a8`).
 - Story 7 (hotsite revalidation success log) is independent of Stories 0–6 and, unlike them, is Platform backend code, not Booking. Premise verified 2026-11-18: `revalidate-tenant-hotsite.use-case.ts:50-51` returns `{ revalidated: true }` with no log, the use case's spec has four tests (the success one at line 24), and sibling use cases log success as `this.logger.log('<past-tense statement>', { tenantId, ... })`. Found by the M25-S32 live verification, where the story's own acceptance criterion assumed such a line existed.
 - Story 8 (relay VM log-writer grant) is independent of Stories 0–7 and is infrastructure, not Booking. Premise verified 2026-11-18: the relay service account holds eight roles in `modules/relay-vm/main.tf`, none for logging, and `roles/logging.logWriter` appears nowhere in `infra/terraform`; the VM's journal shows the `PermissionDenied` on every boot. It touches the same module as M25-S32's open module PR, so it depends on that merging first. Open for discovery: whether the shared module's project-level grant is acceptable in `ikaro-prod` while the prod relay VM is off (the binding is persistent, like the Cloud SQL ones).
+- Story 9 (billing registry skip) is independent of Stories 0–8 and is Billing backend code, like Story 7 and 8 not Booking. Premise verified 2026-11-22 from the staging logs and the code: every ERROR traces to `ProviderNotSupportedError … BRL_ASAAS_SANDBOX` from reconcile (since 13:10 UTC) and self-heal (since 17:25 UTC); the keys come from the M25-S05 backfill and `CreateTrialSubscriptionUseCase`; only S05 guards `registry.resolve()`. The S06 sweep site already swallows the error with a `warn`, so it is changed for a consistent skip line only. Open for discovery: (1) M26-S37 says the registry throws `ProviderNotSupportedError` for a live key while `ASAAS_API_KEY` is unset, which `tryResolve` would turn into a silent production skip that the coverage test cannot see, so S37 should give "adapter known but not configured" its own error type that `tryResolve` does not swallow; (2) how the reconcile per-charge path and the on-demand refresh treat a `SKIPPED` sync, and who calls `ProviderChargeCancellationService`; (3) M28 has no plan file yet, so its line goes in the M26 reserved-follow-ups bullet.
