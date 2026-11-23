@@ -109,6 +109,34 @@ function chargeOffset(anchor: ChargeAnchor, localToday: string, dueDate: string)
   return daysBetweenUTC(addDaysUTC(dueDate, -RECOVERY_CHARGE_DUE_DAYS), localToday);
 }
 
+function trialMilestones(
+  localToday: string,
+  subscription: ReminderSubscription,
+): ReminderMilestone[] {
+  if (subscription.trialEndsOn === null) return [];
+  const daysToEnd = daysBetweenUTC(localToday, subscription.trialEndsOn);
+  return TRIAL_RULES.filter(
+    (rule) => rule.applies(subscription) && rule.offsets.includes(daysToEnd),
+  ).map((rule) => ({ kind: rule.kind, daysOffset: daysToEnd, chargeId: null }));
+}
+
+function chargeMilestones(
+  localToday: string,
+  subscription: ReminderSubscription,
+  charge: ReminderCharge,
+): ReminderMilestone[] {
+  return CHARGE_RULES.flatMap((rule) => {
+    const offset = chargeOffset(rule.anchor, localToday, charge.dueDate);
+    // A reminder about a charge past its due date is for an OVERDUE one (the sweep's mark).
+    const pastDueUnmarked =
+      rule.overdueFrom !== undefined && offset >= rule.overdueFrom && charge.status !== 'OVERDUE';
+    const due = rule.applies(subscription, charge) && rule.offsets.includes(offset);
+    return due && !pastDueUnmarked
+      ? [{ kind: rule.kind, daysOffset: offset, chargeId: charge.id }]
+      : [];
+  });
+}
+
 /**
  * The milestones due today for one subscription: an exempt one has none. `localToday` is today in
  * the subscription's own timezone.
@@ -120,27 +148,10 @@ export function remindersDueToday(input: {
 }): ReminderMilestone[] {
   const { localToday, subscription, charges } = input;
   if (subscription.exempt) return [];
-
-  const milestones: ReminderMilestone[] = [];
-  if (subscription.trialEndsOn !== null) {
-    const daysToEnd = daysBetweenUTC(localToday, subscription.trialEndsOn);
-    for (const rule of TRIAL_RULES) {
-      if (rule.applies(subscription) && rule.offsets.includes(daysToEnd)) {
-        milestones.push({ kind: rule.kind, daysOffset: daysToEnd, chargeId: null });
-      }
-    }
-  }
-  for (const charge of charges) {
-    for (const rule of CHARGE_RULES) {
-      const offset = chargeOffset(rule.anchor, localToday, charge.dueDate);
-      const pastDueUnmarked =
-        rule.overdueFrom !== undefined && offset >= rule.overdueFrom && charge.status !== 'OVERDUE';
-      if (rule.applies(subscription, charge) && rule.offsets.includes(offset) && !pastDueUnmarked) {
-        milestones.push({ kind: rule.kind, daysOffset: offset, chargeId: charge.id });
-      }
-    }
-  }
-  return milestones;
+  return [
+    ...trialMilestones(localToday, subscription),
+    ...charges.flatMap((charge) => chargeMilestones(localToday, subscription, charge)),
+  ];
 }
 
 // ── The selection windows, derived from the rules above ────────────────────────────────────────
