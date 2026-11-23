@@ -56,6 +56,7 @@ The chained forms are deprecated in Zod v4. SonarCloud (S1874) flags them; no ES
 | Line > 100 chars | Prettier enforces `printWidth: 100` — break chained calls at each `.` |
 | Import not sorted | Prettier/ESLint auto-orders imports — don't manually reorder |
 | Trailing comma missing | Prettier adds trailing commas in multi-line — let it |
+| Prettier run from a subfolder | `.prettierignore` is read from the current directory only, so `cd apps/backend && prettier --write ../../docs/X.md` skips the root file that exempts `docs/`, `plan/` and `*.md`, and reformats the whole document (M26-S10: about 1,200 lines of `docs/USE_CASES.md`). Run prettier from the repo root and never on a markdown file |
 
 Run `pnpm prettier --write .` locally before committing. Never fix Prettier issues by hand — re-run the formatter.
 

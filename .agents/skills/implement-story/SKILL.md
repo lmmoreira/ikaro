@@ -52,7 +52,7 @@ Also, before committing, run the story's stale-reference sweep while the change 
 **Run the gates CI runs, not only the ones you remember, before the first push** (each of these failed on a PR for M26-S05 after a green local run of a subset):
 - `pnpm --filter @ikaro/backend run lint` over the whole app (not `eslint` on the folders you touched: `max-lines`, `max-lines-per-function` and the persistence-import ban fire on neighbours too), and the same for the BFF and web when they change.
 - `pnpm dep-cruise` whenever the diff adds a file or an import.
-- `terraform fmt -recursive -check` when HCL changes; without the binary, run it in a container (`infra/terraform/README.md` § Gotchas).
+- `terraform fmt -recursive -check` when HCL changes; without the binary, run it in a container (`infra/terraform/README.md` § Gotchas). Never run a container as root against the worktree: `init`/`test` leave a root-owned `.terraform/` that blocks `git worktree remove`, and the same section has the `--user` form.
 - **A job selector or any query whose `ORDER BY` you changed**: order it like the index that serves it (`docs/ENGINEERING_RULES_TESTING.md` § An `EXPLAIN` assertion that passes locally proves little); CI's planner, not yours, is the check.
 - **A story that adds integration suites**: look at the last green `Backend Integration Tests` run (duration, and whether it sat near its heap ceiling, `docs/ENGINEERING_RULES_TESTING.md` § Node's default V8 heap limit) before assuming two more files are free.
 
