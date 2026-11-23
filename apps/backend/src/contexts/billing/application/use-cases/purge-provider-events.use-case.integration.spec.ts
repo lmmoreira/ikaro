@@ -58,18 +58,21 @@ describe('PurgeProviderEventsUseCase (integration)', () => {
 
     const result = await useCase.execute({ correlationId: uuidv7() });
 
-    expect(result).toEqual({ deleted: 1, batches: 1, limitHit: false });
+    // A global sweep: another suite's leftover old row may be deleted too, so the count is a lower bound.
+    expect(result.deleted).toBeGreaterThanOrEqual(1);
+    expect(result.limitHit).toBe(false);
     expect(await count(expired)).toBe(0);
     expect(await count(atBoundary)).toBe(1);
     expect(await count(recent)).toBe(1);
   });
 
   it('running it twice is safe: the second run deletes nothing', async () => {
-    await insert(new Date(CUTOFF.getTime() - DAY_MS));
+    const expired = await insert(new Date(CUTOFF.getTime() - DAY_MS));
 
-    await expect(useCase.execute({ correlationId: uuidv7() })).resolves.toMatchObject({
-      deleted: 1,
-    });
+    const first = await useCase.execute({ correlationId: uuidv7() });
+    expect(first.deleted).toBeGreaterThanOrEqual(1);
+    expect(await count(expired)).toBe(0);
+
     await expect(useCase.execute({ correlationId: uuidv7() })).resolves.toMatchObject({
       deleted: 0,
     });

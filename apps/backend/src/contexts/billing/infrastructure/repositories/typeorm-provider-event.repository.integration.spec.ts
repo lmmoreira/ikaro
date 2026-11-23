@@ -160,7 +160,8 @@ describe('TypeOrmProviderEventRepository (integration)', () => {
       const keptAtCutoff = await insert(cutoff, tenantA);
       const keptRecent = await insert(new Date(), tenantB);
 
-      expect(await repo.deleteOlderThanBatch(cutoff, 1000)).toBe(2);
+      // A global sweep: a leftover old row from another suite may be deleted too, so a lower bound.
+      expect(await repo.deleteOlderThanBatch(cutoff, 1000)).toBeGreaterThanOrEqual(2);
 
       expect(await rowsFor(oldA)).toHaveLength(0);
       expect(await rowsFor(oldB)).toHaveLength(0);
@@ -170,9 +171,10 @@ describe('TypeOrmProviderEventRepository (integration)', () => {
 
     it('deletes at most `limit` rows, the oldest first', async () => {
       const tenantId = newTenant();
-      const oldest = await insert(older(3), tenantId);
-      const middle = await insert(older(2), tenantId);
-      const newest = await insert(older(1), tenantId);
+      // Far older than any other fixture, so these are the oldest rows in the table.
+      const oldest = await insert(older(900), tenantId);
+      const middle = await insert(older(800), tenantId);
+      const newest = await insert(older(700), tenantId);
 
       expect(await repo.deleteOlderThanBatch(cutoff, 2)).toBe(2);
 
@@ -182,9 +184,10 @@ describe('TypeOrmProviderEventRepository (integration)', () => {
     });
 
     it('running it again is safe: the second run deletes nothing', async () => {
-      await insert(older(1), newTenant());
+      const expired = await insert(older(1), newTenant());
 
-      expect(await repo.deleteOlderThanBatch(cutoff, 1000)).toBe(1);
+      expect(await repo.deleteOlderThanBatch(cutoff, 1000)).toBeGreaterThanOrEqual(1);
+      expect(await rowsFor(expired)).toHaveLength(0);
       expect(await repo.deleteOlderThanBatch(cutoff, 1000)).toBe(0);
     });
 
