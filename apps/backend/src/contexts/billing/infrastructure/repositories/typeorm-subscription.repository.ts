@@ -60,6 +60,11 @@ export class TypeOrmSubscriptionRepository
     return this.load(this.repo.manager, tenantId, false);
   }
 
+  // This adapter has no cache: its plain read is already the committed row.
+  findFreshByTenantId(tenantId: string): Promise<Subscription | null> {
+    return this.load(this.repo.manager, tenantId, false);
+  }
+
   async findByTenantIdForUpdate(tenantId: string): Promise<Subscription | null> {
     const manager = getActiveEntityManager();
     if (!manager) {

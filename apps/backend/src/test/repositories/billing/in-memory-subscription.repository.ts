@@ -33,6 +33,10 @@ export class InMemorySubscriptionRepository implements ISubscriptionRepository {
     return this.saved.find((subscription) => subscription.tenantId === tenantId) ?? null;
   }
 
+  async findFreshByTenantId(tenantId: string): Promise<Subscription | null> {
+    return this.saved.find((subscription) => subscription.tenantId === tenantId) ?? null;
+  }
+
   // No real row lock here: concurrency is proved against the real adapter in integration tests.
   async findByTenantIdForUpdate(tenantId: string): Promise<Subscription | null> {
     return this.findByTenantId(tenantId);

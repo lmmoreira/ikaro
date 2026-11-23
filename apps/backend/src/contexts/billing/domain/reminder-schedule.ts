@@ -51,10 +51,10 @@ interface ChargeRule {
   applies: (subscription: ReminderSubscription, charge: ReminderCharge) => boolean;
 }
 
-const RECOVERY_SUSPENSION_REASONS: readonly SuspensionReason[] = [
+const RECOVERY_SUSPENSION_REASONS: ReadonlySet<SuspensionReason> = new Set([
   'NON_PAYMENT',
   'PAYMENT_REVERSED',
-];
+]);
 
 const TRIAL_RULES: readonly TrialRule[] = [
   {
@@ -88,7 +88,7 @@ const CHARGE_RULES: readonly ChargeRule[] = [
     applies: (s, c) =>
       s.status === 'SUSPENDED' &&
       s.suspensionReason !== null &&
-      RECOVERY_SUSPENSION_REASONS.includes(s.suspensionReason) &&
+      RECOVERY_SUSPENSION_REASONS.has(s.suspensionReason) &&
       c.kind === 'RECOVERY',
   },
 ];

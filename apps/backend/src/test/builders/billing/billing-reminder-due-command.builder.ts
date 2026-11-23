@@ -1,6 +1,7 @@
 import { BillingReminderDue } from '../../../contexts/billing/domain/commands/billing-reminder-due.command';
 import type { BillingReminderKind } from '../../../contexts/billing/domain/commands/billing-reminder-due.command';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
+import { addDaysUTC, todayUTC } from '../../../shared/utils/calendar-date';
 
 export class BillingReminderDueCommandBuilder {
   private tenantId = uuidv7();
@@ -11,7 +12,7 @@ export class BillingReminderDueCommandBuilder {
   private chargeId: string | null = 'charge-1';
   private paymentUrl: string | null = 'https://pay.example.test/charge-1';
   private recipientEmail: string | null = 'billing@example.test';
-  private dueDate: string | null = '2026-12-10';
+  private dueDate: string | null = addDaysUTC(todayUTC(), 3);
   private trialEndsOn: string | null = null;
   private suspendsOn: string | null = null;
   private amountMinor: number | null = 4900;

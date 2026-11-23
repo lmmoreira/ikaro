@@ -28,9 +28,13 @@ interface BillingReminderDueData extends Record<string, unknown> {
 
 // A Command, not a fact: an instruction to send one dunning email, derived by the daily reminders
 // job, which a retried or overlapping tick can re-derive for the same milestone. The dedup key is
-// the business key (subscription, kind, daysOffset, chargeId); `recipientEmail`, `paymentUrl` and
-// the date and amount fields are deliberately not part of it, so a changed billing email cannot
-// mint a second reminder.
+// the business key (subscription, kind, daysOffset, scope): the scope is the charge id of a charge
+// reminder, and for a trial reminder, which names no charge, the local date the trial ends on. That
+// date is stable across a retried run (the first invoice appearing in between does not change it)
+// and differs for a second trial on the same subscription (exempt, then cleared), so a restarted
+// trial is not silenced by the first one's keys. `recipientEmail`, `paymentUrl` and the other date
+// and amount fields are deliberately not part of it, so a changed billing email cannot mint a
+// second reminder.
 // Its topic is created by its consumer's `subscribe()` (M26-S12); it has no audit-log line.
 export class BillingReminderDue extends Command<BillingReminderDueData> {
   readonly eventVersion = 1;
@@ -40,7 +44,7 @@ export class BillingReminderDue extends Command<BillingReminderDueData> {
     super(
       tenantId,
       correlationId,
-      `BillingReminderDue:${tenantId}:${data.subscriptionId}:${data.kind}:${data.daysOffset}:${data.chargeId ?? 'none'}`,
+      `BillingReminderDue:${tenantId}:${data.subscriptionId}:${data.kind}:${data.daysOffset}:${data.chargeId ?? data.trialEndsOn ?? 'none'}`,
     );
     this.data = data;
   }

@@ -161,6 +161,30 @@ describe('CachingSubscriptionRepository', () => {
     });
   });
 
+  describe('findFreshByTenantId', () => {
+    it('reads the committed row past a stale cached copy, and neither reads nor writes the cache', async () => {
+      const stale = new SubscriptionBuilder().withStatus('ACTIVE').build();
+      await inner.save(stale);
+      await repo.findByTenantId(stale.tenantId);
+      const exemptNow = new SubscriptionBuilder()
+        .withId(stale.id)
+        .withTenantId(stale.tenantId)
+        .withStatus('ACTIVE')
+        .withExempt(true)
+        .withVersion(1)
+        .build();
+      inner.saved[0] = exemptNow;
+      cache.getCalls.length = 0;
+      cache.setCalls.length = 0;
+
+      const fresh = await repo.findFreshByTenantId(stale.tenantId);
+
+      expect(fresh).toBe(exemptNow);
+      expect(cache.getCalls).toHaveLength(0);
+      expect(cache.setCalls).toHaveLength(0);
+    });
+  });
+
   describe('save', () => {
     it('evicts the cached subscription only after the transaction commits', async () => {
       const subscription = new SubscriptionBuilder().withStatus('ACTIVE').build();

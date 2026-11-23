@@ -3,6 +3,7 @@ import { PublishSubscriptionRemindersUseCase } from '../../contexts/billing/appl
 import type { Charge } from '../../contexts/billing/domain/charge.aggregate';
 import { BillingReminderDue } from '../../contexts/billing/domain/commands/billing-reminder-due.command';
 import type { Subscription } from '../../contexts/billing/domain/subscription.aggregate';
+import { addDaysUTC } from '../../shared/utils/calendar-date';
 import { BillingAccountBuilder, ChargeBuilder, ProviderHealthBuilder } from '../builders/billing';
 import { InMemoryBillingAccountRepository } from '../repositories/billing/in-memory-billing-account.repository';
 import { InMemoryChargeRepository } from '../repositories/billing/in-memory-charge.repository';
@@ -69,7 +70,9 @@ export function createRemindersHarness() {
       .withTenantId(subscription.tenantId)
       .withSubscriptionId(subscription.id)
       .withDueDate(options.dueDate);
+    // A period charge starts on the day it is due (a trial's invoice starts the day the trial ends).
     if (options.kind === 'RECOVERY') builder.asRecovery();
+    else builder.withPeriod(options.dueDate, addDaysUTC(options.dueDate, 30));
     if (options.status === 'OVERDUE') builder.withStatus('OVERDUE');
     if (options.ready !== false) {
       builder.withProviderReady(

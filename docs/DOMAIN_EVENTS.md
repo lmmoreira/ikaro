@@ -844,7 +844,7 @@ Ikaro charging its tenants (`docs/DOMAIN_MODEL.md` § Billing Context, `docs/USE
   | `CHARGE_OVERDUE` | 1, 3, 7, 12 | days **after** the due date | the charge | `dueDate`, `amountMinor`, `currency`, `paymentUrl?`; `suspendsOn` only at 12 |
   | `RECOVERY_CHARGE_OPEN` | 3, 8, 14 | days **since issue** (issue date = due date − 7; 8 and 14 are the "1 and 7 days after due") | the charge | `dueDate`, `amountMinor`, `currency`, `paymentUrl?` |
 
-  The trial kinds carry no `chargeId` so a retried run after the first invoice appeared cannot mint a second key for the same milestone.
+  The trial kinds carry no `chargeId` so a retried run after the first invoice appeared cannot mint a second key for the same milestone. They are keyed on the local trial end date instead (the `dedup_key` tail is `chargeId`, else `trialEndsOn`, else `none`), so a second trial on the same subscription (exempt, then cleared, which keeps the subscription id) is reminded again under its own keys while a retry inside one trial still collapses.
 - **Consumers:** Notification (dunning email; one template key per kind). **Freshness is Billing's job:** Billing re-checks "charge still open" and "tenant not exempt" immediately before writing the outbox row; Notification does no re-check and has no read port into Billing. A small stale window is accepted and the copy is tolerant
 
 #### **SubscriptionPriceChangeAnnounced**

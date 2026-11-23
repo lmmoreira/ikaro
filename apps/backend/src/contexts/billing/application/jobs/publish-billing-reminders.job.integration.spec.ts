@@ -66,7 +66,7 @@ describe('PublishBillingRemindersJob (integration, UC-139)', () => {
         account.build(),
       ),
     );
-    return { tenantId, subscriptionId: subscription.id };
+    return { tenantId, subscriptionId: subscription.id, trialEndsOn: localDay(daysToEnd) };
   };
 
   // An ACTIVE subscription with one open renewal charge due `daysToDue` local days from today.
@@ -87,6 +87,34 @@ describe('PublishBillingRemindersJob (integration, UC-139)', () => {
     await charges.save(charge);
     return { tenantId, chargeId: charge.id };
   };
+
+  // A PAST_DUE subscription, past due since a day ago, with one open overdue charge due yesterday.
+  // Its own merchant profile key, so no provider-health row another suite left can freeze it.
+  const seedOverdue = async () => {
+    const tenantId = uuidv7();
+    tenants.push(tenantId);
+    const subscription = new SubscriptionEntityBuilder()
+      .withTenantId(tenantId)
+      .withStatus('PAST_DUE')
+      .withPastDueSince(new Date(clock.now().getTime() - DAY_MS))
+      .withMerchantProfileKey('BRL_REMINDERS_IT')
+      .build();
+    await ds.getRepository(SubscriptionEntity).insert(subscription);
+    const charge = new ChargeBuilder()
+      .withTenantId(tenantId)
+      .withSubscriptionId(subscription.id)
+      .withDueDate(localDay(-1))
+      .withStatus('OVERDUE')
+      .withVersion(undefined)
+      .build();
+    await charges.save(charge);
+    return { tenantId, chargeId: charge.id, pastDueSince: subscription.pastDueSince as Date };
+  };
+
+  const reminderEnvelopes = (tenantId: string) =>
+    ds
+      .getRepository(OutboxEventEntity)
+      .find({ where: { tenantId, eventName: 'BillingReminderDue' }, order: { createdAt: 'ASC' } });
 
   const reminderRows = async (tenantId: string): Promise<string[]> =>
     (
@@ -157,10 +185,10 @@ describe('PublishBillingRemindersJob (integration, UC-139)', () => {
     await job.run({ correlationId: 'corr-1' });
     await job.run({ correlationId: 'corr-2' });
 
-    expect(await reminderRows(trial.tenantId)).toEqual(
-      expect.arrayContaining([expect.stringContaining('PLAN_CONFIRMATION:7:none')]),
-    );
-    expect(await reminderRows(trial.tenantId)).toHaveLength(2);
+    expect((await reminderRows(trial.tenantId)).sort()).toEqual([
+      `PLAN_CONFIRMATION:7:${trial.trialEndsOn}`,
+      `TRIAL_ENDING:7:${trial.trialEndsOn}`,
+    ]);
   });
 
   it('two runs at the same time still write each milestone once (the outbox dedup_key holds under concurrency)', async () => {
@@ -173,27 +201,30 @@ describe('PublishBillingRemindersJob (integration, UC-139)', () => {
     expect(await reminderRows(renewal.tenantId)).toEqual([`CHARGE_DUE_SOON:3:${renewal.chargeId}`]);
   });
 
-  it('one run covers several tenants and each reminder carries its own tenant', async () => {
+  it('one run covers several tenants and every reminder carries its own tenant and its own recipient', async () => {
     const tenantA = await seedTrial(7, 'a@example.test');
     const tenantB = await seedTrial(3, 'b@example.test');
     const renewal = await seedRenewal(3);
 
     await job.run({ correlationId: 'corr-tenants' });
 
-    const rowsOf = (tenantId: string) =>
-      ds
-        .getRepository(OutboxEventEntity)
-        .find({ where: { tenantId, eventName: 'BillingReminderDue' } });
-    expect((await rowsOf(tenantA.tenantId)).map((r) => r.payload['data'])).toEqual(
-      expect.arrayContaining([expect.objectContaining({ recipientEmail: 'a@example.test' })]),
-    );
-    expect(await reminderRows(tenantA.tenantId)).toHaveLength(2);
-    expect(await reminderRows(tenantB.tenantId)).toEqual(['TRIAL_ENDING:3:none']);
-    expect(await reminderRows(renewal.tenantId)).toHaveLength(1);
-    for (const tenantId of [tenantA.tenantId, tenantB.tenantId, renewal.tenantId]) {
-      const rows = await rowsOf(tenantId);
-      expect(rows.every((row) => row.tenantId === tenantId)).toBe(true);
+    const expectedRecipient = new Map([
+      [tenantA.tenantId, 'a@example.test'],
+      [tenantB.tenantId, 'b@example.test'],
+      [renewal.tenantId, null],
+    ]);
+    for (const [tenantId, recipient] of expectedRecipient) {
+      const envelopes = await reminderEnvelopes(tenantId);
+      expect(envelopes.length).toBeGreaterThan(0);
+      for (const envelope of envelopes) {
+        expect(envelope.tenantId).toBe(tenantId);
+        expect(envelope.payload['tenantId']).toBe(tenantId);
+        expect(envelope.payload['data']).toMatchObject({ recipientEmail: recipient });
+      }
     }
+    expect(await reminderRows(tenantA.tenantId)).toHaveLength(2);
+    expect(await reminderRows(tenantB.tenantId)).toEqual([`TRIAL_ENDING:3:${tenantB.trialEndsOn}`]);
+    expect(await reminderRows(renewal.tenantId)).toHaveLength(1);
   });
 
   it('walks one trial day by day on the clock and writes the exact sequence through the real selection windows', async () => {
@@ -204,15 +235,56 @@ describe('PublishBillingRemindersJob (integration, UC-139)', () => {
       clock.advanceMs(DAY_MS);
     }
 
+    const end = trial.trialEndsOn;
     expect((await reminderRows(trial.tenantId)).sort()).toEqual(
       [
-        'PLAN_CONFIRMATION:10:none',
-        'PLAN_CONFIRMATION:7:none',
-        'PLAN_CONFIRMATION:4:none',
-        'TRIAL_ENDING:7:none',
-        'TRIAL_ENDING:3:none',
-        'TRIAL_ENDING:0:none',
+        `PLAN_CONFIRMATION:10:${end}`,
+        `PLAN_CONFIRMATION:7:${end}`,
+        `PLAN_CONFIRMATION:4:${end}`,
+        `TRIAL_ENDING:7:${end}`,
+        `TRIAL_ENDING:3:${end}`,
+        `TRIAL_ENDING:0:${end}`,
       ].sort(),
     );
+  });
+
+  it('walks one overdue subscription day by day through the real open-charge selector: 1, 3, 7 and 12 days after its due date, the last naming the suspension date', async () => {
+    const overdue = await seedOverdue();
+
+    for (let elapsed = 0; elapsed <= 13; elapsed += 1) {
+      await job.run({ correlationId: `corr-overdue-${elapsed}` });
+      clock.advanceMs(DAY_MS);
+    }
+
+    expect(await reminderRows(overdue.tenantId)).toEqual(
+      [1, 3, 7, 12].map((late) => `CHARGE_OVERDUE:${late}:${overdue.chargeId}`),
+    );
+    const last = (await reminderEnvelopes(overdue.tenantId)).at(-1);
+    expect(last?.payload['data']).toMatchObject({
+      suspendsOn: utcDateToLocalDate(
+        new Date(overdue.pastDueSince.getTime() + 14 * DAY_MS),
+        SAO_PAULO,
+      ),
+    });
+  });
+
+  it('a second trial on the same subscription (exempt, then cleared) is reminded again under its own keys', async () => {
+    const trial = await seedTrial(7);
+    await job.run({ correlationId: 'corr-first-trial' });
+
+    clock.advanceMs(40 * DAY_MS);
+    await ds
+      .getRepository(SubscriptionEntity)
+      .update(
+        { tenantId: trial.tenantId },
+        { trialEndsAt: localDateStartUTC(localDay(7), SAO_PAULO) },
+      );
+    await job.run({ correlationId: 'corr-second-trial' });
+
+    const rows = await reminderRows(trial.tenantId);
+    expect(rows).toHaveLength(4);
+    expect(new Set(rows).size).toBe(4);
+    expect(rows.filter((row) => row.endsWith(trial.trialEndsOn))).toHaveLength(2);
+    expect(rows.filter((row) => row.endsWith(localDay(7)))).toHaveLength(2);
   });
 });

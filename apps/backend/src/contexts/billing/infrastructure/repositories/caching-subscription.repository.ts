@@ -103,6 +103,12 @@ export class CachingSubscriptionRepository implements ISubscriptionRepository {
     return subscription;
   }
 
+  // Deliberately bypasses the cache and takes no lock: a re-check that must see what another
+  // instance just committed (the reminders' exempt check) without blocking a payment.
+  findFreshByTenantId(tenantId: string): Promise<Subscription | null> {
+    return this.repo.findFreshByTenantId(tenantId);
+  }
+
   // Deliberately bypasses the cache: a locking read backing a write-time check must see the
   // current committed row, never a stale cached copy.
   findByTenantIdForUpdate(tenantId: string): Promise<Subscription | null> {

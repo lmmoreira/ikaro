@@ -138,6 +138,55 @@ describe('PublishSubscriptionRemindersUseCase (UC-139)', () => {
       });
     });
 
+    it("shows the current trial's invoice, not another open period charge of the subscription", async () => {
+      const subscription = trialEndingIn(3);
+      await h.seedTenant(subscription);
+      await h.seedCharge(subscription, { dueDate: day(-30) });
+      const current = await h.seedCharge(subscription, { dueDate: day(3) });
+
+      await run(subscription);
+
+      expect(h.kinds()).toEqual(['TRIAL_ENDING:3']);
+      expect(h.commands()[0]?.data).toMatchObject({
+        dueDate: day(3),
+        amountMinor: current.amount.amountMinor,
+      });
+    });
+
+    it('shows no invoice on TRIAL_ENDING once the first one is no longer open', async () => {
+      const subscription = trialEndingIn(3);
+      await h.seedTenant(subscription);
+      const first = await h.seedCharge(subscription, { dueDate: day(3) });
+      first.cancel();
+      await h.charges.save(first);
+
+      await run(subscription);
+
+      expect(h.commands()[0]?.data).toMatchObject({ dueDate: null, paymentUrl: null });
+    });
+
+    it('keys a trial reminder on the trial end date, so a second trial on the same subscription is not silenced', async () => {
+      const first = trialEndingIn(7);
+      await h.seedTenant(first);
+      await run(first);
+      // Exempt, then cleared: the same subscription starts a new trial that ends on another date.
+      h.clock.advanceMs(40 * DAY_MS);
+      const second = new SubscriptionBuilder()
+        .withId(first.id)
+        .withTenantId(first.tenantId)
+        .withStatus('TRIALING')
+        .withTrialEndsAt(saoPauloMidnight(addDaysUTC(day(40), 7)))
+        .withVersion(1)
+        .build();
+      h.subscriptions.saved[0] = second;
+
+      await run(second);
+
+      const keys = h.commands().map((command) => command.dedupKey);
+      expect(keys).toHaveLength(4);
+      expect(new Set(keys).size).toBe(4);
+    });
+
     it('gives the same dedup key whether or not the first invoice exists yet', async () => {
       const without = trialEndingIn(3);
       await h.seedTenant(without);
@@ -376,9 +425,9 @@ describe('PublishSubscriptionRemindersUseCase (UC-139)', () => {
         .withStatus('ACTIVE')
         .withExempt(true)
         .build();
-      const real = h.subscriptions.findByTenantId.bind(h.subscriptions);
+      const real = h.subscriptions.findFreshByTenantId.bind(h.subscriptions);
       jest
-        .spyOn(h.subscriptions, 'findByTenantId')
+        .spyOn(h.subscriptions, 'findFreshByTenantId')
         .mockImplementationOnce(real)
         .mockResolvedValue(exempt);
 

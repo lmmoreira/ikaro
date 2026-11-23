@@ -1,31 +1,14 @@
 import { addDaysUTC } from '../../../shared/utils/calendar-date';
+import { ReminderChargeBuilder, ReminderSubscriptionBuilder } from '../../../test/builders/billing';
 import {
   CHARGE_WINDOW_AHEAD_DAYS,
   CHARGE_WINDOW_BEHIND_DAYS,
-  type ReminderCharge,
-  type ReminderSubscription,
   remindersDueToday,
   TRIAL_WINDOW_AHEAD_DAYS,
   TRIAL_WINDOW_BEHIND_DAYS,
 } from './reminder-schedule';
 
 const TODAY = '2026-12-10';
-
-const trialing = (over: Partial<ReminderSubscription> = {}): ReminderSubscription => ({
-  status: 'TRIALING',
-  suspensionReason: null,
-  exempt: false,
-  planConfirmed: false,
-  trialEndsOn: null,
-  ...over,
-});
-
-const charge = (dueDate: string, over: Partial<ReminderCharge> = {}): ReminderCharge => ({
-  id: 'charge-1',
-  kind: 'PERIOD',
-  dueDate,
-  ...over,
-});
 
 const kindsOf = (input: Parameters<typeof remindersDueToday>[0]): string[] =>
   remindersDueToday(input).map((m) => `${m.kind}:${m.daysOffset}`);
@@ -45,7 +28,9 @@ describe('remindersDueToday', () => {
       expect(
         kindsOf({
           localToday: TODAY,
-          subscription: trialing({ trialEndsOn: addDaysUTC(TODAY, daysToEnd) }),
+          subscription: new ReminderSubscriptionBuilder()
+            .withTrialEndsOn(addDaysUTC(TODAY, daysToEnd))
+            .build(),
           charges: [],
         }),
       ).toEqual(expected);
@@ -55,7 +40,10 @@ describe('remindersDueToday', () => {
       expect(
         kindsOf({
           localToday: TODAY,
-          subscription: trialing({ trialEndsOn: addDaysUTC(TODAY, 7), planConfirmed: true }),
+          subscription: new ReminderSubscriptionBuilder()
+            .withTrialEndsOn(addDaysUTC(TODAY, 7))
+            .withPlanConfirmed(true)
+            .build(),
           charges: [],
         }),
       ).toEqual(['TRIAL_ENDING:7']);
@@ -64,8 +52,10 @@ describe('remindersDueToday', () => {
     it('carries no charge id on a trial reminder, even with the first invoice open', () => {
       const milestones = remindersDueToday({
         localToday: TODAY,
-        subscription: trialing({ trialEndsOn: addDaysUTC(TODAY, 3) }),
-        charges: [charge(addDaysUTC(TODAY, 3))],
+        subscription: new ReminderSubscriptionBuilder()
+          .withTrialEndsOn(addDaysUTC(TODAY, 3))
+          .build(),
+        charges: [new ReminderChargeBuilder().withDueDate(addDaysUTC(TODAY, 3)).build()],
       });
 
       expect(milestones).toEqual([{ kind: 'TRIAL_ENDING', daysOffset: 3, chargeId: null }]);
@@ -75,7 +65,10 @@ describe('remindersDueToday', () => {
       expect(
         kindsOf({
           localToday: TODAY,
-          subscription: trialing({ status: 'ACTIVE', trialEndsOn: addDaysUTC(TODAY, 7) }),
+          subscription: new ReminderSubscriptionBuilder()
+            .withStatus('ACTIVE')
+            .withTrialEndsOn(addDaysUTC(TODAY, 7))
+            .build(),
           charges: [],
         }),
       ).toEqual([]);
@@ -83,7 +76,7 @@ describe('remindersDueToday', () => {
   });
 
   describe('CHARGE_DUE_SOON', () => {
-    const active = trialing({ status: 'ACTIVE' });
+    const active = new ReminderSubscriptionBuilder().withStatus('ACTIVE').build();
 
     it.each([
       [4, []],
@@ -94,7 +87,7 @@ describe('remindersDueToday', () => {
         kindsOf({
           localToday: TODAY,
           subscription: active,
-          charges: [charge(addDaysUTC(TODAY, daysToDue))],
+          charges: [new ReminderChargeBuilder().withDueDate(addDaysUTC(TODAY, daysToDue)).build()],
         }),
       ).toEqual(expected);
     });
@@ -103,8 +96,10 @@ describe('remindersDueToday', () => {
       expect(
         kindsOf({
           localToday: TODAY,
-          subscription: trialing({ trialEndsOn: addDaysUTC(TODAY, 3) }),
-          charges: [charge(addDaysUTC(TODAY, 3))],
+          subscription: new ReminderSubscriptionBuilder()
+            .withTrialEndsOn(addDaysUTC(TODAY, 3))
+            .build(),
+          charges: [new ReminderChargeBuilder().withDueDate(addDaysUTC(TODAY, 3)).build()],
         }),
       ).toEqual(['TRIAL_ENDING:3']);
     });
@@ -113,15 +108,20 @@ describe('remindersDueToday', () => {
       expect(
         kindsOf({
           localToday: TODAY,
-          subscription: trialing({ status: 'SUSPENDED', suspensionReason: 'NON_PAYMENT' }),
-          charges: [charge(addDaysUTC(TODAY, 3), { kind: 'RECOVERY' })],
+          subscription: new ReminderSubscriptionBuilder()
+            .withStatus('SUSPENDED')
+            .withSuspensionReason('NON_PAYMENT')
+            .build(),
+          charges: [
+            new ReminderChargeBuilder().withDueDate(addDaysUTC(TODAY, 3)).asRecovery().build(),
+          ],
         }),
       ).toEqual([]);
     });
   });
 
   describe('CHARGE_OVERDUE', () => {
-    const pastDue = trialing({ status: 'PAST_DUE' });
+    const pastDue = new ReminderSubscriptionBuilder().withStatus('PAST_DUE').build();
 
     it.each([
       [0, []],
@@ -136,7 +136,7 @@ describe('remindersDueToday', () => {
         kindsOf({
           localToday: TODAY,
           subscription: pastDue,
-          charges: [charge(addDaysUTC(TODAY, -daysLate))],
+          charges: [new ReminderChargeBuilder().withDueDate(addDaysUTC(TODAY, -daysLate)).build()],
         }),
       ).toEqual(expected);
     });
@@ -145,16 +145,19 @@ describe('remindersDueToday', () => {
       expect(
         kindsOf({
           localToday: TODAY,
-          subscription: trialing({ status: 'ACTIVE' }),
-          charges: [charge(addDaysUTC(TODAY, -3))],
+          subscription: new ReminderSubscriptionBuilder().withStatus('ACTIVE').build(),
+          charges: [new ReminderChargeBuilder().withDueDate(addDaysUTC(TODAY, -3)).build()],
         }),
       ).toEqual([]);
     });
   });
 
   describe('RECOVERY_CHARGE_OPEN', () => {
-    const suspended = (reason: ReminderSubscription['suspensionReason']): ReminderSubscription =>
-      trialing({ status: 'SUSPENDED', suspensionReason: reason });
+    const suspended = (reason: 'NON_PAYMENT' | 'PAYMENT_REVERSED' | 'CANCELED' | 'OPERATOR') =>
+      new ReminderSubscriptionBuilder()
+        .withStatus('SUSPENDED')
+        .withSuspensionReason(reason)
+        .build();
 
     // The recovery charge is due 7 days after it is issued: 3, 8 and 14 days since issue are 4 days
     // before its due date and 1 and 7 days after it.
@@ -170,7 +173,12 @@ describe('remindersDueToday', () => {
         kindsOf({
           localToday: TODAY,
           subscription: suspended('NON_PAYMENT'),
-          charges: [charge(addDaysUTC(TODAY, daysToDue), { kind: 'RECOVERY' })],
+          charges: [
+            new ReminderChargeBuilder()
+              .withDueDate(addDaysUTC(TODAY, daysToDue))
+              .asRecovery()
+              .build(),
+          ],
         }),
       ).toEqual(expected);
     });
@@ -185,7 +193,9 @@ describe('remindersDueToday', () => {
         remindersDueToday({
           localToday: TODAY,
           subscription: suspended(reason),
-          charges: [charge(addDaysUTC(TODAY, 4), { kind: 'RECOVERY' })],
+          charges: [
+            new ReminderChargeBuilder().withDueDate(addDaysUTC(TODAY, 4)).asRecovery().build(),
+          ],
         }),
       ).toHaveLength(count);
     });
@@ -195,7 +205,13 @@ describe('remindersDueToday', () => {
         remindersDueToday({
           localToday: TODAY,
           subscription: suspended('NON_PAYMENT'),
-          charges: [charge(addDaysUTC(TODAY, 4), { kind: 'RECOVERY', id: 'recovery-1' })],
+          charges: [
+            new ReminderChargeBuilder()
+              .withDueDate(addDaysUTC(TODAY, 4))
+              .asRecovery()
+              .withId('recovery-1')
+              .build(),
+          ],
         }),
       ).toEqual([{ kind: 'RECOVERY_CHARGE_OPEN', daysOffset: 3, chargeId: 'recovery-1' }]);
     });
@@ -205,14 +221,19 @@ describe('remindersDueToday', () => {
     expect(
       kindsOf({
         localToday: TODAY,
-        subscription: trialing({ exempt: true, trialEndsOn: addDaysUTC(TODAY, 7) }),
-        charges: [charge(addDaysUTC(TODAY, 3))],
+        subscription: new ReminderSubscriptionBuilder()
+          .withExempt(true)
+          .withTrialEndsOn(addDaysUTC(TODAY, 7))
+          .build(),
+        charges: [new ReminderChargeBuilder().withDueDate(addDaysUTC(TODAY, 3)).build()],
       }),
     ).toEqual([]);
   });
 
   it('does not back-fill a milestone a skipped cron day lost', () => {
-    const subscription = trialing({ trialEndsOn: addDaysUTC(TODAY, 7) });
+    const subscription = new ReminderSubscriptionBuilder()
+      .withTrialEndsOn(addDaysUTC(TODAY, 7))
+      .build();
     // The 10-day milestone was yesterday's: today only the 7-day ones exist.
     expect(kindsOf({ localToday: TODAY, subscription, charges: [] })).toEqual([
       'PLAN_CONFIRMATION:7',
@@ -224,7 +245,7 @@ describe('remindersDueToday', () => {
     expect(
       kindsOf({
         localToday: '2028-02-26',
-        subscription: trialing({ trialEndsOn: '2028-03-07' }),
+        subscription: new ReminderSubscriptionBuilder().withTrialEndsOn('2028-03-07').build(),
         charges: [],
       }),
     ).toEqual(['PLAN_CONFIRMATION:10']);

@@ -115,8 +115,19 @@ export class PublishSubscriptionRemindersUseCase {
         correlationId: input.correlationId,
       });
     }
+    // TRIAL_ENDING shows the first invoice when one is open; it is the current trial's own charge,
+    // not any open one (a re-trialled subscription keeps its history).
+    const firstInvoice = due.some((milestone) => milestone.kind === 'TRIAL_ENDING')
+      ? await this.findOpenFirstInvoice(subscription)
+      : null;
     const commands = due.map((milestone) =>
-      this.toCommand(input, subscription, charges, milestone, recipientEmail),
+      this.toCommand(
+        input,
+        subscription,
+        this.chargeOf(milestone, charges, firstInvoice),
+        milestone,
+        recipientEmail,
+      ),
     );
     await mapSequentially(commands, (command) => this.outbox.publish(command));
     return {
@@ -130,7 +141,7 @@ export class PublishSubscriptionRemindersUseCase {
     tenantId: string,
     now: Date,
   ): Promise<{ kind: 'NOT_FOUND' | 'EXEMPT' } | { kind: 'EVALUATED'; evaluation: Evaluation }> {
-    const subscription = await this.subscriptions.findByTenantId(tenantId);
+    const subscription = await this.subscriptions.findFreshByTenantId(tenantId);
     if (!subscription) return { kind: 'NOT_FOUND' };
     if (subscription.exempt) return { kind: 'EXEMPT' };
 
@@ -163,10 +174,34 @@ export class PublishSubscriptionRemindersUseCase {
     return milestone.kind === 'CHARGE_OVERDUE' && milestone.daysOffset === SUSPENSION_DATE_OFFSET;
   }
 
+  private async findOpenFirstInvoice(subscription: Subscription): Promise<Charge | null> {
+    const from = subscription.firstInvoiceFrom;
+    if (from === null) return null;
+    const first = await this.charges.findFirstPeriodCharge(
+      subscription.tenantId,
+      subscription.id,
+      from,
+    );
+    return first?.open ? first : null;
+  }
+
+  // The charge a reminder is about: the one its milestone names, or, for the trial-ending one that
+  // names none, the current trial's open first invoice.
+  private chargeOf(
+    milestone: ReminderMilestone,
+    charges: readonly Charge[],
+    firstInvoice: Charge | null,
+  ): Charge | null {
+    if (milestone.chargeId !== null) {
+      return charges.find((charge) => charge.id === milestone.chargeId) ?? null;
+    }
+    return milestone.kind === 'TRIAL_ENDING' ? firstInvoice : null;
+  }
+
   private toCommand(
     input: PublishSubscriptionRemindersUseCaseInput,
     subscription: Subscription,
-    charges: readonly Charge[],
+    charge: Charge | null,
     milestone: ReminderMilestone,
     recipientEmail: string | null,
   ): BillingReminderDue {
@@ -175,14 +210,6 @@ export class PublishSubscriptionRemindersUseCase {
       subscription.trialEndsAt === null
         ? null
         : utcDateToLocalDate(subscription.trialEndsAt, timezone);
-    // A trial reminder names no charge in its key, but TRIAL_ENDING shows the first invoice when
-    // one exists: the trial's only open charge.
-    const charge =
-      milestone.chargeId !== null
-        ? (charges.find((c) => c.id === milestone.chargeId) ?? null)
-        : milestone.kind === 'TRIAL_ENDING'
-          ? (charges.find((c) => c.kind === 'PERIOD') ?? null)
-          : null;
     const isTrialKind = milestone.kind === 'PLAN_CONFIRMATION' || milestone.kind === 'TRIAL_ENDING';
 
     return new BillingReminderDue(input.tenantId, input.correlationId, {

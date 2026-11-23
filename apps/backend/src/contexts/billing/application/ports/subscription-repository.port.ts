@@ -48,6 +48,14 @@ export interface ISubscriptionRepository {
   findByTenantId(tenantId: string): Promise<Subscription | null>;
 
   /**
+   * The committed row, with no lock and never from the cache: the re-check of a job that must see
+   * a change another instance just made (the reminders' exempt check, UC-139) but does not write
+   * the subscription, so it takes no row lock. `findByTenantId` may serve a cached copy up to its
+   * TTL, and the cache has no cross-instance invalidation.
+   */
+  findFreshByTenantId(tenantId: string): Promise<Subscription | null>;
+
+  /**
    * Lock B-R1 (docs/LOCK_CATALOG.md): takes `FOR UPDATE` on the subscription row, then loads its
    * items in the same transaction — safe because every writer takes the row lock first, so the
    * items cannot change underneath. Must run inside an active `ITransactionManager.run()`; throws

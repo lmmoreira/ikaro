@@ -385,9 +385,11 @@ describe('TypeOrmChargeRepository queries, claim and isolation (integration)', (
       const first = await dueIn('2027-04-03');
       const second = await dueIn('2027-05-10', 'OVERDUE');
       const last = await dueIn('2027-06-20');
-      await dueIn('2027-07-15');
-      await dueIn('2027-05-05', 'PAID');
-      const own = [before, first, second, last].map((c) => c.id);
+      const afterWindow = await dueIn('2027-07-15');
+      const paidInside = await dueIn('2027-05-05', 'PAID');
+      // Every seeded charge is in the filter, so a selector that ignored the status or the upper
+      // bound would return the paid one or the late one and fail the assertion below.
+      const own = [before, first, second, last, afterWindow, paidInside].map((c) => c.id);
       const mine = (refs: { id: string }[]): string[] =>
         refs.filter((r) => own.includes(r.id)).map((r) => r.id);
 
