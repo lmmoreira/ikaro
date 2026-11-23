@@ -975,7 +975,7 @@ Keep the webhook inbox small. Daily trigger `cron-billing-provider-events-purge`
 
 ---
 
-### M26-S11 — Notification: platform-scoped template lookup and the Billing templates (UC-124 precondition)
+### M26-S11 — Notification: platform-scoped template lookup and the Billing templates (UC-124 precondition) ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** M
