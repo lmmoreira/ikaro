@@ -1,7 +1,19 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { NotificationTemplateKey } from './notification-template-key.enum';
-import { NOTIFICATION_TEMPLATE_KEY_MAPPING } from './notification-template-key.mapping';
+import {
+  NOTIFICATION_TEMPLATE_KEY_MAPPING,
+  PLATFORM_SCOPED_TEMPLATE_KEYS,
+} from './notification-template-key.mapping';
+import { BillingReminderDue } from '../../billing/domain/commands/billing-reminder-due.command';
+import { ChargeIssued } from '../../billing/domain/events/charge-issued.event';
+import { ChargePaid } from '../../billing/domain/events/charge-paid.event';
+import { PlanChanged } from '../../billing/domain/events/plan-changed.event';
+import { SubscriptionCancelled } from '../../billing/domain/events/subscription-cancelled.event';
+import { SubscriptionPastDue } from '../../billing/domain/events/subscription-past-due.event';
+import { SubscriptionPriceChangeAnnounced } from '../../billing/domain/events/subscription-price-change-announced.event';
+import { SubscriptionReactivated } from '../../billing/domain/events/subscription-reactivated.event';
+import { SubscriptionSuspended } from '../../billing/domain/events/subscription-suspended.event';
 
 describe('NOTIFICATION_TEMPLATE_KEY_MAPPING', () => {
   it('has an entry for every NotificationTemplateKey', () => {
@@ -133,5 +145,106 @@ describe('NOTIFICATION_TEMPLATE_KEY_MAPPING variable contract (M23-S37)', () => 
       unlisted: [],
       unused: [],
     });
+  });
+});
+
+// M26-S11: Billing's manager emails are platform-scoped. The table is the contract with S12 (which
+// picks the key from the event data) and with Billing's S03 classes (a renamed event fails here).
+describe('platform-scoped templates (M26-S11)', () => {
+  const EXPECTED: ReadonlyArray<[NotificationTemplateKey, string, string]> = [
+    [NotificationTemplateKey.CHARGE_ISSUED_PERIOD, ChargeIssued.name, 'managerPeriod'],
+    [NotificationTemplateKey.CHARGE_ISSUED_RECOVERY, ChargeIssued.name, 'managerRecovery'],
+    [NotificationTemplateKey.CHARGE_PAID, ChargePaid.name, 'manager'],
+    [NotificationTemplateKey.SUBSCRIPTION_PAST_DUE, SubscriptionPastDue.name, 'manager'],
+    [
+      NotificationTemplateKey.SUBSCRIPTION_SUSPENDED_NON_PAYMENT,
+      SubscriptionSuspended.name,
+      'managerNonPayment',
+    ],
+    [
+      NotificationTemplateKey.SUBSCRIPTION_SUSPENDED_OPERATOR,
+      SubscriptionSuspended.name,
+      'managerOperator',
+    ],
+    [NotificationTemplateKey.SUBSCRIPTION_REACTIVATED, SubscriptionReactivated.name, 'manager'],
+    [
+      NotificationTemplateKey.SUBSCRIPTION_CANCELLED_IMMEDIATE,
+      SubscriptionCancelled.name,
+      'managerImmediate',
+    ],
+    [
+      NotificationTemplateKey.SUBSCRIPTION_CANCELLED_SCHEDULED,
+      SubscriptionCancelled.name,
+      'managerScheduled',
+    ],
+    [NotificationTemplateKey.PLAN_CHANGED, PlanChanged.name, 'manager'],
+    [
+      NotificationTemplateKey.BILLING_REMINDER_PLAN_CONFIRMATION,
+      BillingReminderDue.name,
+      'planConfirmation',
+    ],
+    [NotificationTemplateKey.BILLING_REMINDER_TRIAL_ENDING, BillingReminderDue.name, 'trialEnding'],
+    [
+      NotificationTemplateKey.BILLING_REMINDER_CHARGE_DUE_SOON,
+      BillingReminderDue.name,
+      'chargeDueSoon',
+    ],
+    [
+      NotificationTemplateKey.BILLING_REMINDER_CHARGE_OVERDUE,
+      BillingReminderDue.name,
+      'chargeOverdue',
+    ],
+    [
+      NotificationTemplateKey.BILLING_REMINDER_RECOVERY_CHARGE_OPEN,
+      BillingReminderDue.name,
+      'recoveryChargeOpen',
+    ],
+    [
+      NotificationTemplateKey.SUBSCRIPTION_PRICE_CHANGE_ANNOUNCED,
+      SubscriptionPriceChangeAnnounced.name,
+      'manager',
+    ],
+    // Reserved for M27 (UC-132): the event class does not exist yet, so only its name is pinned.
+    [NotificationTemplateKey.TENANT_PURGE_WARNING, 'TenantPurgeWarning', 'manager'],
+  ];
+
+  it('PLATFORM_SCOPED_TEMPLATE_KEYS is exactly the set of platformScoped entries (17)', () => {
+    const flagged = Object.entries(NOTIFICATION_TEMPLATE_KEY_MAPPING)
+      .filter(([, mapping]) => 'platformScoped' in mapping)
+      .map(([key]) => key);
+
+    expect([...PLATFORM_SCOPED_TEMPLATE_KEYS].sort()).toEqual(flagged.sort());
+    expect(PLATFORM_SCOPED_TEMPLATE_KEYS).toHaveLength(17);
+    expect(EXPECTED).toHaveLength(17);
+  });
+
+  it.each(EXPECTED)('%s maps to %s.%s and is platform-scoped', (key, eventName, recipientType) => {
+    expect(NOTIFICATION_TEMPLATE_KEY_MAPPING[key]).toMatchObject({
+      eventName,
+      recipientType,
+      platformScoped: true,
+    });
+  });
+
+  it('keeps every other key tenant-scoped', () => {
+    const tenantKeys = Object.values(NotificationTemplateKey).filter(
+      (key) => !PLATFORM_SCOPED_TEMPLATE_KEYS.includes(key),
+    );
+
+    expect(tenantKeys.length).toBeGreaterThan(0);
+    for (const key of tenantKeys) {
+      expect('platformScoped' in NOTIFICATION_TEMPLATE_KEY_MAPPING[key]).toBe(false);
+    }
+  });
+
+  it('never links a billing email to a nullable event field: every link placeholder is billingUrl or paymentUrl', () => {
+    for (const key of PLATFORM_SCOPED_TEMPLATE_KEYS) {
+      const urlVariables = NOTIFICATION_TEMPLATE_KEY_MAPPING[key].variables.filter((v) =>
+        v.endsWith('Url'),
+      );
+      for (const variable of urlVariables) {
+        expect(['billingUrl', 'paymentUrl']).toContain(variable);
+      }
+    }
   });
 });

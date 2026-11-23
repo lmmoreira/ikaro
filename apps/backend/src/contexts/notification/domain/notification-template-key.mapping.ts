@@ -1,3 +1,4 @@
+import { BILLING_NOTIFICATION_TEMPLATE_MAPPING } from './billing-notification-template-key.mapping';
 import { NotificationTemplateKey } from './notification-template-key.enum';
 
 export interface NotificationTemplateKeyMapping {
@@ -8,6 +9,10 @@ export interface NotificationTemplateKeyMapping {
   // with the placeholders in notifications.json, so a placeholder nobody supplies — which
   // render() would silently turn into '' — fails CI instead of shipping a blank email.
   readonly variables: readonly string[];
+  // A platform-scoped template is one Ikaro sends for a tenant, not as the tenant (Billing's manager
+  // emails, UC-124). Its tenant_id IS NULL row is read through findPlatformTemplate and is never
+  // copied into a tenant. PLATFORM_SCOPED_TEMPLATE_KEYS below is derived from this flag.
+  readonly platformScoped?: true;
 }
 
 // Maps each persisted trigger_event key to the (eventName, recipientType) pair used to look up
@@ -231,6 +236,7 @@ export const NOTIFICATION_TEMPLATE_KEY_MAPPING = {
     recipientType: 'customer',
     variables: ['customerName', 'tenantName'],
   },
+  ...BILLING_NOTIFICATION_TEMPLATE_MAPPING,
 } as const satisfies Record<NotificationTemplateKey, NotificationTemplateKeyMapping>;
 
 // The variables object a use case must supply for one or more templates: every placeholder of each
@@ -242,3 +248,14 @@ type VariablesOf<K extends NotificationTemplateKey> =
 export type TemplateVariables<K extends NotificationTemplateKey> = {
   [V in VariablesOf<K>]: string;
 };
+
+// Derived from the platformScoped flag, never a second hand-kept list: the copy SQL of the per-tenant
+// defaults and of the seed excludes these trigger_event values, and the platform lookup reads only them.
+export const PLATFORM_SCOPED_TEMPLATE_KEYS: readonly NotificationTemplateKey[] = (
+  Object.entries(NOTIFICATION_TEMPLATE_KEY_MAPPING) as [
+    NotificationTemplateKey,
+    NotificationTemplateKeyMapping,
+  ][]
+)
+  .filter(([, mapping]) => mapping.platformScoped === true)
+  .map(([key]) => key);

@@ -44,6 +44,13 @@ export class NotificationTemplateBuilder {
     return this;
   }
 
+  // A platform-scoped template: tenant-less, the way Billing's manager emails are stored.
+  withPlatformScope(): this {
+    this.tenantId = null;
+    this.triggerEvent = NotificationTemplateKey.CHARGE_PAID;
+    return this;
+  }
+
   build(): NotificationTemplate {
     return NotificationTemplate.create({
       tenantId: this.tenantId,

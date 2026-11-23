@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { config } from 'dotenv';
 import { DataSource } from 'typeorm';
+import { copyGlobalNotificationTemplates } from './seed-notification-templates';
 import { BackfillExemptSubscriptions1748500000041 } from '../../contexts/billing/infrastructure/migrations/1748500000041-BackfillExemptSubscriptions';
 import {
   SEED_HOTSITE_BASE_BRANDING,
@@ -392,19 +393,7 @@ async function seedBookings(q: ReturnType<DataSource['createQueryRunner']>): Pro
 async function seedNotificationTemplates(
   q: ReturnType<DataSource['createQueryRunner']>,
 ): Promise<void> {
-  // Mirrors TenantProvisionedHandler → copyGlobalDefaultsForTenant
-  // Copies all global templates (tenant_id IS NULL) to each seed tenant — one statement for all
-  // tenants rather than one awaited query per tenant.
-  await q.query(
-    `INSERT INTO notification.notification_templates
-       (id, tenant_id, trigger_event, channel, subject, body, created_at, updated_at)
-     SELECT gen_random_uuid(), t.tenant_id, g.trigger_event, g.channel, g.subject, g.body, now(), now()
-     FROM unnest($1::uuid[]) AS t(tenant_id)
-     CROSS JOIN notification.notification_templates g
-     WHERE g.tenant_id IS NULL
-     ON CONFLICT DO NOTHING`,
-    [[IDS.tenantIkaro, IDS.tenantA, IDS.tenantB]],
-  );
+  await copyGlobalNotificationTemplates(q, [IDS.tenantIkaro, IDS.tenantA, IDS.tenantB]);
 }
 
 // A tenant of its own for the E2E team-list specs. The team page lists the first 100 members of a
@@ -444,15 +433,7 @@ async function seedTeamTenant(q: ReturnType<DataSource['createQueryRunner']>): P
      ON CONFLICT (id) DO NOTHING`,
     [IDS.resourceLocationTeam, IDS.tenantTeam],
   );
-  await q.query(
-    `INSERT INTO notification.notification_templates
-       (id, tenant_id, trigger_event, channel, subject, body, created_at, updated_at)
-     SELECT gen_random_uuid(), $1, g.trigger_event, g.channel, g.subject, g.body, now(), now()
-     FROM notification.notification_templates g
-     WHERE g.tenant_id IS NULL
-     ON CONFLICT DO NOTHING`,
-    [IDS.tenantTeam],
-  );
+  await copyGlobalNotificationTemplates(q, [IDS.tenantTeam]);
 }
 
 // Seeded tenants are inserted after the migrations ran, so the billing backfill (M25-S05) never saw

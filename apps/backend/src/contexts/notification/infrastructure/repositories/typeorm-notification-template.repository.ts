@@ -7,6 +7,8 @@ import {
   NotificationChannel,
 } from '../../domain/notification-template.aggregate';
 import { NotificationTemplateKey } from '../../domain/notification-template-key.enum';
+import { PLATFORM_SCOPED_TEMPLATE_KEYS } from '../../domain/notification-template-key.mapping';
+import { PlatformTemplateNotFoundError } from '../../domain/errors/platform-template-not-found.error';
 import { INotificationTemplateRepository } from '../../application/ports/notification-template-repository.port';
 import { NotificationTemplateEntity } from '../entities/notification-template.entity';
 
@@ -59,12 +61,26 @@ export class TypeOrmNotificationTemplateRepository implements INotificationTempl
          (id, tenant_id, trigger_event, channel, locale, subject, body, created_at, updated_at)
        SELECT gen_random_uuid(), $1::uuid, trigger_event, channel, locale, subject, body, now(), now()
        FROM notification.notification_templates
-       WHERE tenant_id IS NULL AND locale = $2
+       WHERE tenant_id IS NULL AND locale = $2 AND trigger_event <> ALL($3::text[])
        ON CONFLICT DO NOTHING
        RETURNING 1 AS inserted`,
-      [tenantId, locale],
+      [tenantId, locale, PLATFORM_SCOPED_TEMPLATE_KEYS],
     );
     return insertedRows.length;
+  }
+
+  async findPlatformTemplate(
+    triggerEvent: NotificationTemplateKey,
+    locale: string,
+  ): Promise<NotificationTemplate> {
+    if (!PLATFORM_SCOPED_TEMPLATE_KEYS.includes(triggerEvent)) {
+      throw new PlatformTemplateNotFoundError(triggerEvent, locale);
+    }
+    const entity = await this.repo.findOne({
+      where: { tenantId: IsNull(), triggerEvent, channel: 'EMAIL', locale },
+    });
+    if (!entity) throw new PlatformTemplateNotFoundError(triggerEvent, locale);
+    return this.toDomain(entity);
   }
 
   private toDomain(entity: NotificationTemplateEntity): NotificationTemplate {

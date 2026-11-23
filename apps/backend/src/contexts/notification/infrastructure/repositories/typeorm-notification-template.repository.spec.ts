@@ -4,6 +4,8 @@ import { IsNull, Repository } from 'typeorm';
 import * as transactionContext from '../../../../shared/infrastructure/transaction-context';
 import { NotificationTemplate } from '../../domain/notification-template.aggregate';
 import { NotificationTemplateKey } from '../../domain/notification-template-key.enum';
+import { PLATFORM_SCOPED_TEMPLATE_KEYS } from '../../domain/notification-template-key.mapping';
+import { PlatformTemplateNotFoundError } from '../../domain/errors/platform-template-not-found.error';
 import { NotificationTemplateEntity } from '../entities/notification-template.entity';
 import { NotificationTemplateEntityBuilder } from '../../../../test/builders/notification/notification-template-entity.builder';
 import { TypeOrmNotificationTemplateRepository } from './typeorm-notification-template.repository';
@@ -195,6 +197,7 @@ describe('TypeOrmNotificationTemplateRepository', () => {
       expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO'), [
         TENANT_ID,
         'pt-BR',
+        PLATFORM_SCOPED_TEMPLATE_KEYS,
       ]);
       expect(result).toBe(GLOBAL_DEFAULTS_COUNT);
     });
@@ -209,6 +212,10 @@ describe('TypeOrmNotificationTemplateRepository', () => {
         'WHERE tenant_id IS NULL (only sources rows from global defaults)',
         'WHERE tenant_id IS NULL',
       ],
+      [
+        'the platform-scoped exclusion (no tenant ever owns a Billing template)',
+        'trigger_event <> ALL($3::text[])',
+      ],
     ])('generated query includes %s', async (_label, expectedSubstring) => {
       await repo.copyGlobalDefaultsForTenant(TENANT_ID, 'pt-BR');
 
@@ -221,6 +228,42 @@ describe('TypeOrmNotificationTemplateRepository', () => {
       const result = await repo.copyGlobalDefaultsForTenant(TENANT_ID, 'pt-BR');
 
       expect(result).toBe(0);
+    });
+  });
+
+  describe('findPlatformTemplate', () => {
+    it('reads only the tenant-less EMAIL row of the key and locale', async () => {
+      (ormRepo.findOne as jest.Mock).mockResolvedValue(
+        new NotificationTemplateEntityBuilder().withPlatformScope().withLocale('en').build(),
+      );
+
+      const result = await repo.findPlatformTemplate(NotificationTemplateKey.CHARGE_PAID, 'en');
+
+      expect(ormRepo.findOne).toHaveBeenCalledWith({
+        where: {
+          tenantId: IsNull(),
+          triggerEvent: NotificationTemplateKey.CHARGE_PAID,
+          channel: 'EMAIL',
+          locale: 'en',
+        },
+      });
+      expect(result.tenantId).toBeNull();
+      expect(result.locale).toBe('en');
+    });
+
+    it('throws PlatformTemplateNotFoundError when the row is missing', async () => {
+      (ormRepo.findOne as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        repo.findPlatformTemplate(NotificationTemplateKey.CHARGE_PAID, 'pt-BR'),
+      ).rejects.toThrow(PlatformTemplateNotFoundError);
+    });
+
+    it('throws without querying for a key that is not platform-scoped', async () => {
+      await expect(
+        repo.findPlatformTemplate(NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER, 'pt-BR'),
+      ).rejects.toThrow(PlatformTemplateNotFoundError);
+      expect(ormRepo.findOne).not.toHaveBeenCalled();
     });
   });
 });

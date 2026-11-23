@@ -2,6 +2,7 @@ import { InMemoryNotificationTemplateRepository } from '../../../../../test/repo
 import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastructure/in-memory-notification-platform.port';
 import { NotificationTemplateBuilder } from '../../../../../test/builders/notification/notification-template.builder';
 import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
+import { PLATFORM_SCOPED_TEMPLATE_KEYS } from '../../../domain/notification-template-key.mapping';
 import { SeedDefaultTemplatesUseCase } from './seed-default-templates.use-case';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000031';
@@ -120,5 +121,26 @@ describe('SeedDefaultTemplatesUseCase', () => {
       'EMAIL',
     );
     expect(underB).toBeNull();
+  });
+
+  it('copies none of the platform-scoped templates, while still copying every other default', async () => {
+    templateRepo.seed(
+      new NotificationTemplateBuilder()
+        .asGlobalDefault()
+        .withTriggerEvent(NotificationTemplateKey.BOOKING_APPROVED_CUSTOMER)
+        .build(),
+    );
+    for (const key of PLATFORM_SCOPED_TEMPLATE_KEYS) {
+      templateRepo.seed(
+        new NotificationTemplateBuilder().asGlobalDefault().withTriggerEvent(key).build(),
+      );
+    }
+
+    const result = await useCase.execute({ tenantId: TENANT_A });
+
+    expect(result.seeded).toBe(1);
+    for (const key of PLATFORM_SCOPED_TEMPLATE_KEYS) {
+      expect(await templateRepo.findAllByTriggerEvent(TENANT_A, key)).toEqual([]);
+    }
   });
 });
