@@ -162,6 +162,7 @@ export class PublishSubscriptionRemindersUseCase {
       charges: charges.map((charge) => ({
         id: charge.id,
         kind: charge.kind,
+        status: charge.status === 'OVERDUE' ? 'OVERDUE' : 'PENDING',
         dueDate: charge.dueDate.value,
       })),
     });

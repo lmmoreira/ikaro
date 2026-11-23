@@ -364,6 +364,23 @@ describe('PublishSubscriptionRemindersUseCase (UC-139)', () => {
       },
     );
 
+    it.each([-1, -7])(
+      'sends no overdue recovery reminder %i days past due while the charge is still PENDING (the sweep has not marked it)',
+      async (dueIn) => {
+        const subscription = suspended('NON_PAYMENT');
+        await h.seedTenant(subscription);
+        await h.seedCharge(subscription, {
+          kind: 'RECOVERY',
+          dueDate: day(dueIn),
+          status: 'PENDING',
+        });
+
+        await run(subscription);
+
+        expect(h.commands()).toEqual([]);
+      },
+    );
+
     it('also reminds a PAYMENT_REVERSED suspension', async () => {
       const subscription = suspended('PAYMENT_REVERSED');
       await h.seedTenant(subscription);

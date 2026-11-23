@@ -24,6 +24,8 @@ export interface ReminderSubscription {
 export interface ReminderCharge {
   id: string;
   kind: ChargeKind;
+  /** An open charge is `PENDING` until the status sweep marks it `OVERDUE`. */
+  status: 'PENDING' | 'OVERDUE';
   /** `YYYY-MM-DD`, in the subscription's timezone. */
   dueDate: string;
 }
@@ -48,6 +50,8 @@ interface ChargeRule {
   kind: 'CHARGE_DUE_SOON' | 'CHARGE_OVERDUE' | 'RECOVERY_CHARGE_OPEN';
   anchor: ChargeAnchor;
   offsets: readonly number[];
+  /** The offsets from this one on are reminders about a charge past its due date: only for an `OVERDUE` one. */
+  overdueFrom?: number;
   applies: (subscription: ReminderSubscription, charge: ReminderCharge) => boolean;
 }
 
@@ -83,8 +87,10 @@ const CHARGE_RULES: readonly ChargeRule[] = [
   {
     kind: 'RECOVERY_CHARGE_OPEN',
     anchor: 'AFTER_ISSUE',
-    // 3 days after issue, then 1 and 7 days after the due date (issue + RECOVERY_CHARGE_DUE_DAYS).
+    // 3 days after issue, then 1 and 7 days after the due date (issue + RECOVERY_CHARGE_DUE_DAYS):
+    // those two only once the sweep has marked the charge OVERDUE (UC-139).
     offsets: [3, 8, 14],
+    overdueFrom: 8,
     applies: (s, c) =>
       s.status === 'SUSPENDED' &&
       s.suspensionReason !== null &&
@@ -127,7 +133,9 @@ export function remindersDueToday(input: {
   for (const charge of charges) {
     for (const rule of CHARGE_RULES) {
       const offset = chargeOffset(rule.anchor, localToday, charge.dueDate);
-      if (rule.applies(subscription, charge) && rule.offsets.includes(offset)) {
+      const pastDueUnmarked =
+        rule.overdueFrom !== undefined && offset >= rule.overdueFrom && charge.status !== 'OVERDUE';
+      if (rule.applies(subscription, charge) && rule.offsets.includes(offset) && !pastDueUnmarked) {
         milestones.push({ kind: rule.kind, daysOffset: offset, chargeId: charge.id });
       }
     }

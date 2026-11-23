@@ -6,6 +6,7 @@ import { addDaysUTC, todayUTC } from '../../../shared/utils/calendar-date';
 export class ReminderChargeBuilder {
   private id = 'charge-1';
   private kind: ChargeKind = 'PERIOD';
+  private status: ReminderCharge['status'] = 'PENDING';
   private dueDate = addDaysUTC(todayUTC(), 3);
 
   withId(id: string): this {
@@ -18,12 +19,17 @@ export class ReminderChargeBuilder {
     return this;
   }
 
+  withStatus(status: ReminderCharge['status']): this {
+    this.status = status;
+    return this;
+  }
+
   withDueDate(dueDate: string): this {
     this.dueDate = dueDate;
     return this;
   }
 
   build(): ReminderCharge {
-    return { id: this.id, kind: this.kind, dueDate: this.dueDate };
+    return { id: this.id, kind: this.kind, status: this.status, dueDate: this.dueDate };
   }
 }

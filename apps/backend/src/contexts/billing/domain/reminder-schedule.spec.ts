@@ -176,12 +176,34 @@ describe('remindersDueToday', () => {
           charges: [
             new ReminderChargeBuilder()
               .withDueDate(addDaysUTC(TODAY, daysToDue))
+              .withStatus(daysToDue < 0 ? 'OVERDUE' : 'PENDING')
               .asRecovery()
               .build(),
           ],
         }),
       ).toEqual(expected);
     });
+
+    // UC-139: the reminders after the due date are for a charge that is OVERDUE, so a recovery
+    // charge the sweep has not marked yet (still PENDING past its due date) gets none of them.
+    it.each([-1, -7])(
+      'a recovery charge %i days past due that is still PENDING gets no overdue reminder',
+      (daysToDue) => {
+        expect(
+          kindsOf({
+            localToday: TODAY,
+            subscription: suspended('NON_PAYMENT'),
+            charges: [
+              new ReminderChargeBuilder()
+                .withDueDate(addDaysUTC(TODAY, daysToDue))
+                .withStatus('PENDING')
+                .asRecovery()
+                .build(),
+            ],
+          }),
+        ).toEqual([]);
+      },
+    );
 
     it.each([
       ['NON_PAYMENT', 1],
