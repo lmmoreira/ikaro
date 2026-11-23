@@ -1010,17 +1010,38 @@ Billing emails are platform-level — UC-124: "no per-tenant copy and no backfil
 
 A unit test asserts this table against the mapping (17 rows, each `eventName` an S03 class or `TenantPurgeWarning`), so a renamed S03 event fails S11's spec.
 
+**Placeholders per key (decided at discovery, 2026-11-23).** S12 supplies every value already formatted (money and dates in the tenant's locale; text a person typed is HTML-escaped). Every email links to one always-present `billingUrl` (the dashboard Billing page); only the two `ChargeIssued` keys use `paymentUrl`, which that event always carries, so no nullable event field ever feeds a placeholder (a null renders `''`, a blank link). The mapping spec requires each `variables` list to equal the placeholders in both languages.
+
+| Key | `variables` |
+|---|---|
+| `CHARGE_ISSUED_PERIOD`, `CHARGE_ISSUED_RECOVERY` | `tenantName`, `amount`, `dueDate`, `paymentUrl` |
+| `CHARGE_PAID` | `tenantName`, `amount`, `paidDate` |
+| `SUBSCRIPTION_PAST_DUE` | `tenantName`, `suspendsOn`, `billingUrl` |
+| `SUBSCRIPTION_SUSPENDED_NON_PAYMENT` | `tenantName`, `purgeDate`, `billingUrl` |
+| `SUBSCRIPTION_SUSPENDED_OPERATOR` | `tenantName` (the copy says to contact Ikaro, with no address) |
+| `SUBSCRIPTION_REACTIVATED`, `SUBSCRIPTION_CANCELLED_IMMEDIATE` | `tenantName` |
+| `SUBSCRIPTION_CANCELLED_SCHEDULED` | `tenantName`, `cancelDate` |
+| `PLAN_CHANGED` | `tenantName`, `newTotal`, `billingUrl` |
+| `BILLING_REMINDER_PLAN_CONFIRMATION`, `BILLING_REMINDER_TRIAL_ENDING` | `tenantName`, `trialEndsOn`, `billingUrl` |
+| `BILLING_REMINDER_CHARGE_DUE_SOON`, `BILLING_REMINDER_CHARGE_OVERDUE`, `BILLING_REMINDER_RECOVERY_CHARGE_OPEN` | `tenantName`, `amount`, `dueDate`, `billingUrl` |
+| `SUBSCRIPTION_PRICE_CHANGE_ANNOUNCED` | `tenantName`, `changesList` (escaped `<li>` rows S12 builds), `effectiveFrom`, `newTotal`, `billingUrl` |
+| `TENANT_PURGE_WARNING` | `tenantName`, `purgeDate`, `daysBefore`, `billingUrl` |
+
+**Tolerant copy (decided).** `PLAN_CHANGED` states only the new total and points to the Plano page (no effective date: `effectiveFrom` is `null` for a plan saved while suspended; no added/removed lists). `CHARGE_OVERDUE` says the subscription may be suspended, with no date (`suspendsOn` is set only on the last reminder). `CHARGE_PAID` has no receipt link or payment method (both may be null). The 34 texts (17 keys × pt-BR and en) are drafted in this story and reviewed by the user at the merge review.
+
 **Backend use case steps:** none (lookup + data).
 **Backend HTTP surface:** none.
-**New migration / i18n keys / env vars / feature flags:** one data migration `apps/backend/src/contexts/notification/infrastructure/migrations/<timestamp>-SeedBillingTemplates.ts`; the 17 notification entries above in both `notifications.json` files (`eventName.recipientType`, e.g. `ChargeIssued.managerPeriod` / `ChargeIssued.managerRecovery`, `SubscriptionSuspended.managerNonPayment` / `.managerOperator`, `BillingReminderDue.planConfirmation` … `.recoveryChargeOpen`).
+**New migration / i18n keys / env vars / feature flags:** one data migration `apps/backend/src/contexts/notification/infrastructure/migrations/1748500000050-SeedBillingTemplates.ts`; the 17 notification entries above in both `notifications.json` files (`eventName.recipientType`, e.g. `ChargeIssued.managerPeriod` / `ChargeIssued.managerRecovery`, `SubscriptionSuspended.managerNonPayment` / `.managerOperator`, `BillingReminderDue.planConfirmation` … `.recoveryChargeOpen`).
 
 **Files to create/modify:**
 - `apps/backend/src/contexts/notification/domain/notification-template-key.enum.ts`, `notification-template-key.mapping.ts` (+ `notification-template-key.mapping.spec.ts`) (modify — the 17 new keys, each entry with `variables` and `platformScoped: true` (the entry type gains `platformScoped`); the `PLATFORM_SCOPED_TEMPLATE_KEYS` constant derived from `platformScoped` and exported from the mapping file; the existing variable/placeholder parity in the mapping spec covers the new copy)
 - `apps/backend/src/contexts/notification/application/ports/notification-template-repository.port.ts` (modify — `findPlatformTemplate`; `copyGlobalDefaultsForTenant` excludes the family)
 - `apps/backend/src/contexts/notification/infrastructure/repositories/typeorm-notification-template.repository.ts` (+ `.spec.ts`, `.integration.spec.ts`) (modify)
 - `apps/backend/src/test/repositories/notification/in-memory-notification-template.repository.ts` (modify — same two behaviours)
-- `apps/backend/src/contexts/notification/application/use-cases/seed-default-templates/seed-default-templates.use-case.ts` (+ spec; its only call to `copyGlobalDefaultsForTenant`, asserted to copy none of the family) and `apps/backend/src/shared/database/seed.ts` (modify — its two raw `INSERT … SELECT` copies, `seedNotificationTemplates` and `seedTeamTenant`, exclude the platform-scoped `trigger_event` values; the seed does not call the repository method). **The exclusion is applied in all three SQLs**: the repository's `copyGlobalDefaultsForTenant` (`WHERE tenant_id IS NULL AND locale = $2` in `typeorm-notification-template.repository.ts`) and both raw seed copies (the `INSERT … SELECT` inside `seedNotificationTemplates` and the one inside `seedTeamTenant` in `seed.ts`, which select **all** `tenant_id IS NULL` rows with no locale column); the integration spec covers each of the three
-- `apps/backend/src/contexts/notification/infrastructure/migrations/<timestamp>-SeedBillingTemplates.ts` (new)
+- `apps/backend/src/contexts/notification/application/use-cases/seed-default-templates/seed-default-templates.use-case.ts` (+ spec; its only call to `copyGlobalDefaultsForTenant`, asserted to copy none of the family) and `apps/backend/src/shared/database/seed.ts` (modify — its two raw `INSERT … SELECT` copies, `seedNotificationTemplates` and `seedTeamTenant`, are replaced by calls to the new helper below; the seed does not call the repository method). **The exclusion is applied in all three SQLs**: the repository's `copyGlobalDefaultsForTenant` (`WHERE tenant_id IS NULL AND locale = $2` in `typeorm-notification-template.repository.ts`) and the two raw seed copies in `seed.ts`, which select **all** `tenant_id IS NULL` rows with no locale column. **Decided at discovery (2026-11-23):** `apps/backend/src/shared/database/seed-notification-templates.ts` (new, + `.integration.spec.ts`) exports one helper, `copyGlobalNotificationTemplates(q, tenantIds)`, that both seed functions call. `seed.ts` has no exports and no spec, so the two SQLs could not be tested in place. The helper imports `PLATFORM_SCOPED_TEMPLATE_KEYS` from the notification domain directly (`seed.ts` already imports a billing migration with no architecture-policy entry), so there is **no second hand-kept list and no spec comparing two lists**. If `pnpm dep-cruise` rejects that import, stop and ask before editing `architecture-policy.json`. The integration specs cover each of the three SQLs, and each exclusion is mutation-checked (remove it once, see the test fail)
+- `docs/DATABASE_SCHEMA.md` (§ `notification.notification_templates`) and `docs/ENGINEERING_RULES_BACKEND.md` (§ Adding a new notification type, platform-scoped variant) (modify — written at discovery, 2026-11-23; confirm they still match the implementation)
+- `apps/backend/src/contexts/notification/domain/errors/platform-template-not-found.error.ts` (new — `PlatformTemplateNotFoundError`, a domain error with no HTTP mapping: only an event handler calls the lookup. S12's send use case logs `event: "billing_template_missing"` and rethrows; S11 only provides the lookup and the error)
+- `apps/backend/src/contexts/notification/infrastructure/migrations/1748500000050-SeedBillingTemplates.ts` (new)
 - `apps/backend/src/test/integration-global-setup.ts` (modify — register the migration), `apps/backend/eslint.config.js` (modify — `PERSISTENCE_BYPASS_IGNORES` entry)
 - `packages/i18n/locales/pt-BR/notifications.json`, `packages/i18n/locales/en/notifications.json` (modify)
 - `apps/backend/src/test/builders/notification/notification-template.builder.ts` and `notification-template-entity.builder.ts` (modify — a `withPlatformScope()` default)

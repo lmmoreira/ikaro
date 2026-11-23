@@ -1197,6 +1197,8 @@ Owned by: **Notification Context** (`src/contexts/notification/`)
 
 Each row is a rendered template for one `(trigger_event, channel)` pair. Rows with `tenant_id IS NULL` are **global defaults** seeded by migration. When a new tenant is provisioned, a `TenantProvisioned` handler copies all global-default rows into tenant-specific rows (`tenant_id = newTenantId`), allowing per-tenant customisation later.
 
+**Platform-scoped rows (M26-S11).** Billing's 17 manager emails are `tenant_id IS NULL` rows whose `trigger_event` is a `platformScoped` key (`PLATFORM_SCOPED_TEMPLATE_KEYS`, derived from the flag on `NOTIFICATION_TEMPLATE_KEY_MAPPING`). They are **never copied to a tenant**: `copyGlobalDefaultsForTenant` and the seed copies exclude them, and they are read only through `findPlatformTemplate(key, locale)`. The row proves the key is provisioned; the email text still comes from `notifications.json`. A tenant-strict lookup never returns one.
+
 `trigger_event` stores the `NotificationTemplateKey` enum value (kebab-case, e.g. `'booking-approved-customer'`), not the domain event name. Multi-variant events (e.g. `BookingRequested`) use distinct keys: `'booking-requested-admin'` and `'booking-requested-customer'`.
 
 | Column | Type | Constraints |
