@@ -930,7 +930,7 @@ Warn the manager repeatedly, with dates, before anything is suspended, with no h
 
 ---
 
-### M26-S10 — `provider_events` retention purge and the `cron-billing-provider-events-purge` trigger (UC-114)
+### M26-S10 — `provider_events` retention purge and the `cron-billing-provider-events-purge` trigger (UC-114) ✅ Done
 
 **Agent:** `backend-ts + devops`
 **Complexity:** S
