@@ -35,6 +35,12 @@ describe('ChargeIssuedNotificationHandler', () => {
         tenantId: BILLING_FIXTURE_TENANT_ID,
         eventId: received.eventId,
         correlationId: 'corr-from-event',
+        kind: received.data.kind,
+        dueDate: received.data.dueDate,
+        amountMinor: received.data.amountMinor,
+        currency: received.data.currency,
+        paymentUrl: received.data.paymentUrl,
+        recipientEmail: received.data.recipientEmail,
       }),
     );
   });

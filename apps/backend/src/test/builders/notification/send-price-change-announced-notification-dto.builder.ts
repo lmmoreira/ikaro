@@ -2,6 +2,7 @@ import {
   SendPriceChangeAnnouncedNotificationDto,
   PriceChangeLine,
 } from '../../../contexts/notification/application/dtos/send-price-change-announced-notification.dto';
+import { addDaysUTC, todayUTC } from '../../../shared/utils/calendar-date';
 
 export class SendPriceChangeAnnouncedNotificationDtoBuilder {
   private tenantId = 'aaaaaaaa-0000-4000-8000-000000002601';
@@ -11,7 +12,7 @@ export class SendPriceChangeAnnouncedNotificationDtoBuilder {
     { featureKey: 'BOOKING', tier: 'STANDARD', oldAmountMinor: 3900, newAmountMinor: 4900 },
   ];
   private currency: string = 'BRL';
-  private effectiveFrom: string = '2026-12-10';
+  private effectiveFrom: string = addDaysUTC(todayUTC(), 14);
   private newMonthlyTotalMinor: number = 9990;
   private recipientEmail: string | null = 'billing@example.test';
 

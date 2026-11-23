@@ -46,7 +46,9 @@ describe('BaseBillingNotificationUseCase', () => {
   });
 
   it('writes the platform copy in the tenant locale, with money, dates and the tenant name formatted and escaped', async () => {
-    await fixture.build(SendChargePaidNotificationUseCase).execute(dto().build());
+    await fixture
+      .build(SendChargePaidNotificationUseCase)
+      .execute(dto().withPaidAt('2026-12-09T15:00:00.000Z').build());
 
     const [message] = fixture.dispatcher.dispatched;
     expect(nbsp(message!.subject)).toBe('Recebemos o pagamento de R$ 49,00');
@@ -58,7 +60,9 @@ describe('BaseBillingNotificationUseCase', () => {
   it('writes the English copy for an English tenant', async () => {
     fixture.setTenant(BILLING_FIXTURE_TENANT_ID, 'en');
 
-    await fixture.build(SendChargePaidNotificationUseCase).execute(dto().build());
+    await fixture
+      .build(SendChargePaidNotificationUseCase)
+      .execute(dto().withPaidAt('2026-12-09T15:00:00.000Z').build());
 
     expect(fixture.dispatcher.dispatched[0]!.subject).toBe('We received your payment of R$49.00');
     expect(fixture.dispatcher.dispatched[0]!.body).toContain('12/09/2026');

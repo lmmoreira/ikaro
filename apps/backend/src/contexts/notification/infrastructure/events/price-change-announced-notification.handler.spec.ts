@@ -35,6 +35,11 @@ describe('PriceChangeAnnouncedNotificationHandler', () => {
         tenantId: BILLING_FIXTURE_TENANT_ID,
         eventId: received.eventId,
         correlationId: 'corr-from-event',
+        changes: received.data.changes,
+        currency: received.data.currency,
+        effectiveFrom: received.data.effectiveFrom,
+        newMonthlyTotalMinor: received.data.newMonthlyTotalMinor,
+        recipientEmail: received.data.recipientEmail,
       }),
     );
   });

@@ -35,6 +35,8 @@ describe('SubscriptionReactivatedNotificationHandler', () => {
         tenantId: BILLING_FIXTURE_TENANT_ID,
         eventId: received.eventId,
         correlationId: 'corr-from-event',
+        exempt: received.data.exempt,
+        recipientEmail: received.data.recipientEmail,
       }),
     );
   });

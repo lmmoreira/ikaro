@@ -35,6 +35,13 @@ describe('BillingReminderNotificationHandler', () => {
         tenantId: BILLING_FIXTURE_TENANT_ID,
         eventId: received.eventId,
         correlationId: 'corr-from-event',
+        kind: received.data.kind,
+        dueDate: received.data.dueDate,
+        trialEndsOn: received.data.trialEndsOn,
+        suspendsOn: received.data.suspendsOn,
+        amountMinor: received.data.amountMinor,
+        currency: received.data.currency,
+        recipientEmail: received.data.recipientEmail,
       }),
     );
   });

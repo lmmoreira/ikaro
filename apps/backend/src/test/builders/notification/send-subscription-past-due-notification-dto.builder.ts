@@ -4,7 +4,7 @@ export class SendSubscriptionPastDueNotificationDtoBuilder {
   private tenantId = 'aaaaaaaa-0000-4000-8000-000000002601';
   private eventId = 'eeeeeeee-0000-4000-8000-000000002601';
   private correlationId = 'corr-0000-4000-8000-000000002601';
-  private suspendsAt: string = '2026-12-20T03:00:00.000Z';
+  private suspendsAt: string = new Date(Date.now() + 12 * 24 * 60 * 60 * 1000).toISOString();
   private recipientEmail: string | null = 'billing@example.test';
 
   withTenantId(tenantId: string): this {

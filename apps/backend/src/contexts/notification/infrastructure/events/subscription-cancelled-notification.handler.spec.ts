@@ -35,6 +35,9 @@ describe('SubscriptionCancelledNotificationHandler', () => {
         tenantId: BILLING_FIXTURE_TENANT_ID,
         eventId: received.eventId,
         correlationId: 'corr-from-event',
+        immediate: received.data.immediate,
+        cancelAt: received.data.cancelAt,
+        recipientEmail: received.data.recipientEmail,
       }),
     );
   });

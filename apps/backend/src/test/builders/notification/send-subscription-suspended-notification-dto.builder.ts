@@ -5,7 +5,7 @@ export class SendSubscriptionSuspendedNotificationDtoBuilder {
   private eventId = 'eeeeeeee-0000-4000-8000-000000002601';
   private correlationId = 'corr-0000-4000-8000-000000002601';
   private reason: 'NON_PAYMENT' | 'CANCELED' | 'PAYMENT_REVERSED' | 'OPERATOR' = 'NON_PAYMENT';
-  private purgeAt: string = '2027-03-20T03:00:00.000Z';
+  private purgeAt: string = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
   private recipientEmail: string | null = 'billing@example.test';
 
   withTenantId(tenantId: string): this {

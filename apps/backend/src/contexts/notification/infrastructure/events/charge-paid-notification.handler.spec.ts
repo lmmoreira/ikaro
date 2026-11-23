@@ -35,6 +35,10 @@ describe('ChargePaidNotificationHandler', () => {
         tenantId: BILLING_FIXTURE_TENANT_ID,
         eventId: received.eventId,
         correlationId: 'corr-from-event',
+        amountMinor: received.data.amountMinor,
+        currency: received.data.currency,
+        paidAt: received.data.paidAt,
+        recipientEmail: received.data.recipientEmail,
       }),
     );
   });

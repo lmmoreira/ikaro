@@ -21,7 +21,7 @@ describe('SendChargeIssuedNotificationUseCase', () => {
   });
 
   it('sends the period invoice with the amount, the due date, the payment link and the tolerant sentence', async () => {
-    await useCase.execute(dto().withKind('PERIOD').build());
+    await useCase.execute(dto().withKind('PERIOD').withDueDate('2026-12-10').build());
 
     const [message] = fixture.dispatcher.dispatched;
     expect(message!.notificationType).toBe(NotificationTemplateKey.CHARGE_ISSUED_PERIOD);

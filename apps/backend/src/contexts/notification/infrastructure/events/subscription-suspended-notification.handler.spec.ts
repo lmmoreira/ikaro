@@ -35,6 +35,9 @@ describe('SubscriptionSuspendedNotificationHandler', () => {
         tenantId: BILLING_FIXTURE_TENANT_ID,
         eventId: received.eventId,
         correlationId: 'corr-from-event',
+        reason: received.data.reason,
+        purgeAt: received.data.purgeAt,
+        recipientEmail: received.data.recipientEmail,
       }),
     );
   });

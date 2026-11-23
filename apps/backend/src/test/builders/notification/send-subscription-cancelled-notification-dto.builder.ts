@@ -5,7 +5,7 @@ export class SendSubscriptionCancelledNotificationDtoBuilder {
   private eventId = 'eeeeeeee-0000-4000-8000-000000002601';
   private correlationId = 'corr-0000-4000-8000-000000002601';
   private immediate: boolean = false;
-  private cancelAt: string = '2026-12-31T03:00:00.000Z';
+  private cancelAt: string = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
   private recipientEmail: string | null = 'billing@example.test';
 
   withTenantId(tenantId: string): this {

@@ -6,7 +6,7 @@ export class SendChargePaidNotificationDtoBuilder {
   private correlationId = 'corr-0000-4000-8000-000000002601';
   private amountMinor: number = 4900;
   private currency: string = 'BRL';
-  private paidAt: string = '2026-12-09T15:00:00.000Z';
+  private paidAt: string = new Date(Date.now() + 0 * 24 * 60 * 60 * 1000).toISOString();
   private recipientEmail: string | null = 'billing@example.test';
 
   withTenantId(tenantId: string): this {

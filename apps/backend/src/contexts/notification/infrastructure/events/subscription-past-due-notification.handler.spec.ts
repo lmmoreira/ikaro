@@ -35,6 +35,8 @@ describe('SubscriptionPastDueNotificationHandler', () => {
         tenantId: BILLING_FIXTURE_TENANT_ID,
         eventId: received.eventId,
         correlationId: 'corr-from-event',
+        suspendsAt: received.data.suspendsAt,
+        recipientEmail: received.data.recipientEmail,
       }),
     );
   });

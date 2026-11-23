@@ -1,11 +1,12 @@
 import { SendChargeIssuedNotificationDto } from '../../../contexts/notification/application/dtos/send-charge-issued-notification.dto';
+import { addDaysUTC, todayUTC } from '../../../shared/utils/calendar-date';
 
 export class SendChargeIssuedNotificationDtoBuilder {
   private tenantId = 'aaaaaaaa-0000-4000-8000-000000002601';
   private eventId = 'eeeeeeee-0000-4000-8000-000000002601';
   private correlationId = 'corr-0000-4000-8000-000000002601';
   private kind: 'PERIOD' | 'RECOVERY' = 'PERIOD';
-  private dueDate: string = '2026-12-10';
+  private dueDate: string = addDaysUTC(todayUTC(), 7);
   private amountMinor: number = 4900;
   private currency: string = 'BRL';
   private paymentUrl: string = 'https://pay.example.test/charge-1';

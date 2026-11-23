@@ -35,6 +35,9 @@ describe('PlanChangedNotificationHandler', () => {
         tenantId: BILLING_FIXTURE_TENANT_ID,
         eventId: received.eventId,
         correlationId: 'corr-from-event',
+        newTotalMinor: received.data.newTotalMinor,
+        currency: received.data.currency,
+        recipientEmail: received.data.recipientEmail,
       }),
     );
   });

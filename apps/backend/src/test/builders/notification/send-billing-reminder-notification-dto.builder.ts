@@ -1,4 +1,5 @@
 import { SendBillingReminderNotificationDto } from '../../../contexts/notification/application/dtos/send-billing-reminder-notification.dto';
+import { addDaysUTC, todayUTC } from '../../../shared/utils/calendar-date';
 
 export class SendBillingReminderNotificationDtoBuilder {
   private tenantId = 'aaaaaaaa-0000-4000-8000-000000002601';
@@ -10,7 +11,7 @@ export class SendBillingReminderNotificationDtoBuilder {
     | 'CHARGE_DUE_SOON'
     | 'CHARGE_OVERDUE'
     | 'RECOVERY_CHARGE_OPEN' = 'CHARGE_DUE_SOON';
-  private dueDate: string | null = '2026-12-10';
+  private dueDate: string | null = addDaysUTC(todayUTC(), 3);
   private trialEndsOn: string | null = null;
   private suspendsOn: string | null = null;
   private amountMinor: number | null = 4900;
