@@ -860,7 +860,7 @@ Resolve the common failure modes without an operator. Hourly trigger `cron-billi
 
 ---
 
-### M26-S09 — Dunning reminders and the `cron-billing-reminders` trigger (UC-139)
+### M26-S09 — Dunning reminders and the `cron-billing-reminders` trigger (UC-139) ✅ Done
 
 **Agent:** `backend-ts + devops`
 **Complexity:** M
