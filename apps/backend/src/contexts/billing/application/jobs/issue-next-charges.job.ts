@@ -4,6 +4,7 @@ import { CLOCK, type IClock } from '../../../../shared/ports/clock.port';
 import { addDaysUTC, utcDateString } from '../../../../shared/utils/calendar-date';
 import { mapSequentiallyIsolated } from '../../../../shared/utils/sequential-isolated';
 import { BILLING_JOB_PAGE_SIZE, CHARGE_ISSUE_LEAD_DAYS } from '../../domain/billing-constants';
+import { pageThroughSelection } from '../helpers/page-through-selection';
 import {
   type DueIssueRef,
   ISubscriptionRepository,
@@ -86,22 +87,21 @@ export class IssueNextChargesJob {
     return { ...issue.stats, retrySelected: retried.selected, retryReady: retried.ready };
   }
 
-  // Page by page from the last row it was given: a subscription the job skips stays due, so asking
-  // for the head again would never get past the skipped ones. A page's failure is kept and the next
-  // page still runs.
-  private async issueFrom(issue: IssueRun, after?: DueIssueRef): Promise<void> {
-    const page = await this.subscriptions.findDueForIssueForJob(
-      issue.dueOnOrBefore,
-      BILLING_JOB_PAGE_SIZE,
-      after,
-    );
-    issue.stats.selected += page.length;
-    await this.issuePage(issue, page).catch((err: unknown) => {
-      issue.failures.push(err);
+  // A subscription the job skips stays due, so the selection is paged by keyset (the shared helper):
+  // asking for the head again would never get past the skipped ones. A page's failure is kept and
+  // the next page still runs.
+  private async issueFrom(issue: IssueRun): Promise<void> {
+    await pageThroughSelection<DueIssueRef>({
+      fetch: (after) =>
+        this.subscriptions.findDueForIssueForJob(issue.dueOnOrBefore, BILLING_JOB_PAGE_SIZE, after),
+      onPage: (page) => {
+        issue.stats.selected += page.length;
+        return this.issuePage(issue, page);
+      },
+      onFailure: (error) => {
+        issue.failures.push(error);
+      },
     });
-    const last = page.at(-1);
-    if (page.length < BILLING_JOB_PAGE_SIZE || last === undefined) return;
-    await this.issueFrom(issue, last);
   }
 
   private async issuePage(issue: IssueRun, page: readonly DueIssueRef[]): Promise<void> {

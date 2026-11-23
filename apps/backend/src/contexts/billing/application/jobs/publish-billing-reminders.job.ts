@@ -119,11 +119,11 @@ export class PublishBillingRemindersJob {
     return run.result;
   }
 
-  private visitSelection<T extends { tenantId: string }>(
+  private async visitSelection<T extends { tenantId: string }>(
     run: ReminderRun,
     fetch: (after?: T) => Promise<T[]>,
   ): Promise<void> {
-    return pageThroughSelection<T>({
+    await pageThroughSelection<T>({
       fetch,
       onPage: (page) => this.visitPage(run, page),
       onFailure: (error, stage) => {

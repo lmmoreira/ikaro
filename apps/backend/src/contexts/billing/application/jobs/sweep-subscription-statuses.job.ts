@@ -118,11 +118,11 @@ export class SweepSubscriptionStatusesJob {
     return sweep.result;
   }
 
-  private sweepSelection<T extends { tenantId: string }>(
+  private async sweepSelection<T extends { tenantId: string }>(
     sweep: SweepRun,
     fetch: Fetch<T>,
   ): Promise<void> {
-    return pageThroughSelection<T>({
+    await pageThroughSelection<T>({
       fetch,
       onPage: (page) => this.sweepPage(sweep, page),
       onFailure: (error, stage) => {

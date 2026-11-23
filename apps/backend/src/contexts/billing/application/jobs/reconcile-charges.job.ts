@@ -15,6 +15,7 @@ import {
   RECONCILE_RUN_BUDGET_MS,
   RECONCILE_RUN_LIMIT,
 } from '../../domain/billing-constants';
+import { pageThroughSelection } from '../helpers/page-through-selection';
 import {
   CHARGE_REPOSITORY,
   ChargeRef,
@@ -187,21 +188,31 @@ export class ReconcileChargesJob {
     );
   }
 
-  // Page by page from the last row it was given, within the run's budget: a row past the budget
-  // makes the run truncated and ends every selection.
+  // The selection is paged by keyset (the shared helper), within the run's budget: a row past the
+  // budget makes the run truncated, which ends this and every later selection.
   private async page<T extends ChargeRef>(
     run: Run,
     fetch: Fetch<T>,
     work: (ref: T) => Promise<void>,
-    after?: T,
   ): Promise<void> {
-    if (run.result.truncated) return;
-    const rows = await fetch(after).catch((err: unknown) => {
-      run.failures.push(err);
-      run.result.selectionFailed += 1;
-      return null;
+    await pageThroughSelection<T>({
+      fetch,
+      shouldStop: () => run.result.truncated,
+      onPage: (rows) => this.readPage(run, rows, work),
+      onFailure: (error) => {
+        run.failures.push(error);
+        run.result.selectionFailed += 1;
+      },
     });
-    if (rows === null) return;
+  }
+
+  // `rows` is the whole page (the helper pages on its length and its last row); only the charges this
+  // run has not read yet, up to what is left of its limit, are worked.
+  private async readPage<T extends ChargeRef>(
+    run: Run,
+    rows: readonly T[],
+    work: (ref: T) => Promise<void>,
+  ): Promise<void> {
     const fresh = rows.filter((row) => !run.visited.has(row.id));
     const take = fresh.slice(0, run.remaining);
     if (take.length < fresh.length) run.result.truncated = true;
@@ -216,9 +227,6 @@ export class ReconcileChargesJob {
         summarize: (failed) => `${failed.length} charges failed to reconcile`,
       },
     ).catch(() => undefined);
-    const last = rows.at(-1);
-    if (run.result.truncated || rows.length < BILLING_JOB_PAGE_SIZE || last === undefined) return;
-    await this.page(run, fetch, work, last);
   }
 
   // The count limit does not bound the time (a slow provider makes 1,500 reads outlast the ack
