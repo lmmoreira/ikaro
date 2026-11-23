@@ -48,6 +48,14 @@ export interface ISubscriptionRepository {
   findByTenantId(tenantId: string): Promise<Subscription | null>;
 
   /**
+   * The committed row, with no lock and never from the cache: the re-check of a job that must see
+   * a change another instance just made (the reminders' exempt check, UC-139) but does not write
+   * the subscription, so it takes no row lock. `findByTenantId` may serve a cached copy up to its
+   * TTL, and the cache has no cross-instance invalidation.
+   */
+  findFreshByTenantId(tenantId: string): Promise<Subscription | null>;
+
+  /**
    * Lock B-R1 (docs/LOCK_CATALOG.md): takes `FOR UPDATE` on the subscription row, then loads its
    * items in the same transaction — safe because every writer takes the row lock first, so the
    * items cannot change underneath. Must run inside an active `ITransactionManager.run()`; throws
@@ -102,6 +110,22 @@ export interface ISubscriptionRepository {
    * `status = 'TRIALING'` predicate must repeat the index's literally.
    */
   findTrialEndedForJob(now: Date, limit: number, after?: SweepDueRef): Promise<SweepDueRef[]>;
+
+  /**
+   * Cross-tenant job selector (UC-139, M26-S09): one page of the `TRIALING`, non-exempt
+   * subscriptions whose `trial_ends_at` lies in `[from, to]`, ordered by `(trial_ends_at,
+   * tenant_id)`, at most `limit`, after the `after` row: the trials a dunning reminder can still be
+   * due for. The window is wider than the reminder offsets by a day, so the job re-checks each
+   * subscription's own local date; a trial it skips stays selected, so it pages on from the last
+   * row. Ids and instants only. Served by `IDX_billing_subscriptions_trial_ends_at`; the
+   * `status = 'TRIALING'` predicate repeats the index's literally.
+   */
+  findTrialEndingForJob(
+    from: Date,
+    to: Date,
+    limit: number,
+    after?: SweepDueRef,
+  ): Promise<SweepDueRef[]>;
 
   /**
    * Cross-tenant job selector (UC-115 rule 3): one page of the non-exempt `PAST_DUE` subscriptions

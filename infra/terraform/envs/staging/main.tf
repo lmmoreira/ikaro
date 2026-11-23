@@ -468,6 +468,13 @@ module "scheduler" {
 
   cron_topic_ids        = module.pubsub.topic_ids
   outbox_relay_schedule = var.outbox_relay_schedule
+
+  # The dunning reminders job (UC-139, M26-S09) writes BillingReminderDue commands, a Command with
+  # no audit-log line and no topic until the Notification consumer's subscribe() (M26-S12) creates
+  # one: a running job would leave outbox rows the relay cannot publish. S12 removes this key.
+  paused_job_keys = [
+    "ikaro-cron-billing-reminders",
+  ]
 }
 
 # Dashboards, alerts & uptime checks as code (M17-S35, narrowed 2026-08-08 —

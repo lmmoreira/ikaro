@@ -202,6 +202,19 @@ export class InMemoryChargeRepository implements IChargeRepository {
     );
   }
 
+  async listOpenDueBetweenForJob(
+    fromDate: string,
+    toDate: string,
+    limit: number,
+    after?: DueChargeRef,
+  ): Promise<DueChargeRef[]> {
+    return this.dueRefs(
+      this.saved.filter((c) => c.open && c.dueDate.value >= fromDate && c.dueDate.value <= toDate),
+      limit,
+      after,
+    );
+  }
+
   async listOpenForJob(limit: number, after?: DueChargeRef): Promise<DueChargeRef[]> {
     return this.dueRefs(
       this.saved.filter((c) => c.open),

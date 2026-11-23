@@ -48,6 +48,20 @@ export function buildOpenDueQuery(
   return pageByDue(query, limit, after);
 }
 
+export function buildOpenDueBetweenQuery(
+  repo: Repository<ChargeEntity>,
+  fromDate: string,
+  toDate: string,
+  limit: number,
+  after?: DueChargeRef,
+): SelectQueryBuilder<ChargeEntity> {
+  const query = dueRefQuery(repo)
+    .where("c.status IN ('PENDING','OVERDUE')")
+    .andWhere('c.dueDate >= :fromDate', { fromDate })
+    .andWhere('c.dueDate <= :toDate', { toDate });
+  return pageByDue(query, limit, after);
+}
+
 export function buildOpenQuery(
   repo: Repository<ChargeEntity>,
   limit: number,

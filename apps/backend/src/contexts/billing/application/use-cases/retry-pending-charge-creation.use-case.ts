@@ -3,6 +3,7 @@ import { AppLogger } from '../../../../shared/observability/app-logger';
 import { CLOCK, type IClock } from '../../../../shared/ports/clock.port';
 import { mapSequentiallyIsolated } from '../../../../shared/utils/sequential-isolated';
 import { BILLING_JOB_PAGE_SIZE } from '../../domain/billing-constants';
+import { pageThroughSelection } from '../helpers/page-through-selection';
 import {
   CHARGE_REPOSITORY,
   type ChargeRef,
@@ -60,22 +61,21 @@ export class RetryPendingChargeCreationUseCase {
     return { selected: retry.selected, ready: retry.ready };
   }
 
-  // Page by page from the last row it was given: a charge the retry skips stays selected, so asking
-  // for the head again would never get past the skipped ones. A page's failure is kept and the next
-  // page still runs.
-  private async retryFrom(retry: RetryRun, after?: PendingCreationRef): Promise<void> {
-    const page = await this.charges.listPendingCreationForJob(
-      retry.now,
-      BILLING_JOB_PAGE_SIZE,
-      after,
-    );
-    retry.selected += page.length;
-    await this.retryPage(retry, page).catch((err: unknown) => {
-      retry.failures.push(err);
+  // A charge the retry skips stays selected, so the selection is paged by keyset (the shared
+  // helper): asking for the head again would never get past the skipped ones. A page's failure is
+  // kept and the next page still runs.
+  private async retryFrom(retry: RetryRun): Promise<void> {
+    await pageThroughSelection<PendingCreationRef>({
+      fetch: (after) =>
+        this.charges.listPendingCreationForJob(retry.now, BILLING_JOB_PAGE_SIZE, after),
+      onPage: (page) => {
+        retry.selected += page.length;
+        return this.retryPage(retry, page);
+      },
+      onFailure: (error) => {
+        retry.failures.push(error);
+      },
     });
-    const last = page.at(-1);
-    if (page.length < BILLING_JOB_PAGE_SIZE || last === undefined) return;
-    await this.retryFrom(retry, last);
   }
 
   private async retryPage(retry: RetryRun, page: readonly ChargeRef[]): Promise<void> {

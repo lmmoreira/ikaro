@@ -161,6 +161,30 @@ describe('CachingSubscriptionRepository', () => {
     });
   });
 
+  describe('findFreshByTenantId', () => {
+    it('reads the committed row past a stale cached copy, and neither reads nor writes the cache', async () => {
+      const stale = new SubscriptionBuilder().withStatus('ACTIVE').build();
+      await inner.save(stale);
+      await repo.findByTenantId(stale.tenantId);
+      const exemptNow = new SubscriptionBuilder()
+        .withId(stale.id)
+        .withTenantId(stale.tenantId)
+        .withStatus('ACTIVE')
+        .withExempt(true)
+        .withVersion(1)
+        .build();
+      inner.saved[0] = exemptNow;
+      cache.getCalls.length = 0;
+      cache.setCalls.length = 0;
+
+      const fresh = await repo.findFreshByTenantId(stale.tenantId);
+
+      expect(fresh).toBe(exemptNow);
+      expect(cache.getCalls).toHaveLength(0);
+      expect(cache.setCalls).toHaveLength(0);
+    });
+  });
+
   describe('save', () => {
     it('evicts the cached subscription only after the transaction commits', async () => {
       const subscription = new SubscriptionBuilder().withStatus('ACTIVE').build();
@@ -224,6 +248,26 @@ describe('CachingSubscriptionRepository', () => {
       await inner.save(new SubscriptionBuilder().withMerchantProfileKey('USD_FAKE').build());
 
       await expect(repo.listMerchantProfileKeys()).resolves.toEqual(['BRL_FAKE', 'USD_FAKE']);
+      expect(cache.getCalls).toHaveLength(0);
+    });
+
+    it('forwards the dunning reminders trial selector (UC-139) to the repository, uncached, paging included', async () => {
+      const ending = new SubscriptionBuilder()
+        .withStatus('TRIALING')
+        .withTrialEndsAt(new Date(NOW.getTime() + 3 * 86_400_000))
+        .build();
+      const far = new SubscriptionBuilder()
+        .withStatus('TRIALING')
+        .withTrialEndsAt(new Date(NOW.getTime() + 30 * 86_400_000))
+        .build();
+      for (const subscription of [ending, far]) await inner.save(subscription);
+      const from = new Date(NOW.getTime() - 2 * 86_400_000);
+      const to = new Date(NOW.getTime() + 11 * 86_400_000);
+
+      const refs = await repo.findTrialEndingForJob(from, to, 10);
+
+      expect(refs.map((ref) => ref.tenantId)).toEqual([ending.tenantId]);
+      await expect(repo.findTrialEndingForJob(from, to, 10, refs[0])).resolves.toEqual([]);
       expect(cache.getCalls).toHaveLength(0);
     });
 

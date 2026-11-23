@@ -140,6 +140,21 @@ export interface IChargeRepository {
     after?: DueChargeRef,
   ): Promise<DueChargeRef[]>;
 
+  /**
+   * Open charges whose due date lies in `[fromDate, toDate]` (`YYYY-MM-DD`), by `(due_date, id)`
+   * (UC-139, M26-S09): the charges a dunning reminder can still be due for. The window is wider
+   * than the reminder offsets by a day, so the job re-checks each subscription's own local date; a
+   * charge it skips stays inside it, so the caller pages on from the last row. Bounded on purpose:
+   * a charge that is never paid leaves the window once its last reminder has passed.
+   * `IDX_billing_charges_open`.
+   */
+  listOpenDueBetweenForJob(
+    fromDate: string,
+    toDate: string,
+    limit: number,
+    after?: DueChargeRef,
+  ): Promise<DueChargeRef[]>;
+
   /** Every open charge, by `(due_date, id)`: `IDX_billing_charges_open`. */
   listOpenForJob(limit: number, after?: DueChargeRef): Promise<DueChargeRef[]>;
 

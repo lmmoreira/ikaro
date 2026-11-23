@@ -15,7 +15,39 @@ describe('BillingReminderDue', () => {
     );
   });
 
-  it('uses a stable placeholder when there is no charge', () => {
+  it('keys a trial reminder, which names no charge, on the local date the trial ends', () => {
+    const trial = base()
+      .withKind('TRIAL_ENDING')
+      .withDaysOffset(7)
+      .withChargeId(null)
+      .withTrialEndsOn('2026-12-17');
+
+    expect(trial.build().dedupKey).toBe(
+      'BillingReminderDue:tenant-1:sub-1:TRIAL_ENDING:7:2026-12-17',
+    );
+  });
+
+  it('gives a second trial on the same subscription its own key, and a retry inside one trial the same key', () => {
+    const trial = (endsOn: string, email: string | null) =>
+      base()
+        .withKind('PLAN_CONFIRMATION')
+        .withDaysOffset(7)
+        .withChargeId(null)
+        .withTrialEndsOn(endsOn)
+        .withRecipientEmail(email)
+        .build().dedupKey;
+
+    expect(trial('2026-12-17', 'a@example.test')).toBe(trial('2026-12-17', null));
+    expect(trial('2026-12-17', null)).not.toBe(trial('2027-03-01', null));
+  });
+
+  it('prefers the charge id over the trial end date', () => {
+    expect(base().withTrialEndsOn('2026-12-17').build().dedupKey).toBe(
+      'BillingReminderDue:tenant-1:sub-1:CHARGE_DUE_SOON:3:charge-1',
+    );
+  });
+
+  it('uses a stable placeholder when there is no charge and no trial', () => {
     expect(base().withChargeId(null).build().dedupKey).toBe(
       'BillingReminderDue:tenant-1:sub-1:CHARGE_DUE_SOON:3:none',
     );
@@ -26,6 +58,9 @@ describe('BillingReminderDue', () => {
     const second = base()
       .withRecipientEmail(null)
       .withPaymentUrl(null)
+      .withDueDate(null)
+      .withSuspendsOn('2026-12-31')
+      .withAmount(null, null)
       .withCorrelationId('corr-b')
       .build();
 
@@ -51,12 +86,17 @@ describe('BillingReminderDue', () => {
       tenantId: 'tenant-1',
     });
     expect(Object.keys(command.data).sort()).toEqual([
+      'amountMinor',
       'chargeId',
+      'currency',
       'daysOffset',
+      'dueDate',
       'kind',
       'paymentUrl',
       'recipientEmail',
       'subscriptionId',
+      'suspendsOn',
+      'trialEndsOn',
     ]);
   });
 });

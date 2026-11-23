@@ -103,6 +103,12 @@ export class CachingSubscriptionRepository implements ISubscriptionRepository {
     return subscription;
   }
 
+  // Deliberately bypasses the cache and takes no lock: a re-check that must see what another
+  // instance just committed (the reminders' exempt check) without blocking a payment.
+  findFreshByTenantId(tenantId: string): Promise<Subscription | null> {
+    return this.repo.findFreshByTenantId(tenantId);
+  }
+
   // Deliberately bypasses the cache: a locking read backing a write-time check must see the
   // current committed row, never a stale cached copy.
   findByTenantIdForUpdate(tenantId: string): Promise<Subscription | null> {
@@ -129,6 +135,15 @@ export class CachingSubscriptionRepository implements ISubscriptionRepository {
   // The status sweep's selectors are cross-tenant batch reads: forwarded uncached.
   findTrialEndedForJob(now: Date, limit: number, after?: SweepDueRef): Promise<SweepDueRef[]> {
     return this.repo.findTrialEndedForJob(now, limit, after);
+  }
+
+  findTrialEndingForJob(
+    from: Date,
+    to: Date,
+    limit: number,
+    after?: SweepDueRef,
+  ): Promise<SweepDueRef[]> {
+    return this.repo.findTrialEndingForJob(from, to, limit, after);
   }
 
   findGraceExpiredForJob(now: Date, limit: number, after?: SweepDueRef): Promise<SweepDueRef[]> {

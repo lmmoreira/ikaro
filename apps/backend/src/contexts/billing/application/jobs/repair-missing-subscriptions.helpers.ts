@@ -4,6 +4,7 @@ import { AppLogger } from '../../../../shared/observability/app-logger';
 import { CLOCK, type IClock } from '../../../../shared/ports/clock.port';
 import { mapSequentially } from '../../../../shared/utils/sequential';
 import { BILLING_JOB_PAGE_SIZE, SELF_HEAL_REPAIR_BUDGET_MS } from '../../domain/billing-constants';
+import { pageThroughSelection } from '../helpers/page-through-selection';
 import {
   BILLING_PLATFORM_PORT,
   type BillingTenantCursor,
@@ -16,6 +17,10 @@ import {
 } from '../ports/subscription-repository.port';
 import { CreateTrialSubscriptionUseCase } from '../use-cases/create-trial-subscription.use-case';
 import { PROVISIONING_GRACE_MINUTES } from '../use-cases/get-tenant-access.use-case';
+
+/** Platform's keyset position of the tenant a page ended on. */
+const cursorAfter = (last?: BillingTenantInfo): BillingTenantCursor | undefined =>
+  last === undefined ? undefined : { createdAt: last.createdAt, id: last.tenantId };
 
 export interface RepairMissingSubscriptionsStepInput {
   now: Date;
@@ -75,23 +80,21 @@ export class RepairMissingSubscriptionsStep {
     const failures: unknown[] = [];
 
     const deadline = this.clock.now().getTime() + SELF_HEAL_REPAIR_BUDGET_MS;
-    let after: BillingTenantCursor | undefined;
-    for (;;) {
-      const page = await this.platform.listTenantsCreatedBefore(
-        cutoff,
-        BILLING_JOB_PAGE_SIZE,
-        after,
-      );
-      result.scanned += page.length;
-      await this.repairPage(page, input, result, failures);
-      const last = page.at(-1);
-      if (last === undefined || page.length < BILLING_JOB_PAGE_SIZE) break;
-      if (this.clock.now().getTime() >= deadline) {
-        result.truncated = true;
-        break;
-      }
-      after = { createdAt: last.createdAt, id: last.tenantId };
-    }
+    const outcome = await pageThroughSelection<BillingTenantInfo>({
+      fetch: (last) =>
+        this.platform.listTenantsCreatedBefore(cutoff, BILLING_JOB_PAGE_SIZE, cursorAfter(last)),
+      // Past the budget no further page is read; a short last page ends the run before it is asked,
+      // so a run that reaches its budget exactly on the last page is not truncated.
+      shouldStop: () => this.clock.now().getTime() >= deadline,
+      onPage: (page) => {
+        result.scanned += page.length;
+        return this.repairPage(page, input, result, failures);
+      },
+      onFailure: (error) => {
+        failures.push(error);
+      },
+    });
+    result.truncated = outcome === 'STOPPED';
     return { ...result, failures };
   }
 

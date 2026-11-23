@@ -33,6 +33,10 @@ export class InMemorySubscriptionRepository implements ISubscriptionRepository {
     return this.saved.find((subscription) => subscription.tenantId === tenantId) ?? null;
   }
 
+  async findFreshByTenantId(tenantId: string): Promise<Subscription | null> {
+    return this.saved.find((subscription) => subscription.tenantId === tenantId) ?? null;
+  }
+
   // No real row lock here: concurrency is proved against the real adapter in integration tests.
   async findByTenantIdForUpdate(tenantId: string): Promise<Subscription | null> {
     return this.findByTenantId(tenantId);
@@ -81,6 +85,27 @@ export class InMemorySubscriptionRepository implements ISubscriptionRepository {
         !s.exempt &&
         s.trialEndsAt !== null &&
         s.trialEndsAt.getTime() <= now.getTime()
+          ? [{ tenantId: s.tenantId, dueAt: s.trialEndsAt }]
+          : [],
+      ),
+      limit,
+      after,
+    );
+  }
+
+  async findTrialEndingForJob(
+    from: Date,
+    to: Date,
+    limit: number,
+    after?: SweepDueRef,
+  ): Promise<SweepDueRef[]> {
+    return this.sweepPage(
+      this.saved.flatMap((s) =>
+        s.status === 'TRIALING' &&
+        !s.exempt &&
+        s.trialEndsAt !== null &&
+        s.trialEndsAt.getTime() >= from.getTime() &&
+        s.trialEndsAt.getTime() <= to.getTime()
           ? [{ tenantId: s.tenantId, dueAt: s.trialEndsAt }]
           : [],
       ),

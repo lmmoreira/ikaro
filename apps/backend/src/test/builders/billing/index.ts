@@ -27,3 +27,5 @@ export * from './subscription-cancelled-event.builder';
 export * from './plan-changed-event.builder';
 export * from './subscription-price-change-announced-event.builder';
 export * from './billing-reminder-due-command.builder';
+export * from './reminder-subscription.builder';
+export * from './reminder-charge.builder';

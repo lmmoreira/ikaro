@@ -44,6 +44,15 @@ export function addDaysUTC(date: string, days: number): string {
 }
 
 /**
+ * Whole calendar days from `from` to `to`, both YYYY-MM-DD (positive when `to` is later) — UTC
+ * parsing, like addDaysUTC, so a local-timezone day shift never creeps in. The inverse of
+ * addDaysUTC: `addDaysUTC(from, daysBetweenUTC(from, to)) === to`.
+ */
+export function daysBetweenUTC(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
+}
+
+/**
  * Converts a YYYY-MM-DD date + HH:MM time expressed in the given IANA timezone
  * to an ISO-8601 UTC string (e.g. "2026-06-01T12:00:00.000Z").
  * Use this when storing a locally-expressed slot start/end in the database.
