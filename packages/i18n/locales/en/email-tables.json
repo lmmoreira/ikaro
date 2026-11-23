@@ -8,6 +8,13 @@
     "notes": "Notes",
     "emptyState": "No bookings for today"
   },
+  "billingFeatures": {
+    "HOTSITE": "Public website",
+    "BOOKING": "Online booking",
+    "LOYALTY": "Loyalty program",
+    "CHATBOT": "Virtual assistant",
+    "LEAD_FORM": "Contact form"
+  },
   "managerEmailLines": {
     "cancelledByCustomer": "Cancelled by the customer.",
     "cancelledByBusiness": "Cancelled by the business.",

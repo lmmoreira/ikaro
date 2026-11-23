@@ -2,6 +2,7 @@ import {
   formatEmailDate,
   formatEmailDateTime,
   formatEmailInstant,
+  formatEmailMinorMoney,
   formatEmailTime,
   formatWeekdays,
   labelledLine,
@@ -92,6 +93,20 @@ describe('notification-email-format.helpers', () => {
   describe('sentence', () => {
     it('escapes catalog text before it goes into the HTML body', () => {
       expect(sentence('Cancelled by <the> customer')).toBe('Cancelled by &lt;the&gt; customer');
+    });
+  });
+
+  describe('formatEmailMinorMoney', () => {
+    it('formats centavos as reais in pt-BR', () => {
+      expect(formatEmailMinorMoney(4900, 'BRL', 'pt-BR').replace(/\u00a0/g, ' ')).toBe('R$ 49,00');
+    });
+
+    it('formats cents as dollars in en', () => {
+      expect(formatEmailMinorMoney(12345, 'USD', 'en')).toBe('$123.45');
+    });
+
+    it('takes the decimals from the currency, not a fixed 100', () => {
+      expect(formatEmailMinorMoney(500, 'JPY', 'en')).toBe('¥500');
     });
   });
 });

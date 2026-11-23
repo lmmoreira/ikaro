@@ -11,6 +11,7 @@ export class PlanChangedEventBuilder {
   private effectiveFrom: Date | null = new Date(Date.now() + 24 * 60 * 60 * 1000);
   private cycle: SubscriptionCycle = 'MONTHLY';
   private newTotalMinor: number = 9990;
+  private currency = 'BRL';
   private added: PlanChangedItem[] = [{ featureKey: 'BOOKING', tier: 'BASIC' }];
   private removed: PlanChangedItem[] = [];
 
@@ -49,6 +50,11 @@ export class PlanChangedEventBuilder {
     return this;
   }
 
+  withCurrency(currency: string): this {
+    this.currency = currency;
+    return this;
+  }
+
   withAdded(added: PlanChangedItem[]): this {
     this.added = added;
     return this;
@@ -66,6 +72,7 @@ export class PlanChangedEventBuilder {
       effectiveFrom: this.effectiveFrom?.toISOString() ?? null,
       cycle: this.cycle,
       newTotalMinor: this.newTotalMinor,
+      currency: this.currency,
       added: this.added,
       removed: this.removed,
     });

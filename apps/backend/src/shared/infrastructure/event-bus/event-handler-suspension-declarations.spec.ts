@@ -32,6 +32,16 @@ describe('declared skipWhenSuspended values (UC-123)', () => {
     'staff-invited.handler.ts', // inviting staff to a suspended tenant is an operator action
     'tenant-provisioned.handler.ts', // template seed
     'tenant-unavailable-notice.handler.ts', // the tenant is already suspended when each notice arrives (UC-123)
+    // Billing's manager emails exist for a tenant that may be suspended (UC-124, M26-S12)
+    'charge-issued-notification.handler.ts',
+    'charge-paid-notification.handler.ts',
+    'subscription-past-due-notification.handler.ts',
+    'subscription-suspended-notification.handler.ts',
+    'subscription-reactivated-notification.handler.ts',
+    'subscription-cancelled-notification.handler.ts',
+    'plan-changed-notification.handler.ts',
+    'billing-reminder-notification.handler.ts',
+    'price-change-announced-notification.handler.ts',
   ]);
 
   describe('Notification', () => {
@@ -57,10 +67,10 @@ describe('declared skipWhenSuspended values (UC-123)', () => {
       },
     );
 
-    it('has 21 send subscriptions declared true and 4 declared false (25 sites)', () => {
+    it('has 21 send subscriptions declared true and 13 declared false (34 sites)', () => {
       const all = files.flatMap((file) => declarations('notification', file));
       expect(all.filter((value) => value === 'skipWhenSuspended true')).toHaveLength(21);
-      expect(all.filter((value) => value === 'skipWhenSuspended false')).toHaveLength(4);
+      expect(all.filter((value) => value === 'skipWhenSuspended false')).toHaveLength(13);
     });
   });
 

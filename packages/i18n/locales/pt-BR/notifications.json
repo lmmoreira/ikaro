@@ -164,11 +164,11 @@
   "ChargeIssued": {
     "managerPeriod": {
       "subject": "Cobrança da assinatura de {{tenantName}}: {{amount}}, vencimento em {{dueDate}}",
-      "body": "<p>Olá!</p><p>A cobrança da assinatura de <strong>{{tenantName}}</strong> na Ikaro já está disponível: <strong>{{amount}}</strong>, com vencimento em <strong>{{dueDate}}</strong>.</p><p><a href=\"{{paymentUrl}}\">Pagar agora</a></p><p>Escolha a forma de pagamento na página da cobrança. Assim que o pagamento for confirmado, você receberá um aviso.</p>"
+      "body": "<p>Olá!</p><p>A cobrança da assinatura de <strong>{{tenantName}}</strong> na Ikaro já está disponível: <strong>{{amount}}</strong>, com vencimento em <strong>{{dueDate}}</strong>.</p><p><a href=\"{{paymentUrl}}\">Pagar agora</a></p><p>Escolha a forma de pagamento na página da cobrança. Assim que o pagamento for confirmado, você receberá um aviso.</p><p>Se você já pagou, desconsidere este aviso.</p>"
     },
     "managerRecovery": {
       "subject": "Pague {{amount}} para reativar a assinatura de {{tenantName}}",
-      "body": "<p>Olá!</p><p>Para reativar a assinatura de <strong>{{tenantName}}</strong> na Ikaro, pague a cobrança de <strong>{{amount}}</strong>, com vencimento em <strong>{{dueDate}}</strong>.</p><p><a href=\"{{paymentUrl}}\">Pagar agora</a></p><p>Depois que o pagamento for confirmado, o acesso é restabelecido automaticamente.</p>"
+      "body": "<p>Olá!</p><p>Para reativar a assinatura de <strong>{{tenantName}}</strong> na Ikaro, pague a cobrança de <strong>{{amount}}</strong>, com vencimento em <strong>{{dueDate}}</strong>.</p><p><a href=\"{{paymentUrl}}\">Pagar agora</a></p><p>Depois que o pagamento for confirmado, o acesso é restabelecido automaticamente.</p><p>Se você já pagou, desconsidere este aviso.</p>"
     }
   },
   "ChargePaid": {
@@ -186,7 +186,7 @@
   "SubscriptionSuspended": {
     "managerNonPayment": {
       "subject": "A assinatura de {{tenantName}} foi suspensa",
-      "body": "<p>Olá!</p><p>A assinatura de <strong>{{tenantName}}</strong> na Ikaro foi suspensa porque o pagamento não foi confirmado.</p><p>Enquanto estiver suspensa, o site público e os agendamentos online ficam indisponíveis para os seus clientes. Seus dados são mantidos pelo menos até <strong>{{purgeDate}}</strong>, a data mais cedo em que podem ser excluídos.</p><p>Para reativar, regularize o pagamento: <a href=\"{{billingUrl}}\">abrir cobranças</a>.</p>"
+      "body": "<p>Olá!</p><p>A assinatura de <strong>{{tenantName}}</strong> na Ikaro foi suspensa porque não foi possível confirmar o pagamento.</p><p>Enquanto estiver suspensa, o site público e os agendamentos online ficam indisponíveis para os seus clientes. Seus dados são mantidos pelo menos até <strong>{{purgeDate}}</strong>, a data mais cedo em que podem ser excluídos.</p><p>Para reativar, pague uma mensalidade: o link de pagamento chega no próximo e-mail. Se ele não chegar, confira os \"Dados de cobrança\" em <a href=\"{{billingUrl}}\">cobranças</a>, pois pode faltar o endereço de cobrança.</p>"
     },
     "managerOperator": {
       "subject": "A assinatura de {{tenantName}} foi suspensa",
@@ -226,15 +226,15 @@
     },
     "chargeDueSoon": {
       "subject": "A cobrança de {{amount}} vence em {{dueDate}}",
-      "body": "<p>Olá!</p><p>Lembrete: a cobrança de <strong>{{amount}}</strong> da assinatura de <strong>{{tenantName}}</strong> na Ikaro vence em <strong>{{dueDate}}</strong>.</p><p><a href=\"{{billingUrl}}\">Pagar agora</a></p>"
+      "body": "<p>Olá!</p><p>Lembrete: a cobrança de <strong>{{amount}}</strong> da assinatura de <strong>{{tenantName}}</strong> na Ikaro vence em <strong>{{dueDate}}</strong>.</p><p><a href=\"{{billingUrl}}\">Pagar agora</a></p><p>Se você já pagou, desconsidere este aviso.</p>"
     },
     "chargeOverdue": {
       "subject": "A cobrança de {{amount}} está em atraso",
-      "body": "<p>Olá!</p><p>A cobrança de <strong>{{amount}}</strong> da assinatura de <strong>{{tenantName}}</strong> na Ikaro, com vencimento em <strong>{{dueDate}}</strong>, ainda não foi paga.</p><p>Regularize o pagamento para evitar a suspensão da assinatura.</p><p><a href=\"{{billingUrl}}\">Pagar agora</a></p>"
+      "body": "<p>Olá!</p><p>A cobrança de <strong>{{amount}}</strong> da assinatura de <strong>{{tenantName}}</strong> na Ikaro, com vencimento em <strong>{{dueDate}}</strong>, ainda não foi paga.</p><p>Regularize o pagamento para evitar a suspensão da assinatura.</p><p><a href=\"{{billingUrl}}\">Pagar agora</a></p><p>Se você já pagou, desconsidere este aviso.</p>"
     },
     "recoveryChargeOpen": {
       "subject": "A cobrança de reativação de {{tenantName}} está em aberto",
-      "body": "<p>Olá!</p><p>A cobrança de <strong>{{amount}}</strong> para reativar a assinatura de <strong>{{tenantName}}</strong> na Ikaro, com vencimento em <strong>{{dueDate}}</strong>, ainda está em aberto.</p><p>Pague para restabelecer o acesso: <a href=\"{{billingUrl}}\">Pagar agora</a>.</p>"
+      "body": "<p>Olá!</p><p>A cobrança de <strong>{{amount}}</strong> para reativar a assinatura de <strong>{{tenantName}}</strong> na Ikaro, com vencimento em <strong>{{dueDate}}</strong>, ainda está em aberto.</p><p>Pague para restabelecer o acesso: <a href=\"{{billingUrl}}\">Pagar agora</a>.</p><p>Se você já pagou, desconsidere este aviso.</p>"
     }
   },
   "SubscriptionPriceChangeAnnounced": {
