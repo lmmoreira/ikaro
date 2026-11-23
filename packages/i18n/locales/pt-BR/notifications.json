@@ -186,7 +186,7 @@
   "SubscriptionSuspended": {
     "managerNonPayment": {
       "subject": "A assinatura de {{tenantName}} foi suspensa",
-      "body": "<p>Olá!</p><p>A assinatura de <strong>{{tenantName}}</strong> na Ikaro foi suspensa porque o pagamento não foi confirmado.</p><p>Enquanto estiver suspensa, o site público e os agendamentos online ficam indisponíveis para os seus clientes. Seus dados são mantidos até <strong>{{purgeDate}}</strong>.</p><p>Para reativar, regularize o pagamento: <a href=\"{{billingUrl}}\">abrir cobranças</a>.</p>"
+      "body": "<p>Olá!</p><p>A assinatura de <strong>{{tenantName}}</strong> na Ikaro foi suspensa porque o pagamento não foi confirmado.</p><p>Enquanto estiver suspensa, o site público e os agendamentos online ficam indisponíveis para os seus clientes. Seus dados são mantidos pelo menos até <strong>{{purgeDate}}</strong>, a data mais cedo em que podem ser excluídos.</p><p>Para reativar, regularize o pagamento: <a href=\"{{billingUrl}}\">abrir cobranças</a>.</p>"
     },
     "managerOperator": {
       "subject": "A assinatura de {{tenantName}} foi suspensa",

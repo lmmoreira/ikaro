@@ -186,7 +186,7 @@
   "SubscriptionSuspended": {
     "managerNonPayment": {
       "subject": "The {{tenantName}} subscription has been suspended",
-      "body": "<p>Hello!</p><p>The Ikaro subscription of <strong>{{tenantName}}</strong> has been suspended because the payment was not confirmed.</p><p>While it is suspended, the public website and online booking are unavailable to your customers. Your data is kept until <strong>{{purgeDate}}</strong>.</p><p>To reactivate it, settle the payment: <a href=\"{{billingUrl}}\">open charges</a>.</p>"
+      "body": "<p>Hello!</p><p>The Ikaro subscription of <strong>{{tenantName}}</strong> has been suspended because the payment was not confirmed.</p><p>While it is suspended, the public website and online booking are unavailable to your customers. Your data is kept at least until <strong>{{purgeDate}}</strong>, the earliest date it can be deleted.</p><p>To reactivate it, settle the payment: <a href=\"{{billingUrl}}\">open charges</a>.</p>"
     },
     "managerOperator": {
       "subject": "The {{tenantName}} subscription has been suspended",
