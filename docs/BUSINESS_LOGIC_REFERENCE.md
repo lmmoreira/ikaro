@@ -1062,6 +1062,8 @@ flowchart TD
 
 **Freshness, no lock.** The re-read and the outbox write share one short transaction with no `FOR UPDATE`: a reminder moves no money or access and UC-139 accepts a small stale window (the copy says "Se você já pagou, desconsidere este aviso"), so no B-R1 path is added. A null payment link still publishes.
 
+**Load, and why there is no per-run budget.** A run visits the tenants inside the two windows: trials ending in about 13 days and open charges due in about 19 days, which is a share of the active tenants rather than all of them. A visit costs two indexed reads (the committed subscription and the open charges) and, only when a milestone is due, one short transaction. At about 3 to 5 ms a visit that is roughly 1,000 visits in 5 seconds, so the push subscription's 60 s acknowledgement deadline is not reached before the tens of thousands of tenants; past it the failure is a redelivery that repeats the cheap read-only scan, and the `dedup_key` keeps every write single. A count or time cap is deliberately not added (unlike reconcile, which pays a provider call per charge, or self-heal, whose scan resumes next hour): a milestone is an exact day, so a run that stopped early would lose the reminders of the tenants it did not reach for good. The way to scale it past that point is to narrow the selection to the exact milestone dates in SQL, not to truncate the run.
+
 **The freeze.** The day-12 reminder states `graceEndsAt(pastDueSince, graceUntil)` in the subscription's timezone as `suspendsOn`, and is not published while the subscription's merchant key is frozen (a frozen provider suspends nobody); days 1, 3 and 7 are unaffected, and a later run with the freeze cleared does not back-fill day 12.
 
 ---

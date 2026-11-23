@@ -20,6 +20,7 @@ import { makeConfigService } from '../../../../test/infrastructure/fake-config-s
 import { InMemoryInboxRepository } from '../../../../test/infrastructure/in-memory-inbox.repository';
 import { RoutingInMemoryEventBus } from '../../../../test/infrastructure/routing-in-memory-event-bus';
 import { createTestDataSource } from '../../../../test/test-datasource';
+import { BillingReminderDue } from '../../domain/commands/billing-reminder-due.command';
 import { BillingAccountEntity } from '../../infrastructure/entities/billing-account.entity';
 import { ChargeEntity } from '../../infrastructure/entities/charge.entity';
 import { ProviderHealthEntity } from '../../infrastructure/entities/provider-health.entity';
@@ -44,6 +45,9 @@ describe('PublishBillingRemindersJob (integration, UC-139)', () => {
   let txManager: TypeOrmTransactionManager;
   let charges: TypeOrmChargeRepository;
   const tenants: string[] = [];
+  // What the in-memory bus delivered for BillingReminderDue: the relay publishes each committed
+  // outbox row to it, as Pub/Sub would to the Notification consumer (M26-S12).
+  const delivered: BillingReminderDue[] = [];
 
   const localToday = (): string => utcDateToLocalDate(clock.now(), SAO_PAULO);
   const localDay = (offset: number): string => addDaysUTC(localToday(), offset);
@@ -127,10 +131,18 @@ describe('PublishBillingRemindersJob (integration, UC-139)', () => {
     ds = await createTestDataSource();
     txManager = new TypeOrmTransactionManager(ds);
     const outboxRepo = new TypeOrmOutboxRepository(ds.getRepository(OutboxEventEntity));
-    const config = makeConfigService({ OUTBOX_INLINE_DISPATCH_ENABLED: false });
+    const config = makeConfigService({ OUTBOX_INLINE_DISPATCH_ENABLED: true });
+    const bus = new RoutingInMemoryEventBus();
+    bus.subscribe<BillingReminderDue>(
+      BillingReminderDue.name,
+      async (command) => {
+        delivered.push(command);
+      },
+      'test-collector',
+    );
     const relay = new OutboxRelayService(
       outboxRepo,
-      new RoutingInMemoryEventBus(),
+      bus,
       new InMemoryInboxRepository(),
       config,
       txManager,
@@ -156,6 +168,7 @@ describe('PublishBillingRemindersJob (integration, UC-139)', () => {
   });
 
   afterEach(async () => {
+    delivered.length = 0;
     if (tenants.length > 0) {
       await ds.query(`DELETE FROM "shared"."outbox" WHERE "tenant_id" = ANY($1::uuid[])`, [
         tenants,
@@ -236,6 +249,19 @@ describe('PublishBillingRemindersJob (integration, UC-139)', () => {
     }
 
     const end = trial.trialEndsOn;
+    // The bus got the same commands, in the order the days produced them.
+    expect(
+      delivered
+        .filter((command) => command.tenantId === trial.tenantId)
+        .map((command) => `${command.data.kind}:${command.data.daysOffset}`),
+    ).toEqual([
+      'PLAN_CONFIRMATION:10',
+      'PLAN_CONFIRMATION:7',
+      'TRIAL_ENDING:7',
+      'PLAN_CONFIRMATION:4',
+      'TRIAL_ENDING:3',
+      'TRIAL_ENDING:0',
+    ]);
     expect((await reminderRows(trial.tenantId)).sort()).toEqual(
       [
         `PLAN_CONFIRMATION:10:${end}`,
@@ -259,6 +285,11 @@ describe('PublishBillingRemindersJob (integration, UC-139)', () => {
     expect(await reminderRows(overdue.tenantId)).toEqual(
       [1, 3, 7, 12].map((late) => `CHARGE_OVERDUE:${late}:${overdue.chargeId}`),
     );
+    expect(
+      delivered
+        .filter((command) => command.tenantId === overdue.tenantId)
+        .map((command) => `${command.data.kind}:${command.data.daysOffset}`),
+    ).toEqual(['CHARGE_OVERDUE:1', 'CHARGE_OVERDUE:3', 'CHARGE_OVERDUE:7', 'CHARGE_OVERDUE:12']);
     const last = (await reminderEnvelopes(overdue.tenantId)).at(-1);
     expect(last?.payload['data']).toMatchObject({
       suspendsOn: utcDateToLocalDate(
