@@ -3536,7 +3536,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 | UC-145 | Annual subscriber adds a feature mid-year *(planned, slice H)* | Manager | Co-terminus `ADDON` charge for the remaining whole months; item joins the annual plan at renewal |
 | UC-137 | Operator sets or clears a tenant's `exempt` flag *(built, M25-S15b)* | Operator | Free access on/off; items replaced; audited |
 | UC-138 | Developer or operator simulates billing in non-production *(partly built: dev clock routes and `scripts/billing-clock-advance.sh` M25-S12; provider simulate and seed planned)* | Developer \| Operator | Clock advance, simulated provider webhook, per-state seed; never in production |
-| UC-139 | System sends dunning reminders *(planned, not built)* | System | `BillingReminderDue` per milestone (plan confirmation, trial ending, due soon, overdue), deduplicated |
+| UC-139 | System sends dunning reminders *(built, M26-S09; the emails arrive with M26-S12)* | System | `BillingReminderDue` per milestone (plan confirmation, trial ending, due soon, overdue, recovery charge open), deduplicated |
 | UC-140 | System heals itself (provisioning repair, provider health, suspension freeze) *(built, M26-S08)* | System | Missing trial created; webhook re-enabled, with the alert kept until a delivery succeeds; sweep frozen while the provider is unhealthy |
 | UC-141 | Manager discards a never-paid tenant *(planned, slice G, deferred)* | Manager | Type-the-slug confirmation; immediate purge (`SELF_SERVICE_DISCARD`); slug and trial eligibility freed |
 | UC-142 | A deactivated tenant stops being billed *(planned, slice G, deferred)* | System | Open charges cancelled, subscription `SUSPENDED`/`CANCELED`; the issue job skips inactive tenants |
