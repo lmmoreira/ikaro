@@ -4,6 +4,7 @@ import { NO_FEATURE_GATE_KEY, SUSPENSION_ACCESS_KEY } from '@ikaro/nestjs-http';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import {
   CRON_BILLING_ISSUE_CHARGES_TRIGGER,
+  CRON_BILLING_PROVIDER_EVENTS_PURGE_TRIGGER,
   CRON_BILLING_RECONCILE_TRIGGER,
   CRON_BILLING_REMINDERS_TRIGGER,
   CRON_BILLING_SELF_HEAL_TRIGGER,
@@ -112,6 +113,25 @@ describe('CronBillingController', () => {
 
       expect(triggerBus.publishedTriggers).toEqual([CRON_BILLING_REMINDERS_TRIGGER]);
       expect(CRON_BILLING_REMINDERS_TRIGGER).toBe('cron-billing-reminders');
+    });
+  });
+
+  describe('POST /cron/billing-provider-events-purge', () => {
+    it('answers exactly 200', () => {
+      expect(
+        Reflect.getMetadata('__httpCode__', CronBillingController.prototype.providerEventsPurge),
+      ).toBe(HttpStatus.OK);
+    });
+
+    it('returns { ok: true }', async () => {
+      await expect(controller.providerEventsPurge()).resolves.toEqual({ ok: true });
+    });
+
+    it('publishes the cron-billing-provider-events-purge trigger and no other', async () => {
+      await controller.providerEventsPurge();
+
+      expect(triggerBus.publishedTriggers).toEqual([CRON_BILLING_PROVIDER_EVENTS_PURGE_TRIGGER]);
+      expect(CRON_BILLING_PROVIDER_EVENTS_PURGE_TRIGGER).toBe('cron-billing-provider-events-purge');
     });
   });
 });

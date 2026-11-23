@@ -17,6 +17,19 @@ const INSERT_IF_ABSENT_SQL = `
   RETURNING "event_id"
 `;
 
+// Postgres DELETE has no LIMIT, so the batch is chosen by the inner select, which the
+// `received_at` index serves in order. The result is read from `RETURNING`, not the driver count.
+export const DELETE_OLDER_THAN_BATCH_SQL = `
+  DELETE FROM "billing"."provider_events"
+  WHERE ("provider", "event_id") IN (
+    SELECT "provider", "event_id" FROM "billing"."provider_events"
+    WHERE "received_at" < $1
+    ORDER BY "received_at"
+    LIMIT $2
+  )
+  RETURNING "event_id"
+`;
+
 @Injectable()
 export class TypeOrmProviderEventRepository implements IProviderEventRepository {
   constructor(
@@ -51,5 +64,14 @@ export class TypeOrmProviderEventRepository implements IProviderEventRepository 
     // TypeORM's INSERT ... RETURNING may be [rows, rowCount] (see the outbox claim).
     const rows = (Array.isArray(result[0]) ? result[0] : result) as { event_id: string }[];
     return rows.length === 1;
+  }
+
+  async deleteOlderThanBatch(cutoff: Date, limit: number): Promise<number> {
+    const manager = getActiveEntityManager() ?? this.repo.manager;
+    const result = (await manager.query(DELETE_OLDER_THAN_BATCH_SQL, [cutoff, limit])) as
+      { event_id: string }[] | [{ event_id: string }[], number];
+    // TypeORM's DELETE ... RETURNING may be [rows, rowCount] (see insertIfAbsent).
+    const rows = (Array.isArray(result[0]) ? result[0] : result) as { event_id: string }[];
+    return rows.length;
   }
 }

@@ -21,6 +21,7 @@ variables {
     cron-billing-reconcile                  = "projects/ikaro-test/topics/ikaro-cron-billing-reconcile"
     cron-billing-self-heal                  = "projects/ikaro-test/topics/ikaro-cron-billing-self-heal"
     cron-billing-reminders                  = "projects/ikaro-test/topics/ikaro-cron-billing-reminders"
+    cron-billing-provider-events-purge      = "projects/ikaro-test/topics/ikaro-cron-billing-provider-events-purge"
   }
 }
 
@@ -87,7 +88,8 @@ run "rejects_cron_topic_ids_with_an_orphan_cron_topic" {
       cron-billing-reconcile                  = "projects/ikaro-test/topics/ikaro-cron-billing-reconcile"
       cron-billing-self-heal                  = "projects/ikaro-test/topics/ikaro-cron-billing-self-heal"
       cron-billing-reminders                  = "projects/ikaro-test/topics/ikaro-cron-billing-reminders"
-      # A 14th cron-* topic from the pubsub catalog with no matching Scheduler
+      cron-billing-provider-events-purge      = "projects/ikaro-test/topics/ikaro-cron-billing-provider-events-purge"
+      # A 15th cron-* topic from the pubsub catalog with no matching Scheduler
       # job in locals.jobs — the exact drift this validation guards against.
       cron-something-new = "projects/ikaro-test/topics/ikaro-cron-something-new"
     }
@@ -98,7 +100,7 @@ run "rejects_cron_topic_ids_with_an_orphan_cron_topic" {
   ]
 }
 
-run "accepts_non_cron_topics_alongside_the_13_required_ones" {
+run "accepts_non_cron_topics_alongside_the_14_required_ones" {
   command = plan
 
   variables {
@@ -116,6 +118,7 @@ run "accepts_non_cron_topics_alongside_the_13_required_ones" {
       cron-billing-reconcile                  = "projects/ikaro-test/topics/ikaro-cron-billing-reconcile"
       cron-billing-self-heal                  = "projects/ikaro-test/topics/ikaro-cron-billing-self-heal"
       cron-billing-reminders                  = "projects/ikaro-test/topics/ikaro-cron-billing-reminders"
+      cron-billing-provider-events-purge      = "projects/ikaro-test/topics/ikaro-cron-billing-provider-events-purge"
       # module.pubsub.topic_ids is the FULL catalog — domain-event topics
       # (non "cron-" prefixed) must never trip the orphan-topic validation.
       BookingInfoSubmitted = "projects/ikaro-test/topics/ikaro-BookingInfoSubmitted"

@@ -26,15 +26,15 @@ variable "region" {
 }
 
 variable "cron_topic_ids" {
-  description = "Map of cron trigger name -> full Pub/Sub topic resource id (module.pubsub.topic_ids from the env root — the full topic map, not just the 13 cron ones; this module only looks up the keys it needs). Must contain an entry for every topic_key referenced in this module's locals.jobs (cron-reminders, cron-loyalty-expiry, cron-loyalty-expiry-warning, cron-outbox-relay, cron-chatbot-retention-purge, cron-chatbot-balance-poll, cron-lead-form-retention, cron-resource-occupancy-retention-purge, cron-billing-issue-charges, cron-billing-status-sweep, cron-billing-reconcile, cron-billing-self-heal, cron-billing-reminders)."
+  description = "Map of cron trigger name -> full Pub/Sub topic resource id (module.pubsub.topic_ids from the env root — the full topic map, not just the 14 cron ones; this module only looks up the keys it needs). Must contain an entry for every topic_key referenced in this module's locals.jobs (cron-reminders, cron-loyalty-expiry, cron-loyalty-expiry-warning, cron-outbox-relay, cron-chatbot-retention-purge, cron-chatbot-balance-poll, cron-lead-form-retention, cron-resource-occupancy-retention-purge, cron-billing-issue-charges, cron-billing-status-sweep, cron-billing-reconcile, cron-billing-self-heal, cron-billing-reminders, cron-billing-provider-events-purge)."
   type        = map(string)
 
   validation {
     condition = alltrue([
-      for key in ["cron-reminders", "cron-loyalty-expiry", "cron-loyalty-expiry-warning", "cron-outbox-relay", "cron-chatbot-retention-purge", "cron-chatbot-balance-poll", "cron-lead-form-retention", "cron-resource-occupancy-retention-purge", "cron-billing-issue-charges", "cron-billing-status-sweep", "cron-billing-reconcile", "cron-billing-self-heal", "cron-billing-reminders"] :
+      for key in ["cron-reminders", "cron-loyalty-expiry", "cron-loyalty-expiry-warning", "cron-outbox-relay", "cron-chatbot-retention-purge", "cron-chatbot-balance-poll", "cron-lead-form-retention", "cron-resource-occupancy-retention-purge", "cron-billing-issue-charges", "cron-billing-status-sweep", "cron-billing-reconcile", "cron-billing-self-heal", "cron-billing-reminders", "cron-billing-provider-events-purge"] :
       contains(keys(var.cron_topic_ids), key)
     ])
-    error_message = "cron_topic_ids must include all 13 cron topics: cron-reminders, cron-loyalty-expiry, cron-loyalty-expiry-warning, cron-outbox-relay, cron-chatbot-retention-purge, cron-chatbot-balance-poll, cron-lead-form-retention, cron-resource-occupancy-retention-purge, cron-billing-issue-charges, cron-billing-status-sweep, cron-billing-reconcile, cron-billing-self-heal, cron-billing-reminders."
+    error_message = "cron_topic_ids must include all 14 cron topics: cron-reminders, cron-loyalty-expiry, cron-loyalty-expiry-warning, cron-outbox-relay, cron-chatbot-retention-purge, cron-chatbot-balance-poll, cron-lead-form-retention, cron-resource-occupancy-retention-purge, cron-billing-issue-charges, cron-billing-status-sweep, cron-billing-reconcile, cron-billing-self-heal, cron-billing-reminders, cron-billing-provider-events-purge."
   }
 
   # Scheduler jobs are hand-authored (locals.jobs), not scanner-derived like

@@ -80,4 +80,40 @@ describe('TypeOrmProviderEventRepository', () => {
       },
     );
   });
+
+  describe('deleteOlderThanBatch', () => {
+    const cutoff = new Date('2026-02-08T15:00:00Z');
+
+    it.each([
+      ['plain rows', [{ event_id: 'a' }, { event_id: 'b' }], 2],
+      ['the [rows, rowCount] shape', [[{ event_id: 'a' }, { event_id: 'b' }], 2], 2],
+      ['no row', [], 0],
+    ])('returns the number of rows deleted (%s)', async (_n, result, expected) => {
+      own.query.mockResolvedValueOnce(result);
+
+      expect(await repo.deleteOlderThanBatch(cutoff, 1000)).toBe(expected);
+    });
+
+    it('deletes strictly before the cutoff, oldest first, up to the limit', async () => {
+      own.query.mockResolvedValueOnce([]);
+
+      await repo.deleteOlderThanBatch(cutoff, 1000);
+
+      const [sql, params] = own.query.mock.calls[0] as [string, unknown[]];
+      expect(sql).toContain('"received_at" < $1');
+      expect(sql).toContain('ORDER BY "received_at"');
+      expect(sql).toContain('LIMIT $2');
+      expect(params).toEqual([cutoff, 1000]);
+    });
+
+    it('joins the caller’s transaction when there is one', async () => {
+      const tx = fakeManager();
+      tx.query.mockResolvedValueOnce([{ event_id: 'a' }]);
+
+      const deleted = await runWithEntityManager(tx, () => repo.deleteOlderThanBatch(cutoff, 10));
+
+      expect(deleted).toBe(1);
+      expect(own.query).not.toHaveBeenCalled();
+    });
+  });
 });

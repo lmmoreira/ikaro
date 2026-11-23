@@ -70,6 +70,7 @@ import { PROVIDER_HEALTH_REPOSITORY } from './application/ports/provider-health-
 import { SweepSubscriptionStatusesJob } from './application/jobs/sweep-subscription-statuses.job';
 import { ProviderChargeCancellationService } from './application/services/provider-charge-cancellation.service';
 import { SweepOneSubscriptionUseCase } from './application/use-cases/sweep-one-subscription.use-case';
+import { PurgeProviderEventsUseCase } from './application/use-cases/purge-provider-events.use-case';
 import { PublishSubscriptionRemindersUseCase } from './application/use-cases/publish-subscription-reminders.use-case';
 import { RecoveryChargePlanner } from './application/services/recovery-charge-planner.service';
 import { SubscriptionSweepRules } from './application/services/subscription-sweep-rules.service';
@@ -82,6 +83,7 @@ import { CheckProviderHealthUseCase } from './application/use-cases/check-provid
 import { EvaluateSuspensionFreezeUseCase } from './application/use-cases/evaluate-suspension-freeze.use-case';
 import { ReleaseStaleSignupRegistrationsUseCase } from './application/use-cases/release-stale-signup-registrations.use-case';
 import { RepairMissingSubscriptionsStep } from './application/jobs/repair-missing-subscriptions.helpers';
+import { ProviderEventsPurgeTriggerHandler } from './infrastructure/events/provider-events-purge-trigger.handler';
 import { RemindersTriggerHandler } from './infrastructure/events/reminders-trigger.handler';
 import { SelfHealTriggerHandler } from './infrastructure/events/self-heal-trigger.handler';
 import { ChargeProviderSyncService } from './application/services/charge-provider-sync.service';
@@ -217,6 +219,8 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     PublishSubscriptionRemindersUseCase,
     PublishBillingRemindersJob,
     RemindersTriggerHandler,
+    PurgeProviderEventsUseCase,
+    ProviderEventsPurgeTriggerHandler,
   ],
   // The shared access port is consumed by every context (M25-S16 onwards). The registration and
   // the five operator use cases are injected by this module's own controllers, which the

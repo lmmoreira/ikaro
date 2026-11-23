@@ -34,5 +34,10 @@ X-Internal-Key: {{internalKey}}
 POST {{baseUrl}}/cron/billing-reminders
 X-Internal-Key: {{internalKey}}
 
+### Provider events purge (UC-114): deletes webhook inbox rows older than 30 days
+# Read the billing_provider_events_purge_run log line (rows deleted, batches, limitHit).
+POST {{baseUrl}}/cron/billing-provider-events-purge
+X-Internal-Key: {{internalKey}}
+
 ### Without the internal key: refused with 401 (the route is internal-only, behind InternalApiGuard)
 POST {{baseUrl}}/cron/billing-issue-charges
