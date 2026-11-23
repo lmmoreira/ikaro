@@ -26,4 +26,13 @@ export interface IProviderEventRepository {
    * flag). Served by `IDX_billing_provider_events_received_at`.
    */
   existsProcessedAfter(provider: BillingProvider, since: Date): Promise<boolean>;
+
+  /**
+   * Deletes up to `limit` rows received strictly before `cutoff`, oldest first, and returns how
+   * many it deleted (UC-114 retention). Cross-tenant by design (`docs/TENANT_ISOLATION_STRATEGY.md`
+   * § Documented exemption: Billing platform-wide data and the webhook inbox, and the system-wide cron
+   * job exemption it points to): the inbox is purged globally by age, and a row carries no payload. Served by `IDX_billing_provider_events_received_at`. Runs in no
+   * transaction of its own: each call is one short statement, and a rerun is safe.
+   */
+  deleteOlderThanBatch(cutoff: Date, limit: number): Promise<number>;
 }

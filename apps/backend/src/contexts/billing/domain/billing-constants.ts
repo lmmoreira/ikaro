@@ -74,3 +74,12 @@ export const SUSPENSION_FREEZE_FAILED_HEALTH_READS = 2;
  * logs `truncated` and the newest tenants are not reached (no cursor is kept between runs).
  */
 export const SELF_HEAL_REPAIR_BUDGET_MS = 40_000;
+
+/** UC-114: a webhook inbox row (`billing.provider_events`) is kept this many days, then purged. */
+export const PROVIDER_EVENT_RETENTION_DAYS = 30;
+
+/** UC-114: rows one purge batch deletes. */
+export const PROVIDER_EVENTS_PURGE_BATCH_SIZE = 1000;
+
+/** UC-114: batches one purge run may delete (20,000 rows); the next daily run continues. */
+export const PROVIDER_EVENTS_PURGE_MAX_BATCHES = 20;

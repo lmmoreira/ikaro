@@ -23,4 +23,13 @@ export class InMemoryProviderEventRepository implements IProviderEventRepository
     this.saved.push(event);
     return true;
   }
+
+  async deleteOlderThanBatch(cutoff: Date, limit: number): Promise<number> {
+    const doomed = this.saved
+      .filter((row) => row.receivedAt.getTime() < cutoff.getTime())
+      .sort((a, b) => a.receivedAt.getTime() - b.receivedAt.getTime())
+      .slice(0, limit);
+    for (const row of doomed) this.saved.splice(this.saved.indexOf(row), 1);
+    return doomed.length;
+  }
 }

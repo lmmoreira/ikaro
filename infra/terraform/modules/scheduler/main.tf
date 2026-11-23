@@ -72,6 +72,10 @@ locals {
       topic_key = "cron-billing-reminders"
       schedule  = "0 11 * * *"
     }
+    ikaro-cron-billing-provider-events-purge = {
+      topic_key = "cron-billing-provider-events-purge"
+      schedule  = "30 5 * * *"
+    }
   }
 }
 
