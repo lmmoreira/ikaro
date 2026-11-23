@@ -160,5 +160,93 @@
       "subject": "{{tenantName}} is temporarily unavailable",
       "body": "<p>Hello, {{customerName}}!</p><p>{{tenantName}} is temporarily unavailable, so your upcoming bookings with them may be affected.</p><p>Please contact {{tenantName}} to confirm the details.</p>"
     }
+  },
+  "ChargeIssued": {
+    "managerPeriod": {
+      "subject": "Subscription charge for {{tenantName}}: {{amount}}, due {{dueDate}}",
+      "body": "<p>Hello!</p><p>The Ikaro subscription charge for <strong>{{tenantName}}</strong> is ready: <strong>{{amount}}</strong>, due on <strong>{{dueDate}}</strong>.</p><p><a href=\"{{paymentUrl}}\">Pay now</a></p><p>Choose the payment method on the charge page. You will be notified once the payment is confirmed.</p>"
+    },
+    "managerRecovery": {
+      "subject": "Pay {{amount}} to reactivate the {{tenantName}} subscription",
+      "body": "<p>Hello!</p><p>To reactivate the Ikaro subscription of <strong>{{tenantName}}</strong>, pay the charge of <strong>{{amount}}</strong>, due on <strong>{{dueDate}}</strong>.</p><p><a href=\"{{paymentUrl}}\">Pay now</a></p><p>Once the payment is confirmed, access is restored automatically.</p>"
+    }
+  },
+  "ChargePaid": {
+    "manager": {
+      "subject": "We received your payment of {{amount}}",
+      "body": "<p>Hello!</p><p>We received the payment of <strong>{{amount}}</strong> for the Ikaro subscription of <strong>{{tenantName}}</strong> on <strong>{{paidDate}}</strong>.</p><p>Thank you!</p>"
+    }
+  },
+  "SubscriptionPastDue": {
+    "manager": {
+      "subject": "Payment overdue: {{tenantName}} subscription",
+      "body": "<p>Hello!</p><p>We have not yet received the payment for the Ikaro subscription of <strong>{{tenantName}}</strong>.</p><p>Please settle it by <strong>{{suspendsOn}}</strong> to avoid the subscription being suspended.</p><p><a href=\"{{billingUrl}}\">View charges</a></p>"
+    }
+  },
+  "SubscriptionSuspended": {
+    "managerNonPayment": {
+      "subject": "The {{tenantName}} subscription has been suspended",
+      "body": "<p>Hello!</p><p>The Ikaro subscription of <strong>{{tenantName}}</strong> has been suspended because the payment was not confirmed.</p><p>While it is suspended, the public website and online booking are unavailable to your customers. Your data is kept until <strong>{{purgeDate}}</strong>.</p><p>To reactivate it, settle the payment: <a href=\"{{billingUrl}}\">open charges</a>.</p>"
+    },
+    "managerOperator": {
+      "subject": "The {{tenantName}} subscription has been suspended",
+      "body": "<p>Hello!</p><p>The Ikaro subscription of <strong>{{tenantName}}</strong> has been suspended by the Ikaro team.</p><p>Please contact Ikaro to find out why and how to reactivate it.</p>"
+    }
+  },
+  "SubscriptionReactivated": {
+    "manager": {
+      "subject": "The {{tenantName}} subscription has been reactivated",
+      "body": "<p>Hello!</p><p>The Ikaro subscription of <strong>{{tenantName}}</strong> has been reactivated. The public website and online booking work normally again.</p>"
+    }
+  },
+  "SubscriptionCancelled": {
+    "managerImmediate": {
+      "subject": "The {{tenantName}} subscription has been cancelled",
+      "body": "<p>Hello!</p><p>The Ikaro subscription of <strong>{{tenantName}}</strong> has been cancelled and access has ended.</p><p>If you want to come back, just reactivate the subscription from the dashboard.</p>"
+    },
+    "managerScheduled": {
+      "subject": "Cancellation of the {{tenantName}} subscription scheduled for {{cancelDate}}",
+      "body": "<p>Hello!</p><p>We received the cancellation request for the Ikaro subscription of <strong>{{tenantName}}</strong>. It stays active until <strong>{{cancelDate}}</strong> and ends after that date.</p><p>If you change your mind, you can reactivate the subscription from the dashboard before then.</p>"
+    }
+  },
+  "PlanChanged": {
+    "manager": {
+      "subject": "The {{tenantName}} plan has been updated",
+      "body": "<p>Hello!</p><p>We registered the plan change for the Ikaro subscription of <strong>{{tenantName}}</strong>. The new total is <strong>{{newTotal}}</strong>.</p><p>See the details and when the change takes effect on the plan page: <a href=\"{{billingUrl}}\">open plan</a>.</p>"
+    }
+  },
+  "BillingReminderDue": {
+    "planConfirmation": {
+      "subject": "Confirm the {{tenantName}} plan before the trial ends",
+      "body": "<p>Hello!</p><p>The trial of <strong>{{tenantName}}</strong> on Ikaro ends on <strong>{{trialEndsOn}}</strong>.</p><p>Review and confirm the plan to continue without interruption: <a href=\"{{billingUrl}}\">confirm plan</a>.</p>"
+    },
+    "trialEnding": {
+      "subject": "The {{tenantName}} trial ends on {{trialEndsOn}}",
+      "body": "<p>Hello!</p><p>The trial of <strong>{{tenantName}}</strong> on Ikaro ends on <strong>{{trialEndsOn}}</strong>.</p><p>To keep using Ikaro after that date, confirm the plan and the payment: <a href=\"{{billingUrl}}\">open charges</a>.</p>"
+    },
+    "chargeDueSoon": {
+      "subject": "The charge of {{amount}} is due on {{dueDate}}",
+      "body": "<p>Hello!</p><p>Reminder: the charge of <strong>{{amount}}</strong> for the Ikaro subscription of <strong>{{tenantName}}</strong> is due on <strong>{{dueDate}}</strong>.</p><p><a href=\"{{billingUrl}}\">Pay now</a></p>"
+    },
+    "chargeOverdue": {
+      "subject": "The charge of {{amount}} is overdue",
+      "body": "<p>Hello!</p><p>The charge of <strong>{{amount}}</strong> for the Ikaro subscription of <strong>{{tenantName}}</strong>, due on <strong>{{dueDate}}</strong>, has not been paid yet.</p><p>Please settle the payment to avoid the subscription being suspended.</p><p><a href=\"{{billingUrl}}\">Pay now</a></p>"
+    },
+    "recoveryChargeOpen": {
+      "subject": "The reactivation charge for {{tenantName}} is still open",
+      "body": "<p>Hello!</p><p>The charge of <strong>{{amount}}</strong> to reactivate the Ikaro subscription of <strong>{{tenantName}}</strong>, due on <strong>{{dueDate}}</strong>, is still open.</p><p>Pay it to restore access: <a href=\"{{billingUrl}}\">Pay now</a>.</p>"
+    }
+  },
+  "SubscriptionPriceChangeAnnounced": {
+    "manager": {
+      "subject": "Price change on the {{tenantName}} subscription",
+      "body": "<p>Hello!</p><p>The prices of some items of the Ikaro subscription of <strong>{{tenantName}}</strong> change from <strong>{{effectiveFrom}}</strong>:</p><ul>{{changesList}}</ul><p>Your new total will be <strong>{{newTotal}}</strong>.</p><p><a href=\"{{billingUrl}}\">View plan and charges</a></p>"
+    }
+  },
+  "TenantPurgeWarning": {
+    "manager": {
+      "subject": "The {{tenantName}} data will be deleted in {{daysBefore}} days",
+      "body": "<p>Hello!</p><p>The Ikaro subscription of <strong>{{tenantName}}</strong> is still suspended. On <strong>{{purgeDate}}</strong>, the account data will be permanently deleted.</p><p>To avoid the deletion, settle the payment: <a href=\"{{billingUrl}}\">open charges</a>.</p>"
+    }
   }
 }

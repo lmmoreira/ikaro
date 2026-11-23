@@ -1019,6 +1019,14 @@
       "reviewBy": "2026-09-30"
     },
     {
+      "rule": "error-mapper-coverage",
+      "class": "PlatformTemplateNotFoundError",
+      "path": "apps/backend/src/contexts/notification/domain/errors/platform-template-not-found.error.ts",
+      "rationale": "M26-S11: thrown by findPlatformTemplate and consumed only by Billing's asynchronous email handlers (S12), which log billing_template_missing and rethrow so Pub/Sub redelivers. Notification has no HTTP transport mapper, the same reasoning as the EmailDeliveryException exception above, so no endpoint can throw it.",
+      "owner": "notification",
+      "reviewBy": "2027-05-23"
+    },
+    {
       "rule": "shared-vo-error-mapper-coverage",
       "context": "notification",
       "path": "apps/backend/src/contexts/notification/domain/notification-log.aggregate.ts",
