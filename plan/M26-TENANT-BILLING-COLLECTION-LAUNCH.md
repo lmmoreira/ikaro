@@ -1132,7 +1132,7 @@ Ikaro sends every Billing email itself (Asaas customers are created with `notifi
 
 ---
 
-### M26-S13 — Dev `simulate` endpoint (UC-138)
+### M26-S13 — Dev `simulate` endpoint (UC-138) ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** M
