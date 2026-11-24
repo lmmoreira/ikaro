@@ -1812,8 +1812,11 @@ Billing codes are `BILLING_*`, signup codes `SIGNUP_*`; every code and where it 
 
 **Summary response** (`GET /v1/billing/summary`):
 
+A tenant with no subscription row yet (the provisioning window, or one the self-heal has not repaired; UC-117 A9) gets `200 { "provisioning": true }` and nothing else; the full summary below carries `"provisioning": false`. `GET /v1/billing/charges` answers an empty page for it.
+
 ```json
 {
+  "provisioning": false,
   "status": "ACTIVE",
   "exempt": false,
   "suspensionReason": null,
@@ -1823,7 +1826,7 @@ Billing codes are `BILLING_*`, signup codes `SIGNUP_*`; every code and where it 
   "trialEndsAt": null, "nextDueDate": "2026-11-20", "pastDueSince": null,
   "suspendsAt": null, "cancelAt": null, "purgeAt": null,
   "planConfirmationRequired": false, "planConfirmationFallbackAt": null,
-  "canDiscard": false, "addressRequired": false,
+  "canDiscard": false, "firstChargePaid": false, "addressRequired": false,
   "items": [ { "featureKey": "HOTSITE", "tier": "STANDARD", "unitPriceMinor": 4900 } ],
   "totalMinor": 8800,
   "openCharge": { "id": "…", "kind": "PERIOD", "dueDate": "2026-11-20", "subtotalMinor": 8800, "taxMinor": 0, "amountMinor": 8800, "status": "PENDING", "hasPaymentLink": true, "paymentLinkExpiresAt": "…" },
@@ -1838,7 +1841,9 @@ Billing codes are `BILLING_*`, signup codes `SIGNUP_*`; every code and where it 
 - `cycle` is `MONTHLY` | `ANNUAL` (slice H); totals and item prices are in that cycle. `nextCycle` / `nextCycleFrom` carry a scheduled switch.
 - `suspendsAt` is set only for `PAST_DUE` (`coalesce(grace_until, past_due_since + 14 days)`); `purgeAt` only for `SUSPENDED` (the clean-up delay is in `docs/DOMAIN_MODEL.md` § Context 7, `has_ever_paid`).
 - `planConfirmationRequired` is true while `TRIALING` and `plan_confirmed_at` is null (no first invoice exists yet); `planConfirmationFallbackAt` is the date the default plan is invoiced automatically. `canDiscard` is true for a never-paid `TRIALING` / `SUSPENDED` tenant once the purge participants are deployed (UC-141). `addressRequired` is true until the full billing address is saved (BR and US; UC-118 A6).
-- `items` carry the current-period price for display only (items store no price). `totalMinor` is net of tax; for a US tenant the page labels it "+ imposto calculado na cobrança", because tax exists only on the issued charge.
+- `items` carry the current-period price for display only (items store no price). `totalMinor` is net of tax; for a US tenant the page labels it "+ imposto calculado na cobrança", because tax exists only on the issued charge. `unitPriceMinor` and `totalMinor` are `null` when an item has no price version in force (a data gap that is logged and alerted, never a failure of the page): the web shows "preço indisponível" and the open charge still pays. `TRIALING` lists the plan invoiced first, priced on the first paid period's start date. `SUSPENDED` lists the plan that paying reactivates, priced today; the amount due is the open `RECOVERY` charge's `amountMinor`, which can differ if a price changed after that charge was issued. `exempt` returns `items: []`, `totalMinor: 0` and no open charge.
+- `firstChargePaid` is true when the current trial's first `PERIOD` charge is `PAID` (not derived from `has_ever_paid`, which a re-trial after an exemption keeps); the cancel page words a trial that has already paid differently (UC-133 A3).
+- `openCharge.hasPaymentLink` is true only when the charge has a hosted link that has not expired at the backend's clock; `paymentLinkExpiresAt` is returned for display. The response never carries the URL: `POST /v1/billing/charges/{chargeId}/payment-link` does.
 - `openCharge.kind` is a charge kind (`PERIOD` or `RECOVERY` here; enum in `docs/DOMAIN_MODEL.md` § Context 7); while `SUSPENDED` it is the recovery charge (UC-134). `autoBilling.mode` and `status` are the subscription's auto-billing enums (`docs/DATABASE_SCHEMA.md` § Schema: `billing`); the label comes from the provider as data.
 - `paymentConfirmationPending` is true while `payment_return_seen_at` is set and the charge is still open, until the paid webhook or reconcile lands (polling cadence: UC-117 A3).
 - `upcomingPriceChanges` lists dated list-price changes announced to the tenant (amounts illustrative above).
