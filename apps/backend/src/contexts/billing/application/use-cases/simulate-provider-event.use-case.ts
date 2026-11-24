@@ -31,7 +31,7 @@ import {
 /** How long a `DELAYED` delivery waits inside the request: a sequence, never a background timer. */
 export const DELAYED_DELIVERY_MS = 250;
 
-/** How far back the tenant form looks for the most recent paid charge. */
+/** One page of the tenant's history, newest due date first, while looking for its latest paid charge. */
 const PAID_LOOKUP_PAGE_SIZE = 50;
 
 const DELIVERY_OPTIONS: Readonly<Record<SimulateDelivery, SimulatedDeliveryOptions>> = {
@@ -143,11 +143,7 @@ export class SimulateProviderEventUseCase {
   // paid charge for a refund or a chargeback. Always scoped to the given tenant.
   private async chargeOfTenant(tenantId: string, need: ChargeNeed): Promise<Charge> {
     if (need === 'PAID') {
-      const { items } = await this.charges.listByTenantPage(tenantId, {
-        limit: PAID_LOOKUP_PAGE_SIZE,
-        offset: 0,
-      });
-      const paid = items.find((charge) => charge.status === 'PAID');
+      const paid = await this.latestPaidCharge(tenantId, 0);
       if (!paid) throw refusal('NO_MATCHING_CHARGE', 'The tenant has no paid charge');
       return paid;
     }
@@ -157,6 +153,19 @@ export class SimulateProviderEventUseCase {
       throw refusal('AMBIGUOUS_CHARGE', 'The tenant has several open charges: pass chargeId');
     }
     return open[0];
+  }
+
+  // The history is newest first, so the first paid charge found is the latest one; it pages on until
+  // one is found or the history ends, never giving up at the first page.
+  private async latestPaidCharge(tenantId: string, offset: number): Promise<Charge | null> {
+    const { items, total } = await this.charges.listByTenantPage(tenantId, {
+      limit: PAID_LOOKUP_PAGE_SIZE,
+      offset,
+    });
+    const paid = items.find((charge) => charge.status === 'PAID');
+    if (paid) return paid;
+    const next = offset + PAID_LOOKUP_PAGE_SIZE;
+    return next >= total ? null : this.latestPaidCharge(tenantId, next);
   }
 
   /** Returns the provider charge id once every precondition holds. */

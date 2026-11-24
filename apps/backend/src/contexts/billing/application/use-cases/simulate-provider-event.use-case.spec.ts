@@ -355,6 +355,29 @@ describe('SimulateProviderEventUseCase', () => {
       );
     });
 
+    it('finds the latest paid charge behind more than a page of newer unpaid ones', async () => {
+      const { tenantId, charge } = await seed({ paid: true });
+      for (let month = 1; month <= 51; month++) {
+        await charges.save(
+          new ChargeBuilder()
+            .withTenantId(tenantId)
+            .withSubscriptionId(charge.subscriptionId)
+            .withPeriod(
+              addDaysUTC('2026-04-10', month * 31),
+              addDaysUTC('2026-04-10', month * 31 + 30),
+            )
+            .withDueDate(addDaysUTC('2026-04-10', month * 31))
+            .withStatus('CANCELED')
+            .build(),
+        );
+      }
+
+      const result = await simulate({ tenantId, event: 'REFUND_FULL' });
+
+      expect(result.chargeId).toBe(charge.id);
+      expect(charge.status).toBe('REFUNDED');
+    });
+
     it('a tenant with several open charges: the caller must name one', async () => {
       const { tenantId, charge } = await seed();
       const second = new ChargeBuilder()
