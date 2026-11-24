@@ -34,5 +34,8 @@ export interface IBillingFakeProviderControl {
   simulateChargeback(providerChargeId: string): void;
   /** The next network call fails once, with the named failure. */
   failNextCall(reason: ProviderRequestFailure): void;
-  drainDeliveries(options?: SimulatedDeliveryOptions): SimulatedDelivery[];
+  /** How many webhooks are queued and not yet handed out. */
+  pendingCount(): number;
+  /** Hands out every queued webhook; `options` apply only from index `optionsFrom` on. */
+  drainDeliveries(options?: SimulatedDeliveryOptions, optionsFrom?: number): SimulatedDelivery[];
 }

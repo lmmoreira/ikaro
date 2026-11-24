@@ -50,7 +50,7 @@ export function mapBillingError(err: unknown): never {
     err instanceof ChargeConcurrentModificationError ||
     err instanceof ChargeAlreadyExistsError ||
     err instanceof RecoveryChargeAlreadyOpenError ||
-    // Dev `simulate` (M26-S13): the event does not apply, so nothing was delivered.
+    // Dev `simulate`: the event does not apply, so nothing was delivered.
     err instanceof SimulationNotApplicableError ||
     err instanceof FakeScenarioNotApplicableError
   ) {

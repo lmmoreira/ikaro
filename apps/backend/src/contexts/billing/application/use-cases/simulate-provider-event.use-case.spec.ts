@@ -315,10 +315,12 @@ describe('SimulateProviderEventUseCase', () => {
     it.each(['LINK_EXPIRED', 'INVALID_LOCATION'] as const)(
       "%s is armed as the fake's own failure and consumed by the first provider call",
       async (failure) => {
-        const { tenantId, providerChargeId } = await seed();
+        const { tenantId, charge, providerChargeId } = await seed();
 
-        await simulate({ tenantId, event: 'PAID_PIX', failure });
+        const result = await simulate({ tenantId, event: 'PAID_PIX', failure });
 
+        expect(result.outcomes).toEqual(['PROVIDER_ERROR']);
+        expect(charge.status).toBe('PENDING');
         await expect(fake.fetchChargeStatus(providerChargeId)).resolves.toBeDefined();
       },
     );
@@ -419,15 +421,16 @@ describe('SimulateProviderEventUseCase', () => {
       expect(outbox.published).toHaveLength(0);
     });
 
-    it("a charge the database and the fake disagree on is the fake's own refusal, with nothing queued", async () => {
+    it("a charge the database and the fake disagree on is the fake's own refusal: nothing queued, and no webhook already queued is delivered", async () => {
       const { charge, providerChargeId } = await seed();
-      fake.simulatePayment(providerChargeId, 'PIX'); // the fake paid it; the webhook never applied
-      fake.drainDeliveries();
+      fake.simulatePayment(providerChargeId, 'PIX'); // the fake paid it; the webhook was never applied
 
       expect(await refusalOf(simulate({ chargeId: charge.id, event: 'PAID_PIX' }))).toBe(
         'CHARGE_STATE',
       );
-      expect(fake.drainDeliveries()).toHaveLength(0);
+      expect(charge.status).toBe('PENDING');
+      expect(outbox.published).toHaveLength(0);
+      expect(fake.drainDeliveries()).toHaveLength(1); // still queued, never handed to the webhook
     });
   });
 

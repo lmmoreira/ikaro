@@ -21,9 +21,7 @@ describe('InternalDevBillingController', () => {
     ReturnType<SimulateProviderEventUseCase['execute']>,
     Parameters<SimulateProviderEventUseCase['execute']>
   >();
-  const controller = new InternalDevBillingController({
-    execute,
-  } as unknown as SimulateProviderEventUseCase);
+  const controller = new InternalDevBillingController({ execute });
 
   beforeEach(() => execute.mockReset());
 

@@ -239,7 +239,7 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     ListTenantBillingStatusUseCase,
     ProcessProviderWebhookUseCase,
     ProviderWebhookProcessor,
-    // Consumed by `DevBillingModule` (M26-S13), which exists only outside production.
+    // Consumed by `DevBillingModule`, which exists only outside production.
     CHARGE_REPOSITORY,
     FakeBillingProvider,
   ],

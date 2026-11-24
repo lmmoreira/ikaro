@@ -233,7 +233,7 @@ function validateChatbotConfig(data: Env, ctx: z.RefinementCtx): void {
   }
 }
 
-// M26-S13: `APP_ENV` defaults to `local`, and `local` switches the dev-only routes on (the dev clock
+// `APP_ENV` defaults to `local`, and `local` switches the dev-only routes on (the dev clock
 // and the billing simulate route are registered for every value but `production`). A deployed
 // container (Cloud Run staging and production both run `NODE_ENV=production`) that forgot to set
 // `APP_ENV` would silently boot as `local`, so that combination is refused. Staging is

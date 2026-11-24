@@ -1,4 +1,3 @@
-import type { ProviderWebhookProcessor } from '../services/provider-webhook-processor.service';
 import { ProcessProviderWebhookUseCase } from './process-provider-webhook.use-case';
 
 describe('ProcessProviderWebhookUseCase', () => {
@@ -10,9 +9,7 @@ describe('ProcessProviderWebhookUseCase', () => {
       correlationId: 'corr-1',
     } as const;
     const execute = jest.fn().mockResolvedValue('APPLIED');
-    const useCase = new ProcessProviderWebhookUseCase({
-      execute,
-    } as unknown as ProviderWebhookProcessor);
+    const useCase = new ProcessProviderWebhookUseCase({ execute });
 
     await expect(useCase.execute(input)).resolves.toBe('APPLIED');
     expect(execute).toHaveBeenCalledWith(input);
@@ -21,7 +18,7 @@ describe('ProcessProviderWebhookUseCase', () => {
   it("lets the processor's error through so the provider retries", async () => {
     const useCase = new ProcessProviderWebhookUseCase({
       execute: jest.fn().mockRejectedValue(new Error('provider re-read failed')),
-    } as unknown as ProviderWebhookProcessor);
+    });
 
     await expect(
       useCase.execute({ provider: 'ASAAS', rawBody: '{}', headers: {}, correlationId: 'c' }),

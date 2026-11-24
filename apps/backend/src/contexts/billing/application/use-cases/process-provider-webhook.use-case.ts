@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
   ProviderWebhookProcessor,
   type ProviderWebhookInput,
@@ -16,7 +16,10 @@ export type ProcessProviderWebhookUseCaseResult = ProviderWebhookResult;
 /** UC-114: the provider's webhook. The work is `ProviderWebhookProcessor`, shared with dev `simulate`. */
 @Injectable()
 export class ProcessProviderWebhookUseCase {
-  constructor(private readonly processor: ProviderWebhookProcessor) {}
+  constructor(
+    @Inject(ProviderWebhookProcessor)
+    private readonly processor: Pick<ProviderWebhookProcessor, 'execute'>,
+  ) {}
 
   execute(input: ProcessProviderWebhookUseCaseInput): Promise<ProcessProviderWebhookUseCaseResult> {
     return this.processor.execute(input);

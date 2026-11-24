@@ -22,7 +22,7 @@ const KEYS_WITHOUT_ADAPTER_YET: ReadonlySet<string> = new Set([
 ]);
 
 // Staging resolves `BRL_FAKE` for BR until M26-S37 registers the Asaas sandbox adapter and reverts
-// it (M26-S13), so no environment reaches this key for now. It stays in the catalog: subscriptions
+// it, so no environment reaches this key for now. It stays in the catalog: subscriptions
 // created before the change carry it. S37 deletes this set and moves the key back into the list
 // above, then out of it with the adapter.
 const KEYS_NOT_REACHABLE_UNTIL_S37: ReadonlySet<string> = new Set([

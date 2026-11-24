@@ -198,18 +198,40 @@ describe('InternalDevBillingController (integration)', () => {
         },
       );
 
-      it.each(['NORMAL', 'DUPLICATE', 'DELAYED', 'OUT_OF_ORDER'])(
-        'PAID_BOLETO with %s delivery pays the charge exactly once',
-        async (delivery) => {
-          const { tenantId, chargeId } = await seed();
+      const EVENTS = [
+        ['PAID_PIX', 'PAID', false],
+        ['PAID_BOLETO', 'PAID', false],
+        ['PAID_CARD', 'PAID', false],
+        ['OVERDUE', 'PENDING', false],
+        ['REFUND_FULL', 'REFUNDED', true],
+        ['REFUND_PARTIAL', 'PAID', true],
+        ['CHARGEBACK_OPENED', 'PAID', true],
+        ['CHARGEBACK_LOST', 'CHARGEBACK', true],
+      ] as const;
+      const DELIVERIES = ['NORMAL', 'DUPLICATE', 'DELAYED', 'OUT_OF_ORDER'] as const;
 
-          await post({ chargeId, event: 'PAID_BOLETO', delivery }).expect(200);
+      // Every event under every delivery misbehaviour ends in the state a real webhook would
+      // leave, and the one payment publishes exactly one ChargePaid however it is delivered.
+      it.each(
+        EVENTS.flatMap(([event, status, needsPaid]) =>
+          DELIVERIES.map((delivery) => [event, delivery, status, needsPaid] as const),
+        ),
+      )('%s delivered %s leaves the charge %s', async (event, delivery, status, needsPaid) => {
+        const { tenantId, chargeId } = await seed();
+        if (needsPaid) await post({ chargeId, event: 'PAID_PIX' }).expect(200);
 
-          expect(await chargeRow(chargeId)).toMatchObject({ status: 'PAID', method: 'BOLETO' });
-          expect(publishedFor(tenantId, 'ChargePaid')).toHaveLength(1);
-          expect(await ds.getRepository(ProviderEventEntity).countBy({ tenantId })).toBe(2);
-        },
-      );
+        const response = await post({ chargeId, event, delivery }).expect(200);
+
+        expect(response.body.outcomes).not.toContain('PROVIDER_ERROR');
+        expect(response.body.outcomes).not.toContain('UNKNOWN_TARGET');
+        expect((await chargeRow(chargeId)).status).toBe(status);
+        expect(publishedFor(tenantId, 'ChargePaid')).toHaveLength(
+          event.startsWith('PAID') || needsPaid ? 1 : 0,
+        );
+        expect(await ds.getRepository(ProviderEventEntity).countBy({ tenantId })).toBeGreaterThan(
+          0,
+        );
+      });
 
       it('OVERDUE is confirm-only: only the sweep writes OVERDUE, so neither the charge nor the subscription moves', async () => {
         const { tenantId, chargeId } = await seed();

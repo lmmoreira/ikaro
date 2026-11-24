@@ -1,4 +1,13 @@
-import { Body, Controller, Headers, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  Inject,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { NoFeatureGate, SuspensionAccess, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { InternalApiGuard } from '../../../../shared/guards/internal-api.guard';
 import { PlatformAdminGuard } from '../../../../shared/guards/platform-admin.guard';
@@ -20,7 +29,10 @@ import { mapBillingError } from '../http/billing-error.mapper';
 @SuspensionAccess('ANY_AUTHENTICATED')
 @Controller('internal/dev/billing/provider')
 export class InternalDevBillingController {
-  constructor(private readonly simulate: SimulateProviderEventUseCase) {}
+  constructor(
+    @Inject(SimulateProviderEventUseCase)
+    private readonly simulate: Pick<SimulateProviderEventUseCase, 'execute'>,
+  ) {}
 
   @Post('simulate')
   @HttpCode(HttpStatus.OK)

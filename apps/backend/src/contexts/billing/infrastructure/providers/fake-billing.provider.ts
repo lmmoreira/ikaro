@@ -160,6 +160,11 @@ export class FakeBillingProvider implements BillingProviderPort {
     this.queuePaused = true;
   }
 
+  /** How many webhooks are queued and not yet handed out. */
+  pendingCount(): number {
+    return this.pending.length;
+  }
+
   /** Whether this process created the charge: after a restart, or on a second instance, it did not. */
   hasCharge(providerChargeId: string): boolean {
     return this.charges.has(providerChargeId);
@@ -228,9 +233,9 @@ export class FakeBillingProvider implements BillingProviderPort {
    * paused nothing is handed out and nothing is lost: the events are kept and arrive after the
    * queue is re-enabled, as Asaas stores them (docs/ASAAS_PROVIDER.md § 4).
    */
-  drainDeliveries(options: DeliveryOptions = {}): FakeWebhookDelivery[] {
+  drainDeliveries(options: DeliveryOptions = {}, optionsFrom = 0): FakeWebhookDelivery[] {
     if (this.queuePaused) return [];
-    const drained = applyDeliveryOptions(this.pending, options);
+    const drained = applyDeliveryOptions(this.pending, options, optionsFrom);
     this.pending = [];
     return drained;
   }

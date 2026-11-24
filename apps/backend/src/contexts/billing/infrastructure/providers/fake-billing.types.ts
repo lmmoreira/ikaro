@@ -37,11 +37,17 @@ export interface DeliveryOptions {
   readonly delayMs?: number;
 }
 
+/** `optionsFrom` leaves the first deliveries as they are: only the ones from that index on misbehave. */
 export function applyDeliveryOptions(
   deliveries: readonly FakeWebhookDelivery[],
   options: DeliveryOptions,
+  optionsFrom = 0,
 ): FakeWebhookDelivery[] {
-  const ordered = options.reverse ? [...deliveries].reverse() : [...deliveries];
+  const tail = deliveries.slice(optionsFrom);
+  const ordered = options.reverse ? [...tail].reverse() : [...tail];
   const delayed = ordered.map((delivery) => ({ ...delivery, delayMs: options.delayMs ?? 0 }));
-  return options.duplicate ? delayed.flatMap((delivery) => [delivery, { ...delivery }]) : delayed;
+  const misbehaving = options.duplicate
+    ? delayed.flatMap((delivery) => [delivery, { ...delivery }])
+    : delayed;
+  return [...deliveries.slice(0, optionsFrom), ...misbehaving];
 }

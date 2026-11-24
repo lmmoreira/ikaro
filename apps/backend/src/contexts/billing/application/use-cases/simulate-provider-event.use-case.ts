@@ -10,6 +10,7 @@ import {
   SimulationNotApplicableError,
   type SimulationRefusal,
 } from '../../domain/errors/billing-domain.error';
+import { mapSequentially } from '../../../../shared/utils/sequential';
 import { providerOfMerchantProfileKey } from '../../domain/merchant-profile-key';
 import type {
   SimulateDelivery,
@@ -110,16 +111,15 @@ export class SimulateProviderEventUseCase {
     const charge = await this.resolveCharge(input);
     const providerChargeId = this.assertApplicable(charge, input.event);
     // Webhooks already queued (a `PAYMENT_CREATED` from an earlier charge creation) go out first and
-    // unmodified, as a real provider would have delivered them. The delivery options then apply to
-    // the event this request queues, and to nothing older.
-    const outcomes = await this.deliver(charge, this.fake.drainDeliveries(), input.correlationId);
+    // unmodified, as a real provider would have delivered them: the delivery options apply from the
+    // event this request queues. The queueing comes before anything is handed out, so a request the
+    // fake refuses delivers nothing at all.
+    const staleCount = this.fake.pendingCount();
     this.queue(providerChargeId, input.event);
     // Armed after the queueing: a charge the fake refuses leaves no failure armed behind it.
     if (input.failure) this.fake.failNextCall(FAILURE_REASON[input.failure]);
-    const options = DELIVERY_OPTIONS[input.delivery];
-    outcomes.push(
-      ...(await this.deliver(charge, this.fake.drainDeliveries(options), input.correlationId)),
-    );
+    const deliveries = this.fake.drainDeliveries(DELIVERY_OPTIONS[input.delivery], staleCount);
+    const outcomes = await this.deliver(charge, deliveries, input.correlationId);
     return {
       tenantId: charge.tenantId,
       chargeId: charge.id,
@@ -210,32 +210,28 @@ export class SimulateProviderEventUseCase {
     }
   }
 
-  private async deliver(
+  private deliver(
     charge: Charge,
     deliveries: ReturnType<IBillingFakeProviderControl['drainDeliveries']>,
     correlationId: string,
   ): Promise<SimulatedDeliveryOutcome[]> {
     const provider = providerOfMerchantProfileKey(charge.merchantProfileKey);
-    const outcomes: SimulatedDeliveryOutcome[] = [];
-    for (const delivery of deliveries) {
+    return mapSequentially(deliveries, async (delivery) => {
       if (delivery.delayMs > 0) await sleep(delivery.delayMs);
       try {
-        outcomes.push(
-          await this.processWebhook.execute({
-            provider,
-            rawBody: delivery.body,
-            headers: delivery.headers,
-            correlationId,
-          }),
-        );
+        return await this.processWebhook.execute({
+          provider,
+          rawBody: delivery.body,
+          headers: delivery.headers,
+          correlationId,
+        });
       } catch (err) {
         // The provider re-read failed (`failure`): the real webhook would answer non-2xx and the
         // provider would retry. Here the event stays unapplied for the reconcile job to recover.
         if (!(err instanceof ProviderRequestError)) throw err;
-        outcomes.push('PROVIDER_ERROR');
+        return 'PROVIDER_ERROR';
       }
-    }
-    return outcomes;
+    });
   }
 }
 
