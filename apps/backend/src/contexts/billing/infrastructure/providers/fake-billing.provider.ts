@@ -24,7 +24,7 @@ import type {
 } from '../../domain/provider-events';
 import { ASAAS_ZONE, normalizeAsaasWebhook } from './asaas-event-normalizer';
 import { FakeAsaasWebhookEmitter } from './fake-asaas-webhook.emitter';
-import { assertValidNewCharge } from './fake-charge-rules';
+import { assertChargeState, assertValidNewCharge } from './fake-charge-rules';
 import {
   applyDeliveryOptions,
   type DeliveryOptions,
@@ -160,6 +160,11 @@ export class FakeBillingProvider implements BillingProviderPort {
     this.queuePaused = true;
   }
 
+  /** Whether this process created the charge: after a restart, or on a second instance, it did not. */
+  hasCharge(providerChargeId: string): boolean {
+    return this.charges.has(providerChargeId);
+  }
+
   hasAutoBilling(providerCustomerId: string): boolean {
     return this.autoBillingCustomers.has(providerCustomerId);
   }
@@ -167,7 +172,7 @@ export class FakeBillingProvider implements BillingProviderPort {
   /** Pix emits `RECEIVED` only; boleto `CONFIRMED` then `RECEIVED`; a card `CONFIRMED` (`RECEIVED` comes with `simulateCardSettlement`). */
   simulatePayment(providerChargeId: string, method: PaymentMethod): void {
     const charge = this.chargeOrThrow(providerChargeId);
-    this.assertState(charge, ['PENDING', 'OVERDUE'], 'pay');
+    assertChargeState(charge, ['PENDING', 'OVERDUE'], 'pay');
     charge.state = 'PAID';
     charge.paymentMethod = method;
     charge.paidAt = this.clock.now();
@@ -178,20 +183,20 @@ export class FakeBillingProvider implements BillingProviderPort {
   /** The `RECEIVED` that follows a card's `CONFIRMED` about 32 days later. */
   simulateCardSettlement(providerChargeId: string): void {
     const charge = this.chargeOrThrow(providerChargeId);
-    this.assertState(charge, ['PAID'], 'settle');
+    assertChargeState(charge, ['PAID'], 'settle');
     this.enqueue('PAYMENT_RECEIVED', charge, 'RECEIVED');
   }
 
   simulateOverdue(providerChargeId: string): void {
     const charge = this.chargeOrThrow(providerChargeId);
-    this.assertState(charge, ['PENDING'], 'mark overdue');
+    assertChargeState(charge, ['PENDING'], 'mark overdue');
     charge.state = 'OVERDUE';
     this.enqueue('PAYMENT_OVERDUE', charge, 'OVERDUE');
   }
 
   simulateRefund(providerChargeId: string, kind: 'FULL' | 'PARTIAL'): void {
     const charge = this.chargeOrThrow(providerChargeId);
-    this.assertState(charge, ['PAID', 'PARTIALLY_REFUNDED'], 'refund');
+    assertChargeState(charge, ['PAID', 'PARTIALLY_REFUNDED'], 'refund');
     const full = kind === 'FULL';
     charge.state = full ? 'REFUNDED' : 'PARTIALLY_REFUNDED';
     this.enqueue(
@@ -204,7 +209,7 @@ export class FakeBillingProvider implements BillingProviderPort {
   /** A dispute is *opened*: the charge stays `PAID` and the re-read reports `disputeOpen`. */
   simulateDisputeOpened(providerChargeId: string): void {
     const charge = this.chargeOrThrow(providerChargeId);
-    this.assertState(charge, ['PAID'], 'open a dispute on');
+    assertChargeState(charge, ['PAID'], 'open a dispute on');
     charge.disputeOpen = true;
     this.enqueue('PAYMENT_CHARGEBACK_REQUESTED', charge, 'CHARGEBACK_REQUESTED');
   }
@@ -212,7 +217,7 @@ export class FakeBillingProvider implements BillingProviderPort {
   /** A dispute is *lost* by the merchant (fake only until M26-S37 observes Asaas's own event). */
   simulateChargeback(providerChargeId: string): void {
     const charge = this.chargeOrThrow(providerChargeId);
-    this.assertState(charge, ['PAID'], 'charge back');
+    assertChargeState(charge, ['PAID'], 'charge back');
     charge.state = 'CHARGEBACK';
     charge.disputeOpen = false;
     this.enqueue(FAKE_CHARGEBACK_LOST_EVENT, charge, 'CHARGEBACK_DONE');
@@ -296,11 +301,5 @@ export class FakeBillingProvider implements BillingProviderPort {
     this.charges.set(id, charge);
     this.enqueue('PAYMENT_CREATED', charge, 'PENDING');
     return charge;
-  }
-
-  private assertState(charge: FakeCharge, allowed: FakeCharge['state'][], action: string): void {
-    if (!allowed.includes(charge.state)) {
-      throw new Error(`The fake cannot ${action} charge ${charge.id} while it is ${charge.state}`);
-    }
   }
 }

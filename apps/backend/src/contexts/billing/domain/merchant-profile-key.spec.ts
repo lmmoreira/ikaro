@@ -8,7 +8,7 @@ describe('resolveMerchantProfileKey', () => {
   it.each([
     ['local', 'BR', 'BRL_FAKE'],
     ['local', 'US', 'USD_FAKE'],
-    ['staging', 'BR', 'BRL_ASAAS_SANDBOX'],
+    ['staging', 'BR', 'BRL_FAKE'], // until M26-S37 registers the Asaas sandbox adapter
     ['staging', 'US', 'USD_STRIPE_TEST'],
     ['production', 'BR', 'BRL_ASAAS_LIVE'],
     ['production', 'US', 'USD_STRIPE_LIVE'],

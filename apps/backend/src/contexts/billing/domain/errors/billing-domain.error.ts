@@ -1,3 +1,4 @@
+import { GenericErrorCode } from '@ikaro/types';
 import { BillingErrorCode, PlatformErrorCode, SignupErrorCode } from '@ikaro/types/protocol/errors';
 import type { DomainErrorShape } from '../../../../shared/domain/domain-error-shape';
 
@@ -205,5 +206,32 @@ export class OperatorAuditInvariantError extends BillingDomainError {
   constructor(message: string) {
     super(message);
     this.name = 'OperatorAuditInvariantError';
+  }
+}
+
+export type SimulationRefusal =
+  | 'CHARGE_NOT_FOUND'
+  | 'NO_MATCHING_CHARGE'
+  | 'AMBIGUOUS_CHARGE'
+  | 'NOT_FAKE_PROFILE'
+  | 'NO_PROVIDER_CHARGE'
+  | 'CHARGE_STATE'
+  | 'UNKNOWN_TO_FAKE';
+
+/**
+ * Dev `simulate` (UC-138) cannot play the event: no charge matches, the charge is not in a state the
+ * event applies to, its profile is not a `*_FAKE` one, or the fake does not know it (a restarted or
+ * second instance). A `409` that delivers nothing. It reuses the generic `VALUE_INVALID` code: a
+ * dev-only route earns no catalogue or locale entry of its own.
+ */
+export class SimulationNotApplicableError extends BillingDomainError implements DomainErrorShape {
+  readonly code = GenericErrorCode.VALUE_INVALID;
+
+  constructor(
+    readonly refusal: SimulationRefusal,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'SimulationNotApplicableError';
   }
 }

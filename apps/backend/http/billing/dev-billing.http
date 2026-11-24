@@ -1,0 +1,118 @@
+# Billing — Dev provider simulate (non-production only)
+# UC-138: fire one provider event at the fake billing provider. Registered only when APP_ENV is local
+# or staging (404 in production), behind both operator keys. It works only for a charge whose
+# merchant profile is a *_FAKE key, and the fake keeps its charges in memory: after a backend restart
+# (or on a second instance) the request is a 409 until a new charge exists.
+#
+# Exactly one of tenantId / chargeId. With tenantId the charge is the tenant's single open charge
+# (PAID_*, OVERDUE) or its most recent paid charge (REFUND_*, CHARGEBACK_*).
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run dev
+#   3. a tenant with a charge at the fake provider (provision one, then POST /cron/billing-issue-charges)
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@baseUrl     = {{backendUrl}}
+@internalKey = {{$dotenv INTERNAL_API_KEY}}
+@platformKey = {{$dotenv PLATFORM_ADMIN_KEY}}
+@tenantId    = REPLACE-WITH-TENANT-UUID
+@chargeId    = REPLACE-WITH-CHARGE-UUID
+
+### Pay the tenant's open charge by Pix
+POST {{baseUrl}}/internal/dev/billing/provider/simulate
+X-Internal-Key: {{internalKey}}
+X-Platform-Admin-Key: {{platformKey}}
+Content-Type: application/json
+
+{ "tenantId": "{{tenantId}}", "event": "PAID_PIX" }
+
+###
+
+### Boleto paid, delivered twice (the second is a recognised duplicate)
+POST {{baseUrl}}/internal/dev/billing/provider/simulate
+X-Internal-Key: {{internalKey}}
+X-Platform-Admin-Key: {{platformKey}}
+Content-Type: application/json
+
+{ "chargeId": "{{chargeId}}", "event": "PAID_BOLETO", "delivery": "DUPLICATE" }
+
+###
+
+### Boleto paid, RECEIVED delivered before CONFIRMED
+POST {{baseUrl}}/internal/dev/billing/provider/simulate
+X-Internal-Key: {{internalKey}}
+X-Platform-Admin-Key: {{platformKey}}
+Content-Type: application/json
+
+{ "chargeId": "{{chargeId}}", "event": "PAID_BOLETO", "delivery": "OUT_OF_ORDER" }
+
+###
+
+### Card paid, delivered after a short in-request wait
+POST {{baseUrl}}/internal/dev/billing/provider/simulate
+X-Internal-Key: {{internalKey}}
+X-Platform-Admin-Key: {{platformKey}}
+Content-Type: application/json
+
+{ "chargeId": "{{chargeId}}", "event": "PAID_CARD", "delivery": "DELAYED" }
+
+###
+
+### Overdue (confirm-only: the status sweep, not the webhook, moves the subscription to PAST_DUE)
+POST {{baseUrl}}/internal/dev/billing/provider/simulate
+X-Internal-Key: {{internalKey}}
+X-Platform-Admin-Key: {{platformKey}}
+Content-Type: application/json
+
+{ "tenantId": "{{tenantId}}", "event": "OVERDUE" }
+
+###
+
+### Refund the tenant's most recent paid charge
+POST {{baseUrl}}/internal/dev/billing/provider/simulate
+X-Internal-Key: {{internalKey}}
+X-Platform-Admin-Key: {{platformKey}}
+Content-Type: application/json
+
+{ "tenantId": "{{tenantId}}", "event": "REFUND_FULL" }
+
+###
+
+### Dispute opened, then lost
+POST {{baseUrl}}/internal/dev/billing/provider/simulate
+X-Internal-Key: {{internalKey}}
+X-Platform-Admin-Key: {{platformKey}}
+Content-Type: application/json
+
+{ "tenantId": "{{tenantId}}", "event": "CHARGEBACK_OPENED" }
+
+###
+
+POST {{baseUrl}}/internal/dev/billing/provider/simulate
+X-Internal-Key: {{internalKey}}
+X-Platform-Admin-Key: {{platformKey}}
+Content-Type: application/json
+
+{ "tenantId": "{{tenantId}}", "event": "CHARGEBACK_LOST" }
+
+###
+
+### The next provider call fails once (here the webhook's re-read), so the payment is not applied
+POST {{baseUrl}}/internal/dev/billing/provider/simulate
+X-Internal-Key: {{internalKey}}
+X-Platform-Admin-Key: {{platformKey}}
+Content-Type: application/json
+
+{ "tenantId": "{{tenantId}}", "event": "PAID_PIX", "failure": "PROVIDER_5XX" }
+
+###
+
+### Invalid: both ids → 400; an event that does not apply or an unknown charge → 409
+POST {{baseUrl}}/internal/dev/billing/provider/simulate
+X-Internal-Key: {{internalKey}}
+X-Platform-Admin-Key: {{platformKey}}
+Content-Type: application/json
+
+{ "tenantId": "{{tenantId}}", "chargeId": "{{chargeId}}", "event": "PAID_PIX" }

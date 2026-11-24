@@ -159,7 +159,8 @@ describe('CreateTrialSubscriptionUseCase', () => {
 
       await useCase.execute(input());
 
-      expect(subscriptions.saved[0].merchantProfileKey).toBe('BRL_ASAAS_SANDBOX');
+      // Staging resolves the fake for BR until M26-S37 registers the Asaas sandbox adapter.
+      expect(subscriptions.saved[0].merchantProfileKey).toBe('BRL_FAKE');
     });
   });
 

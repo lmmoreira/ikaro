@@ -176,10 +176,10 @@ describe('validateEnv()', () => {
     );
   });
 
-  it('allows pull mode and MailHog when APP_ENV=local even if NODE_ENV=production', () => {
+  it('allows pull mode and MailHog when APP_ENV=local and NODE_ENV=development', () => {
     const result = validateEnv({
       ...valid,
-      NODE_ENV: 'production',
+      NODE_ENV: 'development',
       APP_ENV: 'local',
       PUBSUB_CONSUMER_MODE: 'pull',
       EMAIL_ADAPTER: 'mailhog',
@@ -187,6 +187,42 @@ describe('validateEnv()', () => {
     expect(result.PUBSUB_AUTO_CREATE).toBe(true);
     expect(result.PUBSUB_CONSUMER_MODE).toBe('pull');
     expect(result.EMAIL_ADAPTER).toBe('mailhog');
+  });
+
+  describe('NODE_ENV=production needs a deployed APP_ENV (M26-S13)', () => {
+    const production = { ...valid, NODE_ENV: 'production' };
+
+    it('refuses an explicit APP_ENV=local', () => {
+      expect(() => validateEnv({ ...production, APP_ENV: 'local' })).toThrow(
+        'APP_ENV must be "staging" or "production" when NODE_ENV=production',
+      );
+    });
+
+    it('refuses an APP_ENV that is not set at all (it defaults to local)', () => {
+      expect(() => validateEnv(production)).toThrow(
+        'APP_ENV must be "staging" or "production" when NODE_ENV=production',
+      );
+    });
+
+    it('boots the staging shape: NODE_ENV=production with APP_ENV=staging', () => {
+      const result = validateEnv({
+        ...production,
+        APP_ENV: 'staging',
+        PUBSUB_AUTO_CREATE: 'false',
+        PUBSUB_CONSUMER_MODE: 'push',
+        PUBSUB_PUSH_AUDIENCE: 'https://backend.internal/pubsub/push',
+        PUBSUB_PUSH_SERVICE_ACCOUNT: 'ikaro-pubsub-invoker@project.iam.gserviceaccount.com',
+        EMAIL_ADAPTER: 'brevo',
+        BREVO_SMTP_LOGIN: 'account@example.com',
+        BREVO_SMTP_KEY: 'fake-smtp-key',
+        DB_INSTANCE_CONNECTION_NAME: 'ikaro-staging:southamerica-east1:ikaro-db-staging',
+      });
+      expect(result.APP_ENV).toBe('staging');
+    });
+
+    it('does not touch NODE_ENV=development with the default APP_ENV', () => {
+      expect(validateEnv({ ...valid, NODE_ENV: 'development' }).APP_ENV).toBe('local');
+    });
   });
 
   it('accepts APP_ENV=staging with push mode and brevo', () => {

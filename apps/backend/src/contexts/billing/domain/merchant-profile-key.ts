@@ -34,8 +34,12 @@ const KEY_BY_ENV_AND_COUNTRY: Readonly<
   Record<MerchantProfileAppEnv, Readonly<Record<SupportedCountry, MerchantProfileKey>>>
 > = {
   local: { BR: MERCHANT_PROFILE_KEYS.BRL_FAKE, US: MERCHANT_PROFILE_KEYS.USD_FAKE },
+  // M26-S13: staging resolves the fake for BR until the Asaas sandbox adapter exists (M26-S37
+  // reverts this to BRL_ASAAS_SANDBOX). A key is immutable on a subscription, and until the
+  // sandbox adapter is registered a sandbox-keyed subscription can do nothing, so the dev
+  // `simulate` route needs a staging subscription that already carries a `*_FAKE` key.
   staging: {
-    BR: MERCHANT_PROFILE_KEYS.BRL_ASAAS_SANDBOX,
+    BR: MERCHANT_PROFILE_KEYS.BRL_FAKE,
     US: MERCHANT_PROFILE_KEYS.USD_STRIPE_TEST,
   },
   production: {

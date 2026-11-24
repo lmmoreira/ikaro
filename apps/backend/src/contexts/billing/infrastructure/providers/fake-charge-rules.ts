@@ -1,6 +1,10 @@
 import { DateTime } from 'luxon';
 import type { CreateProviderChargeInput } from '../../application/ports/billing-provider.port';
-import { ProviderRequestError } from '../../domain/errors/billing-provider.errors';
+import {
+  FakeScenarioNotApplicableError,
+  ProviderRequestError,
+} from '../../domain/errors/billing-provider.errors';
+import type { FakeCharge } from './fake-billing.types';
 
 const MINIMUM_CHARGE_MINOR = 500;
 const MAX_EXTERNAL_REFERENCE_LENGTH = 100;
@@ -42,4 +46,17 @@ export function assertValidNewCharge(
   }
   assertValidAmount(input.lines);
   assertValidDueDate(input.dueDate, today);
+}
+
+/** A scenario control the charge's current state does not allow (a refund of an unpaid charge). */
+export function assertChargeState(
+  charge: FakeCharge,
+  allowed: FakeCharge['state'][],
+  action: string,
+): void {
+  if (!allowed.includes(charge.state)) {
+    throw new FakeScenarioNotApplicableError(
+      `The fake cannot ${action} charge ${charge.id} while it is ${charge.state}`,
+    );
+  }
 }

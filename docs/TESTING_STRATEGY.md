@@ -864,7 +864,7 @@ describe('RescheduleBookingUseCase', () => {
 
 ## Testing the billing provider — fake, sandbox, contract suite and clock *(partly built, Billing milestone)*
 
-> **PARTLY BUILT.** Under `contexts/billing` the schema migration, the price-list, `Subscription` and `BillingAccount` aggregates and repositories, the injectable clock, and (M25-S14) the `BillingProviderPort`, `FakeBillingProvider`, `BillingProviderRegistry` and the contract suite exist. The sandbox leg of the suite, the simulate endpoint and the Asaas adapter do not (M26); this is the strategy the Billing stories implement (use cases UC-113–UC-116 and UC-138–UC-140 in `docs/USE_CASES.md`). The writing-time traps are in `docs/ENGINEERING_RULES_TESTING.md` § Billing provider tests.
+> **PARTLY BUILT.** Under `contexts/billing` the schema migration, the price-list, `Subscription` and `BillingAccount` aggregates and repositories, the injectable clock, and (M25-S14) the `BillingProviderPort`, `FakeBillingProvider`, `BillingProviderRegistry` and the contract suite exist. The simulate endpoint exists (M26-S13); the sandbox leg of the suite and the Asaas adapter do not (M26); this is the strategy the Billing stories implement (use cases UC-113–UC-116 and UC-138–UC-140 in `docs/USE_CASES.md`). The writing-time traps are in `docs/ENGINEERING_RULES_TESTING.md` § Billing provider tests.
 
 `exempt` is **not** the testing mechanism — it switches charging off. In every non-production environment **every tenant is charged normally** against a fake or sandbox gateway, and the provider is chosen **per environment**, never per tenant (the immutable `merchant_profile_key` given to new subscriptions).
 
