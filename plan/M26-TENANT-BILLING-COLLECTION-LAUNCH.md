@@ -1063,7 +1063,7 @@ A unit test asserts this table against the mapping (17 rows, each `eventName` an
 
 ---
 
-### M26-S12 — Billing email handlers (UC-124)
+### M26-S12 — Billing email handlers (UC-124) ✅ Done
 
 **Agent:** `backend-ts + devops`
 **Complexity:** L
