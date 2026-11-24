@@ -5,6 +5,7 @@ import {
   utcDateToLocalHHMM,
 } from '../../../../shared/utils/calendar-date';
 import { escapeHtml } from '../../../../shared/utils/escape-html';
+import { formatMoney } from '../../../../shared/utils/money-format';
 
 // How every notification email writes dates, times and user-typed text (M23-S37). One module so
 // the use cases never carry their own copy of a format and never print a raw `YYYY-MM-DD` or ISO
@@ -97,4 +98,16 @@ export function labelledLine(label: string, value: string | null | undefined): s
 // A sentence from the label catalog as a paragraph body: escaped.
 export function sentence(text: string): string {
   return escapeHtml(text);
+}
+
+// A money amount in minor units (centavos, cents) → the currency's own format in the recipient's
+// locale. The number of decimals comes from Intl for the currency (BRL 2, JPY 0), never a fixed 100.
+export function formatEmailMinorMoney(
+  amountMinor: number,
+  currency: string,
+  locale: string,
+): string {
+  const decimals = new Intl.NumberFormat(locale, { style: 'currency', currency }).resolvedOptions()
+    .maximumFractionDigits as number;
+  return formatMoney(amountMinor / 10 ** decimals, locale, currency, decimals);
 }

@@ -82,6 +82,24 @@ import { AvailabilityAlertMatchedNotificationHandler } from './infrastructure/ev
 import { AVAILABILITY_ALERT_OUTCOME_PORT } from './application/ports/availability-alert-outcome.port';
 import { NotificationAvailabilityAlertOutcomeAdapter } from './infrastructure/cross-context/notification-availability-alert-outcome.adapter';
 import { DeadLetterHandler } from './infrastructure/events/dead-letter.handler';
+import { SendChargeIssuedNotificationUseCase } from './application/use-cases/send-charge-issued-notification/send-charge-issued-notification.use-case';
+import { ChargeIssuedNotificationHandler } from './infrastructure/events/charge-issued-notification.handler';
+import { SendChargePaidNotificationUseCase } from './application/use-cases/send-charge-paid-notification/send-charge-paid-notification.use-case';
+import { ChargePaidNotificationHandler } from './infrastructure/events/charge-paid-notification.handler';
+import { SendSubscriptionPastDueNotificationUseCase } from './application/use-cases/send-subscription-past-due-notification/send-subscription-past-due-notification.use-case';
+import { SubscriptionPastDueNotificationHandler } from './infrastructure/events/subscription-past-due-notification.handler';
+import { SendSubscriptionSuspendedNotificationUseCase } from './application/use-cases/send-subscription-suspended-notification/send-subscription-suspended-notification.use-case';
+import { SubscriptionSuspendedNotificationHandler } from './infrastructure/events/subscription-suspended-notification.handler';
+import { SendSubscriptionReactivatedNotificationUseCase } from './application/use-cases/send-subscription-reactivated-notification/send-subscription-reactivated-notification.use-case';
+import { SubscriptionReactivatedNotificationHandler } from './infrastructure/events/subscription-reactivated-notification.handler';
+import { SendSubscriptionCancelledNotificationUseCase } from './application/use-cases/send-subscription-cancelled-notification/send-subscription-cancelled-notification.use-case';
+import { SubscriptionCancelledNotificationHandler } from './infrastructure/events/subscription-cancelled-notification.handler';
+import { SendPlanChangedNotificationUseCase } from './application/use-cases/send-plan-changed-notification/send-plan-changed-notification.use-case';
+import { PlanChangedNotificationHandler } from './infrastructure/events/plan-changed-notification.handler';
+import { SendBillingReminderNotificationUseCase } from './application/use-cases/send-billing-reminder-notification/send-billing-reminder-notification.use-case';
+import { BillingReminderNotificationHandler } from './infrastructure/events/billing-reminder-notification.handler';
+import { SendPriceChangeAnnouncedNotificationUseCase } from './application/use-cases/send-price-change-announced-notification/send-price-change-announced-notification.use-case';
+import { PriceChangeAnnouncedNotificationHandler } from './infrastructure/events/price-change-announced-notification.handler';
 
 @Module({
   imports: [
@@ -150,6 +168,15 @@ import { DeadLetterHandler } from './infrastructure/events/dead-letter.handler';
     SendRecurringScheduleRenewalNotificationUseCase,
     SendAvailabilityAlertMatchedEmailService,
     SendAvailabilityAlertMatchedNotificationUseCase,
+    SendChargeIssuedNotificationUseCase,
+    SendChargePaidNotificationUseCase,
+    SendSubscriptionPastDueNotificationUseCase,
+    SendSubscriptionSuspendedNotificationUseCase,
+    SendSubscriptionReactivatedNotificationUseCase,
+    SendSubscriptionCancelledNotificationUseCase,
+    SendPlanChangedNotificationUseCase,
+    SendBillingReminderNotificationUseCase,
+    SendPriceChangeAnnouncedNotificationUseCase,
     StaffInvitedHandler,
     BookingRequestedHandler,
     BookingApprovedHandler,
@@ -173,6 +200,15 @@ import { DeadLetterHandler } from './infrastructure/events/dead-letter.handler';
     RecurringScheduleRenewalNotificationHandler,
     AvailabilityAlertMatchedNotificationHandler,
     DeadLetterHandler,
+    ChargeIssuedNotificationHandler,
+    ChargePaidNotificationHandler,
+    SubscriptionPastDueNotificationHandler,
+    SubscriptionSuspendedNotificationHandler,
+    SubscriptionReactivatedNotificationHandler,
+    SubscriptionCancelledNotificationHandler,
+    PlanChangedNotificationHandler,
+    BillingReminderNotificationHandler,
+    PriceChangeAnnouncedNotificationHandler,
   ],
 })
 export class NotificationModule {}

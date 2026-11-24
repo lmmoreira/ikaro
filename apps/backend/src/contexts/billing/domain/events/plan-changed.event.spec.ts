@@ -22,6 +22,7 @@ describe('PlanChanged', () => {
 
     expect(Object.keys(data).sort()).toEqual([
       'added',
+      'currency',
       'cycle',
       'effectiveFrom',
       'newTotalMinor',

@@ -51,7 +51,16 @@ describe('Tenant unavailable notice, end to end (M25-S28)', () => {
   let bookingRepo: IBookingRepository;
   const dispatcher = new InMemoryNotificationDispatcher();
 
-  const recipients = (): string[] => dispatcher.dispatched.map((m) => m.to).sort();
+  // Only the customer notices: a SubscriptionSuspended also reaches Billing's manager email (UC-124),
+  // which shares this dispatcher and has its own spec.
+  const customerNotices = (): typeof dispatcher.dispatched =>
+    dispatcher.dispatched.filter(
+      (m) => m.notificationType === NotificationTemplateKey.TENANT_UNAVAILABLE_CUSTOMER,
+    );
+  const recipients = (): string[] =>
+    customerNotices()
+      .map((m) => m.to)
+      .sort();
 
   const suspensionEvent = () =>
     new SubscriptionSuspendedEventBuilder().withTenantId(TENANT).build();
@@ -179,8 +188,8 @@ describe('Tenant unavailable notice, end to end (M25-S28)', () => {
     await bus.publish(suspensionEvent());
 
     expect(recipients()).toEqual(['dois@example.com', 'um@example.com']);
-    expect(dispatcher.dispatched[0].body).toContain('temporariamente indisponível');
-    expect(dispatcher.dispatched[0].body).not.toContain('{{');
+    expect(customerNotices()[0].body).toContain('temporariamente indisponível');
+    expect(customerNotices()[0].body).not.toContain('{{');
   });
 
   it('emails nobody else: not the guest, the pending customer or another tenant customer', async () => {
@@ -188,7 +197,7 @@ describe('Tenant unavailable notice, end to end (M25-S28)', () => {
 
     expect(recipients()).not.toContain('pendente@example.com');
     expect(recipients()).not.toContain('outro@example.com');
-    expect(dispatcher.dispatched).toHaveLength(2);
+    expect(customerNotices()).toHaveLength(2);
     expect(await commandKeys()).toHaveLength(2);
   });
 

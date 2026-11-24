@@ -37,6 +37,12 @@
     ]
   },
   {
+    "event": "BillingReminderDue",
+    "consumers": [
+      "send-billing-reminder-notification"
+    ]
+  },
+  {
     "event": "BookingApproved",
     "consumers": [
       "audit-log",
@@ -124,13 +130,15 @@
   {
     "event": "ChargeIssued",
     "consumers": [
-      "audit-log"
+      "audit-log",
+      "send-charge-issued-notification"
     ]
   },
   {
     "event": "ChargePaid",
     "consumers": [
-      "audit-log"
+      "audit-log",
+      "send-charge-paid-notification"
     ]
   },
   {
@@ -160,7 +168,8 @@
   {
     "event": "PlanChanged",
     "consumers": [
-      "audit-log"
+      "audit-log",
+      "send-plan-changed-notification"
     ]
   },
   {
@@ -240,26 +249,30 @@
   {
     "event": "SubscriptionCancelled",
     "consumers": [
-      "audit-log"
+      "audit-log",
+      "send-subscription-cancelled-notification"
     ]
   },
   {
     "event": "SubscriptionPastDue",
     "consumers": [
-      "audit-log"
+      "audit-log",
+      "send-subscription-past-due-notification"
     ]
   },
   {
     "event": "SubscriptionPriceChangeAnnounced",
     "consumers": [
-      "audit-log"
+      "audit-log",
+      "send-price-change-announced-notification"
     ]
   },
   {
     "event": "SubscriptionReactivated",
     "consumers": [
       "audit-log",
-      "revalidate-hotsite-on-reactivation"
+      "revalidate-hotsite-on-reactivation",
+      "send-subscription-reactivated-notification"
     ]
   },
   {
@@ -267,7 +280,8 @@
     "consumers": [
       "audit-log",
       "fan-out-tenant-unavailable-notice",
-      "revalidate-hotsite-on-suspension"
+      "revalidate-hotsite-on-suspension",
+      "send-subscription-suspended-notification"
     ]
   },
   {

@@ -799,37 +799,37 @@ Ikaro charging its tenants (`docs/DOMAIN_MODEL.md` § Billing Context, `docs/USE
 #### **ChargeIssued**
 - **Trigger:** the issue job (UC-113), the recovery issue on suspension, "Reativar assinatura" (UC-134), a plan-change re-issue (UC-136), an annual add-on (UC-145, slice H), or a provider-generated charge mirrored from the webhook (UC-143, slice F2) — **only after** the provider call succeeds (`provider_creation_status = READY`)
 - **Data:** `chargeId`, `kind` (`PERIOD` | `RECOVERY` | `ADDON`), `dueDate`, `amountMinor`, `currency`, `paymentUrl`, `recipientEmail?`
-- **Consumers:** Notification (invoice email); `audit-log`
+- **Consumers:** Notification (invoice email; consumer `send-charge-issued-notification`); `audit-log`
 
 #### **ChargePaid**
 - **Trigger:** the first of the provider's paid signals for a charge (webhook, reconcile or on-demand refresh; UC-114)
 - **Data:** `chargeId`, `amountMinor`, `currency`, `method` (`CARD` | `PIX` | `BOLETO`; `null` only when the provider reported none for a paid charge), `paidAt`, `receiptUrl?`, `recipientEmail?` *(built, M26-S04: raised once by `Charge.markPaid`, so a repeated paid signal raises none, and drained into the outbox by the charge repository in the transaction of the write)*
-- **Consumers:** Notification (receipt); `audit-log`
+- **Consumers:** Notification (receipt; consumer `send-charge-paid-notification`); `audit-log`
 
 #### **SubscriptionPastDue**
 - **Trigger:** a `PERIOD` charge of an `ACTIVE` subscription went `OVERDUE` (status sweep, UC-115) *(built, M26-S06: raised by `Subscription.markPastDue`; `suspendsAt` is the end of the grace, the operator's `graceUntil` when one is set)*
 - **Data:** `subscriptionId`, `pastDueSince`, `suspendsAt`, `recipientEmail?`
-- **Consumers:** Notification (dunning); `audit-log`
+- **Consumers:** Notification (dunning; consumer `send-subscription-past-due-notification`); `audit-log`
 
 #### **SubscriptionSuspended**
 - **Trigger:** the sweep (`NON_PAYMENT`, `CANCELED`), a full refund/lost chargeback (`PAYMENT_REVERSED`), an immediate cancel, a deactivated tenant (UC-142: reason `CANCELED`, raised together with `SubscriptionCancelled`), or the operator (`OPERATOR`; never for an `exempt` tenant, `BILLING_EXEMPT_PROTECTED`). *Built in M25-S15b for the operator path: raised by the aggregate when it becomes `SUSPENDED` and drained into the outbox by the subscription repository, in the transaction of the state change. An operator suspend of a tenant already suspended, for any reason, changes nothing: no reason change, no audit row, no event.*
 - **Data:** `subscriptionId`, `reason` (`NON_PAYMENT` | `CANCELED` | `PAYMENT_REVERSED` | `OPERATOR`), `suspendedAt`, `purgeAt` `recipientEmail?` (added in M26-S03; `null` when unset or for an exempt subscription)
-- **Consumers:** Notification (the billing email — suppressed for reason `CANCELED`, where the `SubscriptionCancelled` email is the one manager email —); Booking (consumer `fan-out-tenant-unavailable-notice`, built in M25-S28: for the reasons `OPERATOR` / `NON_PAYMENT` / `PAYMENT_REVERSED` only, it publishes one `TenantUnavailableNoticeDue` command per logged-in customer with an approved booking still ahead, which Notification turns into one reason-neutral email each; declared `skipWhenSuspended: false`); hotsite revalidation (Platform, consumer `revalidate-hotsite-on-suspension`, `IFrontendRevalidationPort.revalidate(slug)`, built in M25-S25: best effort, never throws into the bus, declared `skipWhenSuspended: false`); `audit-log` (the access cache is not an event consumer: the use case that changes the state invalidates it best-effort after commit, on its own instance)
+- **Consumers:** Notification (consumer `send-subscription-suspended-notification`, built in M26-S12: the billing email — suppressed for reason `CANCELED`, where the `SubscriptionCancelled` email is the one manager email —); Booking (consumer `fan-out-tenant-unavailable-notice`, built in M25-S28: for the reasons `OPERATOR` / `NON_PAYMENT` / `PAYMENT_REVERSED` only, it publishes one `TenantUnavailableNoticeDue` command per logged-in customer with an approved booking still ahead, which Notification turns into one reason-neutral email each; declared `skipWhenSuspended: false`); hotsite revalidation (Platform, consumer `revalidate-hotsite-on-suspension`, `IFrontendRevalidationPort.revalidate(slug)`, built in M25-S25: best effort, never throws into the bus, declared `skipWhenSuspended: false`); `audit-log` (the access cache is not an event consumer: the use case that changes the state invalidates it best-effort after commit, on its own instance)
 
 #### **SubscriptionReactivated**
 - **Trigger:** a recovery charge was paid, an `exempt` flag was set on a suspended tenant, or an `OPERATOR` suspension was lifted (`unsuspend`). *Built in M25-S15b for the operator paths (`unsuspend` and setting `exempt` on a suspended tenant); its consumers so far are `audit-log` (`BillingAuditLogHandler`) and, since M25-S25, Platform's hotsite revalidation (`revalidate-hotsite-on-reactivation`); the other reactions are planned below.*
 - **Data:** `subscriptionId`, `reactivatedAt`, `suspendedAt` (the start of the suspension being closed; lets a consumer pair the reactivation with its suspension without reading Billing); `recipientEmail?` (added in M26-S03); `exempt` (boolean, added in M26-S03: `true` only when the reactivation is the operator making the tenant exempt, UC-137 A3)
-- **Consumers:** Notification (skips the email when `exempt` is `true`: an exempt tenant is never emailed about billing, and a `null` `recipientEmail` alone means "no billing email set", which falls back to the managers); hotsite revalidation (Platform, consumer `revalidate-hotsite-on-reactivation`, built in M25-S25, same use case and rules); `audit-log` (the access cache is invalidated by the state-changing use case, not by a consumer)
+- **Consumers:** Notification (consumer `send-subscription-reactivated-notification`, built in M26-S12; skips the email and writes no log row when `exempt` is `true`: an exempt tenant is never emailed about billing, and a `null` `recipientEmail` alone means "no billing email set", which falls back to the managers); hotsite revalidation (Platform, consumer `revalidate-hotsite-on-reactivation`, built in M25-S25, same use case and rules); `audit-log` (the access cache is invalidated by the state-changing use case, not by a consumer)
 
 #### **SubscriptionCancelled**
 - **Trigger:** the manager cancels (UC-133), or a deactivated tenant is cancelled (UC-142, which also raises `SubscriptionSuspended` with reason `CANCELED`)
 - **Data:** `subscriptionId`, `cancelAt`, `immediate`, `recipientEmail?`
-- **Consumers:** Notification (to the billing email, else all managers); `audit-log`
+- **Consumers:** Notification (to the billing email, else all managers; consumer `send-subscription-cancelled-notification`); `audit-log`
 
 #### **PlanChanged**
 - **Trigger:** the manager saves a plan (UC-136), switches cycle (UC-144, slice H) or adds an annual add-on (UC-145, slice H)
-- **Data:** `subscriptionId`, `recipientEmail?`, `effectiveFrom` (`null` for a selection saved while suspended: it takes effect at the reactivation payment, UC-136 A14), `cycle`, `nextCycle?`, `nextCycleFrom?` *(slice H)*, `newTotalMinor` (total in the chosen cycle), `added[]`, `removed[]`
-- **Consumers:** Notification (to the billing email); `audit-log`
+- **Data:** `subscriptionId`, `recipientEmail?`, `effectiveFrom` (`null` for a selection saved while suspended: it takes effect at the reactivation payment, UC-136 A14), `cycle`, `nextCycle?`, `nextCycleFrom?` *(slice H)*, `newTotalMinor` (total in the chosen cycle), `currency` (of `newTotalMinor`, so the email formats it from event data alone; M26-S12), `added[]`, `removed[]`
+- **Consumers:** Notification (to the billing email, else the managers; consumer `send-plan-changed-notification`); `audit-log`
 
 #### **BillingReminderDue** *(a Command — see the note below the Billing events; not an audited domain event)*
 - **Trigger:** the daily reminders job (UC-139), once per milestone, deduped by `(subscription, kind, daysOffset, chargeId)`
@@ -845,12 +845,12 @@ Ikaro charging its tenants (`docs/DOMAIN_MODEL.md` § Billing Context, `docs/USE
   | `RECOVERY_CHARGE_OPEN` | 3, 8, 14 | days **since issue** (issue date = due date − 7; 8 and 14 are the "1 and 7 days after due") | the charge | `dueDate`, `amountMinor`, `currency`, `paymentUrl?` |
 
   The trial kinds carry no `chargeId` so a retried run after the first invoice appeared cannot mint a second key for the same milestone. They are keyed on the local trial end date instead (the `dedup_key` tail is `chargeId`, else `trialEndsOn`, else `none`), so a second trial on the same subscription (exempt, then cleared, which keeps the subscription id) is reminded again under its own keys while a retry inside one trial still collapses.
-- **Consumers:** Notification (dunning email; one template key per kind). **Freshness is Billing's job:** Billing re-checks "charge still open" and "tenant not exempt" immediately before writing the outbox row; Notification does no re-check and has no read port into Billing. A small stale window is accepted and the copy is tolerant
+- **Consumers:** Notification (consumer `send-billing-reminder-notification`, built in M26-S12, which also creates the topic: dunning email, one template key per kind). **Freshness is Billing's job:** Billing re-checks "charge still open" and "tenant not exempt" immediately before writing the outbox row; Notification does no re-check and has no read port into Billing. A small stale window is accepted and the copy is tolerant
 
 #### **SubscriptionPriceChangeAnnounced**
 - **Trigger:** the operator schedules a list-price change (UC-112). **One event per affected tenant per adjustment** (the envelope requires a `tenantId`, so a platform-wide change fans out per tenant); a tenant with five changed features gets one email
 - **Data:** `changes[]` (`featureKey`, `tier`, `cycle`, `oldAmountMinor`, `newAmountMinor`) limited to the features this tenant actually has, `currency`, `effectiveFrom`, `firstAffectedDueDate`, `newMonthlyTotalMinor` (or the annual total), `batchId?`, `recipientEmail?`
-- **Consumers:** Notification (to managers); `audit-log`
+- **Consumers:** Notification (to the billing email, else the managers; consumer `send-price-change-announced-notification`); `audit-log`
 
 #### **TenantPurgeWarning**
 - **Trigger:** the purge job at 30 and 7 days before the clean-up deadline (UC-132, slice G); deduped by `purge_warning_30_sent_at` / `purge_warning_7_sent_at`, cleared on reactivation

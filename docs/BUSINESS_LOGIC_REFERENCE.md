@@ -1068,6 +1068,21 @@ flowchart TD
 
 ---
 
+## Billing — Manager emails: recipients, template keys and the suspended-tenant rule (M26-S12)
+
+UC-124. Code: nine `Send<Event>NotificationUseCase` classes over `BaseBillingNotificationUseCase` (`notification/application/use-cases/`) and nine handlers (`notification/infrastructure/events/<event>-notification.handler.ts`, consumer `send-<event-kebab>-notification`), one per event of `ChargeIssued`, `ChargePaid`, `SubscriptionPastDue`, `SubscriptionSuspended`, `SubscriptionReactivated`, `SubscriptionCancelled`, `PlanChanged`, `BillingReminderDue` and `SubscriptionPriceChangeAnnounced`. Notification reads no Billing data: every value in the email is in the event.
+
+- **Recipient:** the event's `recipientEmail` when set, else the tenant's managers (`INotificationStaffPort.getManagerEmails`); neither: nothing is sent (a `warn` log). A missing tenant, a missing platform template or an event field the kind needs throws, so the message is nacked and ends in the dead-letter topic; a blank email is never sent.
+- **Template:** `findPlatformTemplate(key, tenantLocale)` (S11), then the text from `notifications.json` by `eventName.recipientType`. A missing row logs `event: "billing_template_missing"` (the field S36 alerts on) and rethrows.
+- **Key by event data:** `ChargeIssued.kind` (`PERIOD` or `RECOVERY`), `SubscriptionCancelled.immediate`, `BillingReminderDue.kind` (five keys) and `SubscriptionSuspended.reason`: `NON_PAYMENT` and `PAYMENT_REVERSED` share the pay-one-month key, `OPERATOR` has its own key with no link, and `CANCELED` sends nothing (the cancellation email is the manager's one email).
+- **Exempt:** a `SubscriptionReactivated` with `exempt = true` sends nothing and writes no log row; Billing never publishes the other eight for an exempt subscription.
+- **Suspended tenants:** all nine subscriptions declare `skipWhenSuspended: false`, so a suspended tenant still gets its suspension and recovery-charge emails. The `SubscriptionSuspended` consumers are independent: this one, Booking's `fan-out-tenant-unavailable-notice` (customers) and Platform's hotsite revalidation.
+- **Formats:** money from minor units with the currency's own decimals (`formatEmailMinorMoney`); calendar dates (`dueDate`, `trialEndsOn`) through the tenant's date format with no timezone shift; UTC instants (`paidAt`, `cancelAt`, `purgeAt`, `suspendsAt`) as the tenant-local day. The price-change rows use the `billingFeatures` labels (raw key when unlabelled).
+- **Copy decisions:** the five charge keys end with "Se você já pagou, desconsidere este aviso" (Billing's freshness check is at publish time, a small stale window is accepted); `PLAN_CHANGED` states no date; `CHARGE_OVERDUE` says the subscription may be suspended and states no date (the date is in the `SubscriptionPastDue` email); `CHARGE_PAID` has no receipt link.
+- **Operations:** the subscriptions and their DLQs come from `pubsub-catalog.json` through the Foundation apply (`BillingReminderDue`'s topic is created by its consumer); staging's `cron-billing-reminders` is un-paused by the same PR, production stays paused until the launch story.
+
+---
+
 ## Other bounded contexts
 
 Billing has the section above for its M25 (operator-driven) part; the rest of Billing arrives with M26. The other contexts are not yet written as sections in this doc. **Loyalty is not logic-free** — points earning and redemption on `BookingCompleted` (the section above), the expiry cron, the weekly expiring-points warning and manual redemption are implemented; until a section is written here, read them from `docs/BOUNDED_CONTEXTS.md` § 2. Loyalty Context, `docs/DOMAIN_MODEL.md` § Loyalty Context (and § Expiration window), `docs/USE_CASES.md` UC-009 / UC-016 / UC-016b, and the code under `apps/backend/src/contexts/loyalty/`. Likewise there is no booking status-machine section here: the transition table is CLAUDE.md §5 / `.copilot/context.md` §5 and the aggregate (`booking-status-transition.ts`). Platform has one section above (the hotsite template catalogue); add another here the next time a story in Customer, Staff, Loyalty, Notification, or Platform introduces business logic complex enough to earn one — see this doc's own header for the "incremental, not upfront" rule, and `/story-discovery`'s checklist item that flags the decision at discovery time.

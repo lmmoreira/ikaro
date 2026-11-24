@@ -15,6 +15,8 @@ interface PlanChangedData extends Record<string, unknown> {
   cycle: SubscriptionCycle;
   /** The total in the chosen cycle. */
   newTotalMinor: number;
+  /** The currency of `newTotalMinor`: Notification reads only event data, so the email can format it. */
+  currency: string;
   added: PlanChangedItem[];
   removed: PlanChangedItem[];
 }

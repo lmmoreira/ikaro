@@ -8,6 +8,13 @@
     "notes": "Notas",
     "emptyState": "Nenhum agendamento para hoje"
   },
+  "billingFeatures": {
+    "HOTSITE": "Site público",
+    "BOOKING": "Agendamento online",
+    "LOYALTY": "Programa de fidelidade",
+    "CHATBOT": "Assistente virtual",
+    "LEAD_FORM": "Formulário de contato"
+  },
   "managerEmailLines": {
     "cancelledByCustomer": "Cancelado pelo cliente.",
     "cancelledByBusiness": "Cancelado pelo estabelecimento.",

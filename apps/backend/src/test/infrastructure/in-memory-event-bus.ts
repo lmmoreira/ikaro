@@ -1,5 +1,5 @@
 import { Envelope } from '../../shared/domain/envelope';
-import { IEventBus } from '../../shared/ports/event-bus.port';
+import { IEventBus, SubscribeOptions } from '../../shared/ports/event-bus.port';
 import { IOutboxPublisher } from '../../shared/ports/outbox-publisher.port';
 import { IPushableEventBus } from '../../shared/ports/pushable-event-bus.port';
 import { ITriggerBus } from '../../shared/ports/trigger-bus.port';
@@ -22,6 +22,7 @@ export interface RecordedSubscription {
   eventName: string;
   handler: (event: Envelope) => Promise<void>;
   consumerName: string;
+  options?: SubscribeOptions;
 }
 
 // Also bound to OUTBOX_PUBLISHER in some integration-app helpers (TD24-S02) — no deferral logic
@@ -75,11 +76,13 @@ export class InMemoryEventBus
     eventName: string,
     handler: (event: T) => Promise<void>,
     consumerName: string,
+    options?: SubscribeOptions,
   ): void {
     this.subscriptions.push({
       eventName,
       handler: handler as (event: Envelope) => Promise<void>,
       consumerName,
+      options,
     });
   }
 
