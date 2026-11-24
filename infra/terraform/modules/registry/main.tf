@@ -50,17 +50,20 @@ resource "google_artifact_registry_repository" "ikaro" {
   # until it ages out of this top-N-by-recency window — accepted, bounded
   # edge case, not indefinite retention.
   #
-  # keep_count = 30, not 5 (cross-tool review finding, 2026-07-23): staging
+  # keep_count = 10 (lowered from 30, 2026-11-24, after the staging budget
+  # alert: the repo had grown to ~15 GB, about R$8/month, because images
+  # average ~160 MB per version across 5 packages; there is no prod traffic
+  # yet, so the deep rollback floor buys little). It was raised from 5 to 30
+  # on 2026-07-23 (cross-tool review finding): staging
   # pushes a new tagged version on every merge touching apps/**,
   # packages/**, or the lockfile (deploy-staging.yml's trigger — broad,
   # frequent for a trunk-based repo), independent of how often prod is
-  # actually promoted. At keep_count=5, as few as 5 staging merges after a
-  # promote could evict the exact image M17-S26's "thorough" rollback path
+  # actually promoted. At a small keep_count, as few staging merges after a
+  # promote as that count could evict the exact image M17-S26's "thorough" rollback path
   # (re-run deploy-production.yml with the previous SHA) needs — the
   # workflow's own GAR-existence check would then fail with "image not
-  # found." 30 gives real headroom for that gap without meaningful cost
-  # (small container images, GAR storage is fractions of a cent per
-  # version). Not a hard guarantee — docs/RUNBOOKS.md's rollback section
+  # found." 10 is a thinner margin than 30 was: revisit (raise it, or slim
+  # the images first) before real prod traffic starts. Not a hard guarantee — docs/RUNBOOKS.md's rollback section
   # documents falling back to rollback-production.yml's traffic-shift path
   # if this is ever exhausted, since that path works off already-deployed
   # Cloud Run revisions and doesn't depend on registry retention at all.
@@ -69,7 +72,7 @@ resource "google_artifact_registry_repository" "ikaro" {
     action = "KEEP"
 
     most_recent_versions {
-      keep_count = 30
+      keep_count = 10
     }
   }
 }

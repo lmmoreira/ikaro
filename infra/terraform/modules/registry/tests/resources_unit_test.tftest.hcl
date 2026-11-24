@@ -54,8 +54,8 @@ run "cleanup_policies_match_retention_rules" {
   assert {
     condition = anytrue([
       for p in google_artifact_registry_repository.ikaro.cleanup_policies :
-      p.action == "KEEP" && one(p.most_recent_versions).keep_count == 30
+      p.action == "KEEP" && one(p.most_recent_versions).keep_count == 10
     ])
-    error_message = "The 30 most recent versions per image must always be exempted from deletion (rollback safety floor — M17-S26 review finding, 2026-07-23: 5 was too tight against staging's per-merge push frequency)."
+    error_message = "The 10 most recent versions per image must always be exempted from deletion (rollback safety floor — lowered from 30 on 2026-11-24 for registry storage cost; 5 was judged too tight against staging's per-merge push frequency in the M17-S26 review, 2026-07-23)."
   }
 }
