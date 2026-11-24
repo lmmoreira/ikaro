@@ -10,7 +10,7 @@ resource "google_artifact_registry_repository" "ikaro" {
   format        = "DOCKER"
   labels        = var.labels
 
-  # Tagged versions older than 7 days are deleted UNLESS they fall inside
+  # Tagged versions older than 3 days are deleted UNLESS they fall inside
   # the keep-recent-versions floor below — a KEEP policy only ever exempts
   # versions from a DELETE policy, it never deletes anything by itself, so
   # this DELETE policy is what actually bounds tagged-image growth (a
@@ -18,13 +18,19 @@ resource "google_artifact_registry_repository" "ikaro" {
   # against the google_artifact_registry_repository provider schema and
   # https://cloud.google.com/artifact-registry/docs/repositories/cleanup-policy-overview,
   # 2026-07-18 discovery).
+  #
+  # 3 days, not 7 (2026-11-24): a version younger than this window is never
+  # deleted, whatever keep_count says. At 7 days, staging's several merges
+  # a day left 13-19 versions per package protected by age alone, so the
+  # keep floor below never became the real limit. At 3 days only ~8-10 are
+  # protected by age, so the floor is what bounds retention.
   cleanup_policies {
     id     = "delete-old-tagged"
     action = "DELETE"
 
     condition {
       tag_state  = "TAGGED"
-      older_than = "604800s" # 7 days
+      older_than = "259200s" # 3 days
     }
   }
 

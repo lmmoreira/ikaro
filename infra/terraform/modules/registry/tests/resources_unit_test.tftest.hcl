@@ -46,9 +46,9 @@ run "cleanup_policies_match_retention_rules" {
   assert {
     condition = anytrue([
       for p in google_artifact_registry_repository.ikaro.cleanup_policies :
-      p.action == "DELETE" && one(p.condition).tag_state == "TAGGED" && one(p.condition).older_than == "604800s"
+      p.action == "DELETE" && one(p.condition).tag_state == "TAGGED" && one(p.condition).older_than == "259200s"
     ])
-    error_message = "Tagged versions must also have a DELETE policy after 7 days — a KEEP policy alone never deletes anything, so without this, every tagged version would be retained forever."
+    error_message = "Tagged versions must also have a DELETE policy after 3 days (259200s) — a KEEP policy alone never deletes anything, so without this, every tagged version would be retained forever."
   }
 
   assert {
