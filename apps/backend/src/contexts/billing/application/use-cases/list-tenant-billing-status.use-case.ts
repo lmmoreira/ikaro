@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { CLOCK, type IClock } from '../../../../shared/ports/clock.port';
 import { daysBetweenUTC, todayInTimezone } from '../../../../shared/utils/calendar-date';
 import type { SubscriptionStatus, SuspensionReason } from '../../domain/subscription.types';
+import { iso } from '../helpers/billing-summary.helper';
 import {
   CHARGE_REPOSITORY,
   type IChargeRepository,
@@ -42,8 +43,6 @@ export interface ListTenantBillingStatusUseCaseResult {
   items: TenantBillingStatusItem[];
   pagination: { limit: number; offset: number; total: number; hasMore: boolean };
 }
-
-const iso = (date: Date | null): string | null => date?.toISOString() ?? null;
 
 function toItem(
   row: OperatorSubscriptionSummary,

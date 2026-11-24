@@ -14,6 +14,7 @@ import {
   ListBillingChargesUseCase,
   ListBillingChargesUseCaseResult,
 } from '../../application/use-cases/list-billing-charges.use-case';
+import { mapBillingError } from '../http/billing-error.mapper';
 
 // The manager's billing page reads (UC-117). The tenant is the caller's own, from `RequestContext`
 // (never a parameter). No feature owns billing (`@NoFeatureGate()`), and a suspended manager must
@@ -33,7 +34,9 @@ export class BillingController {
   @Get('summary')
   @HttpCode(HttpStatus.OK)
   summary(): Promise<GetBillingSummaryUseCaseResult> {
-    return this.getSummary.execute({ tenantId: this.requestContext.tenantId });
+    return this.getSummary
+      .execute({ tenantId: this.requestContext.tenantId })
+      .catch(mapBillingError);
   }
 
   @Get('charges')
@@ -41,6 +44,8 @@ export class BillingController {
   charges(
     @Query(new ZodValidationPipe(ListBillingChargesSchema)) query: ListBillingChargesDto,
   ): Promise<ListBillingChargesUseCaseResult> {
-    return this.listCharges.execute({ tenantId: this.requestContext.tenantId, ...query });
+    return this.listCharges
+      .execute({ tenantId: this.requestContext.tenantId, ...query })
+      .catch(mapBillingError);
   }
 }
