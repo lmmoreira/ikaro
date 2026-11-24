@@ -17,6 +17,7 @@ import { SubscriptionEntity } from '../../contexts/billing/infrastructure/entiti
 import { BillingModule } from '../../contexts/billing/billing.module';
 import { HotsiteConfigEntity } from '../../contexts/platform/infrastructure/entities/hotsite-config.entity';
 import { TenantEntity } from '../../contexts/platform/infrastructure/entities/tenant.entity';
+import { DevBillingModule } from '../../contexts/billing/infrastructure/dev-billing.module';
 import { DevClockModule } from '../../contexts/billing/infrastructure/dev-clock.module';
 import { AppEnv } from '../../shared/database/resolve-app-env';
 import { ClockModule } from '../../shared/infrastructure/clock/clock.module';
@@ -34,7 +35,7 @@ import { testConfigModule } from './test-config-module';
 export interface BillingIntegrationAppOptions {
   extraProviders?: Provider[];
   overrideProviders?: Array<{ provide: symbol | string; useValue: unknown }>;
-  /** The `APP_ENV` the clock modules are registered for (default `local`). */
+  /** The `APP_ENV` the dev clock and dev billing modules are registered for (default `local`). */
   appEnv?: AppEnv;
 }
 
@@ -84,6 +85,7 @@ export async function createBillingIntegrationApp(
       TransactionManagerModule,
       ClockModule.register(appEnv),
       DevClockModule.register(appEnv),
+      DevBillingModule.register(appEnv),
       BillingModule,
     ],
     providers: extraProviders,

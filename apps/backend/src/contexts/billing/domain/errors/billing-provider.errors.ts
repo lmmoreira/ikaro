@@ -1,3 +1,5 @@
+import { GenericErrorCode } from '@ikaro/types';
+import type { DomainErrorShape } from '../../../../shared/domain/domain-error-shape';
 import { BillingDomainError } from './billing-domain.error';
 
 /** The provider refused to cancel because the charge was just paid; the payment wins. */
@@ -52,5 +54,20 @@ export class ProviderRequestError extends BillingDomainError {
   constructor(readonly reason: ProviderRequestFailure) {
     super(`The billing provider request failed: ${reason}`);
     this.name = 'ProviderRequestError';
+  }
+}
+
+/**
+ * The fake cannot play a scenario control against a charge in its current state (a payment for a
+ * charge that is not open, a refund for one that is not paid). Dev `simulate` only; the fake is the
+ * one adapter that is asked to misbehave on purpose, so a state it refuses is the caller's request
+ * not applying, never a defect.
+ */
+export class FakeScenarioNotApplicableError extends BillingDomainError implements DomainErrorShape {
+  readonly code = GenericErrorCode.VALUE_INVALID;
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'FakeScenarioNotApplicableError';
   }
 }

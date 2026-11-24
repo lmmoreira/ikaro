@@ -15,6 +15,7 @@ import {
 } from '../../application/dtos/provider-webhook.dto';
 import { ApplyChargeFactService } from '../../application/services/apply-charge-fact.service';
 import { RecoveryChargePlanner } from '../../application/services/recovery-charge-planner.service';
+import { ProviderWebhookProcessor } from '../../application/services/provider-webhook-processor.service';
 import { ProcessProviderWebhookUseCase } from '../../application/use-cases/process-provider-webhook.use-case';
 import { BillingProviderRegistry } from '../providers/billing-provider.registry';
 import { FakeBillingProvider } from '../providers/fake-billing.provider';
@@ -38,15 +39,17 @@ function buildController(fake: FakeBillingProvider): InternalBillingWebhookContr
   );
   return new InternalBillingWebhookController(
     new ProcessProviderWebhookUseCase(
-      new BillingProviderRegistry('local', fake),
-      { appEnv: 'local', platformOwnerSlug: null },
-      new InMemoryBillingAccountRepository(),
-      subscriptions,
-      charges,
-      providerEvents,
-      applyFact,
-      { execute: async () => 'NOT_FOUND' },
-      clock,
+      new ProviderWebhookProcessor(
+        new BillingProviderRegistry('local', fake),
+        { appEnv: 'local', platformOwnerSlug: null },
+        new InMemoryBillingAccountRepository(),
+        subscriptions,
+        charges,
+        providerEvents,
+        applyFact,
+        { execute: async () => 'NOT_FOUND' },
+        clock,
+      ),
     ),
   );
 }

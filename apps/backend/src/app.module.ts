@@ -5,6 +5,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TerminusModule } from '@nestjs/terminus';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BillingModule } from './contexts/billing/billing.module';
+import { DevBillingModule } from './contexts/billing/infrastructure/dev-billing.module';
 import { DevClockModule } from './contexts/billing/infrastructure/dev-clock.module';
 import { resolveAppEnv } from './shared/database/resolve-app-env';
 import { ClockModule } from './shared/infrastructure/clock/clock.module';
@@ -43,6 +44,7 @@ import {
     // module would run before that).
     ClockModule.register(resolveAppEnv(process.env)),
     DevClockModule.register(resolveAppEnv(process.env)),
+    DevBillingModule.register(resolveAppEnv(process.env)),
     CacheModule.register({
       isGlobal: true,
       ttl: 60_000,

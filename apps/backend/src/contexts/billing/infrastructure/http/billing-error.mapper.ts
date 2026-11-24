@@ -3,12 +3,14 @@ import { throwProblemDetail } from '@ikaro/nestjs-http';
 import { ChargeAlreadyExistsError } from '../../domain/errors/charge-already-exists.error';
 import { ChargeConcurrentModificationError } from '../../domain/errors/charge-concurrent-modification.error';
 import { IllegalChargeTransitionError } from '../../domain/errors/illegal-charge-transition.error';
+import { FakeScenarioNotApplicableError } from '../../domain/errors/billing-provider.errors';
 import { RecoveryChargeAlreadyOpenError } from '../../domain/errors/recovery-charge-already-open.error';
 import {
   BillingTenantNotFoundError,
   ExemptProtectedError,
   GraceNotAllowedError,
   SignupTermsNotAcceptedError,
+  SimulationNotApplicableError,
   SubscriptionConcurrentModificationError,
   UnsuspendNotAllowedError,
 } from '../../domain/errors/billing-domain.error';
@@ -47,7 +49,10 @@ export function mapBillingError(err: unknown): never {
     err instanceof IllegalChargeTransitionError ||
     err instanceof ChargeConcurrentModificationError ||
     err instanceof ChargeAlreadyExistsError ||
-    err instanceof RecoveryChargeAlreadyOpenError
+    err instanceof RecoveryChargeAlreadyOpenError ||
+    // Dev `simulate`: the event does not apply, so nothing was delivered.
+    err instanceof SimulationNotApplicableError ||
+    err instanceof FakeScenarioNotApplicableError
   ) {
     throw throwProblemDetail(HttpStatus.CONFLICT, err.code, err.message);
   }

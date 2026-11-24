@@ -59,6 +59,7 @@ import { BillingAuditLogHandler } from './infrastructure/events/billing-audit-lo
 import { InternalBillingOperatorController } from './infrastructure/controllers/internal-billing-operator.controller';
 import { ApplyChargeFactService } from './application/services/apply-charge-fact.service';
 import { ProcessProviderWebhookUseCase } from './application/use-cases/process-provider-webhook.use-case';
+import { ProviderWebhookProcessor } from './application/services/provider-webhook-processor.service';
 import { InternalBillingWebhookController } from './infrastructure/controllers/internal-billing-webhook.controller';
 import { IssueChargeForSubscriptionUseCase } from './application/use-cases/issue-charge-for-subscription.use-case';
 import { IssueNextChargesJob } from './application/jobs/issue-next-charges.job';
@@ -187,6 +188,7 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     // that writes a verified paid / refunded / charged-back fact.
     RecoveryChargePlanner,
     ApplyChargeFactService,
+    ProviderWebhookProcessor,
     ProcessProviderWebhookUseCase,
     // The charge issue job (M26-S05): the shared creation step, the per-subscription issue, the
     // creation retry, the job and its daily trigger handler.
@@ -236,6 +238,10 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     SetTenantExemptUseCase,
     ListTenantBillingStatusUseCase,
     ProcessProviderWebhookUseCase,
+    ProviderWebhookProcessor,
+    // Consumed by `DevBillingModule`, which exists only outside production.
+    CHARGE_REPOSITORY,
+    FakeBillingProvider,
   ],
 })
 export class BillingModule {}

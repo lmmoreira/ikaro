@@ -233,7 +233,24 @@ function validateChatbotConfig(data: Env, ctx: z.RefinementCtx): void {
   }
 }
 
+// `APP_ENV` defaults to `local`, and `local` switches the dev-only routes on (the dev clock
+// and the billing simulate route are registered for every value but `production`). A deployed
+// container (Cloud Run staging and production both run `NODE_ENV=production`) that forgot to set
+// `APP_ENV` would silently boot as `local`, so that combination is refused. Staging is
+// `NODE_ENV=production` with `APP_ENV=staging`; local compose and CI are `NODE_ENV=development`.
+function validateAppEnvConfig(data: Env, ctx: z.RefinementCtx): void {
+  if (data.NODE_ENV === 'production' && data.APP_ENV === 'local') {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['APP_ENV'],
+      message:
+        'APP_ENV must be "staging" or "production" when NODE_ENV=production — it is unset or "local", which would register the dev-only routes',
+    });
+  }
+}
+
 const validatedSchema = schema.superRefine((data, ctx) => {
+  validateAppEnvConfig(data, ctx);
   validateEmailConfig(data, ctx);
   validatePubSubConfig(data, ctx);
   validateDatabaseConfig(data, ctx);
