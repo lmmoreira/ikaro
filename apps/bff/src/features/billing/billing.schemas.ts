@@ -133,10 +133,3 @@ export const BackendBillingChargesSchema = z.object({
     hasMore: z.boolean(),
   }),
 });
-
-// `GET /v1/billing/charges?limit=&offset=` (Pattern A): the same bounds as the backend's own
-// schema (`billing-reads.dto.ts`), so an out-of-range page is a `400` at the edge.
-export const BillingChargesQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(100).default(25),
-  offset: z.coerce.number().int().min(0).default(0),
-});

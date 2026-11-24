@@ -5,6 +5,7 @@ import type {
   BillingChargesResponse,
   BillingSummaryResponse,
 } from '@ikaro/types';
+import { type BillingChargesQuery, BillingChargesQuerySchema } from '@ikaro/validation';
 import { CurrentUser, CurrentUserPayload } from '../../shared/decorators/current-user.decorator';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
@@ -14,12 +15,7 @@ import {
   toBillingChargesResponse,
   toBillingSummaryResponse,
 } from './billing.mapper';
-import {
-  BackendBillingChargesSchema,
-  BackendBillingSummarySchema,
-  BillingChargesQuerySchema,
-} from './billing.schemas';
-import type { BillingChargesQuery } from './billing.types';
+import { BackendBillingChargesSchema, BackendBillingSummarySchema } from './billing.schemas';
 import { readTenantAccess } from './tenant-access.reader';
 
 // The billing slice's authenticated routes. The tenant always comes from the JWT (the backend client

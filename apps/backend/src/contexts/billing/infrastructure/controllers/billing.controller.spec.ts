@@ -1,9 +1,8 @@
 import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { Reflector } from '@nestjs/core';
-import { NO_FEATURE_GATE_KEY, SUSPENSION_ACCESS_KEY, ZodValidationPipe } from '@ikaro/nestjs-http';
+import { NO_FEATURE_GATE_KEY, SUSPENSION_ACCESS_KEY } from '@ikaro/nestjs-http';
 import { ManagerRoleGuard } from '../../../../shared/guards/manager-role.guard';
 import { RequestContext } from '../../../../shared/request/request-context';
-import { ListBillingChargesSchema } from '../../application/dtos/billing-reads.dto';
 import type { GetBillingSummaryUseCase } from '../../application/use-cases/get-billing-summary.use-case';
 import type { ListBillingChargesUseCase } from '../../application/use-cases/list-billing-charges.use-case';
 import { BillingController } from './billing.controller';
@@ -57,21 +56,6 @@ describe('BillingController', () => {
     });
   });
 
-  describe('the charges query schema', () => {
-    const pipe = new ZodValidationPipe(ListBillingChargesSchema);
-
-    it('defaults to limit 25 and offset 0', () => {
-      expect(pipe.transform({})).toEqual({ limit: 25, offset: 0 });
-    });
-
-    it.each([
-      [{ limit: '0' }],
-      [{ limit: '101' }],
-      [{ limit: '-1' }],
-      [{ offset: '-1' }],
-      [{ limit: 'x' }],
-    ])('rejects %j', (query) => {
-      expect(() => pipe.transform(query)).toThrow();
-    });
-  });
+  // The page bounds are `BillingChargesQuerySchema`'s (specified in `packages/validation`); the
+  // controller integration spec proves the route answers 400 for an out-of-range page.
 });

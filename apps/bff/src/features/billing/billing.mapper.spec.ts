@@ -13,11 +13,7 @@ import {
   toBillingChargesResponse,
   toBillingSummaryResponse,
 } from './billing.mapper';
-import {
-  BackendBillingChargesSchema,
-  BackendBillingSummarySchema,
-  BillingChargesQuerySchema,
-} from './billing.schemas';
+import { BackendBillingChargesSchema, BackendBillingSummarySchema } from './billing.schemas';
 import type { BackendTenantAccess } from './billing.types';
 
 const ACCESS: BackendTenantAccess = {
@@ -266,17 +262,4 @@ describe('toBillingChargesResponse', () => {
     expect(mapped.receiptUrl).toBeNull();
     expect(mapped.taxLines).toEqual([]);
   });
-});
-
-describe('BillingChargesQuerySchema', () => {
-  it('defaults to limit 25 and offset 0', () => {
-    expect(BillingChargesQuerySchema.parse({})).toEqual({ limit: 25, offset: 0 });
-  });
-
-  it.each([{ limit: '0' }, { limit: '101' }, { limit: '-1' }, { offset: '-1' }, { limit: 'x' }])(
-    'rejects %j (the same bounds as the backend schema)',
-    (query) => {
-      expect(() => BillingChargesQuerySchema.parse(query)).toThrow();
-    },
-  );
 });

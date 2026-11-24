@@ -1,11 +1,8 @@
 import { Controller, Get, HttpCode, HttpStatus, Query, UseGuards } from '@nestjs/common';
 import { NoFeatureGate, SuspensionAccess, ZodValidationPipe } from '@ikaro/nestjs-http';
+import { type BillingChargesQuery, BillingChargesQuerySchema } from '@ikaro/validation';
 import { ManagerRoleGuard } from '../../../../shared/guards/manager-role.guard';
 import { RequestContext } from '../../../../shared/request/request-context';
-import {
-  ListBillingChargesDto,
-  ListBillingChargesSchema,
-} from '../../application/dtos/billing-reads.dto';
 import {
   GetBillingSummaryUseCase,
   GetBillingSummaryUseCaseResult,
@@ -42,7 +39,7 @@ export class BillingController {
   @Get('charges')
   @HttpCode(HttpStatus.OK)
   charges(
-    @Query(new ZodValidationPipe(ListBillingChargesSchema)) query: ListBillingChargesDto,
+    @Query(new ZodValidationPipe(BillingChargesQuerySchema)) query: BillingChargesQuery,
   ): Promise<ListBillingChargesUseCaseResult> {
     return this.listCharges
       .execute({ tenantId: this.requestContext.tenantId, ...query })
