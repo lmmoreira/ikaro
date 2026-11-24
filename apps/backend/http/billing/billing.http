@@ -1,0 +1,51 @@
+# Billing — the manager's billing page reads (M26-S14, UC-117)
+# TenantContext populated from X-Tenant-ID / X-Actor-* headers (set by the BFF). MANAGER only: STAFF
+# and CUSTOMER get 403. The routes carry @NoFeatureGate() and @SuspensionAccess(MANAGER_BILLING), so
+# the manager of a SUSPENDED tenant still reaches them (it is the only page they can). The summary is
+# never cached: it reads the committed subscription row. A tenant with no subscription row answers
+# 200 { "provisioning": true } (UC-117 A9). No response ever carries a payment URL.
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run seed
+#   4. pnpm --filter @ikaro/backend run dev
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@baseUrl = {{backendUrl}}
+
+### Summary: status, dates, items with prices, total, open charge, price changes
+GET {{baseUrl}}/billing/summary
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+### Charge history, newest due date first (Pattern A): limit 1-100 (default 25), offset >= 0
+GET {{baseUrl}}/billing/charges?limit=10&offset=0
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+### Out-of-range page: 400
+GET {{baseUrl}}/billing/charges?limit=101
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+### Staff: 403
+GET {{baseUrl}}/billing/summary
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+
+### Customer: 403
+GET {{baseUrl}}/billing/charges
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER

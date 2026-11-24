@@ -1,11 +1,23 @@
 import { FEATURE_KEYS } from '@ikaro/validation';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { z } from 'zod';
+import type { BillingSummaryReadyResponse } from '@ikaro/types';
+import {
+  BillingChargeHistoryItemBuilder,
+  BillingSummaryBuilder,
+} from '../../test/builders/billing-summary.builder';
 import {
   failOpenBackendAccess,
   recoverAccessLookup,
   toBillingAccessResponse,
+  toBillingChargesResponse,
+  toBillingSummaryResponse,
 } from './billing.mapper';
+import {
+  BackendBillingChargesSchema,
+  BackendBillingSummarySchema,
+  BillingChargesQuerySchema,
+} from './billing.schemas';
 import type { BackendTenantAccess } from './billing.types';
 
 const ACCESS: BackendTenantAccess = {
@@ -131,4 +143,140 @@ describe('recoverAccessLookup', () => {
     expect(() => recoverAccessLookup(notFound, 't-1', logger)).toThrow(notFound);
     expect(logger.messages).toHaveLength(0);
   });
+});
+
+describe('toBillingSummaryResponse', () => {
+  const parse = (raw: unknown) => BackendBillingSummarySchema.parse(raw);
+
+  it('passes the enums, flags and dates through and builds no display string', () => {
+    const backend = new BillingSummaryBuilder().withStatus('PAST_DUE').withExempt(false).build();
+
+    const response = toBillingSummaryResponse(parse(backend));
+
+    expect(response).toEqual(backend);
+    expect(response).toMatchObject({
+      provisioning: false,
+      status: 'PAST_DUE',
+      exempt: false,
+      timezone: 'America/Sao_Paulo',
+      nextCycle: null,
+      nextCycleFrom: null,
+      canDiscard: false,
+    });
+  });
+
+  it('carries the exempt flag with no open charge and no items', () => {
+    const backend = new BillingSummaryBuilder()
+      .withExempt(true)
+      .withOpenCharge(null)
+      .withItems([], 0)
+      .build();
+
+    expect(toBillingSummaryResponse(parse(backend))).toMatchObject({
+      exempt: true,
+      openCharge: null,
+      items: [],
+      totalMinor: 0,
+    });
+  });
+
+  it('answers only the provisioning flag for a tenant with no subscription', () => {
+    expect(toBillingSummaryResponse(parse({ provisioning: true, status: 'ACTIVE' }))).toEqual({
+      provisioning: true,
+    });
+  });
+
+  it('never lets a payment URL or an unknown field through, even if the backend sends one', () => {
+    const backend = new BillingSummaryBuilder().build();
+    const leaky = {
+      ...backend,
+      secret: 'x',
+      openCharge: {
+        ...backend.openCharge,
+        paymentUrl: 'https://pay.example/leak',
+        paymentUrlExpiresAt: '2026-11-18T12:00:00.000Z',
+      },
+    };
+
+    const response = toBillingSummaryResponse(parse(leaky));
+
+    expect(JSON.stringify(response)).not.toContain('https://pay.example/leak');
+    expect(JSON.stringify(response)).not.toContain('secret');
+    expect(Object.keys((response as BillingSummaryReadyResponse).openCharge ?? {}).sort()).toEqual(
+      [
+        'amountMinor',
+        'dueDate',
+        'hasPaymentLink',
+        'id',
+        'kind',
+        'paymentLinkExpiresAt',
+        'status',
+        'subtotalMinor',
+        'taxMinor',
+      ].sort(),
+    );
+  });
+
+  it('keeps a missing price as null instead of inventing one', () => {
+    const backend = new BillingSummaryBuilder()
+      .withItems([{ featureKey: 'HOTSITE', tier: 'STANDARD', unitPriceMinor: null }], null)
+      .build();
+
+    expect(toBillingSummaryResponse(parse(backend))).toMatchObject({
+      items: [{ unitPriceMinor: null }],
+      totalMinor: null,
+    });
+  });
+
+  it('rejects a backend answer that breaks the contract', () => {
+    expect(() => parse({ ...new BillingSummaryBuilder().build(), status: 'WHATEVER' })).toThrow();
+  });
+});
+
+describe('toBillingChargesResponse', () => {
+  const parse = (raw: unknown) => BackendBillingChargesSchema.parse(raw);
+  const page = (items: unknown[]) => ({
+    items,
+    pagination: { limit: 25, offset: 0, total: items.length, hasMore: false },
+  });
+
+  it('maps a paid charge with its lines and an https receipt link', () => {
+    const item = new BillingChargeHistoryItemBuilder().build();
+
+    expect(toBillingChargesResponse(parse(page([item])))).toEqual(page([item]));
+  });
+
+  it.each([
+    ['javascript:alert(1)'],
+    ['data:text/html;base64,PHNjcmlwdD4='],
+    ['http://receipts.example/r/1'],
+    ['/relative/receipt'],
+    ['not a url'],
+  ])('rejects the receipt link %s', (receiptUrl) => {
+    const item = new BillingChargeHistoryItemBuilder().withReceiptUrl(receiptUrl).build();
+
+    expect(() => parse(page([item]))).toThrow();
+  });
+
+  it('keeps a null receipt link and an empty tax-line list', () => {
+    const item = new BillingChargeHistoryItemBuilder().withReceiptUrl(null).build();
+
+    const [mapped] = toBillingChargesResponse(parse(page([item]))).items;
+
+    expect(mapped.receiptUrl).toBeNull();
+    expect(mapped.taxLines).toEqual([]);
+  });
+});
+
+describe('BillingChargesQuerySchema', () => {
+  it('defaults to limit 25 and offset 0', () => {
+    expect(BillingChargesQuerySchema.parse({})).toEqual({ limit: 25, offset: 0 });
+  });
+
+  it.each([{ limit: '0' }, { limit: '101' }, { limit: '-1' }, { offset: '-1' }, { limit: 'x' }])(
+    'rejects %j (the same bounds as the backend schema)',
+    (query) => {
+      expect(() => BillingChargesQuerySchema.parse(query)).toThrow();
+    },
+  );
 });

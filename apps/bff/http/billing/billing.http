@@ -1,0 +1,53 @@
+# BFF — Billing page reads (M26-S14, UC-117)
+# GET /v1/billing/summary and GET /v1/billing/charges: MANAGER only (staff and customers get 403),
+# reachable by the manager of a suspended tenant (the backend route declares the policy; the BFF
+# carries no annotation). The tenant comes from the JWT, never from a parameter. Enums and numbers
+# only, no display string and never a payment URL; a tenant with no subscription row yet answers
+# 200 { "provisioning": true }.
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run seed
+#   4. pnpm --filter @ikaro/backend run dev  (port 3001)
+#   5. pnpm --filter @ikaro/bff run dev      (port 3002)
+#   6. ENABLE_DEV_AUTH=true in apps/bff/.env.local
+#
+# REST Client environment: select "local" in VS Code status bar
+
+# ── File-level response captures (updated automatically when login request runs) ──
+@managerToken = {{managerLogin.response.body.accessToken}}
+@staffToken   = {{staffLogin.response.body.accessToken}}
+
+###
+# @name managerLogin
+POST {{bffUrl}}/v1/auth/dev-login
+Content-Type: application/json
+
+{ "email": "admin@lavacar.com.br", "tenantSlug": "{{tenantSlug}}", "type": "staff" }
+
+###
+# @name staffLogin
+POST {{bffUrl}}/v1/auth/dev-login
+Content-Type: application/json
+
+{ "email": "funcionario@lavacar.com.br", "tenantSlug": "{{tenantSlug}}", "type": "staff" }
+
+### Summary
+GET {{bffUrl}}/v1/billing/summary
+Authorization: Bearer {{managerToken}}
+
+### Charge history (Pattern A, newest first)
+GET {{bffUrl}}/v1/billing/charges?limit=10&offset=0
+Authorization: Bearer {{managerToken}}
+
+### Out-of-range page: 400
+GET {{bffUrl}}/v1/billing/charges?limit=101
+Authorization: Bearer {{managerToken}}
+
+### Staff: 403
+GET {{bffUrl}}/v1/billing/summary
+Authorization: Bearer {{staffToken}}
+
+### No token: 401
+GET {{bffUrl}}/v1/billing/charges

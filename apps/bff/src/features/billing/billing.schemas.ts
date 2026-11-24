@@ -14,3 +14,129 @@ export const BackendTenantAccessSchema = z.object({
     }),
   ),
 });
+
+// ── Manager billing reads (M26-S14, UC-117) ───────────────────────────────────────────────────
+// The backend's summary and charge history, parsed at the BFF boundary. Every object is declared
+// field by field, and zod strips what is not declared, so nothing the backend might add later can
+// reach the web by accident (a payment URL above all).
+
+const FEATURE_KEY = z.enum(FEATURE_KEYS);
+const TIER = z.enum(['STANDARD', ...CHATBOT_TIERS]);
+const STATUS = z.enum(['TRIALING', 'ACTIVE', 'PAST_DUE', 'SUSPENDED']);
+const CHARGE_KIND = z.enum(['PERIOD', 'RECOVERY']);
+const CHARGE_STATUS = z.enum([
+  'PENDING',
+  'PAID',
+  'OVERDUE',
+  'FAILED',
+  'CANCELED',
+  'REFUNDED',
+  'CHARGEBACK',
+]);
+const MINOR = z.number().int();
+
+// The receipt link is the provider's, rendered by the web as a link: only an `https:` URL may pass,
+// so a `javascript:`, `data:` or plain `http:` value can never reach an `href`.
+const HTTPS_URL = z.string().refine((value) => {
+  try {
+    return new URL(value).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}, 'must be an https URL');
+
+const OpenChargeSchema = z.object({
+  id: z.string(),
+  kind: CHARGE_KIND,
+  dueDate: z.string(),
+  subtotalMinor: MINOR,
+  taxMinor: MINOR,
+  amountMinor: MINOR,
+  status: CHARGE_STATUS,
+  hasPaymentLink: z.boolean(),
+  paymentLinkExpiresAt: z.string().nullable(),
+});
+
+const ReadySummarySchema = z.object({
+  provisioning: z.literal(false),
+  status: STATUS,
+  exempt: z.boolean(),
+  suspensionReason: z.enum(['NON_PAYMENT', 'CANCELED', 'PAYMENT_REVERSED', 'OPERATOR']).nullable(),
+  currency: z.string(),
+  countryCode: z.string(),
+  timezone: z.string(),
+  cycle: z.literal('MONTHLY'),
+  nextCycle: z.null(),
+  nextCycleFrom: z.null(),
+  trialEndsAt: z.string().nullable(),
+  nextDueDate: z.string().nullable(),
+  pastDueSince: z.string().nullable(),
+  suspendsAt: z.string().nullable(),
+  cancelAt: z.string().nullable(),
+  purgeAt: z.string().nullable(),
+  planConfirmationRequired: z.boolean(),
+  planConfirmationFallbackAt: z.string().nullable(),
+  canDiscard: z.literal(false),
+  firstChargePaid: z.boolean(),
+  addressRequired: z.boolean(),
+  items: z.array(
+    z.object({ featureKey: FEATURE_KEY, tier: TIER, unitPriceMinor: MINOR.nullable() }),
+  ),
+  totalMinor: MINOR.nullable(),
+  openCharge: OpenChargeSchema.nullable(),
+  autoBilling: z.object({
+    mode: z.literal('NONE'),
+    status: z.literal('INACTIVE'),
+    label: z.null(),
+  }),
+  paymentConfirmationPending: z.boolean(),
+  upcomingPriceChanges: z.array(
+    z.object({
+      featureKey: FEATURE_KEY,
+      tier: TIER,
+      currentAmountMinor: MINOR,
+      newAmountMinor: MINOR,
+      effectiveFrom: z.string(),
+    }),
+  ),
+});
+
+export const BackendBillingSummarySchema = z.discriminatedUnion('provisioning', [
+  z.object({ provisioning: z.literal(true) }),
+  ReadySummarySchema,
+]);
+
+const ChargeHistoryItemSchema = z.object({
+  id: z.string(),
+  kind: CHARGE_KIND,
+  periodStart: z.string().nullable(),
+  periodEnd: z.string().nullable(),
+  dueDate: z.string(),
+  subtotalMinor: MINOR,
+  taxMinor: MINOR,
+  amountMinor: MINOR,
+  currency: z.string(),
+  status: CHARGE_STATUS,
+  method: z.enum(['PIX', 'BOLETO', 'CARD']).nullable(),
+  paidAt: z.string().nullable(),
+  receiptUrl: HTTPS_URL.nullable(),
+  lines: z.array(z.object({ featureKey: FEATURE_KEY, tier: TIER, unitPriceMinor: MINOR })),
+  taxLines: z.array(z.never()),
+});
+
+export const BackendBillingChargesSchema = z.object({
+  items: z.array(ChargeHistoryItemSchema),
+  pagination: z.object({
+    limit: z.number().int(),
+    offset: z.number().int(),
+    total: z.number().int(),
+    hasMore: z.boolean(),
+  }),
+});
+
+// `GET /v1/billing/charges?limit=&offset=` (Pattern A): the same bounds as the backend's own
+// schema (`billing-reads.dto.ts`), so an out-of-range page is a `400` at the edge.
+export const BillingChargesQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  offset: z.coerce.number().int().min(0).default(0),
+});

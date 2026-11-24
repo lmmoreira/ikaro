@@ -2,6 +2,8 @@ import { drainDomainEvents } from '../../../shared/infrastructure/outbox/drain-d
 import type { IOutboxPublisher } from '../../../shared/ports/outbox-publisher.port';
 import {
   DueChargeRef,
+  OperatorChargeFact,
+  OperatorChargeSummary,
   OverdueChargeRef,
   PaidChargeRef,
   PendingCreationRef,
@@ -119,6 +121,35 @@ export class InMemoryChargeRepository implements IChargeRepository {
       .filter((c) => c.tenantId === tenantId)
       .sort((a, b) => b.dueDate.value.localeCompare(a.dueDate.value) || b.id.localeCompare(a.id));
     return { items: all.slice(query.offset, query.offset + query.limit), total: all.length };
+  }
+
+  // The same three facts and ordering as the TypeORM adapter's single statement, for the page's tenants only.
+  async summarizeForOperator(tenantIds: readonly string[]): Promise<OperatorChargeSummary[]> {
+    const fact = (charge: Charge): OperatorChargeFact => ({
+      id: charge.id,
+      kind: charge.kind,
+      status: charge.status,
+      amountMinor: charge.amount.amountMinor,
+      currency: charge.amount.currency,
+      dueDate: charge.dueDate.value,
+    });
+    const newestFirst = (a: Charge, b: Charge) =>
+      b.dueDate.value.localeCompare(a.dueDate.value) || b.id.localeCompare(a.id);
+    return tenantIds.flatMap((tenantId) => {
+      const own = this.saved.filter((c) => c.tenantId === tenantId).sort(newestFirst);
+      if (own.length === 0) return [];
+      const last = own.find((c) => c.status !== 'CANCELED');
+      const overdue = [...own].reverse().find((c) => c.status === 'OVERDUE');
+      const recovery = own.find((c) => c.kind === 'RECOVERY' && c.open);
+      return [
+        {
+          tenantId,
+          lastCharge: last ? fact(last) : null,
+          oldestOverdueDueDate: overdue?.dueDate.value ?? null,
+          openRecovery: recovery ? fact(recovery) : null,
+        },
+      ];
+    });
   }
 
   async save(charge: Charge): Promise<void> {

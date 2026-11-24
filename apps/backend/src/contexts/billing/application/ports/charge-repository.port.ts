@@ -1,5 +1,6 @@
 import type { BillingProvider } from '../../domain/billing-account.aggregate';
 import type { Charge } from '../../domain/charge.aggregate';
+import type { ChargeKind, ChargeStatus } from '../../domain/charge.types';
 
 export const CHARGE_REPOSITORY = Symbol('IChargeRepository');
 
@@ -74,6 +75,15 @@ export interface IChargeRepository {
     tenantId: string,
     query: ListChargesQuery,
   ): Promise<{ items: Charge[]; total: number }>;
+
+  /**
+   * The operator list's charge facts (UC-111, M26-S14) for one page of tenants: **one** query for
+   * all of them (never one per tenant), scoped by `tenant_id = ANY(tenantIds)` so only the page's
+   * own tenants can appear. A tenant with no charge is absent from the answer. At most one page of
+   * ids (the operator list caps it at 100); an empty input answers empty without a query. Served by
+   * `IDX_billing_charges_history`.
+   */
+  summarizeForOperator(tenantIds: readonly string[]): Promise<OperatorChargeSummary[]>;
 
   /**
    * Inserts a new charge with its lines, or updates a loaded one under its optimistic `version`
@@ -184,6 +194,28 @@ export interface IChargeRepository {
 
   /** Locally cancelled charges whose provider cancel is still to do, by `(due_date, id)`: `IDX_billing_charges_cancel_pending`. */
   listProviderCancelPendingForJob(limit: number, after?: DueChargeRef): Promise<DueChargeRef[]>;
+}
+
+/** One charge as the operator's list shows it: facts only, no payment link or provider data. */
+export interface OperatorChargeFact {
+  id: string;
+  kind: ChargeKind;
+  status: ChargeStatus;
+  amountMinor: number;
+  currency: string;
+  /** `YYYY-MM-DD`, in the subscription's own zone. */
+  dueDate: string;
+}
+
+/** A tenant's charge facts for the operator list (UC-111). */
+export interface OperatorChargeSummary {
+  tenantId: string;
+  /** The latest non-`CANCELED` charge by due date, or `null`. */
+  lastCharge: OperatorChargeFact | null;
+  /** The oldest `OVERDUE` charge's due date (`YYYY-MM-DD`), or `null` when none is overdue. */
+  oldestOverdueDueDate: string | null;
+  /** The open `RECOVERY` charge, or `null`. */
+  openRecovery: OperatorChargeFact | null;
 }
 
 /** A job selects ids and reads each charge through its own tenant-scoped, locked path. */

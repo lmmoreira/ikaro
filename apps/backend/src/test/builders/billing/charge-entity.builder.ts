@@ -19,9 +19,9 @@ export class ChargeEntityBuilder {
   private paidAt: Date | null = null;
   private provider: string | null = null;
   private providerChargeId: string | null = null;
-  private readonly paymentUrl: string | null = null;
-  private readonly paymentUrlExpiresAt: Date | null = null;
-  private readonly receiptUrl: string | null = null;
+  private paymentUrl: string | null = null;
+  private paymentUrlExpiresAt: Date | null = null;
+  private receiptUrl: string | null = null;
   private readonly paymentReturnSeenAt: Date | null = null;
   private refundedAmountMinor = '0';
   private providerCreationStatus = 'PENDING';
@@ -127,6 +127,17 @@ export class ChargeEntityBuilder {
   withCreationAttempts(attempts: number, lastAttemptAt: Date | null): this {
     this.providerCreationAttempts = attempts;
     this.providerCreationLastAttemptAt = lastAttemptAt;
+    return this;
+  }
+
+  withPaymentUrl(paymentUrl: string | null, expiresAt: Date | null = null): this {
+    this.paymentUrl = paymentUrl;
+    this.paymentUrlExpiresAt = expiresAt;
+    return this;
+  }
+
+  withReceiptUrl(receiptUrl: string | null): this {
+    this.receiptUrl = receiptUrl;
     return this;
   }
 

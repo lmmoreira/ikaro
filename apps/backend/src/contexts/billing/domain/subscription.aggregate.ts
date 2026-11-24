@@ -282,6 +282,26 @@ export class Subscription extends AggregateRoot {
     return this._suspendedAt === null ? null : this.purgeAtFrom(this._suspendedAt);
   }
 
+  /** The end of the grace period: `PAST_DUE` only (`graceUntil`, else `pastDueSince` + 14 days); null otherwise. */
+  get suspendsAt(): Date | null {
+    if (this._status !== 'PAST_DUE' || this._pastDueSince === null) return null;
+    return graceEndsAt(this._pastDueSince, this._graceUntil);
+  }
+
+  /** A non-exempt trial whose first paid plan the manager has not confirmed (UC-136 A8). */
+  get planConfirmationRequired(): boolean {
+    return !this._exempt && this._status === 'TRIALING' && this._planConfirmedAt === null;
+  }
+
+  /**
+   * The tenant-local date the unconfirmed default plan is invoiced on its own: the first due date
+   * minus `PLAN_CONFIRM_FALLBACK_DAYS` (the lead `isDueForIssue` applies); null once confirmed.
+   */
+  get planConfirmationFallbackDate(): string | null {
+    if (!this.planConfirmationRequired || this._nextDueDate === null) return null;
+    return addDaysUTC(this._nextDueDate.value, -PLAN_CONFIRM_FALLBACK_DAYS);
+  }
+
   /**
    * The single entitlement formula: SUSPENDED → none; TRIALING → every sellable feature (chatbot
    * at BASIC); otherwise the items active now. Computed on demand, never stored.

@@ -35,7 +35,7 @@ export class ChargeBuilder {
   private provider: BillingProvider | null = null;
   private providerChargeId: string | null = null;
   private paymentUrl: string | null = null;
-  private readonly paymentUrlExpiresAt: Date | null = null;
+  private paymentUrlExpiresAt: Date | null = null;
   private receiptUrl: string | null = null;
   private paymentReturnSeenAt: Date | null = null;
   private refundedMinor = 0;
@@ -128,6 +128,11 @@ export class ChargeBuilder {
     this.providerChargeId = providerChargeId;
     this.paymentUrl = paymentUrl;
     this.providerCreationStatus = 'READY';
+    return this;
+  }
+
+  withPaymentUrlExpiresAt(paymentUrlExpiresAt: Date | null): this {
+    this.paymentUrlExpiresAt = paymentUrlExpiresAt;
     return this;
   }
 

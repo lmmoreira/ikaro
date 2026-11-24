@@ -1,6 +1,13 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { REQUIRES_FEATURE_KEY, SUSPENSION_ACCESS_KEY } from '@ikaro/nestjs-http';
 import { FEATURE_KEYS } from '@ikaro/validation';
 import { makeBackendHttp } from '../../test/backend-http.mock';
+import {
+  BillingChargeHistoryItemBuilder,
+  BillingSummaryBuilder,
+} from '../../test/builders/billing-summary.builder';
+import { ROLES_KEY } from '../../shared/decorators/roles.decorator';
 import type { CurrentUserPayload } from '../../shared/decorators/current-user.decorator';
 import { BillingController } from './billing.controller';
 
@@ -86,5 +93,68 @@ describe('BillingController', () => {
     await expect(new BillingController(backendHttp).getAccess(user('MANAGER'))).rejects.toThrow(
       HttpException,
     );
+  });
+
+  describe('the manager reads (M26-S14)', () => {
+    const reflector = new Reflector();
+
+    it('GET summary and charges are manager-only', () => {
+      const proto = BillingController.prototype;
+
+      expect(reflector.get(ROLES_KEY, proto.getSummary)).toEqual(['MANAGER']);
+      expect(reflector.get(ROLES_KEY, proto.getCharges)).toEqual(['MANAGER']);
+      // The access route stays open to every authenticated role.
+      expect(reflector.get(ROLES_KEY, proto.getAccess)).toBeUndefined();
+    });
+
+    it('carries no tenant-access annotation: the backend owns suspension and entitlement', () => {
+      for (const handler of [
+        BillingController.prototype.getSummary,
+        BillingController.prototype.getCharges,
+      ]) {
+        expect(reflector.get(SUSPENSION_ACCESS_KEY, handler)).toBeUndefined();
+        expect(reflector.get(REQUIRES_FEATURE_KEY, handler)).toBeUndefined();
+      }
+    });
+
+    it('reads the summary from the backend with no tenant parameter and maps it', async () => {
+      const backendHttp = makeBackendHttp();
+      backendHttp.get.mockResolvedValueOnce(new BillingSummaryBuilder().build());
+
+      const summary = await new BillingController(backendHttp).getSummary();
+
+      expect(backendHttp.get).toHaveBeenCalledWith('/billing/summary');
+      expect(summary).toMatchObject({ provisioning: false, status: 'ACTIVE' });
+    });
+
+    it('answers the provisioning flag when the backend does', async () => {
+      const backendHttp = makeBackendHttp();
+      backendHttp.get.mockResolvedValueOnce({ provisioning: true });
+
+      await expect(new BillingController(backendHttp).getSummary()).resolves.toEqual({
+        provisioning: true,
+      });
+    });
+
+    it('forwards the validated page to the backend and maps the history', async () => {
+      const backendHttp = makeBackendHttp();
+      backendHttp.get.mockResolvedValueOnce({
+        items: [new BillingChargeHistoryItemBuilder().build()],
+        pagination: { limit: 10, offset: 20, total: 21, hasMore: false },
+      });
+
+      const page = await new BillingController(backendHttp).getCharges({ limit: 10, offset: 20 });
+
+      expect(backendHttp.get).toHaveBeenCalledWith('/billing/charges', { limit: 10, offset: 20 });
+      expect(page.items).toHaveLength(1);
+      expect(page.pagination).toEqual({ limit: 10, offset: 20, total: 21, hasMore: false });
+    });
+
+    it('rejects a backend answer that is not the documented shape instead of passing it on', async () => {
+      const backendHttp = makeBackendHttp();
+      backendHttp.get.mockResolvedValueOnce({ status: 'ACTIVE' });
+
+      await expect(new BillingController(backendHttp).getSummary()).rejects.toThrow();
+    });
   });
 });
