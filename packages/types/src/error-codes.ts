@@ -336,6 +336,9 @@ export type EmailErrorCode = (typeof EmailErrorCode)[keyof typeof EmailErrorCode
 // later story adds its members when it first throws them, with their locale entries (docs/ERROR_CATALOG.md § Planned
 // origins). A member needs a translation in both errors.json files the moment it is added.
 export const SignupErrorCode = {
+  SLUG_INVALID: 'SIGNUP_SLUG_INVALID',
+  SLUG_RESERVED: 'SIGNUP_SLUG_RESERVED',
+  SLUG_TAKEN: 'SIGNUP_SLUG_TAKEN',
   TAX_ID_INVALID: 'SIGNUP_TAX_ID_INVALID',
   TAX_ID_REQUIRED: 'SIGNUP_TAX_ID_REQUIRED',
   TERMS_NOT_ACCEPTED: 'SIGNUP_TERMS_NOT_ACCEPTED',

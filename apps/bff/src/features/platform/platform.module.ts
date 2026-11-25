@@ -4,6 +4,7 @@ import { HotsiteAdminController } from './hotsite-admin.controller';
 import { HotsiteTemplatesController } from './hotsite-templates.controller';
 import { LeadFormController } from './lead-form.controller';
 import { PlatformPublicController } from './platform.public.controller';
+import { SignupPublicController } from './signup.public.controller';
 import { TenantController } from './tenant.controller';
 import { TenantSettingsController } from './tenant-settings.controller';
 
@@ -11,6 +12,7 @@ import { TenantSettingsController } from './tenant-settings.controller';
   imports: [BackendHttpModule],
   controllers: [
     PlatformPublicController,
+    SignupPublicController,
     HotsiteAdminController,
     HotsiteTemplatesController,
     LeadFormController,

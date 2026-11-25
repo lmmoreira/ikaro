@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ApplicationConfigModule } from '../../shared/infrastructure/application-config.module';
 import { StorageModule } from '../../shared/infrastructure/storage.module';
 import { RequestModule } from '../../shared/request/request.module';
 import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cache.module';
 import { TENANT_DIRECTORY_PORT } from '../../shared/ports/tenant-directory.port';
+import { APPLICATION_CONFIG, IApplicationConfig } from '../../shared/ports/application-config.port';
 import { TENANT_SETTINGS_PORT } from '../../shared/ports/tenant-settings.port';
 import { CHATBOT_MESSAGE_REPOSITORY } from './application/ports/chatbot-message-repository.port';
 import { CHATBOT_PROVIDER_BALANCE_REPOSITORY } from './application/ports/chatbot-provider-balance-repository.port';
@@ -17,17 +17,13 @@ import { LEAD_FORM_SUBMISSION_REPOSITORY } from './application/ports/lead-form-s
 import {
   ANTHROPIC_LLM_PROVIDER,
   FAKE_LLM_PROVIDER,
-  ILlmProvider,
   OPENAI_LLM_PROVIDER,
   OPENROUTER_LLM_PROVIDER,
 } from './application/ports/llm-provider.port';
 import { TEMPLATE_CATALOGUE } from './application/ports/template-catalogue.port';
 import { TENANT_REPOSITORY } from './application/ports/tenant-repository.port';
 import { CLOUDFLARE_TURNSTILE_PROVIDER } from './application/ports/turnstile-verifier.port';
-import {
-  LLM_PROVIDER_REGISTRY,
-  LlmProviderRegistry,
-} from './application/services/llm-provider-registry.service';
+import { llmProviderRegistryProvider } from './infrastructure/llm/llm-provider-registry.provider';
 import { HotsiteImagePathsService } from './domain/services/hotsite-image-paths.service';
 import { HotsiteImageUrlResolver } from './domain/services/hotsite-image-url-resolver.service';
 import { ChatbotBalancePollJob } from './application/jobs/chatbot-balance-poll.job';
@@ -55,6 +51,8 @@ import { GetTenantBySlugUseCase } from './application/use-cases/get-tenant-by-sl
 import { GetTenantsUseCase } from './application/use-cases/get-tenants.use-case';
 import { ListHotsiteTemplatesUseCase } from './application/use-cases/list-hotsite-templates.use-case';
 import { ListPublishedHotsitesUseCase } from './application/use-cases/list-published-hotsites.use-case';
+import { CheckSlugAvailabilityUseCase } from './application/use-cases/check-slug-availability.use-case';
+import { SLUG_POLICY, SlugPolicy } from './domain/slug-policy';
 import { ProvisionTenantUseCase } from './application/use-cases/provision-tenant.use-case';
 import { PublishHotsiteUseCase } from './application/use-cases/publish-hotsite.use-case';
 import { RenameTenantUseCase } from './application/use-cases/rename-tenant.use-case';
@@ -96,6 +94,7 @@ import { HotsiteAdminController } from './infrastructure/controllers/hotsite-adm
 import { HotsiteController } from './infrastructure/controllers/hotsite.controller';
 import { LeadFormController } from './infrastructure/controllers/lead-form.controller';
 import { LeadFormPublicController } from './infrastructure/controllers/lead-form-public.controller';
+import { InternalSlugController } from './infrastructure/controllers/internal-slug.controller';
 import { InternalTenantController } from './infrastructure/controllers/internal-tenant.controller';
 import { InternalTenantReadController } from './infrastructure/controllers/internal-tenant-read.controller';
 import { TenantController } from './infrastructure/controllers/tenant.controller';
@@ -140,6 +139,7 @@ import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.
     HotsiteController,
     LeadFormController,
     LeadFormPublicController,
+    InternalSlugController,
     InternalTenantController,
     InternalTenantReadController,
     TenantController,
@@ -167,29 +167,13 @@ import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.
     { provide: OPENAI_LLM_PROVIDER, useClass: OpenAiLlmAdapter },
     { provide: FAKE_LLM_PROVIDER, useClass: FakeLlmAdapter },
     { provide: CLOUDFLARE_TURNSTILE_PROVIDER, useClass: CloudflareTurnstileAdapter },
+    llmProviderRegistryProvider,
     {
-      provide: LLM_PROVIDER_REGISTRY,
-      useFactory: (
-        config: ConfigService,
-        openRouterProvider: ILlmProvider,
-        anthropicProvider: ILlmProvider,
-        openAiProvider: ILlmProvider,
-        fakeProvider: ILlmProvider,
-      ) =>
-        new LlmProviderRegistry(
-          config.get<boolean>('CHATBOT_LLM_FAKE', false),
-          openRouterProvider,
-          anthropicProvider,
-          openAiProvider,
-          fakeProvider,
-        ),
-      inject: [
-        ConfigService,
-        OPENROUTER_LLM_PROVIDER,
-        ANTHROPIC_LLM_PROVIDER,
-        OPENAI_LLM_PROVIDER,
-        FAKE_LLM_PROVIDER,
-      ],
+      // Built once: the owner slug is the only runtime input, null when the variable is unset.
+      provide: SLUG_POLICY,
+      useFactory: (config: IApplicationConfig) =>
+        new SlugPolicy(config.getOptional('PLATFORM_OWNER_TENANT_SLUG')),
+      inject: [APPLICATION_CONFIG],
     },
     HotsiteContentReader,
     { provide: FRONTEND_REVALIDATION_PORT, useClass: FrontendRevalidationAdapter },
@@ -232,6 +216,7 @@ import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.
     GetTenantBySlugUseCase,
     GetTenantsUseCase,
     ListPublishedHotsitesUseCase,
+    CheckSlugAvailabilityUseCase,
     ProvisionTenantUseCase,
     PublishHotsiteUseCase,
     RenameTenantUseCase,

@@ -9,4 +9,12 @@ describe('NestApplicationConfigAdapter', () => {
     expect(adapter.getOrThrow('FRONTEND_URL')).toBe('https://app.example.test');
     expect(config.getOrThrow).toHaveBeenCalledWith('FRONTEND_URL');
   });
+
+  it('returns an optional value, and null when it is unset', () => {
+    const config = { get: jest.fn((key: string) => (key === 'SET' ? 'ikaro' : undefined)) };
+    const adapter = new NestApplicationConfigAdapter(config as unknown as ConfigService);
+
+    expect(adapter.getOptional('SET')).toBe('ikaro');
+    expect(adapter.getOptional('UNSET')).toBeNull();
+  });
 });

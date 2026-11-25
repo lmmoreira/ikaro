@@ -1,3 +1,4 @@
+import { InMemoryApplicationConfig } from '../../../../../test/infrastructure/in-memory-application-config';
 import { InMemoryNotificationDispatcher } from '../../../../../test/infrastructure/in-memory-notification-dispatcher';
 import { InMemoryNotificationLogRepository } from '../../../../../test/repositories/notification/in-memory-notification-log.repository';
 import { InMemoryInboxRepository } from '../../../../../test/infrastructure/in-memory-inbox.repository';
@@ -17,12 +18,7 @@ const TENANT_ID = 'aaaaaaaa-0000-4000-8000-000000000001';
 const OTHER_TENANT_ID = 'aaaaaaaa-0000-4000-8000-000000000002';
 const EVENT_ID = 'cccccccc-0002-4000-8000-000000000001';
 
-const config = {
-  getOrThrow: (key: string): string => {
-    if (key === 'FRONTEND_URL') return 'https://app.example.com';
-    throw new Error(`Unknown config key: ${key}`);
-  },
-};
+const config = new InMemoryApplicationConfig({ FRONTEND_URL: 'https://app.example.com' });
 
 function input(
   overrides: Partial<SendResourceDeactivationImpactNotificationUseCaseInput> = {},

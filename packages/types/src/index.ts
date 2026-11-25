@@ -21,5 +21,6 @@ export * from './hotsite';
 export * from './hotsite-schemas';
 export * from './customer.dto';
 export * from './billing.dto';
+export * from './signup.dto';
 export * from './tenant-access';
 export * from './zod-violation';
