@@ -1422,7 +1422,7 @@ The read side of the Plano tab. `GET /v1/billing/plan` returns the catalog for t
   - [ ] `BILLING_NO_PRICE_FOR_COUNTRY`, the three plan errors → `422` in `billing-error.mapper.spec.ts`; a tenant with no subscription row → `{ provisioning: true }` on `GET /plan`, `404` on the preview
   - [ ] Backend routes carry `@NoFeatureGate()` + `@SuspensionAccess(MANAGER_BILLING)` (decorator spec); the BFF routes carry no annotation (M25-S33)
 - Integration:
-  - [ ] Catalog and preview through the HTTP layer; preview persists nothing (row counts unchanged in `subscriptions`, `subscription_items` and `charges`) and never calls the removal guard (negative guarantee, pinned by a test that a BOOKING removal with live bookings still previews)
+  - [ ] Catalog and preview through the HTTP layer; preview persists nothing (row counts unchanged in `subscriptions`, `subscription_items` and `charges`) and never calls the removal guard (negative guarantee: the guard does not exist until S18, so the pin is that a BOOKING removal previews `200` and that `PreviewPlanSelectionUseCase` takes no Booking dependency; S18 adds the live-bookings case when it ships the guard)
   - [ ] `STAFF`/`CUSTOMER` → `403`
 - Tenant isolation: [ ] two tenants with different current and scheduled selections: each manager's `GET /plan` and `POST /plan/preview` return only their own tenant's current and scheduled items and a total computed from their own selection
 - E2E: none — covered by integration
