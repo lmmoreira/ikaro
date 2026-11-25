@@ -54,7 +54,7 @@ backend / BFF process
 | `correlation.id` | `CorrelationMiddleware` (backend and BFF) | Runs before guards, so it is present even on guard-rejected requests. |
 | `tenant.id`, `user.id` | `RequestInterceptor` | Absent on a guard-rejected request (interceptors never run for it), and on BFF routes with no resolved tenant. `user.id` only when an actor is known. |
 | `error.code` | the shared error filter (`base-error.filter.ts`) | The API error code; `AUTH_INTERNAL_ERROR` for unhandled errors. |
-| `chatbot.session_id`, `chatbot.provider`, `chatbot.model_id`, `chatbot.input_tokens`, `chatbot.output_tokens`, `chatbot.cap_rejected` | `send-chat-message.use-case.ts`, `chatbot-cap-check.helpers.ts` | Chat request cost and which cap layer rejected it (`cap_rejected` also takes `provider_unavailable`). |
+| `chatbot.session_id`, `chatbot.provider`, `chatbot.model_id`, `chatbot.input_tokens`, `chatbot.output_tokens`, `chatbot.cap_rejected`, `chatbot.tier`, `chatbot.override` | `send-chat-message.use-case.ts`, `chatbot-cap-check.helpers.ts`, `chatbot-config-resolver.service.ts` | Chat request cost and which cap layer rejected it (`cap_rejected` also takes `provider_unavailable` and `not_entitled`); `tier` is the resolved `BASIC`/`PLUS`, and `override` is true when the tenant's own settings changed the model, provider or a cap, so a tenant on another model is never silent. |
 
 **Pub/Sub.** The outbox publisher injects the active trace context into the message `attributes`. The consumer side restores it with `runWithExtractedContext()` and opens a span per dispatch branch: `pubsub.event.<EventName>` and `pubsub.trigger.<TriggerName>`. Every dispatcher branch needs its own span; do not assume two branches behave alike.
 

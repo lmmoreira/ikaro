@@ -1510,7 +1510,7 @@ Types are the minimum M25-S03 needs (the discovery data model lists column names
 - `platform.tenants`: **one expand-only index**, a standalone `(created_at)` index (`AddTenantsCreatedAtIndex`, built in M26-S08, `(created_at, id)`) so the tenant-info port can list tenants by age for self-heal and the provisioning window; no column change — `is_active` keeps meaning offboarding; billing never flips it. `platform.hotsite_configs`: **no change** (`is_published` stays the manager's preference; the effective value is computed).
 - Platform-level (`tenant_id IS NULL`) Billing notification templates are inserted by migration (one row per template key and locale; content comes from `packages/i18n/locales/{pt-BR,en}/notifications.json`).
 - `Slug` value object (`apps/backend/src/shared/value-objects/slug.vo.ts`, not a table): add length 3–30, no leading/trailing hyphen and a reserved-word list with a typed error; existing tenants are unaffected (`Tenant.reconstitute()` takes an already-built `Slug` and does not re-validate; `Slug` itself has only `isValid`/`create`).
-- `tenants.settings.chatbot.*` overrides become **derived from the chatbot tier** in code (`docs/TENANTS_SETTINGS_SCHEMA.md`); no column change.
+- `tenants.settings.chatbot.*` overrides stay, as operator-only values (a direct database edit; no API writes them). Each value resolves as the tenant's override, else the chatbot tier's constants in code (`docs/TENANTS_SETTINGS_SCHEMA.md`); no column change.
 
 ### Billing constraint naming and closed-value CHECKs (first migration, M25-S03)
 
