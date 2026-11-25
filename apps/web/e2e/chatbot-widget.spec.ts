@@ -15,7 +15,7 @@ import {
 const MANAGER_EMAIL = 'admin@autospa.com.br';
 const MANAGER_TENANT_SLUG = 'autospa-premium';
 
-// The E2E backend process is started with CHATBOT_LLM_PROVIDER=fake (.github/workflows/pr-tests.yml)
+// The E2E backend process is started with CHATBOT_LLM_FAKE=true (.github/workflows/pr-tests.yml)
 // — FakeLlmAdapter's deterministic reply, never a real billed model call.
 function fakeReplyText(userMessage: string): string {
   return `[fake-llm] echo: ${userMessage}`;

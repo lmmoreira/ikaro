@@ -17,8 +17,11 @@ import {
   ChatbotDailyCapReachedError,
   ChatbotMessageCapReachedError,
 } from '../../domain/errors/chatbot-domain.error';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
+import { ChatCompletionRequest, ILlmProvider } from '../ports/llm-provider.port';
 import { LlmProviderRegistry } from '../services/llm-provider-registry.service';
 import { SendChatMessageUseCaseInput } from './send-chat-message.types';
+import { ChatbotConfigResolver } from '../services/chatbot-config-resolver.service';
 import { SendChatMessageUseCase } from './send-chat-message.use-case';
 
 // Never a real network call — the LLM adapter itself is stubbed via FakeLlmProviderBuilder, same
@@ -27,6 +30,8 @@ describe('SendChatMessageUseCase (integration — real Postgres cap enforcement)
   let dataSource: DataSource;
   let useCase: SendChatMessageUseCase;
   let tenantRepo: TypeOrmTenantRepository;
+  let accessPort: InMemoryTenantAccessPort;
+  let llmProvider: ILlmProvider & { requests: ChatCompletionRequest[] };
 
   beforeAll(async () => {
     dataSource = await createTestDataSource();
@@ -43,9 +48,18 @@ describe('SendChatMessageUseCase (integration — real Postgres cap enforcement)
     const balanceRepo = new TypeOrmChatbotProviderBalanceRepository(
       dataSource.getRepository(ChatbotProviderBalanceEntity),
     );
-    const llmProvider = new FakeLlmProviderBuilder().build();
+    const fakeProvider = new FakeLlmProviderBuilder().build();
+    // Records every request, so a test can see which model and ceiling a tenant's call carried.
+    llmProvider = {
+      requests: [],
+      complete: async (request) => {
+        llmProvider.requests.push(request);
+        return fakeProvider.complete(request);
+      },
+    };
+    accessPort = new InMemoryTenantAccessPort();
     const registry = new LlmProviderRegistry(
-      'openrouter',
+      false,
       llmProvider,
       llmProvider,
       llmProvider,
@@ -58,7 +72,12 @@ describe('SendChatMessageUseCase (integration — real Postgres cap enforcement)
       registry,
       new TypeOrmTransactionManager(dataSource),
       fakeConfig(),
+      new ChatbotConfigResolver(accessPort),
     );
+  });
+
+  beforeEach(() => {
+    llmProvider.requests.length = 0;
   });
 
   afterAll(async () => {
@@ -120,5 +139,74 @@ describe('SendChatMessageUseCase (integration — real Postgres cap enforcement)
     await expect(
       useCase.execute(baseInput(tenant.id, { chatbotSettings, sessionId: first.sessionId })),
     ).rejects.toThrow(ChatbotMessageCapReachedError);
+  });
+
+  describe('tier-resolved configuration (M26-S21)', () => {
+    function seedChatbotTier(tenantId: string, tier: 'BASIC' | 'PLUS'): void {
+      accessPort.seed(tenantId, {
+        status: 'ACTIVE',
+        suspensionReason: null,
+        operational: true,
+        features: [{ key: 'CHATBOT', tier }],
+      });
+    }
+
+    it('takes a tier change on the next message, with the ceiling only on BASIC', async () => {
+      const tenant = new TenantBuilder().withSlug('lavacar-integration-tier-change').build();
+      await tenantRepo.save(tenant);
+      seedChatbotTier(tenant.id, 'BASIC');
+      const first = await useCase.execute(baseInput(tenant.id));
+
+      seedChatbotTier(tenant.id, 'PLUS');
+      await useCase.execute(baseInput(tenant.id, { sessionId: first.sessionId }));
+
+      expect(llmProvider.requests.map((r) => r.model)).toEqual([
+        'deepseek/deepseek-v4-flash-0731',
+        'anthropic/claude-haiku-5.5',
+      ]);
+      expect(llmProvider.requests[0].maxPrice).toEqual({ prompt: 0.15, completion: 0.5 });
+      expect(llmProvider.requests[1].maxPrice).toBeUndefined();
+    });
+
+    it('lets a stored tenant override win over the tier', async () => {
+      const tenant = new TenantBuilder().withSlug('lavacar-integration-override-wins').build();
+      await tenantRepo.save(tenant);
+      seedChatbotTier(tenant.id, 'BASIC');
+
+      await useCase.execute(
+        baseInput(tenant.id, { chatbotSettings: { llmModel: 'x/operator-test' } }),
+      );
+
+      expect(llmProvider.requests[0].model).toBe('x/operator-test');
+      expect(llmProvider.requests[0].maxPrice).toBeUndefined();
+    });
+
+    it("never lets one tenant's tier or caps change another's", async () => {
+      const tenantA = new TenantBuilder().withSlug('lavacar-integration-tier-iso-a').build();
+      const tenantB = new TenantBuilder().withSlug('lavacar-integration-tier-iso-b').build();
+      await tenantRepo.save(tenantA);
+      await tenantRepo.save(tenantB);
+      seedChatbotTier(tenantA.id, 'PLUS');
+      seedChatbotTier(tenantB.id, 'BASIC');
+
+      await useCase.execute(
+        baseInput(tenantA.id, { chatbotSettings: { maxConversationsPerDay: 1 } }),
+      );
+      await expect(
+        useCase.execute(
+          baseInput(tenantA.id, {
+            chatbotSettings: { maxConversationsPerDay: 1 },
+            clientIp: '203.0.113.30',
+          }),
+        ),
+      ).rejects.toThrow(ChatbotDailyCapReachedError);
+      const resultB = await useCase.execute(baseInput(tenantB.id, { clientIp: '203.0.113.31' }));
+
+      expect(resultB.sessionId).toBeTruthy();
+      expect(llmProvider.requests.map((r) => r.model)).toEqual([
+        'anthropic/claude-haiku-5.5',
+        'deepseek/deepseek-v4-flash-0731',
+      ]);
+    });
   });
 });

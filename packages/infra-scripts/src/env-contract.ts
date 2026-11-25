@@ -50,6 +50,9 @@ const BACKEND_EXEMPT_KEYS: readonly string[] = [
   'DB_HOST',
   'DB_PORT',
   'PUBSUB_MAX_DELIVERY_ATTEMPTS',
+  // M26-S21 — CHATBOT_LLM_FAKE is a local-only switch (env.validation.ts rejects it when APP_ENV
+  // is not "local"), so it is never wired in Terraform.
+  'CHATBOT_LLM_FAKE',
   'GCS_PUBLIC_BASE_URL',
   'GCS_MAX_UPLOAD_BYTES',
   'EMAIL_FROM',

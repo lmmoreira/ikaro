@@ -47,4 +47,55 @@ describe('ChatbotSettingsValidator', () => {
       }),
     ).toThrow(TenantSettingsValidationError);
   });
+  describe('operator LLM override (M26-S21): findLlmOverrideProblem', () => {
+    const problem = (
+      chatbot: Parameters<typeof ChatbotSettingsValidator.findLlmOverrideProblem>[0],
+    ) => ChatbotSettingsValidator.findLlmOverrideProblem(chatbot);
+
+    it('finds no problem with no override, and with a model alone (the provider stays the tier’s)', () => {
+      expect(problem({ knowledgeText: 'x' })).toBeNull();
+      expect(problem({ llmModel: 'google/gemini-test' })).toBeNull();
+    });
+
+    it('reports a provider alone: nothing says which model to use', () => {
+      expect(problem({ llmProvider: 'openrouter' })).toContain('requires chatbot.llmModel');
+      expect(problem({ llmProvider: 'anthropic' })).toContain('requires chatbot.llmModel');
+    });
+
+    it('accepts openrouter with any model', () => {
+      expect(
+        problem({ llmProvider: 'openrouter', llmModel: 'anthropic/claude-sonnet-5' }),
+      ).toBeNull();
+    });
+
+    it('accepts anthropic and openai only with that adapter’s own default model (the only one it prices correctly)', () => {
+      expect(problem({ llmProvider: 'anthropic', llmModel: 'claude-haiku-4-5' })).toBeNull();
+      expect(problem({ llmProvider: 'openai', llmModel: 'gpt-5.6-luna' })).toBeNull();
+      expect(problem({ llmProvider: 'anthropic', llmModel: 'claude-sonnet-5' })).toContain(
+        "must be 'claude-haiku-4-5'",
+      );
+      expect(problem({ llmProvider: 'openai', llmModel: 'gpt-other' })).toContain(
+        "must be 'gpt-5.6-luna'",
+      );
+    });
+
+    it('reports a provider an override may not name: fake (selected only by CHATBOT_LLM_FAKE), unknown names, prototype keys', () => {
+      expect(problem({ llmProvider: 'fake', llmModel: 'fake-llm-e2e' })).toContain(
+        'not a provider',
+      );
+      expect(problem({ llmProvider: 'vertex-ai', llmModel: 'x' })).toContain('not a provider');
+      expect(problem({ llmProvider: 'constructor', llmModel: 'x' })).toContain('not a provider');
+    });
+
+    it('is not part of validate(): a stored override never fails TenantSettings.create(), so an unrelated settings PATCH is never blocked by it', () => {
+      expect(() => ChatbotSettingsValidator.validate({ llmProvider: 'anthropic' })).not.toThrow();
+      expect(() =>
+        ChatbotSettingsValidator.validate({
+          llmProvider: 'anthropic',
+          llmModel: 'claude-sonnet-5',
+          knowledgeText: 'x',
+        }),
+      ).not.toThrow();
+    });
+  });
 });

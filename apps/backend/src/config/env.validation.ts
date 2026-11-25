@@ -85,10 +85,12 @@ export const schema = z.object({
     .int()
     .min(8, { message: 'INBOX_RETENTION_DAYS must be >= 8 (Pub/Sub max redelivery is 7 days)' })
     .default(14),
-  // M19-S02 — kept an env var deliberately (not a code constant): lets ops fail the platform
-  // default over to another provider in minutes if OpenRouter has an outage, no deploy needed.
-  // A specific tenant can still override via tenants.settings.chatbot.llmProvider.
-  CHATBOT_LLM_PROVIDER: z.string().default('openrouter'),
+  // M26-S21 — local-only switch (rejected anywhere but APP_ENV=local, see validateChatbotConfig):
+  // every tenant's chatbot resolves to the free, non-billed fake adapter, for local runs and the
+  // E2E stack. It replaces CHATBOT_LLM_PROVIDER: the provider and model of a real chatbot now come
+  // from the tenant's tier (chatbot.constants.ts), or an operator override in the tenant's
+  // settings, so no env var selects a provider any more.
+  CHATBOT_LLM_FAKE: z.stringbool().default(false),
   // Optional: only needed when the OpenRouter adapter actually makes a real call. Automated
   // tests never call the real API (stubbed fetch), so local dev/CI work fine unset.
   OPENROUTER_API_KEY: z.string().optional(),
@@ -218,17 +220,17 @@ function validateDatabaseConfig(data: Env, ctx: z.RefinementCtx): void {
   }
 }
 
-// M19-S11 PR #385 review (Codex): CHATBOT_LLM_PROVIDER had no environment guard at all — the
+// M19-S11 PR #385 review (Codex): the fake chatbot provider had no environment guard at all — the
 // fake/noop adapter (never billed, echoes the guest's own message) would have been silently
 // accepted in staging/production, replacing the real assistant with an echo service. Mirrors
-// validateEmailConfig's EMAIL_ADAPTER=mailhog guard above exactly: 'fake' is E2E/local-only.
+// validateEmailConfig's EMAIL_ADAPTER=mailhog guard above exactly: the fake is E2E/local-only
+// (M26-S21 renamed the switch from CHATBOT_LLM_PROVIDER=fake to CHATBOT_LLM_FAKE=true).
 function validateChatbotConfig(data: Env, ctx: z.RefinementCtx): void {
-  if (data.APP_ENV !== 'local' && data.CHATBOT_LLM_PROVIDER === 'fake') {
+  if (data.APP_ENV !== 'local' && data.CHATBOT_LLM_FAKE) {
     ctx.addIssue({
       code: 'custom',
-      path: ['CHATBOT_LLM_PROVIDER'],
-      message:
-        'CHATBOT_LLM_PROVIDER=fake is not allowed when APP_ENV is not "local" — use openrouter, anthropic, or openai',
+      path: ['CHATBOT_LLM_FAKE'],
+      message: 'CHATBOT_LLM_FAKE=true is not allowed when APP_ENV is not "local"',
     });
   }
 }
@@ -257,6 +259,21 @@ const validatedSchema = schema.superRefine((data, ctx) => {
   validateChatbotConfig(data, ctx);
 });
 
+// M26-S21: CHATBOT_LLM_PROVIDER was replaced by CHATBOT_LLM_FAKE. The schema strips keys it does not
+// know, so a developer's stale `apps/backend/.env` with CHATBOT_LLM_PROVIDER=fake would otherwise
+// be ignored silently, and local runs (and local Playwright) would call the real, billed provider.
+// Refused only when APP_ENV is local: a deployed revision that still carries the variable (Terraform
+// not yet applied) must keep booting, the new code simply ignores it.
+function rejectRetiredLocalVariables(config: Record<string, unknown>): void {
+  const appEnv = config['APP_ENV'] ?? 'local';
+  if (appEnv === 'local' && config['CHATBOT_LLM_PROVIDER'] !== undefined) {
+    throw new Error(
+      'CHATBOT_LLM_PROVIDER was replaced by CHATBOT_LLM_FAKE=true (M26-S21): remove it from apps/backend/.env, otherwise the chatbot calls the real, billed provider',
+    );
+  }
+}
+
 export function validateEnv(config: Record<string, unknown>): Env {
+  rejectRetiredLocalVariables(config);
   return validateEnvWithSchema(validatedSchema, config);
 }

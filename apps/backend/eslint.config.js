@@ -534,7 +534,7 @@ module.exports = [
 
   // Test code never loads the developer's gitignored apps/backend/.env: CI's fresh checkout has
   // none, so a value set there for local dev or Playwright silently changes what a spec
-  // exercises (CHATBOT_LLM_PROVIDER=fake made the chatbot integration spec select the built-in
+  // exercises (CHATBOT_LLM_FAKE=true made the chatbot integration spec select the built-in
   // fake adapter instead of its own double, failing it locally only; M23-S33 follow-up). Test
   // code builds its config module through testConfigModule() (ignoreEnvFile: true), the one
   // file allowed to import ConfigModule. The *import* is banned rather than a

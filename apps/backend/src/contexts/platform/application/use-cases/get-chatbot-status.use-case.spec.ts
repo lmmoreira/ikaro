@@ -12,31 +12,44 @@ import {
   InMemoryChatbotProviderBalanceRepository,
   InMemoryChatbotSessionRepository,
 } from '../../../../test/repositories/platform';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
 import { ILlmProvider } from '../ports/llm-provider.port';
 import { LlmProviderRegistry } from '../services/llm-provider-registry.service';
 import {
   GetChatbotStatusUseCase,
   GetChatbotStatusUseCaseInput,
 } from './get-chatbot-status.use-case';
+import { ChatbotConfigResolver } from '../services/chatbot-config-resolver.service';
 
 const TENANT_ID = '01234567-0000-7000-8000-000000000001';
+
+// An operator override: a provider is always paired with its model (a provider alone is invalid).
+const ANTHROPIC_OVERRIDE = { llmProvider: 'anthropic', llmModel: 'claude-haiku-4-5' };
 
 describe('GetChatbotStatusUseCase', () => {
   let sessionRepo: InMemoryChatbotSessionRepository;
   let messageRepo: InMemoryChatbotMessageRepository;
   let balanceRepo: InMemoryChatbotProviderBalanceRepository;
+  let accessPort: InMemoryTenantAccessPort;
   let llmProvider: ILlmProvider;
 
   function buildUseCase(config: IApplicationConfig = fakeConfig()): GetChatbotStatusUseCase {
     llmProvider = new FakeLlmProviderBuilder().build();
     const registry = new LlmProviderRegistry(
-      'openrouter',
+      false,
       llmProvider,
       llmProvider,
       llmProvider,
       llmProvider,
     );
-    return new GetChatbotStatusUseCase(sessionRepo, messageRepo, balanceRepo, registry, config);
+    return new GetChatbotStatusUseCase(
+      sessionRepo,
+      messageRepo,
+      balanceRepo,
+      registry,
+      config,
+      new ChatbotConfigResolver(accessPort),
+    );
   }
 
   function baseInput(
@@ -54,6 +67,7 @@ describe('GetChatbotStatusUseCase', () => {
     sessionRepo = new InMemoryChatbotSessionRepository();
     messageRepo = new InMemoryChatbotMessageRepository();
     balanceRepo = new InMemoryChatbotProviderBalanceRepository();
+    accessPort = new InMemoryTenantAccessPort();
   });
 
   it('is available when none of the 5 conditions trip', async () => {
@@ -62,6 +76,31 @@ describe('GetChatbotStatusUseCase', () => {
     const result = await useCase.execute(baseInput());
 
     expect(result).toEqual({ available: true });
+  });
+
+  it('is not available for a suspended tenant (the chatbot is inert), without reading any counter', async () => {
+    accessPort.seedSuspended(TENANT_ID);
+    const sessionCountSpy = jest.spyOn(sessionRepo, 'countByTenantAndDate');
+    const useCase = buildUseCase();
+
+    const result = await useCase.execute(baseInput());
+
+    expect(result).toEqual({ available: false });
+    expect(sessionCountSpy).not.toHaveBeenCalled();
+  });
+
+  it('is not available for a tenant whose plan has no CHATBOT feature', async () => {
+    accessPort.seed(TENANT_ID, {
+      status: 'ACTIVE',
+      suspensionReason: null,
+      operational: true,
+      features: [{ key: 'HOTSITE', tier: 'STANDARD' }],
+    });
+    const useCase = buildUseCase();
+
+    const result = await useCase.execute(baseInput());
+
+    expect(result).toEqual({ available: false });
   });
 
   it('is pure read — no writes to any repository', async () => {
@@ -174,9 +213,7 @@ describe('GetChatbotStatusUseCase', () => {
       await balanceRepo.recordCallOutcome('openrouter', 'FAILURE', new Date());
       const useCase = buildUseCase(fakeConfig({ CHATBOT_PROVIDER_HEALTH_COOLDOWN_MINUTES: '5' }));
 
-      const result = await useCase.execute(
-        baseInput({ chatbotSettings: { llmProvider: 'anthropic' } }),
-      );
+      const result = await useCase.execute(baseInput({ chatbotSettings: ANTHROPIC_OVERRIDE }));
 
       expect(result).toEqual({ available: true });
     });
@@ -235,9 +272,7 @@ describe('GetChatbotStatusUseCase', () => {
       );
       const useCase = buildUseCase(fakeConfig({ CHATBOT_MIN_PROVIDER_BALANCE_USD: '2' }));
 
-      const result = await useCase.execute(
-        baseInput({ chatbotSettings: { llmProvider: 'anthropic' } }),
-      );
+      const result = await useCase.execute(baseInput({ chatbotSettings: ANTHROPIC_OVERRIDE }));
 
       expect(result).toEqual({ available: true });
     });
@@ -254,9 +289,7 @@ describe('GetChatbotStatusUseCase', () => {
       await balanceRepo.recordCallOutcome('anthropic', 'SUCCESS', new Date());
       const useCase = buildUseCase(fakeConfig({ CHATBOT_MIN_PROVIDER_BALANCE_USD: '2' }));
 
-      const result = await useCase.execute(
-        baseInput({ chatbotSettings: { llmProvider: 'anthropic' } }),
-      );
+      const result = await useCase.execute(baseInput({ chatbotSettings: ANTHROPIC_OVERRIDE }));
 
       expect(result).toEqual({ available: true });
     });

@@ -30,7 +30,7 @@ context each row's Action column records.
 | `apps/backend/src/contexts/platform/infrastructure/llm/openrouter-llm.adapter.ts` | ✅ Done (M19-S02) | Primary, DeepSeek V4 Flash 0731, always `reasoning: { effort: "none" }` |
 | `apps/backend/src/contexts/platform/infrastructure/llm/anthropic-llm.adapter.ts` | ✅ Done (M19-S03) | — |
 | `apps/backend/src/contexts/platform/infrastructure/llm/openai-llm.adapter.ts` | ✅ Done (M19-S03) | — |
-| `apps/backend/src/contexts/platform/infrastructure/llm/fake-llm.adapter.ts` | ✅ Done (M19-S11) | DI-registered fake/noop `ILlmProvider`, selectable via `CHATBOT_LLM_PROVIDER=fake`, registered in `LlmProviderRegistry`. Resolved at M19-S11 story-discovery: the AC requiring a real Playwright E2E flow (widget → BFF → backend → adapter) against a non-billed response has no existing infrastructure to satisfy it — the existing `FakeLlmProviderBuilder` is Jest-only, not DI-registered. Mirrors the `EMAIL_ADAPTER=mailhog` precedent (a real, free, safe local adapter, never the production default) — including an `APP_ENV`-gated guard added during PR #385 review rejecting `fake` outside `local`, mirroring `EMAIL_ADAPTER=mailhog`'s own guard exactly (`apps/backend/src/config/env.validation.ts`) |
+| `apps/backend/src/contexts/platform/infrastructure/llm/fake-llm.adapter.ts` | ✅ Done (M19-S11) | DI-registered fake/noop `ILlmProvider`, selected for every tenant by `CHATBOT_LLM_FAKE=true` (local only; named `CHATBOT_LLM_PROVIDER=fake` until M26-S21), registered in `LlmProviderRegistry`. Resolved at M19-S11 story-discovery: the AC requiring a real Playwright E2E flow (widget → BFF → backend → adapter) against a non-billed response has no existing infrastructure to satisfy it — the existing `FakeLlmProviderBuilder` is Jest-only, not DI-registered. Mirrors the `EMAIL_ADAPTER=mailhog` precedent (a real, free, safe local adapter, never the production default) — including an `APP_ENV`-gated guard added during PR #385 review rejecting `fake` outside `local`, mirroring `EMAIL_ADAPTER=mailhog`'s own guard exactly (`apps/backend/src/config/env.validation.ts`) |
 | `apps/web/shells/hotsite/components/linkify-chat-text.tsx` | ✅ Done | `linkifyChatText()` — turns URLs in assistant replies into links; used by `ChatbotPanel.tsx` when rendering each turn |
 | `apps/backend/src/contexts/platform/infrastructure/controllers/chatbot.controller.ts` (Chatbot backend controller) | ✅ Done (M19-S05) | Cap enforcement, persistence, calls `ILlmProvider.complete()` |
 | Migration for `platform.chatbot_sessions`/`platform.chatbot_messages`/`platform.chatbot_provider_balance` | ✅ Done (M19-S01) | See `docs/DATABASE_SCHEMA.md` |
@@ -169,7 +169,7 @@ All resolved at M19-S11 story-discovery (2026-08-17):
   backend/BFF endpoint into what's otherwise a frontend-scoped story.)
 - **E2E test infrastructure:** no fake/stubbed `ILlmProvider` existed anywhere that a real running
   backend process could select — folded into M19-S11's own scope as a DI-registered fake adapter
-  selectable via `CHATBOT_LLM_PROVIDER=fake` (see File map above).
+  selected by `CHATBOT_LLM_FAKE=true` (see File map above).
 - **Client transport:** resolved via `bffClient` with an explicit `X-Tenant-Slug` header — the
   same pattern `fetchServicesClient()` (`apps/web/features/platform/hotsite/api/services.ts`)
   already uses for the identical case (see File map above).

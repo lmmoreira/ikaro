@@ -10,10 +10,9 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import type { ChatbotSettings } from '../../../../shared/value-objects/tenant-settings-data';
-import { DEFAULT_MAX_OUTPUT_TOKENS_PER_RESPONSE } from '../../chatbot.constants';
 import { ChatbotMessage } from '../../domain/chatbot-message.aggregate';
 import { ChatbotSession } from '../../domain/chatbot-session.aggregate';
+import { ChatbotProviderUnavailableError } from '../../domain/errors/chatbot-domain.error';
 import {
   CHATBOT_MESSAGE_REPOSITORY,
   IChatbotMessageRepository,
@@ -38,6 +37,10 @@ import {
   resolveNewSession,
 } from './chatbot-cap-check.helpers';
 import { ChatbotCapCheckDeps } from './chatbot-cap-check.types';
+import {
+  ChatbotConfigResolver,
+  ResolvedChatbotConfig,
+} from '../services/chatbot-config-resolver.service';
 import { SendChatMessageUseCaseInput } from './send-chat-message.types';
 
 export interface SendChatMessageUseCaseResult {
@@ -57,6 +60,7 @@ export class SendChatMessageUseCase {
     @Inject(LLM_PROVIDER_REGISTRY) private readonly llmRegistry: LlmProviderRegistry,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     @Inject(APPLICATION_CONFIG) private readonly config: IApplicationConfig,
+    private readonly chatbotConfigResolver: ChatbotConfigResolver,
     @Optional() private readonly tracingPort: ITracingPort = defaultTracingPort,
   ) {}
 
@@ -73,15 +77,16 @@ export class SendChatMessageUseCase {
   }
 
   async execute(input: SendChatMessageUseCaseInput): Promise<SendChatMessageUseCaseResult> {
-    const { tenantId, chatbotSettings } = input;
-    const resolvedProviderName = this.llmRegistry.resolveName(chatbotSettings.llmProvider);
+    const { tenantId } = input;
+    const config = await this.resolveEntitledConfig(input);
+    const resolvedProviderName = this.llmRegistry.resolveName(config.provider);
 
-    enforceMessageLength(this.capDeps, input);
+    enforceMessageLength(this.capDeps, input, config.caps);
 
     const isNewSession = !input.sessionId;
     const { session, history } = input.sessionId
-      ? await resolveExistingSession(this.capDeps, input.sessionId, tenantId, chatbotSettings)
-      : await resolveNewSession(this.capDeps, input, resolvedProviderName);
+      ? await resolveExistingSession(this.capDeps, input.sessionId, tenantId, config.caps)
+      : await resolveNewSession(this.capDeps, input, resolvedProviderName, config.caps);
 
     // Reserve this turn's 2 rows (persist the session with its updated messageCount/
     // lastMessageAt) BEFORE the LLM call, not after. Narrows the concurrent-write race on layers
@@ -95,7 +100,7 @@ export class SendChatMessageUseCase {
     const result = await this.completeOrHandleFailure(
       input,
       session,
-      chatbotSettings,
+      config,
       history,
       resolvedProviderName,
       isNewSession,
@@ -126,28 +131,67 @@ export class SendChatMessageUseCase {
     return { sessionId: session.id, reply: result.text };
   }
 
+  // Entitlement is already refused at the HTTP choke point (@RequiresFeature('CHATBOT')); this is
+  // the same refusal for an internal caller that bypasses the route gate. It runs before any cap
+  // check, so no counter is touched and no LLM call is made.
+  private async resolveEntitledConfig(
+    input: SendChatMessageUseCaseInput,
+  ): Promise<ResolvedChatbotConfig> {
+    const config = await this.chatbotConfigResolver.resolve({
+      tenantId: input.tenantId,
+      chatbotSettings: input.chatbotSettings,
+    });
+    if (!config.entitled) this.rejectNotEntitled(input.tenantId);
+    this.logOverride(input.tenantId, config);
+    return config;
+  }
+
+  // Logged here, once per chat message, never in the resolver: the status endpoint resolves on
+  // every hotsite page load and would flood the log for any tenant with an override.
+  private logOverride(tenantId: string, config: ResolvedChatbotConfig): void {
+    if (config.overrideProblem) {
+      this.logger.error('Chatbot override ignored, the tier values are used', undefined, {
+        tenantId,
+        problem: config.overrideProblem,
+      });
+    }
+    if (config.overrideApplied) {
+      this.logger.log('Chatbot tenant override applied', {
+        tenantId,
+        tier: config.tier,
+        provider: config.provider,
+        model: config.model,
+      });
+    }
+  }
+
+  private rejectNotEntitled(tenantId: string): never {
+    this.logger.warn('Chatbot request for a tenant without the CHATBOT feature', { tenantId });
+    this.tracingPort.setActiveSpanAttributes({ 'chatbot.cap_rejected': 'not_entitled' });
+    throw new ChatbotProviderUnavailableError();
+  }
+
   // Cross-service network I/O — never inside txManager.run() (PR #267 precedent,
   // docs/ENGINEERING_RULES_BACKEND.md § Transactions). All reads/reservation writes above already
   // happened; the two message saves after this call returns are the only write left.
   private async completeOrHandleFailure(
     input: SendChatMessageUseCaseInput,
     session: ChatbotSession,
-    chatbotSettings: ChatbotSettings,
+    config: ResolvedChatbotConfig,
     history: ChatTurn[],
     resolvedProviderName: string,
     isNewSession: boolean,
   ): Promise<ChatCompletionResult> {
-    const provider = this.llmRegistry.resolve(chatbotSettings.llmProvider);
-    const maxOutputTokens =
-      chatbotSettings.maxOutputTokensPerResponse ?? DEFAULT_MAX_OUTPUT_TOKENS_PER_RESPONSE;
+    const provider = this.llmRegistry.resolve(config.provider);
 
     try {
       return await provider.complete({
         systemPrompt: input.systemPrompt,
         history,
         userMessage: input.userMessage,
-        maxOutputTokens,
-        model: chatbotSettings.llmModel,
+        maxOutputTokens: config.caps.maxOutputTokensPerResponse,
+        model: config.model,
+        maxPrice: config.maxPrice,
       });
     } catch (err: unknown) {
       await this.txManager.run(async () => {
