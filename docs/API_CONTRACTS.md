@@ -1475,7 +1475,7 @@ Every provisioning goes through one pattern: the operator reserves a Billing reg
 | Field | Type | Required | Rules |
 |---|---|---|---|
 | `name` | string | ✓ | Non-empty |
-| `slug` | string | ✓ | `/^[a-z0-9-]+$/`, globally unique |
+| `slug` | string | ✓ | `/^[a-z0-9-]+$/` (any length), globally unique, and not a reserved word: the self-signup rules in `SlugPolicy` (3–30 characters, no leading or trailing hyphen) are **not** applied here, only the reserved list (every top-level web route, platform words, impersonation words). `PLATFORM_OWNER_TENANT_SLUG` is the one reserved word this operator route accepts; with that variable unset, every reserved word is refused |
 | `adminEmail` | string | ✓ | Valid email format |
 | `country_code` | string | ✓ | Exactly two letters in ISO format and supported by the platform; `BR` for the current Brazil deployment |
 | `timezone` | string | — | Valid IANA timezone (default: `America/Sao_Paulo`) |
@@ -1495,8 +1495,9 @@ Every provisioning goes through one pattern: the operator reserves a Billing reg
 | Status | Condition |
 |---|---|
 | `401` | Missing or invalid Cloud Run IAM identity token in `Authorization`, invalid `X-Internal-Key`, or invalid `X-Platform-Admin-Key` |
-| `400` | Validation failure (invalid slug format, invalid email, invalid or unsupported `country_code`, invalid timezone, a `registrationId` that is missing or not a UUID) |
-| `409` | Slug already in use |
+| `400` | Validation failure (invalid slug format, `SLUG_FORMAT_INVALID`; invalid email, invalid or unsupported `country_code`, invalid timezone, a `registrationId` that is missing or not a UUID) |
+| `409` | Slug already in use (`PLATFORM_SLUG_ALREADY_TAKEN`) |
+| `422` | `SIGNUP_SLUG_RESERVED` (field `slug`): the slug is a reserved word; nothing is created. Checked after the format (`400`) and before uniqueness (`409`) |
 
 ---
 
@@ -1921,6 +1922,7 @@ GET /v1/public/billing/prices?country=BR
 ```
 GET /v1/public/signup/slug-availability?slug=lavacar-top
 200 { "status":"available" } | { "status":"reserved" } | { "status":"taken" } | { "status":"invalid", "reason":"TOO_SHORT" }
+# 200 is for the four verdicts only. A missing or non-string `slug` is 400 (ZodValidationPipe, shape only), a throttled IP is 429 AUTH_RATE_LIMITED (the shared throttler's code; `SIGNUP_RATE_LIMITED` belongs to the signup POST), and a backend failure propagates (for example 503) instead of a guessed verdict.
 # `reason` is one of TOO_SHORT | TOO_LONG | INVALID_CHARACTERS | INVALID_HYPHEN. Rules: 3-30 characters of a-z0-9-, no leading or trailing hyphen, no uppercase (the client lowercases); a word on the reserved list (every top-level web route, platform words and impersonation words, plus PLATFORM_OWNER_TENANT_SLUG) answers `reserved`; `invalid` and `reserved` answer before any lookup, `taken` is read live. Always 200, `Cache-Control: no-store`, 30 requests per minute per IP (best-effort, per instance), no Turnstile.
 # Slug suggestions are client-generated (derived from the business name in the web form) and re-checked through this same route; the API returns no `suggestions` field.
 

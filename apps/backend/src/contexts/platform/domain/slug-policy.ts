@@ -4,11 +4,11 @@ import { Slug } from '../../../shared/value-objects/slug.vo';
 export const SLUG_MIN_LENGTH = 3;
 export const SLUG_MAX_LENGTH = 30;
 
-/** Injection token for the `SlugPolicy` built once with the platform owner's slug (M26-S22). */
+/** Injection token for the `SlugPolicy` built once with the platform owner's slug. */
 export const SLUG_POLICY = Symbol('SlugPolicy');
 
 /**
- * Words no tenant may register (UC-128). Three classes, locked at M26-S22 discovery:
+ * Words no tenant may register (UC-128). Three classes:
  * (a) every real top-level segment of `apps/web/app` (a spec in this folder fails when a new one is
  * added and not listed here), (b) platform words, (c) words that impersonate Ikaro or its support.
  * Exact match, lowercase. There is deliberately no `ikaro-` prefix rule.
@@ -87,15 +87,15 @@ export class SlugPolicy {
   constructor(private readonly ownerSlug: string | null) {}
 
   validate(slug: string, options: SlugPolicyOptions): SlugVerdict {
+    const isOwnerSlug = this.ownerSlug !== null && slug === this.ownerSlug;
+    // Before the format check: when the caller does not allow it, the owner slug is reserved
+    // whatever its shape, so a short or odd owner slug can never be provisioned through a path
+    // that only acts on a `reserved` verdict (ProvisionTenantUseCase).
+    if (isOwnerSlug && !options.allowOwnerSlug) return { kind: 'reserved' };
     const reason = SlugPolicy.formatReason(slug);
     if (reason) return { kind: 'invalid', reason };
-    if (options.allowOwnerSlug && this.ownerSlug !== null && slug === this.ownerSlug) {
-      return { kind: 'valid' };
-    }
-    if (RESERVED_SLUGS.has(slug) || (this.ownerSlug !== null && slug === this.ownerSlug)) {
-      return { kind: 'reserved' };
-    }
-    return { kind: 'valid' };
+    if (isOwnerSlug) return { kind: 'valid' };
+    return RESERVED_SLUGS.has(slug) ? { kind: 'reserved' } : { kind: 'valid' };
   }
 
   private static formatReason(slug: string): SlugInvalidReason | null {

@@ -91,6 +91,13 @@ describe('SlugPolicy', () => {
       expect(custom.validate('ikaro-staging', operator)).toEqual({ kind: 'valid' });
     });
 
+    it('reserves the owner slug whatever its shape when the caller does not allow it', () => {
+      const short = new SlugPolicy('ab');
+
+      expect(short.validate('ab', strict)).toEqual({ kind: 'reserved' });
+      expect(short.validate('ab', operator)).toEqual({ kind: 'invalid', reason: 'TOO_SHORT' });
+    });
+
     it('with no owner slug configured, ikaro is reserved on the operator path too', () => {
       const none = new SlugPolicy(null);
 
@@ -100,7 +107,7 @@ describe('SlugPolicy', () => {
   });
 });
 
-// Drift guard (M26-S22): a new top-level directory of apps/web/app is a new route that a tenant slug
+// Drift guard: a new top-level directory of apps/web/app is a new route that a tenant slug
 // would shadow. Dynamic segments ([slug]) and files are not routes a slug can collide with.
 describe('reserved slugs vs apps/web/app', () => {
   const webApp = resolve(__dirname, '../../../../../web/app');

@@ -6,9 +6,11 @@ import { InternalApiGuard } from '../../../../shared/guards/internal-api.guard';
 import { createPlatformIntegrationApp } from '../../../../test/utils/platform-integration-app';
 import { TenantEntity } from '../entities/tenant.entity';
 import { TenantEntityBuilder } from '../../../../test/builders/platform/index';
+import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 
 const INTERNAL_KEY = 'integ-slug-key-integ-slug-key-xxxx'; // ≥ 32 chars
-const SUFFIX = Math.random().toString(36).slice(2, 8);
+// The random tail of a uuidv7 (its head is the timestamp); 8 hex characters keep every slug under 30.
+const SUFFIX = uuidv7().slice(-8);
 // Random per run: TESTCONTAINERS_REUSE_ENABLE reuses one Postgres across unrelated runs.
 const TAKEN_SLUG = `slug-taken-${SUFFIX}`;
 const OWNER_SLUG = `ikaro-owner-${SUFFIX}`;

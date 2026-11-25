@@ -56,7 +56,7 @@ function mapLeadFormError(err: unknown): void {
   }
 }
 
-// M26-S22 — every slug rule the Platform policy owns, in one place. A reserved word is `422`
+// Every slug rule the Platform policy owns, in one place. A reserved word is `422`
 // `SIGNUP_SLUG_RESERVED` on every path; a taken slug keeps the operator route's documented `409`
 // `PLATFORM_SLUG_ALREADY_TAKEN` (UC-024 A2); the format `400` comes from the Slug VO's own mapper.
 // Returns without throwing for any other error.

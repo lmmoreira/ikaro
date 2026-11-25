@@ -12,7 +12,7 @@ import {
   LlmProviderRegistry,
 } from '../../application/services/llm-provider-registry.service';
 
-// Moved out of platform.module.ts unchanged (M26-S22) to keep that file under the 250-line cap.
+// Kept out of platform.module.ts so that file stays under the 250-line cap.
 export const llmProviderRegistryProvider: Provider = {
   provide: LLM_PROVIDER_REGISTRY,
   useFactory: (

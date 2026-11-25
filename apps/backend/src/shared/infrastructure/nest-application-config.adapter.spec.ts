@@ -11,10 +11,9 @@ describe('NestApplicationConfigAdapter', () => {
   });
 
   it('returns an optional value, and null when it is unset', () => {
-    const config = { get: jest.fn((key: string) => (key === 'SET' ? 'ikaro' : undefined)) };
-    const adapter = new NestApplicationConfigAdapter(config as unknown as ConfigService);
+    const adapter = new NestApplicationConfigAdapter(new ConfigService({ SET_KEY: 'ikaro' }));
 
-    expect(adapter.getOptional('SET')).toBe('ikaro');
-    expect(adapter.getOptional('UNSET')).toBeNull();
+    expect(adapter.getOptional('SET_KEY')).toBe('ikaro');
+    expect(adapter.getOptional('UNSET_KEY')).toBeNull();
   });
 });

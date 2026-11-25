@@ -1,6 +1,6 @@
 import { HEADERS_METADATA } from '@nestjs/common/constants';
 import { IS_PUBLIC_KEY } from '../../shared/decorators/public.decorator';
-import { BackendHttpService } from '../../shared/http/backend-http.service';
+import { makeBackendHttp } from '../../test/backend-http.mock';
 import { SignupPublicController } from './signup.public.controller';
 import { SlugAvailabilityQuerySchema } from './signup.public.schemas';
 
@@ -9,7 +9,7 @@ const THROTTLER_TTL = 'THROTTLER:TTL';
 
 function build(): { controller: SignupPublicController; get: jest.Mock } {
   const get = jest.fn();
-  const controller = new SignupPublicController({ get } as unknown as BackendHttpService);
+  const controller = new SignupPublicController(makeBackendHttp({ get }));
   return { controller, get };
 }
 
