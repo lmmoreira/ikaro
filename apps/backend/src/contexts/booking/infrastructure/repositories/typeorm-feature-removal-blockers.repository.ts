@@ -11,9 +11,11 @@ import { BookingStatus } from '../../domain/booking.aggregate';
 
 // The bookings the guard counts: still live and ending after one instant. One instant is compared,
 // never a per-row local date, so the query starts from the (tenant_id, status) index and needs no
-// new one. An occurrence of a PENDING_APPROVAL / ACTIVE schedule is excluded, because the schedule
-// is counted once on its own: its occurrences would otherwise inflate its count by its length. The
-// exact total comes from the same statement (`COUNT(*) OVER ()`), so the sample and the count can
+// new one. An occurrence of a schedule the schedule statement itself counts (PENDING_APPROVAL /
+// ACTIVE with `ends_on >= $5`) is excluded, because that schedule is counted once on its own: its
+// occurrences would otherwise inflate its count by its length. An occurrence of any other schedule
+// stays a booking, so a final occurrence on the last day that runs past midnight is never dropped
+// from both counts. The exact total comes from the same statement (`COUNT(*) OVER ()`), so the sample and the count can
 // never disagree. Exported so the integration spec can EXPLAIN the very statement that runs.
 export const FEATURE_REMOVAL_BOOKING_BLOCKERS_SQL = `
   SELECT b.id, b.scheduled_end_at, COUNT(*) OVER () AS total
@@ -29,10 +31,11 @@ export const FEATURE_REMOVAL_BOOKING_BLOCKERS_SQL = `
         WHERE s.tenant_id = b.tenant_id
           AND s.id = b.recurring_schedule_id
           AND s.status = ANY($4::text[])
+          AND s.ends_on >= $5::date
       )
     )
   ORDER BY b.scheduled_end_at ASC, b.id ASC
-  LIMIT $5
+  LIMIT $6
 `;
 
 export const FEATURE_REMOVAL_SCHEDULE_BLOCKERS_SQL = `
@@ -60,6 +63,7 @@ export class TypeOrmFeatureRemovalBlockersRepository implements IFeatureRemovalB
   async findBookingsEndingAfter(
     tenantId: string,
     endsAfter: Date,
+    effectiveDate: string,
     sampleLimit: number,
   ): Promise<FeatureRemovalBlockerPage<BookingRemovalBlocker>> {
     const rows: Array<{ id: string; scheduled_end_at: Date; total: string }> =
@@ -68,6 +72,7 @@ export class TypeOrmFeatureRemovalBlockersRepository implements IFeatureRemovalB
         LIVE_BOOKING_STATUSES,
         endsAfter,
         COUNTED_SCHEDULE_STATUSES,
+        effectiveDate,
         sampleLimit,
       ]);
     return {

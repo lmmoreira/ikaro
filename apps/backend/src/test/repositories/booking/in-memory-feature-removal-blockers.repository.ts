@@ -40,11 +40,17 @@ export class InMemoryFeatureRemovalBlockersRepository implements IFeatureRemoval
   findBookingsEndingAfter(
     tenantId: string,
     endsAfter: Date,
+    effectiveDate: string,
     sampleLimit: number,
   ): Promise<FeatureRemovalBlockerPage<BookingRemovalBlocker>> {
     const countedScheduleIds = new Set(
       this.schedules
-        .filter((s) => s.tenantId === tenantId && COUNTED_SCHEDULE_STATUSES.has(s.status))
+        .filter(
+          (s) =>
+            s.tenantId === tenantId &&
+            COUNTED_SCHEDULE_STATUSES.has(s.status) &&
+            s.endsOn >= effectiveDate,
+        )
         .map((s) => s.id),
     );
     const blockers = this.bookings

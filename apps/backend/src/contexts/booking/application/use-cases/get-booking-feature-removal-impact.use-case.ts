@@ -63,6 +63,7 @@ export class GetBookingFeatureRemovalImpactUseCase {
       this.blockersRepo.findBookingsEndingAfter(
         tenantId,
         boundary,
+        effectiveDate,
         FEATURE_REMOVAL_BLOCKER_SAMPLE_LIMIT,
       ),
       this.blockersRepo.findSchedulesEndingOnOrAfter(

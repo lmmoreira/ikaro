@@ -36,6 +36,7 @@ describe('TypeOrmFeatureRemovalBlockersRepository', () => {
       const page = await repoWith(dataSource).findBookingsEndingAfter(
         TENANT,
         new Date('2026-12-15T03:00:00.000Z'),
+        '2026-12-15',
         2,
       );
 
@@ -52,17 +53,18 @@ describe('TypeOrmFeatureRemovalBlockersRepository', () => {
       const page = await repoWith(new RecordingDataSource([])).findBookingsEndingAfter(
         TENANT,
         new Date(),
+        '2026-12-15',
         10,
       );
 
       expect(page).toEqual({ total: 0, sample: [] });
     });
 
-    it('sends the tenant first, the three live statuses, the instant, the counted schedule statuses and the limit', async () => {
+    it('sends the tenant first, the three live statuses, the instant, the counted schedule statuses, the effective date and the limit', async () => {
       const dataSource = new RecordingDataSource([]);
       const endsAfter = new Date('2026-12-15T03:00:00.000Z');
 
-      await repoWith(dataSource).findBookingsEndingAfter(TENANT, endsAfter, 10);
+      await repoWith(dataSource).findBookingsEndingAfter(TENANT, endsAfter, '2026-12-15', 10);
 
       expect(dataSource.calls).toEqual([
         {
@@ -72,6 +74,7 @@ describe('TypeOrmFeatureRemovalBlockersRepository', () => {
             ['PENDING', 'INFO_REQUESTED', 'APPROVED'],
             endsAfter,
             ['PENDING_APPROVAL', 'ACTIVE'],
+            '2026-12-15',
             10,
           ],
         },

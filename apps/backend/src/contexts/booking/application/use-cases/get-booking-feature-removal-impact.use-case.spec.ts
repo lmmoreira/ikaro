@@ -160,11 +160,17 @@ describe('GetBookingFeatureRemovalImpactUseCase', () => {
       expect(result.blockers.map((b) => b.id)).toEqual([stranded]);
     });
 
-    // Pinned because "alerts never block" holds by construction: the use case is handed the
-    // blockers read model and the settings port, and no availability-alert repository is among
-    // them (decided at M26-S18a discovery: only the customer can cancel an alert).
-    it('depends on the blockers repository and the settings port only, never on availability alerts', () => {
-      expect(GetBookingFeatureRemovalImpactUseCase.length).toBe(2);
+    it('keeps the final occurrence of a schedule that ended the day before when it runs past the boundary, so no live booking is dropped from both counts', async () => {
+      const endedTheDayBefore = seedSchedule('2026-12-14');
+      const crossesMidnight = seedBooking(30 * MINUTE_MS, { scheduleId: endedTheDayBefore });
+
+      const result = await execute();
+
+      expect(result.recurringSchedules).toBe(0);
+      expect(result.bookings).toBe(1);
+      expect(result.blockers).toEqual([
+        { category: 'BOOKING', id: crossesMidnight, date: '2026-12-15' },
+      ]);
     });
   });
 

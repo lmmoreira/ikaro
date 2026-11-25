@@ -2,6 +2,7 @@ import { DataSource } from 'typeorm';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { localDateStartUTC } from '../../../../shared/utils/calendar-date';
 import {
+  AvailabilityAlertEntityBuilder,
   BookingBuilder,
   RecurringBookingScheduleBuilder,
   ServiceEntityBuilder,
@@ -17,6 +18,7 @@ import { BookingEntity } from '../entities/booking.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
 import { BookingLineResourceAssignmentEntity } from '../entities/booking-line-resource-assignment.entity';
 import { BookingStatusTransitionEntity } from '../entities/booking-status-transition.entity';
+import { AvailabilityAlertEntity } from '../entities/availability-alert.entity';
 import { RecurringBookingScheduleEntity } from '../entities/recurring-booking-schedule.entity';
 import { RecurringBookingScheduleResourceAssignmentEntity } from '../entities/recurring-booking-schedule-resource-assignment.entity';
 import { ServiceEntity } from '../entities/service.entity';
@@ -143,7 +145,7 @@ describe('TypeOrmFeatureRemovalBlockersRepository (integration)', () => {
       await seedBooking(tenant, 0); // ends exactly at the local midnight: occupies nothing of the day
       await seedBooking(tenant, -DAY_MS); // ended the day before
 
-      const page = await blockersRepo.findBookingsEndingAfter(tenant, BOUNDARY, 10);
+      const page = await blockersRepo.findBookingsEndingAfter(tenant, BOUNDARY, EFFECTIVE_DATE, 10);
 
       expect(page.total).toBe(1);
       expect(page.sample.map((b) => b.id)).toEqual([aMinuteAfter]);
@@ -164,7 +166,7 @@ describe('TypeOrmFeatureRemovalBlockersRepository (integration)', () => {
         await seedBooking(tenant, 4 * DAY_MS, { status });
       }
 
-      const page = await blockersRepo.findBookingsEndingAfter(tenant, BOUNDARY, 10);
+      const page = await blockersRepo.findBookingsEndingAfter(tenant, BOUNDARY, EFFECTIVE_DATE, 10);
 
       expect(page.total).toBe(3);
       expect(page.sample.map((b) => b.id)).toEqual(live);
@@ -175,14 +177,19 @@ describe('TypeOrmFeatureRemovalBlockersRepository (integration)', () => {
       const ids: string[] = [];
       for (let day = 1; day <= 4; day += 1) ids.push(await seedBooking(tenant, day * DAY_MS));
 
-      const page = await blockersRepo.findBookingsEndingAfter(tenant, BOUNDARY, 2);
+      const page = await blockersRepo.findBookingsEndingAfter(tenant, BOUNDARY, EFFECTIVE_DATE, 2);
 
       expect(page.total).toBe(4);
       expect(page.sample.map((b) => b.id)).toEqual(ids.slice(0, 2));
     });
 
     it('returns nothing, not an error, when no booking blocks', async () => {
-      const page = await blockersRepo.findBookingsEndingAfter(uuidv7(), BOUNDARY, 10);
+      const page = await blockersRepo.findBookingsEndingAfter(
+        uuidv7(),
+        BOUNDARY,
+        EFFECTIVE_DATE,
+        10,
+      );
 
       expect(page).toEqual({ total: 0, sample: [] });
     });
@@ -202,10 +209,38 @@ describe('TypeOrmFeatureRemovalBlockersRepository (integration)', () => {
       const strandedOccurrence = await seedBooking(tenant, 4 * DAY_MS, { scheduleId: ended });
       const oneOff = await seedBooking(tenant, 5 * DAY_MS);
 
-      const page = await blockersRepo.findBookingsEndingAfter(tenant, BOUNDARY, 10);
+      const page = await blockersRepo.findBookingsEndingAfter(tenant, BOUNDARY, EFFECTIVE_DATE, 10);
 
       expect(page.sample.map((b) => b.id)).toEqual([strandedOccurrence, oneOff]);
       expect(page.total).toBe(2);
+    });
+
+    it('keeps the final occurrence of a schedule whose last day is before the date when it runs past the boundary', async () => {
+      const tenant = uuidv7();
+      const service = uuidv7();
+      await dataSource
+        .getRepository(ServiceEntity)
+        .save(new ServiceEntityBuilder().withId(service).withTenantId(tenant).build());
+      // Last day is the 14th, so the schedule statement does not count it, but its final
+      // occurrence starts on the 14th and ends after the local midnight of the 15th.
+      const endedTheDayBefore = await seedSchedule(tenant, service, '2026-12-14');
+      const crossesMidnight = await seedBooking(tenant, 30 * MINUTE_MS, {
+        scheduleId: endedTheDayBefore,
+      });
+      const countedSchedule = await seedSchedule(tenant, service, '2026-12-30');
+      await seedBooking(tenant, 2 * DAY_MS, { scheduleId: countedSchedule });
+
+      const bookings = await blockersRepo.findBookingsEndingAfter(
+        tenant,
+        BOUNDARY,
+        EFFECTIVE_DATE,
+        10,
+      );
+      const schedules = await blockersRepo.findSchedulesEndingOnOrAfter(tenant, EFFECTIVE_DATE, 10);
+
+      expect(bookings.sample.map((b) => b.id)).toEqual([crossesMidnight]);
+      expect(bookings.total).toBe(1);
+      expect(schedules.sample.map((s) => s.id)).toEqual([countedSchedule]);
     });
 
     it("never counts another tenant's bookings (tenant isolation)", async () => {
@@ -213,10 +248,20 @@ describe('TypeOrmFeatureRemovalBlockersRepository (integration)', () => {
       await seedBooking(tenantB, DAY_MS);
       await seedBooking(tenantB, 2 * DAY_MS);
 
-      const page = await blockersRepo.findBookingsEndingAfter(tenantA, BOUNDARY, 100);
+      const page = await blockersRepo.findBookingsEndingAfter(
+        tenantA,
+        BOUNDARY,
+        EFFECTIVE_DATE,
+        100,
+      );
 
       expect(page.sample.map((b) => b.id)).toContain(mine);
-      const otherTenant = await blockersRepo.findBookingsEndingAfter(tenantB, BOUNDARY, 100);
+      const otherTenant = await blockersRepo.findBookingsEndingAfter(
+        tenantB,
+        BOUNDARY,
+        EFFECTIVE_DATE,
+        100,
+      );
       expect(otherTenant.sample.map((b) => b.id)).not.toContain(mine);
       expect(page.total).toBe(page.sample.length);
     });
@@ -234,6 +279,7 @@ describe('TypeOrmFeatureRemovalBlockersRepository (integration)', () => {
             ['PENDING', 'INFO_REQUESTED', 'APPROVED'],
             BOUNDARY,
             ['PENDING_APPROVAL', 'ACTIVE'],
+            EFFECTIVE_DATE,
             10,
           ],
         );
@@ -316,6 +362,36 @@ describe('TypeOrmFeatureRemovalBlockersRepository (integration)', () => {
     });
   });
   describe('GetBookingFeatureRemovalImpactUseCase over the real read model', () => {
+    // "Alerts never block" holds by omission (no query reads them), so it is pinned the way it can
+    // regress: a live alert in the database that outlives the effective date leaves the answer empty.
+    it('never counts an ACTIVE availability alert, whatever its expiry', async () => {
+      const tenant = uuidv7();
+      const service = uuidv7();
+      await dataSource
+        .getRepository(ServiceEntity)
+        .save(new ServiceEntityBuilder().withId(service).withTenantId(tenant).build());
+      await dataSource.getRepository(AvailabilityAlertEntity).save(
+        new AvailabilityAlertEntityBuilder()
+          .withTenantId(tenant)
+          .withServiceId(service)
+          .withStatus('ACTIVE')
+          .withExpiresAt(new Date(BOUNDARY.getTime() + 30 * DAY_MS))
+          .build(),
+      );
+      const settings = new InMemoryTenantSettingsPort();
+      settings.set(tenant, TenantSettings.default(TIMEZONE).toJSON());
+      const useCase = new GetBookingFeatureRemovalImpactUseCase(blockersRepo, settings);
+
+      const result = await useCase.execute({ tenantId: tenant, effectiveDate: EFFECTIVE_DATE });
+
+      expect(result).toEqual({
+        effectiveFrom: EFFECTIVE_DATE,
+        bookings: 0,
+        recurringSchedules: 0,
+        blockers: [],
+      });
+    });
+
     it('names an APPROVED booking past the date, and answers zero once it is cancelled', async () => {
       const tenant = uuidv7();
       const settings = new InMemoryTenantSettingsPort();

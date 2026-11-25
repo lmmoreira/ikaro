@@ -13,12 +13,16 @@ export const FEATURE_REMOVAL_BLOCKERS_REPOSITORY = Symbol('IFeatureRemovalBlocke
 // sample ordered by date then id.
 export interface IFeatureRemovalBlockersRepository {
   // The PENDING / INFO_REQUESTED / APPROVED bookings whose end is strictly after `endsAfter` (the
-  // UTC instant the effective date starts at in the tenant's timezone). An occurrence of a
-  // PENDING_APPROVAL / ACTIVE recurring schedule is left out: the schedule is counted once on its
-  // own (`findSchedulesEndingOnOrAfter`). `sampleLimit` is at least 1.
+  // UTC instant `effectiveDate` starts at in the tenant's timezone). An occurrence of a schedule
+  // that `findSchedulesEndingOnOrAfter(effectiveDate)` itself counts (PENDING_APPROVAL / ACTIVE,
+  // `endsOn >= effectiveDate`) is left out: that schedule is counted once on its own. An
+  // occurrence of any other schedule stays a booking, so a final occurrence on the schedule's last
+  // day that runs past midnight into the effective date is never dropped from both counts.
+  // `sampleLimit` is at least 1.
   findBookingsEndingAfter(
     tenantId: string,
     endsAfter: Date,
+    effectiveDate: string,
     sampleLimit: number,
   ): Promise<FeatureRemovalBlockerPage<BookingRemovalBlocker>>;
   // The PENDING_APPROVAL / ACTIVE recurring schedules whose last day (`endsOn`, a tenant-local
