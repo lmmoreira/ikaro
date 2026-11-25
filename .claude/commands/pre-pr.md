@@ -198,6 +198,22 @@ Wait for all invocations to complete before continuing. Any FAIL from bad-smell-
 
 ## Step 4 — Integration tests (autonomous)
 
+**Before starting, check the machine.** Run `free -m` and `pgrep -af '^git push|jest'`: another session's push hook or test run alongside this one has made earlyoom SIGTERM jest workers (a failed hook with every test green, M26-S22), and Claude Code kills a background run when memory is critically low. Start only with about 6 GB free and nothing else running, run the two suites below one at a time, and if one was killed for memory, restart it only once the machine is quiet. A SIGTERM is never a code failure and never a reason for `--no-verify`.
+
+**Choose the backend scope from the diff, not by habit.** `jest --findRelatedTests` selects the integration specs that import a changed file, directly or through other files, so the dependency graph does the picking and no list is written by hand. Count first, run nothing:
+
+```bash
+cd apps/backend
+NODE_OPTIONS="--experimental-vm-modules" npx jest --listTests --selectProjects integration --findRelatedTests <every changed non-spec file under apps/backend/src, relative to apps/backend> | wc -l
+NODE_OPTIONS="--experimental-vm-modules" npx jest --listTests --selectProjects integration | wc -l
+```
+
+- **Run only the related specs** when the related count is under about 60% of the suite **and** the diff changes no widely imported file. New code in a module few specs boot, or a contained change to one flow, is this case. Add `--findRelatedTests <files>` to the command below (flags before the file list, because it consumes everything after it).
+- **Run the whole suite** when the related count is about 60% or more, when the diff touches a widely imported file (anything under `src/shared/`, a shared domain error or base class, the test harness under `src/test/`, a `*.module.ts` that many test apps boot), or when the PR changes many existing flows. Counting is cheap, so do it before deciding; M26-S22 was a mostly new feature, yet its 28 changed files reached 152 of 159 suites through one widely imported domain error and the shared test apps, so it ran everything.
+- A brand-new file wired into a module is not isolated: it reaches every spec that boots that module (M26-S22's new slug files each reached 56 suites through `platform.module.ts`).
+- State the choice and both counts in the PR body (`related N of M, ran related | ran all`). CI always runs the whole suite, so a narrowed local run never replaces it; it only decides how much of it runs here first.
+- The BFF component suite is small (about 30 suites) and always runs whole.
+
 ```bash
 pnpm --filter @ikaro/backend test:integration > <scratchpad>/be-integration.log 2>&1
 pnpm --filter @ikaro/bff test:component > <scratchpad>/bff-component.log 2>&1
