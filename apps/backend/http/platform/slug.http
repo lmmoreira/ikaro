@@ -1,0 +1,49 @@
+# Platform — Signup slug availability (internal)
+# UC-128: the public slug check, behind the BFF's GET /v1/public/signup/slug-availability.
+# Answers { status: available | taken | reserved | invalid, reason? }; never a tenant field.
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run dev
+#
+# REST Client environment: select "local" in the VS Code status bar.
+# Tenant access (M25-S17): tenant-less internal route, no feature gate.
+
+@baseUrl     = {{backendUrl}}
+@internalKey = {{$dotenv INTERNAL_API_KEY}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH
+# ─────────────────────────────────────────────────────────────────────────────
+
+### A free, valid slug → 200 { "status": "available" }
+GET {{baseUrl}}/internal/signup/slug-availability?slug=lavacar-top-nova
+X-Internal-Key: {{internalKey}}
+
+### A slug an existing tenant uses → 200 { "status": "taken" } (replace with a seeded slug)
+GET {{baseUrl}}/internal/signup/slug-availability?slug=autospa-premium
+X-Internal-Key: {{internalKey}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# VERDICTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+### A reserved word → 200 { "status": "reserved" }
+GET {{baseUrl}}/internal/signup/slug-availability?slug=dashboard
+X-Internal-Key: {{internalKey}}
+
+### Too short → 200 { "status": "invalid", "reason": "TOO_SHORT" }
+GET {{baseUrl}}/internal/signup/slug-availability?slug=ab
+X-Internal-Key: {{internalKey}}
+
+### Uppercase → 200 { "status": "invalid", "reason": "INVALID_CHARACTERS" }
+GET {{baseUrl}}/internal/signup/slug-availability?slug=Lavacar
+X-Internal-Key: {{internalKey}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERRORS
+# ─────────────────────────────────────────────────────────────────────────────
+
+### No internal key → 401
+GET {{baseUrl}}/internal/signup/slug-availability?slug=lavacar-top-nova

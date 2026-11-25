@@ -28,6 +28,7 @@ import {
   HotsitePresentationBackgroundNotAllowedError,
   HotsitePresentationNotAllowedError,
   SlugAlreadyTakenError,
+  SlugReservedError,
   TenantInactiveError,
   TenantNotFoundError,
   TenantSettingsValidationError,
@@ -112,6 +113,12 @@ describe('mapPlatformError', () => {
       code: PlatformErrorCode.SLUG_ALREADY_TAKEN,
       field: 'slug',
     });
+  });
+
+  it('maps SlugReservedError to 422 SIGNUP_SLUG_RESERVED with field', () => {
+    const err = call(new SlugReservedError('dashboard'));
+    expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+    expect(err.getResponse()).toMatchObject({ code: 'SIGNUP_SLUG_RESERVED', field: 'slug' });
   });
 
   it('maps TenantInactiveError to 409 with code', () => {

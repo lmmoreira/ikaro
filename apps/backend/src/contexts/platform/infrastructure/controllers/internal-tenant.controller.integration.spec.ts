@@ -11,9 +11,17 @@ import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-even
 import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
 import { createPlatformIntegrationApp } from '../../../../test/utils/platform-integration-app';
 import { TenantProvisioned } from '../../domain/events/tenant-provisioned.event';
+import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 
 const PLATFORM_KEY = 'integ-test-key-integ-test-key-xx'; // exactly 32 chars
 const INTERNAL_KEY = 'integ-tenant-key-integ-tenant-key'; // 33 chars (≥32)
+// Random per run: TESTCONTAINERS_REUSE_ENABLE reuses one Postgres across runs, and the owner slug is
+// provisioned for real below.
+// The suffix is the random tail of a uuidv7; every slug built from it stays under 30 characters.
+const RUN_SUFFIX = uuidv7().slice(-8);
+const OWNER_SLUG = `ikaro-owner-${RUN_SUFFIX}`;
+const TAKEN_SLUG = `reserved-then-taken-${RUN_SUFFIX}`;
+const UNSET_OWNER_SLUG = `unset-owner-${RUN_SUFFIX}`;
 
 describe('InternalTenantController (integration)', () => {
   let app: INestApplication;
@@ -23,6 +31,7 @@ describe('InternalTenantController (integration)', () => {
   beforeAll(async () => {
     process.env['PLATFORM_ADMIN_KEY'] = PLATFORM_KEY;
     process.env['INTERNAL_API_KEY'] = INTERNAL_KEY;
+    process.env['PLATFORM_OWNER_TENANT_SLUG'] = OWNER_SLUG;
     ({ app, ds } = await createPlatformIntegrationApp({
       extraProviders: [{ provide: APP_GUARD, useClass: InternalApiGuard }],
       // The harness's own bus is private; sharing ours lets the spec read what was published.
@@ -37,6 +46,7 @@ describe('InternalTenantController (integration)', () => {
     await app.close();
     delete process.env['PLATFORM_ADMIN_KEY'];
     delete process.env['INTERNAL_API_KEY'];
+    delete process.env['PLATFORM_OWNER_TENANT_SLUG'];
   });
 
   it('returns 401 when X-Internal-Key header is absent (global guard)', async () => {
@@ -247,5 +257,90 @@ describe('InternalTenantController (integration)', () => {
       expect(await ds.getRepository(TenantEntity).findOne({ where: { slug } })).toBeNull();
       expect(eventBus.published).toHaveLength(eventsBefore);
     });
+  });
+
+  describe('reserved slugs (UC-024 A9, UC-128)', () => {
+    const provision = (slug: string) =>
+      request(app.getHttpServer())
+        .post('/internal/tenants')
+        .set('X-Internal-Key', INTERNAL_KEY)
+        .set('X-Platform-Admin-Key', PLATFORM_KEY)
+        .send({
+          name: 'Reservado',
+          slug,
+          adminEmail: 'r@r.com.br',
+          country_code: 'BR',
+          registrationId: TEST_REGISTRATION_ID,
+        });
+
+    it('refuses a reserved word with 422 SIGNUP_SLUG_RESERVED and creates nothing', async () => {
+      const { body } = await provision('dashboard').expect(422);
+
+      expect(body.code).toBe('SIGNUP_SLUG_RESERVED');
+      expect(
+        await ds.getRepository(TenantEntity).findOne({ where: { slug: 'dashboard' } }),
+      ).toBeNull();
+    });
+
+    it('provisions the configured owner slug on the operator path', async () => {
+      const { body } = await provision(OWNER_SLUG).expect(201);
+
+      expect(body.slug).toBe(OWNER_SLUG);
+    });
+
+    it('keeps the operator codes unchanged: 400 SLUG_FORMAT_INVALID and 409 PLATFORM_SLUG_ALREADY_TAKEN', async () => {
+      const invalid = await provision('Not Valid!').expect(400);
+      expect(invalid.body.violations).toEqual(
+        expect.arrayContaining([expect.objectContaining({ code: 'SLUG_FORMAT_INVALID' })]),
+      );
+
+      await provision(TAKEN_SLUG).expect(201);
+      const taken = await provision(TAKEN_SLUG).expect(409);
+      expect(taken.body.code).toBe('PLATFORM_SLUG_ALREADY_TAKEN');
+    });
+  });
+});
+
+describe('InternalTenantController with PLATFORM_OWNER_TENANT_SLUG unset (integration)', () => {
+  let app: INestApplication;
+
+  const provision = (slug: string) =>
+    request(app.getHttpServer())
+      .post('/internal/tenants')
+      .set('X-Internal-Key', INTERNAL_KEY)
+      .set('X-Platform-Admin-Key', PLATFORM_KEY)
+      .send({
+        name: 'Sem dono',
+        slug,
+        adminEmail: 'n@n.com.br',
+        country_code: 'BR',
+        registrationId: TEST_REGISTRATION_ID,
+      });
+
+  beforeAll(async () => {
+    process.env['PLATFORM_ADMIN_KEY'] = PLATFORM_KEY;
+    process.env['INTERNAL_API_KEY'] = INTERNAL_KEY;
+    delete process.env['PLATFORM_OWNER_TENANT_SLUG'];
+    ({ app } = await createPlatformIntegrationApp({
+      extraProviders: [{ provide: APP_GUARD, useClass: InternalApiGuard }],
+    }));
+  });
+
+  afterAll(async () => {
+    await app.close();
+    delete process.env['PLATFORM_ADMIN_KEY'];
+    delete process.env['INTERNAL_API_KEY'];
+  });
+
+  it('still provisions an ordinary slug: no owner slug means no owner exception, not an error', async () => {
+    const { body } = await provision(UNSET_OWNER_SLUG).expect(201);
+
+    expect(body.slug).toBe(UNSET_OWNER_SLUG);
+  });
+
+  it('refuses ikaro on the operator path too: without a configured owner it is just a reserved word', async () => {
+    const { body } = await provision('ikaro').expect(422);
+
+    expect(body.code).toBe('SIGNUP_SLUG_RESERVED');
   });
 });

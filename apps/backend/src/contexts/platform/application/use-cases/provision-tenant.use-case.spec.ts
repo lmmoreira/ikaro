@@ -3,7 +3,11 @@ import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-m
 import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/platform/in-memory-hotsite-config.repository';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
 import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
-import { SlugAlreadyTakenError } from '../../domain/errors/platform-domain.error';
+import {
+  SlugAlreadyTakenError,
+  SlugReservedError,
+} from '../../domain/errors/platform-domain.error';
+import { SlugPolicy } from '../../domain/slug-policy';
 import { TenantProvisioned } from '../../domain/events/tenant-provisioned.event';
 import { ProvisionTenantUseCase } from './provision-tenant.use-case';
 
@@ -17,7 +21,12 @@ describe('ProvisionTenantUseCase', () => {
     eventBus = new InMemoryEventBus();
     tenantRepo = new InMemoryTenantRepository(eventBus);
     hotsiteRepo = new InMemoryHotsiteConfigRepository();
-    useCase = new ProvisionTenantUseCase(tenantRepo, hotsiteRepo, new InMemoryTransactionManager());
+    useCase = new ProvisionTenantUseCase(
+      tenantRepo,
+      hotsiteRepo,
+      new InMemoryTransactionManager(),
+      new SlugPolicy('ikaro'),
+    );
   });
 
   it('provisions a tenant and creates a hotsite config', async () => {
@@ -27,6 +36,7 @@ describe('ProvisionTenantUseCase', () => {
       adminEmail: 'admin@lavacar.com.br',
       country_code: 'BR',
       registrationId: TEST_REGISTRATION_ID,
+      allowOwnerSlug: false,
     });
 
     expect(result.slug).toBe('lavacar-belo');
@@ -49,6 +59,7 @@ describe('ProvisionTenantUseCase', () => {
       adminEmail: 'admin@lavacar.us',
       country_code: 'US',
       registrationId: TEST_REGISTRATION_ID,
+      allowOwnerSlug: false,
     });
 
     const tenant = await tenantRepo.findBySlug('lavacar-us');
@@ -66,6 +77,7 @@ describe('ProvisionTenantUseCase', () => {
       country_code: 'BR',
       timezone: 'America/Manaus',
       registrationId: TEST_REGISTRATION_ID,
+      allowOwnerSlug: false,
     });
 
     const tenant = await tenantRepo.findBySlug('lavacar-norte');
@@ -79,6 +91,7 @@ describe('ProvisionTenantUseCase', () => {
       adminEmail: 'sul@lavacar.com.br',
       country_code: 'BR',
       registrationId: TEST_REGISTRATION_ID,
+      allowOwnerSlug: false,
     });
 
     expect(eventBus.published).toHaveLength(1);
@@ -104,6 +117,7 @@ describe('ProvisionTenantUseCase', () => {
       adminEmail: 'admin@lavacar.us',
       country_code: 'US',
       registrationId: TEST_REGISTRATION_ID,
+      allowOwnerSlug: false,
     });
 
     expect((eventBus.published[0] as TenantProvisioned).data.countryCode).toBe('US');
@@ -116,6 +130,7 @@ describe('ProvisionTenantUseCase', () => {
       adminEmail: 'billing@lavacar.com.br',
       country_code: 'BR',
       registrationId: TEST_REGISTRATION_ID,
+      allowOwnerSlug: false,
     });
 
     const data = (eventBus.published[0] as TenantProvisioned).data;
@@ -126,7 +141,7 @@ describe('ProvisionTenantUseCase', () => {
 
   it('does not read Billing: an unknown or already completed registration is not refused here', async () => {
     // The use case has no Billing dependency at all (its constructor takes only the tenant and
-    // hotsite repositories and the transaction manager). Refusing an unknown or COMPLETED
+    // hotsite repositories, the transaction manager and the slug policy). Refusing an unknown or COMPLETED
     // registration is the Billing handler's job (UC-110 A8).
     await expect(
       useCase.execute({
@@ -135,6 +150,7 @@ describe('ProvisionTenantUseCase', () => {
         adminEmail: 'x@lavacar.com.br',
         country_code: 'BR',
         registrationId: '00000000-0000-4000-8000-000000000000',
+        allowOwnerSlug: false,
       }),
     ).resolves.toBeDefined();
   });
@@ -145,6 +161,7 @@ describe('ProvisionTenantUseCase', () => {
       adminEmail: 'a@a.com',
       country_code: 'BR',
       registrationId: TEST_REGISTRATION_ID,
+      allowOwnerSlug: false,
     };
     await useCase.execute({ ...base, slug: 'taken-slug' });
 
@@ -163,6 +180,7 @@ describe('ProvisionTenantUseCase', () => {
         adminEmail: 'a@a.com',
         country_code: 'BR',
         registrationId: TEST_REGISTRATION_ID,
+        allowOwnerSlug: false,
       }),
     ).rejects.toThrow('db error');
   });
@@ -174,6 +192,7 @@ describe('ProvisionTenantUseCase', () => {
       adminEmail: 'a@a.com',
       country_code: 'BR',
       registrationId: TEST_REGISTRATION_ID,
+      allowOwnerSlug: false,
     });
     const resB = await useCase.execute({
       name: 'B',
@@ -181,6 +200,7 @@ describe('ProvisionTenantUseCase', () => {
       adminEmail: 'b@b.com',
       country_code: 'BR',
       registrationId: '0198f1c2-7a3b-7c4d-8e5f-0123456789ac',
+      allowOwnerSlug: false,
     });
 
     const configA = await hotsiteRepo.findByTenantId(resA.tenantId);
@@ -193,5 +213,49 @@ describe('ProvisionTenantUseCase', () => {
       resA.tenantId,
       resB.tenantId,
     ]);
+  });
+
+  describe('reserved slugs (UC-024 A9)', () => {
+    const base = {
+      name: 'Reservado',
+      adminEmail: 'x@lavacar.com.br',
+      country_code: 'BR',
+      registrationId: TEST_REGISTRATION_ID,
+    };
+
+    it('refuses a reserved word and creates nothing', async () => {
+      await expect(
+        useCase.execute({ ...base, slug: 'dashboard', allowOwnerSlug: true }),
+      ).rejects.toBeInstanceOf(SlugReservedError);
+
+      expect(await tenantRepo.findBySlug('dashboard')).toBeNull();
+      expect(eventBus.published).toHaveLength(0);
+    });
+
+    it('refuses the owner slug when the caller does not allow it', async () => {
+      await expect(
+        useCase.execute({ ...base, slug: 'ikaro', allowOwnerSlug: false }),
+      ).rejects.toBeInstanceOf(SlugReservedError);
+    });
+
+    it('provisions the owner slug when the operator path allows it', async () => {
+      const result = await useCase.execute({ ...base, slug: 'ikaro', allowOwnerSlug: true });
+
+      expect(result.slug).toBe('ikaro');
+    });
+
+    it('does not apply the signup length rule to the operator path', async () => {
+      const result = await useCase.execute({ ...base, slug: 'ab', allowOwnerSlug: true });
+
+      expect(result.slug).toBe('ab');
+    });
+
+    it('reports a reserved word before a taken one', async () => {
+      await useCase.execute({ ...base, slug: 'ikaro', allowOwnerSlug: true });
+
+      await expect(
+        useCase.execute({ ...base, slug: 'ikaro', allowOwnerSlug: false }),
+      ).rejects.toBeInstanceOf(SlugReservedError);
+    });
   });
 });

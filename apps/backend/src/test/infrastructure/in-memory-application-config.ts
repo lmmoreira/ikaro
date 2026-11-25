@@ -9,4 +9,8 @@ export class InMemoryApplicationConfig implements IApplicationConfig {
     if (value === undefined) throw new Error(`Config key not set: ${key}`);
     return value;
   }
+
+  getOptional(key: string): string | null {
+    return this.values[key] ?? null;
+  }
 }

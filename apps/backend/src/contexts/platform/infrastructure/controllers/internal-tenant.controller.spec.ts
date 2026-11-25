@@ -10,6 +10,7 @@ import { EVENT_BUS } from '../../../../shared/ports/event-bus.port';
 import { TRANSACTION_MANAGER } from '../../../../shared/ports/transaction-manager.port';
 import { HOTSITE_CONFIG_REPOSITORY } from '../../application/ports/hotsite-config-repository.port';
 import { TENANT_REPOSITORY } from '../../application/ports/tenant-repository.port';
+import { SLUG_POLICY, SlugPolicy } from '../../domain/slug-policy';
 import { ProvisionTenantUseCase } from '../../application/use-cases/provision-tenant.use-case';
 import { InternalTenantController } from './internal-tenant.controller';
 
@@ -28,6 +29,7 @@ describe('InternalTenantController', () => {
         ProvisionTenantUseCase,
         { provide: TENANT_REPOSITORY, useValue: tenantRepo },
         { provide: HOTSITE_CONFIG_REPOSITORY, useValue: new InMemoryHotsiteConfigRepository() },
+        { provide: SLUG_POLICY, useValue: new SlugPolicy('ikaro') },
         { provide: EVENT_BUS, useValue: eventBus },
         { provide: TRANSACTION_MANAGER, useValue: new InMemoryTransactionManager() },
         { provide: ConfigService, useValue: { getOrThrow: () => 'test-platform-admin-key' } },
@@ -105,5 +107,36 @@ describe('InternalTenantController', () => {
     const event = eventBus.published[0] as unknown as { data: Record<string, unknown> };
     expect(event.data['registrationId']).toBe(TEST_REGISTRATION_ID);
     expect(event.data['countryCode']).toBe('BR');
+  });
+
+  it('maps a reserved slug to 422 SIGNUP_SLUG_RESERVED', async () => {
+    expect.assertions(3);
+    try {
+      await controller.provision({
+        name: 'Painel',
+        slug: 'dashboard',
+        adminEmail: 'a@a.com',
+        country_code: 'BR',
+        registrationId: TEST_REGISTRATION_ID,
+      });
+    } catch (err) {
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+      expect(((err as HttpException).getResponse() as { code: string }).code).toBe(
+        'SIGNUP_SLUG_RESERVED',
+      );
+    }
+  });
+
+  it('lets the operator provision the owner slug', async () => {
+    const result = await controller.provision({
+      name: 'Ikaro',
+      slug: 'ikaro',
+      adminEmail: 'ops@ikaro.app',
+      country_code: 'BR',
+      registrationId: TEST_REGISTRATION_ID,
+    });
+
+    expect(result.slug).toBe('ikaro');
   });
 });

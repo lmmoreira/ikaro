@@ -1,4 +1,4 @@
-import { ConfigService } from '@nestjs/config';
+import { InMemoryApplicationConfig } from '../../../../../test/infrastructure/in-memory-application-config';
 import { InMemoryNotificationDispatcher } from '../../../../../test/infrastructure/in-memory-notification-dispatcher';
 import { InMemoryNotificationLogRepository } from '../../../../../test/repositories/notification/in-memory-notification-log.repository';
 import { InMemoryInboxRepository } from '../../../../../test/infrastructure/in-memory-inbox.repository';
@@ -16,12 +16,7 @@ const TENANT_ID = 'aaaaaaaa-0004-4000-8000-000000000001';
 const EVENT_ID = 'cccccccc-0004-4000-8000-000000000001';
 const BOOKING_ID = 'bbbbbbbb-0004-4000-8000-000000000001';
 
-const configService = {
-  getOrThrow: (key: string): string => {
-    if (key === 'FRONTEND_URL') return 'http://localhost:3000';
-    throw new Error(`Unknown config key: ${key}`);
-  },
-} as unknown as ConfigService;
+const configService = new InMemoryApplicationConfig({ FRONTEND_URL: 'http://localhost:3000' });
 
 const dto = new SendBookingInfoSubmittedNotificationDtoBuilder()
   .withTenantId(TENANT_ID)

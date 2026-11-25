@@ -31,6 +31,8 @@ export class InternalTenantController {
       country_code: dto.country_code,
       timezone: dto.timezone,
       registrationId: dto.registrationId,
+      // The operator path may provision Ikaro's own tenant; self-signup never does (UC-024, UC-128).
+      allowOwnerSlug: true,
     };
     return this.provisionTenant.execute(input).catch(mapPlatformError);
   }

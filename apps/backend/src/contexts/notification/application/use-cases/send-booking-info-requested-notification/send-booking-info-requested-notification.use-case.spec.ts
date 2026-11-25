@@ -1,4 +1,4 @@
-import { ConfigService } from '@nestjs/config';
+import { InMemoryApplicationConfig } from '../../../../../test/infrastructure/in-memory-application-config';
 import * as jwt from 'jsonwebtoken';
 import { InMemoryNotificationDispatcher } from '../../../../../test/infrastructure/in-memory-notification-dispatcher';
 import { InMemoryNotificationLogRepository } from '../../../../../test/repositories/notification/in-memory-notification-log.repository';
@@ -17,16 +17,10 @@ const EVENT_ID = 'cccccccc-0003-4000-8000-000000000001';
 const BOOKING_ID = 'bbbbbbbb-0003-4000-8000-000000000001';
 const PT_BR_SUBJECT = 'Precisamos de mais informações sobre seu agendamento';
 
-const configService = {
-  getOrThrow: (key: string): string => {
-    const values: Record<string, string> = {
-      FRONTEND_URL: 'http://localhost:3000',
-      JWT_SECRET: 'test-secret-at-least-64-chars-long-xxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-    };
-    if (!(key in values)) throw new Error(`Unknown config key: ${key}`);
-    return values[key];
-  },
-} as unknown as ConfigService;
+const configService = new InMemoryApplicationConfig({
+  FRONTEND_URL: 'http://localhost:3000',
+  JWT_SECRET: 'test-secret-at-least-64-chars-long-xxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+});
 
 const guestDto = new SendBookingInfoRequestedNotificationDtoBuilder()
   .withTenantId(TENANT_ID)
