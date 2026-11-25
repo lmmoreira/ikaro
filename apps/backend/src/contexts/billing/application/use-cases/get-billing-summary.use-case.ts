@@ -20,9 +20,9 @@ import {
   type ISubscriptionRepository,
   SUBSCRIPTION_REPOSITORY,
 } from '../ports/subscription-repository.port';
+import { priceSelection } from '../helpers/priced-selection.helper';
 import {
   type PricedEntry,
-  priceEntry,
   toReadySummary,
   upcomingChanges,
 } from '../helpers/billing-summary.helper';
@@ -109,24 +109,21 @@ export class GetBillingSummaryUseCase {
   ): Promise<{ entries: PricedEntry[]; upcoming: BillingUpcomingPriceChangeDto[] }> {
     const { entries, pricedOn } = this.planFor(subscription, now, today);
     const date = CalendarDate.create(pricedOn);
-    const priced = await Promise.all(
-      entries.map(async (entry) => {
-        const price = await this.prices.findByNaturalKey(
-          entry.featureKey,
-          subscription.countryCode,
-          entry.tier,
-          subscription.cycle,
-        );
-        const result = priceEntry(entry, price, date);
-        if (result.amountMinor === null) {
-          this.logger.error(
-            `No price in force for ${entry.featureKey}/${entry.tier} on ${pricedOn} ` +
-              `(tenant '${subscription.tenantId}', country ${subscription.countryCode.value})`,
-          );
-        }
-        return result;
-      }),
+    const priced = await priceSelection(
+      this.prices,
+      entries,
+      subscription.countryCode,
+      subscription.cycle,
+      date,
     );
+    for (const { entry, amountMinor } of priced) {
+      if (amountMinor === null) {
+        this.logger.error(
+          `No price in force for ${entry.featureKey}/${entry.tier} on ${pricedOn} ` +
+            `(tenant '${subscription.tenantId}', country ${subscription.countryCode.value})`,
+        );
+      }
+    }
     return { entries: priced, upcoming: upcomingChanges(priced, date) };
   }
 

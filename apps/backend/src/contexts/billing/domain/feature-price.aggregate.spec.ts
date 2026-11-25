@@ -195,4 +195,40 @@ describe('FeaturePrice', () => {
       expect(hidden.versionInForceAt(day('2026-08-01'))?.amount.amountMinor).toBe(4900);
     });
   });
+
+  describe('announcedVersionsAfter', () => {
+    const announced = new Date('2026-05-01T00:00:00Z');
+    const version = (effectiveFrom: string, amountMinor: number) =>
+      new FeaturePriceVersionBuilder()
+        .withEffectiveFrom(effectiveFrom)
+        .withAmountMinor(amountMinor)
+        .withAnnouncedAt(announced);
+
+    it('lists announced, non-superseded versions starting after the date, earliest first', () => {
+      const price = new FeaturePriceBuilder()
+        .withVersions([
+          version('2026-01-01', 4900).build(),
+          version('2026-09-01', 6900).build(),
+          version('2026-07-01', 5900).build(),
+        ])
+        .build();
+
+      expect(
+        price.announcedVersionsAfter(day('2026-06-01')).map((v) => v.amount.amountMinor),
+      ).toEqual([5900, 6900]);
+    });
+
+    it('omits a version that starts on the date, an unannounced one and a superseded one', () => {
+      const price = new FeaturePriceBuilder()
+        .withVersions([
+          version('2026-01-01', 4900).build(),
+          version('2026-06-01', 5000).build(),
+          version('2026-07-01', 5900).withAnnouncedAt(null).build(),
+          version('2026-08-01', 6900).withSupersededAt(new Date('2026-05-15T00:00:00Z')).build(),
+        ])
+        .build();
+
+      expect(price.announcedVersionsAfter(day('2026-06-01'))).toEqual([]);
+    });
+  });
 });

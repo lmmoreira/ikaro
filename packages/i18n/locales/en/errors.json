@@ -258,5 +258,9 @@
   "BILLING_UNSUSPEND_NOT_ALLOWED": "Only an operator suspension can be lifted this way; a payment suspension needs a payment.",
   "BILLING_CONCURRENT_MODIFICATION": "This subscription was changed by another request. Reload it and try again.",
   "BILLING_FEATURE_NOT_ENTITLED": "This feature is not included in your plan.",
-  "BILLING_TENANT_SUSPENDED": "This account is currently unavailable."
+  "BILLING_TENANT_SUSPENDED": "This account is currently unavailable.",
+  "BILLING_FEATURE_DEPENDENCY_UNMET": "This feature needs another feature that is not in your plan. Add it, or remove this one.",
+  "BILLING_FEATURE_HAS_DEPENDENTS": "This feature cannot be removed while another feature in your plan depends on it.",
+  "BILLING_PLAN_EMPTY": "A plan must keep at least one feature.",
+  "BILLING_NO_PRICE_FOR_COUNTRY": "One of the selected options is not available for your country right now."
 }

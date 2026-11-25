@@ -10,8 +10,12 @@ import { TaxIdValidationError } from '../../../../shared/value-objects/tax-id.vo
 import {
   BillingTenantNotFoundError,
   ExemptProtectedError,
+  FeatureDependencyUnmetError,
+  FeatureHasDependentsError,
   FeaturePriceNotFoundError,
   GraceNotAllowedError,
+  NoPriceForCountryError,
+  PlanEmptyError,
   SignupTermsNotAcceptedError,
   SubscriptionConcurrentModificationError,
   UnsuspendNotAllowedError,
@@ -50,6 +54,20 @@ describe('mapBillingError', () => {
     const thrown = call(new BillingTenantNotFoundError('t-1')) as HttpException;
     expect(thrown.getStatus()).toBe(HttpStatus.NOT_FOUND);
     expect(thrown.getResponse()).toMatchObject({ code: PlatformErrorCode.TENANT_NOT_FOUND });
+  });
+
+  it.each([
+    [
+      new FeatureDependencyUnmetError('LOYALTY', 'BOOKING'),
+      BillingErrorCode.FEATURE_DEPENDENCY_UNMET,
+    ],
+    [new FeatureHasDependentsError('BOOKING', 'LOYALTY'), BillingErrorCode.FEATURE_HAS_DEPENDENTS],
+    [new PlanEmptyError(), BillingErrorCode.PLAN_EMPTY],
+    [new NoPriceForCountryError('CHATBOT', 'PLUS'), BillingErrorCode.NO_PRICE_FOR_COUNTRY],
+  ])('maps the plan refusal %p to 422 with its code (UC-136 A1, A5, A6)', (error, code) => {
+    const thrown = call(error) as HttpException;
+    expect(thrown.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+    expect(thrown.getResponse()).toMatchObject({ code });
   });
 
   it('maps ExemptProtectedError to 403 BILLING_EXEMPT_PROTECTED (UC-111 A3)', () => {

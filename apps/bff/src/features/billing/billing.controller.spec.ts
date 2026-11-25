@@ -4,6 +4,10 @@ import { REQUIRES_FEATURE_KEY, SUSPENSION_ACCESS_KEY } from '@ikaro/nestjs-http'
 import { FEATURE_KEYS } from '@ikaro/validation';
 import { makeBackendHttp } from '../../test/backend-http.mock';
 import {
+  BillingPlanBuilder,
+  BillingPlanPreviewBuilder,
+} from '../../test/builders/billing-plan.builder';
+import {
   BillingChargeHistoryItemBuilder,
   BillingSummaryBuilder,
 } from '../../test/builders/billing-summary.builder';
@@ -155,6 +159,61 @@ describe('BillingController', () => {
       backendHttp.get.mockResolvedValueOnce({ status: 'ACTIVE' });
 
       await expect(new BillingController(backendHttp).getSummary()).rejects.toThrow();
+    });
+  });
+
+  describe('the plan reads (M26-S17)', () => {
+    const reflector = new Reflector();
+
+    it('GET plan and POST plan/preview are manager-only and carry no tenant-access annotation', () => {
+      for (const handler of [
+        BillingController.prototype.getPlan,
+        BillingController.prototype.previewPlan,
+      ]) {
+        expect(reflector.get(ROLES_KEY, handler)).toEqual(['MANAGER']);
+        expect(reflector.get(SUSPENSION_ACCESS_KEY, handler)).toBeUndefined();
+        expect(reflector.get(REQUIRES_FEATURE_KEY, handler)).toBeUndefined();
+      }
+    });
+
+    it('reads the plan from the backend with no tenant parameter and maps it', async () => {
+      const backendHttp = makeBackendHttp();
+      backendHttp.get.mockResolvedValueOnce(new BillingPlanBuilder().build());
+
+      const plan = await new BillingController(backendHttp).getPlan();
+
+      expect(backendHttp.get).toHaveBeenCalledWith('/billing/plan');
+      expect(plan).toMatchObject({ provisioning: false, countryCode: 'BR', totalMinor: 4900 });
+    });
+
+    it('answers the provisioning flag when the backend does', async () => {
+      const backendHttp = makeBackendHttp();
+      backendHttp.get.mockResolvedValueOnce({ provisioning: true });
+
+      await expect(new BillingController(backendHttp).getPlan()).resolves.toEqual({
+        provisioning: true,
+      });
+    });
+
+    it('forwards only the validated items to the backend and maps the preview', async () => {
+      const backendHttp = makeBackendHttp();
+      backendHttp.post.mockResolvedValueOnce(new BillingPlanPreviewBuilder().build());
+      const items = [{ featureKey: 'HOTSITE' as const, tier: 'STANDARD' as const }];
+
+      const preview = await new BillingController(backendHttp).previewPlan({ items });
+
+      expect(backendHttp.post).toHaveBeenCalledWith('/billing/plan/preview', { items });
+      expect(preview).toMatchObject({ newTotalMinor: 4900, effectiveFrom: '2026-11-20' });
+    });
+
+    it('rejects a backend answer that is not the documented shape instead of passing it on', async () => {
+      const backendHttp = makeBackendHttp();
+      backendHttp.get.mockResolvedValueOnce({ provisioning: false });
+      backendHttp.post.mockResolvedValueOnce({ changes: 'nope' });
+      const controller = new BillingController(backendHttp);
+
+      await expect(controller.getPlan()).rejects.toThrow();
+      await expect(controller.previewPlan({ items: [] })).rejects.toThrow();
     });
   });
 });

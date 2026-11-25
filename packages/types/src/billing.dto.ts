@@ -119,6 +119,80 @@ export interface BillingSummaryReadyResponse {
 export type BillingSummaryResponse =
   BillingSummaryProvisioningResponse | BillingSummaryReadyResponse;
 
+export type BillingPlanReadOnlyReason =
+  'PAST_DUE' | 'OPERATOR_SUSPENDED' | 'CANCEL_SCHEDULED' | 'EXEMPT';
+
+/** An announced future price of a tier (UC-136 price-change note); amounts are minor units. */
+export interface BillingPlanUpcomingPriceDto {
+  amountMinor: number;
+  effectiveFrom: string;
+}
+
+/** `unitPriceMinor` is `null` and `available` `false` when no selectable price is in force (UC-136 A6). */
+export interface BillingPlanTierDto {
+  tier: ChatbotTier | 'STANDARD';
+  unitPriceMinor: number | null;
+  available: boolean;
+  upcoming?: BillingPlanUpcomingPriceDto;
+}
+
+export interface BillingPlanFeatureDto {
+  featureKey: FeatureKey;
+  /** Direct requirements: the features that must be in the plan for this one to be selected. */
+  requires: FeatureKey[];
+  tiers: BillingPlanTierDto[];
+}
+
+/** A feature active now; `endsAt` is set while a removal or tier change is pending. */
+export interface BillingPlanCurrentItemDto {
+  featureKey: FeatureKey;
+  tier: ChatbotTier | 'STANDARD';
+  endsAt: string | null;
+}
+
+/** A change that starts later; `tier: null` is a removal that takes effect on `startsAt`. */
+export interface BillingPlanScheduledItemDto {
+  featureKey: FeatureKey;
+  tier: (ChatbotTier | 'STANDARD') | null;
+  startsAt: string;
+}
+
+export interface BillingPlanReadyResponse {
+  provisioning: false;
+  countryCode: string;
+  currency: string;
+  readOnly: { reason: BillingPlanReadOnlyReason } | null;
+  trial: { active: boolean; planConfirmed: boolean };
+  features: BillingPlanFeatureDto[];
+  current: BillingPlanCurrentItemDto[];
+  scheduled: BillingPlanScheduledItemDto[] | null;
+  /** The going-forward selection priced at the next period start; `null` when a price is missing. */
+  totalMinor: number | null;
+}
+
+/** `GET /v1/billing/plan`: discriminated on `provisioning`, as the summary is. */
+export type BillingPlanResponse = BillingSummaryProvisioningResponse | BillingPlanReadyResponse;
+
+export type BillingPlanChangeKind = 'ADD' | 'REMOVE' | 'TIER_CHANGE';
+
+export interface BillingPlanChangeDto {
+  featureKey: FeatureKey;
+  kind: BillingPlanChangeKind;
+  fromTier: (ChatbotTier | 'STANDARD') | null;
+  toTier: (ChatbotTier | 'STANDARD') | null;
+  /** `null` while suspended for payment ("at the reactivation payment"), operator-suspended or exempt. */
+  effectiveFrom: string | null;
+}
+
+/** `POST /v1/billing/plan/preview`: nothing is saved (UC-136 main flow 2). */
+export interface BillingPlanPreviewResponse {
+  changes: BillingPlanChangeDto[];
+  newTotalMinor: number;
+  effectiveFrom: string | null;
+  /** The next invoice is already paid, so every date moved to the following period (UC-136 A7). */
+  deferredBecauseNextInvoicePaid: boolean;
+}
+
 export interface BillingChargeLineDto {
   featureKey: FeatureKey;
   tier: ChatbotTier | 'STANDARD';

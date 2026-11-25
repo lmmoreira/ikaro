@@ -1770,6 +1770,8 @@ Subscription {
   suspendsAt:        DateTime | null   -- computed (M26-S14): PAST_DUE only, the end of the grace period (graceUntil, else pastDueSince + 14 days)
   planConfirmationRequired: Boolean    -- computed (M26-S14): not exempt, TRIALING and planConfirmedAt is null
   planConfirmationFallbackDate: Date | null -- computed (M26-S14): the trial's first due date minus PLAN_CONFIRM_FALLBACK_DAYS (3) while a confirmation is required; anchored to the trial end, not to nextDueDate, which moves once the first invoice is issued
+  planReadOnlyReason: PAST_DUE | OPERATOR_SUSPENDED | CANCEL_SCHEDULED | EXEMPT | null -- computed (M26-S17): why the plan cannot be changed now, in that precedence (exempt first); a suspension for payment is editable (UC-136 A14), so it is null
+  nextPeriodStart(nextPeriodPaid): Date | null -- computed (M26-S17): the tenant-local start of the next period that is not yet paid, where a plan change takes effect. TRIALING: the trial's end day, or the period after it when the first invoice is already paid (the one place the charge fact shifts a date). ACTIVE / PAST_DUE: the day after `currentPeriodEnd`, which a payment already moves past a period paid ahead, so the fact never shifts it twice. SUSPENDED and exempt: null
   purgeWarning30SentAt / purgeWarning7SentAt: DateTime | null   -- dedupe of the clean-up warning emails (columns purge_warning_30_sent_at / purge_warning_7_sent_at); cleared on reactivation
   hasEverPaid:       Boolean           -- set on the first confirmed payment
   exempt:            Boolean           -- free access, never charged

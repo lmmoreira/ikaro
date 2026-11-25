@@ -117,6 +117,21 @@ export class FeaturePrice extends AggregateRoot {
     return inForce;
   }
 
+  /**
+   * The versions a manager may be told about: announced (the fan-out has run), not superseded and
+   * starting after `date`, earliest first. A version the operator only created is never shown.
+   */
+  announcedVersionsAfter(date: CalendarDate): FeaturePriceVersion[] {
+    return this._versions
+      .filter(
+        (version) =>
+          version.supersededAt === null &&
+          version.announcedAt !== null &&
+          date.isBefore(version.effectiveFrom),
+      )
+      .sort((a, b) => a.effectiveFrom.value.localeCompare(b.effectiveFrom.value));
+  }
+
   private latestLiveVersion(): FeaturePriceVersion | null {
     let latest: FeaturePriceVersion | null = null;
     for (const version of this._versions) {

@@ -133,3 +133,58 @@ export const BackendBillingChargesSchema = z.object({
     hasMore: z.boolean(),
   }),
 });
+
+// ── Plan reads (M26-S17, UC-136) ──────────────────────────────────────────────────────────────
+// The Plano tab's catalog and the preview answer, declared field by field like the summary above.
+
+const DATE = z.string();
+const PLAN_TIER = z.object({
+  tier: TIER,
+  unitPriceMinor: MINOR.nullable(),
+  available: z.boolean(),
+  upcoming: z.object({ amountMinor: MINOR, effectiveFrom: DATE }).optional(),
+});
+
+const ReadyPlanSchema = z.object({
+  provisioning: z.literal(false),
+  countryCode: z.string(),
+  currency: z.string(),
+  readOnly: z
+    .object({
+      reason: z.enum(['PAST_DUE', 'OPERATOR_SUSPENDED', 'CANCEL_SCHEDULED', 'EXEMPT']),
+    })
+    .nullable(),
+  trial: z.object({ active: z.boolean(), planConfirmed: z.boolean() }),
+  features: z.array(
+    z.object({
+      featureKey: FEATURE_KEY,
+      requires: z.array(FEATURE_KEY),
+      tiers: z.array(PLAN_TIER),
+    }),
+  ),
+  current: z.array(z.object({ featureKey: FEATURE_KEY, tier: TIER, endsAt: DATE.nullable() })),
+  scheduled: z
+    .array(z.object({ featureKey: FEATURE_KEY, tier: TIER.nullable(), startsAt: DATE }))
+    .nullable(),
+  totalMinor: MINOR.nullable(),
+});
+
+export const BackendBillingPlanSchema = z.discriminatedUnion('provisioning', [
+  z.object({ provisioning: z.literal(true) }),
+  ReadyPlanSchema,
+]);
+
+export const BackendBillingPlanPreviewSchema = z.object({
+  changes: z.array(
+    z.object({
+      featureKey: FEATURE_KEY,
+      kind: z.enum(['ADD', 'REMOVE', 'TIER_CHANGE']),
+      fromTier: TIER.nullable(),
+      toTier: TIER.nullable(),
+      effectiveFrom: DATE.nullable(),
+    }),
+  ),
+  newTotalMinor: MINOR,
+  effectiveFrom: DATE.nullable(),
+  deferredBecauseNextInvoicePaid: z.boolean(),
+});

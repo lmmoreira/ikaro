@@ -289,7 +289,7 @@ describe('Subscription', () => {
     it('previews ADD, REMOVE and TIER_CHANGE with the next paid period start, in catalogue order', () => {
       const subscription = new SubscriptionBuilder()
         .withStatus('ACTIVE')
-        .withCurrentPeriod(at('2026-03-01T03:00:00Z'), at('2026-04-01T03:00:00Z'))
+        .withCurrentPeriod(at('2026-03-01T03:00:00Z'), at('2026-04-01T02:59:59.999Z'))
         .withItems([
           new SubscriptionItemBuilder()
             .withFeatureKey('HOTSITE')
@@ -313,11 +313,25 @@ describe('Subscription', () => {
         { featureKey: 'LEAD_FORM', tier: 'STANDARD' },
       ]);
 
-      const effectiveFrom = at('2026-04-01T03:00:00Z');
-      expect(changes).toEqual([
-        { featureKey: 'BOOKING', tier: 'STANDARD', kind: 'REMOVE', effectiveFrom },
-        { featureKey: 'CHATBOT', tier: 'PLUS', kind: 'TIER_CHANGE', effectiveFrom },
-        { featureKey: 'LEAD_FORM', tier: 'STANDARD', kind: 'ADD', effectiveFrom },
+      const effectiveFrom = '2026-04-01';
+      expect(
+        changes.map((change) => ({ ...change, effectiveFrom: change.effectiveFrom?.value })),
+      ).toEqual([
+        {
+          featureKey: 'BOOKING',
+          kind: 'REMOVE',
+          fromTier: 'STANDARD',
+          toTier: null,
+          effectiveFrom,
+        },
+        {
+          featureKey: 'CHATBOT',
+          kind: 'TIER_CHANGE',
+          fromTier: 'BASIC',
+          toTier: 'PLUS',
+          effectiveFrom,
+        },
+        { featureKey: 'LEAD_FORM', kind: 'ADD', fromTier: null, toTier: 'STANDARD', effectiveFrom },
       ]);
     });
 
@@ -330,11 +344,10 @@ describe('Subscription', () => {
       expect(subscription.trialEndsAt).toEqual(trialEndsAt);
       expect(subscription.previewSelection(subscription.selection).changes).toEqual([]);
       const preview = subscription.previewSelection([{ featureKey: 'HOTSITE', tier: 'STANDARD' }]);
-      expect(
-        preview.changes.every(
-          (change) => change.effectiveFrom?.getTime() === trialEndsAt.getTime(),
-        ),
-      ).toBe(true);
+      expect(preview.effectiveFrom?.value).toBe('2026-03-10');
+      expect(preview.changes.every((change) => change.effectiveFrom?.value === '2026-03-10')).toBe(
+        true,
+      );
       expect(preview.changes).toHaveLength(FEATURE_KEYS.length - 1);
     });
 

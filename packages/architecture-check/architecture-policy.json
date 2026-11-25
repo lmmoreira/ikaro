@@ -1144,30 +1144,6 @@
     },
     {
       "rule": "error-mapper-coverage",
-      "class": "FeatureDependencyUnmetError",
-      "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
-      "rationale": "M25-S08 builds the Subscription and BillingAccount aggregates and their repositories with no HTTP surface, so no endpoint can throw its invariant errors yet. Mapping them now would fix a wire status and code before one exists (codes are additive-only once shipped). The first story whose route can throw this one (M26-S17 plan preview / M26-S19 plan save, BILLING_FEATURE_DEPENDENCY_UNMET) maps it in billing-error.mapper.ts, adds the BillingErrorCode member and both locale entries, and removes this entry.",
-      "owner": "billing",
-      "reviewBy": "2026-12-31"
-    },
-    {
-      "rule": "error-mapper-coverage",
-      "class": "FeatureHasDependentsError",
-      "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
-      "rationale": "Same as FeatureDependencyUnmetError above: no billing HTTP surface can throw it yet; M26-S17/S19 map it (BILLING_FEATURE_HAS_DEPENDENTS) and remove this entry.",
-      "owner": "billing",
-      "reviewBy": "2026-12-31"
-    },
-    {
-      "rule": "error-mapper-coverage",
-      "class": "PlanEmptyError",
-      "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
-      "rationale": "Same as FeatureDependencyUnmetError above: no billing HTTP surface can throw it yet; M26-S17/S19 map it (BILLING_PLAN_EMPTY) and remove this entry.",
-      "owner": "billing",
-      "reviewBy": "2026-12-31"
-    },
-    {
-      "rule": "error-mapper-coverage",
       "class": "OperatorAuditInvariantError",
       "path": "apps/backend/src/contexts/billing/domain/errors/billing-domain.error.ts",
       "rationale": "M25-S15a's OperatorAudit record throws it for an empty actor or reason or an oversize payload. It is defence in depth: M25-S15b's operator routes validate the reason at the request boundary, so no endpoint surfaces it. If S15b finds a path that does, it maps it in billing-error.mapper.ts and removes this entry.",

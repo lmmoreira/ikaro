@@ -11,6 +11,7 @@ import {
   defaultSelection,
   defaultTierFor,
   isTierSoldFor,
+  tiersSoldFor,
   type SelectionEntry,
   validateSelection,
 } from './plan-selection';
@@ -37,6 +38,13 @@ describe('plan-selection', () => {
         { featureKey: 'CHATBOT', tier: 'BASIC' },
         { featureKey: 'LEAD_FORM', tier: 'STANDARD' },
       ]);
+    });
+  });
+
+  describe('tiersSoldFor', () => {
+    it('sells the chatbot in two tiers and every other feature in one', () => {
+      expect(tiersSoldFor('CHATBOT')).toEqual(['BASIC', 'PLUS']);
+      expect(tiersSoldFor('BOOKING')).toEqual(['STANDARD']);
     });
   });
 

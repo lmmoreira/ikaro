@@ -27,3 +27,33 @@ export const BillingChargesQuerySchema = z.object({
 });
 
 export type BillingChargesQuery = z.infer<typeof BillingChargesQuerySchema>;
+
+// `POST /billing/plan/preview` (M26-S17, UC-136): the proposed FINAL selection. One schema for both
+// apps (the BFF rejects a malformed body at the edge, the backend repeats the check), so a tier that
+// is not sold for its feature or a feature listed twice is a `400` and never reaches the aggregate,
+// where it would be an unmapped invariant error. `CHATBOT` is sold as `BASIC` or `PLUS`, every other
+// feature as `STANDARD`.
+const PLAN_TIERS = ['STANDARD', ...CHATBOT_TIERS] as const;
+
+export const PlanSelectionItemSchema = z
+  .object({
+    featureKey: z.enum(FEATURE_KEYS),
+    tier: z.enum(PLAN_TIERS),
+  })
+  .refine(
+    ({ featureKey, tier }) =>
+      featureKey === 'CHATBOT' ? tier !== 'STANDARD' : tier === 'STANDARD',
+    { message: 'tier is not sold for this feature', path: ['tier'] },
+  );
+
+export const PlanPreviewSchema = z.object({
+  items: z
+    .array(PlanSelectionItemSchema)
+    .max(FEATURE_KEYS.length)
+    .refine((items) => new Set(items.map((item) => item.featureKey)).size === items.length, {
+      message: 'a feature can be selected only once',
+    }),
+});
+
+export type PlanSelectionItem = z.infer<typeof PlanSelectionItemSchema>;
+export type PlanPreviewDto = z.infer<typeof PlanPreviewSchema>;
