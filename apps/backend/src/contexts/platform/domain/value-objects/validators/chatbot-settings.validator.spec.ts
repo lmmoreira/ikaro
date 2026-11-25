@@ -57,6 +57,14 @@ describe('ChatbotSettingsValidator', () => {
       expect(problem({ llmModel: 'google/gemini-test' })).toBeNull();
     });
 
+    it('treats a stored JSON null like an absent key', () => {
+      expect(problem({ llmProvider: null, llmModel: 'google/gemini-test' } as never)).toBeNull();
+      expect(problem({ llmProvider: null, llmModel: null } as never)).toBeNull();
+      expect(problem({ llmProvider: 'anthropic', llmModel: null } as never)).toContain(
+        'requires chatbot.llmModel',
+      );
+    });
+
     it('reports a provider alone: nothing says which model to use', () => {
       expect(problem({ llmProvider: 'openrouter' })).toContain('requires chatbot.llmModel');
       expect(problem({ llmProvider: 'anthropic' })).toContain('requires chatbot.llmModel');

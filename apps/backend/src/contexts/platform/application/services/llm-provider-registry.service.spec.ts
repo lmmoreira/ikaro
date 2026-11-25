@@ -31,20 +31,13 @@ describe('LlmProviderRegistry', () => {
     );
   }
 
-  it('resolves the openrouter provider by name', () => {
-    expect(buildRegistry().resolve(OPENROUTER_PROVIDER_NAME)).toBe(openRouterProvider);
-  });
-
-  it('resolves the anthropic provider by name', () => {
-    expect(buildRegistry().resolve(ANTHROPIC_PROVIDER_NAME)).toBe(anthropicProvider);
-  });
-
-  it('resolves the openai provider by name', () => {
-    expect(buildRegistry().resolve(OPENAI_PROVIDER_NAME)).toBe(openAiProvider);
-  });
-
-  it('resolves the fake provider by name', () => {
-    expect(buildRegistry().resolve(FAKE_PROVIDER_NAME)).toBe(fakeProvider);
+  it.each([
+    [OPENROUTER_PROVIDER_NAME, () => openRouterProvider],
+    [ANTHROPIC_PROVIDER_NAME, () => anthropicProvider],
+    [OPENAI_PROVIDER_NAME, () => openAiProvider],
+    [FAKE_PROVIDER_NAME, () => fakeProvider],
+  ])('resolves the %s provider by name', (name, expected) => {
+    expect(buildRegistry().resolve(name)).toBe(expected());
   });
 
   it('throws for an unknown provider name', () => {

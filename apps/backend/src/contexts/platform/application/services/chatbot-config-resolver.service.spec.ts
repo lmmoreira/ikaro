@@ -1,4 +1,4 @@
-import type { TenantAccess } from '../../../../shared/ports/tenant-access.port';
+import { TenantAccessBuilder } from '../../../../test/builders/shared';
 import { FakeTracingPort } from '../../../../test/infrastructure/fake-tracing-port';
 import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
 import {
@@ -19,25 +19,6 @@ import { ChatbotConfigResolver } from './chatbot-config-resolver.service';
 const TENANT_A = '01234567-0000-7000-8000-00000000000a';
 const TENANT_B = '01234567-0000-7000-8000-00000000000b';
 
-function accessWith(
-  chatbotTier: 'BASIC' | 'PLUS' | 'STANDARD' | null,
-  overrides: Partial<TenantAccess> = {},
-): TenantAccess {
-  return {
-    status: 'ACTIVE',
-    suspensionReason: null,
-    operational: true,
-    features:
-      chatbotTier === null
-        ? [{ key: 'HOTSITE', tier: 'STANDARD' }]
-        : [
-            { key: 'HOTSITE', tier: 'STANDARD' },
-            { key: 'CHATBOT', tier: chatbotTier },
-          ],
-    ...overrides,
-  };
-}
-
 describe('ChatbotConfigResolver', () => {
   let accessPort: InMemoryTenantAccessPort;
   let tracingPort: FakeTracingPort;
@@ -51,7 +32,7 @@ describe('ChatbotConfigResolver', () => {
 
   describe('tier defaults', () => {
     it('resolves BASIC to exactly today’s effective values (non-regression snapshot)', async () => {
-      accessPort.seed(TENANT_A, accessWith('BASIC'));
+      accessPort.seed(TENANT_A, new TenantAccessBuilder().withChatbotTier('BASIC').build());
 
       const result = await resolver.resolve({ tenantId: TENANT_A, chatbotSettings: {} });
 
@@ -76,7 +57,7 @@ describe('ChatbotConfigResolver', () => {
     });
 
     it('resolves PLUS to the M25-S02 values: provider openrouter, the prefixed model, the same caps, no ceiling', async () => {
-      accessPort.seed(TENANT_A, accessWith('PLUS'));
+      accessPort.seed(TENANT_A, new TenantAccessBuilder().withChatbotTier('PLUS').build());
 
       const result = await resolver.resolve({ tenantId: TENANT_A, chatbotSettings: {} });
 
@@ -103,7 +84,10 @@ describe('ChatbotConfigResolver', () => {
     });
 
     it('resolves a trial tenant (BASIC) and an unseeded tenant to BASIC', async () => {
-      accessPort.seed(TENANT_A, accessWith('BASIC', { status: 'TRIALING' }));
+      accessPort.seed(
+        TENANT_A,
+        new TenantAccessBuilder().withChatbotTier('BASIC').withStatus('TRIALING').build(),
+      );
 
       const trial = await resolver.resolve({ tenantId: TENANT_A, chatbotSettings: {} });
       const unseeded = await resolver.resolve({ tenantId: TENANT_B, chatbotSettings: {} });
@@ -113,7 +97,7 @@ describe('ChatbotConfigResolver', () => {
     });
 
     it('resolves any access tier other than PLUS to BASIC', async () => {
-      accessPort.seed(TENANT_A, accessWith('STANDARD'));
+      accessPort.seed(TENANT_A, new TenantAccessBuilder().withChatbotTier('STANDARD').build());
 
       const result = await resolver.resolve({ tenantId: TENANT_A, chatbotSettings: {} });
 
@@ -121,7 +105,10 @@ describe('ChatbotConfigResolver', () => {
     });
 
     it('resolves the fail-open (degraded) answer to BASIC, never to an error', async () => {
-      accessPort.seed(TENANT_A, accessWith('BASIC', { status: 'ACTIVE', degraded: true }));
+      accessPort.seed(
+        TENANT_A,
+        new TenantAccessBuilder().withChatbotTier('BASIC').withDegraded().build(),
+      );
 
       const result = await resolver.resolve({ tenantId: TENANT_A, chatbotSettings: {} });
 
@@ -130,10 +117,10 @@ describe('ChatbotConfigResolver', () => {
     });
 
     it('takes a tier change on the next call (no state is kept between calls)', async () => {
-      accessPort.seed(TENANT_A, accessWith('BASIC'));
+      accessPort.seed(TENANT_A, new TenantAccessBuilder().withChatbotTier('BASIC').build());
       const before = await resolver.resolve({ tenantId: TENANT_A, chatbotSettings: {} });
 
-      accessPort.seed(TENANT_A, accessWith('PLUS'));
+      accessPort.seed(TENANT_A, new TenantAccessBuilder().withChatbotTier('PLUS').build());
       const after = await resolver.resolve({ tenantId: TENANT_A, chatbotSettings: {} });
 
       expect(before.model).toBe(DEFAULT_OPENROUTER_MODEL);
@@ -151,7 +138,7 @@ describe('ChatbotConfigResolver', () => {
     });
 
     it('is not entitled when the plan has no CHATBOT feature', async () => {
-      accessPort.seed(TENANT_A, accessWith(null));
+      accessPort.seed(TENANT_A, new TenantAccessBuilder().withoutChatbot().build());
 
       const result = await resolver.resolve({ tenantId: TENANT_A, chatbotSettings: {} });
 
@@ -273,6 +260,31 @@ describe('ChatbotConfigResolver', () => {
       expect([openrouter.provider, openrouter.overrideProblem]).toEqual(['openrouter', null]);
     });
 
+    it('treats stored JSON nulls like absent keys: a model-only override with a null provider still applies, and all-null is no override', async () => {
+      const modelOnly = await resolver.resolve({
+        tenantId: TENANT_A,
+        chatbotSettings: { llmProvider: null, llmModel: 'google/gemini-test' } as never,
+      });
+      const allNull = await resolver.resolve({
+        tenantId: TENANT_A,
+        chatbotSettings: {
+          llmProvider: null,
+          llmModel: null,
+          maxConversationsPerDay: null,
+        } as never,
+      });
+
+      expect([modelOnly.provider, modelOnly.model, modelOnly.overrideProblem]).toEqual([
+        'openrouter',
+        'google/gemini-test',
+        null,
+      ]);
+      expect(allNull.overrideApplied).toBe(false);
+      expect(allNull.overrideProblem).toBeNull();
+      expect(allNull.model).toBe(DEFAULT_OPENROUTER_MODEL);
+      expect(allNull.caps.maxConversationsPerDay).toBe(DEFAULT_MAX_CONVERSATIONS_PER_DAY);
+    });
+
     it('reports no problem when there is no override', async () => {
       const result = await resolver.resolve({ tenantId: TENANT_A, chatbotSettings: {} });
 
@@ -296,8 +308,8 @@ describe('ChatbotConfigResolver', () => {
 
   describe('tenant isolation', () => {
     it('never lets one tenant’s tier or override change another tenant’s caps or model', async () => {
-      accessPort.seed(TENANT_A, accessWith('PLUS'));
-      accessPort.seed(TENANT_B, accessWith('BASIC'));
+      accessPort.seed(TENANT_A, new TenantAccessBuilder().withChatbotTier('PLUS').build());
+      accessPort.seed(TENANT_B, new TenantAccessBuilder().withChatbotTier('BASIC').build());
 
       const a = await resolver.resolve({
         tenantId: TENANT_A,
@@ -314,7 +326,7 @@ describe('ChatbotConfigResolver', () => {
 
   describe('observability', () => {
     it('sets the tier and the override flag on the active span', async () => {
-      accessPort.seed(TENANT_A, accessWith('PLUS'));
+      accessPort.seed(TENANT_A, new TenantAccessBuilder().withChatbotTier('PLUS').build());
 
       await resolver.resolve({
         tenantId: TENANT_A,

@@ -17,6 +17,7 @@ import {
   ChatbotDailyCapReachedError,
   ChatbotMessageCapReachedError,
 } from '../../domain/errors/chatbot-domain.error';
+import { TenantAccessBuilder } from '../../../../test/builders/shared';
 import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
 import { ChatCompletionRequest, ILlmProvider } from '../ports/llm-provider.port';
 import { LlmProviderRegistry } from '../services/llm-provider-registry.service';
@@ -143,12 +144,7 @@ describe('SendChatMessageUseCase (integration — real Postgres cap enforcement)
 
   describe('tier-resolved configuration (M26-S21)', () => {
     function seedChatbotTier(tenantId: string, tier: 'BASIC' | 'PLUS'): void {
-      accessPort.seed(tenantId, {
-        status: 'ACTIVE',
-        suspensionReason: null,
-        operational: true,
-        features: [{ key: 'CHATBOT', tier }],
-      });
+      accessPort.seed(tenantId, new TenantAccessBuilder().withChatbotTier(tier).build());
     }
 
     it('takes a tier change on the next message, with the ceiling only on BASIC', async () => {

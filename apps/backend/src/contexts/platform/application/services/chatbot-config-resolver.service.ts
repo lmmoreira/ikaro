@@ -38,6 +38,9 @@ export interface ResolvedChatbotConfig {
   overrideProblem: string | null;
 }
 
+// A stored JSON null is the same as an absent key.
+const isSet = (value: unknown): boolean => value !== undefined && value !== null;
+
 const CAP_KEYS: readonly (keyof ChatbotCaps)[] = [
   'maxConversationsPerDay',
   'maxConversationsPerIpPerDay',
@@ -84,8 +87,8 @@ export class ChatbotConfigResolver {
       ? tierConfig.model
       : (chatbotSettings.llmModel ?? tierConfig.model);
     const overrideApplied =
-      (!overrideProblem && chatbotSettings.llmModel !== undefined) ||
-      CAP_KEYS.some((key) => chatbotSettings[key] !== undefined);
+      (!overrideProblem && isSet(chatbotSettings.llmModel)) ||
+      CAP_KEYS.some((key) => isSet(chatbotSettings[key]));
     const ownModel = provider === tierConfig.provider && model === tierConfig.model;
 
     this.tracingPort.setActiveSpanAttributes({

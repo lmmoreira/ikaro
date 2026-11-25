@@ -12,6 +12,7 @@ import {
   InMemoryChatbotProviderBalanceRepository,
   InMemoryChatbotSessionRepository,
 } from '../../../../test/repositories/platform';
+import { TenantAccessBuilder } from '../../../../test/builders/shared';
 import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
 import { ILlmProvider } from '../ports/llm-provider.port';
 import { LlmProviderRegistry } from '../services/llm-provider-registry.service';
@@ -90,12 +91,7 @@ describe('GetChatbotStatusUseCase', () => {
   });
 
   it('is not available for a tenant whose plan has no CHATBOT feature', async () => {
-    accessPort.seed(TENANT_ID, {
-      status: 'ACTIVE',
-      suspensionReason: null,
-      operational: true,
-      features: [{ key: 'HOTSITE', tier: 'STANDARD' }],
-    });
+    accessPort.seed(TENANT_ID, new TenantAccessBuilder().withoutChatbot().build());
     const useCase = buildUseCase();
 
     const result = await useCase.execute(baseInput());

@@ -16,6 +16,7 @@ import {
   InMemoryChatbotProviderBalanceRepository,
   InMemoryChatbotSessionRepository,
 } from '../../../../test/repositories/platform';
+import { TenantAccessBuilder } from '../../../../test/builders/shared';
 import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
 import { ILlmProvider } from '../ports/llm-provider.port';
 import { LlmProviderRegistry } from '../services/llm-provider-registry.service';
@@ -546,12 +547,7 @@ describe('SendChatMessageUseCase', () => {
     });
 
     it('sends a PLUS tenant the PLUS model with no price ceiling, on the same caps', async () => {
-      accessPort.seed(TENANT_ID, {
-        status: 'ACTIVE',
-        suspensionReason: null,
-        operational: true,
-        features: [{ key: 'CHATBOT', tier: 'PLUS' }],
-      });
+      accessPort.seed(TENANT_ID, new TenantAccessBuilder().withChatbotTier('PLUS').build());
       const { useCase, capturing } = buildCapturing();
 
       await useCase.execute(baseInput());
@@ -566,12 +562,7 @@ describe('SendChatMessageUseCase', () => {
       await useCase.execute(baseInput());
       expect(capturing.lastRequest?.model).toBe('deepseek/deepseek-v4-flash-0731');
 
-      accessPort.seed(TENANT_ID, {
-        status: 'ACTIVE',
-        suspensionReason: null,
-        operational: true,
-        features: [{ key: 'CHATBOT', tier: 'PLUS' }],
-      });
+      accessPort.seed(TENANT_ID, new TenantAccessBuilder().withChatbotTier('PLUS').build());
       await useCase.execute(baseInput());
 
       expect(capturing.lastRequest?.model).toBe('anthropic/claude-haiku-5.5');
@@ -609,12 +600,7 @@ describe('SendChatMessageUseCase', () => {
     });
 
     it('is inert for a tenant whose plan has no CHATBOT feature, and resumes once it is entitled', async () => {
-      accessPort.seed(TENANT_ID, {
-        status: 'ACTIVE',
-        suspensionReason: null,
-        operational: true,
-        features: [{ key: 'HOTSITE', tier: 'STANDARD' }],
-      });
+      accessPort.seed(TENANT_ID, new TenantAccessBuilder().withoutChatbot().build());
       const { useCase, capturing } = buildCapturing();
       await expect(useCase.execute(baseInput())).rejects.toThrow(ChatbotProviderUnavailableError);
       expect(capturing.lastRequest).toBeUndefined();

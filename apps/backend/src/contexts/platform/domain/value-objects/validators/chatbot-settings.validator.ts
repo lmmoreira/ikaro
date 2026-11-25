@@ -35,7 +35,10 @@ export class ChatbotSettingsValidator {
    *    global daily spend limit sums each message's stored cost.
    */
   static findLlmOverrideProblem(chatbot: ChatbotSettings): string | null {
-    const { llmProvider, llmModel } = chatbot;
+    // A stored JSON null means the same as an absent key (the settings doc lists these fields as
+    // `string | null`, default null).
+    const llmProvider = chatbot.llmProvider ?? undefined;
+    const llmModel = chatbot.llmModel ?? undefined;
     if (llmProvider === undefined && llmModel === undefined) return null;
     if (llmModel === undefined) {
       return 'chatbot.llmProvider requires chatbot.llmModel (a provider alone is not allowed)';
