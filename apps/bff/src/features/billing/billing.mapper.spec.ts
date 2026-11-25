@@ -176,6 +176,33 @@ describe('toBillingSummaryResponse', () => {
     });
   });
 
+  it('maps each announced price change field by field', () => {
+    const backend = new BillingSummaryBuilder().build();
+    backend.upcomingPriceChanges = [
+      {
+        featureKey: 'HOTSITE',
+        tier: 'STANDARD',
+        currentAmountMinor: 4900,
+        newAmountMinor: 5900,
+        effectiveFrom: '2027-02-01',
+      },
+    ];
+
+    const response = toBillingSummaryResponse(parse(backend));
+
+    expect(response).toMatchObject({
+      upcomingPriceChanges: [
+        {
+          featureKey: 'HOTSITE',
+          tier: 'STANDARD',
+          currentAmountMinor: 4900,
+          newAmountMinor: 5900,
+          effectiveFrom: '2027-02-01',
+        },
+      ],
+    });
+  });
+
   it('answers only the provisioning flag for a tenant with no subscription', () => {
     expect(toBillingSummaryResponse(parse({ provisioning: true, status: 'ACTIVE' }))).toEqual({
       provisioning: true,

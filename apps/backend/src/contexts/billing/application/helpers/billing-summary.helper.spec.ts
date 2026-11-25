@@ -190,6 +190,27 @@ describe('upcomingChanges', () => {
       ['2026-09-01', 'HOTSITE'],
     ]);
   });
+
+  it('breaks a tie on the same effective date by feature key, whatever the input order', () => {
+    const sameDay = (amountMinor: number) =>
+      new FeaturePriceVersionBuilder()
+        .withAmountMinor(amountMinor)
+        .withEffectiveFrom('2026-08-01')
+        .withAnnouncedAt(announced)
+        .build();
+    const hotsite = pricedFor(HOTSITE, [version(4900, '2026-01-01'), sameDay(5000)]);
+    const bookingPrice = new FeaturePriceBuilder()
+      .withFeatureKey('BOOKING')
+      .withVersions([version(2500, '2026-01-01'), sameDay(2600)])
+      .build();
+    const booking = priceEntry(BOOKING, bookingPrice, date('2026-06-10'));
+
+    const forward = upcomingChanges([hotsite, booking], date('2026-06-10'));
+    const reversed = upcomingChanges([booking, hotsite], date('2026-06-10'));
+
+    expect(forward.map((c) => c.featureKey)).toEqual(['BOOKING', 'HOTSITE']);
+    expect(reversed.map((c) => c.featureKey)).toEqual(['BOOKING', 'HOTSITE']);
+  });
 });
 
 describe('toOpenCharge', () => {
