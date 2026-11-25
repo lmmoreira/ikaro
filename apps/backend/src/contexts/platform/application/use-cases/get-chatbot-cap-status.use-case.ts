@@ -1,11 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
 import type { ChatbotSettings } from '../../../../shared/value-objects/tenant-settings-data';
-import { DEFAULT_MAX_CONVERSATIONS_PER_DAY } from '../../chatbot.constants';
 import {
   CHATBOT_SESSION_REPOSITORY,
   IChatbotSessionRepository,
 } from '../ports/chatbot-session-repository.port';
+import { ChatbotConfigResolver } from '../services/chatbot-config-resolver.service';
 
 export interface GetChatbotCapStatusUseCaseInput {
   tenantId: string;
@@ -31,13 +31,14 @@ export interface GetChatbotCapStatusUseCaseResult {
 export class GetChatbotCapStatusUseCase {
   constructor(
     @Inject(CHATBOT_SESSION_REPOSITORY) private readonly sessionRepo: IChatbotSessionRepository,
+    private readonly chatbotConfigResolver: ChatbotConfigResolver,
   ) {}
 
   async execute(input: GetChatbotCapStatusUseCaseInput): Promise<GetChatbotCapStatusUseCaseResult> {
     const { tenantId, chatbotSettings, timezone } = input;
+    const { caps } = await this.chatbotConfigResolver.resolve({ tenantId, chatbotSettings });
     const conversationDate = utcDateToLocalDate(new Date(), timezone);
-    const maxPerDay = chatbotSettings.maxConversationsPerDay ?? DEFAULT_MAX_CONVERSATIONS_PER_DAY;
     const dailyCount = await this.sessionRepo.countByTenantAndDate(tenantId, conversationDate);
-    return { dailyCapReachedToday: dailyCount >= maxPerDay };
+    return { dailyCapReachedToday: dailyCount >= caps.maxConversationsPerDay };
   }
 }

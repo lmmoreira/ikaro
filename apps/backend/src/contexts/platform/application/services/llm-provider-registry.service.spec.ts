@@ -21,9 +21,9 @@ describe('LlmProviderRegistry', () => {
     fakeProvider = new FakeLlmProviderBuilder().withText('fake says hi').build();
   });
 
-  function buildRegistry(platformDefault: string): LlmProviderRegistry {
+  function buildRegistry(forceFake = false): LlmProviderRegistry {
     return new LlmProviderRegistry(
-      platformDefault,
+      forceFake,
       openRouterProvider,
       anthropicProvider,
       openAiProvider,
@@ -31,51 +31,33 @@ describe('LlmProviderRegistry', () => {
     );
   }
 
-  it('resolves to the platform default when no override is passed — the all-unset case', () => {
-    const registry = buildRegistry(OPENROUTER_PROVIDER_NAME);
-
-    expect(registry.resolve()).toBe(openRouterProvider);
-  });
-
-  it('resolves to the explicit override when one is passed, regardless of the platform default', () => {
-    const registry = buildRegistry(OPENROUTER_PROVIDER_NAME);
-
-    expect(registry.resolve(OPENROUTER_PROVIDER_NAME)).toBe(openRouterProvider);
-  });
-
-  it('resolves the anthropic override to a real adapter instance', () => {
-    const registry = buildRegistry(OPENROUTER_PROVIDER_NAME);
-
-    expect(registry.resolve(ANTHROPIC_PROVIDER_NAME)).toBe(anthropicProvider);
-  });
-
-  it('resolves the openai override to a real adapter instance', () => {
-    const registry = buildRegistry(OPENROUTER_PROVIDER_NAME);
-
-    expect(registry.resolve(OPENAI_PROVIDER_NAME)).toBe(openAiProvider);
-  });
-
-  it('resolves the fake override to the fake adapter instance — never the platform default', () => {
-    const registry = buildRegistry(OPENROUTER_PROVIDER_NAME);
-
-    expect(registry.resolve(FAKE_PROVIDER_NAME)).toBe(fakeProvider);
+  it.each([
+    [OPENROUTER_PROVIDER_NAME, () => openRouterProvider],
+    [ANTHROPIC_PROVIDER_NAME, () => anthropicProvider],
+    [OPENAI_PROVIDER_NAME, () => openAiProvider],
+    [FAKE_PROVIDER_NAME, () => fakeProvider],
+  ])('resolves the %s provider by name', (name, expected) => {
+    expect(buildRegistry().resolve(name)).toBe(expected());
   });
 
   it('throws for an unknown provider name', () => {
-    const registry = buildRegistry(OPENROUTER_PROVIDER_NAME);
-
-    expect(() => registry.resolve('vertex-ai')).toThrow('Unknown LLM provider: vertex-ai');
+    expect(() => buildRegistry().resolve('vertex-ai')).toThrow('Unknown LLM provider: vertex-ai');
   });
 
-  it('resolveName returns the platform default when no override is passed', () => {
-    const registry = buildRegistry(OPENROUTER_PROVIDER_NAME);
-
-    expect(registry.resolveName()).toBe(OPENROUTER_PROVIDER_NAME);
+  it('resolveName returns the requested name as is', () => {
+    expect(buildRegistry().resolveName(ANTHROPIC_PROVIDER_NAME)).toBe(ANTHROPIC_PROVIDER_NAME);
   });
 
-  it("resolveName returns the explicit override, matching resolve()'s own resolution", () => {
-    const registry = buildRegistry(OPENROUTER_PROVIDER_NAME);
+  describe('with CHATBOT_LLM_FAKE on (forceFake)', () => {
+    it.each([OPENROUTER_PROVIDER_NAME, ANTHROPIC_PROVIDER_NAME, OPENAI_PROVIDER_NAME])(
+      'resolves %s to the fake provider, whatever name the caller asks for',
+      (name) => {
+        expect(buildRegistry(true).resolve(name)).toBe(fakeProvider);
+      },
+    );
 
-    expect(registry.resolveName(ANTHROPIC_PROVIDER_NAME)).toBe(ANTHROPIC_PROVIDER_NAME);
+    it('resolveName reports the fake provider, so the balance row and the trace match the call', () => {
+      expect(buildRegistry(true).resolveName(OPENROUTER_PROVIDER_NAME)).toBe(FAKE_PROVIDER_NAME);
+    });
   });
 });

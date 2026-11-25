@@ -1,6 +1,7 @@
-import { ITracingPort, SpanAttributeValue } from '@ikaro/observability';
 import { Decimal } from 'decimal.js';
+import { FakeTracingPort } from '../../../../test/infrastructure/fake-tracing-port';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
+import { AppLogger } from '../../../../shared/observability/app-logger';
 import { IApplicationConfig } from '../../../../shared/ports/application-config.port';
 import { fakeConfig } from '../../../../test/utils/fake-config';
 import { staleSession, todayInSaoPaulo } from '../../../../test/utils/chatbot-test-helpers';
@@ -15,6 +16,8 @@ import {
   InMemoryChatbotProviderBalanceRepository,
   InMemoryChatbotSessionRepository,
 } from '../../../../test/repositories/platform';
+import { TenantAccessBuilder } from '../../../../test/builders/shared';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
 import { ILlmProvider } from '../ports/llm-provider.port';
 import { LlmProviderRegistry } from '../services/llm-provider-registry.service';
 import {
@@ -27,40 +30,28 @@ import {
   ChatbotProviderUnavailableError,
   ChatbotSessionNotFoundError,
 } from '../../domain/errors/chatbot-domain.error';
+import { ChatbotConfigResolver } from '../services/chatbot-config-resolver.service';
 import { SendChatMessageUseCaseInput } from './send-chat-message.types';
 import { SendChatMessageUseCase } from './send-chat-message.use-case';
 
-class FakeTracingPort implements ITracingPort {
-  readonly calls: Array<Record<string, SpanAttributeValue>> = [];
-  setActiveSpanAttributes(attributes: Record<string, SpanAttributeValue>): void {
-    this.calls.push(attributes);
-  }
-  getActiveTraceContext(): undefined {
-    return undefined;
-  }
-  injectContext(): void {}
-  runWithExtractedContext<T>(_carrier: Record<string, string>, fn: () => T): T {
-    return fn();
-  }
-  startActiveSpan<T>(_name: string, fn: () => T): T {
-    return fn();
-  }
-}
-
 const TENANT_ID = '01234567-0000-7000-8000-000000000001';
 const CLIENT_IP = '203.0.113.10';
+
+// An operator override: a provider is always paired with its model (a provider alone is invalid).
+const ANTHROPIC_OVERRIDE = { llmProvider: 'anthropic', llmModel: 'claude-haiku-4-5' };
 
 describe('SendChatMessageUseCase', () => {
   let sessionRepo: InMemoryChatbotSessionRepository;
   let messageRepo: InMemoryChatbotMessageRepository;
   let balanceRepo: InMemoryChatbotProviderBalanceRepository;
   let tracingPort: FakeTracingPort;
+  let accessPort: InMemoryTenantAccessPort;
   let llmProvider: ILlmProvider;
 
   function buildUseCase(config: IApplicationConfig = fakeConfig()): SendChatMessageUseCase {
     llmProvider = new FakeLlmProviderBuilder().build();
     const registry = new LlmProviderRegistry(
-      'openrouter',
+      false,
       llmProvider,
       llmProvider,
       llmProvider,
@@ -73,6 +64,7 @@ describe('SendChatMessageUseCase', () => {
       registry,
       new InMemoryTransactionManager(),
       config,
+      new ChatbotConfigResolver(accessPort),
       tracingPort,
     );
   }
@@ -96,6 +88,7 @@ describe('SendChatMessageUseCase', () => {
     messageRepo = new InMemoryChatbotMessageRepository();
     balanceRepo = new InMemoryChatbotProviderBalanceRepository();
     tracingPort = new FakeTracingPort();
+    accessPort = new InMemoryTenantAccessPort();
   });
 
   describe('message length (layer 5)', () => {
@@ -275,7 +268,7 @@ describe('SendChatMessageUseCase', () => {
         },
       };
       const registry = new LlmProviderRegistry(
-        'openrouter',
+        false,
         observingProvider,
         observingProvider,
         observingProvider,
@@ -288,6 +281,7 @@ describe('SendChatMessageUseCase', () => {
         registry,
         new InMemoryTransactionManager(),
         fakeConfig(),
+        new ChatbotConfigResolver(accessPort),
         tracingPort,
       );
 
@@ -382,7 +376,7 @@ describe('SendChatMessageUseCase', () => {
     it('sends only the last maxHistoryMessagesSentToLlm messages to the LLM, not the full conversation', async () => {
       const capturingProvider = new CapturingLlmProvider();
       const registry = new LlmProviderRegistry(
-        'openrouter',
+        false,
         capturingProvider,
         capturingProvider,
         capturingProvider,
@@ -406,6 +400,7 @@ describe('SendChatMessageUseCase', () => {
         registry,
         new InMemoryTransactionManager(),
         fakeConfig(),
+        new ChatbotConfigResolver(accessPort),
         tracingPort,
       );
 
@@ -419,7 +414,7 @@ describe('SendChatMessageUseCase', () => {
     it('sends no history when maxHistoryMessagesSentToLlm is 0, not the full conversation (CodeRabbit review — slice(-0) quirk)', async () => {
       const capturingProvider = new CapturingLlmProvider();
       const registry = new LlmProviderRegistry(
-        'openrouter',
+        false,
         capturingProvider,
         capturingProvider,
         capturingProvider,
@@ -437,6 +432,7 @@ describe('SendChatMessageUseCase', () => {
         registry,
         new InMemoryTransactionManager(),
         fakeConfig(),
+        new ChatbotConfigResolver(accessPort),
         tracingPort,
       );
 
@@ -504,9 +500,7 @@ describe('SendChatMessageUseCase', () => {
       );
       const useCase = buildUseCase(fakeConfig({ CHATBOT_MIN_PROVIDER_BALANCE_USD: '2' }));
 
-      const result = await useCase.execute(
-        baseInput({ chatbotSettings: { llmProvider: 'anthropic' } }),
-      );
+      const result = await useCase.execute(baseInput({ chatbotSettings: ANTHROPIC_OVERRIDE }));
 
       expect(result.sessionId).toBeTruthy();
     });
@@ -520,11 +514,151 @@ describe('SendChatMessageUseCase', () => {
     });
   });
 
+  describe('tier-resolved configuration (M26-S21)', () => {
+    function buildCapturing(forceFake = false): {
+      useCase: SendChatMessageUseCase;
+      capturing: CapturingLlmProvider;
+      fake: CapturingLlmProvider;
+    } {
+      const capturing = new CapturingLlmProvider();
+      const fake = new CapturingLlmProvider();
+      const registry = new LlmProviderRegistry(forceFake, capturing, capturing, capturing, fake);
+      const useCase = new SendChatMessageUseCase(
+        sessionRepo,
+        messageRepo,
+        balanceRepo,
+        registry,
+        new InMemoryTransactionManager(),
+        fakeConfig(),
+        new ChatbotConfigResolver(accessPort),
+        tracingPort,
+      );
+      return { useCase, capturing, fake };
+    }
+
+    it('sends a BASIC tenant the BASIC model, the output-token cap and the tier price ceiling', async () => {
+      const { useCase, capturing } = buildCapturing();
+
+      await useCase.execute(baseInput());
+
+      expect(capturing.lastRequest?.model).toBe('deepseek/deepseek-v4-flash-0731');
+      expect(capturing.lastRequest?.maxOutputTokens).toBe(300);
+      expect(capturing.lastRequest?.maxPrice).toEqual({ prompt: 0.15, completion: 0.5 });
+    });
+
+    it('sends a PLUS tenant the PLUS model with no price ceiling, on the same caps', async () => {
+      accessPort.seed(TENANT_ID, new TenantAccessBuilder().withChatbotTier('PLUS').build());
+      const { useCase, capturing } = buildCapturing();
+
+      await useCase.execute(baseInput());
+
+      expect(capturing.lastRequest?.model).toBe('anthropic/claude-haiku-5.5');
+      expect(capturing.lastRequest?.maxPrice).toBeUndefined();
+      expect(capturing.lastRequest?.maxOutputTokens).toBe(300);
+    });
+
+    it('takes a tier change on the very next message', async () => {
+      const { useCase, capturing } = buildCapturing();
+      await useCase.execute(baseInput());
+      expect(capturing.lastRequest?.model).toBe('deepseek/deepseek-v4-flash-0731');
+
+      accessPort.seed(TENANT_ID, new TenantAccessBuilder().withChatbotTier('PLUS').build());
+      await useCase.execute(baseInput());
+
+      expect(capturing.lastRequest?.model).toBe('anthropic/claude-haiku-5.5');
+    });
+
+    it('lets a tenant model override win over the tier and drops the tier price ceiling', async () => {
+      const { useCase, capturing } = buildCapturing();
+
+      await useCase.execute(baseInput({ chatbotSettings: { llmModel: 'x/operator-test' } }));
+
+      expect(capturing.lastRequest?.model).toBe('x/operator-test');
+      expect(capturing.lastRequest?.maxPrice).toBeUndefined();
+    });
+
+    it('resolves every tier to the fake provider when CHATBOT_LLM_FAKE is on', async () => {
+      const { useCase, capturing, fake } = buildCapturing(true);
+
+      await useCase.execute(baseInput());
+
+      expect(fake.lastRequest).toBeDefined();
+      expect(capturing.lastRequest).toBeUndefined();
+      expect(await balanceRepo.findByProvider('fake')).not.toBeNull();
+    });
+
+    it('is inert for a suspended tenant: no LLM call, no session, no counter touched', async () => {
+      accessPort.seedSuspended(TENANT_ID);
+      const { useCase, capturing } = buildCapturing();
+
+      await expect(useCase.execute(baseInput())).rejects.toThrow(ChatbotProviderUnavailableError);
+
+      expect(capturing.lastRequest).toBeUndefined();
+      expect(await sessionRepo.countByTenantAndDate(TENANT_ID, todayInSaoPaulo())).toBe(0);
+      expect(await balanceRepo.findByProvider('openrouter')).toBeNull();
+      expect(tracingPort.calls).toContainEqual({ 'chatbot.cap_rejected': 'not_entitled' });
+    });
+
+    it('is inert for a tenant whose plan has no CHATBOT feature, and resumes once it is entitled', async () => {
+      accessPort.seed(TENANT_ID, new TenantAccessBuilder().withoutChatbot().build());
+      const { useCase, capturing } = buildCapturing();
+      await expect(useCase.execute(baseInput())).rejects.toThrow(ChatbotProviderUnavailableError);
+      expect(capturing.lastRequest).toBeUndefined();
+
+      accessPort.reactivate(TENANT_ID);
+      const result = await useCase.execute(baseInput());
+
+      expect(result.reply).toBe('captured response');
+    });
+
+    it('refuses an inert tenant before any cap check, even for a message that is also too long', async () => {
+      accessPort.seedSuspended(TENANT_ID);
+      const { useCase } = buildCapturing();
+
+      await expect(useCase.execute(baseInput({ userMessage: 'a'.repeat(5000) }))).rejects.toThrow(
+        ChatbotProviderUnavailableError,
+      );
+    });
+
+    it('logs an applied override once per message, naming the resolved model', async () => {
+      const logSpy = jest.spyOn(AppLogger.prototype, 'log').mockImplementation();
+      const { useCase } = buildCapturing();
+
+      await useCase.execute(baseInput());
+      expect(logSpy).not.toHaveBeenCalled();
+
+      await useCase.execute(baseInput({ chatbotSettings: { llmModel: 'x/operator-test' } }));
+      expect(logSpy).toHaveBeenCalledWith(
+        'Chatbot tenant override applied',
+        expect.objectContaining({ tenantId: TENANT_ID, model: 'x/operator-test' }),
+      );
+      logSpy.mockRestore();
+    });
+
+    it('logs an error and runs on the tier values when the stored override is invalid (a provider alone), never failing the chat', async () => {
+      const errorSpy = jest.spyOn(AppLogger.prototype, 'error').mockImplementation();
+      const { useCase, capturing } = buildCapturing();
+
+      const result = await useCase.execute(
+        baseInput({ chatbotSettings: { llmProvider: 'anthropic' } }),
+      );
+
+      expect(result.reply).toBe('captured response');
+      expect(capturing.lastRequest?.model).toBe('deepseek/deepseek-v4-flash-0731');
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Chatbot override ignored, the tier values are used',
+        undefined,
+        expect.objectContaining({ tenantId: TENANT_ID }),
+      );
+      errorSpy.mockRestore();
+    });
+  });
+
   describe('LLM provider resolution', () => {
     it('forwards a tenant llmModel override to the resolved adapter', async () => {
       const capturingProvider = new CapturingLlmProvider();
       const registry = new LlmProviderRegistry(
-        'openrouter',
+        false,
         capturingProvider,
         capturingProvider,
         capturingProvider,
@@ -537,6 +671,7 @@ describe('SendChatMessageUseCase', () => {
         registry,
         new InMemoryTransactionManager(),
         fakeConfig(),
+        new ChatbotConfigResolver(accessPort),
         tracingPort,
       );
 
@@ -548,7 +683,7 @@ describe('SendChatMessageUseCase', () => {
     it('passes maxOutputTokensPerResponse as a hard ceiling on the LLM call', async () => {
       const capturingProvider = new CapturingLlmProvider();
       const registry = new LlmProviderRegistry(
-        'openrouter',
+        false,
         capturingProvider,
         capturingProvider,
         capturingProvider,
@@ -561,6 +696,7 @@ describe('SendChatMessageUseCase', () => {
         registry,
         new InMemoryTransactionManager(),
         fakeConfig(),
+        new ChatbotConfigResolver(accessPort),
         tracingPort,
       );
 
@@ -574,7 +710,7 @@ describe('SendChatMessageUseCase', () => {
         complete: () => Promise.reject(new Error('OpenRouter request failed: 500')),
       };
       const registry = new LlmProviderRegistry(
-        'openrouter',
+        false,
         failingProvider,
         failingProvider,
         failingProvider,
@@ -587,6 +723,7 @@ describe('SendChatMessageUseCase', () => {
         registry,
         new InMemoryTransactionManager(),
         fakeConfig(),
+        new ChatbotConfigResolver(accessPort),
         tracingPort,
       );
 
@@ -598,7 +735,7 @@ describe('SendChatMessageUseCase', () => {
         complete: () => Promise.reject(new Error('OpenRouter request failed: 500')),
       };
       const registry = new LlmProviderRegistry(
-        'openrouter',
+        false,
         failingProvider,
         failingProvider,
         failingProvider,
@@ -611,6 +748,7 @@ describe('SendChatMessageUseCase', () => {
         registry,
         new InMemoryTransactionManager(),
         fakeConfig(),
+        new ChatbotConfigResolver(accessPort),
         tracingPort,
       );
       const saveSpy = jest.spyOn(sessionRepo, 'save');
@@ -630,7 +768,7 @@ describe('SendChatMessageUseCase', () => {
         complete: () => Promise.reject(new Error('OpenRouter request failed: 500')),
       };
       const registry = new LlmProviderRegistry(
-        'openrouter',
+        false,
         failingProvider,
         failingProvider,
         failingProvider,
@@ -643,6 +781,7 @@ describe('SendChatMessageUseCase', () => {
         registry,
         new InMemoryTransactionManager(),
         fakeConfig(),
+        new ChatbotConfigResolver(accessPort),
         tracingPort,
       );
       const session = new ChatbotSessionBuilder().withTenantId(TENANT_ID).build();
@@ -666,7 +805,7 @@ describe('SendChatMessageUseCase', () => {
           ),
       };
       const registry = new LlmProviderRegistry(
-        'openrouter',
+        false,
         failingProvider,
         failingProvider,
         failingProvider,
@@ -679,6 +818,7 @@ describe('SendChatMessageUseCase', () => {
         registry,
         new InMemoryTransactionManager(),
         fakeConfig(),
+        new ChatbotConfigResolver(accessPort),
         tracingPort,
       );
 
@@ -705,7 +845,7 @@ describe('SendChatMessageUseCase', () => {
         complete: () => Promise.reject(new Error('upstream cause detail')),
       };
       const registry = new LlmProviderRegistry(
-        'openrouter',
+        false,
         failingProvider,
         failingProvider,
         failingProvider,
@@ -718,6 +858,7 @@ describe('SendChatMessageUseCase', () => {
         registry,
         new InMemoryTransactionManager(),
         fakeConfig(),
+        new ChatbotConfigResolver(accessPort),
         tracingPort,
       );
 
@@ -744,7 +885,7 @@ describe('SendChatMessageUseCase', () => {
         complete: () => Promise.reject(new Error('OpenRouter request failed: 500')),
       };
       const registry = new LlmProviderRegistry(
-        'openrouter',
+        false,
         failingProvider,
         failingProvider,
         failingProvider,
@@ -757,6 +898,7 @@ describe('SendChatMessageUseCase', () => {
         registry,
         new InMemoryTransactionManager(),
         fakeConfig(),
+        new ChatbotConfigResolver(accessPort),
         tracingPort,
       );
 
@@ -786,7 +928,7 @@ describe('SendChatMessageUseCase', () => {
     it('records the health outcome on the resolved (tenant-overridden) provider, not the platform default', async () => {
       const useCase = buildUseCase();
 
-      await useCase.execute(baseInput({ chatbotSettings: { llmProvider: 'anthropic' } }));
+      await useCase.execute(baseInput({ chatbotSettings: ANTHROPIC_OVERRIDE }));
 
       expect(await balanceRepo.findByProvider('anthropic')).not.toBeNull();
       expect(await balanceRepo.findByProvider('openrouter')).toBeNull();

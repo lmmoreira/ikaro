@@ -20,7 +20,6 @@ import {
   ILlmProvider,
   OPENAI_LLM_PROVIDER,
   OPENROUTER_LLM_PROVIDER,
-  OPENROUTER_PROVIDER_NAME,
 } from './application/ports/llm-provider.port';
 import { TEMPLATE_CATALOGUE } from './application/ports/template-catalogue.port';
 import { TENANT_REPOSITORY } from './application/ports/tenant-repository.port';
@@ -60,6 +59,7 @@ import { ProvisionTenantUseCase } from './application/use-cases/provision-tenant
 import { PublishHotsiteUseCase } from './application/use-cases/publish-hotsite.use-case';
 import { RenameTenantUseCase } from './application/use-cases/rename-tenant.use-case';
 import { RevalidateTenantHotsiteUseCase } from './application/use-cases/revalidate-tenant-hotsite.use-case';
+import { ChatbotConfigResolver } from './application/services/chatbot-config-resolver.service';
 import { SendChatMessageUseCase } from './application/use-cases/send-chat-message.use-case';
 import { UnpublishHotsiteUseCase } from './application/use-cases/unpublish-hotsite.use-case';
 import { UpdateHotsiteContentUseCase } from './application/use-cases/update-hotsite-content.use-case';
@@ -177,7 +177,7 @@ import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.
         fakeProvider: ILlmProvider,
       ) =>
         new LlmProviderRegistry(
-          config.get<string>('CHATBOT_LLM_PROVIDER', OPENROUTER_PROVIDER_NAME),
+          config.get<boolean>('CHATBOT_LLM_FAKE', false),
           openRouterProvider,
           anthropicProvider,
           openAiProvider,
@@ -218,6 +218,7 @@ import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.
     CreateLeadFormSubmissionUseCase,
     GetChatbotCapStatusUseCase,
     GetChatbotStatusUseCase,
+    ChatbotConfigResolver,
     GetHotsiteContentUseCase,
     GetHotsiteManifestUseCase,
     GetLeadFormConfigUseCase,

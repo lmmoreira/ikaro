@@ -4,15 +4,7 @@ import {
   todayUTC,
   utcDateToLocalDate,
 } from '../../../../shared/utils/calendar-date';
-import type { ChatbotSettings } from '../../../../shared/value-objects/tenant-settings-data';
-import {
-  DEFAULT_MAX_CONCURRENT_CONVERSATIONS,
-  DEFAULT_MAX_CONVERSATIONS_PER_DAY,
-  DEFAULT_MAX_CONVERSATIONS_PER_IP_PER_DAY,
-  DEFAULT_MAX_HISTORY_MESSAGES_SENT_TO_LLM,
-  DEFAULT_MAX_MESSAGE_LENGTH_CHARS,
-  DEFAULT_MAX_MESSAGES_PER_CONVERSATION,
-} from '../../chatbot.constants';
+import type { ChatbotCaps } from '../../chatbot.constants';
 import { ChatbotMessage } from '../../domain/chatbot-message.aggregate';
 import { ChatbotSession } from '../../domain/chatbot-session.aggregate';
 import {
@@ -37,14 +29,14 @@ const CONCURRENCY_WINDOW_MS = 2 * 60 * 1000;
 // The BFF DTO layer (S09) is the primary UX-facing check; this is the real backstop so this use
 // case is never reachable with an oversized message from any caller — a generous static Zod
 // ceiling at the backend DTO layer alone left the tenant's real, often-smaller resolved cap
-// unenforced for any caller reaching this endpoint directly (PR #360 review).
+// unenforced for any caller reaching this endpoint directly (PR #360 review). `caps` are the
+// resolved caps (the tenant's override over its tier, ChatbotConfigResolver).
 export function enforceMessageLength(
   deps: ChatbotCapCheckDeps,
   input: SendChatMessageUseCaseInput,
+  caps: ChatbotCaps,
 ): void {
-  const maxMessageLength =
-    input.chatbotSettings.maxMessageLengthChars ?? DEFAULT_MAX_MESSAGE_LENGTH_CHARS;
-  if (input.userMessage.length > maxMessageLength) {
+  if (input.userMessage.length > caps.maxMessageLengthChars) {
     rejectAndThrow(
       deps,
       'message_too_long',
@@ -58,7 +50,7 @@ export async function resolveExistingSession(
   deps: ChatbotCapCheckDeps,
   sessionId: string,
   tenantId: string,
-  chatbotSettings: ChatbotSettings,
+  caps: ChatbotCaps,
 ): Promise<ResolvedSession> {
   const existing = await deps.sessionRepo.findById(sessionId, tenantId);
   if (!existing) throw new ChatbotSessionNotFoundError(sessionId);
@@ -71,20 +63,16 @@ export async function resolveExistingSession(
   // cap — exact for every configured value, not just even ones (PR #360 review, correctness:
   // the previous `>= maxMessages` check could overshoot by 1 on an odd cap, since it only
   // rejected once already at/over cap, not when this turn would cross it).
-  const maxMessages =
-    chatbotSettings.maxMessagesPerConversation ?? DEFAULT_MAX_MESSAGES_PER_CONVERSATION;
-  if (session.messageCount + 2 > maxMessages) {
+  if (session.messageCount + 2 > caps.maxMessagesPerConversation) {
     session.markCapped();
     await deps.txManager.run(() => deps.sessionRepo.save(session));
     rejectAndThrow(deps, 'message_cap', session.id, () => new ChatbotMessageCapReachedError());
   }
 
-  const maxHistory =
-    chatbotSettings.maxHistoryMessagesSentToLlm ?? DEFAULT_MAX_HISTORY_MESSAGES_SENT_TO_LLM;
   const recentMessages = await deps.messageRepo.findRecentBySession(
     sessionId,
     tenantId,
-    maxHistory,
+    caps.maxHistoryMessagesSentToLlm,
   );
 
   return { session, history: recentMessages.map(toChatTurn) };
@@ -94,20 +82,19 @@ export async function resolveNewSession(
   deps: ChatbotCapCheckDeps,
   input: SendChatMessageUseCaseInput,
   resolvedProviderName: string,
+  caps: ChatbotCaps,
 ): Promise<ResolvedSession> {
-  const { tenantId, clientIp, chatbotSettings } = input;
+  const { tenantId, clientIp } = input;
   const now = new Date();
   const conversationDate = utcDateToLocalDate(now, input.timezone);
 
-  await checkNewSessionVolumeCaps(deps, input, now, conversationDate);
+  await checkNewSessionVolumeCaps(deps, input, caps, now, conversationDate);
 
   // Layer 4 — a first turn always writes 2 rows (USER + ASSISTANT). If the tenant's configured
   // cap can't even fit one turn (0 or 1 — no min-bound validator exists on
   // maxMessagesPerConversation), reject before creating the session at all, mirroring
   // resolveExistingSession's own +2 > maxMessages check (PR #360 review).
-  const maxMessages =
-    chatbotSettings.maxMessagesPerConversation ?? DEFAULT_MAX_MESSAGES_PER_CONVERSATION;
-  if (2 > maxMessages) {
+  if (2 > caps.maxMessagesPerConversation) {
     rejectAndThrow(deps, 'message_cap', undefined, () => new ChatbotMessageCapReachedError());
   }
 
@@ -123,35 +110,31 @@ export async function resolveNewSession(
 async function checkNewSessionVolumeCaps(
   deps: ChatbotCapCheckDeps,
   input: SendChatMessageUseCaseInput,
+  caps: ChatbotCaps,
   now: Date,
   conversationDate: string,
 ): Promise<void> {
-  const { tenantId, clientIp, chatbotSettings } = input;
+  const { tenantId, clientIp } = input;
 
-  const maxPerDay = chatbotSettings.maxConversationsPerDay ?? DEFAULT_MAX_CONVERSATIONS_PER_DAY;
   const dailyCount = await deps.sessionRepo.countByTenantAndDate(tenantId, conversationDate);
-  if (dailyCount >= maxPerDay) {
+  if (dailyCount >= caps.maxConversationsPerDay) {
     rejectAndThrow(deps, 'tenant_daily_cap', undefined, () => new ChatbotDailyCapReachedError());
   }
 
-  const maxPerIpPerDay =
-    chatbotSettings.maxConversationsPerIpPerDay ?? DEFAULT_MAX_CONVERSATIONS_PER_IP_PER_DAY;
   const ipDailyCount = await deps.sessionRepo.countByTenantIpAndDate(
     tenantId,
     clientIp,
     conversationDate,
   );
-  if (ipDailyCount >= maxPerIpPerDay) {
+  if (ipDailyCount >= caps.maxConversationsPerIpPerDay) {
     rejectAndThrow(deps, 'ip_daily_cap', undefined, () => new ChatbotDailyCapReachedError());
   }
 
-  const maxConcurrent =
-    chatbotSettings.maxConcurrentConversations ?? DEFAULT_MAX_CONCURRENT_CONVERSATIONS;
   const concurrentCount = await deps.sessionRepo.countActiveSince(
     tenantId,
     new Date(now.getTime() - CONCURRENCY_WINDOW_MS),
   );
-  if (concurrentCount >= maxConcurrent) {
+  if (concurrentCount >= caps.maxConcurrentConversations) {
     rejectAndThrow(
       deps,
       'concurrency_cap',

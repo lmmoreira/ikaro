@@ -301,6 +301,7 @@ describe('UpdateTenantSettingsUseCase', () => {
       .withChatbot({
         knowledgeText: 'texto',
         llmProvider: 'anthropic',
+        llmModel: 'claude-haiku-4-5',
         maxConversationsPerDay: 100,
       })
       .build();
@@ -320,6 +321,7 @@ describe('UpdateTenantSettingsUseCase', () => {
       .withChatbot({
         knowledgeText: 'texto',
         llmProvider: 'anthropic',
+        llmModel: 'claude-haiku-4-5',
         maxConversationsPerDay: 100,
       })
       .build();
@@ -332,7 +334,33 @@ describe('UpdateTenantSettingsUseCase', () => {
     expect(reloaded!.settings.chatbot).toEqual({
       knowledgeText: 'texto',
       llmProvider: 'anthropic',
+      llmModel: 'claude-haiku-4-5',
       maxConversationsPerDay: 100,
+    });
+  });
+
+  it('never blocks an unrelated settings update because the stored operator LLM override is not valid (a provider alone, or a model its adapter does not price)', async () => {
+    const props = new TenantSettingsPropsBuilder()
+      .withChatbot({
+        knowledgeText: 'texto',
+        llmProvider: 'anthropic',
+        llmModel: 'claude-sonnet-5',
+      })
+      .build();
+    const tenant = new TenantBuilder().withSettings(TenantSettings.create(props)).build();
+    await tenantRepo.save(tenant);
+
+    const result = await useCase.execute({
+      tenantId: tenant.id,
+      settings: { loyalty: { expiryDays: 90 } },
+    });
+
+    expect(result.settings.loyalty.expiryDays).toBe(90);
+    const reloaded = await tenantRepo.findById(tenant.id);
+    expect(reloaded!.settings.chatbot).toEqual({
+      knowledgeText: 'texto',
+      llmProvider: 'anthropic',
+      llmModel: 'claude-sonnet-5',
     });
   });
 

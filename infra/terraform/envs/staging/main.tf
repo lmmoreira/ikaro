@@ -197,9 +197,6 @@ module "cloudrun_backend" {
       # module reference at a time — see cloudrun_bff's ALLOWED_ORIGINS/FRONTEND_URL comment.
       FRONTEND_URL = var.web_real_uri
 
-      # M19-S02: platform-wide chatbot LLM provider default — a plain env var (not a secret)
-      # deliberately, so ops can fail over to another provider in minutes without a deploy.
-      CHATBOT_LLM_PROVIDER = "openrouter"
       # M19-S05/S06: platform-wide chatbot cost/abuse-prevention backstops — plain env vars
       # (not secrets, not tenants.settings) so ops can change them via a Terraform var update +
       # apply (a new Cloud Run revision, no application code build/test/deploy) during a real

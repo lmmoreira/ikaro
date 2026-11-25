@@ -7,6 +7,9 @@ import { ChatbotSessionBuilder, TenantBuilder } from '../../../../test/builders/
 import { todayInSaoPaulo } from '../../../../test/utils/chatbot-test-helpers';
 import { RequestContext } from '../../../../shared/request/request-context';
 import { TRANSACTION_MANAGER } from '../../../../shared/ports/transaction-manager.port';
+import { TENANT_ACCESS_PORT } from '../../../../shared/ports/tenant-access.port';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
+import { ChatbotConfigResolver } from '../../application/services/chatbot-config-resolver.service';
 import { TENANT_REPOSITORY } from '../../application/ports/tenant-repository.port';
 import { CHATBOT_SESSION_REPOSITORY } from '../../application/ports/chatbot-session-repository.port';
 import { UpdateTenantSettingsUseCase } from '../../application/use-cases/update-tenant-settings.use-case';
@@ -37,6 +40,8 @@ describe('TenantSettingsController', () => {
         GetTenantByIdUseCase,
         UpdateTenantSettingsUseCase,
         GetChatbotCapStatusUseCase,
+        ChatbotConfigResolver,
+        { provide: TENANT_ACCESS_PORT, useClass: InMemoryTenantAccessPort },
         { provide: TENANT_REPOSITORY, useValue: tenantRepo },
         { provide: CHATBOT_SESSION_REPOSITORY, useValue: sessionRepo },
         { provide: RequestContext, useValue: tenantContext },

@@ -36,7 +36,12 @@ describe('PlatformTenantSettingsAdapter', () => {
   it('preserves Ikaro-only chatbot overrides (never leaked to the admin HTTP response, but required here)', async () => {
     const tenantSettings = TenantSettings.create({
       ...TenantSettings.default().toJSON(),
-      chatbot: { knowledgeText: 'texto', maxConversationsPerDay: 5, llmProvider: 'anthropic' },
+      chatbot: {
+        knowledgeText: 'texto',
+        maxConversationsPerDay: 5,
+        llmProvider: 'anthropic',
+        llmModel: 'claude-haiku-4-5',
+      },
     });
     const tenant = new TenantBuilder().withSettings(tenantSettings).build();
     await repo.save(tenant);
@@ -47,6 +52,7 @@ describe('PlatformTenantSettingsAdapter', () => {
       knowledgeText: 'texto',
       maxConversationsPerDay: 5,
       llmProvider: 'anthropic',
+      llmModel: 'claude-haiku-4-5',
     });
   });
 });

@@ -91,6 +91,33 @@ describe('OpenRouterLlmAdapter', () => {
     });
   });
 
+  it('sends the request’s own maxPrice in place of the fixed max_price when one is set (M26-S21: the BASIC tier’s ceiling), and the rest of the preferences unchanged', async () => {
+    mockUndiciFetch.mockResolvedValue(mockSuccessResponse());
+    const adapter = new OpenRouterLlmAdapter(makeConfigService());
+
+    await adapter.complete(makeRequest({ maxPrice: { prompt: 0.15, completion: 0.5 } }));
+
+    const [, calledOptions] = mockUndiciFetch.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(calledOptions.body as string);
+    expect(body.provider).toEqual({
+      sort: 'throughput',
+      max_price: { prompt: 0.15, completion: 0.5 },
+      require_parameters: true,
+      ignore: ['atlas-cloud'],
+    });
+  });
+
+  it('keeps the fixed max_price when the request carries no maxPrice', async () => {
+    mockUndiciFetch.mockResolvedValue(mockSuccessResponse());
+    const adapter = new OpenRouterLlmAdapter(makeConfigService());
+
+    await adapter.complete(makeRequest({ maxPrice: undefined }));
+
+    const [, calledOptions] = mockUndiciFetch.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(calledOptions.body as string);
+    expect(body.provider.max_price).toEqual({ prompt: 10, completion: 50 });
+  });
+
   it('calls the OpenRouter chat completions endpoint with the model, max_tokens, and bearer auth', async () => {
     mockUndiciFetch.mockResolvedValue(mockSuccessResponse());
     const adapter = new OpenRouterLlmAdapter(makeConfigService());
