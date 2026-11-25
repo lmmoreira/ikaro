@@ -294,12 +294,15 @@ export class Subscription extends AggregateRoot {
   }
 
   /**
-   * The tenant-local date the unconfirmed default plan is invoiced on its own: the first due date
-   * minus `PLAN_CONFIRM_FALLBACK_DAYS` (the lead `isDueForIssue` applies); null once confirmed.
+   * The tenant-local date the unconfirmed default plan is invoiced on its own: the trial's end date
+   * (the first due date) minus `PLAN_CONFIRM_FALLBACK_DAYS`, the lead `isDueForIssue` applies; null
+   * once confirmed. Anchored to the trial end, not the renewal cursor: issuing that first invoice
+   * moves `nextDueDate` a cycle forward while the trial and the confirmation are still open.
    */
   get planConfirmationFallbackDate(): string | null {
-    if (!this.planConfirmationRequired || this._nextDueDate === null) return null;
-    return addDaysUTC(this._nextDueDate.value, -PLAN_CONFIRM_FALLBACK_DAYS);
+    const firstInvoice = this.firstInvoiceFrom;
+    if (!this.planConfirmationRequired || firstInvoice === null) return null;
+    return addDaysUTC(firstInvoice, -PLAN_CONFIRM_FALLBACK_DAYS);
   }
 
   /**

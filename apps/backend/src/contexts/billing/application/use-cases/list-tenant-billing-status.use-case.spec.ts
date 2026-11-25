@@ -108,7 +108,8 @@ describe('ListTenantBillingStatusUseCase', () => {
       const tenantId = subscription.tenantId;
       const period = new ChargeBuilder()
         .withTenantId(tenantId)
-        .withDueDate('2026-10-15')
+        // Newer than the recovery charge: only the CANCELED filter keeps it from being "last".
+        .withDueDate('2026-11-20')
         .withStatus('CANCELED')
         .build();
       const recovery = new ChargeBuilder()

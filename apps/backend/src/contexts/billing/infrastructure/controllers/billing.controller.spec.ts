@@ -3,24 +3,38 @@ import { Reflector } from '@nestjs/core';
 import { NO_FEATURE_GATE_KEY, SUSPENSION_ACCESS_KEY } from '@ikaro/nestjs-http';
 import { ManagerRoleGuard } from '../../../../shared/guards/manager-role.guard';
 import { RequestContext } from '../../../../shared/request/request-context';
-import type { GetBillingSummaryUseCase } from '../../application/use-cases/get-billing-summary.use-case';
-import type { ListBillingChargesUseCase } from '../../application/use-cases/list-billing-charges.use-case';
+import { ChargeBuilder } from '../../../../test/builders/billing';
+import { FixedClock } from '../../../../test/infrastructure/fixed-clock';
+import { InMemoryBillingAccountRepository } from '../../../../test/repositories/billing/in-memory-billing-account.repository';
+import { InMemoryChargeRepository } from '../../../../test/repositories/billing/in-memory-charge.repository';
+import { InMemoryFeaturePriceRepository } from '../../../../test/repositories/billing/in-memory-feature-price.repository';
+import { InMemorySubscriptionRepository } from '../../../../test/repositories/billing/in-memory-subscription.repository';
+import { GetBillingSummaryUseCase } from '../../application/use-cases/get-billing-summary.use-case';
+import { ListBillingChargesUseCase } from '../../application/use-cases/list-billing-charges.use-case';
 import { BillingController } from './billing.controller';
 
 const TENANT_ID = '0197b0a0-0000-7000-8000-0000000000a1';
+const OTHER_TENANT_ID = '0197b0a0-0000-7000-8000-0000000000b2';
 
+// The controller is wired to the real use cases over in-memory repositories: what it returns is
+// what the manager would get, not what a mock was told to say.
 describe('BillingController', () => {
   const reflector = new Reflector();
-  const summaryUseCase = { execute: jest.fn() };
-  const chargesUseCase = { execute: jest.fn() };
   const context = { tenantId: TENANT_ID } as RequestContext;
+  let charges: InMemoryChargeRepository;
   let controller: BillingController;
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    charges = new InMemoryChargeRepository();
     controller = new BillingController(
-      summaryUseCase as unknown as GetBillingSummaryUseCase,
-      chargesUseCase as unknown as ListBillingChargesUseCase,
+      new GetBillingSummaryUseCase(
+        new InMemorySubscriptionRepository(),
+        new InMemoryBillingAccountRepository(),
+        charges,
+        new InMemoryFeaturePriceRepository(),
+        new FixedClock(new Date('2026-11-12T15:00:00.000Z')),
+      ),
+      new ListBillingChargesUseCase(charges),
       context,
     );
   });
@@ -36,24 +50,28 @@ describe('BillingController', () => {
     });
   });
 
-  it('reads the summary of the caller’s own tenant, never of a parameter', async () => {
-    summaryUseCase.execute.mockResolvedValue({ provisioning: true });
-
+  it('answers the summary of the caller’s own tenant, provisioning when it has no subscription', async () => {
     await expect(controller.summary()).resolves.toEqual({ provisioning: true });
-
-    expect(summaryUseCase.execute).toHaveBeenCalledWith({ tenantId: TENANT_ID });
   });
 
-  it('lists the caller’s own charges with the validated page', async () => {
-    chargesUseCase.execute.mockResolvedValue({ items: [], pagination: {} });
+  it('lists the caller’s own charges for the requested page, never another tenant’s', async () => {
+    const september = new ChargeBuilder()
+      .withTenantId(TENANT_ID)
+      .withPeriod('2026-09-01', '2026-09-30')
+      .withDueDate('2026-09-10')
+      .build();
+    const october = new ChargeBuilder()
+      .withTenantId(TENANT_ID)
+      .withPeriod('2026-10-01', '2026-10-31')
+      .withDueDate('2026-10-10')
+      .build();
+    for (const charge of [september, october]) await charges.save(charge);
+    await charges.save(new ChargeBuilder().withTenantId(OTHER_TENANT_ID).build());
 
-    await controller.charges({ limit: 10, offset: 20 });
+    const page = await controller.charges({ limit: 1, offset: 1 });
 
-    expect(chargesUseCase.execute).toHaveBeenCalledWith({
-      tenantId: TENANT_ID,
-      limit: 10,
-      offset: 20,
-    });
+    expect(page.items.map((item) => item.id)).toEqual([september.id]);
+    expect(page.pagination).toEqual({ limit: 1, offset: 1, total: 2, hasMore: false });
   });
 
   // The page bounds are `BillingChargesQuerySchema`'s (specified in `packages/validation`); the

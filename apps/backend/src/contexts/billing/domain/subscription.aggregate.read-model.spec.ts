@@ -42,10 +42,14 @@ describe('Subscription — the billing page’s read model (UC-117)', () => {
   });
 
   describe('planConfirmationRequired and planConfirmationFallbackDate', () => {
+    // The trial ends at the local midnight that opens 2026-11-22 (São Paulo, UTC-3): the first due date.
     const trial = () =>
-      new SubscriptionBuilder().withStatus('TRIALING').withNextDueDate('2026-11-22');
+      new SubscriptionBuilder()
+        .withStatus('TRIALING')
+        .withTrialEndsAt(at('2026-11-22T03:00:00Z'))
+        .withNextDueDate('2026-11-22');
 
-    it('requires confirmation of an unconfirmed trial and falls back 3 days before the first due date', () => {
+    it('requires confirmation of an unconfirmed trial and falls back 3 days before the trial end', () => {
       const subscription = trial().build();
 
       expect(subscription.planConfirmationRequired).toBe(true);
@@ -67,14 +71,24 @@ describe('Subscription — the billing page’s read model (UC-117)', () => {
       ).toBe(false);
     });
 
-    it('has no fallback date without a due date', () => {
-      expect(trial().withNextDueDate(null).build().planConfirmationFallbackDate).toBeNull();
+    it('has no fallback date without a trial end', () => {
+      expect(trial().withTrialEndsAt(null).build().planConfirmationFallbackDate).toBeNull();
     });
 
     it('crosses a month boundary by calendar days', () => {
-      const subscription = trial().withNextDueDate('2026-12-02').build();
+      const subscription = trial().withTrialEndsAt(at('2026-12-02T03:00:00Z')).build();
 
       expect(subscription.planConfirmationFallbackDate).toBe('2026-11-29');
+    });
+
+    it('stays on the trial end after the default first invoice moves the renewal cursor', () => {
+      const subscription = trial().build();
+
+      subscription.advanceToNextPeriod();
+
+      expect(subscription.nextDueDate?.value).not.toBe('2026-11-22');
+      expect(subscription.planConfirmationRequired).toBe(true);
+      expect(subscription.planConfirmationFallbackDate).toBe('2026-11-19');
     });
   });
 });

@@ -336,6 +336,35 @@ describe('GetBillingSummaryUseCase', () => {
       expect(summary.openCharge).toBeNull();
     });
 
+    it('ignores an open charge issued before an exemption was set and cleared, and returns the new trial’s own', async () => {
+      const subscription = new SubscriptionBuilder()
+        .withStatus('TRIALING')
+        .withTrialEndsAt(new Date('2026-11-22T03:00:00.000Z'))
+        .withNextDueDate('2026-11-22')
+        .withItems([item('HOTSITE')])
+        .build();
+      const stale = new ChargeBuilder()
+        .withTenantId(subscription.tenantId)
+        .withSubscriptionId(subscription.id)
+        .withPeriod('2026-06-22', '2026-07-21')
+        .withDueDate('2026-06-22')
+        .withStatus('OVERDUE')
+        .build();
+      await charges.save(stale);
+
+      expect((await readyOf(subscription)).openCharge).toBeNull();
+
+      const current = new ChargeBuilder()
+        .withTenantId(subscription.tenantId)
+        .withSubscriptionId(subscription.id)
+        .withPeriod('2026-11-22', '2026-12-21')
+        .withDueDate('2026-11-22')
+        .build();
+      await charges.save(current);
+
+      expect((await readyOf(subscription)).openCharge?.id).toBe(current.id);
+    });
+
     it('flags a payment the manager returned from while the charge is still open', async () => {
       const subscription = activeSubscription().build();
       await charges.save(

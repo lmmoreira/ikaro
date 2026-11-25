@@ -137,7 +137,17 @@ export class GetBillingSummaryUseCase {
       return this.charges.findOpenRecoveryBySubscription(subscription.tenantId, subscription.id);
     }
     const open = await this.charges.findOpenByTenant(subscription.tenantId);
-    return open.find((charge) => charge.kind === 'PERIOD') ?? null;
+    // Only this trial's own invoices: a charge issued before an exemption was set and cleared (a new
+    // trial, a new first invoice date) is not what the manager pays now, and paying it would leave
+    // the subscription `TRIALING`.
+    const since = subscription.firstInvoiceFrom;
+    return (
+      open.find(
+        (charge) =>
+          charge.kind === 'PERIOD' &&
+          (since === null || (charge.periodStart !== null && charge.periodStart.value >= since)),
+      ) ?? null
+    );
   }
 
   /** Whether the current trial's first invoice is paid. Not `has_ever_paid`: a re-trial after an exemption keeps that flag. */
@@ -155,6 +165,6 @@ export class GetBillingSummaryUseCase {
   private async readAddressRequired(subscription: Subscription): Promise<boolean> {
     if (subscription.exempt) return false;
     const account = await this.accounts.findByTenantId(subscription.tenantId);
-    return account === null || account.address === null;
+    return !account?.address;
   }
 }
