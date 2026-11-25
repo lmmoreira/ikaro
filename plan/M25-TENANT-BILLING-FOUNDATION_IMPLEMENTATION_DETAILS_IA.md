@@ -144,7 +144,7 @@ Accepted gaps (carry nothing forward except where stated):
 ## Carried items
 
 - **M26-S24 (relay VM Foundation wiring):** both Foundation env roots (`infra/terraform/foundation/envs/{staging,prod}/main.tf`) do not pass `additional_scripts` yet (verified: no occurrence). M26-S24 makes that PR first (pass `billing-operator.sh` and `lib/relay-auth.sh` through `file()`), applies Foundation, then repeats the first-boot and second-boot checks from applied metadata (both S32 boot checks ran with the fixed script set by hand as instance metadata). The relay VM is currently torn down in staging; prod VM is off.
-- **M26 builds on:** webhook + `provider_events`, charges, status sweep, dunning, real `AsaasBillingProvider`, manager billing UI, signup; extends `bookableUntil` on the access answer (M26-S18), exempt hook (M26-S20), `isActive` on tenant-info port (M26-S05). M27 (purge) gates M26's launch story.
+- **M26 builds on:** webhook + `provider_events`, charges, status sweep, dunning, real `AsaasBillingProvider`, manager billing UI, signup; extends `bookableUntil` on the access answer (M26-S18b), exempt hook (M26-S20), `isActive` on tenant-info port (M26-S05). M27 (purge) gates M26's launch story.
 - **TD51 Story 7:** success log line for hotsite revalidation.
 
 ## Stories and PRs
