@@ -13,6 +13,10 @@ import {
   setupActiveGuardMock,
 } from '../../test/component-test.helpers';
 import {
+  BillingPlanBuilder,
+  BillingPlanPreviewBuilder,
+} from '../../test/builders/billing-plan.builder';
+import {
   BillingChargeHistoryItemBuilder,
   BillingSummaryBuilder,
 } from '../../test/builders/billing-summary.builder';
@@ -120,6 +124,87 @@ describe('BillingController (component)', () => {
     expect(backendHttpService.get).toHaveBeenCalledWith(
       `/internal/billing/tenants/${TENANT_ID}/access`,
     );
+  });
+
+  describe('the plan reads (M26-S17)', () => {
+    const HOTSITE = { featureKey: 'HOTSITE', tier: 'STANDARD' };
+    const preview = (jwt: string, body: unknown) =>
+      request(app.getHttpServer())
+        .post('/v1/billing/plan/preview')
+        .set('Authorization', `Bearer ${jwt}`)
+        .send(body as object);
+
+    it('GET /v1/billing/plan → 401 without a token, POST preview too', async () => {
+      expect((await request(app.getHttpServer()).get('/v1/billing/plan')).status).toBe(401);
+      expect(
+        (await request(app.getHttpServer()).post('/v1/billing/plan/preview').send({ items: [] }))
+          .status,
+      ).toBe(401);
+    });
+
+    it.each(['STAFF', 'CUSTOMER'])(
+      'GET plan and POST preview → 403 for %s, backend never called',
+      async (role) => {
+        setupActiveGuardMock(httpService);
+        const jwt = role === 'STAFF' ? makeStaffJwt(jwtService) : makeCustomerJwt(jwtService);
+
+        const read = await request(app.getHttpServer())
+          .get('/v1/billing/plan')
+          .set('Authorization', `Bearer ${jwt}`);
+        const write = await preview(jwt, { items: [HOTSITE] });
+
+        expect([read.status, write.status]).toEqual([403, 403]);
+        expect(backendHttpService.get).not.toHaveBeenCalled();
+        expect(backendHttpService.post).not.toHaveBeenCalled();
+      },
+    );
+
+    it('GET /v1/billing/plan → 200 for a MANAGER with no undeclared field on the wire', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce({
+        ...new BillingPlanBuilder().build(),
+        internalNote: 'do not leak',
+      });
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/billing/plan')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ provisioning: false, countryCode: 'BR' });
+      expect(res.text).not.toContain('internalNote');
+      expect(backendHttpService.get).toHaveBeenCalledWith('/billing/plan');
+    });
+
+    it('POST /v1/billing/plan/preview → 200 with the items forwarded to the backend', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.post.mockResolvedValueOnce(new BillingPlanPreviewBuilder().build());
+
+      const res = await preview(makeManagerJwt(jwtService), { items: [HOTSITE] });
+
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({
+        newTotalMinor: 4900,
+        deferredBecauseNextInvoicePaid: false,
+      });
+      expect(backendHttpService.post).toHaveBeenCalledWith('/billing/plan/preview', {
+        items: [HOTSITE],
+      });
+    });
+
+    it.each([
+      ['a duplicate featureKey', { items: [HOTSITE, HOTSITE] }],
+      ['a tier not sold for the feature', { items: [{ featureKey: 'HOTSITE', tier: 'PLUS' }] }],
+      ['an unknown feature', { items: [{ featureKey: 'NOPE', tier: 'STANDARD' }] }],
+      ['no items field', {}],
+    ])('POST /v1/billing/plan/preview → 400 for %s, backend never called', async (_label, body) => {
+      setupActiveGuardMock(httpService);
+
+      const res = await preview(makeManagerJwt(jwtService), body);
+
+      expect(res.status).toBe(400);
+      expect(backendHttpService.post).not.toHaveBeenCalled();
+    });
   });
 
   describe('the manager reads (M26-S14)', () => {

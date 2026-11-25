@@ -36,13 +36,13 @@ export class MinorAmountValidationError extends BillingDomainError {
   }
 }
 
-// Subscription / BillingAccount invariant errors. Domain-only: no endpoint can throw them
-// yet, so none is mapped to HTTP and none has a BillingErrorCode (a wire code is additive-only once
-// shipped). S15b (operator refusals) and M26-S17/S19 (plan refusals) add the code, status and
-// locale entries and remove the matching error-mapper-coverage exception.
+// Subscription / BillingAccount invariant errors. The plan refusals (M26-S17) carry their wire code
+// and are mapped to HTTP; the others are domain-only until an endpoint can throw them (a wire code
+// is additive-only once shipped), so each stays on its error-mapper-coverage exception.
 
 /** A feature in the proposed selection needs another that is neither selected nor in the current plan. */
-export class FeatureDependencyUnmetError extends BillingDomainError {
+export class FeatureDependencyUnmetError extends BillingDomainError implements DomainErrorShape {
+  readonly code = BillingErrorCode.FEATURE_DEPENDENCY_UNMET;
   constructor(
     readonly featureKey: string,
     readonly requiredFeatureKey: string,
@@ -53,7 +53,8 @@ export class FeatureDependencyUnmetError extends BillingDomainError {
 }
 
 /** The selection removes a feature that another selected feature still depends on. */
-export class FeatureHasDependentsError extends BillingDomainError {
+export class FeatureHasDependentsError extends BillingDomainError implements DomainErrorShape {
+  readonly code = BillingErrorCode.FEATURE_HAS_DEPENDENTS;
   constructor(
     readonly featureKey: string,
     readonly dependentFeatureKey: string,
@@ -64,10 +65,23 @@ export class FeatureHasDependentsError extends BillingDomainError {
 }
 
 /** A plan always keeps at least one feature. */
-export class PlanEmptyError extends BillingDomainError {
+export class PlanEmptyError extends BillingDomainError implements DomainErrorShape {
+  readonly code = BillingErrorCode.PLAN_EMPTY;
   constructor() {
     super('A plan must keep at least one feature');
     this.name = 'PlanEmptyError';
+  }
+}
+
+/** A selected tier has no selectable list price in force for the tenant's country on the date it is priced. */
+export class NoPriceForCountryError extends BillingDomainError implements DomainErrorShape {
+  readonly code = BillingErrorCode.NO_PRICE_FOR_COUNTRY;
+  constructor(
+    readonly featureKey: string,
+    readonly tier: string,
+  ) {
+    super(`No price is available for ${featureKey} ${tier} in the tenant's country`);
+    this.name = 'NoPriceForCountryError';
   }
 }
 

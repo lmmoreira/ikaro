@@ -99,7 +99,9 @@ import { TypeOrmProviderHealthRepository } from './infrastructure/repositories/t
 import { InternalBillingAccessController } from './infrastructure/controllers/internal-billing-access.controller';
 import { BillingController } from './infrastructure/controllers/billing.controller';
 import { GetBillingSummaryUseCase } from './application/use-cases/get-billing-summary.use-case';
+import { GetPlanCatalogUseCase } from './application/use-cases/get-plan-catalog.use-case';
 import { ListBillingChargesUseCase } from './application/use-cases/list-billing-charges.use-case';
+import { PreviewPlanSelectionUseCase } from './application/use-cases/preview-plan-selection.use-case';
 import { BILLING_PROVIDER_REGISTRY } from './application/ports/billing-provider.port';
 import {
   BILLING_APP_ENV,
@@ -233,6 +235,8 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     // The manager's billing page reads (M26-S14).
     GetBillingSummaryUseCase,
     ListBillingChargesUseCase,
+    GetPlanCatalogUseCase,
+    PreviewPlanSelectionUseCase,
   ],
   // The shared access port is consumed by every context (M25-S16 onwards). The registration and
   // the five operator use cases are injected by this module's own controllers, which the
@@ -250,6 +254,8 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     // Injected by this module's own `BillingController` (M26-S14), which the detector counts as external.
     GetBillingSummaryUseCase,
     ListBillingChargesUseCase,
+    GetPlanCatalogUseCase,
+    PreviewPlanSelectionUseCase,
     ProcessProviderWebhookUseCase,
     ProviderWebhookProcessor,
     // Consumed by `DevBillingModule`, which exists only outside production.

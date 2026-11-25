@@ -5,6 +5,8 @@ import {
   type BillingAccessResponse,
   type BillingChargesResponse,
   type BillingOpenChargeDto,
+  type BillingPlanPreviewResponse,
+  type BillingPlanResponse,
   type BillingSummaryReadyResponse,
   type BillingSummaryResponse,
 } from '@ikaro/types';
@@ -12,6 +14,8 @@ import { FEATURE_KEYS } from '@ikaro/validation';
 import { ZodError } from 'zod';
 import type {
   BackendBillingCharges,
+  BackendBillingPlan,
+  BackendBillingPlanPreview,
   BackendBillingSummary,
   BackendTenantAccess,
 } from './billing.types';
@@ -185,5 +189,62 @@ export function toBillingChargesResponse(backend: BackendBillingCharges): Billin
       total: backend.pagination.total,
       hasMore: backend.pagination.hasMore,
     },
+  };
+}
+
+export function toBillingPlanResponse(backend: BackendBillingPlan): BillingPlanResponse {
+  if (backend.provisioning) return { provisioning: true };
+  return {
+    provisioning: false,
+    countryCode: backend.countryCode,
+    currency: backend.currency,
+    readOnly: backend.readOnly === null ? null : { reason: backend.readOnly.reason },
+    trial: { active: backend.trial.active, planConfirmed: backend.trial.planConfirmed },
+    features: backend.features.map((feature) => ({
+      featureKey: feature.featureKey,
+      requires: [...feature.requires],
+      tiers: feature.tiers.map((tier) => ({
+        tier: tier.tier,
+        unitPriceMinor: tier.unitPriceMinor,
+        available: tier.available,
+        ...(tier.upcoming && {
+          upcoming: {
+            amountMinor: tier.upcoming.amountMinor,
+            effectiveFrom: tier.upcoming.effectiveFrom,
+          },
+        }),
+      })),
+    })),
+    current: backend.current.map((item) => ({
+      featureKey: item.featureKey,
+      tier: item.tier,
+      endsAt: item.endsAt,
+    })),
+    scheduled:
+      backend.scheduled === null
+        ? null
+        : backend.scheduled.map((item) => ({
+            featureKey: item.featureKey,
+            tier: item.tier,
+            startsAt: item.startsAt,
+          })),
+    totalMinor: backend.totalMinor,
+  };
+}
+
+export function toBillingPlanPreviewResponse(
+  backend: BackendBillingPlanPreview,
+): BillingPlanPreviewResponse {
+  return {
+    changes: backend.changes.map((change) => ({
+      featureKey: change.featureKey,
+      kind: change.kind,
+      fromTier: change.fromTier,
+      toTier: change.toTier,
+      effectiveFrom: change.effectiveFrom,
+    })),
+    newTotalMinor: backend.newTotalMinor,
+    effectiveFrom: backend.effectiveFrom,
+    deferredBecauseNextInvoicePaid: backend.deferredBecauseNextInvoicePaid,
   };
 }

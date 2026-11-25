@@ -261,5 +261,9 @@
   "BILLING_UNSUSPEND_NOT_ALLOWED": "Somente uma suspensão do operador pode ser levantada desta forma; uma suspensão por pagamento exige o pagamento.",
   "BILLING_CONCURRENT_MODIFICATION": "Esta assinatura foi alterada por outra solicitação. Recarregue e tente novamente.",
   "BILLING_FEATURE_NOT_ENTITLED": "Este recurso não está incluído no seu plano.",
-  "BILLING_TENANT_SUSPENDED": "Esta conta está temporariamente indisponível."
+  "BILLING_TENANT_SUSPENDED": "Esta conta está temporariamente indisponível.",
+  "BILLING_FEATURE_DEPENDENCY_UNMET": "Este recurso precisa de outro recurso que não está no seu plano. Adicione-o ou remova este.",
+  "BILLING_FEATURE_HAS_DEPENDENTS": "Este recurso não pode ser removido enquanto outro recurso do seu plano depende dele.",
+  "BILLING_PLAN_EMPTY": "O plano precisa manter pelo menos um recurso.",
+  "BILLING_NO_PRICE_FOR_COUNTRY": "Uma das opções selecionadas não está disponível para o seu país no momento."
 }

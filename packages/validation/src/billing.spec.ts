@@ -1,4 +1,9 @@
-import { BillingChargesQuerySchema, CHATBOT_TIERS, FEATURE_KEYS } from './billing';
+import {
+  BillingChargesQuerySchema,
+  CHATBOT_TIERS,
+  FEATURE_KEYS,
+  PlanPreviewSchema,
+} from './billing';
 
 describe('BillingChargesQuerySchema', () => {
   it('defaults to limit 25 and offset 0 and coerces query strings', () => {
@@ -15,6 +20,43 @@ describe('BillingChargesQuerySchema', () => {
       expect(() => BillingChargesQuerySchema.parse(query)).toThrow();
     },
   );
+});
+
+describe('PlanPreviewSchema (M26-S17)', () => {
+  const standard = (featureKey: string) => ({ featureKey, tier: 'STANDARD' });
+
+  it('accepts a selection of distinct features at the tiers they are sold in', () => {
+    const items = [
+      standard('HOTSITE'),
+      standard('BOOKING'),
+      { featureKey: 'CHATBOT', tier: 'PLUS' },
+    ];
+
+    expect(PlanPreviewSchema.parse({ items })).toEqual({ items });
+    expect(
+      PlanPreviewSchema.parse({ items: [{ featureKey: 'CHATBOT', tier: 'BASIC' }] }).items,
+    ).toHaveLength(1);
+  });
+
+  it('accepts an empty list: the empty plan is a plan rule (BILLING_PLAN_EMPTY), not a shape error', () => {
+    expect(PlanPreviewSchema.parse({ items: [] })).toEqual({ items: [] });
+  });
+
+  it.each([
+    ['a feature selected twice', { items: [standard('HOTSITE'), standard('HOTSITE')] }],
+    ['the chatbot at STANDARD', { items: [standard('CHATBOT')] }],
+    ['a single-tier feature at PLUS', { items: [{ featureKey: 'BOOKING', tier: 'PLUS' }] }],
+    ['an unknown feature', { items: [standard('NOPE')] }],
+    ['an unknown tier', { items: [{ featureKey: 'CHATBOT', tier: 'GOLD' }] }],
+    ['no items', {}],
+    ['items that is not a list', { items: 'HOTSITE' }],
+    [
+      'more items than there are features',
+      { items: [...FEATURE_KEYS, 'HOTSITE'].map((featureKey) => standard(featureKey)) },
+    ],
+  ])('rejects %s', (_label, body) => {
+    expect(() => PlanPreviewSchema.parse(body)).toThrow();
+  });
 });
 
 describe('billing closed enums', () => {

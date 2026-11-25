@@ -8,7 +8,11 @@ import { RecoveryChargeAlreadyOpenError } from '../../domain/errors/recovery-cha
 import {
   BillingTenantNotFoundError,
   ExemptProtectedError,
+  FeatureDependencyUnmetError,
+  FeatureHasDependentsError,
   GraceNotAllowedError,
+  NoPriceForCountryError,
+  PlanEmptyError,
   SignupTermsNotAcceptedError,
   SimulationNotApplicableError,
   SubscriptionConcurrentModificationError,
@@ -27,6 +31,16 @@ export function mapBillingError(err: unknown): never {
   mapSharedVoError(err);
   // SIGNUP_TERMS_NOT_ACCEPTED: a business refusal, 422 per docs/API_CONTRACTS.md (M25-S09).
   if (err instanceof SignupTermsNotAcceptedError) {
+    throw throwProblemDetail(HttpStatus.UNPROCESSABLE_ENTITY, err.code, err.message);
+  }
+  // A proposed plan selection that is not valid (UC-136 A1, A5, A6): the request is well formed but
+  // the plan rules refuse it, 422 each.
+  if (
+    err instanceof FeatureDependencyUnmetError ||
+    err instanceof FeatureHasDependentsError ||
+    err instanceof PlanEmptyError ||
+    err instanceof NoPriceForCountryError
+  ) {
     throw throwProblemDetail(HttpStatus.UNPROCESSABLE_ENTITY, err.code, err.message);
   }
   // An unknown tenant id on the access lookup: 404 with Platform's TENANT_NOT_FOUND (M25-S13).

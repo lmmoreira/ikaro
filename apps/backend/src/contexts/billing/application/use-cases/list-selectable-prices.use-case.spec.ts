@@ -33,6 +33,25 @@ describe('ListSelectablePricesUseCase', () => {
     ]);
   });
 
+  it('carries the earliest announced future version as `upcoming`', async () => {
+    repo.seed(
+      new FeaturePriceBuilder()
+        .withVersions([
+          new FeaturePriceVersionBuilder().withAmountMinor(4900).build(),
+          new FeaturePriceVersionBuilder()
+            .withEffectiveFrom('2026-07-01')
+            .withAmountMinor(5900)
+            .withAnnouncedAt(new Date('2026-05-01T00:00:00Z'))
+            .build(),
+        ])
+        .build(),
+    );
+
+    const result = await useCase.execute({ countryCode: 'BR', at: '2026-03-15' });
+
+    expect(result.prices[0].upcoming).toEqual({ amountMinor: 5900, effectiveFrom: '2026-07-01' });
+  });
+
   it('omits a price hidden from new selection', async () => {
     repo.seed(
       new FeaturePriceBuilder()

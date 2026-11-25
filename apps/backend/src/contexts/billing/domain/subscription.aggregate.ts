@@ -32,7 +32,9 @@ import {
   GRACE_DAYS,
   PURGE_DAYS_NEVER_PAID,
   PURGE_DAYS_PAID,
+  type PlanReadOnlyReason,
   type SelectionChange,
+  type SelectionChangeKind,
   type ReversedChargeFacts,
   type SelectionPreview,
   type StartSubscriptionInput,
@@ -47,6 +49,16 @@ import {
 export * from './subscription.types';
 
 const SYSTEM_ACTOR = 'SYSTEM';
+
+/** What the proposed tier does to the plan's current one: a tier that appears, goes or changes. */
+function selectionChangeKind(
+  before: SelectionEntry['tier'] | undefined,
+  after: SelectionEntry['tier'] | undefined,
+): SelectionChangeKind {
+  if (before === undefined) return 'ADD';
+  if (after === undefined) return 'REMOVE';
+  return 'TIER_CHANGE';
+}
 
 /**
  * The tenant's subscription (1 per tenant): status ladder, entitlement and plan. Entitlement is
@@ -317,6 +329,21 @@ export class Subscription extends AggregateRoot {
       .map((item) => ({ featureKey: item.featureKey, tier: item.tier }));
   }
 
+  /**
+   * Why the plan cannot be changed now, or `null` when it can (UC-136 A2, A4, UC-117 A7). Exempt
+   * first, then an operator suspension, `PAST_DUE` and a scheduled cancel. A suspension for payment
+   * is deliberately editable: the saved selection is what the reactivation grants (A14).
+   */
+  get planReadOnlyReason(): PlanReadOnlyReason | null {
+    if (this._exempt) return 'EXEMPT';
+    if (this._status === 'SUSPENDED' && this._suspensionReason === 'OPERATOR') {
+      return 'OPERATOR_SUSPENDED';
+    }
+    if (this._status === 'PAST_DUE') return 'PAST_DUE';
+    if (this._cancelAt !== null && this._status !== 'SUSPENDED') return 'CANCEL_SCHEDULED';
+    return null;
+  }
+
   /** The plan going forward: the items with no end date (a feature scheduled to leave is not in it). */
   get selection(): SelectionEntry[] {
     return this._items
@@ -330,13 +357,37 @@ export class Subscription extends AggregateRoot {
   }
 
   /**
-   * What saving `proposed` would change, with the date each change takes effect (the next paid
-   * service-period start). Pure: nothing is saved and no price is read (M26-S17 adds totals).
-   * Rejects exactly as `validateSelection` does.
+   * The tenant-local date a plan change saved now takes effect: the start of the next service
+   * period that is not yet paid (UC-136 main flow 3, A7).
+   * - `TRIALING`: the first invoice's start (the trial's end day), or, when that invoice is already
+   *   paid (`nextPeriodPaid`), the period after it. A trial has no `currentPeriodEnd`, so the
+   *   charge fact is the only way to know.
+   * - `ACTIVE` / `PAST_DUE`: the day after `currentPeriodEnd`, which `markPeriodPaid` already moves
+   *   past a period paid ahead, so `nextPeriodPaid` needs no second shift here (it would skip one).
+   * - `SUSPENDED` and exempt: `null`. A payment suspension applies the plan at the reactivation
+   *   payment (A14); an operator suspension and an exempt subscription have no paid period to wait for.
    */
-  previewSelection(proposed: readonly SelectionEntry[]): SelectionPreview {
+  nextPeriodStart(nextPeriodPaid: boolean): CalendarDate | null {
+    if (this._exempt || this._status === 'SUSPENDED') return null;
+    if (this._status === 'TRIALING') {
+      const first = this.firstInvoiceFrom;
+      if (first === null) return null;
+      const start = CalendarDate.reconstitute(first);
+      return nextPeriodPaid ? issuedPeriodWindow(start, this._anchorDay).nextDueDate : start;
+    }
+    if (this._currentPeriodEnd === null) return null;
+    const lastPaidDay = utcDateToLocalDate(this._currentPeriodEnd, this.timezone.value);
+    return CalendarDate.reconstitute(addDaysUTC(lastPaidDay, 1));
+  }
+
+  /**
+   * What saving `proposed` would change, with the date each change takes effect (`nextPeriodStart`).
+   * Pure: nothing is saved and no price is read; the use case adds the total. Rejects exactly as
+   * `validateSelection` does.
+   */
+  previewSelection(proposed: readonly SelectionEntry[], nextPeriodPaid = false): SelectionPreview {
     this.validateSelection(proposed);
-    const effectiveFrom = this._status === 'TRIALING' ? this._trialEndsAt : this._currentPeriodEnd;
+    const effectiveFrom = this.nextPeriodStart(nextPeriodPaid);
     const current = new Map(this.selection.map((entry) => [entry.featureKey, entry.tier]));
     const next = new Map(proposed.map((entry) => [entry.featureKey, entry.tier]));
     const changes: SelectionChange[] = [];
@@ -344,15 +395,15 @@ export class Subscription extends AggregateRoot {
       const before = current.get(featureKey);
       const after = next.get(featureKey);
       if (before === after) continue;
-      if (before === undefined && after !== undefined) {
-        changes.push({ featureKey, tier: after, kind: 'ADD', effectiveFrom });
-      } else if (before !== undefined && after === undefined) {
-        changes.push({ featureKey, tier: before, kind: 'REMOVE', effectiveFrom });
-      } else if (after !== undefined) {
-        changes.push({ featureKey, tier: after, kind: 'TIER_CHANGE', effectiveFrom });
-      }
+      changes.push({
+        featureKey,
+        kind: selectionChangeKind(before, after),
+        fromTier: before ?? null,
+        toTier: after ?? null,
+        effectiveFrom,
+      });
     }
-    return { changes };
+    return { changes, effectiveFrom };
   }
 
   /**

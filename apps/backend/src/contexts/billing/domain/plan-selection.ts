@@ -32,6 +32,11 @@ export function defaultTierFor(featureKey: FeatureKey): FeatureTier {
   return featureKey === 'CHATBOT' ? 'BASIC' : 'STANDARD';
 }
 
+/** The tiers a feature is sold in, in the order a manager sees them. */
+export function tiersSoldFor(featureKey: FeatureKey): readonly FeatureTier[] {
+  return featureKey === 'CHATBOT' ? CHATBOT_TIERS : ['STANDARD'];
+}
+
 export function isTierSoldFor(featureKey: FeatureKey, tier: FeatureTier): boolean {
   return featureKey === 'CHATBOT'
     ? (CHATBOT_TIERS as readonly string[]).includes(tier)

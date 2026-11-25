@@ -1,11 +1,18 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query } from '@nestjs/common';
 import { ZodValidationPipe } from '@ikaro/nestjs-http';
 import type {
   BillingAccessResponse,
   BillingChargesResponse,
+  BillingPlanPreviewResponse,
+  BillingPlanResponse,
   BillingSummaryResponse,
 } from '@ikaro/types';
-import { type BillingChargesQuery, BillingChargesQuerySchema } from '@ikaro/validation';
+import {
+  type BillingChargesQuery,
+  BillingChargesQuerySchema,
+  type PlanPreviewDto,
+  PlanPreviewSchema,
+} from '@ikaro/validation';
 import { CurrentUser, CurrentUserPayload } from '../../shared/decorators/current-user.decorator';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
@@ -13,9 +20,16 @@ import { AppLogger } from '../../shared/observability/app-logger';
 import {
   toBillingAccessResponse,
   toBillingChargesResponse,
+  toBillingPlanPreviewResponse,
+  toBillingPlanResponse,
   toBillingSummaryResponse,
 } from './billing.mapper';
-import { BackendBillingChargesSchema, BackendBillingSummarySchema } from './billing.schemas';
+import {
+  BackendBillingChargesSchema,
+  BackendBillingPlanPreviewSchema,
+  BackendBillingPlanSchema,
+  BackendBillingSummarySchema,
+} from './billing.schemas';
 import { readTenantAccess } from './tenant-access.reader';
 
 // The billing slice's authenticated routes. The tenant always comes from the JWT (the backend client
@@ -57,5 +71,26 @@ export class BillingController {
       offset: query.offset,
     });
     return toBillingChargesResponse(BackendBillingChargesSchema.parse(raw));
+  }
+
+  // The Plano tab (UC-136, M26-S17). Manager-only; the backend owns read-only and suspension.
+  @Get('plan')
+  @Roles('MANAGER')
+  async getPlan(): Promise<BillingPlanResponse> {
+    const raw = await this.backendHttp.get<unknown>('/billing/plan');
+    return toBillingPlanResponse(BackendBillingPlanSchema.parse(raw));
+  }
+
+  // Nothing is saved: a preview of the proposed final selection and the plan it would cost.
+  @Post('plan/preview')
+  @HttpCode(HttpStatus.OK)
+  @Roles('MANAGER')
+  async previewPlan(
+    @Body(new ZodValidationPipe(PlanPreviewSchema)) body: PlanPreviewDto,
+  ): Promise<BillingPlanPreviewResponse> {
+    const raw = await this.backendHttp.post<unknown>('/billing/plan/preview', {
+      items: body.items,
+    });
+    return toBillingPlanPreviewResponse(BackendBillingPlanPreviewSchema.parse(raw));
   }
 }

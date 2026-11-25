@@ -60,9 +60,7 @@ export function upcomingChanges(
   const changes: BillingUpcomingPriceChangeDto[] = [];
   for (const { entry, price, amountMinor } of priced) {
     if (price === null || amountMinor === null) continue;
-    for (const version of price.versions) {
-      if (version.supersededAt !== null || version.announcedAt === null) continue;
-      if (!date.isBefore(version.effectiveFrom)) continue;
+    for (const version of price.announcedVersionsAfter(date)) {
       changes.push({
         featureKey: entry.featureKey,
         tier: entry.tier,

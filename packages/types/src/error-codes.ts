@@ -356,6 +356,11 @@ export const BillingErrorCode = {
   // and a suspended tenant on a route whose suspension policy does not admit the caller.
   FEATURE_NOT_ENTITLED: 'BILLING_FEATURE_NOT_ENTITLED',
   TENANT_SUSPENDED: 'BILLING_TENANT_SUSPENDED',
+  // The plan reads and the save (M26-S17, UC-136): a proposed selection that is not valid, 422 each.
+  FEATURE_DEPENDENCY_UNMET: 'BILLING_FEATURE_DEPENDENCY_UNMET',
+  FEATURE_HAS_DEPENDENTS: 'BILLING_FEATURE_HAS_DEPENDENTS',
+  PLAN_EMPTY: 'BILLING_PLAN_EMPTY',
+  NO_PRICE_FOR_COUNTRY: 'BILLING_NO_PRICE_FOR_COUNTRY',
 } as const;
 export type BillingErrorCode = (typeof BillingErrorCode)[keyof typeof BillingErrorCode];
 

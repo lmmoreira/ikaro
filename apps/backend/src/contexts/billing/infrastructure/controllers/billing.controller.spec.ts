@@ -10,7 +10,9 @@ import { InMemoryChargeRepository } from '../../../../test/repositories/billing/
 import { InMemoryFeaturePriceRepository } from '../../../../test/repositories/billing/in-memory-feature-price.repository';
 import { InMemorySubscriptionRepository } from '../../../../test/repositories/billing/in-memory-subscription.repository';
 import { GetBillingSummaryUseCase } from '../../application/use-cases/get-billing-summary.use-case';
+import { GetPlanCatalogUseCase } from '../../application/use-cases/get-plan-catalog.use-case';
 import { ListBillingChargesUseCase } from '../../application/use-cases/list-billing-charges.use-case';
+import { PreviewPlanSelectionUseCase } from '../../application/use-cases/preview-plan-selection.use-case';
 import { BillingController } from './billing.controller';
 
 const TENANT_ID = '0197b0a0-0000-7000-8000-0000000000a1';
@@ -26,15 +28,20 @@ describe('BillingController', () => {
 
   beforeEach(() => {
     charges = new InMemoryChargeRepository();
+    const subscriptions = new InMemorySubscriptionRepository();
+    const prices = new InMemoryFeaturePriceRepository();
+    const clock = new FixedClock(new Date('2026-11-12T15:00:00.000Z'));
     controller = new BillingController(
       new GetBillingSummaryUseCase(
-        new InMemorySubscriptionRepository(),
+        subscriptions,
         new InMemoryBillingAccountRepository(),
         charges,
-        new InMemoryFeaturePriceRepository(),
-        new FixedClock(new Date('2026-11-12T15:00:00.000Z')),
+        prices,
+        clock,
       ),
       new ListBillingChargesUseCase(charges),
+      new GetPlanCatalogUseCase(subscriptions, charges, prices, clock),
+      new PreviewPlanSelectionUseCase(subscriptions, charges, prices, clock),
       context,
     );
   });
@@ -52,6 +59,16 @@ describe('BillingController', () => {
 
   it('answers the summary of the caller’s own tenant, provisioning when it has no subscription', async () => {
     await expect(controller.summary()).resolves.toEqual({ provisioning: true });
+  });
+
+  it('answers the plan of the caller’s own tenant, provisioning when it has no subscription', async () => {
+    await expect(controller.plan()).resolves.toEqual({ provisioning: true });
+  });
+
+  it('answers a plan preview for a tenant with no subscription as not found, through the error mapper', async () => {
+    await expect(
+      controller.previewPlan({ items: [{ featureKey: 'HOTSITE', tier: 'STANDARD' }] }),
+    ).rejects.toMatchObject({ status: 404 });
   });
 
   it('lists the caller’s own charges for the requested page, never another tenant’s', async () => {

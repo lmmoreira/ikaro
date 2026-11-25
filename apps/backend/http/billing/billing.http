@@ -49,3 +49,103 @@ X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{customerId}}
 X-Actor-Type: CUSTOMER
 X-Actor-Role: CUSTOMER
+
+# ── Plan reads (M26-S17, UC-136) ──────────────────────────────────────────────────────────────────
+# The Plano tab: the catalog and a preview. Both are read-only: nothing is saved and the BOOKING
+# removal guard is not run (it is checked at save only). MANAGER only. A read-only plan (PAST_DUE,
+# operator suspension, scheduled cancel, exempt) is reported in `readOnly`, not refused here.
+# A tenant with no subscription row: GET answers 200 { "provisioning": true }, the preview 404.
+
+### Plan: catalog with tier prices, current plan, what is scheduled, readOnly, total
+GET {{baseUrl}}/billing/plan
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+### Preview: add the lead form, drop booking (each change carries its effective date)
+POST {{baseUrl}}/billing/plan/preview
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{ "items": [{ "featureKey": "HOTSITE", "tier": "STANDARD" }, { "featureKey": "LEAD_FORM", "tier": "STANDARD" }] }
+
+### Preview: chatbot tier change
+POST {{baseUrl}}/billing/plan/preview
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{ "items": [{ "featureKey": "HOTSITE", "tier": "STANDARD" }, { "featureKey": "CHATBOT", "tier": "PLUS" }] }
+
+### Dependency unmet (loyalty without booking): 422 BILLING_FEATURE_DEPENDENCY_UNMET
+POST {{baseUrl}}/billing/plan/preview
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{ "items": [{ "featureKey": "HOTSITE", "tier": "STANDARD" }, { "featureKey": "LOYALTY", "tier": "STANDARD" }] }
+
+### Same body for a tenant that has booking and loyalty now (booking removed, loyalty stays): 422 BILLING_FEATURE_HAS_DEPENDENTS
+POST {{baseUrl}}/billing/plan/preview
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{ "items": [{ "featureKey": "HOTSITE", "tier": "STANDARD" }, { "featureKey": "LOYALTY", "tier": "STANDARD" }] }
+
+### Empty selection: 422 BILLING_PLAN_EMPTY
+POST {{baseUrl}}/billing/plan/preview
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{ "items": [] }
+
+### A feature selected twice: 400
+POST {{baseUrl}}/billing/plan/preview
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{ "items": [{ "featureKey": "HOTSITE", "tier": "STANDARD" }, { "featureKey": "HOTSITE", "tier": "STANDARD" }] }
+
+### A tier not sold for the feature: 400
+POST {{baseUrl}}/billing/plan/preview
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{ "items": [{ "featureKey": "HOTSITE", "tier": "PLUS" }] }
+
+### Staff: 403
+GET {{baseUrl}}/billing/plan
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+
+### Customer: 403
+POST {{baseUrl}}/billing/plan/preview
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+
+{ "items": [{ "featureKey": "HOTSITE", "tier": "STANDARD" }] }

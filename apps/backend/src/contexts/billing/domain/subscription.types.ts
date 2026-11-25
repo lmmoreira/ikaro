@@ -63,16 +63,25 @@ export interface StartSubscriptionInput {
 
 export type SelectionChangeKind = 'ADD' | 'REMOVE' | 'TIER_CHANGE';
 
+/** Why the Plano tab is read-only (UC-136 A2, A4, UC-117 A7); a payment suspension is editable (A14). */
+export type PlanReadOnlyReason = 'PAST_DUE' | 'OPERATOR_SUSPENDED' | 'CANCEL_SCHEDULED' | 'EXEMPT';
+
 export interface SelectionChange {
   readonly featureKey: FeatureKey;
-  readonly tier: SelectionEntry['tier'];
   readonly kind: SelectionChangeKind;
-  // The next paid service-period start; null when the subscription has none yet (an exempt one).
-  readonly effectiveFrom: Date | null;
+  // The tier the plan has now (null for an ADD) and the tier the proposal has (null for a REMOVE).
+  readonly fromTier: SelectionEntry['tier'] | null;
+  readonly toTier: SelectionEntry['tier'] | null;
+  // The next paid service-period start as a tenant-local date; null when there is none to give: an
+  // exempt subscription, an operator suspension, or a payment suspension, where the plan applies
+  // at the reactivation payment (UC-136 A14).
+  readonly effectiveFrom: CalendarDate | null;
 }
 
 export interface SelectionPreview {
   readonly changes: SelectionChange[];
+  /** The one date every change shares (`null` as on `SelectionChange.effectiveFrom`). */
+  readonly effectiveFrom: CalendarDate | null;
 }
 
 /** What a refunded or charged-back charge says about the period it paid for (`Subscription.reversePayment`). */

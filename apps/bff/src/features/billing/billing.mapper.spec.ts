@@ -3,6 +3,10 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 import { z } from 'zod';
 import type { BillingSummaryReadyResponse } from '@ikaro/types';
 import {
+  BillingPlanBuilder,
+  BillingPlanPreviewBuilder,
+} from '../../test/builders/billing-plan.builder';
+import {
   BillingChargeHistoryItemBuilder,
   BillingSummaryBuilder,
 } from '../../test/builders/billing-summary.builder';
@@ -11,9 +15,16 @@ import {
   recoverAccessLookup,
   toBillingAccessResponse,
   toBillingChargesResponse,
+  toBillingPlanPreviewResponse,
+  toBillingPlanResponse,
   toBillingSummaryResponse,
 } from './billing.mapper';
-import { BackendBillingChargesSchema, BackendBillingSummarySchema } from './billing.schemas';
+import {
+  BackendBillingChargesSchema,
+  BackendBillingPlanPreviewSchema,
+  BackendBillingPlanSchema,
+  BackendBillingSummarySchema,
+} from './billing.schemas';
 import type { BackendTenantAccess } from './billing.types';
 
 const ACCESS: BackendTenantAccess = {
@@ -288,5 +299,71 @@ describe('toBillingChargesResponse', () => {
 
     expect(mapped.receiptUrl).toBeNull();
     expect(mapped.taxLines).toEqual([]);
+  });
+});
+
+describe('the plan reads (M26-S17)', () => {
+  const parsePlan = (input: unknown) => BackendBillingPlanSchema.parse(input);
+
+  it('maps the catalog, the current plan and what is scheduled field by field', () => {
+    const plan = new BillingPlanBuilder().build();
+
+    expect(toBillingPlanResponse(parsePlan(plan))).toEqual(plan);
+  });
+
+  it('keeps an announced next price on its tier and an unavailable tier at null', () => {
+    const mapped = toBillingPlanResponse(parsePlan(new BillingPlanBuilder().build()));
+
+    if (mapped.provisioning) throw new Error('expected a full plan');
+    const booking = mapped.features.find((feature) => feature.featureKey === 'BOOKING');
+    const chatbot = mapped.features.find((feature) => feature.featureKey === 'CHATBOT');
+    expect(booking?.tiers[0].upcoming).toEqual({ amountMinor: 4900, effectiveFrom: '2026-12-01' });
+    expect(chatbot?.tiers[1]).toEqual({ tier: 'PLUS', unitPriceMinor: null, available: false });
+  });
+
+  it('keeps a null schedule, a null total and a read-only reason', () => {
+    const plan = new BillingPlanBuilder()
+      .withScheduled(null)
+      .withTotalMinor(null)
+      .withReadOnly('PAST_DUE')
+      .build();
+
+    expect(toBillingPlanResponse(parsePlan(plan))).toMatchObject({
+      scheduled: null,
+      totalMinor: null,
+      readOnly: { reason: 'PAST_DUE' },
+    });
+  });
+
+  it('drops a field the backend was never documented to send', () => {
+    const leaky = { ...new BillingPlanBuilder().build(), internalNote: 'do not leak' };
+
+    expect(JSON.stringify(toBillingPlanResponse(parsePlan(leaky)))).not.toContain('internalNote');
+  });
+
+  it('passes the provisioning answer through', () => {
+    expect(toBillingPlanResponse(parsePlan({ provisioning: true }))).toEqual({
+      provisioning: true,
+    });
+  });
+
+  it.each([
+    ['an unknown read-only reason', { readOnly: { reason: 'BECAUSE' } }],
+    ['an unknown feature', { current: [{ featureKey: 'NOPE', tier: 'STANDARD', endsAt: null }] }],
+    ['a fractional total', { totalMinor: 49.5 }],
+  ])('rejects %s', (_label, override) => {
+    expect(() => parsePlan({ ...new BillingPlanBuilder().build(), ...override })).toThrow();
+  });
+
+  it('maps the preview, with a deferred flag and null dates while no period is named', () => {
+    const preview = new BillingPlanPreviewBuilder().withDeferred(true).build();
+    const undated = new BillingPlanPreviewBuilder().withNoDate().build();
+
+    expect(toBillingPlanPreviewResponse(BackendBillingPlanPreviewSchema.parse(preview))).toEqual(
+      preview,
+    );
+    expect(toBillingPlanPreviewResponse(BackendBillingPlanPreviewSchema.parse(undated))).toEqual(
+      undated,
+    );
   });
 });

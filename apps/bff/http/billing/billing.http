@@ -51,3 +51,43 @@ Authorization: Bearer {{staffToken}}
 
 ### No token: 401
 GET {{bffUrl}}/v1/billing/charges
+
+# ── Plan reads (M26-S17, UC-136) ──────────────────────────────────────────────────────────────────
+# GET /v1/billing/plan and POST /v1/billing/plan/preview: MANAGER only, reachable by the manager of
+# a suspended tenant. Read-only: a preview saves nothing. 422 carries the BILLING_* code of the
+# plan rule; a malformed body (a duplicate feature, a tier not sold for it) is 400.
+
+### Plan
+GET {{bffUrl}}/v1/billing/plan
+Authorization: Bearer {{managerToken}}
+
+### Preview
+POST {{bffUrl}}/v1/billing/plan/preview
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{ "items": [{ "featureKey": "HOTSITE", "tier": "STANDARD" }, { "featureKey": "CHATBOT", "tier": "PLUS" }] }
+
+### Dependency unmet: 422 BILLING_FEATURE_DEPENDENCY_UNMET
+POST {{bffUrl}}/v1/billing/plan/preview
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{ "items": [{ "featureKey": "HOTSITE", "tier": "STANDARD" }, { "featureKey": "LOYALTY", "tier": "STANDARD" }] }
+
+### A feature selected twice: 400
+POST {{bffUrl}}/v1/billing/plan/preview
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{ "items": [{ "featureKey": "HOTSITE", "tier": "STANDARD" }, { "featureKey": "HOTSITE", "tier": "STANDARD" }] }
+
+### Staff: 403
+GET {{bffUrl}}/v1/billing/plan
+Authorization: Bearer {{staffToken}}
+
+### No token: 401
+POST {{bffUrl}}/v1/billing/plan/preview
+Content-Type: application/json
+
+{ "items": [] }
