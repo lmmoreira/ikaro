@@ -42,6 +42,7 @@ import { type AppEnv, resolveAppEnv } from '../../shared/database/resolve-app-en
 import { ApplicationConfigModule } from '../../shared/infrastructure/application-config.module';
 import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.module';
 import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cache.module';
+import { RequestModule } from '../../shared/request/request.module';
 import { TENANT_ACCESS_PORT } from '../../shared/ports/tenant-access.port';
 import { PlatformSettingsModule } from '../platform/platform-settings.module';
 import { BILLING_PLATFORM_PORT } from './application/ports/billing-platform.port';
@@ -96,6 +97,9 @@ import { RetryProviderChargeCancelUseCase } from './application/use-cases/retry-
 import { ReconcileTriggerHandler } from './infrastructure/events/reconcile-trigger.handler';
 import { TypeOrmProviderHealthRepository } from './infrastructure/repositories/typeorm-provider-health.repository';
 import { InternalBillingAccessController } from './infrastructure/controllers/internal-billing-access.controller';
+import { BillingController } from './infrastructure/controllers/billing.controller';
+import { GetBillingSummaryUseCase } from './application/use-cases/get-billing-summary.use-case';
+import { ListBillingChargesUseCase } from './application/use-cases/list-billing-charges.use-case';
 import { BILLING_PROVIDER_REGISTRY } from './application/ports/billing-provider.port';
 import {
   BILLING_APP_ENV,
@@ -116,6 +120,8 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     PlatformSettingsModule,
     SharedCacheModule,
     AuditLogModule,
+    // `RequestContext` for the manager's billing controller (M26-S14): the tenant of the caller.
+    RequestModule,
     TypeOrmModule.forFeature([
       FeaturePriceEntity,
       FeaturePriceVersionEntity,
@@ -136,6 +142,7 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     InternalBillingOperatorController,
     InternalBillingWebhookController,
     CronBillingController,
+    BillingController,
   ],
   providers: [
     { provide: SIGNUP_REGISTRATION_REPOSITORY, useClass: TypeOrmSignupRegistrationRepository },
@@ -223,6 +230,9 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     RemindersTriggerHandler,
     PurgeProviderEventsUseCase,
     ProviderEventsPurgeTriggerHandler,
+    // The manager's billing page reads (M26-S14).
+    GetBillingSummaryUseCase,
+    ListBillingChargesUseCase,
   ],
   // The shared access port is consumed by every context (M25-S16 onwards). The registration and
   // the five operator use cases are injected by this module's own controllers, which the
@@ -237,6 +247,9 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     ExtendGraceUseCase,
     SetTenantExemptUseCase,
     ListTenantBillingStatusUseCase,
+    // Injected by this module's own `BillingController` (M26-S14), which the detector counts as external.
+    GetBillingSummaryUseCase,
+    ListBillingChargesUseCase,
     ProcessProviderWebhookUseCase,
     ProviderWebhookProcessor,
     // Consumed by `DevBillingModule`, which exists only outside production.

@@ -8,6 +8,7 @@ import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { InternalApiGuard } from '../../../../shared/guards/internal-api.guard';
 import { TENANT_ACCESS_PORT, TenantAccessPort } from '../../../../shared/ports/tenant-access.port';
 import {
+  ChargeEntityBuilder,
   SubscriptionEntityBuilder,
   SubscriptionItemEntityBuilder,
 } from '../../../../test/builders/billing';
@@ -16,6 +17,7 @@ import { RoutingInMemoryEventBus } from '../../../../test/infrastructure/routing
 import { createBillingIntegrationApp } from '../../../../test/utils/billing-integration-app';
 import { TenantEntity } from '../../../platform/infrastructure/entities/tenant.entity';
 import { OperatorAuditEntity } from '../entities/operator-audit.entity';
+import { ChargeEntity } from '../entities/charge.entity';
 import { SubscriptionItemEntity } from '../entities/subscription-item.entity';
 import { SubscriptionEntity } from '../entities/subscription.entity';
 
@@ -31,6 +33,9 @@ const KEYS = {
 const OWNER_SLUG = `owner-${uuidv7().slice(-12)}`;
 const BODY = { operator: 'Ana Souza', reason: 'abuse report #42' };
 const DAY_MS = 24 * 60 * 60 * 1000;
+// A tenant-local calendar day relative to today (the overdue age is counted in the subscription's zone).
+const isoDay = (offsetDays: number): string =>
+  new Date(Date.now() + offsetDays * DAY_MS).toISOString().slice(0, 10);
 
 const suspendUrl = (tenantId: string) => `/internal/tenants/${tenantId}/billing/suspend`;
 const unsuspendUrl = (tenantId: string) => `/internal/tenants/${tenantId}/billing/unsuspend`;
@@ -106,6 +111,9 @@ describe('InternalBillingOperatorController (integration)', () => {
 
   afterEach(async () => {
     eventBus.published.length = 0;
+    await ds.query(`DELETE FROM "billing"."charges" WHERE "tenant_id" = ANY($1::uuid[])`, [
+      tenantIds,
+    ]);
     await ds.query(`DELETE FROM "billing"."operator_audit" WHERE "tenant_id" = ANY($1::uuid[])`, [
       tenantIds,
     ]);
@@ -473,6 +481,9 @@ describe('InternalBillingOperatorController (integration)', () => {
           'exempt',
           'graceUntil',
           'hasEverPaid',
+          'lastCharge',
+          'openRecovery',
+          'overdueDays',
           'pastDueSince',
           'status',
           'suspendedAt',
@@ -488,6 +499,51 @@ describe('InternalBillingOperatorController (integration)', () => {
         .expect(200);
       expect(paged.body.items).toHaveLength(1);
       expect(paged.body.pagination).toMatchObject({ limit: 1, offset: 0, hasMore: true });
+    });
+
+    it('adds overdue age, last charge and open recovery from one batched query, and nulls for a tenant with no charge', async () => {
+      const pastDue = newTenantId();
+      const suspended = newTenantId();
+      const bare = newTenantId();
+      const pastDueSub = await seedSubscription(pastDue, (b) => b.withStatus('PAST_DUE'));
+      const suspendedSub = await seedSubscription(suspended, (b) =>
+        b.withSuspension('NON_PAYMENT', new Date(Date.now() - DAY_MS)),
+      );
+      await seedSubscription(bare, (b) => b.withStatus('ACTIVE'));
+      const chargeRepo = ds.getRepository(ChargeEntity);
+      const overdue = new ChargeEntityBuilder()
+        .withTenantId(pastDue)
+        .withSubscriptionId(pastDueSub.id)
+        .withDueDate(isoDay(-10))
+        .withStatus('OVERDUE')
+        .build();
+      const recovery = new ChargeEntityBuilder()
+        .withTenantId(suspended)
+        .withSubscriptionId(suspendedSub.id)
+        .asRecovery()
+        .withDueDate(isoDay(3))
+        .build();
+      await chargeRepo.insert([overdue, recovery]);
+
+      const { body } = await request(app.getHttpServer())
+        .get('/internal/billing/tenants')
+        .query({ limit: 100 })
+        .set(KEYS)
+        .expect(200);
+
+      const row = (tenantId: string) =>
+        body.items.find((item: { tenantId: string }) => item.tenantId === tenantId);
+      expect(row(pastDue)).toMatchObject({
+        overdueDays: expect.any(Number),
+        lastCharge: { id: overdue.id, status: 'OVERDUE', kind: 'PERIOD', currency: 'BRL' },
+        openRecovery: null,
+      });
+      expect(row(pastDue).overdueDays).toBeGreaterThanOrEqual(9);
+      expect(row(suspended)).toMatchObject({
+        overdueDays: null,
+        openRecovery: { id: recovery.id, kind: 'RECOVERY' },
+      });
+      expect(row(bare)).toMatchObject({ overdueDays: null, lastCharge: null, openRecovery: null });
     });
 
     it('answers 400 for an out-of-range limit or offset and an unknown status', async () => {

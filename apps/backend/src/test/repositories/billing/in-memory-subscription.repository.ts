@@ -193,6 +193,7 @@ export class InMemorySubscriptionRepository implements ISubscriptionRepository {
     return {
       items: matching.slice(query.offset, query.offset + query.limit).map((subscription) => ({
         tenantId: subscription.tenantId,
+        timezone: subscription.timezone.value,
         status: subscription.status,
         suspensionReason: subscription.suspensionReason,
         exempt: subscription.exempt,

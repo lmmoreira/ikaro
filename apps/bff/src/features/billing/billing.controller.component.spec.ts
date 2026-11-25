@@ -12,6 +12,10 @@ import {
   request,
   setupActiveGuardMock,
 } from '../../test/component-test.helpers';
+import {
+  BillingChargeHistoryItemBuilder,
+  BillingSummaryBuilder,
+} from '../../test/builders/billing-summary.builder';
 
 const BACKEND_ANSWER = {
   status: 'SUSPENDED',
@@ -116,5 +120,113 @@ describe('BillingController (component)', () => {
     expect(backendHttpService.get).toHaveBeenCalledWith(
       `/internal/billing/tenants/${TENANT_ID}/access`,
     );
+  });
+
+  describe('the manager reads (M26-S14)', () => {
+    const PAGE = {
+      items: [new BillingChargeHistoryItemBuilder().build()],
+      pagination: { limit: 25, offset: 0, total: 1, hasMore: false },
+    };
+
+    it.each(['/v1/billing/summary', '/v1/billing/charges'])(
+      'GET %s → 401 without a token',
+      async (path) => {
+        const res = await request(app.getHttpServer()).get(path);
+
+        expect(res.status).toBe(401);
+      },
+    );
+
+    it.each([
+      ['/v1/billing/summary', 'STAFF'],
+      ['/v1/billing/summary', 'CUSTOMER'],
+      ['/v1/billing/charges', 'STAFF'],
+      ['/v1/billing/charges', 'CUSTOMER'],
+    ])('GET %s → 403 for %s, and the backend is never called', async (path, role) => {
+      setupActiveGuardMock(httpService);
+      const jwt = role === 'STAFF' ? makeStaffJwt(jwtService) : makeCustomerJwt(jwtService);
+
+      const res = await request(app.getHttpServer())
+        .get(path)
+        .set('Authorization', `Bearer ${jwt}`);
+
+      expect(res.status).toBe(403);
+      expect(backendHttpService.get).not.toHaveBeenCalled();
+    });
+
+    it('GET /v1/billing/summary → 200 for a MANAGER, with no URL and no undeclared field on the wire', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce({
+        ...new BillingSummaryBuilder().build(),
+        internalNote: 'do not leak',
+        openCharge: {
+          ...new BillingSummaryBuilder().build().openCharge,
+          paymentUrl: 'https://pay.example/leak',
+        },
+      });
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/billing/summary')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ provisioning: false, status: 'ACTIVE', exempt: false });
+      expect(res.text).not.toContain('https://pay.example/leak');
+      expect(res.text).not.toContain('internalNote');
+      expect(backendHttpService.get).toHaveBeenCalledWith('/billing/summary');
+    });
+
+    it('GET /v1/billing/summary → 200 provisioning for a tenant with no subscription row', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce({ provisioning: true });
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/billing/summary')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ provisioning: true });
+    });
+
+    it('GET /v1/billing/charges → 200 with the page forwarded to the backend', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce(PAGE);
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/billing/charges?limit=10&offset=5')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.items).toHaveLength(1);
+      expect(backendHttpService.get).toHaveBeenCalledWith('/billing/charges', {
+        limit: 10,
+        offset: 5,
+      });
+    });
+
+    it.each(['limit=0', 'limit=101', 'limit=-1', 'offset=-1', 'limit=abc'])(
+      'GET /v1/billing/charges?%s → 400 before the backend is called',
+      async (query) => {
+        setupActiveGuardMock(httpService);
+
+        const res = await request(app.getHttpServer())
+          .get(`/v1/billing/charges?${query}`)
+          .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+
+        expect(res.status).toBe(400);
+        expect(backendHttpService.get).not.toHaveBeenCalled();
+      },
+    );
+
+    it('never takes the tenant from a parameter', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce({ provisioning: true });
+
+      await request(app.getHttpServer())
+        .get(`/v1/billing/summary?tenantId=${TENANT_ID_2}`)
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+
+      expect(backendHttpService.get).toHaveBeenCalledWith('/billing/summary');
+    });
   });
 });

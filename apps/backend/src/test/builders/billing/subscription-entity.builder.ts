@@ -10,7 +10,7 @@ export class SubscriptionEntityBuilder {
   private suspensionReason: string | null = null;
   private countryCode = 'BR';
   private currency = 'BRL';
-  private readonly timezone = 'America/Sao_Paulo';
+  private timezone = 'America/Sao_Paulo';
   private merchantProfileKey = 'BRL_FAKE';
   private readonly anchorDay = 15;
   private trialEndsAt: Date | null = new Date(Date.now() + 7 * DAY_MS);
@@ -62,6 +62,11 @@ export class SubscriptionEntityBuilder {
 
   withCurrency(currency: string): this {
     this.currency = currency;
+    return this;
+  }
+
+  withTimezone(timezone: string): this {
+    this.timezone = timezone;
     return this;
   }
 

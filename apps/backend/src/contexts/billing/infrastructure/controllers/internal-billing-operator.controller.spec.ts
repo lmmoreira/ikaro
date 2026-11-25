@@ -5,6 +5,7 @@ import { AdvanceableClock } from '../../../../test/infrastructure/advanceable-cl
 import { InMemoryBillingPlatformPort } from '../../../../test/infrastructure/in-memory-billing-platform.port';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryOperatorAuditRepository } from '../../../../test/repositories/billing/in-memory-operator-audit.repository';
+import { InMemoryChargeRepository } from '../../../../test/repositories/billing/in-memory-charge.repository';
 import { InMemorySubscriptionRepository } from '../../../../test/repositories/billing/in-memory-subscription.repository';
 import { ExtendGraceUseCase } from '../../application/use-cases/extend-grace.use-case';
 import { ListTenantBillingStatusUseCase } from '../../application/use-cases/list-tenant-billing-status.use-case';
@@ -54,7 +55,7 @@ describe('InternalBillingOperatorController', () => {
           platformOwnerSlug: null,
         },
       ),
-      new ListTenantBillingStatusUseCase(subscriptions),
+      new ListTenantBillingStatusUseCase(subscriptions, new InMemoryChargeRepository(), clock),
     );
   });
 

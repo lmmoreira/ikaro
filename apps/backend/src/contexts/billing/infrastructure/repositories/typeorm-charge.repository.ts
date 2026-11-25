@@ -8,6 +8,7 @@ import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/out
 import {
   IChargeRepository,
   ListChargesQuery,
+  OperatorChargeSummary,
 } from '../../application/ports/charge-repository.port';
 import type { BillingProvider } from '../../domain/billing-account.aggregate';
 import { Charge } from '../../domain/charge.aggregate';
@@ -24,6 +25,7 @@ import {
   chargeUpdateSet,
 } from './typeorm-charge.mapper';
 import { buildPageQuery } from './typeorm-charge.job-queries';
+import { queryOperatorChargeSummaries } from './typeorm-charge.operator-summary';
 import { ChargeJobSelectors } from './typeorm-charge.job-selectors';
 import { CLAIM_FOR_PROVIDER_CREATION_SQL } from './typeorm-charge.sql';
 
@@ -126,6 +128,10 @@ export class TypeOrmChargeRepository extends ChargeJobSelectors implements IChar
     const manager = this.readManager();
     const [rows, total] = await buildPageQuery(manager, tenantId, query).getManyAndCount();
     return { items: await this.hydrate(manager, tenantId, rows), total };
+  }
+
+  summarizeForOperator(tenantIds: readonly string[]): Promise<OperatorChargeSummary[]> {
+    return queryOperatorChargeSummaries(this.readManager(), tenantIds);
   }
 
   async save(charge: Charge): Promise<void> {

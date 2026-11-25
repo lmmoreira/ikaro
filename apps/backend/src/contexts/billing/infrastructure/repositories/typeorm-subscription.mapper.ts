@@ -139,6 +139,7 @@ export function subscriptionToOperatorSummary(
 ): OperatorSubscriptionSummary {
   return {
     tenantId: row.tenantId,
+    timezone: row.timezone,
     status: row.status as OperatorSubscriptionSummary['status'],
     suspensionReason: row.suspensionReason as OperatorSubscriptionSummary['suspensionReason'],
     exempt: row.exempt,

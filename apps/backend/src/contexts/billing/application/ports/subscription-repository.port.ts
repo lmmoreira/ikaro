@@ -10,6 +10,8 @@ export const SUBSCRIPTION_REPOSITORY = Symbol('ISubscriptionRepository');
 /** One row of the operator's investigation list: subscription-derived facts only (M25-S15b). */
 export interface OperatorSubscriptionSummary {
   tenantId: string;
+  /** The subscription's IANA zone: the overdue age counts local days in it (M26-S14). */
+  timezone: string;
   status: SubscriptionStatus;
   suspensionReason: SuspensionReason | null;
   exempt: boolean;

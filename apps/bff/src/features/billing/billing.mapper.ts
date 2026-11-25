@@ -1,8 +1,20 @@
 import { HttpException } from '@nestjs/common';
-import { CUSTOMER_FEATURE_KEYS, type ActorRole, type BillingAccessResponse } from '@ikaro/types';
+import {
+  CUSTOMER_FEATURE_KEYS,
+  type ActorRole,
+  type BillingAccessResponse,
+  type BillingChargesResponse,
+  type BillingOpenChargeDto,
+  type BillingSummaryReadyResponse,
+  type BillingSummaryResponse,
+} from '@ikaro/types';
 import { FEATURE_KEYS } from '@ikaro/validation';
 import { ZodError } from 'zod';
-import type { BackendTenantAccess } from './billing.types';
+import type {
+  BackendBillingCharges,
+  BackendBillingSummary,
+  BackendTenantAccess,
+} from './billing.types';
 
 /** The one thing the recovery needs from a logger, so a spec can record messages without a mock. */
 export interface AccessLookupLogger {
@@ -60,4 +72,118 @@ export function toBillingAccessResponse(
         features: CUSTOMER_FEATURE_KEYS.filter((key) => access.features.some((f) => f.key === key)),
       };
   }
+}
+
+type BackendReadySummary = Extract<BackendBillingSummary, { provisioning: false }>;
+
+// The manager's billing page reads (M26-S14, UC-117): enums and numbers only, never a display
+// string (the web translates) and never a URL. The backend answer was parsed at the boundary, which
+// strips undeclared fields; every object is still rebuilt field by field here, so the open charge in
+// particular can never carry a link the backend did not mean to send.
+export function toBillingSummaryResponse(backend: BackendBillingSummary): BillingSummaryResponse {
+  if (backend.provisioning) return { provisioning: true };
+  return {
+    provisioning: false,
+    status: backend.status,
+    exempt: backend.exempt,
+    suspensionReason: backend.suspensionReason,
+    currency: backend.currency,
+    countryCode: backend.countryCode,
+    timezone: backend.timezone,
+    cycle: backend.cycle,
+    nextCycle: backend.nextCycle,
+    nextCycleFrom: backend.nextCycleFrom,
+    trialEndsAt: backend.trialEndsAt,
+    nextDueDate: backend.nextDueDate,
+    pastDueSince: backend.pastDueSince,
+    suspendsAt: backend.suspendsAt,
+    cancelAt: backend.cancelAt,
+    purgeAt: backend.purgeAt,
+    planConfirmationRequired: backend.planConfirmationRequired,
+    planConfirmationFallbackAt: backend.planConfirmationFallbackAt,
+    canDiscard: backend.canDiscard,
+    firstChargePaid: backend.firstChargePaid,
+    addressRequired: backend.addressRequired,
+    ...toSummaryMoney(backend),
+  };
+}
+
+// The plan, the open charge and the price changes: the part of the summary that carries amounts.
+function toSummaryMoney(
+  backend: BackendReadySummary,
+): Pick<
+  BillingSummaryReadyResponse,
+  | 'items'
+  | 'totalMinor'
+  | 'openCharge'
+  | 'autoBilling'
+  | 'paymentConfirmationPending'
+  | 'upcomingPriceChanges'
+> {
+  return {
+    items: backend.items.map((item) => ({
+      featureKey: item.featureKey,
+      tier: item.tier,
+      unitPriceMinor: item.unitPriceMinor,
+    })),
+    totalMinor: backend.totalMinor,
+    openCharge: backend.openCharge ? toOpenCharge(backend.openCharge) : null,
+    autoBilling: { mode: 'NONE', status: 'INACTIVE', label: null },
+    paymentConfirmationPending: backend.paymentConfirmationPending,
+    upcomingPriceChanges: backend.upcomingPriceChanges.map((change) => ({
+      featureKey: change.featureKey,
+      tier: change.tier,
+      currentAmountMinor: change.currentAmountMinor,
+      newAmountMinor: change.newAmountMinor,
+      effectiveFrom: change.effectiveFrom,
+    })),
+  };
+}
+
+function toOpenCharge(
+  charge: NonNullable<BackendReadySummary['openCharge']>,
+): BillingOpenChargeDto {
+  return {
+    id: charge.id,
+    kind: charge.kind,
+    dueDate: charge.dueDate,
+    subtotalMinor: charge.subtotalMinor,
+    taxMinor: charge.taxMinor,
+    amountMinor: charge.amountMinor,
+    status: charge.status,
+    hasPaymentLink: charge.hasPaymentLink,
+    paymentLinkExpiresAt: charge.paymentLinkExpiresAt,
+  };
+}
+
+export function toBillingChargesResponse(backend: BackendBillingCharges): BillingChargesResponse {
+  return {
+    items: backend.items.map((charge) => ({
+      id: charge.id,
+      kind: charge.kind,
+      periodStart: charge.periodStart,
+      periodEnd: charge.periodEnd,
+      dueDate: charge.dueDate,
+      subtotalMinor: charge.subtotalMinor,
+      taxMinor: charge.taxMinor,
+      amountMinor: charge.amountMinor,
+      currency: charge.currency,
+      status: charge.status,
+      method: charge.method,
+      paidAt: charge.paidAt,
+      receiptUrl: charge.receiptUrl,
+      lines: charge.lines.map((line) => ({
+        featureKey: line.featureKey,
+        tier: line.tier,
+        unitPriceMinor: line.unitPriceMinor,
+      })),
+      taxLines: [],
+    })),
+    pagination: {
+      limit: backend.pagination.limit,
+      offset: backend.pagination.offset,
+      total: backend.pagination.total,
+      hasMore: backend.pagination.hasMore,
+    },
+  };
 }
