@@ -1899,7 +1899,7 @@ No role ever receives the suspension reason or the internal `provisional` / `deg
 
 ## Billing — Public Signup API (BFF, no JWT)
 
-> **PLANNED, NOT YET BUILT** (Billing milestone). The unauthenticated routes behind the public trial page `/ikaro-trial`: prices, slug availability and self-service signup (UC-127, UC-128). All carry `@Public()`; the provider webhook routes, which are also public, are in `## Billing — Provider Webhooks and Internal API`. Money is integer minor units + ISO currency (convention in that section). Errors: `docs/ERROR_CATALOG.md` § Planned origins: `BILLING_*` and `SIGNUP_*`.
+> **PARTLY BUILT** (Billing milestone): `GET /v1/public/billing/prices` (M26-S23) and `GET /v1/public/signup/slug-availability` (M26-S22) are live; the session, tenant and resend routes below are **planned, not yet built**. The unauthenticated routes behind the public trial page `/ikaro-trial`: prices, slug availability and self-service signup (UC-127, UC-128). All carry `@Public()`; the provider webhook routes, which are also public, are in `## Billing — Provider Webhooks and Internal API`. Money is integer minor units + ISO currency (convention in that section). Errors: `docs/ERROR_CATALOG.md` § Planned origins: `BILLING_*` and `SIGNUP_*`.
 
 | Route | Purpose | UC |
 |---|---|---|
