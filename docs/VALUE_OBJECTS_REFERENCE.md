@@ -34,7 +34,7 @@
 
 - **The user declares the type.** `create(raw, spec, declaredType?)` checks the declared type only. Without one, the country's checked types are tried, and free-text `OTHER` is never a silent fallback, so a mistyped value is refused, not stored unchecked.
 - **Two formats can share a shape** (a US SSN and EIN are both nine digits), so only the declared type tells them apart.
-- **Which types a country accepts, its label and one placeholder per type live in `CountrySpec`**, never in the VO.
+- **Which types a country accepts, its label and one placeholder per type live in `CountrySpec`**, never in the VO. The same spec carries `taxBehavior` (`INCLUSIVE` for BR, `EXCLUSIVE` for the US and the fallback): whether list prices include the tax, read through `CountryCode.spec` by the public price list (UC-128) and by the provider charge (M26-S23).
 - **Length limits count characters, not UTF-16 units:** `[...value].length`, and `codePointAt` rather than `charCodeAt` (SonarCloud S7758).
 - **An aggregate holding an id it did not build checks `isAllowedFor(spec)`.**
 

@@ -1271,7 +1271,7 @@ Owned by: **Billing Context** (`src/contexts/billing/`) — Ikaro charging its t
 | tier | VARCHAR(20) | NOT NULL DEFAULT `'STANDARD'` — `BASIC`/`PLUS` for `CHATBOT` |
 | cycle | VARCHAR(10) | NOT NULL DEFAULT `'MONTHLY'`, CHECK = `'MONTHLY'`; **slice H** relaxes it to `MONTHLY` \| `ANNUAL` by expand migration |
 | currency | CHAR(3) | NOT NULL — BR→`BRL`, US→`USD` (validated by the VO) |
-| tax_behavior | VARCHAR(10) | *slice E* — `INCLUSIVE` (BR) \| `EXCLUSIVE` (US); until then every price is tax-inclusive and the column does not exist |
+| tax_behavior | VARCHAR(10) | *slice E* — `INCLUSIVE` (BR) \| `EXCLUSIVE` (US); until then the column does not exist. The fact lives per country in `CountrySpec.taxBehavior` (M26-S23): the public price list and the provider charge read it from there. If this per-price column is ever added, M28 decides whether it replaces that field or must agree with it |
 | selectable | BOOLEAN | NOT NULL DEFAULT true — false hides the row from **new** selection; it never stops renewal of an existing item |
 | created_at / updated_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
 | **UNIQUE** | (feature_key, country_code, tier, cycle) | |

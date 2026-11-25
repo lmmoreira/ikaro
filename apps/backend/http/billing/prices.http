@@ -1,0 +1,57 @@
+# Billing — public price list (internal)
+# UC-128: the list prices a visitor sees on /ikaro-trial, behind the BFF's
+# GET /v1/public/billing/prices. Tenant-less: the price list is platform-wide data.
+#
+# Answers { offered: true, countryCode, currency, taxBehavior, prices: [...] } for a country a visitor
+# can sign up from (BR until M28), and { offered: false } for any other country, the US included, and
+# for a two-letter code the platform does not know. A malformed code is 400.
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run   (the seed migration fills the BR and US prices)
+#   3. pnpm --filter @ikaro/backend run dev
+#
+# REST Client environment: select "local" in the VS Code status bar.
+# Tenant access (M25-S17): tenant-less internal route, no feature gate.
+
+@baseUrl     = {{backendUrl}}
+@internalKey = {{$dotenv INTERNAL_API_KEY}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Brazil → 200 { offered: true, taxBehavior: "INCLUSIVE", prices: [...] }
+GET {{baseUrl}}/internal/billing/public-prices?country=BR
+X-Internal-Key: {{internalKey}}
+
+### A lowercase code is accepted → same answer
+GET {{baseUrl}}/internal/billing/public-prices?country=br
+X-Internal-Key: {{internalKey}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NOT OFFERED (200, never an error)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### The US has seed prices but is not in SIGNUP_SUPPORTED_COUNTRIES until M28 → 200 { offered: false }
+GET {{baseUrl}}/internal/billing/public-prices?country=US
+X-Internal-Key: {{internalKey}}
+
+### Two letters the platform does not know → 200 { offered: false }
+GET {{baseUrl}}/internal/billing/public-prices?country=ZZ
+X-Internal-Key: {{internalKey}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERRORS
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Malformed code → 400 COUNTRY_CODE_FORMAT_INVALID
+GET {{baseUrl}}/internal/billing/public-prices?country=B1
+X-Internal-Key: {{internalKey}}
+
+### Missing country → 400 COUNTRY_CODE_FORMAT_INVALID
+GET {{baseUrl}}/internal/billing/public-prices
+X-Internal-Key: {{internalKey}}
+
+### No internal key → 401
+GET {{baseUrl}}/internal/billing/public-prices?country=BR

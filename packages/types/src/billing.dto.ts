@@ -128,6 +128,33 @@ export interface BillingPlanUpcomingPriceDto {
   effectiveFrom: string;
 }
 
+/** One public list price (UC-128): the amount in force, and the announced next one when there is one. */
+export interface PublicPriceItemDto {
+  featureKey: FeatureKey;
+  tier: ChatbotTier | 'STANDARD';
+  amountMinor: number;
+  upcoming?: BillingPlanUpcomingPriceDto;
+}
+
+/** A country a visitor can sign up from: its currency, whether prices include tax, and its price list. */
+export interface PublicPricesOfferedResponse {
+  countryCode: string;
+  currency: string;
+  taxBehavior: 'INCLUSIVE' | 'EXCLUSIVE';
+  items: PublicPriceItemDto[];
+}
+
+/** A country outside the signup list, or one the platform does not know: not an error, just not offered. */
+export interface PublicPricesNotOfferedResponse {
+  items: [];
+}
+
+/**
+ * `GET /v1/public/billing/prices?country=` (UC-128). The page narrows on `countryCode`: present means
+ * the country is offered (its `items` may still be empty), absent means "not offered".
+ */
+export type PublicPricesResponse = PublicPricesOfferedResponse | PublicPricesNotOfferedResponse;
+
 /** `unitPriceMinor` is `null` and `available` `false` when no selectable price is in force (UC-136 A6). */
 export interface BillingPlanTierDto {
   tier: ChatbotTier | 'STANDARD';

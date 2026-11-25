@@ -3522,7 +3522,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 | UC-125 | Entitlement enforcement per feature and locked UI *(partly built: HTTP gate M25-S16, cron runner S22, event gate S21a; web enforcement built in M25-S29: the registry, locked nav items and locked pages, without buy actions until M26)* | Any user / API caller | Declarative metadata, typed denial, locked dashboard items, preference preserved |
 | UC-126 | Backfill existing tenants at the Billing release *(built, M25-S05)* | System | Every tenant without a subscription gets an `ACTIVE`, `exempt` one |
 | UC-127 | Visitor signs up for a trial *(planned, not built)* | Guest | Turnstile, Google sign-in, business details and tax id; registration reserved under a lock; tenant provisioned; trial rule |
-| UC-128 | Visitor reads public prices and checks a slug *(slug check built in M26-S22, prices planned)* | Guest | `GET /v1/public/billing/prices`, `GET /v1/public/signup/slug-availability`; throttled |
+| UC-128 | Visitor reads public prices and checks a slug *(built: slug check in M26-S22, prices in M26-S23)* | Guest | `GET /v1/public/billing/prices`, `GET /v1/public/signup/slug-availability`; throttled |
 | UC-129 | First-run onboarding after signup *(planned, optional: only if M24 UC-075 ships)* | Manager | Trial banner and "Confirmar plano" added to the onboarding checklist |
 | UC-130 | Trial banner and first charge *(planned, not built)* | Manager | `SubscriptionBanner` for the trial, past-due and missing-address states; first invoice from the confirmed plan |
 | UC-131 | Manager configures the `TRIAL_SIGNUP_CTA` module *(planned, not built)* | Manager (Ikaro tenant) | 13th module type, platform-owner tenant only; always links to `/ikaro-trial` |

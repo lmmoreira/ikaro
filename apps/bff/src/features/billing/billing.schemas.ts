@@ -20,8 +20,8 @@ export const BackendTenantAccessSchema = z.object({
 // field by field, and zod strips what is not declared, so nothing the backend might add later can
 // reach the web by accident (a payment URL above all).
 
-const FEATURE_KEY = z.enum(FEATURE_KEYS);
-const TIER = z.enum(['STANDARD', ...CHATBOT_TIERS]);
+export const FEATURE_KEY = z.enum(FEATURE_KEYS);
+export const TIER = z.enum(['STANDARD', ...CHATBOT_TIERS]);
 const STATUS = z.enum(['TRIALING', 'ACTIVE', 'PAST_DUE', 'SUSPENDED']);
 const CHARGE_KIND = z.enum(['PERIOD', 'RECOVERY']);
 const CHARGE_STATUS = z.enum([
@@ -33,7 +33,7 @@ const CHARGE_STATUS = z.enum([
   'REFUNDED',
   'CHARGEBACK',
 ]);
-const MINOR = z.number().int();
+export const MINOR = z.number().int();
 
 // The receipt link is the provider's, rendered by the web as a link: only an `https:` URL may pass,
 // so a `javascript:`, `data:` or plain `http:` value can never reach an `href`.
@@ -137,7 +137,7 @@ export const BackendBillingChargesSchema = z.object({
 // ── Plan reads (M26-S17, UC-136) ──────────────────────────────────────────────────────────────
 // The Plano tab's catalog and the preview answer, declared field by field like the summary above.
 
-const DATE = z.string();
+export const DATE = z.string();
 const PLAN_TIER = z.object({
   tier: TIER,
   unitPriceMinor: MINOR.nullable(),

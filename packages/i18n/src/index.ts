@@ -3,6 +3,7 @@ export type {
   AddressSpec,
   CountrySpec,
   DateFormat,
+  TaxBehavior,
   TaxIdSpec,
   TaxIdType,
   TimeFormat,

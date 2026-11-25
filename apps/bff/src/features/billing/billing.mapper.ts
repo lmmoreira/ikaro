@@ -9,6 +9,7 @@ import {
   type BillingPlanResponse,
   type BillingSummaryReadyResponse,
   type BillingSummaryResponse,
+  type PublicPricesResponse,
 } from '@ikaro/types';
 import { FEATURE_KEYS } from '@ikaro/validation';
 import { ZodError } from 'zod';
@@ -17,6 +18,7 @@ import type {
   BackendBillingPlan,
   BackendBillingPlanPreview,
   BackendBillingSummary,
+  BackendPublicPrices,
   BackendTenantAccess,
 } from './billing.types';
 
@@ -246,5 +248,31 @@ export function toBillingPlanPreviewResponse(
     newTotalMinor: backend.newTotalMinor,
     effectiveFrom: backend.effectiveFrom,
     deferredBecauseNextInvoicePaid: backend.deferredBecauseNextInvoicePaid,
+  };
+}
+
+/**
+ * The public price list for the visitor (UC-128). A country that is not offered is exactly
+ * `{ items: [] }`; an offered one keeps its envelope even with no items. The backend's per-item
+ * `cycle`, `currency` and `effectiveFrom` were stripped at the boundary parse: the amount is the one
+ * in force, and a date appears only inside `upcoming`.
+ */
+export function toPublicPricesResponse(backend: BackendPublicPrices): PublicPricesResponse {
+  if (!backend.offered) return { items: [] };
+  return {
+    countryCode: backend.countryCode,
+    currency: backend.currency,
+    taxBehavior: backend.taxBehavior,
+    items: backend.prices.map((price) => ({
+      featureKey: price.featureKey,
+      tier: price.tier,
+      amountMinor: price.amountMinor,
+      ...(price.upcoming && {
+        upcoming: {
+          amountMinor: price.upcoming.amountMinor,
+          effectiveFrom: price.upcoming.effectiveFrom,
+        },
+      }),
+    })),
   };
 }

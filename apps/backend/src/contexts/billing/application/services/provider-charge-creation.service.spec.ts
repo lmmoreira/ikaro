@@ -162,6 +162,24 @@ describe('ProviderChargeCreationService', () => {
     });
   });
 
+  it("sends the account country's tax behaviour: net of tax for a US account, never a fixed value", async () => {
+    await seedAccount((b) =>
+      b
+        .withCountryCode('US')
+        .withTaxId('123456789', 'EIN')
+        .withLegalName('Lava Car LLC')
+        .withBillingEmail('billing@lavacar.test'),
+    );
+
+    await run();
+
+    expect(provider.inputs).toHaveLength(1);
+    expect(provider.inputs[0]).toMatchObject({
+      taxBehavior: 'EXCLUSIVE',
+      customerLocation: { countryCode: 'US' },
+    });
+  });
+
   it('names the customer after the tenant slug and sends no email when the account holds neither', async () => {
     await seedAccount();
 
