@@ -1,5 +1,5 @@
-import { ITracingPort, SpanAttributeValue } from '@ikaro/observability';
 import { Decimal } from 'decimal.js';
+import { FakeTracingPort } from '../../../../test/infrastructure/fake-tracing-port';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import { IApplicationConfig } from '../../../../shared/ports/application-config.port';
@@ -32,23 +32,6 @@ import {
 import { ChatbotConfigResolver } from '../services/chatbot-config-resolver.service';
 import { SendChatMessageUseCaseInput } from './send-chat-message.types';
 import { SendChatMessageUseCase } from './send-chat-message.use-case';
-
-class FakeTracingPort implements ITracingPort {
-  readonly calls: Array<Record<string, SpanAttributeValue>> = [];
-  setActiveSpanAttributes(attributes: Record<string, SpanAttributeValue>): void {
-    this.calls.push(attributes);
-  }
-  getActiveTraceContext(): undefined {
-    return undefined;
-  }
-  injectContext(): void {}
-  runWithExtractedContext<T>(_carrier: Record<string, string>, fn: () => T): T {
-    return fn();
-  }
-  startActiveSpan<T>(_name: string, fn: () => T): T {
-    return fn();
-  }
-}
 
 const TENANT_ID = '01234567-0000-7000-8000-000000000001';
 const CLIENT_IP = '203.0.113.10';

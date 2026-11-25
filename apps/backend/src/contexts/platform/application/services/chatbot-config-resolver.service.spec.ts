@@ -1,5 +1,5 @@
-import { ITracingPort, SpanAttributeValue } from '@ikaro/observability';
 import type { TenantAccess } from '../../../../shared/ports/tenant-access.port';
+import { FakeTracingPort } from '../../../../test/infrastructure/fake-tracing-port';
 import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
 import {
   BASIC_CHATBOT_MAX_PRICE,
@@ -15,23 +15,6 @@ import {
   PLUS_OPENROUTER_MODEL,
 } from '../../chatbot.constants';
 import { ChatbotConfigResolver } from './chatbot-config-resolver.service';
-
-class FakeTracingPort implements ITracingPort {
-  readonly calls: Array<Record<string, SpanAttributeValue>> = [];
-  setActiveSpanAttributes(attributes: Record<string, SpanAttributeValue>): void {
-    this.calls.push(attributes);
-  }
-  getActiveTraceContext(): undefined {
-    return undefined;
-  }
-  injectContext(): void {}
-  runWithExtractedContext<T>(_carrier: Record<string, string>, fn: () => T): T {
-    return fn();
-  }
-  startActiveSpan<T>(_name: string, fn: () => T): T {
-    return fn();
-  }
-}
 
 const TENANT_A = '01234567-0000-7000-8000-00000000000a';
 const TENANT_B = '01234567-0000-7000-8000-00000000000b';
