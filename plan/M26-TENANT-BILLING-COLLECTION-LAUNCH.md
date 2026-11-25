@@ -1367,7 +1367,7 @@ Let the manager pay. `POST /v1/billing/charges/{chargeId}/payment-link` → `200
 
 ---
 
-### M26-S17 — Plan reads — catalog and preview (UC-136)
+### M26-S17 — Plan reads — catalog and preview (UC-136) ✅ Done
 
 **Agent:** `backend-ts + bff-ts`
 **Complexity:** M
