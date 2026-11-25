@@ -34,6 +34,8 @@ All require `Authorization` (httpOnly cookie) and tenant scope from the JWT; sta
 | `POST /v1/billing/auto-billing` | **deferred release slice:** start verified provider-hosted authorization → `{ authorizationUrl }` (`mode` `PIX_AUTOMATICO`, or `CARD_RECURRING` in slice F2 → hosted recurring checkout URL) | 30, 38 |
 | `DELETE /v1/billing/auto-billing` | **deferred release slice:** revoke automatic charging | 30, 38 |
 
+*[Superseded in part by M26-S14, 2026-11-25 — the shipped summary adds `provisioning` (a tenant with no subscription row gets `200 { provisioning: true }`), `timezone` and `firstChargePaid`; `unitPriceMinor` and `totalMinor` are `null` when a price is missing; `items` follow the status (a trial lists the plan invoiced first, a suspended tenant the plan that paying reactivates); `hasPaymentLink` is decided on the backend clock; and `planConfirmationRequired` stays `true` after the automatic first invoice. See `docs/API_CONTRACTS.md` § Billing — Manager API.]*
+
 ```
 GET /v1/billing/summary
 200 {

@@ -109,7 +109,7 @@ Opens on the Cobranças tab. Empty history: "Nenhuma cobrança paga ainda" / "As
 Return from the hosted page while status is still SUSPENDED: blue alert "Pagamento recebido — reativando sua conta…" with secondary "Atualizar agora"; poll `GET /v1/billing/summary` every 5 s (stop on ACTIVE then router.refresh, or after ~60 s show "Ainda processando — atualize em instantes"). Charge card badge "Processando". No primary button. Nav stays disabled until ACTIVE; tabs still work.
 
 ## Screen 10 — Payment link expired (Resumo tab) — 01j-billing-payment-link-expired.html
-When `openCharge.paymentLinkExpiresAt < now` (`charges.payment_url_expires_at`): amber alert "O link de pagamento expirou"; the single primary becomes "Gerar novo link" (`POST /v1/billing/charges/:id/payment-link`). Open question: the backend could always generate on click, making this state only a fallback.
+When `openCharge.hasPaymentLink` is false because the link expired (the backend decides it at its own clock, so the web never compares `paymentLinkExpiresAt` with `now`; the field stays for display; `charges.payment_url_expires_at`): amber alert "O link de pagamento expirou"; the single primary becomes "Gerar novo link" (`POST /v1/billing/charges/:id/payment-link`). Open question: the backend could always generate on click, making this state only a fallback.
 
 ## Screen 11 — Dados de cobrança tab, BR (`DadosCobrancaTab` / `BillingIdentityForm`) — 02-billing-identity-br.html
 Opens on the Dados de cobrança tab (same page as Screen 1). **File:** `BillingIdentityForm.tsx` (GAP; reuse `Input`/`Label` primitives). **BFF:** `GET /v1/billing/identity` (prefill on tab open), `PUT /v1/billing/identity` (save).

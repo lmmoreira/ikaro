@@ -1767,6 +1767,9 @@ Subscription {
   planConfirmedAt:   DateTime | null   -- the manager confirmed the first paid selection
   suspendedAt:       DateTime | null   -- starts the clean-up clock
   purgeAt:           DateTime | null   -- computed, not stored independently: suspendedAt + 90 days (hasEverPaid = false) or + 180 days (true); carried by SubscriptionSuspended
+  suspendsAt:        DateTime | null   -- computed (M26-S14): PAST_DUE only, the end of the grace period (graceUntil, else pastDueSince + 14 days)
+  planConfirmationRequired: Boolean    -- computed (M26-S14): not exempt, TRIALING and planConfirmedAt is null
+  planConfirmationFallbackDate: Date | null -- computed (M26-S14): the trial's first due date minus PLAN_CONFIRM_FALLBACK_DAYS (3) while a confirmation is required; anchored to the trial end, not to nextDueDate, which moves once the first invoice is issued
   purgeWarning30SentAt / purgeWarning7SentAt: DateTime | null   -- dedupe of the clean-up warning emails (columns purge_warning_30_sent_at / purge_warning_7_sent_at); cleared on reactivation
   hasEverPaid:       Boolean           -- set on the first confirmed payment
   exempt:            Boolean           -- free access, never charged
