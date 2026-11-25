@@ -1804,7 +1804,7 @@ Today `Slug` is regex-only (`^[a-z0-9-]+$`) and the web proxy reserves only four
 
 ---
 
-### M26-S23 — Public prices (UC-128)
+### M26-S23 — Public prices (UC-128) ✅ Done
 
 **Agent:** `backend-ts + bff-ts`
 **Complexity:** S
