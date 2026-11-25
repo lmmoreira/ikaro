@@ -10,7 +10,9 @@ export class FakeTracingPort implements ITracingPort {
   getActiveTraceContext(): undefined {
     return undefined;
   }
-  injectContext(): void {}
+  injectContext(): void {
+    // No propagation carrier in a unit test: nothing to inject.
+  }
   runWithExtractedContext<T>(_carrier: Record<string, string>, fn: () => T): T {
     return fn();
   }
