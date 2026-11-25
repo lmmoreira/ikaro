@@ -1632,7 +1632,7 @@ The chatbot becomes a tiered, billed feature (`CHATBOT`, `BASIC` / `PLUS`; displ
   - [ ] Existing chatbot integration suites pass unchanged — their tenants have no subscription row, and the existing `InMemoryTenantAccessPort` already answers an unseeded tenant as operational with `CHATBOT` at `BASIC` (its `ALL_FEATURES` default), so no double change is needed
 - Tenant isolation: [ ] one tenant's tier never affects another's caps or model
 - E2E: none — covered by integration
-- [ ] **Infra check (the rename touches Terraform):** `terraform plan` on staging and prod shows only the removal of the `CHATBOT_LLM_PROVIDER` env var from the backend service and nothing else; after the apply and deploy the staging chatbot still answers through the tier's provider (the story's §9 live-verification gate).
+- [ ] **Infra check (the rename touches Terraform):** `terraform plan` on staging and prod shows only the removal of the `CHATBOT_LLM_PROVIDER` env var from the backend service and nothing else; after the apply and deploy the staging chatbot still answers through the tier's provider (the story's §9 live-verification gate). **Order, decided with the owner on 2026-11-25:** the `terraform plan` evidence is posted on the PR before the merge (CI's plan logs show only the `CHATBOT_LLM_PROVIDER` removal); the staging smoke test cannot run before the merge, because staging applies and deploys only from `main`, so it runs right after the merge deploys (a few real chat messages on a staging tenant: the reply arrives, the span carries `chatbot.tier`, and the response time is in the range measured on 2026-11-25) and its result is recorded at `/mark-done`.
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
