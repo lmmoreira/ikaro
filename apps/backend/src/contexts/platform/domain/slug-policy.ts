@@ -1,4 +1,5 @@
 import type { SlugInvalidReason } from '@ikaro/types';
+import { Slug } from '../../../shared/value-objects/slug.vo';
 
 export const SLUG_MIN_LENGTH = 3;
 export const SLUG_MAX_LENGTH = 30;
@@ -98,7 +99,8 @@ export class SlugPolicy {
   }
 
   private static formatReason(slug: string): SlugInvalidReason | null {
-    if (!/^[a-z0-9-]*$/.test(slug)) return 'INVALID_CHARACTERS';
+    // The character set is the Slug VO's rule; only the empty string is left to TOO_SHORT.
+    if (slug !== '' && !Slug.isValid(slug)) return 'INVALID_CHARACTERS';
     if (slug.length < SLUG_MIN_LENGTH) return 'TOO_SHORT';
     if (slug.length > SLUG_MAX_LENGTH) return 'TOO_LONG';
     if (slug.startsWith('-') || slug.endsWith('-')) return 'INVALID_HYPHEN';
