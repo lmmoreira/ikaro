@@ -50,6 +50,16 @@ export * from './subscription.types';
 
 const SYSTEM_ACTOR = 'SYSTEM';
 
+/** What the proposed tier does to the plan's current one: a tier that appears, goes or changes. */
+function selectionChangeKind(
+  before: SelectionEntry['tier'] | undefined,
+  after: SelectionEntry['tier'] | undefined,
+): SelectionChangeKind {
+  if (before === undefined) return 'ADD';
+  if (after === undefined) return 'REMOVE';
+  return 'TIER_CHANGE';
+}
+
 /**
  * The tenant's subscription (1 per tenant): status ladder, entitlement and plan. Entitlement is
  * computed, never stored. The aggregate never reads a clock or configuration: every state-changing
@@ -385,11 +395,9 @@ export class Subscription extends AggregateRoot {
       const before = current.get(featureKey);
       const after = next.get(featureKey);
       if (before === after) continue;
-      const kind: SelectionChangeKind =
-        before === undefined ? 'ADD' : after === undefined ? 'REMOVE' : 'TIER_CHANGE';
       changes.push({
         featureKey,
-        kind,
+        kind: selectionChangeKind(before, after),
         fromTier: before ?? null,
         toTier: after ?? null,
         effectiveFrom,
