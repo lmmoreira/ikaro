@@ -1656,7 +1656,7 @@ The chatbot becomes a tiered, billed feature (`CHATBOT`, `BASIC` / `PLUS`; displ
 
 ## Wave 3 — Self-signup and the hotsite module (backend / BFF / packages)
 
-### M26-S22 — Slug rules and availability (UC-128)
+### M26-S22 — Slug rules and availability (UC-128) ✅ Done
 
 **Agent:** `backend-ts + bff-ts`
 **Complexity:** M
