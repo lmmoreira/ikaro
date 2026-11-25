@@ -253,7 +253,8 @@ export class ProviderChargeCreationService {
         amountMinor: line.unitPriceMinor,
       })),
       currency: charge.amount.currency,
-      taxBehavior: 'INCLUSIVE',
+      // The country's rule, the same fact the public price list reports (UC-117, UC-128).
+      taxBehavior: account.countryCode.spec.taxBehavior,
       customerLocation: {
         countryCode: account.countryCode.value,
         postalCode: account.address?.zipCode,

@@ -97,6 +97,7 @@ import { RetryProviderChargeCancelUseCase } from './application/use-cases/retry-
 import { ReconcileTriggerHandler } from './infrastructure/events/reconcile-trigger.handler';
 import { TypeOrmProviderHealthRepository } from './infrastructure/repositories/typeorm-provider-health.repository';
 import { InternalBillingAccessController } from './infrastructure/controllers/internal-billing-access.controller';
+import { InternalBillingPricesController } from './infrastructure/controllers/internal-billing-prices.controller';
 import { BillingController } from './infrastructure/controllers/billing.controller';
 import { GetBillingSummaryUseCase } from './application/use-cases/get-billing-summary.use-case';
 import { GetPlanCatalogUseCase } from './application/use-cases/get-plan-catalog.use-case';
@@ -141,6 +142,7 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
   controllers: [
     InternalBillingRegistrationController,
     InternalBillingAccessController,
+    InternalBillingPricesController,
     InternalBillingOperatorController,
     InternalBillingWebhookController,
     CronBillingController,
@@ -256,6 +258,8 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     ListBillingChargesUseCase,
     GetPlanCatalogUseCase,
     PreviewPlanSelectionUseCase,
+    // Injected by this module's own `InternalBillingPricesController` (M26-S23), which the detector counts as external.
+    ListSelectablePricesUseCase,
     ProcessProviderWebhookUseCase,
     ProviderWebhookProcessor,
     // Consumed by `DevBillingModule`, which exists only outside production.

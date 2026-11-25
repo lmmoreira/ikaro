@@ -45,4 +45,18 @@ describe('CountryCode', () => {
   it('returns true from isValid for supported codes', () => {
     expect(CountryCode.isValid('us')).toBe(true);
   });
+
+  describe('tax behaviour (UC-117, UC-128)', () => {
+    it('is inclusive for Brazil: the list price already contains the tax', () => {
+      expect(CountryCode.create('BR').spec.taxBehavior).toBe('INCLUSIVE');
+    });
+
+    it('is exclusive for the US: prices are net of tax', () => {
+      expect(CountryCode.create('US').spec.taxBehavior).toBe('EXCLUSIVE');
+    });
+
+    it('is defined for the fallback spec of a country the registry does not know', () => {
+      expect(countrySpec('ZZ').taxBehavior).toBe('EXCLUSIVE');
+    });
+  });
 });

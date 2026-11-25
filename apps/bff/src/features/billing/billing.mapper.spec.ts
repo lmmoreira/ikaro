@@ -18,7 +18,9 @@ import {
   toBillingPlanPreviewResponse,
   toBillingPlanResponse,
   toBillingSummaryResponse,
+  toPublicPricesResponse,
 } from './billing.mapper';
+import { BackendPublicPricesSchema } from './billing.public.schemas';
 import {
   BackendBillingChargesSchema,
   BackendBillingPlanPreviewSchema,
@@ -365,5 +367,60 @@ describe('the plan reads (M26-S17)', () => {
     expect(toBillingPlanPreviewResponse(BackendBillingPlanPreviewSchema.parse(undated))).toEqual(
       undated,
     );
+  });
+});
+
+describe('toPublicPricesResponse', () => {
+  const offered = {
+    offered: true,
+    countryCode: 'BR',
+    currency: 'BRL',
+    taxBehavior: 'INCLUSIVE',
+    prices: [
+      {
+        featureKey: 'HOTSITE',
+        tier: 'STANDARD',
+        cycle: 'MONTHLY',
+        currency: 'BRL',
+        amountMinor: 4900,
+        effectiveFrom: '2026-01-01',
+      },
+    ],
+  };
+
+  it('keeps the envelope and the amount in force, and drops cycle, per-item currency and effective date', () => {
+    expect(toPublicPricesResponse(BackendPublicPricesSchema.parse(offered))).toEqual({
+      countryCode: 'BR',
+      currency: 'BRL',
+      taxBehavior: 'INCLUSIVE',
+      items: [{ featureKey: 'HOTSITE', tier: 'STANDARD', amountMinor: 4900 }],
+    });
+  });
+
+  it('carries `upcoming` only when the backend announced one', () => {
+    const withUpcoming = {
+      ...offered,
+      prices: [
+        { ...offered.prices[0], upcoming: { amountMinor: 5900, effectiveFrom: '2026-07-01' } },
+      ],
+    };
+
+    const [item] = toPublicPricesResponse(BackendPublicPricesSchema.parse(withUpcoming)).items;
+
+    expect(item).toMatchObject({ upcoming: { amountMinor: 5900, effectiveFrom: '2026-07-01' } });
+    const [plain] = toPublicPricesResponse(BackendPublicPricesSchema.parse(offered)).items;
+    expect(plain).not.toHaveProperty('upcoming');
+  });
+
+  it('keeps the envelope of an offered country whose list is empty', () => {
+    expect(
+      toPublicPricesResponse(BackendPublicPricesSchema.parse({ ...offered, prices: [] })),
+    ).toEqual({ countryCode: 'BR', currency: 'BRL', taxBehavior: 'INCLUSIVE', items: [] });
+  });
+
+  it('answers a country that is not offered with exactly an empty list', () => {
+    expect(toPublicPricesResponse(BackendPublicPricesSchema.parse({ offered: false }))).toEqual({
+      items: [],
+    });
   });
 });

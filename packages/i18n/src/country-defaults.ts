@@ -45,6 +45,13 @@ export interface TaxIdSpec {
   readonly maxLength: number | null;
 }
 
+/**
+ * Whether a country's list prices already include the sales tax the customer pays (BR: yes) or are
+ * net of it, with the tax added on top (US). Read by the public price list and by the provider
+ * charge, so the two cannot disagree (UC-117, UC-128).
+ */
+export type TaxBehavior = 'INCLUSIVE' | 'EXCLUSIVE';
+
 export interface CountrySpec {
   /** ISO 4217 currency code — default for tenants in this country. */
   readonly currency: string;
@@ -70,6 +77,8 @@ export interface CountrySpec {
   readonly address: AddressSpec;
   /** Tax-identity requirement for billing — country-specific, not translated. */
   readonly taxId: TaxIdSpec;
+  /** Whether list prices include the tax (BR) or exclude it (US) — drives the price page and the charge. */
+  readonly taxBehavior: TaxBehavior;
 }
 
 const REGISTRY: Readonly<Record<string, CountrySpec>> = {
@@ -111,6 +120,7 @@ const REGISTRY: Readonly<Record<string, CountrySpec>> = {
       placeholders: { CNPJ: '00.000.000/0000-00', CPF: '000.000.000-00' },
       maxLength: null,
     },
+    taxBehavior: 'INCLUSIVE',
   },
 
   US: {
@@ -152,6 +162,7 @@ const REGISTRY: Readonly<Record<string, CountrySpec>> = {
       placeholders: { EIN: '12-3456789', OTHER: '' },
       maxLength: 32,
     },
+    taxBehavior: 'EXCLUSIVE',
   },
 };
 
@@ -187,6 +198,7 @@ const FALLBACK: CountrySpec = {
     placeholders: { OTHER: '' },
     maxLength: 32,
   },
+  taxBehavior: 'EXCLUSIVE',
 };
 
 /** Returns the CountrySpec for the given ISO 3166-1 alpha-2 code, or FALLBACK for unknown codes. */

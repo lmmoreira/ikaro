@@ -1,0 +1,53 @@
+# BFF — Public price list (no JWT)
+# UC-128: GET /v1/public/billing/prices?country=, the price table of /ikaro-trial.
+# Cacheable for five minutes (Cache-Control: public, max-age=300) on a 200 only: a 400 or 503 never
+# carries it. Enums and amounts in minor units, no display string and no tenant field. A country a
+# visitor cannot sign up from (the US until M28, or an unknown one) is 200 { "items": [] }.
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run dev  (port 3001)
+#   4. pnpm --filter @ikaro/bff run dev      (port 3002)
+#
+# REST Client environment: select "local" in the VS Code status bar.
+# The BFF answers only requests that carry the web key (WebOnlyGuard, every route, public or not):
+# WEB_INTERNAL_KEY is read from apps/bff/.env.
+
+@webInternalKey = {{$dotenv WEB_INTERNAL_KEY}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Brazil → 200 { countryCode, currency, taxBehavior: "INCLUSIVE", items: [{ featureKey, tier, amountMinor, upcoming? }] }
+GET {{bffUrl}}/v1/public/billing/prices?country=BR
+X-Web-Internal-Key: {{webInternalKey}}
+
+### The query string is part of the cache key: a lowercase code is a separate cache entry, same answer
+GET {{bffUrl}}/v1/public/billing/prices?country=br
+X-Web-Internal-Key: {{webInternalKey}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NOT OFFERED (200, never an error)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### The US → 200 { "items": [] }
+GET {{bffUrl}}/v1/public/billing/prices?country=US
+X-Web-Internal-Key: {{webInternalKey}}
+
+### An unknown country → 200 { "items": [] }
+GET {{bffUrl}}/v1/public/billing/prices?country=ZZ
+X-Web-Internal-Key: {{webInternalKey}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERRORS
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Malformed country → 400 COUNTRY_CODE_FORMAT_INVALID (passed through from the backend)
+GET {{bffUrl}}/v1/public/billing/prices?country=B1
+X-Web-Internal-Key: {{webInternalKey}}
+
+### Missing country → 400 (the BFF checks only that it is present)
+GET {{bffUrl}}/v1/public/billing/prices
+X-Web-Internal-Key: {{webInternalKey}}

@@ -6,7 +6,7 @@ export class FeaturePriceVersionEntityBuilder {
   private featurePriceId = uuidv7();
   private amountMinor = 4900;
   private effectiveFrom = '2026-01-01';
-  private readonly announcedAt: Date | null = null;
+  private announcedAt: Date | null = null;
   private readonly createdBy = 'SYSTEM';
   private reason = 'Initial catalog (M25-S02)';
   private supersededAt: Date | null = null;
@@ -29,6 +29,11 @@ export class FeaturePriceVersionEntityBuilder {
 
   withEffectiveFrom(effectiveFrom: string): this {
     this.effectiveFrom = effectiveFrom;
+    return this;
+  }
+
+  withAnnouncedAt(announcedAt: Date | null): this {
+    this.announcedAt = announcedAt;
     return this;
   }
 
