@@ -8,6 +8,10 @@
 #   4. pnpm --filter @ikaro/bff run dev
 #
 # REST Client environment: select "local" in the VS Code status bar.
+# The BFF answers only requests that carry the web key (WebOnlyGuard, every route, public or not):
+# WEB_INTERNAL_KEY is read from apps/bff/.env.
+
+@webInternalKey = {{$dotenv WEB_INTERNAL_KEY}}
 # Throttled at 30 requests per minute per IP in staging and production only (local is exempt);
 # always `Cache-Control: no-store`. Turnstile is not checked here, only on the final signup POST.
 
@@ -17,9 +21,11 @@
 
 ### A free, valid slug → 200 { "status": "available" }
 GET {{bffUrl}}/v1/public/signup/slug-availability?slug=lavacar-top-nova
+X-Web-Internal-Key: {{webInternalKey}}
 
 ### An existing tenant's slug → 200 { "status": "taken" } (replace with a seeded slug)
 GET {{bffUrl}}/v1/public/signup/slug-availability?slug=autospa-premium
+X-Web-Internal-Key: {{webInternalKey}}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # VERDICTS
@@ -27,12 +33,15 @@ GET {{bffUrl}}/v1/public/signup/slug-availability?slug=autospa-premium
 
 ### A reserved word → 200 { "status": "reserved" }
 GET {{bffUrl}}/v1/public/signup/slug-availability?slug=admin
+X-Web-Internal-Key: {{webInternalKey}}
 
 ### Too long → 200 { "status": "invalid", "reason": "TOO_LONG" }
 GET {{bffUrl}}/v1/public/signup/slug-availability?slug=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+X-Web-Internal-Key: {{webInternalKey}}
 
 ### Leading hyphen → 200 { "status": "invalid", "reason": "INVALID_HYPHEN" }
 GET {{bffUrl}}/v1/public/signup/slug-availability?slug=-lavacar
+X-Web-Internal-Key: {{webInternalKey}}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ERRORS
@@ -40,3 +49,4 @@ GET {{bffUrl}}/v1/public/signup/slug-availability?slug=-lavacar
 
 ### Missing slug parameter → 400
 GET {{bffUrl}}/v1/public/signup/slug-availability
+X-Web-Internal-Key: {{webInternalKey}}

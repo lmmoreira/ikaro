@@ -11,6 +11,10 @@
 #   4. pnpm --filter @ikaro/bff run dev      (port 3002)
 #
 # REST Client environment: select "local" in the VS Code status bar.
+# The BFF answers only requests that carry the web key (WebOnlyGuard, every route, public or not):
+# WEB_INTERNAL_KEY is read from apps/bff/.env.
+
+@webInternalKey = {{$dotenv WEB_INTERNAL_KEY}}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH
@@ -18,9 +22,11 @@
 
 ### Brazil → 200 { countryCode, currency, taxBehavior: "INCLUSIVE", items: [{ featureKey, tier, amountMinor, upcoming? }] }
 GET {{bffUrl}}/v1/public/billing/prices?country=BR
+X-Web-Internal-Key: {{webInternalKey}}
 
 ### The query string is part of the cache key: a lowercase code is a separate cache entry, same answer
 GET {{bffUrl}}/v1/public/billing/prices?country=br
+X-Web-Internal-Key: {{webInternalKey}}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # NOT OFFERED (200, never an error)
@@ -28,9 +34,11 @@ GET {{bffUrl}}/v1/public/billing/prices?country=br
 
 ### The US → 200 { "items": [] }
 GET {{bffUrl}}/v1/public/billing/prices?country=US
+X-Web-Internal-Key: {{webInternalKey}}
 
 ### An unknown country → 200 { "items": [] }
 GET {{bffUrl}}/v1/public/billing/prices?country=ZZ
+X-Web-Internal-Key: {{webInternalKey}}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ERRORS
@@ -38,6 +46,8 @@ GET {{bffUrl}}/v1/public/billing/prices?country=ZZ
 
 ### Malformed country → 400 COUNTRY_CODE_FORMAT_INVALID (passed through from the backend)
 GET {{bffUrl}}/v1/public/billing/prices?country=B1
+X-Web-Internal-Key: {{webInternalKey}}
 
 ### Missing country → 400 (the BFF checks only that it is present)
 GET {{bffUrl}}/v1/public/billing/prices
+X-Web-Internal-Key: {{webInternalKey}}

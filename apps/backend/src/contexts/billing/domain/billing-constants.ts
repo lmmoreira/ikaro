@@ -87,7 +87,7 @@ export const PROVIDER_EVENTS_PURGE_MAX_BATCHES = 20;
 /**
  * UC-127, UC-128: the countries a visitor may sign up from (BR only until M28 opens the US). One
  * explicit constant, not a price-list check: the US seed rows exist in every environment, so the
- * absence of prices cannot keep US signup closed. The public price list and the signup use case
- * read it; M28 extends it.
+ * absence of prices cannot keep US signup closed. The public price list is its only reader until
+ * the signup use case (M26-S24) cites it too; M28 extends it.
  */
 export const SIGNUP_SUPPORTED_COUNTRIES: readonly string[] = ['BR'];
