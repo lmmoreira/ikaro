@@ -1589,7 +1589,7 @@ Persist the manager's plan choice. **`PUT /v1/billing/plan`** `{ items: [{ featu
 
 ---
 
-### M26-S21 — Chatbot tier → model and caps mapping (Platform)
+### M26-S21 — Chatbot tier → model and caps mapping (Platform) ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** L
