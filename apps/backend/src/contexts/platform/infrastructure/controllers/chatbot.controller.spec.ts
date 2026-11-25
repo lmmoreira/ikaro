@@ -16,6 +16,8 @@ import { fakeConfig } from '../../../../test/utils/fake-config';
 import { todayInSaoPaulo } from '../../../../test/utils/chatbot-test-helpers';
 import { DEFAULT_MAX_CONVERSATIONS_PER_DAY } from '../../chatbot.constants';
 import { ILlmProvider } from '../../application/ports/llm-provider.port';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
+import { ChatbotConfigResolver } from '../../application/services/chatbot-config-resolver.service';
 import { LlmProviderRegistry } from '../../application/services/llm-provider-registry.service';
 import { GetChatbotStatusUseCase } from '../../application/use-cases/get-chatbot-status.use-case';
 import { SendChatMessageUseCase } from '../../application/use-cases/send-chat-message.use-case';
@@ -44,13 +46,14 @@ describe('ChatbotController', () => {
       .build();
     const defaultProvider = new FakeLlmProviderBuilder().build();
     const registry = new LlmProviderRegistry(
-      'openrouter',
+      false,
       providers.openRouter ?? defaultProvider,
       providers.anthropic ?? defaultProvider,
       providers.openAi ?? defaultProvider,
       defaultProvider,
     );
     const config = fakeConfig();
+    const resolveChatbotConfig = new ChatbotConfigResolver(new InMemoryTenantAccessPort());
     const sendChatMessage = new SendChatMessageUseCase(
       sessionRepo,
       messageRepo,
@@ -58,6 +61,7 @@ describe('ChatbotController', () => {
       registry,
       new InMemoryTransactionManager(),
       config,
+      resolveChatbotConfig,
     );
     const getChatbotStatus = new GetChatbotStatusUseCase(
       sessionRepo,
@@ -65,6 +69,7 @@ describe('ChatbotController', () => {
       balanceRepo,
       registry,
       config,
+      resolveChatbotConfig,
     );
     return new ChatbotController(
       requestContext as unknown as RequestContext,
@@ -79,8 +84,9 @@ describe('ChatbotController', () => {
       .withSettings(settings as never)
       .build();
     const provider = new FakeLlmProviderBuilder().build();
-    const registry = new LlmProviderRegistry('openrouter', provider, provider, provider, provider);
+    const registry = new LlmProviderRegistry(false, provider, provider, provider, provider);
     const config = fakeConfig();
+    const resolveChatbotConfig = new ChatbotConfigResolver(new InMemoryTenantAccessPort());
     const sendChatMessage = new SendChatMessageUseCase(
       sessionRepo,
       messageRepo,
@@ -88,6 +94,7 @@ describe('ChatbotController', () => {
       registry,
       new InMemoryTransactionManager(),
       config,
+      resolveChatbotConfig,
     );
     const getChatbotStatus = new GetChatbotStatusUseCase(
       sessionRepo,
@@ -95,6 +102,7 @@ describe('ChatbotController', () => {
       balanceRepo,
       registry,
       config,
+      resolveChatbotConfig,
     );
     return new ChatbotController(
       requestContext as unknown as RequestContext,
@@ -127,9 +135,9 @@ describe('ChatbotController', () => {
     ).toBe(true);
   });
 
-  it("resolves the tenant's chatbotSettings.llmProvider override from RequestContext and forwards it to the real use case", async () => {
+  it("resolves the tenant's chatbotSettings llmProvider + llmModel override from RequestContext and forwards it to the real use case", async () => {
     const controller = buildController(
-      { knowledgeText: 'texto', llmProvider: 'anthropic' },
+      { knowledgeText: 'texto', llmProvider: 'anthropic', llmModel: 'claude-haiku-4-5' },
       { anthropic: new FakeLlmProviderBuilder().withText('Anthropic reply').build() },
     );
 

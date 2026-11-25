@@ -374,6 +374,7 @@ describe('TenantSettings', () => {
         .withChatbot({
           knowledgeText: 'texto',
           llmProvider: 'anthropic',
+          llmModel: 'claude-haiku-4-5',
           maxConversationsPerDay: 100,
         })
         .build();
@@ -381,6 +382,7 @@ describe('TenantSettings', () => {
       expect(settings.chatbot).toEqual({
         knowledgeText: 'texto',
         llmProvider: 'anthropic',
+        llmModel: 'claude-haiku-4-5',
         maxConversationsPerDay: 100,
       });
     });

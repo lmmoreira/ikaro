@@ -11,10 +11,6 @@ import {
 } from '../../../../shared/utils/calendar-date';
 import type { ChatbotSettings } from '../../../../shared/value-objects/tenant-settings-data';
 import {
-  DEFAULT_MAX_CONCURRENT_CONVERSATIONS,
-  DEFAULT_MAX_CONVERSATIONS_PER_DAY,
-} from '../../chatbot.constants';
-import {
   CHATBOT_MESSAGE_REPOSITORY,
   IChatbotMessageRepository,
 } from '../ports/chatbot-message-repository.port';
@@ -30,6 +26,7 @@ import {
   LLM_PROVIDER_REGISTRY,
   LlmProviderRegistry,
 } from '../services/llm-provider-registry.service';
+import { ChatbotConfigResolver } from '../services/chatbot-config-resolver.service';
 
 // Cap layer 3's live-ness proxy window (docs/USE_CASES.md UC-033) — same window
 // SendChatMessageUseCase's own concurrency check uses. Not tenant-configurable.
@@ -61,27 +58,29 @@ export class GetChatbotStatusUseCase {
     private readonly balanceRepo: IChatbotProviderBalanceRepository,
     @Inject(LLM_PROVIDER_REGISTRY) private readonly llmRegistry: LlmProviderRegistry,
     @Inject(APPLICATION_CONFIG) private readonly config: IApplicationConfig,
+    private readonly chatbotConfigResolver: ChatbotConfigResolver,
   ) {}
 
   async execute(input: GetChatbotStatusUseCaseInput): Promise<GetChatbotStatusUseCaseResult> {
     const { tenantId, chatbotSettings, timezone } = input;
-    const resolvedProviderName = this.llmRegistry.resolveName(chatbotSettings.llmProvider);
+    const chatbotConfig = await this.chatbotConfigResolver.resolve({ tenantId, chatbotSettings });
+    // An inert chatbot (suspended tenant, or no CHATBOT feature) is never "available".
+    if (!chatbotConfig.entitled) return { available: false };
+    const { caps } = chatbotConfig;
+    const resolvedProviderName = this.llmRegistry.resolveName(chatbotConfig.provider);
     const now = new Date();
 
     // (a) Tenant's daily cap already exhausted.
     const conversationDate = utcDateToLocalDate(now, timezone);
-    const maxPerDay = chatbotSettings.maxConversationsPerDay ?? DEFAULT_MAX_CONVERSATIONS_PER_DAY;
     const dailyCount = await this.sessionRepo.countByTenantAndDate(tenantId, conversationDate);
-    if (dailyCount >= maxPerDay) return { available: false };
+    if (dailyCount >= caps.maxConversationsPerDay) return { available: false };
 
     // (b) Tenant's concurrency cap already exhausted.
-    const maxConcurrent =
-      chatbotSettings.maxConcurrentConversations ?? DEFAULT_MAX_CONCURRENT_CONVERSATIONS;
     const concurrentCount = await this.sessionRepo.countActiveSince(
       tenantId,
       new Date(now.getTime() - CONCURRENCY_WINDOW_MS),
     );
-    if (concurrentCount >= maxConcurrent) return { available: false };
+    if (concurrentCount >= caps.maxConcurrentConversations) return { available: false };
 
     // (c) and (e) both read the same row — one query serves both conditions.
     const balance = await this.balanceRepo.findByProvider(resolvedProviderName);

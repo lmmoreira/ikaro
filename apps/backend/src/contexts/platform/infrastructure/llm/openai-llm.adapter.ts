@@ -7,20 +7,22 @@ import {
   ChatCompletionResult,
   ILlmProvider,
 } from '../../application/ports/llm-provider.port';
+import { DEFAULT_OPENAI_MODEL } from '../../chatbot.constants';
 
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 // Fallback when ChatCompletionRequest.model is unset — the tenant override
 // (tenant.settings.chatbot?.llmModel) takes precedence when the caller provides one.
 // OpenAI's cheapest current flagship tier as of this writing (plan/M19-HOTSITE-CHATBOT.md
 // M19-S03) — re-verify against OpenAI's own pricing page before assuming this is still current.
-const DEFAULT_OPENAI_MODEL = 'gpt-5.6-luna';
+// DEFAULT_OPENAI_MODEL lives in chatbot.constants.ts: ChatbotConfigResolver accepts an override
+// naming this provider only with it.
 const OPENAI_TIMEOUT_MS = 30000;
 
 // OpenAI's Chat Completions API never returns cost in its response (confirmed against the live
 // docs, 2026-08-11 — usage only carries prompt/completion/reasoning/cached token counts), unlike
-// OpenRouter's usage.cost. Priced for DEFAULT_OPENAI_MODEL only — a tenant `llmModel` override to
-// a different OpenAI tier is not priced correctly here, same known gap as the model-override
-// comment above. Verified against developers.openai.com's live pricing page, 2026-08-11 — not
+// OpenRouter's usage.cost. Priced for DEFAULT_OPENAI_MODEL only, which is why ChatbotConfigResolver
+// accepts an override naming this provider only with that model (a different OpenAI tier would
+// still be computed at this rate, and the global daily spend limit sums this cost). Verified against developers.openai.com's live pricing page, 2026-08-11 — not
 // training memory; re-verify before trusting this for real billing decisions, prices move fast.
 const OPENAI_PRICING = { inputPerMillionTokensUsd: 0.2, outputPerMillionTokensUsd: 1.2 };
 

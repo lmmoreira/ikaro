@@ -50,6 +50,7 @@ describe('GetTenantByIdUseCase', () => {
       .withChatbot({
         knowledgeText: 'texto',
         llmProvider: 'anthropic',
+        llmModel: 'claude-haiku-4-5',
         maxConversationsPerDay: 100,
       })
       .build();

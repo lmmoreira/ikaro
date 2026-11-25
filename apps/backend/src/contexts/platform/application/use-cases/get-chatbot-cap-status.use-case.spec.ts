@@ -1,15 +1,26 @@
 import { todayInSaoPaulo } from '../../../../test/utils/chatbot-test-helpers';
 import { ChatbotSessionBuilder } from '../../../../test/builders/platform';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
 import { InMemoryChatbotSessionRepository } from '../../../../test/repositories/platform';
 import {
   GetChatbotCapStatusUseCase,
   GetChatbotCapStatusUseCaseInput,
 } from './get-chatbot-cap-status.use-case';
+import { ChatbotConfigResolver } from '../services/chatbot-config-resolver.service';
 
 const TENANT_ID = '01234567-0000-7000-8000-000000000001';
 
 describe('GetChatbotCapStatusUseCase', () => {
   let sessionRepo: InMemoryChatbotSessionRepository;
+
+  // A real resolver over the in-memory access port: an unseeded tenant is operational with
+  // CHATBOT at BASIC, so the caps are the tier's.
+  function buildUseCase(): GetChatbotCapStatusUseCase {
+    return new GetChatbotCapStatusUseCase(
+      sessionRepo,
+      new ChatbotConfigResolver(new InMemoryTenantAccessPort()),
+    );
+  }
 
   function baseInput(
     overrides: Partial<GetChatbotCapStatusUseCaseInput> = {},
@@ -27,7 +38,7 @@ describe('GetChatbotCapStatusUseCase', () => {
   });
 
   it('reports the cap as not reached when today has zero conversations', async () => {
-    const useCase = new GetChatbotCapStatusUseCase(sessionRepo);
+    const useCase = buildUseCase();
 
     const result = await useCase.execute(baseInput());
 
@@ -43,7 +54,7 @@ describe('GetChatbotCapStatusUseCase', () => {
           .build(),
       );
     }
-    const useCase = new GetChatbotCapStatusUseCase(sessionRepo);
+    const useCase = buildUseCase();
 
     const result = await useCase.execute(baseInput());
 
@@ -59,7 +70,7 @@ describe('GetChatbotCapStatusUseCase', () => {
           .build(),
       );
     }
-    const useCase = new GetChatbotCapStatusUseCase(sessionRepo);
+    const useCase = buildUseCase();
 
     const result = await useCase.execute(
       baseInput({ chatbotSettings: { maxConversationsPerDay: 2 } }),
@@ -77,7 +88,7 @@ describe('GetChatbotCapStatusUseCase', () => {
           .build(),
       );
     }
-    const useCase = new GetChatbotCapStatusUseCase(sessionRepo);
+    const useCase = buildUseCase();
 
     const result = await useCase.execute(baseInput());
 
@@ -93,7 +104,7 @@ describe('GetChatbotCapStatusUseCase', () => {
           .build(),
       );
     }
-    const useCase = new GetChatbotCapStatusUseCase(sessionRepo);
+    const useCase = buildUseCase();
 
     const belowCap = await useCase.execute(baseInput());
     expect(belowCap).toEqual({ dailyCapReachedToday: false });

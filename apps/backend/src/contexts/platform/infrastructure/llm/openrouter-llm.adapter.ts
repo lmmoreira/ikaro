@@ -9,11 +9,12 @@ import {
   ChatCompletionResult,
   ILlmProvider,
 } from '../../application/ports/llm-provider.port';
+import { DEFAULT_OPENROUTER_MODEL } from '../../chatbot.constants';
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
-// Fallback when ChatCompletionRequest.model is unset — the tenant override
-// (tenant.settings.chatbot?.llmModel) takes precedence when the caller provides one.
-const DEFAULT_OPENROUTER_MODEL = 'deepseek/deepseek-v4-flash-0731';
+// Fallback when ChatCompletionRequest.model is unset. The resolved model (a tenant override, or
+// the tenant's tier model) takes precedence when the caller provides one; DEFAULT_OPENROUTER_MODEL
+// lives in chatbot.constants.ts because it is also the `BASIC` tier's model.
 // Deliberately short, not OpenRouter's own generic ~120s recommendation for long-running
 // inference — this call sits behind a visitor actively waiting in a live chat widget, and this
 // product already asks for short, concise answers (maxOutputTokens, reasoning:'none', the system
@@ -34,7 +35,7 @@ const OPENROUTER_TIMEOUT_MS = 8000;
 // backstop (OpenRouter's own USD-per-million-tokens units), not a binding budget — it's there
 // only to guard against a pathological outlier provider, never expected to exclude a normal one.
 // Sized with headroom over the priciest model this adapter is expected to serve today
-// (tenant.settings.chatbot?.llmModel can override away from DEFAULT_OPENROUTER_MODEL to any
+// (a tenant override can move away from DEFAULT_OPENROUTER_MODEL to any
 // OpenRouter model, including premium tiers — anthropic/claude-sonnet-5 real-priced at $2/$10 per
 // million prompt/completion tokens as of 2026-08-19), not just the cheap default model — a tighter
 // ceiling calibrated to the default model alone (previously {prompt:1, completion:2}) rejects every
@@ -65,12 +66,21 @@ const OPENROUTER_TIMEOUT_MS = 8000;
 // selected — a provider-side implementation bug, not a declared-capability gap the general
 // mechanism can see. The explicit `ignore` below is the empirically-necessary complement, proven
 // against three real failures, not a redundant belt-and-suspenders addition.
-const OPENROUTER_PROVIDER_PREFERENCES = {
-  sort: 'throughput',
-  max_price: { prompt: 10, completion: 50 },
-  require_parameters: true,
-  ignore: ['atlas-cloud'],
-} as const;
+//
+// M26-S21: a request may carry its own `maxPrice` (the `BASIC` tier's tighter ceiling), which
+// replaces the fixed one below. It is set only while the resolved model is the tier's own, so a
+// ceiling sized for DeepSeek never reaches a pricier model an operator set (that would 404 every
+// endpoint, as the paragraph above describes).
+const DEFAULT_MAX_PRICE = { prompt: 10, completion: 50 } as const;
+
+function buildProviderPreferences(request: ChatCompletionRequest) {
+  return {
+    sort: 'throughput',
+    max_price: request.maxPrice ?? DEFAULT_MAX_PRICE,
+    require_parameters: true,
+    ignore: ['atlas-cloud'],
+  } as const;
+}
 
 interface OpenRouterMessage {
   role: 'system' | 'user' | 'assistant';
@@ -120,6 +130,7 @@ export class OpenRouterLlmAdapter implements ILlmProvider {
   async complete(request: ChatCompletionRequest): Promise<ChatCompletionResult> {
     const messages = buildOpenRouterMessages(request);
     const model = request.model ?? DEFAULT_OPENROUTER_MODEL;
+    const providerPreferences = buildProviderPreferences(request);
 
     // Debug-only visibility into the shape of the request sent to the provider — metadata only,
     // never the message content itself: `messages` carries the guest's conversation history and
@@ -130,7 +141,7 @@ export class OpenRouterLlmAdapter implements ILlmProvider {
       model,
       maxOutputTokens: request.maxOutputTokens,
       messageCount: messages.length,
-      provider: OPENROUTER_PROVIDER_PREFERENCES,
+      provider: providerPreferences,
     });
 
     const body = await fetchAndParseJson(
@@ -146,7 +157,7 @@ export class OpenRouterLlmAdapter implements ILlmProvider {
           reasoning: { effort: 'none' },
           max_tokens: request.maxOutputTokens,
           messages,
-          provider: OPENROUTER_PROVIDER_PREFERENCES,
+          provider: providerPreferences,
         }),
         signal: AbortSignal.timeout(OPENROUTER_TIMEOUT_MS),
       },

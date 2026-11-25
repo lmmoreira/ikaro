@@ -8,20 +8,21 @@ import {
 
 export const LLM_PROVIDER_REGISTRY = Symbol('LlmProviderRegistry');
 
-// Resolved per-request by the caller (e.g. tenant.settings.chatbot?.llmProvider ?? platform
-// default), never by this class reading TenantSettings itself — keeps this registry usable
-// before the chatbot settings category exists and decoupled from its shape either way
+// The provider *name* is resolved per request by the caller (ChatbotConfigResolver: a
+// tenant override, else the tenant's tier), never by this class reading TenantSettings itself —
+// keeps this registry decoupled from the chatbot settings shape
 // (docs/ENGINEERING_RULES_BACKEND.md § OpenRouter chatbot).
 //
-// Framework/env-free by design: platformDefault is resolved once, at module-wiring time
-// (platform.module.ts's useFactory reads CHATBOT_LLM_PROVIDER, mirroring the EMAIL_SENDER
-// selection pattern in notification.module.ts), and passed in already resolved — this class
-// never injects ConfigService or reads process.env itself.
+// Framework/env-free by design: `forceFake` is resolved once, at module-wiring time
+// (platform.module.ts's useFactory reads CHATBOT_LLM_FAKE, mirroring the EMAIL_SENDER selection
+// pattern in notification.module.ts), and passed in already resolved — this class never injects
+// ConfigService or reads process.env itself. When true every request resolves to the fake
+// provider whatever name the caller asks for (local runs and the E2E stack).
 export class LlmProviderRegistry {
   private readonly providers: Map<string, ILlmProvider>;
 
   constructor(
-    private readonly platformDefault: string,
+    private readonly forceFake: boolean,
     openRouterProvider: ILlmProvider,
     anthropicProvider: ILlmProvider,
     openAiProvider: ILlmProvider,
@@ -35,19 +36,19 @@ export class LlmProviderRegistry {
     ]);
   }
 
-  resolve(providerNameOverride?: string): ILlmProvider {
-    const providerName = providerNameOverride ?? this.platformDefault;
-    const provider = this.providers.get(providerName);
+  resolve(providerName: string): ILlmProvider {
+    const resolvedName = this.resolveName(providerName);
+    const provider = this.providers.get(resolvedName);
     if (!provider) {
-      throw new Error(`Unknown LLM provider: ${providerName}`);
+      throw new Error(`Unknown LLM provider: ${resolvedName}`);
     }
     return provider;
   }
 
-  /** The resolved provider *name* for a given override — same resolution as resolve(), for
-   * callers that need the name itself (e.g. a `chatbot.provider` trace attribute), not an
-   * ILlmProvider instance. */
-  resolveName(providerNameOverride?: string): string {
-    return providerNameOverride ?? this.platformDefault;
+  /** The resolved provider *name* for a requested one — same resolution as resolve(), for
+   * callers that need the name itself (the provider balance row, a `chatbot.provider` trace
+   * attribute), not an ILlmProvider instance. */
+  resolveName(providerName: string): string {
+    return this.forceFake ? FAKE_PROVIDER_NAME : providerName;
   }
 }

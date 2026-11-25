@@ -111,7 +111,7 @@ describe('validateEnv()', () => {
     ).toThrow('EMAIL_ADAPTER=mailhog is not allowed when APP_ENV is not "local"');
   });
 
-  it('throws when APP_ENV is not local and CHATBOT_LLM_PROVIDER=fake (M19-S11 PR #385 review)', () => {
+  it('throws when APP_ENV is not local and CHATBOT_LLM_FAKE=true (M19-S11 PR #385 review, M26-S21)', () => {
     expect(() =>
       validateEnv({
         ...valid,
@@ -122,14 +122,44 @@ describe('validateEnv()', () => {
         PUBSUB_PUSH_AUDIENCE: 'https://backend.internal/pubsub/push',
         PUBSUB_PUSH_SERVICE_ACCOUNT: 'ikaro-pubsub-invoker@project.iam.gserviceaccount.com',
         DB_INSTANCE_CONNECTION_NAME: 'ikaro-staging:southamerica-east1:ikaro-db-staging',
-        CHATBOT_LLM_PROVIDER: 'fake',
+        CHATBOT_LLM_FAKE: 'true',
       }),
-    ).toThrow('CHATBOT_LLM_PROVIDER=fake is not allowed when APP_ENV is not "local"');
+    ).toThrow('CHATBOT_LLM_FAKE=true is not allowed when APP_ENV is not "local"');
   });
 
-  it('accepts CHATBOT_LLM_PROVIDER=fake when APP_ENV is local', () => {
-    const result = validateEnv({ ...valid, CHATBOT_LLM_PROVIDER: 'fake' });
-    expect(result.CHATBOT_LLM_PROVIDER).toBe('fake');
+  it('accepts CHATBOT_LLM_FAKE=true when APP_ENV is local', () => {
+    const result = validateEnv({ ...valid, CHATBOT_LLM_FAKE: 'true' });
+    expect(result.CHATBOT_LLM_FAKE).toBe(true);
+  });
+
+  it('defaults CHATBOT_LLM_FAKE to false', () => {
+    expect(validateEnv({ ...valid }).CHATBOT_LLM_FAKE).toBe(false);
+  });
+
+  it('refuses the retired CHATBOT_LLM_PROVIDER locally, so a stale .env never silently calls the billed provider (M26-S21)', () => {
+    expect(() => validateEnv({ ...valid, CHATBOT_LLM_PROVIDER: 'fake' })).toThrow(
+      'CHATBOT_LLM_PROVIDER was replaced by CHATBOT_LLM_FAKE=true',
+    );
+  });
+
+  it('ignores the retired CHATBOT_LLM_PROVIDER outside local, so a revision deployed before Terraform drops it still boots (M26-S21)', () => {
+    const result = validateEnv({
+      ...valid,
+      NODE_ENV: 'development',
+      APP_ENV: 'staging',
+      PUBSUB_AUTO_CREATE: 'false',
+      PUBSUB_CONSUMER_MODE: 'push',
+      PUBSUB_PUSH_AUDIENCE: 'https://backend.internal/pubsub/push',
+      PUBSUB_PUSH_SERVICE_ACCOUNT: 'ikaro-pubsub-invoker@project.iam.gserviceaccount.com',
+      EMAIL_ADAPTER: 'brevo',
+      BREVO_SMTP_LOGIN: 'account@example.com',
+      BREVO_SMTP_KEY: 'fake-smtp-key',
+      DB_INSTANCE_CONNECTION_NAME: 'ikaro-staging:southamerica-east1:ikaro-db-staging',
+      DB_POOL_SIZE: '3',
+      CHATBOT_LLM_PROVIDER: 'openrouter',
+    });
+
+    expect(result.CHATBOT_LLM_FAKE).toBe(false);
   });
 
   it('accepts non-local APP_ENV when push mode and brevo are configured', () => {
@@ -372,7 +402,6 @@ describe('validateEnv()', () => {
         PUBSUB_CONSUMER_MODE: 'push',
         PUBSUB_PUSH_AUDIENCE: 'https://backend.example.com',
         PUBSUB_PUSH_SERVICE_ACCOUNT: 'push@proj.iam.gserviceaccount.com',
-        CHATBOT_LLM_PROVIDER: 'openrouter',
         EMAIL_ADAPTER: 'brevo',
         BREVO_SMTP_LOGIN: 'login',
         BREVO_SMTP_KEY: 'key',

@@ -9,7 +9,7 @@ import {
 const FAKE_MODEL_ID = 'fake-llm-e2e';
 
 // DI-registered fake/noop ILlmProvider (M19-S11) — never performs real network I/O, never
-// billed. Selectable only via CHATBOT_LLM_PROVIDER=fake (platform.module.ts), used by Playwright
+// billed. Selected only by CHATBOT_LLM_FAKE=true (platform.module.ts), used by Playwright
 // E2E so the real widget -> BFF -> backend -> adapter path can be exercised end to end without
 // a real LLM provider call in CI. Never the production/staging default.
 @Injectable()

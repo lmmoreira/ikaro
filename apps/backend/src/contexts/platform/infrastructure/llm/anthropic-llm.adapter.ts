@@ -8,6 +8,7 @@ import {
   ChatTurn,
   ILlmProvider,
 } from '../../application/ports/llm-provider.port';
+import { DEFAULT_ANTHROPIC_MODEL } from '../../chatbot.constants';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_API_VERSION = '2023-06-01';
@@ -17,16 +18,16 @@ const ANTHROPIC_API_VERSION = '2023-06-01';
 // unless explicitly enabled, unlike Opus/Sonnet/Fable-tier Claude models, which run adaptive
 // thinking on by default and share the same max_tokens budget as the visible answer — the same
 // class of silent-cost/truncation trap openrouter-llm.adapter.ts guards against via
-// `reasoning: { effort: "none" }`. A future tenant `llmModel` override to one of those models
-// is not protected against here (plan/M19-HOTSITE-CHATBOT.md M19-S03).
-const DEFAULT_ANTHROPIC_MODEL = 'claude-haiku-4-5';
+// `reasoning: { effort: "none" }`. An override to one of those models cannot reach this adapter:
+// ChatbotConfigResolver accepts this provider only with DEFAULT_ANTHROPIC_MODEL, which lives in
+// chatbot.constants.ts (plan/M19-HOTSITE-CHATBOT.md M19-S03).
 const ANTHROPIC_TIMEOUT_MS = 30000;
 
 // Anthropic's Messages API never returns cost in its response (confirmed against the live docs,
 // 2026-08-11 — usage only carries token/cache/thinking counts), unlike OpenRouter's usage.cost.
-// Priced for DEFAULT_ANTHROPIC_MODEL only — same known gap as the model-override comment above:
-// a tenant `llmModel` override to a different Claude tier is not priced correctly here, it's
-// still computed at this rate. Verified against the claude-api skill's cached model table
+// Priced for DEFAULT_ANTHROPIC_MODEL only, which is why ChatbotConfigResolver accepts an override
+// naming this provider only with that model (a different Claude tier would still be computed at
+// this rate, and the global daily spend limit sums this cost). Verified against the claude-api skill's cached model table
 // (2026-06-24) — re-verify before trusting this for real billing decisions; prices move fast.
 const ANTHROPIC_PRICING = { inputPerMillionTokensUsd: 1.0, outputPerMillionTokensUsd: 5.0 };
 
