@@ -44,12 +44,15 @@ import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.
 import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cache.module';
 import { RequestModule } from '../../shared/request/request.module';
 import { TENANT_ACCESS_PORT } from '../../shared/ports/tenant-access.port';
+import { BookingFeatureRemovalModule } from '../booking/booking-feature-removal.module';
 import { PlatformSettingsModule } from '../platform/platform-settings.module';
+import { BILLING_BOOKING_PORT } from './application/ports/billing-booking.port';
 import { BILLING_PLATFORM_PORT } from './application/ports/billing-platform.port';
 import { GetTenantAccessUseCase } from './application/use-cases/get-tenant-access.use-case';
 import { ListSuspendedTenantIdsUseCase } from './application/use-cases/list-suspended-tenant-ids.use-case';
 import { ListTenantIdsNotEntitledToUseCase } from './application/use-cases/list-tenant-ids-not-entitled-to.use-case';
 import { TenantAccessAdapter } from './infrastructure/adapters/tenant-access.adapter';
+import { BillingBookingAdapter } from './infrastructure/cross-context/billing-booking.adapter';
 import { BillingPlatformAdapter } from './infrastructure/cross-context/billing-platform.adapter';
 import { ExtendGraceUseCase } from './application/use-cases/extend-grace.use-case';
 import { ListTenantBillingStatusUseCase } from './application/use-cases/list-tenant-billing-status.use-case';
@@ -113,13 +116,16 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
 // repositories, use cases and controllers here. M25-S04: the platform-wide price list (read side).
 // The Subscription and BillingAccount repositories are consumed by M25-S11 (the trial handler), S13 and S15b.
 // `@Global()` so every context injects `TENANT_ACCESS_PORT` without importing Billing; `@Global()`
-// alone exports nothing, so the token is listed in `exports:` (CLAUDE.md §8). The only import edge
-// is BillingModule -> PlatformSettingsModule (the lighter Platform module Booking also imports).
+// alone exports nothing, so the token is listed in `exports:` (CLAUDE.md §8). The import edges
+// are BillingModule -> PlatformSettingsModule (the lighter Platform module Booking also imports)
+// and BillingModule -> BookingFeatureRemovalModule (M26-S18a, the lighter Booking module: only the
+// read-only BOOKING-removal guard, never Booking's entities or handlers).
 @Global()
 @Module({
   imports: [
     ApplicationConfigModule,
     PlatformSettingsModule,
+    BookingFeatureRemovalModule,
     SharedCacheModule,
     AuditLogModule,
     // `RequestContext` for the manager's billing controller (M26-S14): the tenant of the caller.
@@ -181,6 +187,7 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
       }),
     },
     { provide: BILLING_PLATFORM_PORT, useClass: BillingPlatformAdapter },
+    { provide: BILLING_BOOKING_PORT, useClass: BillingBookingAdapter },
     GetTenantAccessUseCase,
     ListSuspendedTenantIdsUseCase,
     ListTenantIdsNotEntitledToUseCase,
