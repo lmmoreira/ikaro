@@ -55,6 +55,25 @@ locals {
       role       = "roles/artifactregistry.reader"
       member     = "serviceAccount:ikaro-tf-deployer@ikaro-staging.iam.gserviceaccount.com"
     }
+    # Cloud Run's Admin API requires whoever creates or updates a service to be able to
+    # read every registry image in its spec (artifactregistry.repositories.downloadArtifacts),
+    # even when Terraform ignores image drift. Prod ran only gcr.io placeholder images, so
+    # this was never needed until a registry image (the OTel collector sidecar) entered the
+    # backend/bff services; the 2026-11-25 prod apply then failed with a 403 on that
+    # permission. The Terraform deployer updates the services; the app deployer deploys
+    # the digest-pinned registry images in deploy-production.yml.
+    prod_tf_deployer_reader = {
+      location   = var.region
+      repository = "ikaro-registry"
+      role       = "roles/artifactregistry.reader"
+      member     = "serviceAccount:ikaro-tf-deployer@${var.project_id}.iam.gserviceaccount.com"
+    }
+    prod_app_deployer_reader = {
+      location   = var.region
+      repository = "ikaro-registry"
+      role       = "roles/artifactregistry.reader"
+      member     = "serviceAccount:ikaro-app-deployer@${var.project_id}.iam.gserviceaccount.com"
+    }
   }
 
   # TD56-S04: the environment's own app-deployer may only create (never
