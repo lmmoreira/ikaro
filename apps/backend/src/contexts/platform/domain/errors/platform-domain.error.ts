@@ -1,4 +1,4 @@
-import { PlatformErrorCode } from '@ikaro/types/protocol/errors';
+import { PlatformErrorCode, SignupErrorCode } from '@ikaro/types/protocol/errors';
 import { DomainErrorShape } from '../../../../shared/domain/domain-error-shape';
 
 export class PlatformDomainError extends Error implements DomainErrorShape {
@@ -18,6 +18,21 @@ export class SlugAlreadyTakenError extends PlatformDomainError {
   constructor(slug: string) {
     super(`Slug '${slug}' is already in use`, PlatformErrorCode.SLUG_ALREADY_TAKEN, 'slug');
     this.name = 'SlugAlreadyTakenError';
+  }
+}
+
+/**
+ * A word the platform keeps for itself (UC-128). Its code is a `SignupErrorCode`, not a
+ * `PlatformErrorCode`: the operator path and the public signup path answer the same `422`.
+ */
+export class SlugReservedError extends Error implements DomainErrorShape {
+  readonly code = SignupErrorCode.SLUG_RESERVED;
+  readonly field = 'slug';
+
+  constructor(slug: string) {
+    super(`Slug '${slug}' is reserved`);
+    Object.setPrototypeOf(this, new.target.prototype);
+    this.name = 'SlugReservedError';
   }
 }
 

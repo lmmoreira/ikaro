@@ -52,7 +52,7 @@ apps/bff/src/
 | File | Audience | Example |
 |---|---|---|
 | `<context>.controller.ts` | Authenticated dashboard (STAFF/MANAGER/CUSTOMER), `@Roles(...)` guarded | `ServicesController` — `GET /services`, `GET /services/:id`, `POST /services`, `PATCH /services/:id`, `DELETE /services/:id` |
-| `<context>.public.controller.ts` | Unauthenticated hotsite, `@Public()` | `ServicesPublicController` — `GET /public/services`, `GET /public/services/by-slug/:publicSlug`; `PlatformPublicController` — `GET /public/platform/manifest/:slug` |
+| `<context>.public.controller.ts` | Unauthenticated hotsite, `@Public()` | `ServicesPublicController` — `GET /public/services`, `GET /public/services/by-slug/:publicSlug`; `PlatformPublicController` — `GET /public/platform/manifest/:slug`. A resource that spans contexts may name its public controller by resource instead (`signup.public.controller.ts`, `GET /public/signup/slug-availability`: the signup routes span Platform and Billing), keeping the `.public.` marker and the sibling `.schemas.ts` |
 
 **Sibling files, same flat `features/<domain>/` folder (no `presentation/application/infrastructure` subfolders):** `<context>.mapper.ts` (extracted mapper functions, see below), `<context>.types.ts` (request/response interfaces), and `<context>.schemas.ts` (Zod validation schemas — present in nearly every feature folder alongside the other three).
 

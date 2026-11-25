@@ -1,4 +1,4 @@
-import { ConfigService } from '@nestjs/config';
+import { InMemoryApplicationConfig } from '../../../../test/infrastructure/in-memory-application-config';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryNotificationDispatcher } from '../../../../test/infrastructure/in-memory-notification-dispatcher';
@@ -15,12 +15,7 @@ import { INotificationDispatcher } from '../../application/ports/notification-di
 import { SendStaffInvitationUseCase } from '../../application/use-cases/send-staff-invitation/send-staff-invitation.use-case';
 import { StaffInvitedHandler } from './staff-invited.handler';
 
-const configService = {
-  getOrThrow: (key: string): string => {
-    if (key === 'FRONTEND_URL') return 'http://localhost:3000';
-    throw new Error(`Unknown config key: ${key}`);
-  },
-} as unknown as ConfigService;
+const configService = new InMemoryApplicationConfig({ FRONTEND_URL: 'http://localhost:3000' });
 
 const TENANT_ID = 'aaaaaaaa-0000-4000-8000-000000000001';
 const STAFF_ID = 'bbbbbbbb-0000-4000-8000-000000000001';

@@ -1,3 +1,4 @@
+import { InMemoryApplicationConfig } from '../../../../test/infrastructure/in-memory-application-config';
 import { GetTenantByIdUseCase } from '../../../platform/application/use-cases/get-tenant-by-id.use-case';
 import { TenantNotFoundError } from '../../../platform/domain/errors/platform-domain.error';
 import { TenantBuilder } from '../../../../test/builders/platform/tenant.builder';
@@ -32,9 +33,10 @@ describe('NotificationPlatformAdapter', () => {
 
   beforeEach(() => {
     getTenantById = { execute: jest.fn() };
-    adapter = new NotificationPlatformAdapter(getTenantById as unknown as GetTenantByIdUseCase, {
-      getOrThrow: () => 'https://app.ikaro.test',
-    });
+    adapter = new NotificationPlatformAdapter(
+      getTenantById as unknown as GetTenantByIdUseCase,
+      new InMemoryApplicationConfig({ FRONTEND_URL: 'https://app.ikaro.test' }),
+    );
   });
 
   afterEach(() => jest.resetAllMocks());

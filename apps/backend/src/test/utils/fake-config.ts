@@ -20,5 +20,6 @@ export function fakeConfig(overrides: Record<string, string> = {}): IApplication
       if (value === undefined) throw new Error(`Missing config: ${key}`);
       return value;
     },
+    getOptional: (key: string) => overrides[key] ?? SCHEMA_DEFAULTS[key] ?? null,
   };
 }

@@ -1,0 +1,42 @@
+# BFF — Public signup (no JWT)
+# UC-128: the slug check behind the /ikaro-trial form.
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run dev
+#   4. pnpm --filter @ikaro/bff run dev
+#
+# REST Client environment: select "local" in the VS Code status bar.
+# Throttled at 30 requests per minute per IP in staging and production only (local is exempt);
+# always `Cache-Control: no-store`. Turnstile is not checked here, only on the final signup POST.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH
+# ─────────────────────────────────────────────────────────────────────────────
+
+### A free, valid slug → 200 { "status": "available" }
+GET {{bffUrl}}/v1/public/signup/slug-availability?slug=lavacar-top-nova
+
+### An existing tenant's slug → 200 { "status": "taken" } (replace with a seeded slug)
+GET {{bffUrl}}/v1/public/signup/slug-availability?slug=autospa-premium
+
+# ─────────────────────────────────────────────────────────────────────────────
+# VERDICTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+### A reserved word → 200 { "status": "reserved" }
+GET {{bffUrl}}/v1/public/signup/slug-availability?slug=admin
+
+### Too long → 200 { "status": "invalid", "reason": "TOO_LONG" }
+GET {{bffUrl}}/v1/public/signup/slug-availability?slug=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+### Leading hyphen → 200 { "status": "invalid", "reason": "INVALID_HYPHEN" }
+GET {{bffUrl}}/v1/public/signup/slug-availability?slug=-lavacar
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERRORS
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Missing slug parameter → 400
+GET {{bffUrl}}/v1/public/signup/slug-availability

@@ -18,7 +18,7 @@
 | IANA timezone | `Timezone` | `timezone.vo.ts` | validates through `isValidTimezone` from `@ikaro/validation` (an `Intl.DateTimeFormat` construction in a try/catch); getter: `.value` |
 | HH:MM time | `TimeOfDay` | `time-of-day.vo.ts` | validates HH:MM string; `isBefore()` comparison; getter: `.value` |
 | YYYY-MM-DD calendar date | `CalendarDate` | `calendar-date.vo.ts` | validates a real calendar date via `isValidCalendarDate` from `@ikaro/validation` (Zod's `z.iso.date()` — rejects `2026-02-30`, non-leap Feb 29); `isBefore()` comparison; `today()` (UTC); getter: `.value` |
-| URL-safe slug | `Slug` | `slug.vo.ts` | `/^[a-z0-9-]+$/`; used for tenant slugs; getter: `.value` |
+| URL-safe slug | `Slug` | `slug.vo.ts` | `/^[a-z0-9-]+$/`; used for tenant slugs; getter: `.value`. Format only: the 3-30 length, hyphen and reserved-word rules of self-signup are `SlugPolicy` (`contexts/platform/domain/slug-policy.ts`, UC-128), not the VO |
 | ISO country code | `CountryCode` | `country-code.vo.ts` | validates against supported country list; getter: `.value` |
 | SEO page title | `SeoTitle` | `seo-title.vo.ts` | length-bounded per SEO best practice; getter: `.value` |
 | SEO meta description | `SeoDescription` | `seo-description.vo.ts` | length-bounded per SEO best practice; getter: `.value` |

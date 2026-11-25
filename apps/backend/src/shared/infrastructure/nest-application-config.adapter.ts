@@ -9,4 +9,8 @@ export class NestApplicationConfigAdapter implements IApplicationConfig {
   getOrThrow(key: string): string {
     return this.config.getOrThrow<string>(key);
   }
+
+  getOptional(key: string): string | null {
+    return this.config.get<string>(key) ?? null;
+  }
 }
