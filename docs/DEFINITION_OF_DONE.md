@@ -7,6 +7,8 @@ Checked at the end of every story or TD, before `/pre-pr` runs (CLAUDE.md §9 St
 
 - [ ] Matches cited UC's main + alt flows; CI passes (`pnpm lint`, `pnpm test`, `pnpm type-check`; full per-PR gate list in `.copilot/context.md` §7 — Snyk is a weekly scan, not a per-PR gate)
 - [ ] Coverage delta ≥ 80%; unit + integration + tenant-isolation tests pass (a data-only migration is the exception: verified against real data, result recorded in the story — `docs/ENGINEERING_RULES_TESTING.md` § Migration specs)
+- [ ] Every new `domain/`, `application/` or `infrastructure/` source file (not a port, module, type/DTO file, builder or fake) has its own sibling unit spec, and the changed files were measured one by one, not only through the suite's differential coverage — `.claude/commands/pre-pr.md` "Every new source file has its own unit spec". A caller's spec or an integration spec does not count
+- [ ] A getter or read model derived from aggregate state has a test that runs every transition touching its inputs, not only the state it is built in (M26-S14: a fallback date anchored to `nextDueDate` moved when `advanceToNextPeriod()` ran, and an open charge from before an exemption was offered as the current invoice; review found both, the specs had not)
 - [ ] All queries filter `tenant_id`; all events include `tenantId`/`eventId`/`correlationId`
 - [ ] Migration is backward-compatible (expand/contract) — see "Migration history" below for the pre-production exception
 - [ ] New/modified migration → `docs/DATABASE_SCHEMA.md`'s matching table updated in the same commit (columns, defaults, constraints, indexes) — same discipline as the `integration-global-setup.ts` registration requirement, same silent-drift risk if skipped
