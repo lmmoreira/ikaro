@@ -1,6 +1,8 @@
+import { TimeOfDay } from '../../../../shared/value-objects/time-of-day.vo';
 import { BookingTooFarAheadError } from '../../domain/errors/booking-domain.error';
 import {
   alertLastMatchableInstant,
+  assertBookingEndsWithinBookableUntil,
   assertEndsWithinBookableUntil,
   assertTermWithinBookableUntil,
   bookableUntilBoundary,
@@ -205,8 +207,45 @@ describe('the billing bookable-until cap (M26-S18b)', () => {
     });
   });
 
+  describe('assertBookingEndsWithinBookableUntil (a booking after a reschedule)', () => {
+    it('judges the booking by scheduledAt + totalDurationMins', () => {
+      const endsBeforeBoundary = {
+        scheduledAt: new Date('2026-12-15T01:00:00Z'),
+        totalDurationMins: 60,
+      };
+      const endsAfterBoundary = {
+        scheduledAt: new Date('2026-12-15T02:30:00Z'),
+        totalDurationMins: 60,
+      };
+
+      expect(() =>
+        assertBookingEndsWithinBookableUntil(endsBeforeBoundary, '2026-12-15', SP),
+      ).not.toThrow();
+      expect(() =>
+        assertBookingEndsWithinBookableUntil(endsAfterBoundary, '2026-12-15', SP),
+      ).toThrow(BookingTooFarAheadError);
+    });
+
+    it('accepts any booking without a cap', () => {
+      const far = { scheduledAt: new Date('2030-01-01T00:00:00Z'), totalDurationMins: 600 };
+
+      expect(() => assertBookingEndsWithinBookableUntil(far, null, SP)).not.toThrow();
+    });
+  });
+
   describe('alertLastMatchableInstant', () => {
     const expiresAt = new Date('2026-12-30T00:00:00Z');
+
+    it('is the expiry for a weekly preference', () => {
+      const criteria = {
+        criteriaType: 'WEEKLY_PREFERENCE' as const,
+        weekdays: ['monday' as const],
+        localStartTime: TimeOfDay.create('09:00'),
+        localEndTime: TimeOfDay.create('12:00'),
+      };
+
+      expect(alertLastMatchableInstant(criteria, expiresAt)).toEqual(expiresAt);
+    });
 
     it('is the earlier of a one-time range end and the expiry', () => {
       const rangeEnd = new Date('2026-12-12T00:00:00Z');
