@@ -94,7 +94,7 @@ describe('toSettingsFormValues', () => {
     expect(values.serviceBufferMinutes).toBe('60');
     expect(values.loyaltyExpiryDays).toBe('180');
     expect(values.pointsPerCurrencyUnit).toBe('10');
-    // The timezone is set at signup and read-only: it is never a form value (TD61).
+    // The timezone is set at signup and read-only: it is never a form value.
     expect(values).not.toHaveProperty('timezone');
     expect(values.phone).toBe('31999999999');
     expect(values.email).toBe('contato@beloauto.com.br');
@@ -289,14 +289,14 @@ describe('validateSettingsForm', () => {
     expect(over.errors.pointsPerCurrencyUnit).toBe('errors.pointsMax');
   });
 
-  it('sends businessHours with the day hours only, never a timezone (TD61)', () => {
+  it('sends businessHours with the day hours only, never a timezone', () => {
     const { normalized } = validateSettingsForm(validValues(), BR, t);
 
     expect(normalized?.settings.businessHours).not.toHaveProperty('timezone');
     expect(normalized?.settings.businessHours?.monday).toEqual({ open: '08:00', close: '18:00' });
   });
 
-  it('saves for a tenant whose stored zone is outside its country list (TD61)', () => {
+  it('saves for a tenant whose stored zone is outside its country list', () => {
     // An operator-corrected zone is not validated against the country list any more: the form never
     // touches it, so it can never lock every save.
     const base = buildTenant();

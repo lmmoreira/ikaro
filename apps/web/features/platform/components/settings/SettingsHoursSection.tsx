@@ -8,7 +8,7 @@ import { ReadOnlyField } from './SettingsFormFields';
 
 interface SettingsHoursSectionProps {
   // The tenant's stored zone, shown read-only: it is set at signup and only an operator corrects
-  // it (TD61), so it is not part of the form's values and a save never sends it.
+  // it, so it is not part of the form's values and a save never sends it.
   readonly timezone: string;
   readonly days: Record<WeekDay, DayHoursValue>;
   readonly timeFormat: '24h' | '12h';

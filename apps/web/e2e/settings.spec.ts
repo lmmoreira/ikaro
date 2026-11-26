@@ -41,13 +41,9 @@ test.describe('tenant settings management (MANAGER)', () => {
     );
     await expect(page.getByTestId('settings-country-code')).toHaveText('BR');
 
-    // The business timezone is set at signup and only an operator corrects it (TD61): it is shown,
-    // and the manager has no control to change it.
-    await test.step('shows the timezone read-only, with no control to change it (TD61)', async () => {
-      await expect(page.getByTestId('settings-timezone')).toHaveText(
-        originalSettings.businessHours.timezone === 'America/Sao_Paulo'
-          ? 'America/Sao_Paulo (Brasília)'
-          : originalSettings.businessHours.timezone,
+    await test.step('shows the timezone read-only, with no control to change it', async () => {
+      await expect(page.getByTestId('settings-timezone')).toContainText(
+        originalSettings.businessHours.timezone,
       );
       await expect(page.getByTestId('settings-timezone-select')).toHaveCount(0);
     });

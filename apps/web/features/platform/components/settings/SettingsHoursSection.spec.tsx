@@ -41,7 +41,6 @@ describe('SettingsHoursSection', () => {
         'O fuso horário é definido no cadastro. Para corrigi-lo, fale com o suporte.',
       ),
     ).toBeInTheDocument();
-    // Negative guarantee (TD61): the manager has no control to change the timezone.
     expect(screen.queryByTestId('settings-timezone-select')).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Fuso horário/)).not.toBeInTheDocument();
   });

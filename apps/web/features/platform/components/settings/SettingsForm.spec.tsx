@@ -346,7 +346,7 @@ describe('SettingsForm', () => {
     expect(document.querySelector('[aria-invalid="true"]')).toBeNull();
   });
 
-  it('sends no timezone in the PATCH body and renders no timezone control (TD61)', async () => {
+  it('sends no timezone in the PATCH body and renders no timezone control', async () => {
     const user = userEvent.setup();
     renderWithIntl(<SettingsForm initial={buildTenant()} />);
 
@@ -360,7 +360,7 @@ describe('SettingsForm', () => {
     expect(body.settings.businessHours).not.toHaveProperty('timezone');
   });
 
-  it('shows the timezone-immutable message in the action pane when a stale client is refused (TD61)', async () => {
+  it('shows the timezone-immutable message in the action pane when a stale client is refused', async () => {
     mockUpdateTenantSettings.mockRejectedValueOnce(
       new ApiError(422, 'Unprocessable', {
         code: 'PLATFORM_TENANT_TIMEZONE_IMMUTABLE',
