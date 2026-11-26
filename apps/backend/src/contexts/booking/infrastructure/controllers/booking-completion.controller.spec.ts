@@ -1,3 +1,4 @@
+import { createTestBookableUntilGuard } from '../../../../test/infrastructure/test-bookable-until-guard';
 import { openSlotAt } from '../../../../test/utils/date-helpers';
 import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
 import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
@@ -96,6 +97,7 @@ describe('BookingCompletionController', () => {
           new BookingQuoteService(),
           new InMemoryTransactionManager(),
           new InMemoryFutureCommitmentExceptionRepository(),
+          createTestBookableUntilGuard().guard,
         ),
         new RescheduleBookingAsCustomerUseCase(
           bookingRepo,
@@ -110,6 +112,7 @@ describe('BookingCompletionController', () => {
           new BookingQuoteService(),
           new InMemoryTransactionManager(),
           new InMemoryFutureCommitmentExceptionRepository(),
+          createTestBookableUntilGuard().guard,
         ),
         new CompleteBookingUseCase(
           bookingRepo,

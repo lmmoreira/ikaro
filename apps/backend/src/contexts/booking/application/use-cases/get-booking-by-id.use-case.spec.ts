@@ -1,3 +1,5 @@
+import { addDaysUTC, todayInTimezone } from '../../../../shared/utils/calendar-date';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
 import { InMemoryBookingStaffPort } from '../../../../test/infrastructure/in-memory-booking-staff.port';
 import { InMemoryBookingStatusTransitionRepository } from '../../../../test/repositories/booking/in-memory-booking-status-transition.repository';
 import { countrySpec } from '@ikaro/i18n';
@@ -33,6 +35,7 @@ describe('GetBookingByIdUseCase', () => {
   let transitionRepo: InMemoryBookingStatusTransitionRepository;
   let staffPort: InMemoryBookingStaffPort;
   let exceptionRepo: InMemoryFutureCommitmentExceptionRepository;
+  let tenantAccess: InMemoryTenantAccessPort;
   let useCase: GetBookingByIdUseCase;
 
   beforeEach(() => {
@@ -43,6 +46,7 @@ describe('GetBookingByIdUseCase', () => {
     transitionRepo = new InMemoryBookingStatusTransitionRepository();
     staffPort = new InMemoryBookingStaffPort();
     exceptionRepo = new InMemoryFutureCommitmentExceptionRepository();
+    tenantAccess = new InMemoryTenantAccessPort();
     useCase = new GetBookingByIdUseCase(
       repo,
       storageService,
@@ -53,6 +57,7 @@ describe('GetBookingByIdUseCase', () => {
       staffPort,
       exceptionRepo,
       new InMemoryServiceIntakeSchemaRepository(),
+      tenantAccess,
     );
   });
 
@@ -768,6 +773,90 @@ describe('GetBookingByIdUseCase', () => {
           tenantBookingWindow: TENANT_WINDOW,
         }),
       ).rejects.toBeInstanceOf(BookingNotFoundError);
+    });
+
+    describe('the billing bookable-until cap (M26-S18b)', () => {
+      const TIMEZONE = 'America/Sao_Paulo';
+      const seedCap = (bookableUntil: string | null) =>
+        tenantAccess.seed(TENANT_A, {
+          status: 'ACTIVE',
+          suspensionReason: null,
+          operational: true,
+          features: [{ key: 'BOOKING', tier: 'STANDARD' }],
+          bookableUntil,
+        });
+      // The tenant-local today, never the UTC day, so the day count cannot flake near midnight.
+      const capInDays = (days: number) => addDaysUTC(todayInTimezone(TIMEZONE), days);
+      const readWindow = async (
+        tenantBookingWindow: {
+          minBookingAdvanceHours: number;
+          maxBookingAdvanceDays: number;
+          timezone?: string;
+        } = { ...TENANT_WINDOW, timezone: TIMEZONE },
+      ) => {
+        const { booking } = await approvedBookingWithStaffPick();
+        const result = await useCase.execute({
+          bookingId: booking.id,
+          tenantId: TENANT_A,
+          cancellationWindowHours: 48,
+          requestingCustomerId: CUSTOMER_ID,
+          tenantBookingWindow,
+        });
+        return result.reschedule?.window;
+      };
+
+      it('clamps maxAdvanceDays to the whole days until the cap and keeps minAdvanceHours', async () => {
+        seedCap(capInDays(10));
+
+        expect(await readWindow()).toEqual({ minAdvanceHours: 2, maxAdvanceDays: 10 });
+      });
+
+      it('leaves a window already tighter than the cap as it is', async () => {
+        seedCap(capInDays(200));
+
+        expect(await readWindow()).toEqual({ minAdvanceHours: 2, maxAdvanceDays: 90 });
+      });
+
+      it('offers no day once the cap is today', async () => {
+        seedCap(capInDays(0));
+
+        expect(await readWindow()).toEqual({ minAdvanceHours: 2, maxAdvanceDays: 0 });
+      });
+
+      it('is unchanged without a cap', async () => {
+        seedCap(null);
+
+        expect(await readWindow()).toEqual({ minAdvanceHours: 2, maxAdvanceDays: 90 });
+      });
+
+      it('is unchanged for a tenant nobody seeded', async () => {
+        expect(await readWindow()).toEqual({ minAdvanceHours: 2, maxAdvanceDays: 90 });
+      });
+
+      it('is unchanged when the window carries no timezone to read the cap in', async () => {
+        seedCap(capInDays(10));
+
+        expect(await readWindow(TENANT_WINDOW)).toEqual({ minAdvanceHours: 2, maxAdvanceDays: 90 });
+      });
+
+      it('is unchanged, not an error, when the access lookup fails', async () => {
+        seedCap(capInDays(10));
+        tenantAccess.getAccessError = new Error('billing unavailable');
+
+        expect(await readWindow()).toEqual({ minAdvanceHours: 2, maxAdvanceDays: 90 });
+      });
+
+      it("is scoped by tenant: another tenant's cap never clamps this tenant's window", async () => {
+        tenantAccess.seed(TENANT_B, {
+          status: 'ACTIVE',
+          suspensionReason: null,
+          operational: true,
+          features: [],
+          bookableUntil: capInDays(10),
+        });
+
+        expect(await readWindow()).toEqual({ minAdvanceHours: 2, maxAdvanceDays: 90 });
+      });
     });
   });
 });

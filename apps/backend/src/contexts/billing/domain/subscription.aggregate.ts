@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon';
-import { FEATURE_KEYS } from '@ikaro/validation';
+import { FEATURE_KEYS, type FeatureKey } from '@ikaro/validation';
 import { AggregateRoot } from '../../../shared/domain/aggregate-root';
 import { CalendarDate } from '../../../shared/value-objects/calendar-date.vo';
 import { CountryCode } from '../../../shared/value-objects/country-code.vo';
@@ -327,6 +327,49 @@ export class Subscription extends AggregateRoot {
     return this._items
       .filter((item) => item.isActiveAt(now))
       .map((item) => ({ featureKey: item.featureKey, tier: item.tier }));
+  }
+
+  /**
+   * The first instant at or after `now` at which `featureKey` stops being entitled, or `null` when
+   * no end is pending (M26-S18b: the BOOKING cap). Reads the items directly: `entitledAt` grants
+   * every feature during a trial, so it cannot see that the first paid period omits one.
+   *
+   * - `SUSPENDED` → `null` (the entitlement gate already blocks everything).
+   * - `TRIALING` → the feature is granted until `trialEndsAt`; if no item covers `trialEndsAt` that
+   *   instant is the end, otherwise the chain of covering items is followed.
+   * - otherwise → the chain of items covering `now`: an open-ended item ends nothing, an item with
+   *   an `endsAt` that no successor covers (touching windows `[a,b) [b,c)` are one run) ends there.
+   *   A feature not entitled now has no pending end.
+   */
+  entitlementEndsAt(featureKey: FeatureKey, now: Date): Date | null {
+    if (this._status === 'SUSPENDED') return null;
+    let cursor: Date;
+    if (this._status === 'TRIALING') {
+      if (this._trialEndsAt === null) return null;
+      cursor = this._trialEndsAt;
+      if (!this._items.some((item) => item.featureKey === featureKey && item.isActiveAt(cursor))) {
+        return cursor;
+      }
+    } else {
+      cursor = now;
+    }
+    for (;;) {
+      const covering = this._items.find(
+        (item) => item.featureKey === featureKey && item.isActiveAt(cursor),
+      );
+      if (!covering) return cursor === now ? null : cursor;
+      if (covering.endsAt === null) return null;
+      cursor = covering.endsAt;
+    }
+  }
+
+  /**
+   * The BOOKING cap (M26-S18b): the `YYYY-MM-DD` of the first day BOOKING no longer applies, in
+   * this subscription's timezone, or `null` when no end is pending.
+   */
+  bookableUntil(now: Date): string | null {
+    const end = this.entitlementEndsAt('BOOKING', now);
+    return end === null ? null : utcDateToLocalDate(end, this.timezone.value);
   }
 
   /**

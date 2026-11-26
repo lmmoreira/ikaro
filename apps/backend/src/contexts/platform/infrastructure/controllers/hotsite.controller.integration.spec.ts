@@ -12,6 +12,9 @@ import { HotsiteConfigEntity } from '../entities/hotsite-config.entity';
 import { TenantEntity } from '../entities/tenant.entity';
 import { InternalApiGuard } from '../../../../shared/guards/internal-api.guard';
 import { createPlatformIntegrationApp } from '../../../../test/utils/platform-integration-app';
+import { TENANT_ACCESS_PORT } from '../../../../shared/ports/tenant-access.port';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
+import { addDaysUTC, todayInTimezone } from '../../../../shared/utils/calendar-date';
 
 const TENANT_A = 'b1c2d3e4-0000-0000-0000-000000000001';
 const TENANT_B = 'b1c2d3e4-0000-0000-0000-000000000002';
@@ -235,5 +238,81 @@ describe('HotsiteController (integration)', () => {
 
     expect(body.branding.buttonBackgroundColor).toBe('#FBBF24');
     expect(body.branding.buttonTextColor).toBe('#0F172A');
+  });
+
+  // M26-S18b — the public pickers read `booking.maxBookingAdvanceDays`, so a pending BOOKING
+  // removal (the billing `bookableUntil` cap) stops them at its effective date.
+  describe('the billing bookable-until cap (M26-S18b)', () => {
+    // The default test tenant's calendar; the cap is counted from the tenant-local today.
+    const TZ = 'America/Sao_Paulo';
+    let access: InMemoryTenantAccessPort;
+
+    const setCap = (tenantId: string, bookableUntil: string | null) =>
+      access.seed(tenantId, {
+        status: 'ACTIVE',
+        suspensionReason: null,
+        operational: true,
+        features: [{ key: 'BOOKING', tier: 'STANDARD' }],
+        bookableUntil,
+      });
+    const capInDays = (days: number) => addDaysUTC(todayInTimezone(TZ), days);
+
+    const manifestOf = async (tenantId: string) => {
+      const { body } = await request(app.getHttpServer())
+        .get('/hotsite')
+        .set('X-Internal-Key', INTERNAL_KEY)
+        .set('X-Tenant-ID', tenantId)
+        .expect(200);
+      return body;
+    };
+
+    beforeAll(() => {
+      access = app.get<InMemoryTenantAccessPort>(TENANT_ACCESS_PORT);
+    });
+
+    // Suites share one app: a cap seeded here must never leak into another test.
+    afterEach(() => {
+      access.reactivate(TENANT_A);
+      access.reactivate(TENANT_B);
+    });
+
+    it('clamps a published manifest to the whole days until the cap', async () => {
+      setCap(TENANT_A, capInDays(30));
+
+      expect((await manifestOf(TENANT_A)).booking).toEqual({ maxBookingAdvanceDays: 30 });
+    });
+
+    it('clamps an unpublished manifest the same way', async () => {
+      setCap(TENANT_B, capInDays(12));
+
+      const body = await manifestOf(TENANT_B);
+
+      expect(body.isPublished).toBe(false);
+      expect(body.booking).toEqual({ maxBookingAdvanceDays: 12 });
+    });
+
+    it('never raises the configured maximum when the cap is further away', async () => {
+      setCap(TENANT_A, capInDays(200));
+
+      expect((await manifestOf(TENANT_A)).booking).toEqual({ maxBookingAdvanceDays: 90 });
+    });
+
+    it('offers no day when the cap is today', async () => {
+      setCap(TENANT_A, capInDays(0));
+
+      expect((await manifestOf(TENANT_A)).booking).toEqual({ maxBookingAdvanceDays: 0 });
+    });
+
+    it('leaves the configured maximum alone for a null cap', async () => {
+      setCap(TENANT_A, null);
+
+      expect((await manifestOf(TENANT_A)).booking).toEqual({ maxBookingAdvanceDays: 90 });
+    });
+
+    it("tenant isolation: another tenant's cap never clamps the manifest", async () => {
+      setCap(TENANT_B, capInDays(5));
+
+      expect((await manifestOf(TENANT_A)).booking).toEqual({ maxBookingAdvanceDays: 90 });
+    });
   });
 });

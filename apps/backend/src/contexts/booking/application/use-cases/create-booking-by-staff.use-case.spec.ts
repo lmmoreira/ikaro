@@ -1,3 +1,5 @@
+import { addDaysUTC, utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
+import { createTestBookableUntilGuard } from '../../../../test/infrastructure/test-bookable-until-guard';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
@@ -67,6 +69,7 @@ describe('CreateBookingByStaffUseCase', () => {
   let openingRepo: InMemoryScheduleOpeningRepository;
   let useCase: CreateBookingByStaffUseCase;
   let customerUseCase: RequestAuthenticatedBookingUseCase;
+  let guardParts: ReturnType<typeof createTestBookableUntilGuard>;
   let serviceId: string;
 
   beforeEach(async () => {
@@ -81,6 +84,7 @@ describe('CreateBookingByStaffUseCase', () => {
     closureRepo = new InMemoryScheduleClosureRepository();
     openingRepo = new InMemoryScheduleOpeningRepository();
     const txManager = new InMemoryTransactionManager();
+    guardParts = createTestBookableUntilGuard();
     const sharedDeps = [
       serviceRepo,
       resourceRepo,
@@ -96,8 +100,12 @@ describe('CreateBookingByStaffUseCase', () => {
       bookingRepo,
       txManager,
     ] as const;
-    useCase = new CreateBookingByStaffUseCase(customerPort, ...sharedDeps);
-    customerUseCase = new RequestAuthenticatedBookingUseCase(customerPort, ...sharedDeps);
+    useCase = new CreateBookingByStaffUseCase(customerPort, ...sharedDeps, guardParts.guard);
+    customerUseCase = new RequestAuthenticatedBookingUseCase(
+      customerPort,
+      ...sharedDeps,
+      guardParts.guard,
+    );
 
     const service = new ServiceBuilder().withTenantId(TENANT_A).withName('Lavagem Simples').build();
     await serviceRepo.save(service);
@@ -611,6 +619,38 @@ describe('CreateBookingByStaffUseCase', () => {
           scheduledAt: `${openDate(1)}T23:00:00.000Z`,
         }),
       ).rejects.toBeInstanceOf(BookingOutsideBusinessHoursError);
+    });
+  });
+
+  describe('the billing bookable-until cap (M26-S18b)', () => {
+    const seedCap = (bookableUntil: string | null) =>
+      guardParts.access.seed(TENANT_A, {
+        status: 'ACTIVE',
+        suspensionReason: null,
+        operational: true,
+        features: [{ key: 'BOOKING', tier: 'STANDARD' }],
+        bookableUntil,
+      });
+    const localDate = () => utcDateToLocalDate(new Date(scheduledAt), 'America/Sao_Paulo');
+
+    it('refuses a staff booking that ends on or after the cap day, staff are not exempt, and stores nothing', async () => {
+      seedCap(localDate());
+
+      await expect(useCase.execute(customerInput())).rejects.toBeInstanceOf(
+        BookingTooFarAheadError,
+      );
+
+      expect(await bookingRepo.findAllByTenant(TENANT_A)).toHaveLength(0);
+      expect(eventBus.published).toHaveLength(0);
+    });
+
+    it('accepts a staff booking that ends before the cap day, taking the shared lock first', async () => {
+      seedCap(addDaysUTC(localDate(), 2));
+
+      const result = await useCase.execute(customerInput());
+
+      expect(result.status).toBe(BookingStatus.APPROVED);
+      expect(guardParts.lock.calls).toEqual([{ mode: 'shared', tenantId: TENANT_A }]);
     });
   });
 });

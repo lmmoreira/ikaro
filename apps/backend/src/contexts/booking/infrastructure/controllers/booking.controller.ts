@@ -179,6 +179,8 @@ export class BookingController {
     return {
       minBookingAdvanceHours: booking.minBookingAdvanceHours,
       maxBookingAdvanceDays: booking.maxBookingAdvanceDays,
+      // The timezone the billing cap is read in (display clamp of the reschedule options).
+      timezone: this.ctx.settings.businessHours.timezone,
     };
   }
 }

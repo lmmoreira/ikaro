@@ -1,4 +1,5 @@
 import { HOTSITE_MODULE_FEATURE } from '@ikaro/types';
+import { addDaysUTC, todayInTimezone } from '../../../../shared/utils/calendar-date';
 import {
   HotsiteConfigBuilder,
   TenantBuilder,
@@ -535,6 +536,110 @@ describe('GetHotsiteManifestUseCase', () => {
 
       expect(result.isPublished).toBe(true);
       expect(result.layout.map((m) => m.type)).toEqual(['HERO', 'CHATBOT', 'LEAD_FORM']);
+    });
+  });
+
+  describe('the billing bookable-until cap (M26-S18b)', () => {
+    const seedCap = (bookableUntil: string | null, tenantId = TENANT_A) =>
+      access.seed(tenantId, {
+        status: 'ACTIVE',
+        suspensionReason: null,
+        operational: true,
+        features: [{ key: 'BOOKING', tier: 'STANDARD' }],
+        bookableUntil,
+      });
+    // The tenant-local today, never the UTC day, so the day count cannot flake near midnight.
+    const capInDays = (days: number, timezone = 'America/Sao_Paulo') =>
+      addDaysUTC(todayInTimezone(timezone), days);
+
+    describe.each([
+      ['published', (b: HotsiteConfigBuilder) => b.buildPublished()],
+      ['unpublished', (b: HotsiteConfigBuilder) => b.buildWithContent()],
+    ])('a %s hotsite', (_label, build) => {
+      beforeEach(async () => {
+        await repo.save(build(new HotsiteConfigBuilder().withTenantId(TENANT_A)));
+      });
+
+      it('clamps booking.maxBookingAdvanceDays to the whole days until the cap', async () => {
+        seedCap(capInDays(10));
+
+        const result = await useCase.execute({ tenantId: TENANT_A });
+
+        expect(result.booking).toEqual({ maxBookingAdvanceDays: 10 });
+      });
+
+      it('keeps the configured value when it is already below the cap', async () => {
+        seedCap(capInDays(200));
+
+        const result = await useCase.execute({ tenantId: TENANT_A });
+
+        expect(result.booking).toEqual({ maxBookingAdvanceDays: 90 });
+      });
+
+      it('offers no day once the cap is today', async () => {
+        seedCap(capInDays(0));
+
+        const result = await useCase.execute({ tenantId: TENANT_A });
+
+        expect(result.booking).toEqual({ maxBookingAdvanceDays: 0 });
+      });
+
+      it('is exactly the configured value when the access answer has no cap', async () => {
+        seedCap(null);
+
+        const result = await useCase.execute({ tenantId: TENANT_A });
+
+        expect(result.booking).toEqual({ maxBookingAdvanceDays: 90 });
+      });
+
+      it('is exactly the configured value when the access lookup fails (fail open)', async () => {
+        seedCap(capInDays(10));
+        access.getAccessError = new Error('billing down');
+
+        const result = await useCase.execute({ tenantId: TENANT_A });
+
+        expect(result.booking).toEqual({ maxBookingAdvanceDays: 90 });
+      });
+    });
+
+    it('clamps the tenant-configured value, not the platform default', async () => {
+      await repo.save(new HotsiteConfigBuilder().withTenantId(TENANT_A).buildPublished());
+      const settings = TenantSettings.create(
+        new TenantSettingsPropsBuilder().withBooking({ maxBookingAdvanceDays: 45 }).build(),
+      );
+      await tenantRepo.save(new TenantBuilder().withId(TENANT_A).withSettings(settings).build());
+      seedCap(capInDays(60));
+
+      expect((await useCase.execute({ tenantId: TENANT_A })).booking).toEqual({
+        maxBookingAdvanceDays: 45,
+      });
+
+      seedCap(capInDays(20));
+
+      expect((await useCase.execute({ tenantId: TENANT_A })).booking).toEqual({
+        maxBookingAdvanceDays: 20,
+      });
+    });
+
+    it('reads the cap day in the tenant timezone', async () => {
+      await tenantRepo.save(
+        new TenantBuilder().withId(TENANT_A).withTimezone('Pacific/Auckland').build(),
+      );
+      await repo.save(new HotsiteConfigBuilder().withTenantId(TENANT_A).buildPublished());
+      seedCap(capInDays(10, 'Pacific/Auckland'));
+
+      const result = await useCase.execute({ tenantId: TENANT_A });
+
+      expect(result.booking).toEqual({ maxBookingAdvanceDays: 10 });
+    });
+
+    it("tenant isolation: another tenant's cap never clamps this tenant's manifest", async () => {
+      await repo.save(new HotsiteConfigBuilder().withTenantId(TENANT_A).buildPublished());
+      seedCap(capInDays(10), TENANT_B);
+
+      const result = await useCase.execute({ tenantId: TENANT_A });
+
+      expect(result.booking).toEqual({ maxBookingAdvanceDays: 90 });
     });
   });
 });

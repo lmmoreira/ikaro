@@ -8,6 +8,9 @@ import { PlatformModule } from '../../../platform/platform.module';
 import { ServiceEntity } from '../entities/service.entity';
 import { ServiceBookingIntakeSchemaEntity } from '../entities/service-booking-intake-schema.entity';
 import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
+import { TENANT_ACCESS_PORT } from '../../../../shared/ports/tenant-access.port';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
+import { addDaysUTC, todayInTimezone } from '../../../../shared/utils/calendar-date';
 
 const TEST_KEY = 'service-integ-test-key-service-xxxx'; // 36 chars
 const MANAGER_ID = '20000000-0000-4000-8000-000000000001';
@@ -778,6 +781,107 @@ describe('ServiceController (integration)', () => {
         .send({ recurrenceEligible: true })
         .expect(404);
       expect(body.status).toBe(404);
+    });
+  });
+
+  // ─── the billing bookable-until cap (M26-S18b) ──────────────────────────────
+
+  // The cap clamps what a service READ shows (the day count its picker offers); it never rewrites
+  // a saved policy, and a policy is still validated against the tenant's own, unclamped window.
+  describe('the billing bookable-until cap (M26-S18b)', () => {
+    const TZ = 'America/Sao_Paulo';
+    let access: InMemoryTenantAccessPort;
+    let capTenant: string;
+    let otherTenant: string;
+    let serviceId: string;
+
+    const setCap = (tenantId: string, bookableUntil: string | null) =>
+      access.seed(tenantId, {
+        status: 'ACTIVE',
+        suspensionReason: null,
+        operational: true,
+        features: [{ key: 'BOOKING', tier: 'STANDARD' }],
+        bookableUntil,
+      });
+    const capInDays = (days: number) => addDaysUTC(todayInTimezone(TZ), days);
+
+    const readPolicy = async (tenantId: string, id = serviceId) => {
+      const { body } = await request(app.getHttpServer())
+        .get(`/services/${id}`)
+        .set(actorHeaders(tenantId, MANAGER_ID))
+        .expect(200);
+      return body.bookingPolicy as {
+        maxBookingAdvanceDaysOverride: number | null;
+        effectiveMaxBookingAdvanceDays: number;
+      };
+    };
+    const patchPolicy = (body: Record<string, unknown>) =>
+      request(app.getHttpServer())
+        .patch(`/services/${serviceId}/booking-policy`)
+        .set(actorHeaders(capTenant, MANAGER_ID))
+        .send(body);
+
+    beforeAll(async () => {
+      access = app.get<InMemoryTenantAccessPort>(TENANT_ACCESS_PORT);
+      capTenant = await provisionTenant();
+      otherTenant = await provisionTenant();
+      const { body } = await request(app.getHttpServer())
+        .post('/services')
+        .set(actorHeaders(capTenant, MANAGER_ID))
+        .send(validBody)
+        .expect(201);
+      serviceId = body.id as string;
+    });
+
+    // Suites share one app: a cap seeded here must never leak into another test.
+    afterEach(() => {
+      access.reactivate(capTenant);
+      access.reactivate(otherTenant);
+    });
+
+    it('clamps effectiveMaxBookingAdvanceDays to the whole days until the cap, and leaves it alone without one', async () => {
+      expect((await readPolicy(capTenant)).effectiveMaxBookingAdvanceDays).toBe(90);
+
+      setCap(capTenant, capInDays(20));
+      expect((await readPolicy(capTenant)).effectiveMaxBookingAdvanceDays).toBe(20);
+
+      setCap(capTenant, null);
+      expect((await readPolicy(capTenant)).effectiveMaxBookingAdvanceDays).toBe(90);
+    });
+
+    it('never raises the window when the cap is further away than the configured maximum', async () => {
+      setCap(capTenant, capInDays(200));
+
+      expect((await readPolicy(capTenant)).effectiveMaxBookingAdvanceDays).toBe(90);
+    });
+
+    it("tenant isolation: another tenant's cap never clamps this tenant's service", async () => {
+      setCap(otherTenant, capInDays(5));
+
+      expect((await readPolicy(capTenant)).effectiveMaxBookingAdvanceDays).toBe(90);
+    });
+
+    it('still validates an override against the unclamped tenant window, and a lifted cap shows the saved override again', async () => {
+      setCap(capTenant, capInDays(5));
+
+      // 60 days is looser than the cap, yet within the tenant's own 90-day maximum: accepted.
+      await patchPolicy({ maxBookingAdvanceDaysOverride: 60 }).expect(200);
+      const underCap = await readPolicy(capTenant);
+      expect(underCap.maxBookingAdvanceDaysOverride).toBe(60);
+      expect(underCap.effectiveMaxBookingAdvanceDays).toBe(5);
+
+      // The tenant ceiling in the refusal is the configured 90, not the 5 days the cap leaves.
+      const { body } = await patchPolicy({ maxBookingAdvanceDaysOverride: 365 }).expect(422);
+      expect(body).toMatchObject({
+        code: 'BOOKING_SERVICE_POLICY_MAX_ADVANCE_EXCEEDS_TENANT',
+        params: { maxAdvanceDays: 90 },
+      });
+
+      // The cap never rewrote the saved policy: without it the 60 days are back.
+      setCap(capTenant, null);
+      const lifted = await readPolicy(capTenant);
+      expect(lifted.maxBookingAdvanceDaysOverride).toBe(60);
+      expect(lifted.effectiveMaxBookingAdvanceDays).toBe(60);
     });
   });
 

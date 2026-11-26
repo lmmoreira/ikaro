@@ -35,6 +35,8 @@ import {
   IFutureCommitmentExceptionRepository,
 } from '../ports/future-commitment-exception-repository.port';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
+import { BookableUntilGuard } from '../services/bookable-until.guard';
+import { commitmentEnd } from './bookable-until.helpers';
 import { ApproveBookingDto } from '../dtos/approve-booking.dto';
 import {
   dismissStaleExceptionsAfterMove,
@@ -87,6 +89,7 @@ export class ApproveBookingUseCase {
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     @Inject(FUTURE_COMMITMENT_EXCEPTION_REPOSITORY)
     private readonly exceptionRepo: IFutureCommitmentExceptionRepository,
+    private readonly bookableUntilGuard: BookableUntilGuard,
   ) {}
 
   async execute(input: ApproveBookingUseCaseInput): Promise<ApproveBookingUseCaseResult> {
@@ -122,6 +125,10 @@ export class ApproveBookingUseCase {
   ): Promise<void> {
     const { tenantId, staffId, correlationId } = input;
     await this.txManager.run(async () => {
+      // Approving at a NEW time moves the start, so it is a new commitment for the billing
+      // `bookableUntil` cap (M26-S18b); an approval at the requested time adds nothing. The lock is
+      // the first of the transaction (docs/LOCK_CATALOG.md B-U1, L-1), before the resource locks.
+      if (isRescheduling) await this.assertWithinBookableUntil(booking, scheduledAt, input);
       await this.assertHoldNotExpired(booking, tenantId);
       const occupiedBefore = await occupiedResourceIds(this.occupancyRepo, tenantId, [booking]);
       const candidatesByLine = await this.resolveAndCheckCandidates(
@@ -151,6 +158,18 @@ export class ApproveBookingUseCase {
         { tenantId, booking, exceptions: openExceptions, correlationId },
       );
     });
+  }
+
+  private assertWithinBookableUntil(
+    booking: Booking,
+    scheduledAt: Date,
+    input: ApproveBookingUseCaseInput,
+  ): Promise<void> {
+    return this.bookableUntilGuard.assertEndsWithin(
+      input.tenantId,
+      commitmentEnd(scheduledAt, booking.totalDurationMins),
+      input.timezone,
+    );
   }
 
   // TD51 — the deadline lives on the booking's HOLD occupancy rows, not on the aggregate. A passed

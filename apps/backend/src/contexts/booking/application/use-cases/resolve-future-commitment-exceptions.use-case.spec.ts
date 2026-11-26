@@ -1,3 +1,4 @@
+import { createTestBookableUntilGuard } from '../../../../test/infrastructure/test-bookable-until-guard';
 import { BookingErrorCode } from '@ikaro/types/protocol/errors';
 import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
 import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
@@ -34,6 +35,7 @@ describe('ResolveFutureCommitmentExceptionsUseCase', () => {
   let closureRepo: InMemoryScheduleClosureRepository;
   let useCase: ResolveFutureCommitmentExceptionsUseCase;
   let published: DomainEvent[];
+  let guardParts: ReturnType<typeof createTestBookableUntilGuard>;
 
   // Only Date is faked, pinned to 09:00 in the tenant timezone: the AUTO tie-break compares the
   // workload of the booking's local calendar day, so "+48h" and "+51h" must fall on the same day
@@ -55,6 +57,7 @@ describe('ResolveFutureCommitmentExceptionsUseCase', () => {
       ],
     });
     published = [];
+    guardParts = createTestBookableUntilGuard();
     world = new FutureCommitmentFixture({
       publish: async (event) => {
         published.push(event as DomainEvent);
@@ -75,6 +78,7 @@ describe('ResolveFutureCommitmentExceptionsUseCase', () => {
       new BookingSlotConflictService(world.occupancyRepo, world.tenantLock),
       closureRepo,
       new InMemoryScheduleOpeningRepository(),
+      guardParts.guard,
     );
   });
 
@@ -915,6 +919,120 @@ describe('ResolveFutureCommitmentExceptionsUseCase', () => {
 
       expect(results[0].errorCode).toBe(BookingErrorCode.EXCEPTION_NOT_FOUND);
       expect((await world.exceptionRepo.findById(entryId, TENANT_ID))!.status).toBe('OPEN');
+    });
+  });
+
+  describe('the billing bookable-until cap (M26-S18b)', () => {
+    // OPEN_NEW_TIME is 10:00 on 2027-03-15 in the tenant timezone, so a cap on that day refuses it.
+    const seedCap = (bookableUntil: string | null) =>
+      guardParts.access.seed(TENANT_ID, {
+        status: 'ACTIVE',
+        suspensionReason: null,
+        operational: true,
+        features: [{ key: 'BOOKING', tier: 'STANDARD' }],
+        bookableUntil,
+      });
+
+    async function setup() {
+      const source = await world.addResource('Sala 1');
+      const replacement = await world.addResource('Sala 2');
+      const service = await world.addService();
+      const booking = await world.addBooking({ service, resource: source, startsInHours: 48 });
+      const [entryId] = await raiseFor(source.id);
+      return { source, replacement, booking, entryId };
+    }
+
+    it('keeps the entry open with BOOKING_TOO_FAR_AHEAD when the chosen time ends past the cap, and moves nothing', async () => {
+      const { source, booking, entryId } = await setup();
+      seedCap('2027-03-15');
+
+      const { results } = await resolve({
+        exceptionIds: [entryId],
+        resolutionType: 'RESCHEDULE',
+        scheduledAt: OPEN_NEW_TIME,
+      });
+
+      expect(results).toEqual([
+        {
+          exceptionId: entryId,
+          outcome: 'STILL_OPEN',
+          errorCode: BookingErrorCode.TOO_FAR_AHEAD,
+        },
+      ]);
+      expect((await world.exceptionRepo.findById(entryId, TENANT_ID))!.status).toBe('OPEN');
+      expect(await occupiedResourceIds(booking.id)).toEqual([source.id]);
+      expect(published.map((event) => event.eventName)).not.toContain('BookingRescheduled');
+    });
+
+    it('resolves the entry normally when the chosen time ends before the cap day', async () => {
+      const { replacement, booking, entryId } = await setup();
+      seedCap('2027-03-18');
+
+      const { results } = await resolve({
+        exceptionIds: [entryId],
+        resolutionType: 'RESCHEDULE',
+        scheduledAt: OPEN_NEW_TIME,
+      });
+
+      expect(results).toEqual([{ exceptionId: entryId, outcome: 'RESOLVED' }]);
+      expect(await occupiedResourceIds(booking.id)).toEqual([replacement.id]);
+    });
+
+    it('is unchanged without a cap', async () => {
+      const { entryId } = await setup();
+      seedCap(null);
+
+      const { results } = await resolve({
+        exceptionIds: [entryId],
+        resolutionType: 'RESCHEDULE',
+        scheduledAt: OPEN_NEW_TIME,
+      });
+
+      expect(results).toEqual([{ exceptionId: entryId, outcome: 'RESOLVED' }]);
+    });
+
+    it('takes the shared lock for the tenant before any resource lock when rescheduling (docs/LOCK_CATALOG.md B-U1)', async () => {
+      const { entryId } = await setup();
+      const order: string[] = [];
+      const lockResources = world.tenantLock.lockResources.bind(world.tenantLock);
+      jest.spyOn(world.tenantLock, 'lockResources').mockImplementation((tenantId, ids) => {
+        order.push(`resources:${guardParts.lock.calls.length}`);
+        return lockResources(tenantId, ids);
+      });
+
+      await resolve({
+        exceptionIds: [entryId],
+        resolutionType: 'RESCHEDULE',
+        scheduledAt: OPEN_NEW_TIME,
+      });
+
+      expect(guardParts.lock.calls.length).toBeGreaterThan(0);
+      expect(guardParts.lock.calls.every((call) => call.mode === 'shared')).toBe(true);
+      // Every resource lock was asked for after the shared lock was already held.
+      expect(order.length).toBeGreaterThan(0);
+      expect(order.every((entry) => entry !== 'resources:0')).toBe(true);
+    });
+
+    it('takes no bookable-until lock for CANCEL (it only frees capacity)', async () => {
+      const { entryId } = await setup();
+
+      await resolve({ exceptionIds: [entryId], resolutionType: 'CANCEL' });
+
+      expect(guardParts.lock.calls).toEqual([]);
+      expect(guardParts.access.getBookableUntilCalls).toEqual([]);
+    });
+
+    it('takes no bookable-until lock for REASSIGN (the time does not change)', async () => {
+      const { replacement, entryId } = await setup();
+
+      await resolve({
+        exceptionIds: [entryId],
+        resolutionType: 'REASSIGN',
+        target: { resourceId: replacement.id },
+      });
+
+      expect(guardParts.lock.calls).toEqual([]);
+      expect(guardParts.access.getBookableUntilCalls).toEqual([]);
     });
   });
 });

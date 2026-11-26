@@ -70,6 +70,94 @@ describe('resolveEffectiveBookingWindow', () => {
       maxAdvanceDays: 14,
     });
   });
+
+  describe('the billing bookable-until cap (M26-S18b)', () => {
+    // 2026-06-10T15:00Z is 12:00 on 2026-06-10 in São Paulo (UTC-3).
+    const now = new Date('2026-06-10T15:00:00.000Z');
+    const capped = (bookableUntil: string | null | undefined, timezone: string | undefined) => ({
+      ...TENANT,
+      bookableUntil,
+      timezone,
+    });
+
+    it('clamps maxAdvanceDays to the whole days until the cap and leaves minAdvanceHours alone', () => {
+      expect(
+        resolveEffectiveBookingWindow(capped('2026-06-15', TIMEZONE), [service({})], now),
+      ).toEqual({ minAdvanceHours: 2, maxAdvanceDays: 5 });
+    });
+
+    it('counts the cap day in the tenant timezone, not the UTC day', () => {
+      // 2026-06-11T01:00Z is still 22:00 on 2026-06-10 in São Paulo: today is the 10th there.
+      const lateEvening = new Date('2026-06-11T01:00:00.000Z');
+
+      expect(
+        resolveEffectiveBookingWindow(capped('2026-06-15', TIMEZONE), [service({})], lateEvening),
+      ).toEqual({ minAdvanceHours: 2, maxAdvanceDays: 5 });
+      expect(
+        resolveEffectiveBookingWindow(
+          capped('2026-06-15', 'Asia/Tokyo'),
+          [service({})],
+          lateEvening,
+        ),
+      ).toEqual({ minAdvanceHours: 2, maxAdvanceDays: 4 });
+    });
+
+    it('takes the smaller of the configured window and the days until the cap', () => {
+      expect(
+        resolveEffectiveBookingWindow(capped('2026-12-31', TIMEZONE), [service({})], now),
+      ).toEqual({ minAdvanceHours: 2, maxAdvanceDays: 90 });
+    });
+
+    it('offers no day when the cap is today or already passed', () => {
+      expect(
+        resolveEffectiveBookingWindow(capped('2026-06-10', TIMEZONE), [service({})], now),
+      ).toEqual({ minAdvanceHours: 2, maxAdvanceDays: 0 });
+      expect(
+        resolveEffectiveBookingWindow(capped('2026-06-01', TIMEZONE), [service({})], now),
+      ).toEqual({ minAdvanceHours: 2, maxAdvanceDays: 0 });
+    });
+
+    it('never changes minAdvanceHours, even for a service notice override', () => {
+      const strict = service({ minBookingAdvanceHoursOverride: 48 });
+
+      expect(resolveEffectiveBookingWindow(capped('2026-06-15', TIMEZONE), [strict], now)).toEqual({
+        minAdvanceHours: 48,
+        maxAdvanceDays: 5,
+      });
+    });
+
+    it('keeps a service override that is tighter than the cap', () => {
+      const tight = service({ maxBookingAdvanceDaysOverride: 3 });
+
+      expect(resolveEffectiveBookingWindow(capped('2026-06-15', TIMEZONE), [tight], now)).toEqual({
+        minAdvanceHours: 2,
+        maxAdvanceDays: 3,
+      });
+    });
+
+    it('clamps a basket by the cap after taking the strictest service value', () => {
+      const a = service({ maxBookingAdvanceDaysOverride: 30 });
+      const b = service({ maxBookingAdvanceDaysOverride: 20 });
+
+      expect(resolveEffectiveBookingWindow(capped('2026-06-15', TIMEZONE), [a, b], now)).toEqual({
+        minAdvanceHours: 2,
+        maxAdvanceDays: 5,
+      });
+    });
+
+    it.each([
+      ['a null cap', null, TIMEZONE],
+      ['an absent cap', undefined, TIMEZONE],
+      ['an absent timezone', '2026-06-15', undefined],
+      ['neither', undefined, undefined],
+    ])('equals the uncapped result for %s', (_label, bookableUntil, timezone) => {
+      const services = [service({ maxBookingAdvanceDaysOverride: 30 })];
+
+      expect(resolveEffectiveBookingWindow(capped(bookableUntil, timezone), services, now)).toEqual(
+        resolveEffectiveBookingWindow(TENANT, services, now),
+      );
+    });
+  });
 });
 
 describe('assertWithinBookingWindow', () => {
@@ -218,6 +306,29 @@ describe('assertBookingWindowOverridesValid', () => {
         TENANT,
       ),
     ).not.toThrow();
+  });
+
+  it('ignores the billing cap: a temporary cap must not rewrite a saved service policy', () => {
+    const tenantWithCap = { ...TENANT, bookableUntil: '2026-06-15', timezone: TIMEZONE };
+
+    // 30 days is far past a cap 5 days away, yet it is still a valid policy under the 90-day window.
+    expect(() =>
+      assertBookingWindowOverridesValid(
+        { minBookingAdvanceHoursOverride: 24 * 10, maxBookingAdvanceDaysOverride: 30 },
+        tenantWithCap,
+      ),
+    ).not.toThrow();
+  });
+
+  it('reports the configured business maximum, not the capped one, when a maximum above it is requested', () => {
+    const tenantWithCap = { ...TENANT, bookableUntil: '2026-06-15', timezone: TIMEZONE };
+
+    expect(() =>
+      assertBookingWindowOverridesValid(
+        { minBookingAdvanceHoursOverride: null, maxBookingAdvanceDaysOverride: 365 },
+        tenantWithCap,
+      ),
+    ).toThrow(expect.objectContaining({ params: { maxAdvanceDays: 90 } }));
   });
 
   it('names the business maximum when a maximum above it is requested', () => {

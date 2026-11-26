@@ -1,6 +1,8 @@
 import { ScheduleClosureEntityBuilder } from '../../../../test/builders/booking/index';
 import { DEFAULT_TEST_BUSINESS_HOURS } from '../../../../test/utils/business-hours-fixtures';
-import { utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
+import { addDaysUTC, utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
+import { TENANT_ACCESS_PORT } from '../../../../shared/ports/tenant-access.port';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
 import { ScheduleClosureEntity } from '../entities/schedule-closure.entity';
 import { openSlotAt } from '../../../../test/utils/date-helpers';
 import { INestApplication } from '@nestjs/common';
@@ -31,9 +33,11 @@ describe('SchedulingExceptionController (integration)', () => {
   let app: INestApplication;
   let ds: DataSource;
   let eventBus: RoutingInMemoryEventBus;
+  let access: InMemoryTenantAccessPort;
 
   beforeAll(async () => {
     ({ app, ds, eventBus } = await createBookingIntegrationApp());
+    access = app.get<InMemoryTenantAccessPort>(TENANT_ACCESS_PORT);
     // The booking repository reads the tenant's currency from the real tenant row.
     await ds
       .getRepository(TenantEntity)
@@ -48,6 +52,9 @@ describe('SchedulingExceptionController (integration)', () => {
   });
 
   afterEach(async () => {
+    // A cap seeded by a test must never leak into another one.
+    access.reactivate(TENANT_A);
+    access.reactivate(TENANT_B);
     await cleanupFutureCommitmentTenant(ds, [TENANT_A, TENANT_B]);
   });
 
@@ -59,6 +66,15 @@ describe('SchedulingExceptionController (integration)', () => {
 
   const as = (tenantId = TENANT_A, role: 'MANAGER' | 'STAFF' = 'MANAGER') =>
     actorHeaders(tenantId, MANAGER_ID, role);
+
+  const setCap = (tenantId: string, bookableUntil: string | null) =>
+    access.seed(tenantId, {
+      status: 'ACTIVE',
+      suspensionReason: null,
+      operational: true,
+      features: [{ key: 'BOOKING', tier: 'STANDARD' }],
+      bookableUntil,
+    });
 
   async function deactivate(resourceId: string, tenantId = TENANT_A): Promise<void> {
     await request(app.getHttpServer())
@@ -522,6 +538,92 @@ describe('SchedulingExceptionController (integration)', () => {
         .findOneByOrFail({ id: seeded.bookingId });
       expect(stored.scheduledAt.toISOString()).toBe(newTime);
       expect(await occupiedResourceIds(ds, TENANT_A, seeded.bookingId)).toEqual([replacement.id]);
+    });
+
+    // M26-S18b: unlike the booking window, the billing bookable-until cap has no staff exemption.
+    it('RESCHEDULE past the bookable-until cap keeps the entry OPEN with BOOKING_TOO_FAR_AHEAD and leaves the booking where it was', async () => {
+      const source = await seedResource(ds, TENANT_A, 'Sala 1');
+      await seedResource(ds, TENANT_A, 'Sala 2');
+      const service = await seedService(ds, TENANT_A);
+      const seeded = await seedFutureBooking(ds, {
+        tenantId: TENANT_A,
+        serviceId: service.id,
+        resource: source,
+        startsInHours: 24,
+      });
+      await deactivate(source.id);
+      const [entry] = await openEntries();
+      const newTime = openSlotAt(8, 11);
+      setCap(TENANT_A, utcDateToLocalDate(new Date(newTime), DEFAULT_TEST_BUSINESS_HOURS.timezone));
+
+      const { body } = await resolve({
+        exceptionIds: [entry.id],
+        resolutionType: 'RESCHEDULE',
+        scheduledAt: newTime,
+      }).expect(200);
+
+      expect(body.results[0]).toMatchObject({
+        exceptionId: entry.id,
+        outcome: 'STILL_OPEN',
+        errorCode: 'BOOKING_TOO_FAR_AHEAD',
+      });
+      const row = await ds.getRepository(BookingEntity).findOneByOrFail({ id: seeded.bookingId });
+      expect(row.scheduledAt.getTime()).toBe(seeded.startsAt.getTime());
+      expect((await openEntries()).map((e) => e.id)).toEqual([entry.id]);
+    });
+
+    it('RESCHEDULE to a time before the bookable-until cap resolves the entry', async () => {
+      const source = await seedResource(ds, TENANT_A, 'Sala 1');
+      const replacement = await seedResource(ds, TENANT_A, 'Sala 2');
+      const service = await seedService(ds, TENANT_A);
+      const seeded = await seedFutureBooking(ds, {
+        tenantId: TENANT_A,
+        serviceId: service.id,
+        resource: source,
+        startsInHours: 24,
+      });
+      await deactivate(source.id);
+      const [entry] = await openEntries();
+      const newTime = openSlotAt(8, 11);
+      const newDay = utcDateToLocalDate(new Date(newTime), DEFAULT_TEST_BUSINESS_HOURS.timezone);
+      setCap(TENANT_A, addDaysUTC(newDay, 2));
+
+      const { body } = await resolve({
+        exceptionIds: [entry.id],
+        resolutionType: 'RESCHEDULE',
+        scheduledAt: newTime,
+      }).expect(200);
+
+      expect(body.results).toEqual([{ exceptionId: entry.id, outcome: 'RESOLVED' }]);
+      const stored = await ds
+        .getRepository(BookingEntity)
+        .findOneByOrFail({ id: seeded.bookingId });
+      expect(stored.scheduledAt.toISOString()).toBe(newTime);
+      expect(await occupiedResourceIds(ds, TENANT_A, seeded.bookingId)).toEqual([replacement.id]);
+    });
+
+    it("RESCHEDULE: another tenant's bookable-until cap does not refuse it", async () => {
+      const source = await seedResource(ds, TENANT_A, 'Sala 1');
+      await seedResource(ds, TENANT_A, 'Sala 2');
+      const service = await seedService(ds, TENANT_A);
+      await seedFutureBooking(ds, {
+        tenantId: TENANT_A,
+        serviceId: service.id,
+        resource: source,
+        startsInHours: 24,
+      });
+      await deactivate(source.id);
+      const [entry] = await openEntries();
+      const newTime = openSlotAt(8, 11);
+      setCap(TENANT_B, utcDateToLocalDate(new Date(newTime), DEFAULT_TEST_BUSINESS_HOURS.timezone));
+
+      const { body } = await resolve({
+        exceptionIds: [entry.id],
+        resolutionType: 'RESCHEDULE',
+        scheduledAt: newTime,
+      }).expect(200);
+
+      expect(body.results).toEqual([{ exceptionId: entry.id, outcome: 'RESOLVED' }]);
     });
 
     it('RESCHEDULE refuses a PENDING booking and keeps the entry OPEN', async () => {

@@ -1,3 +1,4 @@
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
 import { InMemoryBookingStaffPort } from '../../../../test/infrastructure/in-memory-booking-staff.port';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
@@ -46,6 +47,7 @@ describe('GetBookingByIdUseCase — full booking detail (M23-S47)', () => {
       staffPort,
       new InMemoryFutureCommitmentExceptionRepository(),
       intakeRepo,
+      new InMemoryTenantAccessPort(),
     );
   });
 

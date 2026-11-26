@@ -8,6 +8,7 @@ import {
 import { Service } from '../../domain/service.aggregate';
 import type { ServiceBookingPolicyProps } from '../../domain/service.types';
 import type { TenantBookingWindow } from '../ports/booking-platform.port';
+import { clampAdvanceDaysToBookableUntil } from '../../../../shared/utils/bookable-until-days';
 
 export type { TenantBookingWindow };
 
@@ -25,6 +26,7 @@ export interface BookingWindow {
 export function resolveEffectiveBookingWindow(
   tenant: TenantBookingWindow,
   services: Iterable<Service>,
+  now: Date = new Date(),
 ): BookingWindow {
   let minAdvanceHours = tenant.minBookingAdvanceHours;
   let maxAdvanceDays = tenant.maxBookingAdvanceDays;
@@ -33,6 +35,15 @@ export function resolveEffectiveBookingWindow(
     maxAdvanceDays = Math.min(
       maxAdvanceDays,
       bookingPolicy.maxBookingAdvanceDaysOverride ?? tenant.maxBookingAdvanceDays,
+    );
+  }
+  // The billing cap (M26-S18b) only ever tightens the display window; `null` changes nothing.
+  if (tenant.bookableUntil && tenant.timezone) {
+    maxAdvanceDays = clampAdvanceDaysToBookableUntil(
+      maxAdvanceDays,
+      tenant.bookableUntil,
+      tenant.timezone,
+      now,
     );
   }
   return { minAdvanceHours, maxAdvanceDays };

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EventBusModule } from '../../shared/infrastructure/event-bus/event-bus.module';
 import { RequestModule } from '../../shared/request/request.module';
+import { BookableUntilLockModule } from '../../shared/infrastructure/bookable-until-lock.module';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
 import { StorageModule } from '../../shared/infrastructure/storage.module';
 import { CustomerModule } from '../customer/customer.module';
@@ -89,6 +90,7 @@ import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.
     EventBusModule,
     RequestModule,
     TransactionManagerModule,
+    BookableUntilLockModule,
     StorageModule,
     CustomerModule,
     PlatformSettingsModule,

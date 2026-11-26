@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { HOTSITE_MODULE_FEATURE, type FeatureKey } from '@ikaro/types';
 import { AppLogger } from '../../../../shared/observability/app-logger';
+import { clampAdvanceDaysToBookableUntil } from '../../../../shared/utils/bookable-until-days';
 import {
   TENANT_ACCESS_PORT,
   type TenantAccess,
@@ -8,7 +9,8 @@ import {
 } from '../../../../shared/ports/tenant-access.port';
 import { TenantNotFoundError } from '../../domain/errors/platform-domain.error';
 import { HotsiteBranding, HotsiteModule, HotsiteSeo } from '../../domain/hotsite-config.aggregate';
-import { BookingSettings, BusinessInfo } from '../../domain/value-objects/tenant-settings.vo';
+import { BusinessInfo } from '../../domain/value-objects/tenant-settings.vo';
+import type { Tenant } from '../../domain/tenant.aggregate';
 import { ITenantRepository, TENANT_REPOSITORY } from '../ports/tenant-repository.port';
 import { HotsiteContentReader } from '../services/hotsite-content-reader.service';
 
@@ -122,7 +124,7 @@ export class GetHotsiteManifestUseCase {
           tenant.settings.resolveLocalization(),
           tenant.settings.businessHours.timezone,
         ),
-        booking: this.mapBookingSettings(tenant.settings.booking),
+        booking: this.mapBookingSettings(tenant.settings, access),
         unavailableFeatures: this.unavailableFeatures(access),
       };
     }
@@ -137,7 +139,7 @@ export class GetHotsiteManifestUseCase {
         tenant.settings.resolveLocalization(),
         tenant.settings.businessHours.timezone,
       ),
-      booking: this.mapBookingSettings(tenant.settings.booking),
+      booking: this.mapBookingSettings(tenant.settings, access),
       unavailableFeatures: this.unavailableFeatures(access),
     };
   }
@@ -205,9 +207,20 @@ export class GetHotsiteManifestUseCase {
     return [...gating].filter((feature) => !access.features.some((held) => held.key === feature));
   }
 
-  private mapBookingSettings(booking: BookingSettings): HotsiteBookingSettings {
+  // The day count the public pickers read, stopped at the billing cap (M26-S18b): a manager who
+  // saved a removal of BOOKING no longer offers days from its effective date on. It is a snapshot
+  // taken from the cached access answer, so it can drift by a day across local midnight or lag a
+  // saved removal by the cache TTL; the server refuses a booking past the cap regardless.
+  private mapBookingSettings(
+    settings: Tenant['settings'],
+    access: TenantAccess | null,
+  ): HotsiteBookingSettings {
     return {
-      maxBookingAdvanceDays: booking.maxBookingAdvanceDays,
+      maxBookingAdvanceDays: clampAdvanceDaysToBookableUntil(
+        settings.booking.maxBookingAdvanceDays,
+        access?.bookableUntil,
+        settings.businessHours.timezone,
+      ),
     };
   }
 

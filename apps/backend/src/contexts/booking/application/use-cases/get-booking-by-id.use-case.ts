@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
+import { TENANT_ACCESS_PORT, TenantAccessPort } from '../../../../shared/ports/tenant-access.port';
 import {
   ITransactionManager,
   TRANSACTION_MANAGER,
@@ -136,6 +137,7 @@ export class GetBookingByIdUseCase {
     private readonly exceptionRepo: IFutureCommitmentExceptionRepository,
     @Inject(SERVICE_INTAKE_SCHEMA_REPOSITORY)
     private readonly intakeSchemaRepo: IServiceIntakeSchemaRepository,
+    @Inject(TENANT_ACCESS_PORT) private readonly tenantAccess: TenantAccessPort,
   ) {}
 
   async execute(input: GetBookingByIdUseCaseInput): Promise<GetBookingByIdUseCaseResult> {
@@ -143,7 +145,6 @@ export class GetBookingByIdUseCase {
 
     const booking = await this.bookingRepo.findById(input.bookingId, tenantId);
     if (!booking) throw new BookingNotFoundError(input.bookingId);
-
     // 404, not 403: a customer probing IDs must not learn a booking exists but isn't theirs.
     // Compare against undefined, not truthiness — an empty-string requestingCustomerId must
     // still be treated as a real (mismatched) requester, not as "no requester supplied".
@@ -158,6 +159,7 @@ export class GetBookingByIdUseCase {
               serviceRepo: this.serviceRepo,
               occupancyRepo: this.occupancyRepo,
               txManager: this.txManager,
+              tenantAccess: this.tenantAccess,
             },
             {
               booking,
@@ -178,7 +180,6 @@ export class GetBookingByIdUseCase {
       : null;
 
     const extras = await this.loadExtras(booking, input);
-
     return this.toResult(
       booking,
       cancellationWindowHours,

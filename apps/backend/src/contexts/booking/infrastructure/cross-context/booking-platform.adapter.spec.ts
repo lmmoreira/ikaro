@@ -1,3 +1,4 @@
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
 import { InMemoryFrontendRevalidationPort } from '../../../../test/infrastructure/in-memory-frontend-revalidation.port';
 import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/platform/in-memory-hotsite-config.repository';
 import { InMemoryTenantRepository } from '../../../../test/repositories/platform/in-memory-tenant.repository';
@@ -18,16 +19,19 @@ describe('BookingPlatformAdapter', () => {
   let hotsiteRepo: InMemoryHotsiteConfigRepository;
   let revalidation: InMemoryFrontendRevalidationPort;
   let adapter: BookingPlatformAdapter;
+  let access: InMemoryTenantAccessPort;
 
   beforeEach(() => {
     repo = new InMemoryTenantRepository();
     hotsiteRepo = new InMemoryHotsiteConfigRepository();
     revalidation = new InMemoryFrontendRevalidationPort();
+    access = new InMemoryTenantAccessPort();
     adapter = new BookingPlatformAdapter(
       new GetTenantByIdUseCase(repo),
       new GetTenantBusinessHoursForUpdateUseCase(repo),
       new GetHotsiteBookingPickerUseCase(hotsiteRepo),
       revalidation,
+      access,
     );
   });
 
@@ -147,6 +151,8 @@ describe('BookingPlatformAdapter', () => {
       expect(result.bookingWindow).toEqual({
         minBookingAdvanceHours: tenant.settings.booking.minBookingAdvanceHours,
         maxBookingAdvanceDays: 90,
+        bookableUntil: null,
+        timezone: tenant.settings.businessHours.timezone,
       });
     });
 
@@ -164,6 +170,55 @@ describe('BookingPlatformAdapter', () => {
       expect(await adapter.getTenantBookingWindow(tenant.id)).toEqual({
         minBookingAdvanceHours: tenant.settings.booking.minBookingAdvanceHours,
         maxBookingAdvanceDays: 45,
+        bookableUntil: null,
+        timezone: tenant.settings.businessHours.timezone,
+      });
+    });
+
+    describe('the billing cap (M26-S18b), display only', () => {
+      it('carries the cap and the timezone it is read in, leaving maxBookingAdvanceDays as configured', async () => {
+        const tenant = await seedTenant(45);
+        access.seed(tenant.id, {
+          status: 'ACTIVE',
+          suspensionReason: null,
+          operational: true,
+          features: [{ key: 'BOOKING', tier: 'STANDARD' }],
+          bookableUntil: '2026-12-15',
+        });
+
+        const window = await adapter.getTenantBookingWindow(tenant.id);
+
+        expect(window).toMatchObject({ maxBookingAdvanceDays: 45, bookableUntil: '2026-12-15' });
+      });
+
+      it('shows the unclamped window when the access lookup fails: the write path never fails open', async () => {
+        const tenant = await seedTenant(45);
+        access.getAccessError = new Error('billing down');
+
+        expect(await adapter.getTenantBookingWindow(tenant.id)).toMatchObject({
+          maxBookingAdvanceDays: 45,
+          bookableUntil: null,
+        });
+      });
+
+      it('stops the customer-selectable days of the alert context at the cap', async () => {
+        const tenant = await seedTenant(90);
+        await seedPicker(tenant.id, { datePickerType: 'calendar', carouselDays: 14 }, 90);
+        // Always at least 3 days out, whatever the clock says in the tenant timezone.
+        const bookableUntil = new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10);
+        access.seed(tenant.id, {
+          status: 'ACTIVE',
+          suspensionReason: null,
+          operational: true,
+          features: [{ key: 'BOOKING', tier: 'STANDARD' }],
+          bookableUntil,
+        });
+
+        const context = await adapter.getAvailabilityAlertContext(tenant.id);
+
+        expect(context.selectableDays).toBeLessThanOrEqual(4);
+        expect(context.selectableDays).toBeGreaterThanOrEqual(2);
+        expect(context.bookingWindow.bookableUntil).toBe(bookableUntil);
       });
     });
 

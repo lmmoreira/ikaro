@@ -1,3 +1,4 @@
+import { createTestBookableUntilGuard } from '../../../../test/infrastructure/test-bookable-until-guard';
 import { countrySpec } from '@ikaro/i18n';
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
@@ -108,6 +109,7 @@ describe('persistRequestedBooking', () => {
         occupancyRepo,
         availabilityService: new AvailabilityService(),
         hoursRepos: { closureRepo, openingRepo },
+        bookableUntilGuard: createTestBookableUntilGuard().guard,
       },
       {
         booking,
