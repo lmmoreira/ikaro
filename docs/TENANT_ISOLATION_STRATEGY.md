@@ -197,10 +197,9 @@ booking.createdAt = nowUTC; // Database row
 ```
 
 ### **Tenant Admin Control:**
-- Timezone configured in UC-026 (Tenant Settings Edit)
+- Timezone is set at provisioning (UC-024) and a manager cannot change it: `PATCH /tenants/settings` refuses a different value (`422 PLATFORM_TENANT_TIMEZONE_IMMUTABLE`, UC-026 A4). Only an operator corrects it, by runbook, updating the tenant and the billing subscription together
 - Impacts: business hours interpretation, availability calculations, email timestamps
-- Change applies to **future bookings only** (past bookings unaffected)
-- Recommendation: do not change timezone mid-operation (confusing for existing bookings)
+- An operator correction applies to **future bookings only** (past bookings, stored in UTC, are unaffected)
 
 ### **Multi-Location Future (Post-MVP):**
 - If a tenant needs multiple locations with different timezones, model as separate tenants or Phase 2 enhancement

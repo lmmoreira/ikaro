@@ -1524,7 +1524,7 @@ Tenant {
 
 **Key methods:**
 - `updateName(name)` → normalizes and replaces the display name (rejects an empty name or an inactive tenant).
-- `updateSettings(settings)` → validates and replaces settings blob; publishes no event (settings are read fresh per request).
+- `updateSettings(settings)` → validates and replaces the settings blob; refuses an inactive tenant (`TenantInactiveError`) and a changed `businessHours.timezone` (`TenantTimezoneImmutableError`, `PLATFORM_TENANT_TIMEZONE_IMMUTABLE`: the timezone is set at provisioning and only an operator corrects it, TD61); publishes no event (settings are read fresh per request).
 - `deactivate()` → sets `isActive = false`; all tenant data remains intact.
 
 ---
