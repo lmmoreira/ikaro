@@ -7,6 +7,8 @@ export interface GoogleProfile {
   email: string;
   name: string;
   tenantSlug?: string;
-  loginType?: 'staff';
+  loginType?: 'staff' | 'signup';
   returnTo?: string;
+  /** Google's `email_verified` flag; the self-signup step refuses an unverified email (UC-127). */
+  emailVerified?: boolean;
 }

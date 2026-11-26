@@ -162,6 +162,8 @@ export default async function globalSetup(): Promise<void> {
   process.env['CHATBOT_GLOBAL_DAILY_SPEND_LIMIT_USD'] ??= '1';
   process.env['CHATBOT_MIN_PROVIDER_BALANCE_USD'] ??= '2';
   process.env['CHATBOT_PROVIDER_HEALTH_COOLDOWN_MINUTES'] ??= '5';
+  // M26-S24: the Terms version Billing enforces at a self-signup reservation (the schema's default).
+  process.env['SIGNUP_TERMS_VERSION'] ??= '2026-11';
 
   (globalThis as Record<string, unknown>)['__TC_PG_CONTAINER__'] = pgContainer;
 

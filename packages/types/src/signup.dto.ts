@@ -9,3 +9,21 @@ export type SlugAvailabilityResponse =
   | { status: 'taken' }
   | { status: 'reserved' }
   | { status: 'invalid'; reason: SlugInvalidReason };
+
+/** `GET /v1/public/signup/session`: the verified Google identity of the in-progress signup (UC-127). */
+export interface SignupSessionResponse {
+  email: string;
+  name: string;
+  /** False when an earlier self-signup tenant of this Google account never paid (UC-127 A3). */
+  trialAvailable: boolean;
+  /** The earliest unpaid tenant of this Google account, so the page can offer sign-in. */
+  existingTenantSlug?: string;
+  /** The Terms version the visitor must accept and send back as `acceptedTermsVersion`. */
+  termsVersion: string;
+}
+
+/** `POST /v1/public/signup/tenant` `201`: the tenant exists and the first manager gets an email. */
+export interface SignupTenantResponse {
+  tenantSlug: string;
+  nextPath: string;
+}

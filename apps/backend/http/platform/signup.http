@@ -1,0 +1,43 @@
+# Platform — Self-signup (UC-127)
+# The two Platform calls of a signup, both tenant-less under /internal/*, InternalApiGuard only.
+# The BFF is the only caller: it validates (here), reserves the registration (Billing), then
+# provisions (here). Turnstile is verified once, in `validate`, never again in `tenant`.
+#
+# Prerequisites:
+#   1. pnpm infra:up
+#   2. pnpm --filter @ikaro/backend run dev
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@baseUrl     = {{backendUrl}}
+@internalKey = {{$dotenv INTERNAL_API_KEY}}
+
+### Stateless validation: the slug policy and availability, then Turnstile. Persists nothing.
+### 204 on success; 422 SIGNUP_SLUG_INVALID / SIGNUP_SLUG_RESERVED, 409 SIGNUP_SLUG_TAKEN,
+### 400 SIGNUP_TURNSTILE_FAILED. The local Turnstile secret is Cloudflare's always-pass test key.
+POST {{baseUrl}}/internal/signup/validate
+X-Internal-Key: {{internalKey}}
+Content-Type: application/json
+
+{
+  "slug": "lavacar-top-nova",
+  "turnstileToken": "XXXX.DUMMY.TOKEN.XXXX",
+  "clientIp": "203.0.113.9"
+}
+
+###
+
+### Provision the tenant for a registration reserved first (registrationId from
+### ../billing/registrations.http). The email becomes the first manager. 201; 409 SIGNUP_SLUG_TAKEN
+### when the slug was taken between the check and the commit.
+POST {{baseUrl}}/internal/signup/tenant
+X-Internal-Key: {{internalKey}}
+Content-Type: application/json
+
+{
+  "name": "Lavacar Top Nova",
+  "slug": "lavacar-top-nova",
+  "adminEmail": "dona@example.com",
+  "countryCode": "BR",
+  "registrationId": "00000000-0000-7000-8000-000000000000"
+}

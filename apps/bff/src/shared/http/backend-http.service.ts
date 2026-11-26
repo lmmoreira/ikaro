@@ -70,11 +70,13 @@ export class BackendHttpService {
   // A caller with no user and no tenant: the provider's webhook. `post()` takes its headers from the
   // request's user and `postForPublic()` needs a tenant id, so neither fits. It sends the internal key
   // and the correlation id, never a tenant header (the backend resolves the tenant from the body).
-  async postWithoutTenant<T>(path: string, body: unknown): Promise<T> {
+  // `timeoutMs` defaults to the usual 10s; the signup `validate` call raises it because it verifies
+  // Turnstile, which can take close to 8s on its own (M26-S24).
+  async postWithoutTenant<T>(path: string, body: unknown, timeoutMs = 10_000): Promise<T> {
     return this.call(
       this.http.post<T>(`${this.baseUrl}${path}`, body, {
         headers: this.tenantlessHeaders(),
-        timeout: 10_000,
+        timeout: timeoutMs,
       }),
     );
   }

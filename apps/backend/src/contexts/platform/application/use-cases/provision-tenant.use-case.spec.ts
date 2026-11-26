@@ -9,6 +9,7 @@ import {
 } from '../../domain/errors/platform-domain.error';
 import { SlugPolicy } from '../../domain/slug-policy';
 import { TenantProvisioned } from '../../domain/events/tenant-provisioned.event';
+import { TenantProvisioningService } from '../services/tenant-provisioning.service';
 import { ProvisionTenantUseCase } from './provision-tenant.use-case';
 
 describe('ProvisionTenantUseCase', () => {
@@ -22,10 +23,12 @@ describe('ProvisionTenantUseCase', () => {
     tenantRepo = new InMemoryTenantRepository(eventBus);
     hotsiteRepo = new InMemoryHotsiteConfigRepository();
     useCase = new ProvisionTenantUseCase(
-      tenantRepo,
-      hotsiteRepo,
-      new InMemoryTransactionManager(),
-      new SlugPolicy('ikaro'),
+      new TenantProvisioningService(
+        tenantRepo,
+        hotsiteRepo,
+        new InMemoryTransactionManager(),
+        new SlugPolicy('ikaro'),
+      ),
     );
   });
 

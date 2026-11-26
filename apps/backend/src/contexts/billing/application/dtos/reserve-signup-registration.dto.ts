@@ -31,11 +31,15 @@ export const ReserveSignupRegistrationSchema = z
         message: 'exempt is only allowed for OPERATOR',
       });
     }
-    if (value.taxId !== undefined && value.countryCode === undefined) {
+    // The country gates self-signup (`SIGNUP_COUNTRY_NOT_SUPPORTED`) and picks the TaxId spec.
+    if (
+      (value.taxId !== undefined || value.source === 'SELF_SIGNUP') &&
+      value.countryCode === undefined
+    ) {
       ctx.addIssue({
         code: 'custom',
         path: ['countryCode'],
-        message: 'countryCode is required with taxId',
+        message: 'countryCode is required with taxId and for SELF_SIGNUP',
         params: { code: GenericErrorCode.FIELD_REQUIRED },
       });
     }

@@ -36,6 +36,13 @@ export interface ISignupRegistrationRepository {
   complete(registration: SignupRegistration): Promise<void>;
 
   /**
+   * Deletes the `RESERVED` registration with this id (either source) and returns whether it deleted
+   * one (S24 release). A `COMPLETED` row and an unknown id are left alone and answer `false`, so the
+   * call is idempotent and can never remove a registration a tenant exists for.
+   */
+  deleteReserved(id: string): Promise<boolean>;
+
+  /**
    * Deletes every `RESERVED` registration created strictly before `cutoff` (the one-hour backstop,
    * UC-140 1b) and returns how many it deleted. A `COMPLETED` row and a younger one are never
    * touched. "Released" is deletion: the status column has only `RESERVED | COMPLETED`.

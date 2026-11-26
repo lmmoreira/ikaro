@@ -55,7 +55,8 @@ export async function devLogin(
   };
 }
 
-function validateDevAuthEnabled(config: ConfigService): void {
+// Exported for the signup-session issuer, which is gated exactly like `dev-login`.
+export function validateDevAuthEnabled(config: ConfigService): void {
   if (config.get<string>('ENABLE_DEV_AUTH') !== 'true') {
     throw throwProblemDetail(
       HttpStatus.FORBIDDEN,

@@ -8,6 +8,8 @@ import { TRANSACTION_MANAGER } from '../../../../shared/ports/transaction-manage
 import { SignupRegistrationEntityBuilder } from '../../../../test/builders/billing';
 import { TenantProvisionedEventBuilder } from '../../../../test/builders/platform';
 import { createBillingIntegrationApp } from '../../../../test/utils/billing-integration-app';
+import { newValidCpf } from '../../../../test/utils/valid-cpf';
+import { ReserveSignupRegistrationUseCase } from './reserve-signup-registration.use-case';
 import { SignupRegistration } from '../../domain/signup-registration';
 import {
   FeaturePriceNotFoundError,
@@ -180,6 +182,33 @@ describe('CreateTrialSubscriptionUseCase (integration)', () => {
     ).resolves.toBe(true);
   });
 
+  // The two halves of a self-signup meet here: the registration is reserved by the real reserve use
+  // case (what the BFF's signup calls), and the TenantProvisioned handler completes it (UC-127 steps
+  // 2 to 4). The Platform half (the event carries the registrationId) is proven in
+  // internal-signup.controller.integration.spec.ts.
+  it('completes a registration reserved by the real self-signup reservation, moving its tax id to the account', async () => {
+    const tenantId = newTenant();
+    const cpf = newValidCpf();
+    const googleSub = `sub-${uuidv7()}`;
+    const reserved = await app.get(ReserveSignupRegistrationUseCase).execute({
+      source: 'SELF_SIGNUP',
+      googleSub,
+      countryCode: 'BR',
+      taxId: cpf,
+      termsVersion: process.env['SIGNUP_TERMS_VERSION'],
+    });
+    const registrationId = reserved.registrationId as string;
+    registrationIds.push(registrationId);
+
+    await eventBus.publish(provisioned(tenantId, registrationId));
+
+    const after = await registrationRow(registrationId);
+    expect(after).toMatchObject({ status: 'COMPLETED', tenantId, taxId: null, googleSub });
+    const account = await ds.getRepository(BillingAccountEntity).findOneByOrFail({ tenantId });
+    expect(account).toMatchObject({ taxId: cpf, taxIdType: 'CPF' });
+    await expect(subscriptionsOf(tenantId)).resolves.toHaveLength(1);
+  });
+
   it('starts an ACTIVE exempt subscription for an exempt operator registration', async () => {
     const tenantId = newTenant();
     const registrationId = await seedRegistration(
@@ -256,6 +285,7 @@ describe('CreateTrialSubscriptionUseCase (integration)', () => {
       isTaxIdHeldByUnpaid: (taxId) => real.isTaxIdHeldByUnpaid(taxId),
       save: (registration) => real.save(registration),
       releaseExpiredReservations: (cutoff) => real.releaseExpiredReservations(cutoff),
+      deleteReserved: (id) => real.deleteReserved(id),
       findById: (id) => real.findById(id),
       complete: async (registration: SignupRegistration) => {
         if (failComplete) throw new Error('simulated failure after the subscription was written');
@@ -292,6 +322,7 @@ describe('CreateTrialSubscriptionUseCase (integration)', () => {
       isTaxIdHeldByUnpaid: (taxId) => real.isTaxIdHeldByUnpaid(taxId),
       save: (registration) => real.save(registration),
       releaseExpiredReservations: (cutoff) => real.releaseExpiredReservations(cutoff),
+      deleteReserved: (id) => real.deleteReserved(id),
       complete: (registration) => real.complete(registration),
       findById: async (id) => {
         const registration = await real.findById(id);

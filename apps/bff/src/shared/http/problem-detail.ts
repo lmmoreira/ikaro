@@ -1,6 +1,7 @@
 import { throwProblemDetail as throwProblemDetailBase } from '@ikaro/nestjs-http';
 import {
   StaffErrorCode,
+  type SignupErrorCode,
   type AuthErrorCode,
   type BffErrorCode,
   type GenericErrorCode,
@@ -13,6 +14,10 @@ import {
 // defeat the compile-time governance TD23 §9 exists to provide.
 type StaffDeactivatedCode = (typeof StaffErrorCode)['DEACTIVATED'];
 
+// The three signup codes the BFF itself throws (M26-S24): the burst limit, the kill switch and the
+// trial rule it maps from Billing's reserve answer. The others pass through from the backend.
+type SignupBffCode = (typeof SignupErrorCode)['RATE_LIMITED' | 'CLOSED' | 'TRIAL_NOT_AVAILABLE'];
+
 // Codes a BFF-originated throw site is allowed to use — spans every origin actually reused
 // across the BFF (TD23 Story 11): BFF-feature-specific, framework/guard fallback, VO-less
 // generic, and StaffDeactivatedCode (reused verbatim from the backend for the identical
@@ -20,7 +25,7 @@ type StaffDeactivatedCode = (typeof StaffErrorCode)['DEACTIVATED'];
 // AnyErrorCode, so a BFF site can't accidentally throw an unrelated backend-only code — that
 // would defeat the compile-time governance TD23 §9 exists to provide.
 export type BffThrowableCode =
-  BffErrorCode | AuthErrorCode | GenericErrorCode | StaffDeactivatedCode;
+  BffErrorCode | AuthErrorCode | GenericErrorCode | StaffDeactivatedCode | SignupBffCode;
 
 // Canonical envelope for every BFF-originated error (TD23 Story 11) — never throw an
 // ad-hoc { type, title, status, detail } object or a bare BadRequestException(string)

@@ -3,6 +3,10 @@ export interface GoogleSubHistoryEntry {
   readonly status: 'RESERVED' | 'COMPLETED';
   /** The tenant's `subscriptions.has_ever_paid`; false when the row has no subscription (yet). */
   readonly hasEverPaid: boolean;
+  /** The tenant created from this registration; absent (or null) while it is still `RESERVED`. */
+  readonly tenantId?: string | null;
+  /** When the registration was reserved; the eligibility read picks the earliest unpaid tenant. */
+  readonly createdAt?: Date;
 }
 
 export interface TrialEligibilityInput {

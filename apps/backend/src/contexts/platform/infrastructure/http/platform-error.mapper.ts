@@ -14,6 +14,11 @@ import {
   TenantNotFoundError,
 } from '../../domain/errors/platform-domain.error';
 import {
+  SignupSlugInvalidError,
+  SignupSlugTakenError,
+  SignupTurnstileFailedError,
+} from '../../domain/errors/signup-domain.error';
+import {
   ChatbotConcurrencyCapReachedError,
   ChatbotDailyCapReachedError,
   ChatbotGlobalSpendLimitReachedError,
@@ -61,11 +66,26 @@ function mapLeadFormError(err: unknown): void {
 // `PLATFORM_SLUG_ALREADY_TAKEN` (UC-024 A2); the format `400` comes from the Slug VO's own mapper.
 // Returns without throwing for any other error.
 function mapSlugError(err: unknown): void {
+  mapSignupError(err);
   if (err instanceof SlugReservedError) {
     throw throwProblemDetail(HttpStatus.UNPROCESSABLE_ENTITY, err.code, err.message, err.field);
   }
   if (err instanceof SlugAlreadyTakenError) {
     throw throwProblemDetail(HttpStatus.CONFLICT, err.code, err.message, err.field);
+  }
+}
+
+// The public signup answers (M26-S24, UC-127): a taken slug is `409`, an invalid one `422`, a
+// failed Turnstile `400`. Returns without throwing for any other error.
+function mapSignupError(err: unknown): void {
+  if (err instanceof SignupSlugTakenError) {
+    throw throwProblemDetail(HttpStatus.CONFLICT, err.code, err.message, err.field);
+  }
+  if (err instanceof SignupSlugInvalidError) {
+    throw throwProblemDetail(HttpStatus.UNPROCESSABLE_ENTITY, err.code, err.message, err.field);
+  }
+  if (err instanceof SignupTurnstileFailedError) {
+    throw throwProblemDetail(HttpStatus.BAD_REQUEST, err.code, err.message);
   }
 }
 

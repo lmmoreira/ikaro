@@ -8,6 +8,7 @@ import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { ZodValidationPipe } from '@ikaro/nestjs-http';
 import { DevLoginDto, DevLoginResponse, DevLoginSchema } from './dtos/dev-login.dto';
+import { DevSignupSessionDto, DevSignupSessionSchema } from './dtos/dev-signup-session.dto';
 import { SwitchStaffTenantDto, SwitchStaffTenantSchema } from './dtos/switch-staff-tenant.dto';
 import { SwitchTenantDto, SwitchTenantSchema } from './dtos/switch-tenant.dto';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
@@ -102,5 +103,19 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<DevLoginResponse> {
     return this.authFlow.devLogin(dto, res);
+  }
+
+  // The self-signup counterpart of dev-login (UC-127, M26-S24): sets the signup session cookie so
+  // Playwright can start a signup without Google. Same gates as dev-login (ENABLE_DEV_AUTH, never
+  // in production), same exemption from the class-level /auth/* tier.
+  @Public()
+  @SkipThrottle()
+  @Post('dev-signup-session')
+  @HttpCode(200)
+  devSignupSession(
+    @Body(new ZodValidationPipe(DevSignupSessionSchema)) dto: DevSignupSessionDto,
+    @Res({ passthrough: true }) res: Response,
+  ): { ok: true } {
+    return this.authFlow.devSignupSession(dto, res);
   }
 }

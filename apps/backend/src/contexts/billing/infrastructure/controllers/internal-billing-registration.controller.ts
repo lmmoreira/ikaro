@@ -1,16 +1,38 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { NoFeatureGate, SuspensionAccess, ZodValidationPipe } from '@ikaro/nestjs-http';
+import { z } from 'zod';
 import { InternalApiGuard } from '../../../../shared/guards/internal-api.guard';
 import {
   ReserveSignupRegistrationDto,
   ReserveSignupRegistrationSchema,
 } from '../../application/dtos/reserve-signup-registration.dto';
 import {
+  GetSignupEligibilityUseCaseResult,
+  GetSignupEligibilityUseCase,
+} from '../../application/use-cases/get-signup-eligibility.use-case';
+import {
+  ReleaseSignupRegistrationUseCaseResult,
+  ReleaseSignupRegistrationUseCase,
+} from '../../application/use-cases/release-signup-registration.use-case';
+import {
   ReserveSignupRegistrationUseCase,
   ReserveSignupRegistrationUseCaseInput,
   ReserveSignupRegistrationUseCaseResult,
 } from '../../application/use-cases/reserve-signup-registration.use-case';
 import { mapBillingError } from '../http/billing-error.mapper';
+
+const EligibilityQuerySchema = z.object({ googleSub: z.string().trim().min(1).max(100) });
+type EligibilityQuery = z.infer<typeof EligibilityQuerySchema>;
 
 // Tenant-less by design: `/internal/*` skips the RequestInterceptor, and the registration exists
 // before the tenant does. Called by the BFF (self-signup) and `scripts/provision-tenant.sh`.
@@ -19,7 +41,11 @@ import { mapBillingError } from '../http/billing-error.mapper';
 @SuspensionAccess('ANY_AUTHENTICATED')
 @Controller('internal/billing/registrations')
 export class InternalBillingRegistrationController {
-  constructor(private readonly reserveRegistration: ReserveSignupRegistrationUseCase) {}
+  constructor(
+    private readonly reserveRegistration: ReserveSignupRegistrationUseCase,
+    private readonly getEligibility: GetSignupEligibilityUseCase,
+    private readonly releaseRegistration: ReleaseSignupRegistrationUseCase,
+  ) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -30,14 +56,30 @@ export class InternalBillingRegistrationController {
     const input: ReserveSignupRegistrationUseCaseInput = {
       source: dto.source,
       googleSub: dto.googleSub,
-      // The schema guarantees a country whenever a tax id is present.
-      taxId:
-        dto.taxId !== undefined && dto.countryCode !== undefined
-          ? { raw: dto.taxId, countryCode: dto.countryCode }
-          : undefined,
+      // The schema guarantees a country whenever a tax id is present or the source is SELF_SIGNUP.
+      countryCode: dto.countryCode,
+      taxId: dto.taxId,
       termsVersion: dto.terms?.version,
       exempt: dto.exempt,
     };
     return this.reserveRegistration.execute(input).catch(mapBillingError);
+  }
+
+  // Read-only (UC-127): no lock and no insert, so a session read can never reserve anything.
+  @Get('eligibility')
+  eligibility(
+    @Query(new ZodValidationPipe(EligibilityQuerySchema)) query: EligibilityQuery,
+  ): Promise<GetSignupEligibilityUseCaseResult> {
+    return this.getEligibility.execute({ googleSub: query.googleSub }).catch(mapBillingError);
+  }
+
+  // Idempotent: an unknown, already released or `COMPLETED` registration answers
+  // `{ released: false }` and nothing is deleted.
+  @Post(':id/release')
+  @HttpCode(HttpStatus.OK)
+  release(
+    @Param('id', new ZodValidationPipe(z.uuid())) id: string,
+  ): Promise<ReleaseSignupRegistrationUseCaseResult> {
+    return this.releaseRegistration.execute({ registrationId: id }).catch(mapBillingError);
   }
 }

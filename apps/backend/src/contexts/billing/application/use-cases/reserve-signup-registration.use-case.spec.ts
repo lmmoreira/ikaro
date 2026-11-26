@@ -3,13 +3,15 @@ import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-m
 import { InMemorySignupRegistrationLock } from '../../../../test/repositories/billing/in-memory-signup-registration-lock';
 import { InMemorySignupRegistrationRepository } from '../../../../test/repositories/billing/in-memory-signup-registration.repository';
 import { TaxIdValidationError } from '../../../../shared/value-objects/tax-id.vo';
-import { SignupTermsNotAcceptedError } from '../../domain/errors/billing-domain.error';
+import {
+  SignupCountryNotSupportedError,
+  SignupTermsNotAcceptedError,
+} from '../../domain/errors/billing-domain.error';
 import { ReserveSignupRegistrationUseCase } from './reserve-signup-registration.use-case';
 
 const NOW = new Date('2026-11-11T12:00:00Z');
 const CPF = { raw: '529.982.247-25', countryCode: 'BR' };
 const CNPJ = { raw: '11.222.333/0001-81', countryCode: 'BR' };
-const EIN = { raw: '12-3456789', countryCode: 'US' };
 const TERMS = '2026-11-01';
 
 describe('ReserveSignupRegistrationUseCase', () => {
@@ -27,15 +29,23 @@ describe('ReserveSignupRegistrationUseCase', () => {
       lock,
       txManager,
       new FixedClock(NOW),
+      { termsVersion: TERMS },
     );
   });
 
   describe('SELF_SIGNUP', () => {
     const selfSignup = (googleSub: string, extra = {}) =>
-      useCase.execute({ source: 'SELF_SIGNUP', googleSub, termsVersion: TERMS, ...extra });
+      useCase.execute({
+        source: 'SELF_SIGNUP',
+        googleSub,
+        countryCode: 'BR',
+        taxId: CPF.raw,
+        termsVersion: TERMS,
+        ...extra,
+      });
 
     it('reserves a registration for a Google account with no history, under lock B-A1', async () => {
-      const result = await selfSignup('sub-1', { taxId: CPF });
+      const result = await selfSignup('sub-1', { taxId: CPF.raw });
 
       expect(result.trialAvailable).toBe(true);
       expect(result.registrationId).toEqual(expect.any(String));
@@ -83,25 +93,27 @@ describe('ReserveSignupRegistrationUseCase', () => {
     it('is ineligible when the tax id belongs to a never-paid account, even for a different Google account', async () => {
       registrations.seedUnpaidTaxId('52998224725');
 
-      const result = await selfSignup('sub-other', { taxId: CPF });
+      const result = await selfSignup('sub-other', { taxId: CPF.raw });
 
       expect(result).toEqual({ registrationId: null, trialAvailable: false });
       expect(registrations.saved).toHaveLength(0);
     });
 
     it('is ineligible when an in-flight RESERVED registration holds the tax id', async () => {
-      await selfSignup('sub-1', { taxId: CPF });
+      await selfSignup('sub-1', { taxId: CPF.raw });
 
-      const result = await selfSignup('sub-2', { taxId: CPF });
+      const result = await selfSignup('sub-2', { taxId: CPF.raw });
 
       expect(result).toEqual({ registrationId: null, trialAvailable: false });
       expect(registrations.saved).toHaveLength(1);
     });
 
-    it('skips the tax-id half when none is given', async () => {
-      registrations.seedUnpaidTaxId('52998224725');
-
-      await expect(selfSignup('sub-1')).resolves.toMatchObject({ trialAvailable: true });
+    it('refuses a missing tax id with SIGNUP_TAX_ID_REQUIRED, before the lock', async () => {
+      await expect(selfSignup('sub-1', { taxId: undefined })).rejects.toMatchObject({
+        code: 'SIGNUP_TAX_ID_REQUIRED',
+      });
+      expect(lock.locked).toHaveLength(0);
+      expect(registrations.saved).toHaveLength(0);
     });
 
     it('a second reservation of the same Google account loses once the first is in flight', async () => {
@@ -114,25 +126,52 @@ describe('ReserveSignupRegistrationUseCase', () => {
 
     it('refuses without terms with SIGNUP_TERMS_NOT_ACCEPTED, before taking the lock', async () => {
       await expect(
-        useCase.execute({ source: 'SELF_SIGNUP', googleSub: 'sub-1' }),
+        useCase.execute({
+          source: 'SELF_SIGNUP',
+          googleSub: 'sub-1',
+          countryCode: 'BR',
+          taxId: CPF.raw,
+        }),
       ).rejects.toBeInstanceOf(SignupTermsNotAcceptedError);
       expect(lock.locked).toHaveLength(0);
       expect(registrations.saved).toHaveLength(0);
     });
 
-    it('validates the tax id format with the spec of the given country', async () => {
-      await expect(selfSignup('sub-1', { taxId: CNPJ })).resolves.toMatchObject({
+    it('refuses a terms version other than the current one, before the lock', async () => {
+      await expect(selfSignup('sub-1', { termsVersion: '2020-01' })).rejects.toBeInstanceOf(
+        SignupTermsNotAcceptedError,
+      );
+      expect(lock.locked).toHaveLength(0);
+      expect(registrations.saved).toHaveLength(0);
+    });
+
+    it.each([['US'], ['AR']])(
+      'refuses the country %s with SIGNUP_COUNTRY_NOT_SUPPORTED, before the lock',
+      async (countryCode) => {
+        await expect(selfSignup('sub-1', { countryCode })).rejects.toBeInstanceOf(
+          SignupCountryNotSupportedError,
+        );
+        expect(lock.locked).toHaveLength(0);
+        expect(registrations.saved).toHaveLength(0);
+      },
+    );
+
+    it('refuses a SELF_SIGNUP with no country', async () => {
+      await expect(selfSignup('sub-1', { countryCode: undefined })).rejects.toBeInstanceOf(
+        SignupCountryNotSupportedError,
+      );
+    });
+
+    it('accepts a CNPJ as well as a CPF', async () => {
+      await expect(selfSignup('sub-1', { taxId: CNPJ.raw })).resolves.toMatchObject({
         trialAvailable: true,
       });
-      await expect(selfSignup('sub-2', { taxId: EIN })).resolves.toMatchObject({
-        trialAvailable: true,
-      });
-      expect(registrations.saved.map((row) => row.taxId?.type)).toEqual(['CNPJ', 'EIN']);
+      expect(registrations.saved.map((row) => row.taxId?.type)).toEqual(['CNPJ']);
     });
 
     it.each([
-      ['an invalid CPF', { raw: '111.111.111-11', countryCode: 'BR' }],
-      ['an EIN given with the BR country', { raw: '12-3456789', countryCode: 'BR' }],
+      ['an invalid CPF', '111.111.111-11'],
+      ['an EIN given with the BR country', '12-3456789'],
     ])('rejects %s with SIGNUP_TAX_ID_INVALID, before any lock or insert', async (_name, taxId) => {
       await expect(selfSignup('sub-1', { taxId })).rejects.toBeInstanceOf(TaxIdValidationError);
       expect(lock.locked).toHaveLength(0);
@@ -149,7 +188,7 @@ describe('ReserveSignupRegistrationUseCase', () => {
     });
 
     it('returns nothing but the registration id and the flag', async () => {
-      const result = await selfSignup('sub-1', { taxId: CPF });
+      const result = await selfSignup('sub-1', { taxId: CPF.raw });
 
       expect(Object.keys(result).sort()).toEqual(['registrationId', 'trialAvailable']);
     });
@@ -159,7 +198,11 @@ describe('ReserveSignupRegistrationUseCase', () => {
     it('always reserves a fresh row, with no lock and no eligibility check', async () => {
       registrations.seedUnpaidTaxId('52998224725');
 
-      const result = await useCase.execute({ source: 'OPERATOR', taxId: CPF });
+      const result = await useCase.execute({
+        source: 'OPERATOR',
+        taxId: CPF.raw,
+        countryCode: 'BR',
+      });
 
       expect(result.trialAvailable).toBe(true);
       expect(lock.locked).toHaveLength(0);
@@ -193,7 +236,7 @@ describe('ReserveSignupRegistrationUseCase', () => {
     });
 
     it('is not exempt by default', async () => {
-      await useCase.execute({ source: 'OPERATOR', taxId: CPF });
+      await useCase.execute({ source: 'OPERATOR', taxId: CPF.raw, countryCode: 'BR' });
 
       expect(registrations.saved[0].exempt).toBe(false);
     });
@@ -203,7 +246,8 @@ describe('ReserveSignupRegistrationUseCase', () => {
         useCase.execute({
           source: 'OPERATOR',
           exempt: true,
-          taxId: { raw: '123', countryCode: 'BR' },
+          taxId: '123',
+          countryCode: 'BR',
         }),
       ).rejects.toBeInstanceOf(TaxIdValidationError);
       expect(registrations.saved).toHaveLength(0);
@@ -213,7 +257,8 @@ describe('ReserveSignupRegistrationUseCase', () => {
       await expect(
         useCase.execute({
           source: 'OPERATOR',
-          taxId: { raw: '123', countryCode: 'BR' },
+          taxId: '123',
+          countryCode: 'BR',
         }),
       ).rejects.toBeInstanceOf(TaxIdValidationError);
     });

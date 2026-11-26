@@ -10,6 +10,7 @@ import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { GoogleCallbackGuard } from './guards/google-callback.guard';
 import { JwtIssuerService } from './jwt-issuer.service';
 import { OAuthStateService } from './oauth-state.service';
+import { SignupSessionService } from './signup-session.service';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
 
@@ -32,10 +33,11 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     JwtStrategy,
     JwtIssuerService,
     OAuthStateService,
+    SignupSessionService,
     GoogleAuthGuard,
     GoogleCallbackGuard,
     AuthControllerFlowService,
   ],
-  exports: [JwtIssuerService],
+  exports: [JwtIssuerService, SignupSessionService],
 })
 export class AuthModule {}

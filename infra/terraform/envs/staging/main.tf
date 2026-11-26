@@ -211,6 +211,10 @@ module "cloudrun_backend" {
       # can never be un-exempted. A plain env var (not a secret); the env-contract check requires
       # it in both environment roots so the protection can never be silently off when deployed.
       PLATFORM_OWNER_TENANT_SLUG = "ikaro"
+
+      # M26-S24 (UC-127): the Terms version a self-signup must accept, read by Billing at the
+      # reservation and reported by the session read. A plain env var, the current Terms version.
+      SIGNUP_TERMS_VERSION = "2026-11"
     },
     # BREVO_SMTP_LOGIN is optional-with-min-length in the backend schema — a
     # present "" satisfies "not absent" but fails min(1), crashing app boot
@@ -306,6 +310,9 @@ module "cloudrun_bff" {
     # M17 §2: ENABLE_DEV_AUTH=true only in staging.
     ENABLE_DEV_AUTH   = "true"
     BACKEND_AUTH_MODE = "iam"
+
+    # M26-S24: the self-signup kill switch (UC-127 A11), read by the BFF only. Open in staging.
+    FEATURE_FLAG_SIGNUP_ENABLED = "true"
   }
 
   secret_env_vars = {

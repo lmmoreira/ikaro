@@ -58,11 +58,41 @@ describe('GoogleStrategy', () => {
           name: 'João Silva',
           tenantSlug: undefined,
           loginType: undefined,
+          // Google sent no `verified` flag: treated as unverified (only the signup step reads it).
+          emailVerified: false,
         });
         done();
       },
     );
   });
+
+  it.each([
+    [true, true],
+    ['true', true],
+    [false, false],
+    [undefined, false],
+  ])(
+    "validate() reads Google's email verified flag %p as %p, and carries the signup loginType",
+    (verified, expected) => {
+      const profile = {
+        id: 'google-sub-123',
+        displayName: 'Dona',
+        emails: [{ value: 'dona@gmail.com', verified }],
+      };
+      const { state, nonce } = oauthState.encodeOAuthState('signup');
+
+      strategy.validate(
+        makeReq(state, nonce),
+        'access-token',
+        'refresh-token',
+        profile as never,
+        (err, user) => {
+          expect(err).toBeNull();
+          expect(user).toMatchObject({ loginType: 'signup', emailVerified: expected });
+        },
+      );
+    },
+  );
 
   it('validate() includes tenantSlug when the signed state carries a tenant slug', (done) => {
     const profile = {

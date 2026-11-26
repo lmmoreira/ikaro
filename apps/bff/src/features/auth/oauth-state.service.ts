@@ -28,11 +28,13 @@ export class OAuthStateService {
   constructor(private readonly jwt: JwtService) {}
 
   encodeOAuthState(
-    type: 'staff' | 'customer',
+    type: 'staff' | 'customer' | 'signup',
     tenantSlug?: string,
     returnTo?: string,
   ): EncodedOAuthState {
-    const slug = tenantSlug && isValidSlug(tenantSlug) ? tenantSlug : undefined;
+    // A signup has no tenant: a slug or returnTo sent with `type=signup` is dropped, never trusted.
+    const slug =
+      type !== 'signup' && tenantSlug && isValidSlug(tenantSlug) ? tenantSlug : undefined;
     // Invalid/mismatched returnTo is silently dropped, never rejected — it degrades to the
     // existing hotsite-home fallback in handleTenantLogin, it must never fail the login itself.
     const validReturnTo =
@@ -40,7 +42,7 @@ export class OAuthStateService {
     const nonce = randomUUID();
     const payload: OAuthStatePayload = {
       nonce,
-      ...(type === 'staff' ? { loginType: 'staff' as const } : {}),
+      ...(type === 'staff' || type === 'signup' ? { loginType: type } : {}),
       ...(slug ? { tenantSlug: slug } : {}),
       ...(validReturnTo ? { returnTo: validReturnTo } : {}),
     };
@@ -62,7 +64,13 @@ export class OAuthStateService {
     } catch {
       throw new OAuthStateInvalidError('OAuth state is invalid or expired');
     }
-    if (!cookieNonce || !nonceMatches(cookieNonce, payload.nonce)) {
+    // A signed JWT of another kind (the signup session, the resend credential) has no nonce: it is
+    // an invalid state, not a crash in the comparison below.
+    if (
+      typeof payload.nonce !== 'string' ||
+      !cookieNonce ||
+      !nonceMatches(cookieNonce, payload.nonce)
+    ) {
       throw new OAuthStateInvalidError(
         'OAuth state nonce does not match the browser that started the flow',
       );

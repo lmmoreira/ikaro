@@ -51,6 +51,11 @@ export const schema = z.object({
     .string()
     .min(1, { message: 'ASAAS_WEBHOOK_TOKEN must not be empty when set' })
     .optional(),
+  // M26-S24 — the self-signup kill switch (UC-127 A11): off answers `503 SIGNUP_CLOSED` on the
+  // Google step, the session read and the signup POST. Read here only (the backend's signup routes
+  // are internal and reachable only through this BFF). Unset means open outside production and
+  // closed in production, so a production deploy that loses the variable fails closed.
+  FEATURE_FLAG_SIGNUP_ENABLED: z.stringbool().optional(),
 });
 
 const validatedSchema = schema.superRefine((data, ctx) => {

@@ -1,12 +1,17 @@
 import { ExecutionContext, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from '@nestjs/passport';
 import { Request, Response } from 'express';
 import { OAUTH_NONCE_COOKIE_NAME, OAUTH_NONCE_COOKIE_OPTIONS } from '../cookie-options';
 import { OAuthStateService } from '../oauth-state.service';
+import { assertSignupOpen } from '../signup-availability';
 
 @Injectable()
 export class GoogleAuthGuard extends AuthGuard('google') {
-  constructor(private readonly oauthState: OAuthStateService) {
+  constructor(
+    private readonly oauthState: OAuthStateService,
+    private readonly config: ConfigService,
+  ) {
     super();
   }
 
@@ -20,7 +25,10 @@ export class GoogleAuthGuard extends AuthGuard('google') {
     const req = context.switchToHttp().getRequest<Request>();
     const res = context.switchToHttp().getResponse<Response>();
     const tenantSlug = req.query['tenantSlug'] as string | undefined;
-    const type = req.query['type'] === 'staff' ? 'staff' : 'customer';
+    const rawType = req.query['type'];
+    const type = rawType === 'staff' || rawType === 'signup' ? rawType : 'customer';
+    // The kill switch answers before any redirect to Google (UC-127 A11).
+    if (type === 'signup') assertSignupOpen(this.config);
     // req.query['returnTo'] is typed string | undefined but Express parses a repeated query
     // param (?returnTo=a&returnTo=b) as string[] at runtime — an unchecked cast would pass that
     // array straight into isValidReturnTo()'s .startsWith() call and throw (PR #433 review).

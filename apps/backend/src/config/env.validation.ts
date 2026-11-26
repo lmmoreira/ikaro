@@ -134,6 +134,12 @@ export const schema = z.object({
       message: 'PLATFORM_OWNER_TENANT_SLUG must match ^[a-z0-9-]+$ (a tenant slug)',
     })
     .optional(),
+  // M26-S24 — the Terms version a self-signup must accept (UC-127). Billing reads it: the accepted
+  // version is stored on the registration, and `GET /internal/billing/registrations/eligibility`
+  // reports it as the single source the web renders. The default keeps local and CI signup
+  // working; the env-contract check requires it in both Terraform roots, so a deployed
+  // environment never silently falls back to it (production holds a placeholder until S39).
+  SIGNUP_TERMS_VERSION: z.string().trim().min(1).max(20).default('2026-11'),
 });
 
 export type Env = z.infer<typeof schema>;

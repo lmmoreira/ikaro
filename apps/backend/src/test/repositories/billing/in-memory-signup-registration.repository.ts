@@ -32,12 +32,25 @@ export class InMemorySignupRegistrationRepository implements ISignupRegistration
   async save(registration: SignupRegistration): Promise<void> {
     this.saved.push(registration);
     if (registration.source === 'SELF_SIGNUP' && registration.googleSub !== null) {
-      this.seedHistory(registration.googleSub, { status: 'RESERVED', hasEverPaid: false });
+      this.seedHistory(registration.googleSub, {
+        status: 'RESERVED',
+        hasEverPaid: false,
+        createdAt: registration.createdAt,
+      });
     }
   }
 
   async findById(id: string): Promise<SignupRegistration | null> {
     return this.saved.find((row) => row.id === id) ?? null;
+  }
+
+  async deleteReserved(id: string): Promise<boolean> {
+    const index = this.saved.findIndex((row) => row.id === id);
+    const row = this.saved[index];
+    if (!row || row.status !== 'RESERVED') return false;
+    this.saved.splice(index, 1);
+    this.dropReservedHistoryEntry(row);
+    return true;
   }
 
   async releaseExpiredReservations(cutoff: Date): Promise<number> {
@@ -47,13 +60,15 @@ export class InMemorySignupRegistrationRepository implements ISignupRegistration
     const kept = this.saved.filter((row) => !expired.includes(row));
     this.saved.splice(0, this.saved.length, ...kept);
     // `save()` seeded one RESERVED history entry per self-signup; releasing the row removes it too.
-    for (const row of expired) {
-      if (row.source !== 'SELF_SIGNUP' || row.googleSub === null) continue;
-      const entries = this.history.get(row.googleSub) ?? [];
-      const index = entries.findIndex((entry) => entry.status === 'RESERVED');
-      if (index !== -1) entries.splice(index, 1);
-    }
+    for (const row of expired) this.dropReservedHistoryEntry(row);
     return expired.length;
+  }
+
+  private dropReservedHistoryEntry(row: SignupRegistration): void {
+    if (row.source !== 'SELF_SIGNUP' || row.googleSub === null) return;
+    const entries = this.history.get(row.googleSub) ?? [];
+    const index = entries.findIndex((entry) => entry.status === 'RESERVED');
+    if (index !== -1) entries.splice(index, 1);
   }
 
   // Mirrors the adapter's conditional UPDATE: only a stored RESERVED row completes.

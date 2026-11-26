@@ -1,3 +1,4 @@
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { makeExecutionContext } from '../../../test/execution-context.factory';
 import { OAUTH_NONCE_COOKIE_NAME, OAUTH_NONCE_COOKIE_OPTIONS } from '../cookie-options';
@@ -11,13 +12,17 @@ function makeRes(): { cookie: jest.Mock; clearCookie: jest.Mock } {
   return { cookie: jest.fn(), clearCookie: jest.fn() };
 }
 
+function configOf(values: Record<string, unknown>): ConfigService {
+  return { get: (key: string) => values[key] } as unknown as ConfigService;
+}
+
 describe('GoogleAuthGuard', () => {
   let guard: GoogleAuthGuard;
   let jwtService: JwtService;
 
   beforeEach(() => {
     jwtService = new JwtService({ secret: TEST_SECRET });
-    guard = new GoogleAuthGuard(new OAuthStateService(jwtService));
+    guard = new GoogleAuthGuard(new OAuthStateService(jwtService), configOf({}));
   });
 
   describe('getAuthenticateOptions() — customer login', () => {
@@ -119,6 +124,44 @@ describe('GoogleAuthGuard', () => {
       const payload = jwtService.verify<OAuthStatePayload>(opts.state);
       expect(payload.loginType).toBe('staff');
       expect(payload.tenantSlug).toBeUndefined();
+    });
+  });
+
+  describe('getAuthenticateOptions() — self-signup (UC-127)', () => {
+    it('signs a signup state with no tenantSlug and no returnTo, even when the request sends them', () => {
+      const opts = guard.getAuthenticateOptions(
+        makeExecutionContext({
+          query: { type: 'signup', tenantSlug: 'lavacar-bh', returnTo: '/lavacar-bh/x' },
+        }),
+      ) as { state: string };
+
+      const payload = jwtService.verify<OAuthStatePayload>(opts.state);
+      expect(payload.loginType).toBe('signup');
+      expect(payload.tenantSlug).toBeUndefined();
+      expect(payload.returnTo).toBeUndefined();
+    });
+
+    it('answers 503 SIGNUP_CLOSED before any redirect while the kill switch is off', () => {
+      const closed = new GoogleAuthGuard(
+        new OAuthStateService(jwtService),
+        configOf({ FEATURE_FLAG_SIGNUP_ENABLED: false }),
+      );
+
+      expect(() =>
+        closed.getAuthenticateOptions(makeExecutionContext({ query: { type: 'signup' } })),
+      ).toThrow(expect.objectContaining({ status: 503 }));
+    });
+
+    it('does not consult the kill switch for a customer or staff login', () => {
+      const closed = new GoogleAuthGuard(
+        new OAuthStateService(jwtService),
+        configOf({ FEATURE_FLAG_SIGNUP_ENABLED: false }),
+      );
+
+      expect(() => closed.getAuthenticateOptions(makeExecutionContext({}))).not.toThrow();
+      expect(() =>
+        closed.getAuthenticateOptions(makeExecutionContext({ query: { type: 'staff' } })),
+      ).not.toThrow();
     });
   });
 });
