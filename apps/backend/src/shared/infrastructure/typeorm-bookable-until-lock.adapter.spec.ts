@@ -8,6 +8,11 @@ describe('TypeOrmBookableUntilLockAdapter', () => {
 
   beforeEach(() => {
     adapter = new TypeOrmBookableUntilLockAdapter();
+    // The adapter calls exactly one EntityManager method, `query`; EntityManager is a TypeORM class
+    // with no narrower public type and `runWithEntityManager` takes the class, so a stub of that
+    // one method is cast once here, the same boundary every TypeORM adapter spec in this repo
+    // stubs (typeorm-tenant-lock.adapter.spec.ts). The real behavior is proven against Postgres by
+    // bookable-until-lock.integration.spec.ts.
     manager = { query: jest.fn().mockResolvedValue(undefined) } as unknown as EntityManager;
   });
 
