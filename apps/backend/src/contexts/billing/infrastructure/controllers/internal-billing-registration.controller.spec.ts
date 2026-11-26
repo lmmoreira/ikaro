@@ -1,17 +1,31 @@
 import { HttpException, HttpStatus, Logger } from '@nestjs/common';
-import { CountryCodeErrorCode, SignupErrorCode } from '@ikaro/types';
+import { CURRENT_TERMS_VERSION, CountryCodeErrorCode, SignupErrorCode } from '@ikaro/types';
 import { FixedClock } from '../../../../test/infrastructure/fixed-clock';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemorySignupRegistrationLock } from '../../../../test/repositories/billing/in-memory-signup-registration-lock';
 import { InMemorySignupRegistrationRepository } from '../../../../test/repositories/billing/in-memory-signup-registration.repository';
 import { ReserveSignupRegistrationSchema } from '../../application/dtos/reserve-signup-registration.dto';
+import { GetSignupEligibilityUseCase } from '../../application/use-cases/get-signup-eligibility.use-case';
+import { ReleaseSignupRegistrationUseCase } from '../../application/use-cases/release-signup-registration.use-case';
 import { ReserveSignupRegistrationUseCase } from '../../application/use-cases/reserve-signup-registration.use-case';
+import { InMemoryBillingPlatformPort } from '../../../../test/infrastructure/in-memory-billing-platform.port';
 import { InternalBillingRegistrationController } from './internal-billing-registration.controller';
 
 const SUB = 'google-sub-secret-1';
 const CPF = '529.982.247-25';
 
 describe('ReserveSignupRegistrationSchema', () => {
+  it('requires a countryCode for a SELF_SIGNUP', () => {
+    const result = ReserveSignupRegistrationSchema.safeParse({
+      source: 'SELF_SIGNUP',
+      googleSub: 'sub-1',
+      terms: { version: 'v1' },
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.path).toEqual(['countryCode']);
+  });
+
   const parse = (body: unknown) => ReserveSignupRegistrationSchema.safeParse(body);
 
   it('accepts a full SELF_SIGNUP body', () => {
@@ -21,7 +35,7 @@ describe('ReserveSignupRegistrationSchema', () => {
         googleSub: SUB,
         taxId: CPF,
         countryCode: 'br',
-        terms: { version: '2026-11-01' },
+        terms: { version: CURRENT_TERMS_VERSION },
       }).success,
     ).toBe(true);
   });
@@ -49,6 +63,7 @@ describe('ReserveSignupRegistrationSchema', () => {
     const result = ReserveSignupRegistrationSchema.safeParse({
       source: 'SELF_SIGNUP',
       googleSub: 'sub-1',
+      countryCode: 'BR',
       terms: { version: 'v1' },
       exempt: false,
     });
@@ -106,6 +121,8 @@ describe('InternalBillingRegistrationController', () => {
         txManager,
         new FixedClock(new Date('2026-11-11T12:00:00Z')),
       ),
+      new GetSignupEligibilityUseCase(registrations, new InMemoryBillingPlatformPort()),
+      new ReleaseSignupRegistrationUseCase(registrations),
     );
   });
 
@@ -115,7 +132,7 @@ describe('InternalBillingRegistrationController', () => {
       googleSub: SUB,
       taxId: CPF,
       countryCode: 'BR',
-      terms: { version: '2026-11-01' },
+      terms: { version: CURRENT_TERMS_VERSION },
     });
 
     expect(result).toEqual({ registrationId: registrations.saved[0].id, trialAvailable: true });
@@ -123,7 +140,7 @@ describe('InternalBillingRegistrationController', () => {
 
   it('maps a missing terms to 422 SIGNUP_TERMS_NOT_ACCEPTED', async () => {
     const thrown = await controller
-      .reserve({ source: 'SELF_SIGNUP', googleSub: SUB })
+      .reserve({ source: 'SELF_SIGNUP', googleSub: SUB, countryCode: 'BR', taxId: CPF })
       .catch((e) => e);
 
     expect(thrown).toBeInstanceOf(HttpException);
@@ -151,14 +168,88 @@ describe('InternalBillingRegistrationController', () => {
       googleSub: SUB,
       taxId: CPF,
       countryCode: 'BR',
-      terms: { version: '2026-11-01' },
+      terms: { version: CURRENT_TERMS_VERSION },
     });
-    await controller.reserve({ source: 'SELF_SIGNUP', googleSub: SUB }).catch(() => undefined);
+    await controller
+      .reserve({ source: 'SELF_SIGNUP', googleSub: SUB, countryCode: 'BR', taxId: CPF })
+      .catch(() => undefined);
 
     const logged = JSON.stringify(spies.flatMap((spy) => spy.mock.calls));
     expect(logged).not.toContain(SUB);
     expect(logged).not.toContain('52998224725');
-    expect(logged).not.toContain('2026-11-01');
+    expect(logged).not.toContain('terms');
     spies.forEach((spy) => spy.mockRestore());
+  });
+
+  it('maps a country outside SIGNUP_SUPPORTED_COUNTRIES to 422 SIGNUP_COUNTRY_NOT_SUPPORTED', async () => {
+    const thrown = await controller
+      .reserve({
+        source: 'SELF_SIGNUP',
+        googleSub: SUB,
+        countryCode: 'US',
+        taxId: '12-3456789',
+        terms: { version: CURRENT_TERMS_VERSION },
+      })
+      .catch((e) => e);
+
+    expect(thrown.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+    expect(thrown.getResponse()).toMatchObject({ code: SignupErrorCode.COUNTRY_NOT_SUPPORTED });
+    expect(registrations.saved).toHaveLength(0);
+  });
+
+  it('maps a terms version other than the current one to 422 SIGNUP_TERMS_NOT_ACCEPTED', async () => {
+    const thrown = await controller
+      .reserve({
+        source: 'SELF_SIGNUP',
+        googleSub: SUB,
+        countryCode: 'BR',
+        taxId: CPF,
+        terms: { version: '2020-01-01' },
+      })
+      .catch((e) => e);
+
+    expect(thrown.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+    expect(thrown.getResponse()).toMatchObject({ code: SignupErrorCode.TERMS_NOT_ACCEPTED });
+  });
+
+  it('reads eligibility without reserving anything, and reports the terms version', async () => {
+    const result = await controller.eligibility({ googleSub: SUB });
+
+    expect(result).toEqual({
+      trialAvailable: true,
+      existingTenantSlug: null,
+      termsVersion: CURRENT_TERMS_VERSION,
+    });
+    expect(registrations.saved).toHaveLength(0);
+  });
+
+  it('releases a reserved registration, and answers released: false the second time', async () => {
+    const reserved = await controller.reserve({
+      source: 'SELF_SIGNUP',
+      googleSub: SUB,
+      taxId: CPF,
+      countryCode: 'BR',
+      terms: { version: CURRENT_TERMS_VERSION },
+    });
+    const id = reserved.registrationId as string;
+
+    await expect(controller.release(id)).resolves.toEqual({ released: true });
+    await expect(controller.release(id)).resolves.toEqual({ released: false });
+    expect(registrations.saved).toHaveLength(0);
+  });
+
+  it('never releases a COMPLETED registration', async () => {
+    const reserved = await controller.reserve({
+      source: 'SELF_SIGNUP',
+      googleSub: SUB,
+      taxId: CPF,
+      countryCode: 'BR',
+      terms: { version: CURRENT_TERMS_VERSION },
+    });
+    const id = reserved.registrationId as string;
+    await registrations.complete(registrations.saved[0].complete('tenant-1'));
+
+    await expect(controller.release(id)).resolves.toEqual({ released: false });
+    expect(registrations.saved).toHaveLength(1);
   });
 });

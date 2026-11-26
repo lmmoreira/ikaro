@@ -8,6 +8,17 @@ export const JWT_COOKIE_OPTIONS: CookieOptions = {
   path: '/',
 };
 
+// The two self-signup cookies (the signup session and the resend credential, UC-127): short-lived
+// and httpOnly like the session cookie, 30 minutes. `Path=/` is also what the `__Host-` prefix
+// requires in production.
+export const SIGNUP_COOKIE_OPTIONS: CookieOptions = {
+  httpOnly: true,
+  secure: process.env['NODE_ENV'] === 'production',
+  sameSite: 'lax',
+  maxAge: 30 * 60 * 1000,
+  path: '/',
+};
+
 export const OAUTH_NONCE_COOKIE_NAME = 'oauth_nonce';
 
 // Binds the signed `state` JWT to the browser that started the OAuth flow (double-submit

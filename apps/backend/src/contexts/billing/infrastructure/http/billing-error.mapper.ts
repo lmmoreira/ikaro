@@ -13,6 +13,7 @@ import {
   GraceNotAllowedError,
   NoPriceForCountryError,
   PlanEmptyError,
+  SignupCountryNotSupportedError,
   SignupTermsNotAcceptedError,
   SimulationNotApplicableError,
   SubscriptionConcurrentModificationError,
@@ -30,7 +31,8 @@ export function mapBillingError(err: unknown): never {
   mapSharedAddressError(err);
   mapSharedVoError(err);
   // SIGNUP_TERMS_NOT_ACCEPTED: a business refusal, 422 per docs/API_CONTRACTS.md (M25-S09).
-  if (err instanceof SignupTermsNotAcceptedError) {
+  // SIGNUP_COUNTRY_NOT_SUPPORTED (M26-S24, UC-127 A7): the same kind of refusal, 422.
+  if (err instanceof SignupTermsNotAcceptedError || err instanceof SignupCountryNotSupportedError) {
     throw throwProblemDetail(HttpStatus.UNPROCESSABLE_ENTITY, err.code, err.message);
   }
   // A proposed plan selection that is not valid (UC-136 A1, A5, A6): the request is well formed but

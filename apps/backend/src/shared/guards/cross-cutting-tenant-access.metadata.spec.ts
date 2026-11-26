@@ -10,6 +10,7 @@ import { InternalCustomerController } from '../../contexts/customer/infrastructu
 import { CronLoyaltyController } from '../../contexts/loyalty/infrastructure/controllers/cron-loyalty.controller';
 import { CronChatbotController } from '../../contexts/platform/infrastructure/controllers/cron-chatbot.controller';
 import { CronLeadFormController } from '../../contexts/platform/infrastructure/controllers/cron-lead-form.controller';
+import { InternalSignupController } from '../../contexts/platform/infrastructure/controllers/internal-signup.controller';
 import { InternalTenantReadController } from '../../contexts/platform/infrastructure/controllers/internal-tenant-read.controller';
 import { InternalTenantController } from '../../contexts/platform/infrastructure/controllers/internal-tenant.controller';
 import { InternalStaffController } from '../../contexts/staff/infrastructure/controllers/internal-staff.controller';
@@ -31,8 +32,9 @@ interface ControllerMapping {
 const MAPPING: ControllerMapping[] = [
   { controller: InternalBillingAccessController, minRoutes: 2 },
   { controller: InternalBillingOperatorController, minRoutes: 5 },
-  { controller: InternalBillingRegistrationController, minRoutes: 1 },
+  { controller: InternalBillingRegistrationController, minRoutes: 3 },
   { controller: InternalDevClockController, minRoutes: 3 },
+  { controller: InternalSignupController, minRoutes: 2 },
   { controller: InternalTenantController, minRoutes: 1 },
   { controller: InternalTenantReadController, minRoutes: 4 },
   { controller: InternalCustomerController, minRoutes: 2 },
@@ -72,8 +74,8 @@ describe('Cross-cutting backend routes — tenant access mapping (M25-S20)', () 
     },
   );
 
-  it('maps the 32 routes of the fifteen controllers', () => {
-    expect(rows).toHaveLength(32);
+  it('maps the 36 routes of the sixteen controllers', () => {
+    expect(rows).toHaveLength(36);
   });
 
   it('keeps the suspended-tenant-ids read explicit on its own handler', () => {

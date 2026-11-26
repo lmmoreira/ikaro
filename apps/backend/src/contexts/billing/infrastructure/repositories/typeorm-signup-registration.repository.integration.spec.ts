@@ -180,7 +180,27 @@ describe('TypeOrmSignupRegistrationRepository (integration)', () => {
         history.filter((entry) => entry.status === 'COMPLETED' && !entry.hasEverPaid),
       ).toHaveLength(2);
       expect(history.filter((entry) => entry.status === 'RESERVED')).toEqual([
-        { status: 'RESERVED', hasEverPaid: false },
+        { status: 'RESERVED', hasEverPaid: false, tenantId: null, createdAt: expect.any(Date) },
+      ]);
+    });
+
+    // M26-S24: the eligibility read names the earliest unpaid tenant, so each COMPLETED entry
+    // carries its tenant id and when it was reserved.
+    it('carries the tenant id and the reservation time of each COMPLETED row', async () => {
+      const googleSub = newSub();
+      const tenantId = newTenant();
+      const reservedAt = new Date('2026-10-01T10:00:00Z');
+      await seedSubscription(tenantId, false);
+      await seedRegistration(
+        new SignupRegistrationEntityBuilder()
+          .withGoogleSub(googleSub)
+          .completedFor(tenantId)
+          .withCreatedAt(reservedAt)
+          .build(),
+      );
+
+      await expect(repo.findGoogleSubHistory(googleSub)).resolves.toEqual([
+        { status: 'COMPLETED', hasEverPaid: false, tenantId, createdAt: reservedAt },
       ]);
     });
 
@@ -192,9 +212,9 @@ describe('TypeOrmSignupRegistrationRepository (integration)', () => {
       await expect(repo.findGoogleSubHistory(googleSub)).resolves.toEqual([]);
     });
 
-    // Tenant-less by design: a read returns only the status and the paid flag of the asked sub's rows,
-    // never another registration's Google sub or tax id.
-    it('exposes nothing but the status and the paid flag', async () => {
+    // Tenant-less by design: a read returns only the status, the paid flag, the tenant id and the
+    // reservation time of the asked sub's rows, never a Google sub or a tax id.
+    it('exposes neither the Google sub nor the tax id', async () => {
       const googleSub = newSub();
       await seedRegistration(
         new SignupRegistrationEntityBuilder()
@@ -205,7 +225,7 @@ describe('TypeOrmSignupRegistrationRepository (integration)', () => {
 
       const [entry] = await repo.findGoogleSubHistory(googleSub);
 
-      expect(Object.keys(entry).sort()).toEqual(['hasEverPaid', 'status']);
+      expect(Object.keys(entry).sort()).toEqual(['createdAt', 'hasEverPaid', 'status', 'tenantId']);
     });
   });
 

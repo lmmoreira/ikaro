@@ -14,8 +14,10 @@ set -euo pipefail
 #                      has the manager type it in the billing page.
 #
 # The registration id always comes from the registrations call's response, so it is valid by
-# construction. If the tenant call fails after the reservation, run the script again: the abandoned
-# RESERVED registration is harmless and is released by the one-hour sweep.
+# construction. If the tenant call is refused with an HTTP 4xx, the script releases the registration
+# it reserved (best effort: a failed release never replaces the original error) and you can run it
+# again. After a timeout, a network error or a 5xx it does NOT release, because the tenant may have
+# committed; the abandoned RESERVED registration is harmless and the one-hour sweep clears it.
 #
 # Must run from inside the relay VM's own SSH shell (metadata server + ingress:internal).
 # The relay VM service account discovers its project/backend and reads both required secrets
@@ -129,9 +131,24 @@ BODY="${BODY},\"registrationId\":\"${REGISTRATION_ID}\""
 BODY="${BODY}}"
 
 echo "Provisioning tenant..." >&2
-if ! relay_curl -X POST "$BACKEND_URL/internal/tenants" -d "$BODY"; then
+TENANT_STATUS=0
+TENANT_RESPONSE=$(relay_curl -X POST "$BACKEND_URL/internal/tenants" -d "$BODY") || TENANT_STATUS=$?
+printf '%s\n' "$TENANT_RESPONSE"
+if [ "$TENANT_STATUS" -ne 0 ]; then
   echo >&2
-  echo "ERROR: the tenant was not created. The registration $REGISTRATION_ID stays RESERVED (released by the one-hour sweep); run the script again." >&2
+  echo "ERROR: the tenant was not created." >&2
+  # Release the registration only after a definite refusal (an HTTP 4xx Problem Detail): the tenant
+  # was not committed, so the registration is no longer needed. After a timeout, a network error or
+  # a 5xx the tenant may have committed, and deleting its RESERVED registration would make the
+  # Billing handler fail for it, so the one-hour sweep clears it instead (M26-S24).
+  if printf '%s' "$TENANT_RESPONSE" | grep -Eq '"status": *4[0-9][0-9]'; then
+    if relay_curl -X POST "$BACKEND_URL/internal/billing/registrations/${REGISTRATION_ID}/release" >/dev/null; then
+      echo "The registration $REGISTRATION_ID was released; fix the cause and run the script again." >&2
+    else
+      echo "WARNING: releasing registration $REGISTRATION_ID failed; it stays RESERVED and the one-hour sweep (M26-S08) will clear it." >&2
+    fi
+  else
+    echo "The registration $REGISTRATION_ID stays RESERVED (the tenant may exist: check before running the script again); the one-hour sweep (M26-S08) clears it if no tenant was created." >&2
+  fi
   exit 1
 fi
-echo

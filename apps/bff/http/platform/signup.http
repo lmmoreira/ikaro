@@ -1,5 +1,5 @@
 # BFF — Public signup (no JWT)
-# UC-128: the slug check behind the /ikaro-trial form.
+# UC-127, UC-128: the slug check, the session read and the signup POST behind /ikaro-trial.
 #
 # Prerequisites:
 #   1. pnpm infra:up
@@ -50,3 +50,43 @@ X-Web-Internal-Key: {{webInternalKey}}
 ### Missing slug parameter → 400
 GET {{bffUrl}}/v1/public/signup/slug-availability
 X-Web-Internal-Key: {{webInternalKey}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SELF-SIGNUP (UC-127)
+# The Google step sets a 30-minute signup-session cookie (GET /v1/auth/google?type=signup in a
+# browser). Without Google, the dev issuer sets the same cookie: it needs ENABLE_DEV_AUTH=true and
+# is refused in production. Throttled at 10 per minute per IP in staging and production only.
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Dev only: set the signup-session cookie without Google (the REST Client keeps it for the next calls)
+POST {{bffUrl}}/v1/auth/dev-signup-session
+X-Web-Internal-Key: {{webInternalKey}}
+Content-Type: application/json
+
+{
+  "email": "dona@example.com",
+  "name": "Dona",
+  "googleSub": "112233445566778899001"
+}
+
+### The verified Google identity, the read-only trial answer and the Terms version to accept.
+### 401 without the cookie.
+GET {{bffUrl}}/v1/public/signup/session
+X-Web-Internal-Key: {{webInternalKey}}
+
+### Create the tenant. The email and name come from the session, never from the body. Turnstile is
+### verified once here (the local secret is Cloudflare's always-pass test key). 201 and a
+### signup-resend cookie; 409 SIGNUP_TRIAL_NOT_AVAILABLE / SIGNUP_SLUG_TAKEN, 422 for the slug, the
+### tax id, the Terms version or the country, 400 SIGNUP_TURNSTILE_FAILED, 429 SIGNUP_RATE_LIMITED.
+POST {{bffUrl}}/v1/public/signup/tenant
+X-Web-Internal-Key: {{webInternalKey}}
+Content-Type: application/json
+
+{
+  "businessName": "Lavacar Top Nova",
+  "slug": "lavacar-top-nova",
+  "countryCode": "BR",
+  "taxId": "529.982.247-25",
+  "acceptedTermsVersion": "2026-11",
+  "turnstileToken": "XXXX.DUMMY.TOKEN.XXXX"
+}

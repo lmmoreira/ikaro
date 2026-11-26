@@ -29,8 +29,12 @@ export function isValidReturnTo(value: string, tenantSlug: string): boolean {
   return parsed.origin === RETURN_TO_BASE && parsed.pathname.startsWith(`/${tenantSlug}/`);
 }
 
+// `signup` is the self-signup Google step (UC-127): no tenant exists yet, so it carries no slug
+// and no returnTo; the callback sets its own fixed redirect.
+export type OAuthLoginType = 'staff' | 'signup';
+
 export interface OAuthState {
-  loginType?: 'staff';
+  loginType?: OAuthLoginType;
   tenantSlug?: string;
   returnTo?: string;
 }

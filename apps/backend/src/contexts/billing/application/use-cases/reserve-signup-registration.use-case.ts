@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { CURRENT_TERMS_VERSION } from '@ikaro/types';
 import { countrySpec } from '@ikaro/i18n';
 import { CLOCK, IClock } from '../../../../shared/ports/clock.port';
 import {
@@ -7,6 +8,11 @@ import {
 } from '../../../../shared/ports/transaction-manager.port';
 import { CountryCode } from '../../../../shared/value-objects/country-code.vo';
 import { TaxId } from '../../../../shared/value-objects/tax-id.vo';
+import { SIGNUP_SUPPORTED_COUNTRIES } from '../../domain/billing-constants';
+import {
+  SignupCountryNotSupportedError,
+  SignupTermsNotAcceptedError,
+} from '../../domain/errors/billing-domain.error';
 import { SignupRegistration, type SignupSource } from '../../domain/signup-registration';
 import { evaluateTrialEligibility } from '../../domain/trial-eligibility';
 import {
@@ -22,8 +28,13 @@ export interface ReserveSignupRegistrationUseCaseInput {
   source: SignupSource;
   /** Required for `SELF_SIGNUP`; ignored (never stored) for `OPERATOR`. */
   googleSub?: string;
-  /** The country travels with the raw value only to pick the `TaxId` spec; it is never stored. */
-  taxId?: { raw: string; countryCode: string };
+  /**
+   * Required for `SELF_SIGNUP`: must be in `SIGNUP_SUPPORTED_COUNTRIES` (UC-127 A7). It also picks
+   * the `TaxId` spec, and is never stored.
+   */
+  countryCode?: string;
+  /** The raw tax id; validated against `countryCode`'s `CountrySpec` (blank is `SIGNUP_TAX_ID_REQUIRED`). */
+  taxId?: string;
   /** Required for `SELF_SIGNUP`; ignored (never stored) for `OPERATOR`. */
   termsVersion?: string;
   /** `OPERATOR` only: the tenant to be is provisioned free of charge. */
@@ -55,12 +66,7 @@ export class ReserveSignupRegistrationUseCase {
   async execute(
     input: ReserveSignupRegistrationUseCaseInput,
   ): Promise<ReserveSignupRegistrationUseCaseResult> {
-    const taxId = input.taxId
-      ? TaxId.create(
-          input.taxId.raw,
-          countrySpec(CountryCode.create(input.taxId.countryCode).value).taxId,
-        )
-      : null;
+    const taxId = this.checkSelfSignupRules(input);
     const registration = SignupRegistration.reserve({
       source: input.source,
       googleSub: input.googleSub,
@@ -88,5 +94,32 @@ export class ReserveSignupRegistrationUseCase {
       await this.registrations.save(registration);
       return { registrationId: registration.id, trialAvailable: true };
     });
+  }
+
+  /**
+   * What Billing owns about a signup, checked once and before the lock or any write (decided at
+   * M26-S24 discovery): the country, the terms version and the tax id. An operator registration
+   * carries a tax id only when the script sends one, and never a country rule.
+   */
+  private checkSelfSignupRules(input: ReserveSignupRegistrationUseCaseInput): TaxId | null {
+    const selfSignup = input.source === 'SELF_SIGNUP';
+    if (
+      selfSignup &&
+      !SIGNUP_SUPPORTED_COUNTRIES.includes(input.countryCode?.toUpperCase() ?? '')
+    ) {
+      // An unknown or malformed code is "not offered" too, so it never reaches the CountryCode VO.
+      throw new SignupCountryNotSupportedError(input.countryCode ?? '');
+    }
+    const country = input.countryCode ? CountryCode.create(input.countryCode) : null;
+    if (selfSignup) {
+      // A missing version is `SIGNUP_TERMS_NOT_ACCEPTED` too (raised by the aggregate); a stale
+      // or invented one is refused here, against the version the session read reported.
+      if (input.termsVersion && input.termsVersion !== CURRENT_TERMS_VERSION) {
+        throw new SignupTermsNotAcceptedError();
+      }
+    }
+    if (!country) return null;
+    const spec = countrySpec(country.value).taxId;
+    return selfSignup || input.taxId !== undefined ? TaxId.createOptional(input.taxId, spec) : null;
   }
 }

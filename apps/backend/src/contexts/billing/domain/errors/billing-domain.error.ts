@@ -198,6 +198,20 @@ export class SignupTermsNotAcceptedError extends BillingDomainError implements D
 }
 
 /**
+ * A `SELF_SIGNUP` registration named a country outside `SIGNUP_SUPPORTED_COUNTRIES` (`422`,
+ * M26-S24, UC-127 A7). The page offers only supported countries, so this is a tampered or stale
+ * request, and the code lets the web tell "not offered" from a malformed country code.
+ */
+export class SignupCountryNotSupportedError extends BillingDomainError implements DomainErrorShape {
+  readonly code = SignupErrorCode.COUNTRY_NOT_SUPPORTED;
+
+  constructor(countryCode: string) {
+    super(`Signup is not available for country ${countryCode}`);
+    this.name = 'SignupCountryNotSupportedError';
+  }
+}
+
+/**
  * The tenant an access lookup names does not exist (`404`, M25-S13). It deliberately reuses
  * Platform's `TENANT_NOT_FOUND` code, so Billing adds no wire code and no locale entry; it must
  * never be mistaken for a transient lookup error, which fails open.

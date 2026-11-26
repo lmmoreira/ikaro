@@ -12,6 +12,9 @@
 @internalKey = {{$dotenv INTERNAL_API_KEY}}
 
 ### Self-signup (BFF). trialAvailable false => no row was inserted and registrationId is null.
+### Billing checks, before the lock and before writing anything: the country (BR only, otherwise
+### 422 SIGNUP_COUNTRY_NOT_SUPPORTED), the terms version (the current CURRENT_TERMS_VERSION, otherwise
+### 422 SIGNUP_TERMS_NOT_ACCEPTED) and the tax id (422 SIGNUP_TAX_ID_REQUIRED / SIGNUP_TAX_ID_INVALID).
 POST {{baseUrl}}/internal/billing/registrations
 X-Internal-Key: {{internalKey}}
 Content-Type: application/json
@@ -21,7 +24,7 @@ Content-Type: application/json
   "googleSub": "112233445566778899001",
   "taxId": "529.982.247-25",
   "countryCode": "BR",
-  "terms": { "version": "2026-11-01" }
+  "terms": { "version": "2026-11" }
 }
 
 ###
@@ -110,3 +113,18 @@ X-Internal-Key: {{internalKey}}
 Content-Type: application/json
 
 { "source": "OPERATOR", "taxId": "529.982.247-25" }
+
+###
+
+### Read-only eligibility behind GET /v1/public/signup/session (UC-127). Takes no lock and inserts
+### nothing. existingTenantSlug is the earliest unpaid tenant of this Google sub, or null.
+GET {{baseUrl}}/internal/billing/registrations/eligibility?googleSub=112233445566778899001
+X-Internal-Key: {{internalKey}}
+
+###
+
+### Release a RESERVED self-signup registration (replace the id with a registrationId from above).
+### Idempotent: an unknown, already released or COMPLETED registration answers { "released": false }
+### and nothing is deleted.
+POST {{baseUrl}}/internal/billing/registrations/00000000-0000-7000-8000-000000000000/release
+X-Internal-Key: {{internalKey}}

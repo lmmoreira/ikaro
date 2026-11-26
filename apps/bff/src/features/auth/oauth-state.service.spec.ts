@@ -222,4 +222,38 @@ describe('OAuthStateService', () => {
       expect(() => service.decodeOAuthState(state, 'short')).toThrow(OAuthStateInvalidError);
     });
   });
+
+  describe('self-signup state (UC-127)', () => {
+    it('encodes loginType signup with no tenantSlug and no returnTo, dropping any passed in', () => {
+      const { state, nonce } = service.encodeOAuthState('signup', 'lavacar-bh', '/lavacar-bh/x');
+
+      const payload = jwtService.verify<OAuthStatePayload>(state);
+      expect(payload).toMatchObject({ loginType: 'signup', nonce });
+      expect(payload.tenantSlug).toBeUndefined();
+      expect(payload.returnTo).toBeUndefined();
+    });
+
+    it('decodes it back to the signup loginType', () => {
+      const { state, nonce } = service.encodeOAuthState('signup');
+
+      expect(service.decodeOAuthState(state, nonce)).toEqual({
+        loginType: 'signup',
+        tenantSlug: undefined,
+        returnTo: undefined,
+      });
+    });
+
+    // Negative guarantee: another kind of signed JWT (the signup session, the resend credential)
+    // carries no nonce, so presenting it as an OAuth state is a clean 400, not a comparison crash.
+    it('rejects a signed JWT with no nonce as an invalid state', () => {
+      const signupSession = jwtService.sign(
+        { typ: 'signup-session', email: 'a@b.c', name: 'A', googleSub: 's' },
+        { audience: 'signup-session' },
+      );
+
+      expect(() => service.decodeOAuthState(signupSession, 'any-nonce')).toThrow(
+        OAuthStateInvalidError,
+      );
+    });
+  });
 });

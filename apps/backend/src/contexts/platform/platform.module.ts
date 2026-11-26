@@ -54,6 +54,10 @@ import { ListPublishedHotsitesUseCase } from './application/use-cases/list-publi
 import { CheckSlugAvailabilityUseCase } from './application/use-cases/check-slug-availability.use-case';
 import { SLUG_POLICY, SlugPolicy } from './domain/slug-policy';
 import { ProvisionTenantUseCase } from './application/use-cases/provision-tenant.use-case';
+import { TenantProvisioningService } from './application/services/tenant-provisioning.service';
+import { SignupTenantUseCase } from './application/use-cases/signup-tenant.use-case';
+import { ValidateSignupUseCase } from './application/use-cases/validate-signup.use-case';
+import { InternalSignupController } from './infrastructure/controllers/internal-signup.controller';
 import { PublishHotsiteUseCase } from './application/use-cases/publish-hotsite.use-case';
 import { RenameTenantUseCase } from './application/use-cases/rename-tenant.use-case';
 import { RevalidateTenantHotsiteUseCase } from './application/use-cases/revalidate-tenant-hotsite.use-case';
@@ -140,6 +144,7 @@ import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.
     LeadFormController,
     LeadFormPublicController,
     InternalSlugController,
+    InternalSignupController,
     InternalTenantController,
     InternalTenantReadController,
     TenantController,
@@ -217,6 +222,9 @@ import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.
     GetTenantsUseCase,
     ListPublishedHotsitesUseCase,
     CheckSlugAvailabilityUseCase,
+    ValidateSignupUseCase,
+    SignupTenantUseCase,
+    TenantProvisioningService,
     ProvisionTenantUseCase,
     PublishHotsiteUseCase,
     RenameTenantUseCase,

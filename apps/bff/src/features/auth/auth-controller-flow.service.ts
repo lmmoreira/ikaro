@@ -20,6 +20,9 @@ import {
   switchTenant,
 } from './auth-tenant-login.flow';
 import { devLogin } from './auth-dev-login.flow';
+import { devSignupSession, handleSignupLogin } from './auth-signup-login.flow';
+import { DevSignupSessionDto } from './dtos/dev-signup-session.dto';
+import { SignupSessionService } from './signup-session.service';
 
 // To keep this file under the file-length cap, the actual Google-callback/dev-login flows live
 // in auth-staff-login.flow.ts, auth-tenant-login.flow.ts, and auth-dev-login.flow.ts (plus the
@@ -31,6 +34,7 @@ export class AuthControllerFlowService {
     private readonly jwtIssuer: JwtIssuerService,
     private readonly backendHttp: BackendHttpService,
     private readonly config: ConfigService,
+    private readonly signupSessions: SignupSessionService,
   ) {}
 
   async handleGoogleCallback(profile: GoogleProfile, res: Response): Promise<void> {
@@ -38,6 +42,12 @@ export class AuthControllerFlowService {
     // GoogleStrategy.validate() by this point; clear it so it can't be replayed.
     res.clearCookie(OAUTH_NONCE_COOKIE_NAME, { path: '/' });
     const frontendUrl = this.config.getOrThrow<string>('FRONTEND_URL');
+
+    // The self-signup Google step (UC-127): no tenant exists, so no tenant JWT is ever issued.
+    if (profile.loginType === 'signup') {
+      handleSignupLogin(this.signupSessions, profile, res, frontendUrl);
+      return;
+    }
 
     if (profile.loginType === 'staff') {
       if (profile.tenantSlug) {
@@ -108,5 +118,9 @@ export class AuthControllerFlowService {
     };
   }> {
     return devLogin(this.backendHttp, this.jwtIssuer, this.config, dto, res);
+  }
+
+  devSignupSession(dto: DevSignupSessionDto, res: Response): { ok: true } {
+    return devSignupSession(this.signupSessions, this.config, dto, res);
   }
 }

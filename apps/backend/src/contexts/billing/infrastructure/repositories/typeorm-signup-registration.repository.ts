@@ -15,6 +15,8 @@ import {
 interface HistoryRow {
   status: 'RESERVED' | 'COMPLETED';
   has_ever_paid: boolean;
+  tenant_id: string | null;
+  created_at: Date;
 }
 
 @Injectable()
@@ -29,13 +31,19 @@ export class TypeOrmSignupRegistrationRepository implements ISignupRegistrationR
   async findGoogleSubHistory(googleSub: string): Promise<GoogleSubHistoryEntry[]> {
     const manager = getActiveEntityManager() ?? this.repo.manager;
     const rows: HistoryRow[] = await manager.query(
-      `SELECT r.status AS status, COALESCE(s.has_ever_paid, false) AS has_ever_paid
+      `SELECT r.status AS status, COALESCE(s.has_ever_paid, false) AS has_ever_paid,
+              r.tenant_id AS tenant_id, r.created_at AS created_at
          FROM billing.signup_registrations r
          LEFT JOIN billing.subscriptions s ON s.tenant_id = r.tenant_id
         WHERE r.google_sub = $1 AND r.source = 'SELF_SIGNUP'`,
       [googleSub],
     );
-    return rows.map((row) => ({ status: row.status, hasEverPaid: row.has_ever_paid }));
+    return rows.map((row) => ({
+      status: row.status,
+      hasEverPaid: row.has_ever_paid,
+      tenantId: row.tenant_id,
+      createdAt: row.created_at,
+    }));
   }
 
   // The account half reads `IDX_billing_billing_accounts_tax_id`; the registrations table is tiny
@@ -83,6 +91,18 @@ export class TypeOrmSignupRegistrationRepository implements ISignupRegistrationR
       .where('id = :id AND status = :reserved', { id: registration.id, reserved: 'RESERVED' })
       .execute();
     if (result.affected !== 1) throw new SignupRegistrationNotAvailableError(registration.id);
+  }
+
+  // One conditional DELETE (S24): a `COMPLETED` row and an unknown id match nothing, so a release
+  // can never remove a registration a tenant was created from. Both sources are releasable: the BFF
+  // releases a self-signup, `scripts/provision-tenant.sh` the operator registration it reserved.
+  async deleteReserved(id: string): Promise<boolean> {
+    const manager = getActiveEntityManager() ?? this.repo.manager;
+    const result = await manager.delete(SignupRegistrationEntity, {
+      id,
+      status: 'RESERVED',
+    });
+    return (result.affected ?? 0) === 1;
   }
 
   // The table is tiny (in-flight signups plus one row per tenant) and this runs once an hour, so

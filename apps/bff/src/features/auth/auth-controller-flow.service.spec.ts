@@ -14,6 +14,7 @@ import { AppLogger } from '../../shared/observability/app-logger';
 import { AuthControllerFlowService } from './auth-controller-flow.service';
 import { DevLoginDto } from './dtos/dev-login.dto';
 import { JwtIssuerService } from './jwt-issuer.service';
+import { SignupSessionService } from './signup-session.service';
 import { GoogleProfile } from '../../shared/auth/google-profile';
 import { SwitchStaffTenantDto } from './dtos/switch-staff-tenant.dto';
 import { SwitchTenantDto } from './dtos/switch-tenant.dto';
@@ -67,7 +68,13 @@ describe('AuthControllerFlowService', () => {
   const makeService = (
     backendHttp = makeBackendHttp(),
     config = configService,
-  ): AuthControllerFlowService => new AuthControllerFlowService(jwtIssuer, backendHttp, config);
+  ): AuthControllerFlowService =>
+    new AuthControllerFlowService(
+      jwtIssuer,
+      backendHttp,
+      config,
+      new SignupSessionService(jwtService),
+    );
 
   const currentUser = CurrentUserPayloadBuilder.asCustomer()
     .withSub(CUSTOMER_ID_A)

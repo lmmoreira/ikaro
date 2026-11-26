@@ -121,4 +121,19 @@ describe('GoogleAuthGuard', () => {
       expect(payload.tenantSlug).toBeUndefined();
     });
   });
+
+  describe('getAuthenticateOptions() — self-signup (UC-127)', () => {
+    it('signs a signup state with no tenantSlug and no returnTo, even when the request sends them', () => {
+      const opts = guard.getAuthenticateOptions(
+        makeExecutionContext({
+          query: { type: 'signup', tenantSlug: 'lavacar-bh', returnTo: '/lavacar-bh/x' },
+        }),
+      ) as { state: string };
+
+      const payload = jwtService.verify<OAuthStatePayload>(opts.state);
+      expect(payload.loginType).toBe('signup');
+      expect(payload.tenantSlug).toBeUndefined();
+      expect(payload.returnTo).toBeUndefined();
+    });
+  });
 });

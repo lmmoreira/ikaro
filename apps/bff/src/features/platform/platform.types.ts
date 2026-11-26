@@ -44,3 +44,11 @@ export interface BackendSubmitLeadFormBody {
   ipAddress: string;
   turnstileToken: string;
 }
+
+// `GET /internal/billing/registrations/eligibility` (UC-127): Billing's read-only answer behind the
+// signup session read. `existingTenantSlug` is null unless an earlier unpaid tenant exists.
+export interface BackendSignupEligibility {
+  trialAvailable: boolean;
+  existingTenantSlug: string | null;
+  termsVersion: string;
+}

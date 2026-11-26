@@ -15,6 +15,10 @@ function extractCookie(req: Request, name: string): string | undefined {
   return match ? decodeURIComponent(match[1]) : undefined;
 }
 
+function isVerified(flag: unknown): boolean {
+  return flag === true || flag === 'true';
+}
+
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   constructor(
@@ -45,7 +49,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     const raw = req.query['state'];
     const state = typeof raw === 'string' ? raw : '';
     const cookieNonce = extractCookie(req, OAUTH_NONCE_COOKIE_NAME);
-    let loginType: 'staff' | undefined;
+    let loginType: 'staff' | 'signup' | undefined;
     let tenantSlug: string | undefined;
     let returnTo: string | undefined;
     try {
@@ -61,6 +65,8 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       tenantSlug,
       loginType,
       returnTo,
+      // passport-google-oauth20 reads the v3 userinfo, whose `email_verified` is a boolean.
+      emailVerified: isVerified(profile.emails?.[0]?.verified),
     });
   }
 }

@@ -20,7 +20,8 @@ export class GoogleAuthGuard extends AuthGuard('google') {
     const req = context.switchToHttp().getRequest<Request>();
     const res = context.switchToHttp().getResponse<Response>();
     const tenantSlug = req.query['tenantSlug'] as string | undefined;
-    const type = req.query['type'] === 'staff' ? 'staff' : 'customer';
+    const rawType = req.query['type'];
+    const type = rawType === 'staff' || rawType === 'signup' ? rawType : 'customer';
     // req.query['returnTo'] is typed string | undefined but Express parses a repeated query
     // param (?returnTo=a&returnTo=b) as string[] at runtime — an unchecked cast would pass that
     // array straight into isValidReturnTo()'s .startsWith() call and throw (PR #433 review).

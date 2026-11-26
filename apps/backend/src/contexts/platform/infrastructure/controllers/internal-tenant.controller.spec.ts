@@ -12,6 +12,7 @@ import { HOTSITE_CONFIG_REPOSITORY } from '../../application/ports/hotsite-confi
 import { TENANT_REPOSITORY } from '../../application/ports/tenant-repository.port';
 import { SLUG_POLICY, SlugPolicy } from '../../domain/slug-policy';
 import { ProvisionTenantUseCase } from '../../application/use-cases/provision-tenant.use-case';
+import { TenantProvisioningService } from '../../application/services/tenant-provisioning.service';
 import { InternalTenantController } from './internal-tenant.controller';
 
 describe('InternalTenantController', () => {
@@ -27,6 +28,7 @@ describe('InternalTenantController', () => {
       controllers: [InternalTenantController],
       providers: [
         ProvisionTenantUseCase,
+        TenantProvisioningService,
         { provide: TENANT_REPOSITORY, useValue: tenantRepo },
         { provide: HOTSITE_CONFIG_REPOSITORY, useValue: new InMemoryHotsiteConfigRepository() },
         { provide: SLUG_POLICY, useValue: new SlugPolicy('ikaro') },

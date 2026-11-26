@@ -1,11 +1,9 @@
 import { Global, Module } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { FEATURE_PRICE_REPOSITORY } from './application/ports/feature-price-repository.port';
-import {
-  BILLING_PROVISIONING_CONFIG,
-  type BillingProvisioningConfig,
-} from './application/ports/billing-provisioning-config.port';
+import { BILLING_PROVISIONING_CONFIG_PROVIDER } from './infrastructure/config/billing-config.providers';
+import { GetSignupEligibilityUseCase } from './application/use-cases/get-signup-eligibility.use-case';
+import { ReleaseSignupRegistrationUseCase } from './application/use-cases/release-signup-registration.use-case';
 import { CreateTrialSubscriptionUseCase } from './application/use-cases/create-trial-subscription.use-case';
 import { TenantProvisionedBillingHandler } from './infrastructure/events/tenant-provisioned-billing.handler';
 import { GetFeaturePriceAtUseCase } from './application/use-cases/get-feature-price-at.use-case';
@@ -38,7 +36,7 @@ import { TypeOrmProviderEventRepository } from './infrastructure/repositories/ty
 import { TypeOrmFeaturePriceRepository } from './infrastructure/repositories/typeorm-feature-price.repository';
 import { CachingSubscriptionRepository } from './infrastructure/repositories/caching-subscription.repository';
 import { TypeOrmSubscriptionRepository } from './infrastructure/repositories/typeorm-subscription.repository';
-import { type AppEnv, resolveAppEnv } from '../../shared/database/resolve-app-env';
+import { resolveAppEnv } from '../../shared/database/resolve-app-env';
 import { ApplicationConfigModule } from '../../shared/infrastructure/application-config.module';
 import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.module';
 import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cache.module';
@@ -159,6 +157,8 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     { provide: SIGNUP_REGISTRATION_REPOSITORY, useClass: TypeOrmSignupRegistrationRepository },
     { provide: SIGNUP_REGISTRATION_LOCK, useClass: TypeOrmSignupRegistrationLockAdapter },
     ReserveSignupRegistrationUseCase,
+    GetSignupEligibilityUseCase,
+    ReleaseSignupRegistrationUseCase,
     { provide: FEATURE_PRICE_REPOSITORY, useClass: TypeOrmFeaturePriceRepository },
     // The cached layer: every reader of the subscription (the access resolver, the shared port, any
     // later use case) goes through the decorator; the concrete adapter is its inner repository.
@@ -179,16 +179,7 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     { provide: BILLING_PROVIDER_REGISTRY, useClass: BillingProviderRegistry },
     GetFeaturePriceAtUseCase,
     ListSelectablePricesUseCase,
-    // APP_ENV and the owner slug are fixed for the life of the process: one plain value, read once.
-    // `appEnv` is the module's own `BILLING_APP_ENV`, so Billing has a single source for it.
-    {
-      provide: BILLING_PROVISIONING_CONFIG,
-      inject: [ConfigService, BILLING_APP_ENV],
-      useFactory: (config: ConfigService, appEnv: AppEnv): BillingProvisioningConfig => ({
-        appEnv,
-        platformOwnerSlug: config.get<string>('PLATFORM_OWNER_TENANT_SLUG') ?? null,
-      }),
-    },
+    BILLING_PROVISIONING_CONFIG_PROVIDER,
     { provide: BILLING_PLATFORM_PORT, useClass: BillingPlatformAdapter },
     { provide: BILLING_BOOKING_PORT, useClass: BillingBookingAdapter },
     GetTenantAccessUseCase,
@@ -257,6 +248,8 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
   exports: [
     TENANT_ACCESS_PORT,
     ReserveSignupRegistrationUseCase,
+    GetSignupEligibilityUseCase,
+    ReleaseSignupRegistrationUseCase,
     SuspendTenantByOperatorUseCase,
     UnsuspendTenantUseCase,
     ExtendGraceUseCase,

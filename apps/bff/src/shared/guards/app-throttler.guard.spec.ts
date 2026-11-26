@@ -2,7 +2,8 @@ import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { ThrottlerModuleOptions, ThrottlerStorage } from '@nestjs/throttler';
 import { HttpException } from '@nestjs/common';
-import { AuthErrorCode } from '@ikaro/types';
+import { AuthErrorCode, SignupErrorCode } from '@ikaro/types';
+import { THROTTLE_ERROR_CODE_KEY } from '../decorators/throttle-error-code.decorator';
 import { AppThrottlerGuard } from './app-throttler.guard';
 
 describe('AppThrottlerGuard', () => {
@@ -87,21 +88,79 @@ describe('AppThrottlerGuard', () => {
   });
 
   describe('throwThrottlingException()', () => {
-    it('throws a 429 Problem Detail with AuthErrorCode.RATE_LIMITED', async () => {
-      guard = makeGuard('production');
-      const call = (
-        guard as unknown as { throwThrottlingException: () => Promise<void> }
-      ).throwThrottlingException();
+    type Thrower = (context: unknown, detail: unknown) => Promise<void>;
 
-      await expect(call).rejects.toThrow(HttpException);
-      try {
-        await call;
-      } catch (e) {
-        expect((e as HttpException).getStatus()).toBe(429);
-        const body = (e as HttpException).getResponse() as Record<string, unknown>;
-        expect(body['code']).toBe(AuthErrorCode.RATE_LIMITED);
-        expect(body['status']).toBe(429);
-      }
+    function contextFor(handler: () => void): { context: unknown; setHeader: jest.Mock } {
+      const setHeader = jest.fn();
+      const context = {
+        getHandler: () => handler,
+        getClass: () => class Controller {},
+        switchToHttp: () => ({ getResponse: () => ({ setHeader }) }),
+      };
+      return { context, setHeader };
+    }
+
+    const detail = (overrides: Record<string, unknown> = {}) => ({
+      isBlocked: false,
+      timeToExpire: 41.2,
+      timeToBlockExpire: 0,
+      ...overrides,
+    });
+
+    async function thrown(guard: AppThrottlerGuard, context: unknown, d: unknown) {
+      return (await (guard as unknown as { throwThrottlingException: Thrower })
+        .throwThrottlingException(context, d)
+        .catch((e: unknown) => e)) as HttpException;
+    }
+
+    it('throws a 429 Problem Detail with AuthErrorCode.RATE_LIMITED by default', async () => {
+      guard = makeGuard('production');
+      const { context } = contextFor(() => undefined);
+
+      const error = await thrown(guard, context, detail());
+
+      expect(error).toBeInstanceOf(HttpException);
+      expect(error.getStatus()).toBe(429);
+      const body = error.getResponse() as Record<string, unknown>;
+      expect(body['code']).toBe(AuthErrorCode.RATE_LIMITED);
+      expect(body['status']).toBe(429);
+    });
+
+    it('sets Retry-After to the seconds left, rounded up', async () => {
+      guard = makeGuard('production');
+      const { context, setHeader } = contextFor(() => undefined);
+
+      await thrown(guard, context, detail({ timeToExpire: 41.2 }));
+
+      expect(setHeader).toHaveBeenCalledWith('Retry-After', '42');
+    });
+
+    it('waits out the block for a blocked client, and never advertises less than 1 second', async () => {
+      guard = makeGuard('production');
+      const blocked = contextFor(() => undefined);
+      const nearZero = contextFor(() => undefined);
+
+      await thrown(guard, blocked.context, detail({ isBlocked: true, timeToBlockExpire: 300 }));
+      await thrown(guard, nearZero.context, detail({ timeToExpire: 0 }));
+
+      expect(blocked.setHeader).toHaveBeenCalledWith('Retry-After', '300');
+      expect(nearZero.setHeader).toHaveBeenCalledWith('Retry-After', '1');
+    });
+
+    it("answers the route's own code when it declares one with @ThrottleErrorCode", async () => {
+      guard = makeGuard('production');
+      const handler = function signupHandler() {
+        /* decorated below */
+      };
+      Reflect.defineMetadata(THROTTLE_ERROR_CODE_KEY, SignupErrorCode.RATE_LIMITED, handler);
+      const { context } = contextFor(handler);
+
+      const error = await thrown(guard, context, detail());
+
+      expect((error.getResponse() as Record<string, unknown>)['code']).toBe(
+        SignupErrorCode.RATE_LIMITED,
+      );
+      expect(error.getStatus()).toBe(429);
     });
   });
 });

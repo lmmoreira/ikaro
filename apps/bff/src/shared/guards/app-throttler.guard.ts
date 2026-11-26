@@ -5,12 +5,15 @@ import {
   InjectThrottlerOptions,
   InjectThrottlerStorage,
   ThrottlerGuard,
+  ThrottlerLimitDetail,
   ThrottlerModuleOptions,
   ThrottlerStorage,
 } from '@nestjs/throttler';
+import type { Response } from 'express';
 import { AuthErrorCode } from '@ikaro/types';
 import { ClientIpRequest, getClientIp } from '../http/client-ip';
-import { throwProblemDetail } from '../http/problem-detail';
+import { BffThrowableCode, throwProblemDetail } from '../http/problem-detail';
+import { THROTTLE_ERROR_CODE_KEY } from '../decorators/throttle-error-code.decorator';
 import { AppLogger } from '../observability/app-logger';
 
 // Overrides three extension points on ThrottlerGuard (M17-S30):
@@ -25,7 +28,8 @@ import { AppLogger } from '../observability/app-logger';
 //   which is Cloudflare/the ALB/Cloud Run's front end in every real environment — see
 //   shared/http/client-ip.ts).
 // - throwThrottlingException: converts the library's default, non-RFC-9457 429 body into this
-//   app's standard Problem Detail envelope.
+//   app's standard Problem Detail envelope, with a `Retry-After` header (M26-S24) and, on a route
+//   that declares one with @ThrottleErrorCode, that route's own code instead of AUTH_RATE_LIMITED.
 @Injectable()
 export class AppThrottlerGuard extends ThrottlerGuard {
   // Named appLogger, not logger: @nestjs/throttler@6.7.1 added its own `protected logger: Logger`
@@ -62,11 +66,21 @@ export class AppThrottlerGuard extends ThrottlerGuard {
     return clientIp;
   }
 
-  protected override async throwThrottlingException(): Promise<void> {
-    throw throwProblemDetail(
-      429,
-      AuthErrorCode.RATE_LIMITED,
-      'Muitas requisições. Tente novamente em instantes.',
+  protected override async throwThrottlingException(
+    context: ExecutionContext,
+    detail: ThrottlerLimitDetail,
+  ): Promise<void> {
+    // Seconds until the limiter lets this client in again (a blocked client waits out the block).
+    const seconds = Math.max(
+      1,
+      Math.ceil(detail.isBlocked ? detail.timeToBlockExpire : detail.timeToExpire),
     );
+    context.switchToHttp().getResponse<Response>().setHeader('Retry-After', String(seconds));
+    const code =
+      this.reflector.getAllAndOverride<BffThrowableCode | undefined>(THROTTLE_ERROR_CODE_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]) ?? AuthErrorCode.RATE_LIMITED;
+    throw throwProblemDetail(429, code, 'Muitas requisições. Tente novamente em instantes.');
   }
 }
