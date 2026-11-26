@@ -96,7 +96,7 @@ The invariant that keeps Billing's snapshot correct is documented but not enforc
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean, `pnpm architecture-check` clean
 
-### Story 1 — The dashboard shows the timezone read-only, and the operator runbook 🟡
+### Story 1 — The dashboard shows the timezone read-only, and the operator runbook 🟡 ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** S
