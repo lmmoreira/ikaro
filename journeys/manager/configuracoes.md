@@ -43,7 +43,7 @@ flowchart TD
 - [x] **Two data sources, one form** — **Resolved/shipped** (two calls, see `prototypes/configuracoes/dev-notes.md` "As built"). Original question: UC-026 step 1 describes loading "current `tenants.settings` JSONB," but `Nome do estabelecimento` and `Slug` are actually `tenants` table columns, not JSONB fields (UC step 5 confirms the save updates both `tenants.settings` *and* `tenants.name`). The prototype's single combined form needs to make this invisible to the admin — confirm section grouping (e.g. "Geral" / "Agendamento" / "Fidelidade" / "Contato") so the data-source split doesn't leak into the UI.
 - [x] **Business hours editor UX** — **Resolved/shipped.** Per-day `TimePicker` + a closed-toggle, in the shipped `SettingsForm.tsx`.
 - [ ] **Audit log surface** — UC-026 step 6 says the system logs "who changed what and when," but CLAUDE.md §6 lists "audit log view" as an explicitly missing/undocumented UC. Treat as out of scope for this journey's prototype (no "Histórico de alterações" panel) unless the user says otherwise — don't invent a screen for an undocumented capability.
-- [x] **Timezone field** — **Resolved/shipped.** A `<select>` driven by `resolveSettingsLocalization`, in the shipped `SettingsForm.tsx`.
+- [x] **Timezone field** — **Resolved/shipped (TD61).** Read-only text (`ReadOnlyField`) with a hint that the zone is set at signup and only support corrects it: a manager can never change it (`PATCH /tenants/settings` refuses a changed zone, `422 PLATFORM_TENANT_TIMEZONE_IMMUTABLE`), because Billing keeps an immutable snapshot of it. It was an editable `<select>` before TD61. The form neither holds nor sends the timezone.
 
 ## Prototype
 

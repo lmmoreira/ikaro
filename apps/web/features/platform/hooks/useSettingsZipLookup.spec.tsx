@@ -24,7 +24,6 @@ function baseValues(): SettingsFormValues {
     loyaltyEnableNotifications: true,
     loyaltyNotificationMinPoints: '10',
     pointsPerCurrencyUnit: '10',
-    timezone: 'America/Sao_Paulo',
     days: {
       monday: { open: '08:00', close: '18:00', closed: false },
       tuesday: { open: '08:00', close: '18:00', closed: false },

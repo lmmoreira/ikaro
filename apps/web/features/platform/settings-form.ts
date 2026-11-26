@@ -72,7 +72,6 @@ export function toSettingsFormValues(tenant: TenantSettingsResponse): SettingsFo
     loyaltyEnableNotifications: settings.loyalty.enableNotifications,
     loyaltyNotificationMinPoints: String(settings.loyalty.notificationMinPoints),
     pointsPerCurrencyUnit: String(settings.loyalty.pointsPerCurrencyUnit),
-    timezone: settings.businessHours.timezone,
     days: toDayHoursRecord(settings.businessHours),
     phone: businessInfo?.phone ? stripPhonePrefix(businessInfo.phone, phonePrefix) : '',
     email: businessInfo?.email ?? '',

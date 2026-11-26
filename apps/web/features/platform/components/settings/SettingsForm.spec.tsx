@@ -9,7 +9,7 @@ import { ApiError } from '@/shared/lib/api/errors';
 import { SettingsForm } from './SettingsForm';
 
 // This form renders ~30-40 Radix Select instances (7 days × 2 time pickers × hour/minute
-// selects, plus slot-granularity/timezone selects) — real browsers handle that instantly, but
+// selects, plus the slot-granularity select) — real browsers handle that instantly, but
 // jsdom's simulation is heavy enough that a single interactive test can approach the default
 // 10s timeout in isolation, and exceed a 20s timeout under full-suite parallel contention
 // (observed: 23/23 pass in isolation, but a few time out when all ~165 spec files run
@@ -97,7 +97,9 @@ describe('SettingsForm', () => {
     expect(screen.getByLabelText('Buffer entre agendamentos')).toHaveValue(60);
     expect(screen.getByLabelText('Validade dos pontos de fidelidade')).toHaveValue(180);
     expect(screen.getByLabelText('Pontos por unidade monetária')).toHaveValue(10);
-    expect(screen.getByLabelText('Fuso horário *')).toHaveValue('America/Sao_Paulo');
+    expect(screen.getByTestId('settings-timezone')).toHaveTextContent(
+      'America/Sao_Paulo (Brasília)',
+    );
     expect(screen.getByLabelText('Telefone')).toHaveValue('(31) 99999-9999');
     expect(screen.getByTestId('settings-phone-prefix')).toHaveTextContent('+55');
     expect(screen.getByLabelText('E-mail')).toHaveValue('contato@beloauto.com.br');
@@ -340,6 +342,38 @@ describe('SettingsForm', () => {
 
     expect(await screen.findByTestId('form-feedback')).toHaveTextContent(
       'Este estabelecimento está inativo e não pode ser modificado.',
+    );
+    expect(document.querySelector('[aria-invalid="true"]')).toBeNull();
+  });
+
+  it('sends no timezone in the PATCH body and renders no timezone control (TD61)', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<SettingsForm initial={buildTenant()} />);
+
+    expect(screen.queryByTestId('settings-timezone-select')).not.toBeInTheDocument();
+    await user.click(screen.getByTestId('settings-submit-desktop'));
+
+    expect(mockUpdateTenantSettings).toHaveBeenCalledTimes(1);
+    const body = mockUpdateTenantSettings.mock.calls[0][0] as {
+      settings: { businessHours: Record<string, unknown> };
+    };
+    expect(body.settings.businessHours).not.toHaveProperty('timezone');
+  });
+
+  it('shows the timezone-immutable message in the action pane when a stale client is refused (TD61)', async () => {
+    mockUpdateTenantSettings.mockRejectedValueOnce(
+      new ApiError(422, 'Unprocessable', {
+        code: 'PLATFORM_TENANT_TIMEZONE_IMMUTABLE',
+        field: 'settings.businessHours.timezone',
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithIntl(<SettingsForm initial={buildTenant()} />);
+
+    await user.click(screen.getByTestId('settings-submit-desktop'));
+
+    expect(await screen.findByTestId('form-feedback')).toHaveTextContent(
+      'O fuso horário do negócio é definido no cadastro e não pode ser alterado. Para corrigi-lo, fale com o suporte.',
     );
     expect(document.querySelector('[aria-invalid="true"]')).toBeNull();
   });

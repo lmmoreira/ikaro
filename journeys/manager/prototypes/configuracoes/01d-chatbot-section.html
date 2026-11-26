@@ -230,16 +230,11 @@
         <!-- Horário de funcionamento -->
         <div class="section-card">
           <div class="section-card-title">Horário de funcionamento</div>
-          <div class="section-card-sub">Fuso horário e horários de abertura por dia da semana</div>
+          <div class="section-card-sub">Fuso horário (somente leitura) e horários de abertura por dia da semana</div>
           <div class="form-group">
-            <label class="form-label" for="timezone">Fuso horário *</label>
-            <select id="timezone" class="form-input">
-              <option selected>America/Sao_Paulo (Brasília)</option>
-              <option>America/Manaus</option>
-              <option>America/Fortaleza</option>
-              <option>America/Rio_Branco</option>
-              <option>America/Noronha</option>
-            </select>
+            <label class="form-label" for="timezone">Fuso horário</label>
+            <input id="timezone" type="text" class="form-input" value="America/Sao_Paulo (Brasília)" readonly>
+            <p class="form-hint">O fuso horário é definido no cadastro. Para corrigi-lo, fale com o suporte.</p>
           </div>
 
           <div class="hours-row">
@@ -409,7 +404,7 @@
             <p style="font-size:0.75rem;opacity:0.5;color:var(--ba-text);line-height:1.5;">
               As alterações no texto do assistente entram em vigor na próxima conversa — não é
               preciso publicar o hotsite novamente. Demais configurações afetam novos agendamentos;
-              horários de funcionamento e fuso entram em vigor imediatamente.
+              horários de funcionamento entram em vigor imediatamente.
             </p>
           </div>
         </div>

@@ -11,11 +11,9 @@ export function trimmedOrNull(value: string): string | null {
 }
 
 export function buildBusinessHours(
-  timezone: string,
   days: Record<WeekDay, { open: string; close: string; closed: boolean }>,
 ): NonNullable<UpdateTenantSettingsRequest['settings']['businessHours']> {
   return {
-    timezone,
     ...(Object.fromEntries(
       WEEK_DAYS.map((day) => {
         const value = days[day];

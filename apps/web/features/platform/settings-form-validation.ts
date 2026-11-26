@@ -131,7 +131,7 @@ function buildNormalizedSettings(
         notificationMinPoints: parsed.loyaltyNotificationMinPoints,
         pointsPerCurrencyUnit: parsed.pointsPerCurrencyUnit,
       },
-      businessHours: buildBusinessHours(values.timezone, values.days),
+      businessHours: buildBusinessHours(values.days),
       businessInfo: buildBusinessInfo(phone, parsed.email, address, socialLinks),
       chatbot: { knowledgeText: values.knowledgeText },
       leadForm: {
@@ -147,14 +147,12 @@ function buildNormalizedSettings(
 // helper) so TypeScript's control-flow narrowing can discriminate `result.data` afterward; a
 // boolean-returning helper call can't carry that narrowing back to the caller.
 function hasOtherBlockingFailure(
-  timezoneValid: boolean,
   errors: SettingsFormErrors,
   addressResult: AddressValidationResult,
   phoneResult: PhoneValidationResult,
   socialLinksResult: SocialLinksValidationResult,
 ): boolean {
   return (
-    !timezoneValid ||
     Boolean(errors.loyaltyExpiryWarningDays) ||
     addressResult.address === undefined ||
     phoneResult.phone === undefined ||
@@ -169,23 +167,19 @@ function runFieldValidations(
 ) {
   const candidate = buildValidationCandidate(values);
   const result = SettingsFormSchema.safeParse(candidate);
-  const { phonePrefix, timezones } = resolveSettingsLocalization(countryCode);
+  const { phonePrefix } = resolveSettingsLocalization(countryCode);
   const phoneResult = validatePhoneField(values.phone, phonePrefix, 'errors.phoneInvalid', t);
   const addressResult = validateBusinessAddress(values.address, countryCode, t);
   const socialLinksResult = validateSocialLinks(values.socialLinks, phonePrefix, t);
-  // Valid timezones are country-specific (resolveSettingsLocalization), so this can't live in
-  // the static SettingsFormSchema — validated the same way as phone/address above.
-  const timezoneValid = timezones.includes(values.timezone);
 
   const errors: SettingsFormErrors = { ...addressResult.errors, ...socialLinksResult.errors };
   if (phoneResult.error) errors.phone = phoneResult.error;
-  if (!timezoneValid) errors.timezone = t('errors.timezoneInvalid');
   collectSchemaErrors(result, errors, t);
   if (result.success && result.data.loyaltyExpiryWarningDays >= result.data.loyaltyExpiryDays) {
     errors.loyaltyExpiryWarningDays = t('errors.expiryWarningMustBeLessThanExpiry');
   }
 
-  return { result, phoneResult, addressResult, socialLinksResult, timezoneValid, errors };
+  return { result, phoneResult, addressResult, socialLinksResult, errors };
 }
 
 export function validateSettingsForm(
@@ -196,12 +190,15 @@ export function validateSettingsForm(
   readonly errors: SettingsFormErrors;
   readonly normalized: NormalizedSettingsForm | null;
 } {
-  const { result, phoneResult, addressResult, socialLinksResult, timezoneValid, errors } =
-    runFieldValidations(values, countryCode, t);
+  const { result, phoneResult, addressResult, socialLinksResult, errors } = runFieldValidations(
+    values,
+    countryCode,
+    t,
+  );
 
   if (
     !result.success ||
-    hasOtherBlockingFailure(timezoneValid, errors, addressResult, phoneResult, socialLinksResult)
+    hasOtherBlockingFailure(errors, addressResult, phoneResult, socialLinksResult)
   ) {
     return { errors, normalized: null };
   }

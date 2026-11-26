@@ -7,10 +7,9 @@ import { countrySpec, type AddressSpec } from '@ikaro/i18n';
 export interface SettingsLocalization {
   readonly addressSpec: AddressSpec;
   readonly phonePrefix: string;
-  readonly timezones: readonly string[];
 }
 
 export function resolveSettingsLocalization(countryCode: string): SettingsLocalization {
   const spec = countrySpec(countryCode);
-  return { addressSpec: spec.address, phonePrefix: spec.phonePrefix, timezones: spec.timezones };
+  return { addressSpec: spec.address, phonePrefix: spec.phonePrefix };
 }
