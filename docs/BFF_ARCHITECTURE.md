@@ -214,6 +214,10 @@ issueToken(payload: JwtPayload): string {
 
 **JWT TTL:** 7 days (configured via `JWT_EXPIRES_IN` env var). No refresh tokens in MVP — user re-authenticates after expiry. The BFF issues it only as an **httpOnly cookie**, named `__Host-access_token` in production and `access_token` locally, never in the response body. The browser receives that cookie on the web origin through the same-origin `/v1` gateway, rather than from the BFF deployment hostname.
 
+### Self-signup — the `type=signup` branch (UC-127, M26-S24)
+
+`GET /v1/auth/google?type=signup` follows Steps 1 and 2 with a `signup` state (no tenant slug and no `returnTo`: both are dropped if sent). `handleGoogleCallback` takes the signup branch first, with no backend lookup and **no tenant JWT**. An unverified Google email (`profile.emails[0].verified`, the v3 userinfo's `email_verified`) redirects to `/ikaro-trial/conta-nao-verificada` and sets no cookie; otherwise `{ email, name, googleSub }` goes into the signup-session cookie and the browser lands on `/ikaro-trial/entrar`. The two signup cookies are `signup_session` and `signup_resend` (`__Host-` prefix in production): JWTs on the same `JWT_SECRET` with their own `aud` (`signup-session`, `signup-resend`), `httpOnly`, `SameSite=Lax`, 30 minutes (`features/auth/signup-session.service.ts`). A signup cookie has no `sub`, `tenantId` or `role`, so it can never authenticate as a session. The routes that read it and the orchestration (`features/platform/signup.service.ts`: validate, reserve, provision, release only after a definitive 4xx) are in `docs/API_CONTRACTS.md` § Billing — Public Signup API (BFF, no JWT).
+
 ### Step 5 — Tenant switch (UC-023, customer; and the equivalent staff flow)
 ```
 POST /auth/switch-tenant { targetTenantId: uuid }
@@ -364,7 +368,7 @@ In production (`BACKEND_AUTH_MODE=iam`) a singleton `BackendAuthInterceptor` (`a
 
 `ErrorFilter` (referenced in the Request Lifecycle diagram above; a global NestJS `ExceptionFilter`, not an `Interceptor` — see the note under that diagram) re-emits every backend 4xx/5xx as an RFC 9457 `ProblemDetail` without altering its `code`, `field`, `params`, or `violations[]` — the BFF is structurally a passthrough for these fields, never a place that re-derives or discards them (TD23). This passthrough behavior already existed before TD23 (confirmed during that TD's discovery); TD23's work was populating what actually gets passed through (backend contexts previously emitted no `code` at all), not fixing the passthrough mechanism itself.
 
-**`Retry-After` is set by the filter, not carried over from the backend.** `BackendHttpService.call` re-throws a backend error as `new HttpException(response.data, response.status)` — status and body cross the BFF unchanged, headers do not. So the shared `BaseErrorFilter` (`packages/nestjs-http`, the base of both apps' `ErrorFilter`) sets `Retry-After: 1` on every 503 it renders. A backend `503 AUTH_TRANSACTION_CONTENTION` (a lock wait over 2s or a deadlock abort, M23-S49) therefore leaves the BFF with the same status, code and `Retry-After`, as does the BFF's own `BFF_UPSTREAM_UNAVAILABLE`. The BFF does not retry a backend call itself; the 10s `BackendHttpService` timeout sits above the backend's 2s per-lock timeout, and the web's own 8s call budget is the tighter limit.
+**`Retry-After` is set by the filter, not carried over from the backend.** `BackendHttpService.call` re-throws a backend error as `new HttpException(response.data, response.status)` — status and body cross the BFF unchanged, headers do not. So the shared `BaseErrorFilter` (`packages/nestjs-http`, the base of both apps' `ErrorFilter`) sets `Retry-After: 1` on every 503 it renders; a throttled `429` gets its own `Retry-After` (the seconds left in the limiter's window) from `AppThrottlerGuard` (M26-S24). A backend `503 AUTH_TRANSACTION_CONTENTION` (a lock wait over 2s or a deadlock abort, M23-S49) therefore leaves the BFF with the same status, code and `Retry-After`, as does the BFF's own `BFF_UPSTREAM_UNAVAILABLE`. The BFF does not retry a backend call itself; the 10s `BackendHttpService` timeout sits above the backend's 2s per-lock timeout, and the web's own 8s call budget is the tighter limit.
 
 Because it's an `ExceptionFilter` and not an `Interceptor`, `ErrorFilter` also catches — and logs `error.code` for — exceptions thrown by any of the guards above it in the pipeline (`JwtAuthGuard`, `TenantGuard`, `RolesGuard`, `ActiveStaffGuard`), not just errors surfaced from `BackendHttpService`'s call to the backend.
 
@@ -388,9 +392,11 @@ Full pattern (code catalog, naming convention, frontend resolver, "adding a new 
 | `POST /auth/switch-staff-tenant` | JWT | No | STAFF \| MANAGER |
 | `GET /auth/session` | JWT | No (X-Tenant-Slug forwarded if given, `TenantGuard`-checked) | any (branches on JWT role internally) |
 | `POST /auth/dev-login` | No (dev only) | No | — |
+| `POST /auth/dev-signup-session` (sets the signup-session cookie without Google; same gates as `dev-login`, M26-S24) | No (dev only) | No | — |
 | `GET /billing/access` (the tenant's access state, role-reduced per `packages/types/src/billing.dto.ts`; no `@Roles`, so every authenticated role may read it, including while the tenant is suspended; the tenant comes from the JWT; no BFF cache, the backend port keeps its own) | JWT | No | any |
 | `GET /public/platform/manifest/:slug` | No | No (slug is the path param) | — |
 | `GET /public/platform/published-hotsites` | No | No | — |
+| `GET /public/signup/slug-availability`, `GET /public/signup/session`, `POST /public/signup/tenant` (UC-127, UC-128; the last two need the signup-session cookie) | No (`@Public()`; the session routes answer `401` without the cookie) | No | — |
 | `GET /public/platform/chatbot/status`, `POST /public/platform/chatbot/messages` | No | X-Tenant-Slug | — |
 | `GET /public/platform/lead-form/:slug`, `POST /public/platform/lead-form/:slug/submissions` | No | X-Tenant-Slug | — |
 | `GET /public/services` | No | X-Tenant-Slug | — |
@@ -465,6 +471,9 @@ ThrottlerModule.forRoot([
 | Default (every route not listed below) | 60/min per IP | |
 | `/auth/*` (whole controller) | 10/min per IP | Brute-force insurance on OAuth/tenant-switching |
 | `/auth/dev-login` | unlimited (`@SkipThrottle()`) | Already hard-gated by `ENABLE_DEV_AUTH=true` + blocked outright when `APP_ENV=production` — never reachable by real traffic, so exempting it from the `/auth/*` tier doesn't weaken brute-force protection. Without this, CI's own dev-login test-helper (called once per E2E test, all from one runner IP) exhausts the bucket and every subsequent test fails at setup |
+| `/public/signup/tenant` | 10/min per IP | The signup `POST`; answers `SIGNUP_RATE_LIMITED` (`@ThrottleErrorCode`). The hard controls are Turnstile and the trial rule, not this limit |
+| `/public/signup/slug-availability` | 30/min per IP | `Cache-Control: no-store` |
+| `/auth/dev-signup-session` | unlimited (`@SkipThrottle()`) | Gated like `dev-login` (`ENABLE_DEV_AUTH`, refused in production) |
 | `/bookings/attachments/signed-url` | 10/min per IP | `@Public()` — no auth at all, so IP-based limiting is the only throttle available |
 | `/health/*` | unlimited (`@SkipThrottle()`) | Health checks must never be throttled |
 
@@ -472,7 +481,7 @@ ThrottlerModule.forRoot([
 
 **Updated (`TD38`, staging):** the throttle key is the client IP, resolved via `apps/bff/src/shared/http/client-ip.ts`. The original CF-Connecting-IP/rightmost-XFF guessing logic described here in earlier revisions turned out to be unfixable in place — every real caller reaches BFF through `ikaro-web`'s same-origin gateway, which opens a *new* connection from `ikaro-web` itself, so neither header ever carried the real browser IP to begin with (verified live in M17-S27/PR #281: a real staging request from a known IP resolved to a Google Cloud–owned address, not the requester's). TD38 fixes this at the root instead of patching the derivation: BFF's Cloud Run ingress is locked to internal-only with its `allUsers` public invoker grant removed (staging only as of this writing — see `plan/M17-CLOUD-DEPLOY.md` for prod status), so the only caller left is `ikaro-web` itself. `ikaro-web` resolves the real client IP on the genuinely trustworthy browser→web hop (via the shared `@ikaro/http-utils` package) and forwards it as a trusted `X-Real-Client-Ip` header; BFF now just reads that header directly instead of re-deriving anything from raw proxy headers.
 
-On limit exceeded: `429` with the standard RFC 9457 Problem Detail envelope, `code: AuthErrorCode.RATE_LIMITED`, pt-BR message. Known accepted limitation: counters are in-memory per Cloud Run instance, not shared across instances — acceptable at MVP scale (`max_instances` capped low); Redis (`td/TD08-AUDIT-REMEDIATION-BACKLOG.md` AUD-032) is the documented scale-up path, not built now.
+On limit exceeded: `429` with the standard RFC 9457 Problem Detail envelope, `code: AuthErrorCode.RATE_LIMITED` (a route can answer its own code with `@ThrottleErrorCode`: the signup `POST` answers `SIGNUP_RATE_LIMITED`), a `Retry-After` header (seconds until the limiter lets the client in again), pt-BR message. Known accepted limitation: counters are in-memory per Cloud Run instance, not shared across instances — acceptable at MVP scale (`max_instances` capped low); Redis (`td/TD08-AUDIT-REMEDIATION-BACKLOG.md` AUD-032) is the documented scale-up path, not built now.
 
 ---
 
@@ -667,7 +676,7 @@ CMD ["node", "dist/main.js"]
 
 The `state` param passed to Google carries functional routing data — `''`, `<tenantSlug>`, `__staff__`, or `__staff__:<tenantSlug>` — used to route the callback to the correct login flow. On its own that payload has no integrity protection: an attacker could hand-craft a `state` value and have it trusted as-is, which is both a CSRF gap and a routing-tampering gap.
 
-**Fix (M17-S32):** the routing payload is wrapped in a short-lived signed JWT rather than replaced by a bare nonce (a bare nonce would break staff/tenant login routing). `state` is `{ loginType?: 'staff', tenantSlug?: string, nonce: randomUUID() }`, signed via the app's `JwtService` (`JWT_SECRET`, HS256), 5-minute TTL:
+**Fix (M17-S32):** the routing payload is wrapped in a short-lived signed JWT rather than replaced by a bare nonce (a bare nonce would break staff/tenant login routing). `state` is `{ loginType?: 'staff' | 'signup', tenantSlug?: string, nonce: randomUUID() }` (a `signup` state carries no `tenantSlug` and no `returnTo`), signed via the app's `JwtService` (`JWT_SECRET`, HS256), 5-minute TTL:
 
 ```typescript
 // oauth-state.service.ts

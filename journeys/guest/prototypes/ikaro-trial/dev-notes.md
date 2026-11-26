@@ -1,10 +1,10 @@
 # Dev Notes — GUEST: Teste Grátis da Ikaro (`/ikaro-trial`)
 
-> The authoritative contracts are `docs/API_CONTRACTS.md` § Billing — Public Signup API (BFF, no JWT) and `docs/USE_CASES.md` UC-127 / UC-128; this file describes what the draft screens assume. Target implementation: M26-S33 (pages) on top of S22-S25 (slug check, prices, signup, resend) and M26-S34 (hotsite CTA). `GAP` = does not exist yet. The call-to-action module on Ikaro's hotsite (`01`) is configured from `manager/prototypes/hotsite/01g` (UC-131).
+> The authoritative contracts are `docs/API_CONTRACTS.md` § Billing — Public Signup API (BFF, no JWT) and `docs/USE_CASES.md` UC-127 / UC-128; this file describes what the draft screens assume. Target implementation: M26-S33 (pages) on top of S22-S24 (slug check, prices, signup session and tenant routes: built) and S25 (resend: planned) and M26-S34 (hotsite CTA). `GAP` = does not exist yet. The call-to-action module on Ikaro's hotsite (`01`) is configured from `manager/prototypes/hotsite/01g` (UC-131).
 
 ## Overview
 
-16 screens for the self-service trial signup served at `/ikaro-trial`, branded as the Ikaro (platform-owner) tenant: hotsite CTA (`01`), details and price table (`02*`), Google step (`03*`), business form (`04*`), account created (`05`). Everything is a GAP; M26-S33 builds the pages (BR monthly only), S34 the CTA module. This file is shaped to the `journeys/README.md` dev-notes template; the per-screen sections hold props, BFF call, validation and states.
+16 screens for the self-service trial signup served at `/ikaro-trial`, branded as the Ikaro (platform-owner) tenant: hotsite CTA (`01`), details and price table (`02*`), Google step (`03*`), business form (`04*`), account created (`05`). The pages are a GAP (the BFF and backend half, S22-S24, is built); M26-S33 builds the pages (BR monthly only), S34 the CTA module. This file is shaped to the `journeys/README.md` dev-notes template; the per-screen sections hold props, BFF call, validation and states.
 
 ## File map
 
@@ -16,9 +16,9 @@
 | `apps/web/features/billing/components/public/TrialGoogleStep.tsx`, `TrialAlreadyUsedNotice.tsx` | ❌ Gap | Create — M26-S33 (`03`, `03c`) |
 | `apps/web/features/billing/components/public/TrialSignupForm.tsx`, `SlugField.tsx` | ❌ Gap | Create — M26-S33 (`04*`) |
 | `apps/web/features/billing/components/public/AccountCreatedPage.tsx` | ❌ Gap | Create — M26-S33 (`05`) |
-| `apps/web/features/billing/hooks/useSignupSession.ts`, `useSlugAvailability.ts`, `useCreateTenantSignup.ts`, `useResendInvitation.ts`, `usePublicPrices.ts` | ❌ Gap | Create — M26-S33 |
+| `apps/web/features/billing/hooks/useSignupSession.ts`, `useSlugAvailability.ts`, `useResendInvitation.ts`, `usePublicPrices.ts` | ❌ Gap | Create — M26-S33 |
 | `apps/web/features/billing/model/slug-suggestions.ts`, `features/billing/legal/terms-texts.ts` | ❌ Gap | Create — M26-S33 |
-| `apps/web/features/platform/api/signup.ts` | ❌ Gap | Create — client-only `bffClient` calls (M26-S33) |
+| `apps/web/features/platform/api/signup.ts` | ❌ Gap | Create — client-only `bffClient` calls for the slug check and the session read (M26-S33); the final signup `POST` is a server action (`signup.server.ts`), not a client fetcher |
 | `apps/web/proxy.ts` | ✅ EXISTS | Modify — runtime rewrite `/ikaro-trial/*` to the owner slug (M26-S33) |
 | Prototype screens: `01-ikaro-hotsite-cta`, `02-ikaro-trial-details-br`, `02b-ikaro-trial-details-us`, `02c-ikaro-trial-prices-loading`, `02d-ikaro-trial-prices-error`, `03-signup-google-step`, `03b-signup-turnstile-failed`, `03c-signup-trial-already-used`, `04-signup-form`, `04b-signup-slug-taken`, `04c-signup-validation-error`, `04d-signup-submitting`, `04e-signup-rate-limited`, `04f-signup-provision-failed`, `04g-signup-us-selected`, `05-welcome-trial-started` (all `.html`) | ❓ Draft | Reference only |
 
@@ -26,8 +26,8 @@
 
 - **`03` and `03b` draw a Turnstile widget on the Google step.** Prototype debt, kept as is: Turnstile is verified only on the final `POST /v1/public/signup/tenant` (M26-S33 rule R9), so the widget belongs to the form step (`04`), and the `03b` "verification failed" state is the failure state of that widget (`400 SIGNUP_TURNSTILE_FAILED`).
 - **The annual toggle (Mensal | Anual) is drawn on `02`/`02b` but deferred to slice H / post-launch.** M26-S33 is BR monthly only and renders no toggle.
-- **The US variant (`02b`, `04g`) is not offered by M26-S33** where the country has no price list (production).
-- **The 60 s "Reenviar e-mail" cooldown on `05` is a UI-only cosmetic cooldown**; the enforced limits are 3 per hour per tenant and 10 per day per IP (Screen 5).
+- **The US variant (`02b`, `04g`) is not offered by M26-S33**: Brasil only until M28 (a documented non-goal).
+- **The 60 s "Reenviar e-mail" cooldown on `05` is a UI-only cosmetic cooldown**; the enforced limit is a plain burst throttle, set in M26-S25 (Screen 5).
 - **Links "Termos de Uso" / "Política de Privacidade" are `href="#"`** in `04`–`04g` until M26-S33 wires them to `/ikaro-trial/termos` and `/ikaro-trial/privacidade`.
 - **Not drawn:** the `SIGNUP_TRIAL_NOT_AVAILABLE` 409 other than via the `03c` card. There is no "signup closed" screen: Ikaro closes signup by disabling the `TRIAL_SIGNUP_CTA` module in its hotsite configuration (M26-S24 discovery).
 
@@ -44,7 +44,7 @@
 ## Screen 2 (`02` / `02b` / `02c` / `02d`) — /ikaro-trial details (`IkaroTrialDetails`, `TrialPriceTable`)
 
 **File:** `apps/web/app/[slug]/ikaro-trial/page.tsx` (thin) rendering `apps/web/features/billing/components/public/IkaroTrialDetails.tsx` and `TrialPriceTable.tsx`; `/ikaro-trial` is rewritten in `proxy.ts` to the platform-owner slug (`docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § The `/ikaro-trial` pages; GAP, M26-S33). Prices come from `usePublicPrices` (retry for `02d`). Table rows built from the price list; feature texts are i18n keys (both locales).
-**Props:** `{ country: 'BR'|'US' }` (switch state, default from browser locale, BR if unknown).
+**Props:** `{ country: 'BR'|'US' }` (switch state, default from browser locale, BR if unknown; only `BR` is offered until M28, `02b` is a documented non-goal).
 **BFF call:**
 ```
 GET /v1/public/billing/prices?country=BR|US   (@Public)
@@ -59,7 +59,7 @@ GET /v1/public/billing/prices?country=BR|US   (@Public)
 
 > **Turnstile placement (canonical, UC-127):** Turnstile is verified **only** on the final tenant-creation `POST` (the widget belongs to the form step, screen 4); this Google step has no Turnstile. The drafts `03`/`03b` still draw a widget and a "Turnstile failed" state on this step (known limitation, see above); the failed state belongs to screen 4 (`400 SIGNUP_TURNSTILE_FAILED`).
 
-**File:** `apps/web/app/[slug]/ikaro-trial/entrar/page.tsx` for the owner slug; `TrialGoogleStep.tsx` renders until `useSignupSession` returns a session, then `TrialSignupForm` renders on the same route (GAP, M26-S33). Google button follows the existing OAuth pattern (`/api/auth/google?redirect=...`) with a signup intent that creates no tenant.
+**File:** `apps/web/app/[slug]/ikaro-trial/entrar/page.tsx` for the owner slug; `TrialGoogleStep.tsx` renders until `useSignupSession` returns a session, then `TrialSignupForm` renders on the same route (GAP, M26-S33). The Google button is a link to `/v1/auth/google?type=signup` through the same-origin gateway; there is no `redirect` parameter (the BFF callback redirects to `/ikaro-trial/entrar`, or to `/ikaro-trial/conta-nao-verificada` for an unverified Google email) and the step creates no tenant.
 **Props:** none. The Turnstile token is obtained on the form step (screen 4) and sent in the tenant creation call.
 **BFF call:** `GET /v1/public/signup/session` after the OAuth callback -> `{ email, name, trialAvailable, existingTenantSlug?, termsVersion }` (`trialAvailable=false` when an earlier self-signup tenant of this Google `sub` never paid; the tax-id rule is applied on the final `POST`; `docs/USE_CASES.md` UC-127 A3).
 **States:** idle (Google button enabled) -> 03c trial not available (`trialAvailable = false`); (`03b` Turnstile failed: see the note above.)
@@ -69,23 +69,23 @@ GET /v1/public/billing/prices?country=BR|US   (@Public)
 
 ## Screen 4 (`04` / `04b`–`04g`) — Signup form (`TrialSignupForm`, `SlugField`)
 
-**File:** `apps/web/features/billing/components/public/TrialSignupForm.tsx` and `SlugField.tsx` (GAP, M26-S33); hooks `useSlugAvailability`, `useCreateTenantSignup`; suggestions from `features/billing/model/slug-suggestions.ts`. Use primitives from `apps/web/shared/components/ui/`; form errors use `BrandedFeedbackMessage`.
+**File:** `apps/web/features/billing/components/public/TrialSignupForm.tsx` and `SlugField.tsx` (GAP, M26-S33); hooks `useSlugAvailability` (the final submit is a server action, no `useCreateTenantSignup`); suggestions from `features/billing/model/slug-suggestions.ts`. Use primitives from `apps/web/shared/components/ui/`; form errors use `BrandedFeedbackMessage`.
 **Props:** `{ googleName: string; googleEmail: string }` (read-only, from the session). This screen carries the **Turnstile widget** (single-use token sent in the final `POST`). The 409 `SIGNUP_TRIAL_NOT_AVAILABLE` on submit (an earlier self-signup tenant of this Google account never paid, or the CPF/CNPJ already belongs to an unpaid account) renders the `03c` "Você já tem um teste em andamento ou não concluído" card (`TrialAlreadyUsedNotice`).
 **BFF calls:**
 ```
 GET  /v1/public/signup/slug-availability?slug=    -> { status: 'available'|'taken'|'reserved'|'invalid', reason? }  (debounced ~400ms)
 POST /v1/public/signup/tenant
-  Body: { businessName, slug, countryCode: 'BR'|'US', taxId (BR only, CPF or CNPJ), acceptedTermsVersion, turnstileToken }  (no language: it derives from the country)
-  Response 201: { tenantSlug, nextPath: '/ikaro-trial/conta-criada' }  (clears the signup session; does not issue a tenant JWT)
+  Body: { businessName, slug, countryCode: 'BR' (BR only until M28), taxId? (BR, CPF or CNPJ), acceptedTermsVersion?, turnstileToken }  (no language: it derives from the country)
+  Response 201: { tenantSlug, nextPath: '/ikaro-trial/conta-criada' }  (clears the signup session and sets the `signup_resend` credential cookie; does not issue a tenant JWT)
 ```
 **Validation:**
 | Field | Rule | Error message |
 |---|---|---|
-| businessName | required, max 100 | "Informe o nome do negócio." |
+| businessName | required, trimmed, max 120 | "Informe o nome do negócio." |
 | slug | 3-30 chars, a-z 0-9 hyphen, no leading/trailing hyphen | "Use de 3 a 30 letras minúsculas, números e hífens, sem hífen no início ou fim." |
 | slug | reserved word (admin, api, www...) | "Este endereço é reservado. Escolha outro." |
 | slug | taken | "Este endereço já está em uso. Tente outro, por exemplo lavacar-beloauto-sp." |
-| countryCode | required BR or US | "Selecione o país." |
+| countryCode | required, BR only until M28 (`422 SIGNUP_COUNTRY_NOT_SUPPORTED` for any other) | "Selecione o país." |
 | terms | must be checked; version recorded | "Aceite os Termos de Uso e a Política de Privacidade para continuar." |
 **States:** idle -> checking slug -> ok/taken (04b); submit -> submitting (04d) -> account-created/check-email page (05) / validation error 422 (04c, whole form, worst case: reserved slug "admin", empty name, no country, terms unchecked) / 429 (04e) / tenant-creation failure 5xx (04f). Server errors on submit (`docs/ERROR_CATALOG.md`):
 | Status | Code | Rendering |
@@ -93,16 +93,16 @@ POST /v1/public/signup/tenant
 | 400 | `SIGNUP_TURNSTILE_FAILED` | Failure state of the form's widget (the `03b` message, drawn on the Google step in the prototype); a fresh token is requested before the next submit |
 | 409 | `SIGNUP_SLUG_TAKEN` | Submit race after the live check passed: `04b` state with suggestions |
 | 409 | `SIGNUP_TRIAL_NOT_AVAILABLE` | `03c` card |
-| 422 | `SIGNUP_TERMS_NOT_ACCEPTED`, `SIGNUP_SLUG_INVALID`, `SIGNUP_SLUG_RESERVED` (plus `SIGNUP_TAX_ID_INVALID` / `SIGNUP_TAX_ID_REQUIRED`) | `04c` whole-form validation errors |
+| 422 | `SIGNUP_TERMS_NOT_ACCEPTED`, `SIGNUP_SLUG_INVALID`, `SIGNUP_SLUG_RESERVED` (plus `SIGNUP_TAX_ID_INVALID` / `SIGNUP_TAX_ID_REQUIRED`; `SIGNUP_COUNTRY_NOT_SUPPORTED` only for a crafted non-BR request) | `04c` whole-form validation errors |
 | 429 | `SIGNUP_RATE_LIMITED` | `04e`, wait time from `Retry-After` |
-| 5xx | tenant creation failed | `04f`, nothing was created |
+| 5xx / timeout | provisioning failed or its outcome is unknown | `04f`. The copy says nothing was created, which holds only for a definite failure: after a timeout the tenant may exist and the reservation is kept, so a retry can answer `409 SIGNUP_TRIAL_NOT_AVAILABLE` with `existingTenantSlug` (the page offers sign-in) until the one-hour sweep clears it; M26-S33 decides the copy for that case |
 **Error copy:** 04e "Muitas tentativas. Por segurança, aguarde alguns minutos antes de tentar de novo." ; 04f "Não conseguimos criar sua conta. Nada foi criado, então você pode tentar de novo com segurança." This applies only when the tenant-creation transaction fails. Post-commit manager/Billing setup is durable asynchronous work; its handoff is the account-created page and existing invitation/login email, not a dashboard redirect.
 **Notes:** slug and country are immutable after creation (hint shown). URL preview uses `ikaro.app/{slug}` (illustrative domain). Desktop buttons are inline, not stretched. Bot Turnstile token is single-use; after a failed submit the page must re-request a token.
 
 ## Conventions and decisions added in the review pass
 
 - **Currency display:** the public price page keeps the `US$` prefix (`US$ 68.60`, period as decimal separator, as in the BRL page's `R$`) on the United States table, including the pt-BR text around it; `02b` and `04g` stay `lang="pt-BR"` because the page is Portuguese until the visitor chooses the country (the page's own note says so), only the price strings are USD. The real implementation formats with `Intl.NumberFormat` for the page locale and the price list's currency.
-- **US gate:** the US switch/option (`02b`, `04g`) is shown only where the US has a price list; otherwise a US request fails in the Billing handler with `BILLING_NO_PRICE_FOR_COUNTRY` (UC-110 A2).
+- **US gate:** the US switch/option (`02b`, `04g`) is not offered until M28; a crafted US request is refused by Billing's reservation with `422 SIGNUP_COUNTRY_NOT_SUPPORTED` (UC-127 A7).
 - **Slug-taken suggestions (`04b`)** are generated client-side (typed slug plus a suffix) and each is checked with `GET /v1/public/signup/slug-availability`; the endpoint returns no suggestions.
 - **Placeholder links:** "Termos de Uso" and "Política de Privacidade" are `href="#"` in the signup form screens `04`–`04g` (prototype placeholders; `03` and `03b` only mention them as plain text). They are wired to `/ikaro-trial/termos` and `/ikaro-trial/privacidade` by M26-S33.
 - **Dashboard shell language:** the manager billing screens for the US tenant (`manager/prototypes/billing/02c`, `02e`; tenant "Sunrise Auto Spa") keep the dashboard shell (sidebar, topbar, nav) in pt-BR while the page content is English. Whether the shell language follows the tenant country or the user is a product decision still open.
@@ -119,7 +119,7 @@ POST /v1/public/signup/resend   (@Public, no body)
   Response 200: { sent: boolean, ready: boolean }
   401 without a valid credential (generic, no enumeration); 429 SIGNUP_RATE_LIMITED + Retry-After
 ```
-Enforced limits: 3 per hour per tenant and 10 per day per IP (best-effort per BFF instance). `{ sent: false, ready: false }` means the first-manager row does not exist yet (the page keeps waiting); `{ sent: false, ready: true }` means the manager already linked Google (no email sent).
+Enforced limit: a plain burst throttle (best-effort per BFF instance, the number is set in M26-S25). `{ sent: false, ready: false }` means the first-manager row does not exist yet (the page keeps waiting); `{ sent: false, ready: true }` means the manager already linked Google (no email sent).
 **Copy:** "Sua conta foi criada" / "Enviamos as instruções de acesso para {email}. Abra o e-mail para entrar e começar seu teste de 14 dias." / "Não encontrou o e-mail? Verifique a caixa de spam ou fale com a gente."
 **Mobile:** single column; primary login link not full width on desktop.
 
@@ -127,8 +127,8 @@ Enforced limits: 3 per hour per tenant and 10 per day per IP (best-effort per BF
 
 ## Addenda that apply to these screens (from the discovery review rounds)
 
-- **Signup.** The language field was removed from `04*`; language derives from the country. The country selector offers only "Brasil" by default with the hint "Define a moeda, o fuso padrão e o idioma"; "Estados Unidos" appears only in `04g`, which models a country with a US price list. Error `SIGNUP_TRIAL_NOT_AVAILABLE` reuses the `03c` card.
+- **Signup.** The language field was removed from `04*`; language derives from the country. The country selector offers only "Brasil" by default with the hint "Define a moeda, o fuso padrão e o idioma"; "Estados Unidos" appears only in `04g`, a documented non-goal until M28. Error `SIGNUP_TRIAL_NOT_AVAILABLE` reuses the `03c` card.
 - **BR tax ID at signup.** `04*` now has a required "CPF ou CNPJ da empresa" field for BR (check digits validated; error `SIGNUP_TAX_ID_INVALID`/`SIGNUP_TAX_ID_REQUIRED`; screen 04c shows the invalid case). It is saved to the billing account and is editable but not blankable on the Dados tab for BR tenants.
-- **New `04g-signup-us-selected`** (UC-127 A7): US selected, CPF/CNPJ hidden, note that the full address is collected in the dashboard before the first charge; only reachable where the US has a price list.
-- **Signup details.** `05` has a rate-limited "Reenviar e-mail" (60 s cosmetic cooldown; enforced 3/h per tenant, 10/day per IP) and "Já confirmou? Entrar com Google"; `03c` offers "Entrar na conta existente" or discarding the unpaid trial; `04*` offers only "Brasil" (US only in `04g`, flag on) with the hint "Define a moeda, o fuso padrão e o idioma"; `02b` is in Portuguese before the country is picked and says so.
+- **New `04g-signup-us-selected`** (UC-127 A7): US selected, CPF/CNPJ hidden, note that the full address is collected in the dashboard before the first charge; not reachable until M28 (documented non-goal).
+- **Signup details.** `05` has a rate-limited "Reenviar e-mail" (60 s cosmetic cooldown; enforced by a plain burst throttle, M26-S25) and "Já confirmou? Entrar com Google"; `03c` offers "Entrar na conta existente" or discarding the unpaid trial; `04*` offers only "Brasil" (US only in `04g`, a non-goal until M28) with the hint "Define a moeda, o fuso padrão e o idioma"; `02b` is in Portuguese before the country is picked and says so.
 - **Price tables (`02`, `02b`).** Same toggle (slice H / post-launch; not built by M26-S33); the header becomes "Preço anual", amounts switch to "/ano" with "equivale a .../mês" (the US page keeps its existing Portuguese UI copy).

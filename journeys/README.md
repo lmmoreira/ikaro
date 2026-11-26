@@ -734,7 +734,7 @@ The field border in the real app is `--ba-field-border`, derived by `applyBrandi
 | GUEST — Responder à Solicitação de Informação | `guest/submit-info.md` | `guest/prototypes/submit-info/` | Built (M13-S38/S39/S40) |
 | GUEST — Ask Chatbot | `guest/ask-chatbot.md` | `guest/prototypes/ask-chatbot/` | Built (M19-S11) |
 | GUEST — Página Indisponível (Unavailable Hotsite Page) | `guest/unpublished-hotsite.md` | `guest/prototypes/unpublished-hotsite/` | ✅ Shipped (M25-S30) |
-| GUEST — Teste Grátis da Ikaro (Self-Service Trial Signup) | `guest/ikaro-trial.md` | `guest/prototypes/ikaro-trial/` | Draft (planned Billing milestone) |
+| GUEST — Teste Grátis da Ikaro (Self-Service Trial Signup) | `guest/ikaro-trial.md` | `guest/prototypes/ikaro-trial/` | Draft (BFF and backend built in M26-S22 to S24; the pages are planned in M26-S33) |
 | CUSTOMER — Book a Service | `customer/book-a-service.md` | `customer/prototypes/book-a-service/` | Reviewed (M23 extension: ✅ built — `M23-S11a`/`S11b`; ✅ built — `M23-S31` alert button on the calendar step) |
 | CUSTOMER — Login & Tenant Selection | `customer/login.md` | `customer/prototypes/login/` | Reviewed |
 | STAFF — Login & First Access | `staff/login.md` | `staff/prototypes/login/` | Shipped (M13-S13); billing extension (suspended notice, UC-121): Built (M25-S29, M25-S31a) |

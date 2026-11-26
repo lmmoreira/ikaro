@@ -3,7 +3,7 @@
 **Actor(s):** GUEST (any visitor; no account yet)
 **Goal:** A business owner opens Ikaro's own hotsite, reads what the platform offers and what it costs, signs in with Google, creates a tenant in a few fields and is told to check their email — without a human on Ikaro's side
 **UCs covered:** UC-127 (visitor signs up for a trial), UC-128 (public prices and slug check); the call to action that starts the flow is configured by UC-131 (`manager/hotsite.md`); the optional first-run checklist after the first login is UC-129 (`manager/onboarding.md`)
-**Status:** Planned in M26 (stories S22-S25 backend/BFF, S33 public pages and Terms/Privacy hosting, S34 hotsite CTA); nothing shipped yet
+**Status:** the BFF and backend half is built in M26 (S22 slug check, S23 prices, S24 signup session and tenant routes); still planned: S25 resend, S33 public pages and Terms/Privacy hosting, S34 hotsite CTA
 
 > Self-signup is the **default** way to create a tenant; the operator route (UC-024) is the exception path for exempt and partner tenants. The pages are served at `/ikaro-trial` and are **branded as the Ikaro tenant** (they take the platform-owner tenant's hotsite branding), so the prototype uses the shared hotsite look. They do not depend on the owner hotsite being published (`docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § The `/ikaro-trial` pages). This journey ends at the account-created page; what happens after the invitation email is `staff/login.md`.
 
@@ -20,6 +20,7 @@ flowchart TD
     Details -->|"Começar teste grátis"| Google["❓ GAP: Google sign-in — 03-signup-google-step"]
     Form -.->|"Turnstile fails on submit"| TsFail["❓ GAP: 03b-signup-turnstile-failed (moves to the form step)"]
     Google -.->|"earlier trial of this Google account never paid"| Used["❓ GAP: 03c-signup-trial-already-used<br/>(sign in to the existing account, or discard — UC-141)"]
+    Google -.->|"Google email not verified"| Unverified["❓ GAP: /ikaro-trial/conta-nao-verificada — Google account unverified<br/>(M26-S33; no prototype screen yet)"]
     Google -->|"identity verified"| Form["❓ GAP: Business data form — 04-signup-form<br/>name, slug (live check), country, CPF/CNPJ (BR), terms"]
     Form -.->|"slug taken / invalid"| Slug["❓ GAP: 04b-signup-slug-taken, 04c-signup-validation-error"]
     Form -->|"submit"| Submitting["❓ GAP: 04d-signup-submitting"]
@@ -38,8 +39,9 @@ flowchart TD
 | Page / Route | Component | Story | Status |
 |---|---|---|---|
 | Ikaro's own hotsite, section with the trial CTA | `TrialSignupCtaModule` (13th module type, platform-owner tenant only; the editor panel is `TrialSignupCtaConfigPanel`) | M26-S34 (contract and owner rule: M26-S26) | ❓ Gap |
-| `/ikaro-trial` — details and BR price table (US variant not offered where the country has no price list, i.e. production) | `IkaroTrialDetails`, `TrialPriceTable` (`features/billing/components/public/`) | M26-S33 (data: S23 prices) | ❓ Gap |
+| `/ikaro-trial` — details and BR price table (Brasil only until M28; the US variant is a documented non-goal) | `IkaroTrialDetails`, `TrialPriceTable` (`features/billing/components/public/`) | M26-S33 (data: S23 prices) | ❓ Gap |
 | `/ikaro-trial/entrar` — **both** the Google step and the business data form: the Google step renders until `GET /v1/public/signup/session` returns a session, then the form renders on the same route (Turnstile is verified only on the final submit) | `TrialGoogleStep`, `TrialSignupForm`, `SlugField`, `TrialAlreadyUsedNotice` | M26-S33 (data: S22 slug check, S24 session and signup) | ❓ Gap |
+| `/ikaro-trial/conta-nao-verificada` — the Google account's email is not verified (the signup callback redirects here and sets no cookie) | `GoogleAccountUnverifiedNotice` | M26-S33 | ❓ Gap (no prototype screen yet) |
 | `/ikaro-trial/conta-criada` — account created (`nextPath` returned by the `201`) | `AccountCreatedPage` | M26-S33 (data: S25 resend) | ❓ Gap |
 | `/ikaro-trial/termos`, `/ikaro-trial/privacidade` — hosted Terms of Use and Privacy Policy for `?v=` or the current `termsVersion` (placeholder, `noindex` pages until the owner supplies the final texts; they gate launch in M26-S39) | static legal pages from `features/billing/legal/terms-texts.ts` | M26-S33 | ❓ Gap |
 
@@ -50,8 +52,8 @@ flowchart TD
 | `GET /v1/public/billing/prices?country=` | details / price table (UC-128) |
 | `GET /v1/public/signup/slug-availability?slug=` | the slug field, debounced (UC-128) |
 | `GET /v1/public/signup/session` | after the Google callback: `{ email, name, trialAvailable, existingTenantSlug?, termsVersion }` — the form sends `termsVersion` back as `acceptedTermsVersion` (the web keeps no version constant) |
-| `POST /v1/public/signup/tenant` | the submit (UC-127) |
-| `POST /v1/public/signup/resend` | "Reenviar e-mail" on the account-created page. No body; authenticated by the **resend credential cookie** issued at the signup `201` (signed, `typ`/`aud` `signup-resend`, bound to `{ tenantId, email }`, 30 minutes); without it a generic `401`. Response `200 { sent, ready }`; limits 3 per hour per tenant and 10 per day per IP (`429 SIGNUP_RATE_LIMITED` + `Retry-After`); The "Já confirmou? Entrar com Google" block appears only when `ready` is true (M26-S25). The 60 s disabled button on `05` is a UI-only cosmetic cooldown, not the enforced limit |
+| `POST /v1/public/signup/tenant` | the submit (UC-127). Body `{ businessName, slug, countryCode, taxId?, acceptedTermsVersion?, turnstileToken }`; email and name come from the signup session, never the body. `201 { tenantSlug, nextPath }` sets the `signup_resend` cookie and clears `signup_session`. Errors: `409` `SIGNUP_TRIAL_NOT_AVAILABLE` / `SIGNUP_SLUG_TAKEN`, `422` the slug, tax-id, Terms and country codes, `400` `SIGNUP_TURNSTILE_FAILED`, `429` `SIGNUP_RATE_LIMITED` + `Retry-After` |
+| `POST /v1/public/signup/resend` | "Reenviar e-mail" on the account-created page. No body; authenticated by the **resend credential cookie** issued at the signup `201` (signed, `typ`/`aud` `signup-resend`, bound to `{ tenantId, email }`, 30 minutes); without it a generic `401`. Response `200 { sent, ready }`; a plain burst throttle (`429 SIGNUP_RATE_LIMITED` + `Retry-After`; the number is set in M26-S25); The "Já confirmou? Entrar com Google" block appears only when `ready` is true (M26-S25). The 60 s disabled button on `05` is a UI-only cosmetic cooldown, not the enforced limit |
 
 ## Open questions / gaps
 
@@ -60,7 +62,7 @@ flowchart TD
 - [x] **Signup closed** (decided at M26-S24 discovery): there is no server-side switch and no "cadastro indisponível" screen. Ikaro disables the `TRIAL_SIGNUP_CTA` module in its own hotsite configuration and the CTA disappears.
 - [x] **Signup session cookie** (decided at M26-S24 discovery): `signup_session` (`__Host-signup_session` in production), 30 minutes; `GET /v1/public/signup/session` without a valid cookie answers `401 AUTH_UNAUTHORIZED`, and the page sends the visitor back to the Google step. The unverified-Google-email page is `/ikaro-trial/conta-nao-verificada`, the form step `/ikaro-trial/entrar`. Still open: the status of `resend` when the first manager already exists (M26-S25).
 - [ ] **Discard link on `03c`** points at the discard-confirm screen (`manager/prototypes/billing/10-discard-trial-confirm.html`); until the purge participants ship the screen shows the honest interim message ("contact Ikaro") and an operator runs the offboarding runbook (M17-S51).
-- [ ] **US variant gate:** the United States option (`02b`, `04g`) exists only where the US has a price list; in production the country list offers Brasil only, and a crafted US request fails in the Billing handler with `BILLING_NO_PRICE_FOR_COUNTRY` (UC-110 A2).
+- [x] **US variant** (decided at M26-S24 discovery): not offered until M28. The country list offers Brasil only, and a crafted US request is refused by Billing's reservation with `422 SIGNUP_COUNTRY_NOT_SUPPORTED`. The US screens (`02b`, `04g`) stay in the prototype as a documented non-goal.
 - [ ] **Slug suggestions (`04b`):** the "try another" suggestions are generated by the client (for example the typed slug plus a suffix) and each one is checked through the same availability call; the backend returns only the status (`available`/`taken`/`reserved`/`invalid`), never suggestions.
 - [ ] **Copy:** all strings need pt-BR and en entries; the language of each page derives from the country the visitor picks.
 
