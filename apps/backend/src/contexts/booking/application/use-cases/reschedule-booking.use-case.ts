@@ -37,6 +37,7 @@ import {
   IFutureCommitmentExceptionRepository,
 } from '../ports/future-commitment-exception-repository.port';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
+import { BookableUntilGuard } from '../services/bookable-until.guard';
 import { RescheduleBookingDto } from '../dtos/reschedule-booking.dto';
 import { toResourceSelections } from './booking-request.mapper';
 import { rescheduleBookingInTransaction } from './reschedule-booking-in-transaction.helpers';
@@ -80,6 +81,7 @@ export class RescheduleBookingUseCase {
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     @Inject(FUTURE_COMMITMENT_EXCEPTION_REPOSITORY)
     private readonly exceptionRepo: IFutureCommitmentExceptionRepository,
+    private readonly bookableUntilGuard: BookableUntilGuard,
   ) {}
 
   async execute(input: RescheduleBookingUseCaseInput): Promise<RescheduleBookingUseCaseResult> {
@@ -132,6 +134,7 @@ export class RescheduleBookingUseCase {
           slotConflictService: this.slotConflictService,
           exceptionRepo: this.exceptionRepo,
           hoursRepos: { closureRepo: this.closureRepo, openingRepo: this.openingRepo },
+          bookableUntilGuard: this.bookableUntilGuard,
         },
         {
           booking,

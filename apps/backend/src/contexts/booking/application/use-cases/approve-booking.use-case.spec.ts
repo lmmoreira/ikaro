@@ -1,8 +1,10 @@
+import { createTestBookableUntilGuard } from '../../../../test/infrastructure/test-bookable-until-guard';
 import { ScheduleClosureBuilder } from '../../../../test/builders/booking/schedule-closure.builder';
-import { utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
+import { addDaysUTC, utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
 import {
   BookingOutsideBusinessHoursError,
   BookingSlotClosedError,
+  BookingTooFarAheadError,
 } from '../../domain/errors/booking-domain.error';
 import { DEFAULT_TEST_BUSINESS_HOURS } from '../../../../test/utils/business-hours-fixtures';
 import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
@@ -69,8 +71,10 @@ describe('ApproveBookingUseCase', () => {
     let closureRepo: InMemoryScheduleClosureRepository;
     let openingRepo: InMemoryScheduleOpeningRepository;
     let useCase: ApproveBookingUseCase;
+    let guardParts: ReturnType<typeof createTestBookableUntilGuard>;
 
     beforeEach(() => {
+      guardParts = createTestBookableUntilGuard();
       eventBus = new InMemoryEventBus();
       transitionRepo = new InMemoryBookingStatusTransitionRepository();
       bookingRepo = new InMemoryBookingRepository(eventBus, transitionRepo);
@@ -90,6 +94,7 @@ describe('ApproveBookingUseCase', () => {
         new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
         new InMemoryTransactionManager(),
         exceptionRepo,
+        guardParts.guard,
       );
     });
 
@@ -823,6 +828,97 @@ describe('ApproveBookingUseCase', () => {
         await closeDayOf(scheduledAt, TENANT_B);
 
         const result = await useCase.execute({ bookingId: booking.id, ...ctx });
+
+        expect(result.status).toBe(BookingStatus.APPROVED);
+      });
+    });
+
+    describe('the billing bookable-until cap (M26-S18b)', () => {
+      const localDate = (instant: Date) =>
+        utcDateToLocalDate(instant, DEFAULT_TEST_BUSINESS_HOURS.timezone);
+      const newAt = new Date(openSlotAt(3, 10));
+      const seedCap = (bookableUntil: string | null) =>
+        guardParts.access.seed(TENANT_A, {
+          status: 'ACTIVE',
+          suspensionReason: null,
+          operational: true,
+          features: [{ key: 'BOOKING', tier: 'STANDARD' }],
+          bookableUntil,
+        });
+
+      async function pendingBooking() {
+        const booking = new BookingBuilder()
+          .withTenantId(TENANT_A)
+          .withScheduledAt(scheduledAt)
+          .build();
+        await bookingRepo.save(booking);
+        return booking;
+      }
+
+      it('approves at the requested time without taking the lock or reading the cap, even when the booking already exceeds it', async () => {
+        const booking = await pendingBooking();
+        seedCap(localDate(scheduledAt));
+
+        const result = await useCase.execute({ bookingId: booking.id, ...ctx });
+
+        expect(result.status).toBe(BookingStatus.APPROVED);
+        expect(guardParts.lock.calls).toEqual([]);
+        expect(guardParts.access.getBookableUntilCalls).toEqual([]);
+      });
+
+      it("approves with a time equal to the booking's own start like an approval without one: nothing moves, so nothing is capped", async () => {
+        const booking = await pendingBooking();
+        seedCap(localDate(scheduledAt));
+
+        const result = await useCase.execute({
+          bookingId: booking.id,
+          ...ctx,
+          scheduledAt: scheduledAt.toISOString(),
+        });
+
+        expect(result.status).toBe(BookingStatus.APPROVED);
+        expect(guardParts.lock.calls).toEqual([]);
+      });
+
+      it('refuses an approval at a new time whose end is past the cap and the booking stays PENDING', async () => {
+        const booking = await pendingBooking();
+        seedCap(localDate(newAt));
+
+        await expect(
+          useCase.execute({ bookingId: booking.id, ...ctx, scheduledAt: newAt.toISOString() }),
+        ).rejects.toBeInstanceOf(BookingTooFarAheadError);
+
+        const saved = await bookingRepo.findById(booking.id, TENANT_A);
+        expect(saved!.status).toBe(BookingStatus.PENDING);
+        expect(saved!.scheduledAt.toISOString()).toBe(scheduledAt.toISOString());
+        expect(eventBus.published).toHaveLength(0);
+      });
+
+      it('approves at a new time whose end is before the cap day, taking the shared lock first', async () => {
+        const booking = await pendingBooking();
+        seedCap(addDaysUTC(localDate(newAt), 2));
+
+        const result = await useCase.execute({
+          bookingId: booking.id,
+          ...ctx,
+          scheduledAt: newAt.toISOString(),
+        });
+
+        expect(result.status).toBe(BookingStatus.APPROVED);
+        const saved = await bookingRepo.findById(booking.id, TENANT_A);
+        expect(saved!.scheduledAt.toISOString()).toBe(newAt.toISOString());
+        expect(guardParts.lock.calls).toEqual([{ mode: 'shared', tenantId: TENANT_A }]);
+      });
+
+      it('approves at a new time unchanged without a cap', async () => {
+        const booking = await pendingBooking();
+        seedCap(null);
+
+        const result = await useCase.execute({
+          bookingId: booking.id,
+          ...ctx,
+          scheduledAt: newAt.toISOString(),
+        });
 
         expect(result.status).toBe(BookingStatus.APPROVED);
       });

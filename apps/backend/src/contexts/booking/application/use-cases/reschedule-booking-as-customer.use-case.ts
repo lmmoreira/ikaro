@@ -39,6 +39,8 @@ import {
   IFutureCommitmentExceptionRepository,
 } from '../ports/future-commitment-exception-repository.port';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
+import { BookableUntilGuard } from '../services/bookable-until.guard';
+import { assertBookingEndsWithinBookableUntil } from './bookable-until.helpers';
 import { toHoursSource } from './booking-hours-gate.helpers';
 import { toResourceSelections } from './booking-request.mapper';
 import { RescheduleBookingAsCustomerDto } from '../dtos/reschedule-booking-as-customer.dto';
@@ -97,6 +99,7 @@ export class RescheduleBookingAsCustomerUseCase {
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     @Inject(FUTURE_COMMITMENT_EXCEPTION_REPOSITORY)
     private readonly exceptionRepo: IFutureCommitmentExceptionRepository,
+    private readonly bookableUntilGuard: BookableUntilGuard,
   ) {}
 
   async execute(
@@ -155,6 +158,8 @@ export class RescheduleBookingAsCustomerUseCase {
     let quoteRevision: QuoteRevisionResult | undefined;
 
     await this.txManager.run(async () => {
+      // First lock of the transaction (docs/LOCK_CATALOG.md B-U1, L-1), before the resource locks.
+      const bookableUntil = await this.bookableUntilGuard.acquire(input.tenantId);
       const { candidatesByLine, openExceptions } = await this.resolveAndLockExceptions(
         booking,
         serviceMap,
@@ -171,6 +176,8 @@ export class RescheduleBookingAsCustomerUseCase {
         undefined,
         durationChange,
       );
+      // After the change is applied, so a duration change is part of the new end.
+      assertBookingEndsWithinBookableUntil(booking, bookableUntil, input.timezone);
       await this.bookingRepo.save(booking);
 
       quoteRevision = await this.moveOccupancyAndRecordRevision(

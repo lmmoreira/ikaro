@@ -1,3 +1,5 @@
+import { addDaysUTC, utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
+import { createTestBookableUntilGuard } from '../../../../test/infrastructure/test-bookable-until-guard';
 import {
   AvailabilityAlertBuilder,
   ResourceBuilder,
@@ -20,6 +22,7 @@ import { ResourceType } from '../../domain/resource.types';
 import {
   BookingDurationOutOfRangeError,
   BookingServiceNotInTenantError,
+  BookingTooFarAheadError,
 } from '../../domain/errors/booking-domain.error';
 import { AvailabilityAlertResultAssembler } from '../services/availability-alert-result.assembler';
 import { BookingQuoteService } from '../services/booking-quote.service';
@@ -38,6 +41,7 @@ describe('UpdateAvailabilityAlertUseCase', () => {
   let resourceRepo: InMemoryResourceRepository;
   let eventBus: InMemoryEventBus;
   let useCase: UpdateAvailabilityAlertUseCase;
+  let guardParts: ReturnType<typeof createTestBookableUntilGuard>;
 
   // Every alert is bound to a seeded FIXED-duration service by default, because an update that
   // sends a duration reads its service.
@@ -86,6 +90,7 @@ describe('UpdateAvailabilityAlertUseCase', () => {
     alertRepo = new InMemoryAvailabilityAlertRepository(eventBus);
     serviceRepo = new InMemoryServiceRepository();
     resourceRepo = new InMemoryResourceRepository();
+    guardParts = createTestBookableUntilGuard();
     useCase = new UpdateAvailabilityAlertUseCase(
       alertRepo,
       serviceRepo,
@@ -93,6 +98,7 @@ describe('UpdateAvailabilityAlertUseCase', () => {
       new InMemoryTransactionManager(),
       new BookingQuoteService(),
       new AvailabilityAlertResultAssembler(serviceRepo, resourceRepo, alertRepo),
+      guardParts.guard,
     );
     defaultService = new ServiceBuilder().withTenantId(TENANT).build();
     await serviceRepo.save(defaultService);
@@ -177,6 +183,120 @@ describe('UpdateAvailabilityAlertUseCase', () => {
     await expect(run(alert, { durationMinutes: 30 }, { tenantId: OTHER_TENANT })).rejects.toThrow(
       AvailabilityAlertNotFoundError,
     );
+  });
+
+  describe('the billing bookable-until cap (M26-S18b)', () => {
+    const seedCap = (bookableUntil: string | null) =>
+      guardParts.access.seed(TENANT, {
+        status: 'ACTIVE',
+        suspensionReason: null,
+        operational: true,
+        features: [{ key: 'BOOKING', tier: 'STANDARD' }],
+        bookableUntil,
+      });
+    // The tenant-local date of an instant, never the UTC day.
+    const localDateOf = (instant: Date) => utcDateToLocalDate(instant, 'America/Sao_Paulo');
+    const inDays = (days: number) => new Date(Date.now() + days * DAY_MS);
+    const weeklyAlert = (expiresAt: Date) =>
+      seedAlert((b) =>
+        b.withWeeklyPreference(['monday'], '09:00', '10:00').withExpiresAt(expiresAt),
+      );
+
+    it('refuses an edit to a weekly alert whose expiry reaches the cap and publishes nothing', async () => {
+      const expiresAt = inDays(7);
+      const alert = weeklyAlert(expiresAt);
+      seedCap(localDateOf(expiresAt));
+
+      await expect(run(alert, { durationMinutes: 30 })).rejects.toBeInstanceOf(
+        BookingTooFarAheadError,
+      );
+
+      expect(eventBus.published).toHaveLength(0);
+    });
+
+    it('updates a weekly alert whose expiry ends before the cap day', async () => {
+      const expiresAt = inDays(7);
+      const alert = weeklyAlert(expiresAt);
+      seedCap(addDaysUTC(localDateOf(expiresAt), 1));
+
+      const result = await run(alert, { durationMinutes: 30 });
+
+      expect(result.durationMinutes).toBe(30);
+      expect(eventBus.published.map((e) => e.eventName)).toEqual(['AvailabilityAlertUpdated']);
+    });
+
+    it('refuses an edit that moves the expiry out to the cap, though the saved alert was before it', async () => {
+      const alert = weeklyAlert(inDays(7));
+      seedCap(localDateOf(inDays(10)));
+
+      await expect(run(alert, { expiresAt: inDays(20).toISOString() })).rejects.toBeInstanceOf(
+        BookingTooFarAheadError,
+      );
+
+      expect(eventBus.published).toHaveLength(0);
+    });
+
+    it('lets an edit pull the expiry in below the cap', async () => {
+      const alert = weeklyAlert(inDays(20));
+      const newExpiry = inDays(5);
+      seedCap(addDaysUTC(localDateOf(newExpiry), 1));
+
+      const result = await run(alert, { expiresAt: newExpiry.toISOString() });
+
+      expect(result.expiresAt).toBe(newExpiry.toISOString());
+    });
+
+    it('refuses an edit to a one-time range that ends on the cap day', async () => {
+      const end = inDays(4);
+      const alert = seedAlert((b) => b.withOneTimeRange(inDays(3), end));
+      seedCap(localDateOf(end));
+
+      await expect(run(alert, { durationMinutes: 30 })).rejects.toBeInstanceOf(
+        BookingTooFarAheadError,
+      );
+
+      expect(eventBus.published).toHaveLength(0);
+    });
+
+    it('updates a one-time range that ends before the cap day', async () => {
+      const end = inDays(4);
+      const alert = seedAlert((b) => b.withOneTimeRange(inDays(3), end));
+      seedCap(addDaysUTC(localDateOf(end), 1));
+
+      const result = await run(alert, { durationMinutes: 30 });
+
+      expect(result.durationMinutes).toBe(30);
+    });
+
+    it('ends a one-time range at the earlier of its range end and its expiry', async () => {
+      const expiresAt = inDays(3);
+      const alert = seedAlert((b) =>
+        b.withOneTimeRange(inDays(2), inDays(10)).withExpiresAt(expiresAt),
+      );
+      seedCap(localDateOf(inDays(6)));
+
+      await expect(run(alert, { durationMinutes: 30 })).resolves.toMatchObject({
+        durationMinutes: 30,
+      });
+    });
+
+    it('is unchanged without a cap', async () => {
+      const alert = weeklyAlert(inDays(7));
+      seedCap(null);
+
+      await expect(run(alert, { durationMinutes: 30 })).resolves.toMatchObject({
+        durationMinutes: 30,
+      });
+    });
+
+    it('takes the shared lock for the tenant and reads the cap uncached', async () => {
+      const alert = weeklyAlert(inDays(7));
+
+      await run(alert, { durationMinutes: 30 });
+
+      expect(guardParts.lock.calls).toEqual([{ mode: 'shared', tenantId: TENANT }]);
+      expect(guardParts.access.getBookableUntilCalls).toEqual([TENANT]);
+    });
   });
 
   describe('duration on a customer-selected-duration service', () => {

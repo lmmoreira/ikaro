@@ -52,13 +52,17 @@ export class GetTenantAccessUseCase {
 
   private fromSubscription(subscription: Subscription): TenantAccess {
     const status = subscription.status;
+    const now = this.clock.now();
+    const bookableUntil = subscription.bookableUntil(now);
     return {
       status,
       suspensionReason: status === 'SUSPENDED' ? subscription.suspensionReason : null,
       operational: status !== 'SUSPENDED',
       features: subscription
-        .entitledAt(this.clock.now())
+        .entitledAt(now)
         .map((entry) => ({ key: entry.featureKey, tier: entry.tier })),
+      // Present only when a removal is pending, so an answer with no cap is unchanged.
+      ...(bookableUntil === null ? {} : { bookableUntil }),
     };
   }
 

@@ -18,6 +18,7 @@ export class InMemoryTenantAccessPort implements TenantAccessPort {
   private readonly notEntitledIds = new Map<FeatureKey, string[]>();
   // State-based replacement for a jest.fn() call-count assertion.
   readonly getAccessCalls: string[] = [];
+  readonly getBookableUntilCalls: string[] = [];
   listSuspendedCalls = 0;
   readonly notEntitledCalls: FeatureKey[] = [];
   // Set to make both batch reads throw, like a Billing read that fails.
@@ -61,6 +62,13 @@ export class InMemoryTenantAccessPort implements TenantAccessPort {
         features: [...ALL_FEATURES],
       }
     );
+  }
+
+  // The authoritative write-time read: whatever the seeded answer says, never an error from
+  // `getAccessError` (that models the cached read only).
+  async getBookableUntil(tenantId: string): Promise<string | null> {
+    this.getBookableUntilCalls.push(tenantId);
+    return this.byTenant.get(tenantId)?.bookableUntil ?? null;
   }
 
   async listSuspendedTenantIds(): Promise<string[]> {

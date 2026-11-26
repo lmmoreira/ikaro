@@ -1,3 +1,4 @@
+import { createTestBookableUntilGuard } from '../../../../test/infrastructure/test-bookable-until-guard';
 import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
 import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
 import { InMemoryFutureCommitmentExceptionRepository } from '../../../../test/repositories/booking/in-memory-future-commitment-exception.repository';
@@ -66,6 +67,7 @@ describe('BookingLifecycleController', () => {
           new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
           new InMemoryTransactionManager(),
           new InMemoryFutureCommitmentExceptionRepository(),
+          createTestBookableUntilGuard().guard,
         ),
         rejectBooking: new RejectBookingUseCase(
           repo,
@@ -200,6 +202,7 @@ describe('BookingLifecycleController', () => {
           new BookingSlotConflictService(occupancyRepoB, new InMemoryTenantLock()),
           new InMemoryTransactionManager(),
           new InMemoryFutureCommitmentExceptionRepository(),
+          createTestBookableUntilGuard().guard,
         ),
         new RejectBookingUseCase(
           bookingRepoB,

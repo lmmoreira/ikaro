@@ -1,3 +1,4 @@
+import { createTestBookableUntilGuard } from '../../../../test/infrastructure/test-bookable-until-guard';
 import { HttpException } from '@nestjs/common';
 import { AvailabilityAlertBuilder, ServiceBuilder } from '../../../../test/builders/booking/index';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
@@ -62,6 +63,7 @@ describe('AvailabilityAlertController', () => {
         tx,
         new BookingQuoteService(),
         assembler,
+        createTestBookableUntilGuard().guard,
       ),
       new ListAvailabilityAlertsUseCase(alertRepo, assembler),
       new GetAvailabilityAlertUseCase(alertRepo, assembler),
@@ -72,6 +74,7 @@ describe('AvailabilityAlertController', () => {
         tx,
         new BookingQuoteService(),
         assembler,
+        createTestBookableUntilGuard().guard,
       ),
       new CancelAvailabilityAlertUseCase(alertRepo, tx),
     );

@@ -24,6 +24,8 @@ import {
   waitForBlockedLock,
 } from '../../../../test/utils/booking-lock-race-world';
 import { TRANSACTION_MANAGER } from '../../../../shared/ports/transaction-manager.port';
+import { TENANT_ACCESS_PORT } from '../../../../shared/ports/tenant-access.port';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
 import { ITenantLockPort, TENANT_LOCK_PORT } from '../../application/ports/tenant-lock.port';
 import { ExpireRecurringBookingScheduleApprovalsJob } from '../../application/jobs/expire-recurring-schedule-approvals.job';
 import { PlatformModule } from '../../../platform/platform.module';
@@ -334,6 +336,30 @@ describe('Recurring schedule approval, materialization and expiry (integration)'
         .find({ where: { tenantId, resourceId: fixture.resourceId } });
       expect(occupancy).toHaveLength(5);
       expect(occupancy.every((o) => o.lockState === 'COMMITTED')).toBe(true);
+    });
+
+    // M26-S18b: the billing cap judges a request when it is made. An approval only converts a
+    // request the cap already accepted, so a cap saved while it waited never blocks it.
+    it('still approves a PENDING_APPROVAL request while a bookable-until cap covers its term', async () => {
+      const access = app.get<InMemoryTenantAccessPort>(TENANT_ACCESS_PORT);
+      const fixture = await seedFixture('MANUAL_APPROVAL');
+      const { body: pending } = await requestSchedule(fixture).expect(201);
+      access.seed(tenantId, {
+        status: 'ACTIVE',
+        suspensionReason: null,
+        operational: true,
+        features: [{ key: 'BOOKING', tier: 'STANDARD' }],
+        bookableUntil: ENDS_ON,
+      });
+
+      try {
+        const { body } = await decide(pending.id, 'approve').expect(200);
+
+        expect(body).toEqual({ id: pending.id, status: 'ACTIVE', occurrenceCount: 5 });
+        expect(await bookingsOf(pending.id)).toHaveLength(5);
+      } finally {
+        access.reactivate(tenantId);
+      }
     });
 
     it('refuses the whole approval when a closure appeared while it waited, creating nothing', async () => {

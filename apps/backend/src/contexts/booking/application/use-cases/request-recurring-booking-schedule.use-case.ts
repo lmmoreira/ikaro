@@ -32,6 +32,11 @@ import {
 } from '../ports/schedule-opening-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { ITenantLockPort, TENANT_LOCK_PORT } from '../ports/tenant-lock.port';
+import { BookableUntilGuard } from '../services/bookable-until.guard';
+import {
+  assertTermWithinBookableUntil,
+  type RecurringTermForBookableUntil,
+} from './bookable-until.helpers';
 import { materializeRecurringScheduleOccurrences } from './materialize-recurring-schedule-occurrences.helpers';
 import { resolveApprovalMode } from './service-result.mapper';
 import { assertUnderCap } from './recurring-booking-schedule-cap.helpers';
@@ -61,6 +66,18 @@ import {
 import { resolveStartableOccurrences } from './recurring-booking-schedule-window.helpers';
 import { RequestRecurringBookingScheduleUseCaseInput } from './request-recurring-booking-schedule.types';
 
+// What the billing cap judges (M26-S18b): the term's `endsOn` and the end of its last occurrence.
+function termOf(
+  input: RequestRecurringBookingScheduleUseCaseInput,
+  prepared: PreparedRecurringBookingScheduleRequest,
+): RecurringTermForBookableUntil {
+  return {
+    endsOn: input.endsOn,
+    lastOccurrenceStart: prepared.occurrences.at(-1)!.occurrenceStart,
+    durationMinutes: input.recurrence.durationMinutes,
+  };
+}
+
 export interface RequestRecurringBookingScheduleUseCaseResult {
   id: string;
   status: 'ACTIVE' | 'PENDING_APPROVAL';
@@ -85,6 +102,7 @@ export class RequestRecurringBookingScheduleUseCase {
     @Inject(TENANT_LOCK_PORT) private readonly tenantLock: ITenantLockPort,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     private readonly availabilityService: AvailabilityService,
+    private readonly bookableUntilGuard: BookableUntilGuard,
   ) {}
 
   async execute(
@@ -108,8 +126,12 @@ export class RequestRecurringBookingScheduleUseCase {
       // Lock order: the service, then every considered resource in one call, then the cap check —
       // the resource lock is what makes the per-resource cap count safe against a concurrent
       // request for another service that picks the same resource.
+      // The bookable-until lock is the first lock of the transaction (docs/LOCK_CATALOG.md B-U1,
+      // L-1), before the service key. Every actor is held to the cap, a renewal included.
+      const bookableUntil = await this.bookableUntilGuard.acquire(input.tenantId);
       await this.tenantLock.lockService(input.tenantId, input.serviceId);
       const prepared = await this.prepareRequest(input, customerId);
+      assertTermWithinBookableUntil(termOf(input, prepared), bookableUntil, input.timezone);
       const considered = await this.resolveAndLock(input, prepared);
       await assertUnderCap(this.scheduleRepo, {
         tenantId: input.tenantId,

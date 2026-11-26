@@ -17,6 +17,10 @@ import {
   ServiceResourceRequirementPoolEntityBuilder,
 } from '../../../../test/builders/booking/index';
 import { CustomerEntityBuilder } from '../../../../test/builders/customer/index';
+import { StaffEntityBuilder } from '../../../../test/builders/staff';
+import { StaffEntity } from '../../../staff/infrastructure/entities/staff.entity';
+import { TENANT_ACCESS_PORT } from '../../../../shared/ports/tenant-access.port';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { actorHeaders } from '../../../../test/utils/actor-headers';
 import { addDays, futureDate, nextWeekday, pastDate } from '../../../../test/utils/date-helpers';
@@ -2024,6 +2028,157 @@ describe('RecurringBookingScheduleController (integration)', () => {
 
       expect(unknown.body.code).toBe('BOOKING_RECURRING_SCHEDULE_NOT_FOUND');
       expect(crossTenant.body.code).toBe('BOOKING_RECURRING_SCHEDULE_NOT_FOUND');
+    });
+  });
+
+  // M26-S18b — the billing `bookableUntil` cap: a fixed term that reaches the effective date is
+  // refused whole (never trimmed), whoever asks and whether it is new or a renewal.
+  describe('the billing bookable-until cap (M26-S18b)', () => {
+    const TUESDAY_10_FOR_AN_HOUR = {
+      frequency: 'WEEKLY',
+      daysOfWeek: ['tuesday'],
+      startTime: '10:00',
+      durationMinutes: 60,
+    };
+    let access: InMemoryTenantAccessPort;
+    let staffId: string;
+
+    // Five Tuesdays; the last occurrence falls on `endsOn`.
+    const startsOn = nextWeekday(2);
+    const endsOn = addDays(startsOn, 28);
+
+    const setCap = (forTenantId: string, bookableUntil: string | null) =>
+      access.seed(forTenantId, {
+        status: 'ACTIVE',
+        suspensionReason: null,
+        operational: true,
+        features: [{ key: 'BOOKING', tier: 'STANDARD' }],
+        bookableUntil,
+      });
+
+    // A fresh room per request, so one test's occupancy never collides with another's.
+    async function newRoom(): Promise<string> {
+      const room = new ResourceEntityBuilder()
+        .withTenantId(tenantId)
+        .withType(ResourceType.ROOM)
+        .withName(`Sala cap ${uuidv7()}`)
+        .build();
+      await ds.getRepository(ResourceEntity).save(room);
+      return room.id;
+    }
+
+    const requestBody = (
+      serviceId: string,
+      roomId: string,
+      extra: Record<string, unknown> = {},
+    ) => ({
+      serviceId,
+      recurrence: TUESDAY_10_FOR_AN_HOUR,
+      resourceSelections: [{ resourceType: 'ROOM', resourceId: roomId }],
+      startsOn,
+      endsOn,
+      ...extra,
+    });
+
+    const asCustomer = (body: Record<string, unknown>) =>
+      request(app.getHttpServer())
+        .post('/recurring-booking-schedules')
+        .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+        .send(body);
+
+    const scheduleCount = (serviceId: string) =>
+      ds.getRepository(RecurringBookingScheduleEntity).count({ where: { tenantId, serviceId } });
+
+    beforeAll(async () => {
+      access = app.get<InMemoryTenantAccessPort>(TENANT_ACCESS_PORT);
+      const staff = new StaffEntityBuilder()
+        .withTenantId(tenantId)
+        .withEmail('staff@recurring-cap.test')
+        .withIsActive(true)
+        .build();
+      await ds.getRepository(StaffEntity).save(staff);
+      staffId = staff.id;
+    });
+
+    // Suites share one app: a cap seeded here must never leak into another test.
+    afterEach(() => {
+      access.reactivate(tenantId);
+    });
+
+    it('refuses the whole term with 422 BOOKING_TOO_FAR_AHEAD when its end reaches the cap, creating no schedule and no booking', async () => {
+      const serviceId = await seedService('AUTO_CONFIRM');
+      setCap(tenantId, endsOn);
+
+      const { body } = await asCustomer(requestBody(serviceId, await newRoom())).expect(422);
+
+      expect(body.code).toBe('BOOKING_TOO_FAR_AHEAD');
+      expect(await scheduleCount(serviceId)).toBe(0);
+      const bookings = await ds
+        .getRepository(BookingLineEntity)
+        .count({ where: { tenantId, serviceId } });
+      expect(bookings).toBe(0);
+    });
+
+    it('accepts a term whose last occurrence falls on the last bookable day', async () => {
+      const serviceId = await seedService('AUTO_CONFIRM');
+      setCap(tenantId, addDays(endsOn, 1));
+
+      const { body } = await asCustomer(requestBody(serviceId, await newRoom())).expect(201);
+
+      expect(body.status).toBe('ACTIVE');
+      const bookings = await ds
+        .getRepository(BookingEntity)
+        .find({ where: { tenantId, recurringScheduleId: body.id as string } });
+      expect(bookings).toHaveLength(5);
+    });
+
+    it('holds a staff member creating the schedule for a customer to the same cap', async () => {
+      const serviceId = await seedService('AUTO_CONFIRM');
+      setCap(tenantId, endsOn);
+
+      const { body } = await request(app.getHttpServer())
+        .post('/recurring-booking-schedules')
+        .set(actorHeaders(tenantId, staffId, 'STAFF'))
+        .send(requestBody(serviceId, await newRoom(), { customerId: CUSTOMER_ID }))
+        .expect(422);
+
+      expect(body.code).toBe('BOOKING_TOO_FAR_AHEAD');
+      expect(await scheduleCount(serviceId)).toBe(0);
+    });
+
+    it('holds a renewal to the same cap', async () => {
+      const serviceId = await seedService('AUTO_CONFIRM');
+      const previous = await ds
+        .getRepository(RecurringBookingScheduleEntity)
+        .save(
+          new RecurringBookingScheduleEntityBuilder()
+            .withTenantId(tenantId)
+            .withCustomerId(CUSTOMER_ID)
+            .withServiceId(serviceId)
+            .build(),
+        );
+      setCap(tenantId, endsOn);
+
+      const { body } = await asCustomer(
+        requestBody(serviceId, await newRoom(), { renewsScheduleId: previous.id }),
+      ).expect(422);
+
+      expect(body.code).toBe('BOOKING_TOO_FAR_AHEAD');
+      expect(await scheduleCount(serviceId)).toBe(1);
+    });
+
+    it('changes nothing for a null cap', async () => {
+      const serviceId = await seedService('AUTO_CONFIRM');
+      setCap(tenantId, null);
+
+      await asCustomer(requestBody(serviceId, await newRoom())).expect(201);
+    });
+
+    it("tenant isolation: another tenant's cap never refuses the term", async () => {
+      const serviceId = await seedService('AUTO_CONFIRM');
+      setCap(uuidv7(), endsOn);
+
+      await asCustomer(requestBody(serviceId, await newRoom())).expect(201);
     });
   });
 });

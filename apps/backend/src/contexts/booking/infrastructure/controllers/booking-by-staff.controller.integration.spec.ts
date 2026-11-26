@@ -12,6 +12,9 @@ import { ServiceEntity } from '../entities/service.entity';
 import { BookingEntity } from '../entities/booking.entity';
 import { BookingStatusTransitionEntity } from '../entities/booking-status-transition.entity';
 import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
+import { TENANT_ACCESS_PORT } from '../../../../shared/ports/tenant-access.port';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
+import { addDaysUTC, utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
 
 // M23-S39 (UC-108) — POST /bookings/staff against a real database: the booking is created
 // APPROVED with COMMITTED occupancy, for a customer or a guest, and the same slot cannot be taken
@@ -493,6 +496,77 @@ describe('POST /bookings/staff (integration, M23-S39)', () => {
       });
 
       expect(res.status).toBe(422);
+    });
+  });
+
+  describe('the billing bookable-until cap (M26-S18b)', () => {
+    let access: InMemoryTenantAccessPort;
+
+    const setCap = (tenantId: string, bookableUntil: string | null) =>
+      access.seed(tenantId, {
+        status: 'ACTIVE',
+        suspensionReason: null,
+        operational: true,
+        features: [{ key: 'BOOKING', tier: 'STANDARD' }],
+        bookableUntil,
+      });
+
+    // The cap is a tenant-local date: take the local day of the start, never the UTC day.
+    const localDayOf = (iso: string) => utcDateToLocalDate(new Date(iso), 'America/Sao_Paulo');
+
+    beforeAll(() => {
+      access = app.get<InMemoryTenantAccessPort>(TENANT_ACCESS_PORT);
+    });
+
+    // The suites share one app: a cap seeded here must never leak into another test.
+    afterEach(() => {
+      access.reactivate(tenantAId);
+      access.reactivate(tenantBId);
+    });
+
+    it('refuses a staff booking on the cap day with 422 BOOKING_TOO_FAR_AHEAD and creates nothing', async () => {
+      const at = slot(10, 9);
+      setCap(tenantAId, localDayOf(at));
+      const before = await ds
+        .getRepository(BookingEntity)
+        .count({ where: { tenantId: tenantAId } });
+
+      const { body } = await post({ customerId, scheduledAt: at, serviceIds: [serviceId] }).expect(
+        422,
+      );
+
+      expect(body.code).toBe('BOOKING_TOO_FAR_AHEAD');
+      expect(await ds.getRepository(BookingEntity).count({ where: { tenantId: tenantAId } })).toBe(
+        before,
+      );
+    });
+
+    it('accepts a staff booking whose day is before the cap day', async () => {
+      const at = slot(11, 9);
+      setCap(tenantAId, addDaysUTC(localDayOf(at), 2));
+
+      const { body } = await post({ customerId, scheduledAt: at, serviceIds: [serviceId] }).expect(
+        201,
+      );
+
+      expect(body.status).toBe('APPROVED');
+    });
+
+    it("tenant isolation: another tenant's cap never refuses the booking", async () => {
+      const at = slot(12, 9);
+      setCap(tenantBId, localDayOf(at));
+
+      await post({ customerId, scheduledAt: at, serviceIds: [serviceId] }).expect(201);
+    });
+
+    it('changes nothing for a null cap', async () => {
+      setCap(tenantAId, null);
+
+      await post({
+        customerId,
+        scheduledAt: slot(12, 11),
+        serviceIds: [serviceId],
+      }).expect(201);
     });
   });
 });

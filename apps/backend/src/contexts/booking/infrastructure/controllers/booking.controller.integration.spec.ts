@@ -21,6 +21,13 @@ import { BookingQuoteRevisionEntity } from '../entities/booking-quote-revision.e
 import { StaffEntityBuilder } from '../../../../test/builders/staff';
 import { StaffEntity } from '../../../staff/infrastructure/entities/staff.entity';
 import { TEST_REGISTRATION_ID } from '../../../../test/utils/test-registration-id';
+import { TENANT_ACCESS_PORT } from '../../../../shared/ports/tenant-access.port';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
+import {
+  addDaysUTC,
+  todayInTimezone,
+  utcDateToLocalDate,
+} from '../../../../shared/utils/calendar-date';
 
 const TEST_KEY = 'booking-integ-test-key-booking-xxxx'; // 36 chars
 const ACTOR_ID = '20000000-0000-4000-8000-000000000001';
@@ -2688,6 +2695,237 @@ describe('BookingController (integration)', () => {
       }).expect(201);
 
       expect(body.bookingId).toEqual(expect.any(String));
+    });
+  });
+
+  describe('the billing bookable-until cap (M26-S18b)', () => {
+    const TZ = 'America/Sao_Paulo';
+    const REFUSED_EMAIL = 'cap-refused@booking.test';
+    let access: InMemoryTenantAccessPort;
+    let capCustomerId: string;
+    let tenantBCapServiceId: string;
+
+    // The tenant-local day of an instant: the cap is a tenant-local date, never the UTC day.
+    const localDayOf = (iso: string) => utcDateToLocalDate(new Date(iso), TZ);
+
+    const setCap = (tenantId: string, bookableUntil: string | null) =>
+      access.seed(tenantId, {
+        status: 'ACTIVE',
+        suspensionReason: null,
+        operational: true,
+        features: [{ key: 'BOOKING', tier: 'STANDARD' }],
+        bookableUntil,
+      });
+
+    const guestPost = (tenantId: string, body: Record<string, unknown>) =>
+      request(app.getHttpServer()).post('/bookings').set(guestHeaders(tenantId)).send(body);
+
+    const authenticatedPost = (at: string) =>
+      request(app.getHttpServer())
+        .post('/bookings/authenticated')
+        .set(actorHeaders(tenantAId, capCustomerId, 'CUSTOMER'))
+        .send({ scheduledAt: at, serviceIds: [serviceId] });
+
+    async function createApprovedCapBooking(at: string): Promise<string> {
+      const { body: created } = await authenticatedPost(at).expect(201);
+      await request(app.getHttpServer())
+        .patch(`/bookings/${created.bookingId}/approve`)
+        .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
+        .expect(200);
+      return created.bookingId as string;
+    }
+
+    async function scheduledAtOf(bookingId: string): Promise<string> {
+      const row = await ds
+        .getRepository(BookingEntity)
+        .findOneByOrFail({ id: bookingId, tenantId: tenantAId });
+      return row.scheduledAt.toISOString();
+    }
+
+    beforeAll(async () => {
+      access = app.get<InMemoryTenantAccessPort>(TENANT_ACCESS_PORT);
+
+      const customer = new CustomerEntityBuilder()
+        .withTenantId(tenantAId)
+        .withGoogleOAuthId('google-sub-booking-cap')
+        .withEmail('cap@booking.test')
+        .withName('Cap Customer')
+        .withPhone('+5531933333333')
+        .build();
+      await ds.getRepository(CustomerEntity).save(customer);
+      capCustomerId = customer.id;
+
+      const tenantBService = new ServiceEntityBuilder()
+        .withTenantId(tenantBId)
+        .withName('Servico Cap Tenant B')
+        .withDurationMinutes(30)
+        .build();
+      await ds.getRepository(ServiceEntity).save(tenantBService);
+      tenantBCapServiceId = tenantBService.id;
+    });
+
+    // Suites share one app: a cap seeded here must never leak into another test.
+    afterEach(() => {
+      access.reactivate(tenantAId);
+      access.reactivate(tenantBId);
+    });
+
+    it('refuses a guest booking on the cap day with 422 BOOKING_TOO_FAR_AHEAD and saves nothing', async () => {
+      const at = openSlotAt(4, 10);
+      setCap(tenantAId, localDayOf(at));
+
+      const { body } = await guestPost(tenantAId, {
+        ...validBody(),
+        contactEmail: REFUSED_EMAIL,
+        scheduledAt: at,
+      }).expect(422);
+
+      expect(body.code).toBe('BOOKING_TOO_FAR_AHEAD');
+      const saved = await ds
+        .getRepository(BookingEntity)
+        .count({ where: { tenantId: tenantAId, contactEmail: REFUSED_EMAIL } });
+      expect(saved).toBe(0);
+    });
+
+    it('accepts a guest booking whose day is before the cap day', async () => {
+      const at = openSlotAt(9, 10);
+      setCap(tenantAId, addDaysUTC(localDayOf(at), 2));
+
+      const { body } = await guestPost(tenantAId, { ...validBody(), scheduledAt: at }).expect(201);
+
+      expect(body.status).toBe('PENDING');
+    });
+
+    it('changes nothing for a tenant with a null cap', async () => {
+      setCap(tenantAId, null);
+
+      await guestPost(tenantAId, { ...validBody(), scheduledAt: openSlotAt(18, 10) }).expect(201);
+    });
+
+    it("tenant isolation: tenant B's cap never refuses tenant A's booking on that day", async () => {
+      const at = openSlotAt(19, 10);
+      setCap(tenantBId, localDayOf(at));
+
+      await guestPost(tenantAId, { ...validBody(), scheduledAt: at }).expect(201);
+      const { body } = await guestPost(tenantBId, {
+        ...validBody(),
+        serviceIds: [tenantBCapServiceId],
+        scheduledAt: at,
+      }).expect(422);
+      expect(body.code).toBe('BOOKING_TOO_FAR_AHEAD');
+    });
+
+    it('POST /bookings/authenticated refuses a booking on the cap day and accepts one before it', async () => {
+      const refusedAt = openSlotAt(35, 10);
+      setCap(tenantAId, localDayOf(refusedAt));
+      const { body } = await authenticatedPost(refusedAt).expect(422);
+      expect(body.code).toBe('BOOKING_TOO_FAR_AHEAD');
+
+      const acceptedAt = openSlotAt(36, 10);
+      setCap(tenantAId, addDaysUTC(localDayOf(acceptedAt), 2));
+      await authenticatedPost(acceptedAt).expect(201);
+    });
+
+    describe('PATCH /bookings/:id/reschedule-customer', () => {
+      it('refuses a move past the cap, keeps the booking where it was, and accepts a move before it', async () => {
+        const originalAt = openSlotAt(68, 9);
+        const targetAt = openSlotAt(69, 10);
+        const bookingId = await createApprovedCapBooking(originalAt);
+        const reschedule = () =>
+          request(app.getHttpServer())
+            .patch(`/bookings/${bookingId}/reschedule-customer`)
+            .set(actorHeaders(tenantAId, capCustomerId, 'CUSTOMER'))
+            .send({ scheduledAt: targetAt });
+
+        setCap(tenantAId, localDayOf(targetAt));
+        const { body } = await reschedule().expect(422);
+        expect(body.code).toBe('BOOKING_TOO_FAR_AHEAD');
+        expect(await scheduledAtOf(bookingId)).toBe(originalAt);
+
+        setCap(tenantAId, addDaysUTC(localDayOf(targetAt), 2));
+        await reschedule().expect(200);
+        expect(await scheduledAtOf(bookingId)).toBe(targetAt);
+      });
+    });
+
+    describe('PATCH /bookings/:id/reschedule-admin', () => {
+      it('holds staff to the cap, leaving the booking unmoved, and accepts a move before it', async () => {
+        const originalAt = openSlotAt(71, 9);
+        const targetAt = openSlotAt(72, 10);
+        const bookingId = await createApprovedCapBooking(originalAt);
+        const reschedule = () =>
+          request(app.getHttpServer())
+            .patch(`/bookings/${bookingId}/reschedule-admin`)
+            .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
+            .send({ scheduledAt: targetAt });
+
+        setCap(tenantAId, localDayOf(targetAt));
+        const { body } = await reschedule().expect(422);
+        expect(body.code).toBe('BOOKING_TOO_FAR_AHEAD');
+        expect(await scheduledAtOf(bookingId)).toBe(originalAt);
+
+        setCap(tenantAId, addDaysUTC(localDayOf(targetAt), 2));
+        await reschedule().expect(200);
+        expect(await scheduledAtOf(bookingId)).toBe(targetAt);
+      });
+    });
+
+    describe('PATCH /bookings/:id/approve', () => {
+      const approve = (bookingId: string, body: Record<string, unknown> = {}) =>
+        request(app.getHttpServer())
+          .patch(`/bookings/${bookingId}/approve`)
+          .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
+          .send(body);
+
+      const statusOf = async (bookingId: string) =>
+        (
+          await ds
+            .getRepository(BookingEntity)
+            .findOneByOrFail({ id: bookingId, tenantId: tenantAId })
+        ).status;
+
+      it('refuses an approval at a new time past the cap and leaves the booking PENDING, then approves a new time before it', async () => {
+        const { body: created } = await authenticatedPost(openSlotAt(39, 10)).expect(201);
+        const newAt = openSlotAt(73, 10);
+
+        setCap(tenantAId, localDayOf(newAt));
+        const { body } = await approve(created.bookingId, { scheduledAt: newAt }).expect(422);
+        expect(body.code).toBe('BOOKING_TOO_FAR_AHEAD');
+        expect(await statusOf(created.bookingId)).toBe('PENDING');
+
+        setCap(tenantAId, addDaysUTC(localDayOf(newAt), 2));
+        await approve(created.bookingId, { scheduledAt: newAt }).expect(200);
+        expect(await statusOf(created.bookingId)).toBe('APPROVED');
+        expect(await scheduledAtOf(created.bookingId)).toBe(newAt);
+      });
+
+      it('still approves a request at its own time, even when that day is past the cap', async () => {
+        const at = openSlotAt(74, 10);
+        const { body: created } = await authenticatedPost(at).expect(201);
+
+        setCap(tenantAId, localDayOf(at));
+        await approve(created.bookingId).expect(200);
+
+        expect(await statusOf(created.bookingId)).toBe('APPROVED');
+      });
+    });
+
+    describe('GET /bookings/:id (the customer reschedule window)', () => {
+      it('clamps reschedule.window.maxAdvanceDays to the whole days until the cap, and leaves it alone without one', async () => {
+        const bookingId = await createApprovedCapBooking(openSlotAt(38, 10));
+        const read = async () => {
+          const { body } = await request(app.getHttpServer())
+            .get(`/bookings/${bookingId}`)
+            .set(actorHeaders(tenantAId, capCustomerId, 'CUSTOMER'))
+            .expect(200);
+          return body.reschedule.window.maxAdvanceDays as number;
+        };
+
+        expect(await read()).toBe(90);
+
+        setCap(tenantAId, addDaysUTC(todayInTimezone(TZ), 45));
+        expect(await read()).toBe(45);
+      });
     });
   });
 });

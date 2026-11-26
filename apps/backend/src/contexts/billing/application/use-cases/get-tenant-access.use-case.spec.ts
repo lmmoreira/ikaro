@@ -1,5 +1,6 @@
 import { FEATURE_KEYS } from '@ikaro/validation';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
+import { utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
 import { SubscriptionBuilder, SubscriptionItemBuilder } from '../../../../test/builders/billing';
 import { AdvanceableClock } from '../../../../test/infrastructure/advanceable-clock';
 import { InMemoryBillingPlatformPort } from '../../../../test/infrastructure/in-memory-billing-platform.port';
@@ -127,6 +128,137 @@ describe('GetTenantAccessUseCase', () => {
 
       expect(access).not.toHaveProperty('provisional');
       expect(access).not.toHaveProperty('degraded');
+    });
+
+    describe('the BOOKING cap (M26-S18b)', () => {
+      const DAY_MS = 24 * 60 * MINUTE_MS;
+      const TIMEZONE = 'America/Sao_Paulo';
+      const startedAgo = new Date(NOW.getTime() - 10 * MINUTE_MS);
+      const bookingItem = (endsAt: Date | null) =>
+        new SubscriptionItemBuilder()
+          .withFeatureKey('BOOKING')
+          .withStartsAt(startedAgo)
+          .withEndsAt(endsAt)
+          .build();
+
+      it('carries bookableUntil, in the subscription timezone, for an ACTIVE subscription with a pending BOOKING removal', async () => {
+        const endsAt = new Date(NOW.getTime() + 5 * DAY_MS);
+        const subscription = new SubscriptionBuilder()
+          .withStatus('ACTIVE')
+          .withTimezone(TIMEZONE)
+          .withItems([bookingItem(endsAt)])
+          .build();
+        await subscriptions.save(subscription);
+
+        const access = await useCase.execute({ tenantId: subscription.tenantId });
+
+        expect(access.bookableUntil).toBe(utcDateToLocalDate(endsAt, TIMEZONE));
+        expect(access.features.map((feature) => feature.key)).toEqual(['BOOKING']);
+      });
+
+      it('carries bookableUntil for a TRIALING subscription whose paid items omit BOOKING', async () => {
+        const trialEndsAt = new Date(NOW.getTime() + 3 * DAY_MS);
+        const subscription = new SubscriptionBuilder()
+          .withStatus('TRIALING')
+          .withTimezone(TIMEZONE)
+          .withTrialEndsAt(trialEndsAt)
+          .withItems([
+            new SubscriptionItemBuilder()
+              .withFeatureKey('HOTSITE')
+              .withStartsAt(trialEndsAt)
+              .withEndsAt(null)
+              .build(),
+          ])
+          .build();
+        await subscriptions.save(subscription);
+
+        const access = await useCase.execute({ tenantId: subscription.tenantId });
+
+        expect(access.bookableUntil).toBe(utcDateToLocalDate(trialEndsAt, TIMEZONE));
+        // The trial still grants every feature, BOOKING included.
+        expect(access.features.some((feature) => feature.key === 'BOOKING')).toBe(true);
+      });
+
+      it('has no bookableUntil key for an ACTIVE subscription whose BOOKING item is open-ended', async () => {
+        const subscription = new SubscriptionBuilder()
+          .withStatus('ACTIVE')
+          .withItems([bookingItem(null)])
+          .build();
+        await subscriptions.save(subscription);
+
+        const access = await useCase.execute({ tenantId: subscription.tenantId });
+
+        expect(access).not.toHaveProperty('bookableUntil');
+      });
+
+      it('has no bookableUntil key when a successor item keeps BOOKING from the same instant', async () => {
+        const handover = new Date(NOW.getTime() + 5 * DAY_MS);
+        const subscription = new SubscriptionBuilder()
+          .withStatus('ACTIVE')
+          .withItems([
+            bookingItem(handover),
+            new SubscriptionItemBuilder()
+              .withFeatureKey('BOOKING')
+              .withStartsAt(handover)
+              .withEndsAt(null)
+              .build(),
+          ])
+          .build();
+        await subscriptions.save(subscription);
+
+        const access = await useCase.execute({ tenantId: subscription.tenantId });
+
+        expect(access).not.toHaveProperty('bookableUntil');
+      });
+
+      it('has no bookableUntil key for a TRIALING subscription whose paid items keep BOOKING', async () => {
+        const trialEndsAt = new Date(NOW.getTime() + 3 * DAY_MS);
+        const subscription = new SubscriptionBuilder()
+          .withStatus('TRIALING')
+          .withTrialEndsAt(trialEndsAt)
+          .withItems([
+            new SubscriptionItemBuilder()
+              .withFeatureKey('BOOKING')
+              .withStartsAt(trialEndsAt)
+              .withEndsAt(null)
+              .build(),
+          ])
+          .build();
+        await subscriptions.save(subscription);
+
+        const access = await useCase.execute({ tenantId: subscription.tenantId });
+
+        expect(access).not.toHaveProperty('bookableUntil');
+      });
+
+      it('has no bookableUntil key for a SUSPENDED subscription, whatever its items say', async () => {
+        const subscription = new SubscriptionBuilder()
+          .withSuspension('NON_PAYMENT', new Date(NOW.getTime() - 1000))
+          .withItems([bookingItem(new Date(NOW.getTime() + 5 * DAY_MS))])
+          .build();
+        await subscriptions.save(subscription);
+
+        const access = await useCase.execute({ tenantId: subscription.tenantId });
+
+        expect(access.status).toBe('SUSPENDED');
+        expect(access).not.toHaveProperty('bookableUntil');
+      });
+
+      it('keeps carrying the boundary once the item has ended: a write that passed the gate just before it is still refused', async () => {
+        const endsAt = new Date(NOW.getTime() + 5 * MINUTE_MS);
+        const subscription = new SubscriptionBuilder()
+          .withStatus('ACTIVE')
+          .withItems([bookingItem(endsAt)])
+          .build();
+        await subscriptions.save(subscription);
+
+        const before = await useCase.execute({ tenantId: subscription.tenantId });
+        clock.advanceMs(6 * MINUTE_MS);
+        const after = await useCase.execute({ tenantId: subscription.tenantId });
+
+        expect(before).toHaveProperty('bookableUntil');
+        expect(after.bookableUntil).toBe(before.bookableUntil);
+      });
     });
   });
 

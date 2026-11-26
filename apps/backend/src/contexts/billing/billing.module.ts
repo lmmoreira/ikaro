@@ -48,6 +48,7 @@ import { BookingFeatureRemovalModule } from '../booking/booking-feature-removal.
 import { PlatformSettingsModule } from '../platform/platform-settings.module';
 import { BILLING_BOOKING_PORT } from './application/ports/billing-booking.port';
 import { BILLING_PLATFORM_PORT } from './application/ports/billing-platform.port';
+import { GetBookableUntilUseCase } from './application/use-cases/get-bookable-until.use-case';
 import { GetTenantAccessUseCase } from './application/use-cases/get-tenant-access.use-case';
 import { ListSuspendedTenantIdsUseCase } from './application/use-cases/list-suspended-tenant-ids.use-case';
 import { ListTenantIdsNotEntitledToUseCase } from './application/use-cases/list-tenant-ids-not-entitled-to.use-case';
@@ -191,6 +192,7 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     { provide: BILLING_PLATFORM_PORT, useClass: BillingPlatformAdapter },
     { provide: BILLING_BOOKING_PORT, useClass: BillingBookingAdapter },
     GetTenantAccessUseCase,
+    GetBookableUntilUseCase,
     ListSuspendedTenantIdsUseCase,
     ListTenantIdsNotEntitledToUseCase,
     { provide: TENANT_ACCESS_PORT, useClass: TenantAccessAdapter },

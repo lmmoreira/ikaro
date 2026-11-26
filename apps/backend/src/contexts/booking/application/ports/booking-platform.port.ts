@@ -11,6 +11,13 @@ export interface TenantBusinessHoursAndLocale {
 export interface TenantBookingWindow {
   minBookingAdvanceHours: number;
   maxBookingAdvanceDays: number;
+  // The billing `bookableUntil` cap (M26-S18b) and the timezone it is read in, DISPLAY ONLY:
+  // `resolveEffectiveBookingWindow` clamps the effective day count by them, so a picker, a service
+  // read and the alert matching stop at the effective date. A policy validation reads
+  // `maxBookingAdvanceDays` alone, so a temporary cap never rewrites a service's saved policy. The
+  // write paths enforce the cap authoritatively through `BookableUntilGuard`.
+  bookableUntil?: string | null;
+  timezone?: string;
 }
 
 // M23-S21: what the renewal window needs from the tenant — its calendar (timezone) and the

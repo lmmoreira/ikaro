@@ -1,3 +1,4 @@
+import { createTestBookableUntilGuard } from '../../../../test/infrastructure/test-bookable-until-guard';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
@@ -75,6 +76,8 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
   let platformPort: InMemoryBookingPlatformPort;
   let eventBus: InMemoryEventBus;
   let useCase: RequestRecurringBookingScheduleUseCase;
+  let guardParts: ReturnType<typeof createTestBookableUntilGuard>;
+  let tenantLock: InMemoryTenantLock;
   let resourceId: string;
 
   async function seedService(
@@ -134,6 +137,8 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
     });
     staffPort.setProfile(STAFF_ID, { id: STAFF_ID, isActive: true });
 
+    guardParts = createTestBookableUntilGuard();
+    tenantLock = new InMemoryTenantLock();
     useCase = new RequestRecurringBookingScheduleUseCase(
       serviceRepo,
       scheduleRepo,
@@ -145,9 +150,10 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
       customerPort,
       staffPort,
       platformPort,
-      new InMemoryTenantLock(),
+      tenantLock,
       new InMemoryTransactionManager(),
       new AvailabilityService(),
+      guardParts.guard,
     );
   });
 
@@ -1392,6 +1398,144 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
             }),
           ),
         ).rejects.toThrow(RecurringBookingScheduleNotFoundError);
+      });
+    });
+
+    describe('the billing bookable-until cap (M26-S18b)', () => {
+      const seedCap = (bookableUntil: string | null) =>
+        guardParts.access.seed(TENANT, {
+          status: 'ACTIVE',
+          suspensionReason: null,
+          operational: true,
+          features: [{ key: 'BOOKING', tier: 'STANDARD' }],
+          bookableUntil,
+        });
+      const asStaff: Partial<Input> = {
+        actorType: 'STAFF',
+        actorId: STAFF_ID,
+        bodyCustomerId: CUSTOMER_ID,
+      };
+      // 23:00 to 01:00 local: the last occurrence ends on the day after `endsOn`.
+      const LATE_NIGHT = {
+        ...TUESDAY_10_LOCAL,
+        startTime: '23:00',
+      };
+      const expectNothingSaved = async () => {
+        expect(
+          (await scheduleRepo.findAllByTenantPaginated(TENANT, { limit: 100, offset: 0 })).total,
+        ).toBe(0);
+        expect(await bookingRepo.findAllByTenant(TENANT)).toHaveLength(0);
+        expect(eventBus.published).toHaveLength(0);
+      };
+
+      it('refuses the whole request when endsOn is the cap day, saving no schedule and no booking', async () => {
+        const serviceId = await seedService();
+        seedCap(ENDS_ON);
+
+        await expect(useCase.execute(input(serviceId))).rejects.toBeInstanceOf(
+          BookingTooFarAheadError,
+        );
+
+        await expectNothingSaved();
+      });
+
+      it('refuses the whole request when endsOn is past the cap day', async () => {
+        const serviceId = await seedService();
+        seedCap(addDaysUTC(STARTS_ON, 14));
+
+        await expect(useCase.execute(input(serviceId))).rejects.toBeInstanceOf(
+          BookingTooFarAheadError,
+        );
+
+        await expectNothingSaved();
+      });
+
+      it('refuses when endsOn is before the cap but the last occurrence ends past the boundary', async () => {
+        const serviceId = await seedService();
+        // endsOn (a Tuesday) < cap (the Wednesday), yet 23:00 + 120 min ends after Wednesday 00:00.
+        seedCap(addDaysUTC(ENDS_ON, 1));
+
+        await expect(
+          useCase.execute(input(serviceId, { recurrence: LATE_NIGHT })),
+        ).rejects.toBeInstanceOf(BookingTooFarAheadError);
+
+        await expectNothingSaved();
+      });
+
+      it('accepts a term that ends before the cap day', async () => {
+        const serviceId = await seedService();
+        seedCap(addDaysUTC(ENDS_ON, 1));
+
+        const result = await useCase.execute(input(serviceId));
+
+        expect(result.status).toBe('ACTIVE');
+        expect(await bookingRepo.findAllByTenant(TENANT)).toHaveLength(5);
+      });
+
+      it('is unchanged without a cap', async () => {
+        const serviceId = await seedService();
+        seedCap(null);
+
+        const result = await useCase.execute(input(serviceId));
+
+        expect(result.status).toBe('ACTIVE');
+        expect(await bookingRepo.findAllByTenant(TENANT)).toHaveLength(5);
+      });
+
+      it('holds staff creating on the customer’s behalf to the cap, though the window skips them', async () => {
+        const serviceId = await seedService();
+        seedCap(ENDS_ON);
+
+        await expect(useCase.execute(input(serviceId, asStaff))).rejects.toBeInstanceOf(
+          BookingTooFarAheadError,
+        );
+
+        await expectNothingSaved();
+      });
+
+      it('accepts staff whose term ends before the cap', async () => {
+        const serviceId = await seedService();
+        seedCap(addDaysUTC(ENDS_ON, 1));
+
+        const result = await useCase.execute(input(serviceId, asStaff));
+
+        expect(result.status).toBe('ACTIVE');
+      });
+
+      it('holds a renewal to the cap too, though the window skips it', async () => {
+        const serviceId = await seedService();
+        const renewsScheduleId = seedPrevious(serviceId);
+        seedCap(ENDS_ON);
+
+        await expect(
+          useCase.execute(input(serviceId, { renewsScheduleId })),
+        ).rejects.toBeInstanceOf(BookingTooFarAheadError);
+
+        expect(await bookingRepo.findAllByTenant(TENANT)).toHaveLength(0);
+      });
+
+      it('renews when the renewed term ends before the cap', async () => {
+        const serviceId = await seedService();
+        const renewsScheduleId = seedPrevious(serviceId);
+        seedCap(addDaysUTC(ENDS_ON, 1));
+
+        const result = await useCase.execute(input(serviceId, { renewsScheduleId }));
+
+        expect(result.status).toBe('ACTIVE');
+      });
+
+      it('takes the shared lock for the tenant before the service lock', async () => {
+        const serviceId = await seedService();
+        const sharedLocksWhenServiceLocked: number[] = [];
+        jest.spyOn(tenantLock, 'lockService').mockImplementation(async () => {
+          sharedLocksWhenServiceLocked.push(guardParts.lock.calls.length);
+        });
+
+        await useCase.execute(input(serviceId));
+
+        expect(sharedLocksWhenServiceLocked).toEqual([1]);
+        expect(guardParts.lock.calls).toEqual([{ mode: 'shared', tenantId: TENANT }]);
+        expect(guardParts.access.getBookableUntilCalls).toEqual([TENANT]);
       });
     });
   });

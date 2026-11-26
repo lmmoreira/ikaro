@@ -62,7 +62,9 @@ export class TypeOrmSubscriptionRepository
 
   // This adapter has no cache: its plain read is already the committed row.
   findFreshByTenantId(tenantId: string): Promise<Subscription | null> {
-    return this.load(this.repo.manager, tenantId, false);
+    // Joins the caller's transaction when one is open (the booking write path reads the cap after
+    // taking the lock): a second pooled connection per in-flight booking could exhaust the pool.
+    return this.load(getActiveEntityManager() ?? this.repo.manager, tenantId, false);
   }
 
   async findByTenantIdForUpdate(tenantId: string): Promise<Subscription | null> {
