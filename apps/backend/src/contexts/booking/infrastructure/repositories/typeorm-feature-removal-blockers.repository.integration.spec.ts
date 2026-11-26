@@ -46,8 +46,16 @@ describe('TypeOrmFeatureRemovalBlockersRepository (integration)', () => {
   let bookingRepo: TypeOrmBookingRepository;
   let scheduleRepo: TypeOrmRecurringBookingScheduleRepository;
   let blockersRepo: TypeOrmFeatureRemovalBlockersRepository;
-  const tenantA = uuidv7();
-  const tenantB = uuidv7();
+  // Every tenant a test creates is remembered, so teardown deletes all of its rows: CI reuses one
+  // Postgres container across runs.
+  const seededTenantIds: string[] = [];
+  const newTenant = (): string => {
+    const id = uuidv7();
+    seededTenantIds.push(id);
+    return id;
+  };
+  const tenantA = newTenant();
+  const tenantB = newTenant();
   const serviceA = uuidv7();
   const serviceB = uuidv7();
 
@@ -122,7 +130,7 @@ describe('TypeOrmFeatureRemovalBlockersRepository (integration)', () => {
 
   afterAll(async () => {
     try {
-      const tenantIds = [tenantA, tenantB];
+      const tenantIds = seededTenantIds;
       await dataSource.query(
         `DELETE FROM booking.booking_status_transitions WHERE tenant_id = ANY($1)`,
         [tenantIds],
@@ -132,6 +140,9 @@ describe('TypeOrmFeatureRemovalBlockersRepository (integration)', () => {
         `DELETE FROM booking.recurring_booking_schedules WHERE tenant_id = ANY($1)`,
         [tenantIds],
       );
+      await dataSource.query(`DELETE FROM booking.availability_alerts WHERE tenant_id = ANY($1)`, [
+        tenantIds,
+      ]);
       await dataSource.query(`DELETE FROM booking.services WHERE tenant_id = ANY($1)`, [tenantIds]);
     } finally {
       await dataSource.destroy();
@@ -140,7 +151,7 @@ describe('TypeOrmFeatureRemovalBlockersRepository (integration)', () => {
 
   describe('findBookingsEndingAfter()', () => {
     it('counts a live booking that ends after the boundary and skips one ending exactly at it', async () => {
-      const tenant = uuidv7();
+      const tenant = newTenant();
       const aMinuteAfter = await seedBooking(tenant, MINUTE_MS);
       await seedBooking(tenant, 0); // ends exactly at the local midnight: occupies nothing of the day
       await seedBooking(tenant, -DAY_MS); // ended the day before
@@ -152,7 +163,7 @@ describe('TypeOrmFeatureRemovalBlockersRepository (integration)', () => {
     });
 
     it('counts PENDING, INFO_REQUESTED and APPROVED and ignores every terminal status', async () => {
-      const tenant = uuidv7();
+      const tenant = newTenant();
       const live = [
         await seedBooking(tenant, DAY_MS, { status: BookingStatus.PENDING }),
         await seedBooking(tenant, 2 * DAY_MS, { status: BookingStatus.INFO_REQUESTED }),
@@ -173,7 +184,7 @@ describe('TypeOrmFeatureRemovalBlockersRepository (integration)', () => {
     });
 
     it('keeps the exact total beyond the sample limit and orders the sample by end then id', async () => {
-      const tenant = uuidv7();
+      const tenant = newTenant();
       const ids: string[] = [];
       for (let day = 1; day <= 4; day += 1) ids.push(await seedBooking(tenant, day * DAY_MS));
 
@@ -195,7 +206,7 @@ describe('TypeOrmFeatureRemovalBlockersRepository (integration)', () => {
     });
 
     it('leaves out the occurrences of an ACTIVE or PENDING_APPROVAL schedule, and keeps those of an ended one', async () => {
-      const tenant = uuidv7();
+      const tenant = newTenant();
       const service = uuidv7();
       await dataSource
         .getRepository(ServiceEntity)
@@ -216,7 +227,7 @@ describe('TypeOrmFeatureRemovalBlockersRepository (integration)', () => {
     });
 
     it('keeps the final occurrence of a schedule whose last day is before the date when it runs past the boundary', async () => {
-      const tenant = uuidv7();
+      const tenant = newTenant();
       const service = uuidv7();
       await dataSource
         .getRepository(ServiceEntity)
@@ -295,7 +306,7 @@ describe('TypeOrmFeatureRemovalBlockersRepository (integration)', () => {
 
   describe('findSchedulesEndingOnOrAfter()', () => {
     it('counts PENDING_APPROVAL and ACTIVE schedules whose last day is on or after the date', async () => {
-      const tenant = uuidv7();
+      const tenant = newTenant();
       const service = uuidv7();
       await dataSource
         .getRepository(ServiceEntity)
@@ -316,7 +327,7 @@ describe('TypeOrmFeatureRemovalBlockersRepository (integration)', () => {
     });
 
     it('keeps the exact total beyond the sample limit', async () => {
-      const tenant = uuidv7();
+      const tenant = newTenant();
       const service = uuidv7();
       await dataSource
         .getRepository(ServiceEntity)
@@ -365,7 +376,7 @@ describe('TypeOrmFeatureRemovalBlockersRepository (integration)', () => {
     // "Alerts never block" holds by omission (no query reads them), so it is pinned the way it can
     // regress: a live alert in the database that outlives the effective date leaves the answer empty.
     it('never counts an ACTIVE availability alert, whatever its expiry', async () => {
-      const tenant = uuidv7();
+      const tenant = newTenant();
       const service = uuidv7();
       await dataSource
         .getRepository(ServiceEntity)
@@ -393,7 +404,7 @@ describe('TypeOrmFeatureRemovalBlockersRepository (integration)', () => {
     });
 
     it('names an APPROVED booking past the date, and answers zero once it is cancelled', async () => {
-      const tenant = uuidv7();
+      const tenant = newTenant();
       const settings = new InMemoryTenantSettingsPort();
       settings.set(tenant, TenantSettings.default(TIMEZONE).toJSON());
       const useCase = new GetBookingFeatureRemovalImpactUseCase(blockersRepo, settings);
