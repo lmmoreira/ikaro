@@ -1,3 +1,4 @@
+import { InMemoryTurnstileVerifier } from '../../../../test/infrastructure/in-memory-turnstile-verifier';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryTenantSettingsPort } from '../../../../test/infrastructure/in-memory-tenant-settings.port';
 import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/platform/in-memory-hotsite-config.repository';
@@ -20,23 +21,12 @@ import {
 import { HotsiteModule } from '../../domain/hotsite-config.aggregate';
 import { LeadFormAudienceMode, LeadFormQuestion } from '../../domain/lead-form-config.aggregate';
 import { TenantSettings } from '../../domain/value-objects/tenant-settings.vo';
-import { ITurnstileVerifierPort } from '../ports/turnstile-verifier.port';
 import {
   CreateLeadFormSubmissionAnswerInput,
   CreateLeadFormSubmissionUseCase,
   CreateLeadFormSubmissionUseCaseInput,
 } from './create-lead-form-submission.use-case';
 import { LeadFormPublicConfigService } from '../services/lead-form-public-config.service';
-
-class FakeTurnstileVerifier implements ITurnstileVerifierPort {
-  result = true;
-  calls: { token: string; remoteIp: string }[] = [];
-
-  async verify(token: string, remoteIp: string): Promise<boolean> {
-    this.calls.push({ token, remoteIp });
-    return this.result;
-  }
-}
 
 const TENANT_A = '10000000-0000-4000-8000-000000000031';
 const TENANT_B = '10000000-0000-4000-8000-000000000032';
@@ -80,7 +70,7 @@ describe('CreateLeadFormSubmissionUseCase', () => {
   let submissionRepo: InMemoryLeadFormSubmissionRepository;
   let settingsPort: InMemoryTenantSettingsPort;
   let txManager: InMemoryTransactionManager;
-  let turnstile: FakeTurnstileVerifier;
+  let turnstile: InMemoryTurnstileVerifier;
 
   beforeEach(() => {
     hotsiteConfigRepo = new InMemoryHotsiteConfigRepository();
@@ -88,7 +78,7 @@ describe('CreateLeadFormSubmissionUseCase', () => {
     submissionRepo = new InMemoryLeadFormSubmissionRepository();
     settingsPort = new InMemoryTenantSettingsPort();
     txManager = new InMemoryTransactionManager();
-    turnstile = new FakeTurnstileVerifier();
+    turnstile = new InMemoryTurnstileVerifier();
     const getLeadFormPublicConfig = new LeadFormPublicConfigService(
       hotsiteConfigRepo,
       leadFormConfigRepo,
