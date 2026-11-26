@@ -1434,7 +1434,7 @@ The read side of the Plano tab. `GET /v1/billing/plan` returns the catalog for t
 
 ---
 
-### M26-S18a — BOOKING removal guard: impact use case and the Billing → Booking port (UC-136 A11)
+### M26-S18a — BOOKING removal guard: impact use case and the Billing → Booking port (UC-136 A11) ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** M
