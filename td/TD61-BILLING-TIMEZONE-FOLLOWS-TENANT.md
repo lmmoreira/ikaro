@@ -44,24 +44,36 @@ The invariant that keeps Billing's snapshot correct is documented but not enforc
 **Pattern:** aggregate invariant with a typed domain error (the `TenantInactiveError` precedent in the same `updateSettings()`): the rule lives in the aggregate, the controller's `mapPlatformError` maps it.
 
 **Description:**
-`Tenant.updateSettings(settings)` compares `settings.businessHours.timezone` with the current value and throws `TenantTimezoneImmutableError` (`PLATFORM_TENANT_TIMEZONE_IMMUTABLE`) when they differ, before replacing anything. A save that keeps the same timezone is unchanged. The error is added to `PlatformErrorCode`, to `platform-error.mapper.ts` (`422`) and to both locale `errors.json` files in the same change (the web's exhaustiveness test fails CI otherwise). The BFF forwards the typed error unchanged. `docs/TENANTS_SETTINGS_SCHEMA.md` states the invariant once and the S18b "can drift" notes are removed.
+`Tenant.updateSettings(settings)` compares `settings.businessHours.timezone` with the current value (an exact string match) and throws `TenantTimezoneImmutableError` (`PLATFORM_TENANT_TIMEZONE_IMMUTABLE`, `field: 'settings.businessHours.timezone'`) when they differ, before replacing anything. A save that keeps the same timezone is unchanged. The error is added to `PlatformErrorCode`, to `platform-error.mapper.ts` (`422`) and to both locale `errors.json` files in the same change (the web's exhaustiveness test fails CI otherwise). The BFF forwards the typed error unchanged. `docs/TENANTS_SETTINGS_SCHEMA.md` states the invariant once and the S18b "can drift" notes are removed.
+
+**Decided at `/story-discovery` (2026-11-26):**
+- Status `422` (not the `409` of `TENANT_INACTIVE`: the request is well formed and the rule refuses it, as `SIGNUP_SLUG_RESERVED` does); `field` is `settings.businessHours.timezone`, the same shape as the other settings violations in `docs/API_CONTRACTS.md`.
+- Messages: pt-BR "O fuso horário do negócio é definido no cadastro e não pode ser alterado. Para corrigi-lo, fale com o suporte." · en "The business timezone is set at signup and cannot be changed. Contact support to correct it."
+- The comparison is an exact string match. An IANA alias of the same zone (`Brazil/East` for `America/Sao_Paulo`) counts as a change; the web form cannot produce one.
+- Raw SQL (the operator runbook, Story 1) bypasses the aggregate on purpose; there is no aggregate method for a correction until an operator endpoint exists.
+- The read-only count of tenants whose `settings.businessHours.timezone` already differs from `billing.subscriptions.timezone` is tracked into Story 1's runbook work, not a gate on this story.
+- `UpdateTenantSettingsUseCase` is the only production caller of `Tenant.updateSettings` (grep), and its deep merge keeps the stored timezone when the body omits it, so a PATCH that does not mention the timezone is never refused.
 
 **Backend use case steps:**
 1. `Tenant.updateSettings`: after the inactive check, refuse a changed `businessHours.timezone` with the typed error.
-2. `UpdateTenantSettingsUseCase` is unchanged in behavior (it saves through the aggregate); its spec gains the case.
+2. `UpdateTenantSettingsUseCase` is unchanged in behavior (it saves through the aggregate); its spec's "updates businessHours timezone" case is rewritten to expect the refusal.
+3. `mapPlatformError` is already 42 lines against the 40-line `max-lines-per-function` cap: the `422` goes in a small helper (like `mapSlugError`) called from it, not another `if` in the function.
 
 **Backend HTTP surface:** extends the existing tenant settings `PATCH` route: a new `422 PLATFORM_TENANT_TIMEZONE_IMMUTABLE` outcome.
-**BFF endpoint spec:** the same route forwards the typed error unchanged; no new route.
+**BFF endpoint spec:** the same route forwards the typed error unchanged; no new route and no BFF code, only a component-spec case that pins the pass-through.
 **New migration / i18n keys / env vars / feature flags:** one error code (`PLATFORM_TENANT_TIMEZONE_IMMUTABLE`) with its pt-BR and en messages; no migration, env var or flag.
 
 **Files to create/modify:**
-- `apps/backend/src/contexts/platform/domain/tenant.aggregate.ts` (+ spec) (modify)
+- `apps/backend/src/contexts/platform/domain/tenant.aggregate.ts` and `tenant.spec.ts` (modify; the existing "replaces the settings value object" case swaps the timezone to `America/Manaus` and must be rewritten)
 - `apps/backend/src/contexts/platform/domain/errors/platform-domain.error.ts` (+ spec) (modify)
-- `apps/backend/src/contexts/platform/infrastructure/http/platform-error.mapper.ts` (+ spec) (modify)
-- `apps/backend/src/contexts/platform/infrastructure/controllers/tenant-settings.controller.integration.spec.ts` (modify)
+- `apps/backend/src/contexts/platform/infrastructure/http/platform-error.mapper.ts` (+ spec) (modify: a helper for the `422`)
+- `apps/backend/src/contexts/platform/application/use-cases/update-tenant-settings.use-case.spec.ts` (modify: rewrite the timezone case, add the negative-guarantee case)
+- `apps/backend/src/contexts/platform/infrastructure/controllers/tenant-settings.controller.spec.ts` and `tenant-settings.controller.integration.spec.ts` (modify)
+- `apps/bff/src/features/platform/tenant-settings.controller.component.spec.ts` (modify: the `422` and its code pass through)
 - `packages/types/src/error-codes.ts`, `packages/i18n/locales/en/errors.json`, `packages/i18n/locales/pt-BR/errors.json` (modify)
 - `apps/backend/http/platform/tenant-settings.http`, `apps/bff/http/platform/tenant-settings.http` (modify — the new error case)
-- `docs/TENANTS_SETTINGS_SCHEMA.md`, `docs/API_CONTRACTS.md`, `docs/ERROR_CATALOG.md`, `docs/BUSINESS_LOGIC_REFERENCE.md`, `docs/DOMAIN_MODEL.md` (modify)
+- `docs/TENANTS_SETTINGS_SCHEMA.md`, `docs/API_CONTRACTS.md` (§ Tenant Settings: the new `422` line), `docs/BUSINESS_LOGIC_REFERENCE.md`, `docs/DOMAIN_MODEL.md` (modify). `docs/ERROR_CATALOG.md` is not touched: it holds no per-code rows and the `PLATFORM` origin already exists.
+- Stale-reference sweep: grep `docs/USE_CASES.md` (UC-026), `docs/*.md` and `.claude/**` for text that describes the timezone as manager-editable and fix it; the journey and prototype text is Story 1's.
 
 **Acceptance criteria — product:**
 - [ ] A manager saving settings with a different timezone is refused with a clear message, and nothing is saved; saving with the same timezone, or changing any other setting, works as before.
@@ -69,11 +81,14 @@ The invariant that keeps Billing's snapshot correct is documented but not enforc
 **Acceptance criteria — technical:**
 - Unit:
   - [ ] `Tenant.updateSettings`: a changed timezone throws `TenantTimezoneImmutableError` and leaves the settings untouched; the same timezone with other changes is accepted; an inactive tenant still throws `TenantInactiveError` first
-  - [ ] the error mapper returns `422` with the new code
+  - [ ] the existing `tenant.spec.ts` and use-case spec cases that change the timezone are rewritten to expect the refusal (none left asserting a changed timezone is stored)
+  - [ ] the error mapper returns `422` with the new code and `field`; `mapPlatformError` stays within the function-length cap
+- BFF component:
+  - [ ] the `PATCH /v1/tenants/settings` `422 PLATFORM_TENANT_TIMEZONE_IMMUTABLE` from the backend reaches the caller with the same status and code
 - Integration:
-  - [ ] the settings `PATCH` with a new timezone returns `422 PLATFORM_TENANT_TIMEZONE_IMMUTABLE` and the stored timezone is unchanged; with the same timezone and a changed buffer it succeeds
+  - [ ] the settings `PATCH` with a new timezone returns `422 PLATFORM_TENANT_TIMEZONE_IMMUTABLE` and the stored timezone is unchanged; with the same timezone and a changed buffer it succeeds; a body that omits the timezone succeeds
 - Tenant isolation:
-  - [ ] tenant A's refused change never touches tenant B's settings
+  - [ ] two tenants: tenant A's refused change leaves tenant B's stored timezone untouched, and tenant B can still save its own other settings
 - E2E: none — covered by integration (the web side is Story 1)
 - [ ] Negative guarantee pinned: no settings path other than provisioning can change the timezone (a test that updates settings through the use case with a different timezone and expects the refusal)
 - [ ] Coverage ≥80% on changed code
