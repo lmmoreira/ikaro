@@ -573,6 +573,16 @@
         "rationale": "Billing's access resolver reads a tenant's creation time for the 15-minute provisioning window (UC-120 A1), through the narrow GetTenantBillingInfoUseCase; the self-heal job (UC-140) pages tenants by age through the read-only ListTenantsCreatedBeforeUseCase.",
         "owner": "billing",
         "reviewBy": "2027-05-12"
+      },
+      {
+        "source": "apps/backend/src/contexts/billing/infrastructure/cross-context/billing-booking.adapter.ts",
+        "target": "booking",
+        "targetPaths": [
+          "apps/backend/src/contexts/booking/application/use-cases/get-booking-feature-removal-impact.use-case.ts"
+        ],
+        "rationale": "Billing's BOOKING-removal guard (UC-136 A11, M26-S18a) asks Booking what a removal on a given date would strand, through the one read-only GetBookingFeatureRemovalImpactUseCase; it is the only Billing to Booking import, so Billing never touches Booking's repositories or types.",
+        "owner": "billing",
+        "reviewBy": "2027-05-25"
       }
     ]
   },

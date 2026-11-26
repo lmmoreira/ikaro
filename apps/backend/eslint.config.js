@@ -137,6 +137,7 @@ const PERSISTENCE_BYPASS_IGNORES = [
   'src/contexts/booking/infrastructure/repositories/typeorm-booking-customer-ids.queries.ts',
   'src/contexts/booking/infrastructure/repositories/typeorm-booking-where.helpers.ts',
   'src/contexts/booking/infrastructure/repositories/typeorm-booking-bulk-insert.helpers.ts',
+  'src/contexts/booking/infrastructure/repositories/typeorm-feature-removal-blockers.repository.ts',
   'src/contexts/booking/infrastructure/repositories/typeorm-resource.repository.ts',
   'src/contexts/booking/infrastructure/repositories/typeorm-resource-occupancy.repository.ts',
   'src/contexts/booking/infrastructure/repositories/typeorm-resource-occupancy.write-queries.ts',
