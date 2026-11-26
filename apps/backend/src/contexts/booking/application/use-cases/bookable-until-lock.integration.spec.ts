@@ -7,7 +7,7 @@ import {
 } from '../../../../shared/ports/bookable-until-lock.port';
 import { TENANT_ACCESS_PORT } from '../../../../shared/ports/tenant-access.port';
 import { TRANSACTION_MANAGER } from '../../../../shared/ports/transaction-manager.port';
-import { utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
+import { localDateStartUTC, utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
 import { BookingBuilder, BookingLineBuilder } from '../../../../test/builders/booking/index';
 import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
 import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
@@ -23,7 +23,7 @@ import { DEFAULT_TEST_BUSINESS_HOURS } from '../../../../test/utils/business-hou
 import { openSlot } from '../../../../test/utils/date-helpers';
 import { BookingTooFarAheadError } from '../../domain/errors/booking-domain.error';
 import { AvailabilityService } from '../../domain/services/availability.service';
-import { BOOKING_REPOSITORY } from '../ports/booking-repository.port';
+import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
 import { RESOURCE_OCCUPANCY_REPOSITORY } from '../ports/resource-occupancy-repository.port';
 import { RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
 import { SCHEDULE_CLOSURE_REPOSITORY } from '../ports/schedule-closure-repository.port';
@@ -158,29 +158,52 @@ describe('the bookable-until lock (integration)', () => {
     }
   });
 
-  it('the plan save waits for a booking in flight (the shared holder) and starts only after it commits', async () => {
+  // The plan save's count of what a removal on `effectiveDate` would strand: the same boundary
+  // statement as the removal guard (S18a), a booking that ends after the local midnight that
+  // opens the effective date.
+  async function strandedBookings(tenantId: string, effectiveDate: string): Promise<number> {
+    const boundary = localDateStartUTC(effectiveDate, TIMEZONE);
+    const [{ count }] = await ds.query<{ count: number }[]>(
+      `SELECT count(*)::int AS count FROM booking.bookings
+        WHERE tenant_id = $1 AND status IN ('PENDING', 'INFO_REQUESTED', 'APPROVED')
+          AND scheduled_end_at > $2`,
+      [tenantId, boundary],
+    );
+    return count;
+  }
+
+  it('the plan save waits for a booking in flight (a real shared holder), then its count sees that booking', async () => {
     const world = await createLockRaceWorld(env);
-    const held = await holdTransaction(env, () => lock.lockCommitmentsShared(world.tenantId));
+    const guard = app.get(BookableUntilGuard);
+    const effectiveDate = utcDateToLocalDate(new Date(slot()), TIMEZONE);
+    const booking = new BookingBuilder()
+      .withTenantId(world.tenantId)
+      .withScheduledAt(new Date(slot()))
+      .withLines([new BookingLineBuilder().withServiceId(world.serviceId).build()])
+      .build();
+    // A booking in flight: it took the lock through the guard and wrote its row, but has not
+    // committed yet, so the plan save's count cannot see it until the lock is released.
+    const held = await holdTransaction(env, async () => {
+      await guard.acquire(world.tenantId);
+      await app.get<IBookingRepository>(BOOKING_REPOSITORY).save(booking);
+    });
     try {
       const since = await databaseNow(ds);
-      let finished = false;
-      const planSave = env.txManager
-        .run(() => lock.lockCommitmentsExclusive(world.tenantId))
-        .then(() => {
-          finished = true;
-        });
+      const planSave = env.txManager.run(async () => {
+        await lock.lockCommitmentsExclusive(world.tenantId);
+        return strandedBookings(world.tenantId, effectiveDate);
+      });
       await Promise.race([
         waitForBlockedLock(ds, 'advisory', since),
         planSave.then(() => {
           throw new Error('the plan save ran while a booking held the shared lock');
         }),
       ]);
-      expect(finished).toBe(false);
 
       await held.release();
-      await planSave;
 
-      expect(finished).toBe(true);
+      // Without the lock the count would have run first and answered 0: the stranded booking.
+      expect(await planSave).toBe(1);
     } finally {
       await held.release();
     }
@@ -188,13 +211,12 @@ describe('the bookable-until lock (integration)', () => {
 
   it('two bookings hold the shared lock together and never wait for each other', async () => {
     const world = await createLockRaceWorld(env);
-    const held = await holdTransaction(env, () => lock.lockCommitmentsShared(world.tenantId));
+    const guard = app.get(BookableUntilGuard);
+    const held = await holdTransaction(env, () => guard.acquire(world.tenantId));
     try {
-      // A second booking takes the shared lock and commits while the first still holds it. An
-      // exclusive lock here would wait for the 2 s lock timeout and fail instead.
-      await expect(
-        env.txManager.run(() => lock.lockCommitmentsShared(world.tenantId)),
-      ).resolves.toBeUndefined();
+      // A second booking takes the lock through the guard while the first still holds it. If the
+      // guard took the exclusive mode, this would wait for the 2 s lock timeout and fail.
+      await expect(env.txManager.run(() => guard.acquire(world.tenantId))).resolves.toBeNull();
     } finally {
       await held.release();
     }

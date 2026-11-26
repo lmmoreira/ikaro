@@ -113,7 +113,8 @@ async function withBookableUntil(
 ): Promise<TenantBookingWindow> {
   try {
     const { bookableUntil } = await tenantAccess.getAccess(tenantId);
-    return bookableUntil ? { ...window, bookableUntil } : window;
+    // A null answer is "no cap": it clears a cap the caller's window may still carry.
+    return { ...window, bookableUntil: bookableUntil ?? null };
   } catch {
     return window;
   }

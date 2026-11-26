@@ -612,8 +612,17 @@ describe('RequestBookingUseCase', () => {
     });
 
     it('takes the shared lock for the tenant first, then reads the cap uncached (docs/LOCK_CATALOG.md B-U1)', async () => {
+      // One timeline for both operations: the lock must already be held when the cap is read.
+      let locksHeldWhenCapWasRead = -1;
+      const readCap = guardParts.access.getBookableUntil.bind(guardParts.access);
+      jest.spyOn(guardParts.access, 'getBookableUntil').mockImplementation((tenantId) => {
+        locksHeldWhenCapWasRead = guardParts.lock.calls.length;
+        return readCap(tenantId);
+      });
+
       await useCase.execute(baseInput());
 
+      expect(locksHeldWhenCapWasRead).toBe(1);
       expect(guardParts.lock.calls).toEqual([{ mode: 'shared', tenantId: TENANT_A }]);
       expect(guardParts.access.getBookableUntilCalls).toEqual([TENANT_A]);
     });

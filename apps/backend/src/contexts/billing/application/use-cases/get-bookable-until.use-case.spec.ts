@@ -94,7 +94,7 @@ describe('GetBookableUntilUseCase', () => {
     });
   });
 
-  it('reads the removal at the clock time', async () => {
+  it('keeps answering the boundary once the item has ended, so a write that passed the gate just before it is still refused', async () => {
     const endsAt = new Date(NOW.getTime() + 5 * MINUTE_MS);
     const subscription = new SubscriptionBuilder()
       .withStatus('ACTIVE')
@@ -107,7 +107,7 @@ describe('GetBookableUntilUseCase', () => {
     const after = await useCase.execute({ tenantId: subscription.tenantId });
 
     expect(before.bookableUntil).not.toBeNull();
-    expect(after.bookableUntil).toBeNull();
+    expect(after.bookableUntil).toBe(before.bookableUntil);
   });
 
   it("is scoped by tenant: another tenant's removal is never returned", async () => {

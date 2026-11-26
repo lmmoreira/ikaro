@@ -1,3 +1,8 @@
+import {
+  ITransactionManager,
+  TRANSACTION_MANAGER,
+} from '../../../../shared/ports/transaction-manager.port';
+import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { INestApplication } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
@@ -134,6 +139,25 @@ describe('the BOOKING cap from real subscription rows (integration)', () => {
 
     expect(await access.getBookableUntil(tenantId)).toBe(addDaysUTC(todayInTimezone(TIMEZONE), 3));
     expect(await access.getAccess(tenantId)).not.toHaveProperty('bookableUntil');
+  });
+
+  it('reads on the open transaction when there is one: it sees that transaction’s own uncommitted change, so it never takes a second pooled connection', async () => {
+    const tenantId = await seed(
+      (b) => b.withStatus('ACTIVE'),
+      [{ featureKey: 'BOOKING', startsAt: longAgo(), endsAt: null }],
+    );
+    const txManager = app.get<ITransactionManager>(TRANSACTION_MANAGER);
+
+    const inside = await txManager.run(async () => {
+      await getActiveEntityManager()!.query(
+        `UPDATE "billing"."subscription_items" SET "ends_at" = $2 WHERE "tenant_id" = $1 AND "feature_key" = 'BOOKING'`,
+        [tenantId, localMidnightIn(4)],
+      );
+      // A read on another connection could not see the uncommitted end date.
+      return access.getBookableUntil(tenantId);
+    });
+
+    expect(inside).toBe(addDaysUTC(todayInTimezone(TIMEZONE), 4));
   });
 
   it('is scoped by tenant: one tenant pending removal never caps another', async () => {

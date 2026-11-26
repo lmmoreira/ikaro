@@ -73,7 +73,7 @@ function termOf(
 ): RecurringTermForBookableUntil {
   return {
     endsOn: input.endsOn,
-    lastOccurrenceStart: prepared.occurrences[prepared.occurrences.length - 1].occurrenceStart,
+    lastOccurrenceStart: prepared.occurrences.at(-1)!.occurrenceStart,
     durationMinutes: input.recurrence.durationMinutes,
   };
 }

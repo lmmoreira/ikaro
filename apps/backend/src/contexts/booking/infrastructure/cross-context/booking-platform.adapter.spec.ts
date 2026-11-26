@@ -1,3 +1,4 @@
+import { addDaysUTC, todayInTimezone } from '../../../../shared/utils/calendar-date';
 import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
 import { InMemoryFrontendRevalidationPort } from '../../../../test/infrastructure/in-memory-frontend-revalidation.port';
 import { InMemoryHotsiteConfigRepository } from '../../../../test/repositories/platform/in-memory-hotsite-config.repository';
@@ -204,21 +205,46 @@ describe('BookingPlatformAdapter', () => {
       it('stops the customer-selectable days of the alert context at the cap', async () => {
         const tenant = await seedTenant(90);
         await seedPicker(tenant.id, { datePickerType: 'calendar', carouselDays: 14 }, 90);
-        // Always at least 3 days out, whatever the clock says in the tenant timezone.
-        const bookableUntil = new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10);
-        access.seed(tenant.id, {
-          status: 'ACTIVE',
-          suspensionReason: null,
-          operational: true,
-          features: [{ key: 'BOOKING', tier: 'STANDARD' }],
-          bookableUntil,
+        // Only `Date` is frozen, so the cap and the day count are read at the same instant.
+        jest.useFakeTimers({
+          now: new Date('2026-12-10T15:00:00.000Z'),
+          doNotFake: [
+            'hrtime',
+            'nextTick',
+            'performance',
+            'queueMicrotask',
+            'requestAnimationFrame',
+            'cancelAnimationFrame',
+            'requestIdleCallback',
+            'cancelIdleCallback',
+            'setImmediate',
+            'clearImmediate',
+            'setInterval',
+            'clearInterval',
+            'setTimeout',
+            'clearTimeout',
+          ],
         });
+        try {
+          const bookableUntil = addDaysUTC(
+            todayInTimezone(tenant.settings.businessHours.timezone),
+            3,
+          );
+          access.seed(tenant.id, {
+            status: 'ACTIVE',
+            suspensionReason: null,
+            operational: true,
+            features: [{ key: 'BOOKING', tier: 'STANDARD' }],
+            bookableUntil,
+          });
 
-        const context = await adapter.getAvailabilityAlertContext(tenant.id);
+          const context = await adapter.getAvailabilityAlertContext(tenant.id);
 
-        expect(context.selectableDays).toBeLessThanOrEqual(4);
-        expect(context.selectableDays).toBeGreaterThanOrEqual(2);
-        expect(context.bookingWindow.bookableUntil).toBe(bookableUntil);
+          expect(context.selectableDays).toBe(3);
+          expect(context.bookingWindow.bookableUntil).toBe(bookableUntil);
+        } finally {
+          jest.useRealTimers();
+        }
       });
     });
 

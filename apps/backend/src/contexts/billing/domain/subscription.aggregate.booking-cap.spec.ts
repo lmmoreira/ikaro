@@ -74,7 +74,32 @@ describe('Subscription — the BOOKING cap (M26-S18b)', () => {
       expect(subscription.bookableUntil(NOW)).toBeNull();
     });
 
-    it('has no pending end for a feature that is not entitled now', () => {
+    it('keeps answering the end of an item that has already ended: the boundary does not vanish at the instant', () => {
+      const ended = new Date(NOW.getTime() - 60_000);
+      const subscription = new SubscriptionBuilder()
+        .withStatus('ACTIVE')
+        .withItems([item('BOOKING', longAgo, ended)])
+        .build();
+
+      expect(subscription.entitlementEndsAt('BOOKING', NOW)).toEqual(ended);
+      expect(subscription.bookableUntil(NOW)).toBe('2026-12-10');
+    });
+
+    it('answers the latest ended item when several ended', () => {
+      const first = new Date(NOW.getTime() - 20 * DAY_MS);
+      const second = new Date(NOW.getTime() - 3 * DAY_MS);
+      const subscription = new SubscriptionBuilder()
+        .withStatus('ACTIVE')
+        .withItems([
+          item('BOOKING', longAgo, first),
+          item('BOOKING', new Date(first.getTime() + DAY_MS), second),
+        ])
+        .build();
+
+      expect(subscription.entitlementEndsAt('BOOKING', NOW)).toEqual(second);
+    });
+
+    it('has no cap for a feature the subscription never held', () => {
       const subscription = new SubscriptionBuilder()
         .withStatus('ACTIVE')
         .withItems([item('HOTSITE', longAgo, null)])

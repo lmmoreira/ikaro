@@ -560,28 +560,20 @@ describe('GetHotsiteManifestUseCase', () => {
         await repo.save(build(new HotsiteConfigBuilder().withTenantId(TENANT_A)));
       });
 
-      it('clamps booking.maxBookingAdvanceDays to the whole days until the cap', async () => {
-        seedCap(capInDays(10));
+      it.each([
+        { name: 'clamps to the whole days until the cap', capDays: 10, expected: 10 },
+        {
+          name: 'keeps the configured value when it is already below the cap',
+          capDays: 200,
+          expected: 90,
+        },
+        { name: 'offers no day once the cap is today', capDays: 0, expected: 0 },
+      ])('booking.maxBookingAdvanceDays $name', async ({ capDays, expected }) => {
+        seedCap(capInDays(capDays));
 
         const result = await useCase.execute({ tenantId: TENANT_A });
 
-        expect(result.booking).toEqual({ maxBookingAdvanceDays: 10 });
-      });
-
-      it('keeps the configured value when it is already below the cap', async () => {
-        seedCap(capInDays(200));
-
-        const result = await useCase.execute({ tenantId: TENANT_A });
-
-        expect(result.booking).toEqual({ maxBookingAdvanceDays: 90 });
-      });
-
-      it('offers no day once the cap is today', async () => {
-        seedCap(capInDays(0));
-
-        const result = await useCase.execute({ tenantId: TENANT_A });
-
-        expect(result.booking).toEqual({ maxBookingAdvanceDays: 0 });
+        expect(result.booking).toEqual({ maxBookingAdvanceDays: expected });
       });
 
       it('is exactly the configured value when the access answer has no cap', async () => {

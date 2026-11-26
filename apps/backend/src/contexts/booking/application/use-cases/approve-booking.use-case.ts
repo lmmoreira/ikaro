@@ -160,12 +160,14 @@ export class ApproveBookingUseCase {
     });
   }
 
-  private assertWithinBookableUntil(
+  private async assertWithinBookableUntil(
     booking: Booking,
     scheduledAt: Date,
     input: ApproveBookingUseCaseInput,
   ): Promise<void> {
-    return this.bookableUntilGuard.assertEndsWithin(
+    // A time equal to the booking's own start moves nothing: it is not a new commitment.
+    if (scheduledAt.getTime() === booking.scheduledAt.getTime()) return;
+    await this.bookableUntilGuard.assertEndsWithin(
       input.tenantId,
       commitmentEnd(scheduledAt, booking.totalDurationMins),
       input.timezone,

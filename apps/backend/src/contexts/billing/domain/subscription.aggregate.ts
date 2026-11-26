@@ -339,7 +339,9 @@ export class Subscription extends AggregateRoot {
    *   instant is the end, otherwise the chain of covering items is followed.
    * - otherwise → the chain of items covering `now`: an open-ended item ends nothing, an item with
    *   an `endsAt` that no successor covers (touching windows `[a,b) [b,c)` are one run) ends there.
-   *   A feature not entitled now has no pending end.
+   *   A feature not entitled now answers the end of its latest ended item (a date already past),
+   *   so a write that passed the entitlement gate just before the end and reads the cap just after
+   *   it is still refused beyond that boundary; a feature the subscription never held answers `null`.
    */
   entitlementEndsAt(featureKey: FeatureKey, now: Date): Date | null {
     if (this._status === 'SUSPENDED') return null;
@@ -357,10 +359,21 @@ export class Subscription extends AggregateRoot {
       const covering = this._items.find(
         (item) => item.featureKey === featureKey && item.isActiveAt(cursor),
       );
-      if (!covering) return cursor === now ? null : cursor;
+      if (!covering) return cursor === now ? this.latestEndOf(featureKey, now) : cursor;
       if (covering.endsAt === null) return null;
       cursor = covering.endsAt;
     }
+  }
+
+  // The end of the latest item of the feature that has already ended at `now`, or `null` when none.
+  private latestEndOf(featureKey: FeatureKey, now: Date): Date | null {
+    let latest: Date | null = null;
+    for (const item of this._items) {
+      const end = item.endsAt;
+      if (item.featureKey !== featureKey || end === null || end.getTime() > now.getTime()) continue;
+      if (latest === null || end.getTime() > latest.getTime()) latest = end;
+    }
+    return latest;
   }
 
   /**

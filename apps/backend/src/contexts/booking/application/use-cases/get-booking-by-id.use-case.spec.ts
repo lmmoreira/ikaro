@@ -785,13 +785,39 @@ describe('GetBookingByIdUseCase', () => {
           features: [{ key: 'BOOKING', tier: 'STANDARD' }],
           bookableUntil,
         });
-      // The tenant-local today, never the UTC day, so the day count cannot flake near midnight.
+      // Only `Date` is frozen, for the whole test: the cap is computed and read at the same
+      // instant, so the day count cannot move when the test runs across tenant-local midnight.
+      beforeEach(() => {
+        jest.useFakeTimers({
+          now: new Date('2026-12-10T15:00:00.000Z'),
+          doNotFake: [
+            'hrtime',
+            'nextTick',
+            'performance',
+            'queueMicrotask',
+            'requestAnimationFrame',
+            'cancelAnimationFrame',
+            'requestIdleCallback',
+            'cancelIdleCallback',
+            'setImmediate',
+            'clearImmediate',
+            'setInterval',
+            'clearInterval',
+            'setTimeout',
+            'clearTimeout',
+          ],
+        });
+      });
+      afterEach(() => {
+        jest.useRealTimers();
+      });
       const capInDays = (days: number) => addDaysUTC(todayInTimezone(TIMEZONE), days);
       const readWindow = async (
         tenantBookingWindow: {
           minBookingAdvanceHours: number;
           maxBookingAdvanceDays: number;
           timezone?: string;
+          bookableUntil?: string | null;
         } = { ...TENANT_WINDOW, timezone: TIMEZONE },
       ) => {
         const { booking } = await approvedBookingWithStaffPick();
@@ -827,6 +853,18 @@ describe('GetBookingByIdUseCase', () => {
         seedCap(null);
 
         expect(await readWindow()).toEqual({ minAdvanceHours: 2, maxAdvanceDays: 90 });
+      });
+
+      it("clears a cap the caller's window still carries once the access answer says there is none", async () => {
+        seedCap(null);
+
+        expect(
+          await readWindow({
+            ...TENANT_WINDOW,
+            timezone: TIMEZONE,
+            bookableUntil: capInDays(10),
+          }),
+        ).toEqual({ minAdvanceHours: 2, maxAdvanceDays: 90 });
       });
 
       it('is unchanged for a tenant nobody seeded', async () => {

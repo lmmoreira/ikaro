@@ -866,6 +866,20 @@ describe('ApproveBookingUseCase', () => {
         expect(guardParts.access.getBookableUntilCalls).toEqual([]);
       });
 
+      it("approves with a time equal to the booking's own start like an approval without one: nothing moves, so nothing is capped", async () => {
+        const booking = await pendingBooking();
+        seedCap(localDate(scheduledAt));
+
+        const result = await useCase.execute({
+          bookingId: booking.id,
+          ...ctx,
+          scheduledAt: scheduledAt.toISOString(),
+        });
+
+        expect(result.status).toBe(BookingStatus.APPROVED);
+        expect(guardParts.lock.calls).toEqual([]);
+      });
+
       it('refuses an approval at a new time whose end is past the cap and the booking stays PENDING', async () => {
         const booking = await pendingBooking();
         seedCap(localDate(newAt));
