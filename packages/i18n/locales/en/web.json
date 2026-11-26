@@ -2003,7 +2003,8 @@
       "expiryWarningHint": "Days before expiry that the expiring-points reminder is sent.",
       "notificationMinPointsLabel": "Minimum balance to notify",
       "notificationMinPointsHint": "Minimum expiring points balance required for the reminder to be sent to the customer.",
-      "timezoneLabel": "Timezone *",
+      "timezoneLabel": "Timezone",
+      "timezoneHint": "The timezone is set at signup. Contact support to correct it.",
       "timezoneBrasilia": "America/Sao_Paulo (Brasília)",
       "daysOfWeek": {
         "monday": "Monday",
@@ -2047,7 +2048,7 @@
       "leadFormMaxSubmissionsPerIpPerDayHint": "Between 1 and 100. Maximum submissions accepted from the same IP address per day. If legitimate visitors are being falsely blocked (common with mobile internet, where multiple phones share the same IP), raise this value.",
       "perDaySuffix": "/ day",
       "submit": "Save settings",
-      "actionHint": "Settings affect new bookings. Business hours and timezone take effect immediately.",
+      "actionHint": "Settings affect new bookings. Business hours take effect immediately.",
       "successTitle": "Settings saved!",
       "successBody": "Your changes have been applied. New bookings already follow the new rules.",
       "errors": {
@@ -2064,7 +2065,6 @@
         "expiryWarningMustBeLessThanExpiry": "The expiry warning must be less than the points validity.",
         "notificationMinPointsMax": "Maximum 10000",
         "pointsMax": "Maximum 10000",
-        "timezoneInvalid": "Select a valid timezone.",
         "phoneInvalid": "Invalid phone number.",
         "emailInvalid": "Invalid email.",
         "socialLinksWhatsappInvalid": "Invalid WhatsApp number.",

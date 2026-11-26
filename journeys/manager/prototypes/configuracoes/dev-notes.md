@@ -50,7 +50,7 @@ interface UpdateTenantSettingsDto {
     loyalty?: { expiryDays?: number };
     booking?: { cancellationWindowHours?: number; serviceBufferMinutes?: number };
     businessHours?: {
-      timezone: string;
+      // timezone is never sent: it is set at signup and read-only (TD61)
       monday?: { open: string; close: string } | null;   // null = closed
       tuesday?: { open: string; close: string } | null;
       // ... wednesday .. sunday
@@ -80,7 +80,7 @@ The real `SettingsForm.tsx` has 8 sections, not the 5 this file originally descr
 | Geral | name, slug (read-only) |
 | Agendamento | cancellationWindowHours, serviceBufferMinutes, **autoApproveEnabled**, **minBookingAdvanceHours**, **maxBookingAdvanceDays**, **recurringRenewalReminderDays** (M23-S21: days before a recurring reservation ends that the customer is e-mailed; 0 = off), **slotGranularityMinutes**, **welcomeStaffScreenDays** |
 | Fidelidade | loyaltyExpiryDays, **pointsPerCurrencyUnit**, **loyaltyEnableNotifications**, **loyaltyExpiryWarningDays**, **loyaltyNotificationMinPoints** |
-| Horário | timezone + per-day open/close/closed |
+| Horário | timezone (**read-only**, set at signup, TD61) + per-day open/close/closed |
 | Contato | phone, email (also the Reply-To of every customer email since M18-S09, and it can appear on the site and in chatbot answers — the field shows a hint saying so), **structured address** (zipCode with ViaCEP lookup, number, street, complement, neighborhood, city, state — not one free-text line as originally drafted), **social links** (whatsapp, instagram, facebook) |
 | **Chatbot** (✅ shipped — added 2026-08-08, built by the M19 chatbot milestone) | `chatbot.knowledgeText` only — see below |
 | **Formulário de contato** (✅ shipped, M20-S11) | `leadForm.{retentionMonths,maxSubmissionsPerDay,maxSubmissionsPerIpPerDay}` — see below |
@@ -175,7 +175,6 @@ The `*-error` field test ids are gone; specs assert `aria-invalid` plus the mess
 | cancellationWindowHours | 0–720 | "O valor máximo é 720 horas (30 dias)." |
 | serviceBufferMinutes | 0–120 | "O valor máximo é 120 minutos." |
 | loyaltyExpiryDays | 1–3650 | "Informe um valor entre 1 e 3650 dias." |
-| timezone | valid IANA id | "Selecione um fuso horário válido." |
 | businessInfo.phone | E.164 (`isValidPhoneNumber`, `packages/validation/src/tenant-settings.ts`) — the web form shows the tenant's country calling code (`phonePrefix`) so the submitted value is E.164; optional | `PLATFORM_SETTINGS_BUSINESS_PHONE_INVALID` — server message "O telefone informado é inválido." (`packages/i18n/locales/pt-BR/errors.json`); the form shows `errors.phoneInvalid` = "Telefone inválido." (`dashboard.settingsPage.errors`, `packages/i18n/locales/pt-BR/web.json`) |
 | businessInfo.email | `z.email()`, optional | "E-mail inválido." |
 

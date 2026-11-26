@@ -2003,7 +2003,8 @@
       "expiryWarningHint": "Dias antes da expiração em que o lembrete de pontos a vencer é enviado.",
       "notificationMinPointsLabel": "Saldo mínimo para notificar",
       "notificationMinPointsHint": "Saldo mínimo de pontos a expirar para que o lembrete seja enviado ao cliente.",
-      "timezoneLabel": "Fuso horário *",
+      "timezoneLabel": "Fuso horário",
+      "timezoneHint": "O fuso horário é definido no cadastro. Para corrigi-lo, fale com o suporte.",
       "timezoneBrasilia": "America/Sao_Paulo (Brasília)",
       "daysOfWeek": {
         "monday": "Segunda",
@@ -2047,7 +2048,7 @@
       "leadFormMaxSubmissionsPerIpPerDayHint": "Entre 1 e 100. Máximo de envios aceitos do mesmo endereço IP por dia. Se visitantes legítimos estiverem sendo bloqueados por engano (comum com internet móvel, onde vários celulares compartilham o mesmo IP), aumente este valor.",
       "perDaySuffix": "/ dia",
       "submit": "Salvar configurações",
-      "actionHint": "As configurações afetam novos agendamentos. Horários de funcionamento e fuso entram em vigor imediatamente.",
+      "actionHint": "As configurações afetam novos agendamentos. Horários de funcionamento entram em vigor imediatamente.",
       "successTitle": "Configurações salvas!",
       "successBody": "As alterações foram aplicadas. Novos agendamentos já seguem as novas regras.",
       "errors": {
@@ -2064,7 +2065,6 @@
         "expiryWarningMustBeLessThanExpiry": "O aviso de expiração deve ser menor que a validade dos pontos.",
         "notificationMinPointsMax": "Máximo 10000",
         "pointsMax": "Máximo 10000",
-        "timezoneInvalid": "Selecione um fuso horário válido.",
         "phoneInvalid": "Telefone inválido.",
         "emailInvalid": "E-mail inválido.",
         "socialLinksWhatsappInvalid": "Número de WhatsApp inválido.",

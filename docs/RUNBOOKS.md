@@ -1,6 +1,6 @@
 # Runbooks — Ikaro
 
-> **When to load:** an operator is rolling back a production promote, handling a staging problem or running a Pub/Sub or scheduled-job procedure, or responding to a billing alert or operator billing case (planned); why the system is built this way is in `docs/DEPLOYMENT_STRATEGY.md`.
+> **When to load:** an operator is rolling back a production promote, handling a staging problem or running a Pub/Sub or scheduled-job procedure, correcting a tenant's timezone, or responding to a billing alert or operator billing case (planned); why the system is built this way is in `docs/DEPLOYMENT_STRATEGY.md`.
 > **Tags:** infra
 
 Operational procedures for production incidents and controlled platform operations — what an operator actually runs, not why the system is built the way it is (that's `plan/M17-CLOUD-DEPLOY.md`).
@@ -204,6 +204,87 @@ Validated procedure from M17-S35's live acceptance-criteria run against real sta
    ```bash
    gcloud pubsub subscriptions pull <dlq-inspect-subscription> --project=<project> --auto-ack --limit=<n>
    ```
+
+## Correct a tenant's timezone (operator)
+
+A tenant's timezone is set at signup and a manager can never change it (`PATCH /tenants/settings` answers `422 PLATFORM_TENANT_TIMEZONE_IMMUTABLE`, and the dashboard shows it read-only). A correction is a rare operator action, because two things hold the zone and must never disagree: `platform.tenants.settings.businessHours.timezone` and `billing.subscriptions.timezone` (a snapshot copied at provisioning, immutable by design: `docs/discovery/tenant-billing/tenant-billing.md` decision 47). Billing's dates are in the subscription's zone and Booking compares them at the tenant's, so a mismatch silently shifts the `bookableUntil` cap and every Billing date. The correction changes **four things in one transaction**: the tenant's zone, the subscription's zone, `trial_ends_at` (an instant, the old zone's local midnight, so it is recomputed from `next_due_date` in the new zone; changing only the two zone values leaves it on the previous local day) and the `subscription_items` rows that start at the old `trial_ends_at`. `next_due_date` and `anchor_day` are local dates and stay. *Who:* operator, with a second person reading the statement and the output before it runs. Use the database access of any reviewed one-off write (staging: Cloud SQL Studio as `ikaro_migrator`, § Staging).
+
+**Supported case only.** The tenant has a `TRIALING` subscription with no charge, and no bookings, recurring schedules, availability alerts, schedule closures or openings: it signed up and has not started operating. Data written under the old zone keeps its old local meaning and the runbook does not rewrite it. For any other tenant, **stop and decide with the owner**; the statement below refuses it (`STOP: …`) and changes nothing.
+
+1. **Drift check (read-only; run it once on staging and production after TD61 ships, and any time a tenant's zone is in doubt).** Any row is a tenant edited before the guard, or by a past manual change:
+   ```sql
+   SELECT t.id, t.slug, s.status,
+          t.settings->'businessHours'->>'timezone' AS tenant_timezone,
+          s.timezone AS subscription_timezone
+     FROM platform.tenants t
+     JOIN billing.subscriptions s ON s.tenant_id = t.id
+    WHERE s.timezone IS DISTINCT FROM t.settings->'businessHours'->>'timezone'
+    ORDER BY t.slug;
+   ```
+2. **Correct.** Put the tenant's id and the correct IANA zone in the two `DECLARE` lines and run the block as is (it is one transaction: a `STOP:` leaves nothing changed):
+   ```sql
+   DO $$
+   DECLARE
+     v_tenant_id uuid := '<tenant-id>';
+     v_new_tz    text := '<IANA zone, e.g. America/Manaus>';
+     v_next_due  date;
+     v_old_end   timestamptz;
+     v_new_end   timestamptz;
+   BEGIN
+     IF NOT EXISTS (SELECT 1 FROM pg_timezone_names WHERE name = v_new_tz) THEN
+       RAISE EXCEPTION 'STOP: % is not an IANA zone', v_new_tz;
+     END IF;
+
+     SELECT next_due_date, trial_ends_at INTO v_next_due, v_old_end
+       FROM billing.subscriptions
+      WHERE tenant_id = v_tenant_id AND status = 'TRIALING' AND trial_ends_at IS NOT NULL
+        FOR UPDATE;
+     IF NOT FOUND THEN
+       RAISE EXCEPTION 'STOP: the tenant has no TRIALING subscription; decide with the owner';
+     END IF;
+
+     IF EXISTS (SELECT 1 FROM billing.charges WHERE tenant_id = v_tenant_id)
+        OR EXISTS (SELECT 1 FROM booking.bookings WHERE tenant_id = v_tenant_id)
+        OR EXISTS (SELECT 1 FROM booking.recurring_booking_schedules WHERE tenant_id = v_tenant_id)
+        OR EXISTS (SELECT 1 FROM booking.availability_alerts WHERE tenant_id = v_tenant_id)
+        OR EXISTS (SELECT 1 FROM booking.schedule_closures WHERE tenant_id = v_tenant_id)
+        OR EXISTS (SELECT 1 FROM booking.schedule_openings WHERE tenant_id = v_tenant_id) THEN
+       RAISE EXCEPTION 'STOP: the tenant already has charges or tenant-local data; decide with the owner';
+     END IF;
+
+     v_new_end := v_next_due::timestamp AT TIME ZONE v_new_tz;  -- the local midnight closing day 14
+
+     UPDATE platform.tenants
+        SET settings = jsonb_set(settings, '{businessHours,timezone}', to_jsonb(v_new_tz)),
+            updated_at = now()
+      WHERE id = v_tenant_id;
+     UPDATE billing.subscriptions
+        SET timezone = v_new_tz, trial_ends_at = v_new_end, version = version + 1, updated_at = now()
+      WHERE tenant_id = v_tenant_id;
+     UPDATE billing.subscription_items
+        SET starts_at = v_new_end
+      WHERE tenant_id = v_tenant_id AND starts_at = v_old_end;
+   END $$;
+   ```
+3. **Wait about 60 seconds.** There is no cache eviction an operator can run: the tenant read cache is in-process with a 60 s TTL (`CachingTenantRepository`), so each backend instance serves the old zone until its entry expires. The hotsite and booking manifests and the access answer are cached up to 300 s, so a display value can lag that long.
+4. **Verify.** One row, `tenant_tz = subscription_tz`, `trial_end_is_local_midnight = t` and `items_at_trial_end = items_total` (five rows for a default trial):
+   ```sql
+   SELECT t.slug,
+          t.settings->'businessHours'->>'timezone' AS tenant_tz,
+          s.timezone AS subscription_tz,
+          s.trial_ends_at,
+          s.next_due_date,
+          s.trial_ends_at = (s.next_due_date::timestamp AT TIME ZONE s.timezone) AS trial_end_is_local_midnight,
+          (SELECT count(*) FROM billing.subscription_items i
+            WHERE i.tenant_id = s.tenant_id AND i.starts_at = s.trial_ends_at) AS items_at_trial_end,
+          (SELECT count(*) FROM billing.subscription_items i
+            WHERE i.tenant_id = s.tenant_id) AS items_total
+     FROM platform.tenants t JOIN billing.subscriptions s ON s.tenant_id = t.id
+    WHERE t.id = '<tenant-id>';
+   ```
+   Then re-run the drift check: the tenant must no longer appear.
+
+If this ever stops being rare, `/create-story` adds an operator endpoint that updates both through an event, and this runbook is retired (TD61).
 
 ## Billing (planned)
 

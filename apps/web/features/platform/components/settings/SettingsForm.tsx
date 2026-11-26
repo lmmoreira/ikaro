@@ -75,7 +75,7 @@ export function SettingsForm({
   const t = useTranslations('dashboard.settingsPage');
   const locale = useResolvedLocale();
   const { timeFormat } = useFormatting();
-  const { addressSpec, phonePrefix, timezones } = resolveSettingsLocalization(
+  const { addressSpec, phonePrefix } = resolveSettingsLocalization(
     initial.settings.localization.countryCode,
   );
   const [values, setValues] = useState<SettingsFormValues>(() => toSettingsFormValues(initial));
@@ -227,12 +227,9 @@ export function SettingsForm({
           )}
 
           <SettingsHoursSection
-            timezone={values.timezone}
-            feedback={feedback}
-            timezones={timezones}
+            timezone={initial.settings.businessHours.timezone}
             days={values.days}
             timeFormat={timeFormat}
-            onTimezoneChange={(value) => setField('timezone', value)}
             onDayChange={setDay}
             onCopyMondayToWeekdays={handleCopyMondayToWeekdays}
           />

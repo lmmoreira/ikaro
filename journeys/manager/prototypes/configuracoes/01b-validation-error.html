@@ -203,16 +203,11 @@
         <!-- Horário de funcionamento — unchanged -->
         <div class="section-card">
           <div class="section-card-title">Horário de funcionamento</div>
-          <div class="section-card-sub">Fuso horário e horários de abertura por dia da semana</div>
+          <div class="section-card-sub">Fuso horário (somente leitura) e horários de abertura por dia da semana</div>
           <div class="form-group">
-            <label class="form-label" for="timezone">Fuso horário *</label>
-            <select id="timezone" class="form-input">
-              <option selected>America/Sao_Paulo (Brasília)</option>
-              <option>America/Manaus</option>
-              <option>America/Fortaleza</option>
-              <option>America/Rio_Branco</option>
-              <option>America/Noronha</option>
-            </select>
+            <label class="form-label" for="timezone">Fuso horário</label>
+            <input id="timezone" type="text" class="form-input" value="America/Sao_Paulo (Brasília)" readonly>
+            <p class="form-hint">O fuso horário é definido no cadastro. Para corrigi-lo, fale com o suporte.</p>
           </div>
           <div style="display:grid;grid-template-columns:6.5rem 1fr 1fr auto;gap:0.625rem;align-items:center;margin-bottom:0.625rem;">
             <span style="font-size:0.875rem;font-weight:600;color:var(--ba-text);">Segunda</span>
@@ -366,7 +361,7 @@
               Salvar configurações
             </a>
             <hr style="border:0;border-top:1px solid #e5e7eb;margin:1rem 0;">
-            <p style="font-size:0.875rem;line-height:1.5;opacity:0.6;">As configurações afetam novos agendamentos. Horários de funcionamento e fuso entram em vigor imediatamente.</p>
+            <p style="font-size:0.875rem;line-height:1.5;opacity:0.6;">As configurações afetam novos agendamentos. Horários de funcionamento entram em vigor imediatamente.</p>
           </div>
           <!-- TD57-S09: form-level message = second card under the buttons card (role="alert"); the
                first invalid field is highlighted, scrolled to and focused. Only rendered when a

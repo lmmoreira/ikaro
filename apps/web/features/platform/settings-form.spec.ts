@@ -94,7 +94,8 @@ describe('toSettingsFormValues', () => {
     expect(values.serviceBufferMinutes).toBe('60');
     expect(values.loyaltyExpiryDays).toBe('180');
     expect(values.pointsPerCurrencyUnit).toBe('10');
-    expect(values.timezone).toBe('America/Sao_Paulo');
+    // The timezone is set at signup and read-only: it is never a form value (TD61).
+    expect(values).not.toHaveProperty('timezone');
     expect(values.phone).toBe('31999999999');
     expect(values.email).toBe('contato@beloauto.com.br');
     expect(values.address.street).toBe('Rua das Flores');
@@ -288,31 +289,34 @@ describe('validateSettingsForm', () => {
     expect(over.errors.pointsPerCurrencyUnit).toBe('errors.pointsMax');
   });
 
-  it('rejects a timezone outside the supported list', () => {
-    const { errors } = validateSettingsForm(validValues({ timezone: 'Europe/Lisbon' }), BR, t);
+  it('sends businessHours with the day hours only, never a timezone (TD61)', () => {
+    const { normalized } = validateSettingsForm(validValues(), BR, t);
 
-    expect(errors.timezone).toBe('errors.timezoneInvalid');
+    expect(normalized?.settings.businessHours).not.toHaveProperty('timezone');
+    expect(normalized?.settings.businessHours?.monday).toEqual({ open: '08:00', close: '18:00' });
   });
 
-  it('derives the valid timezone list from the tenant country, not a hardcoded constant', () => {
-    // BR: America/Sao_Paulo is valid, America/New_York is not.
-    expect(validateSettingsForm(validValues(), BR, t).errors.timezone).toBeUndefined();
-    expect(
-      validateSettingsForm(validValues({ timezone: 'America/New_York' }), BR, t).errors.timezone,
-    ).toBe('errors.timezoneInvalid');
+  it('saves for a tenant whose stored zone is outside its country list (TD61)', () => {
+    // An operator-corrected zone is not validated against the country list any more: the form never
+    // touches it, so it can never lock every save.
+    const base = buildTenant();
+    const tenant = {
+      ...base,
+      settings: {
+        ...base.settings,
+        businessHours: { ...base.settings.businessHours, timezone: 'Europe/Lisbon' },
+      },
+    };
 
-    // US: America/New_York is valid, America/Sao_Paulo is not.
-    const usValues = { ...validValues(), timezone: 'America/New_York' };
-    expect(validateSettingsForm(usValues, 'US', t).errors.timezone).toBeUndefined();
-    expect(
-      validateSettingsForm(validValues({ timezone: 'America/Sao_Paulo' }), 'US', t).errors.timezone,
-    ).toBe('errors.timezoneInvalid');
+    const { errors, normalized } = validateSettingsForm(toSettingsFormValues(tenant), BR, t);
+
+    expect(errors).toEqual({});
+    expect(normalized).not.toBeNull();
   });
 
-  it('resolveSettingsLocalization exposes the country-specific timezone list', () => {
-    expect(resolveSettingsLocalization('BR').timezones).toContain('America/Sao_Paulo');
-    expect(resolveSettingsLocalization('BR').timezones).not.toContain('America/New_York');
-    expect(resolveSettingsLocalization('US').timezones).toContain('America/New_York');
+  it('resolveSettingsLocalization exposes the address spec and phone prefix, not a timezone list', () => {
+    expect(resolveSettingsLocalization('BR').phonePrefix).toBe('+55');
+    expect(resolveSettingsLocalization('BR')).not.toHaveProperty('timezones');
   });
 
   it('strips phone formatting and builds the full E.164 value for the +55 prefix', () => {

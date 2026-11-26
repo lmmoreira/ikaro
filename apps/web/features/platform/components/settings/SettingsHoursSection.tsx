@@ -1,61 +1,42 @@
 'use client';
 
-import { Label } from '@/shared/components/ui/label';
-import { NativeSelect } from '@/shared/components/ui/native-select';
 import { useTranslations } from 'next-intl';
 import { SectionCard } from '@/shared/components/ui/section-card';
 import { WeekDayRow } from '@/shared/components/ui/week-day-row';
 import { WEEK_DAYS, type DayHoursValue, type WeekDay } from '@/features/platform/settings-form';
-import { FieldFeedback } from '@/shared/components/ui/field-feedback';
-import { settingsFieldWiring, type SettingsFieldFeedback } from './SettingsFormFields';
+import { ReadOnlyField } from './SettingsFormFields';
 
 interface SettingsHoursSectionProps {
+  // The tenant's stored zone, shown read-only: it is set at signup and only an operator corrects
+  // it (TD61), so it is not part of the form's values and a save never sends it.
   readonly timezone: string;
-  readonly feedback: SettingsFieldFeedback;
-  readonly timezones: readonly string[];
   readonly days: Record<WeekDay, DayHoursValue>;
   readonly timeFormat: '24h' | '12h';
-  readonly onTimezoneChange: (value: string) => void;
   readonly onDayChange: (day: WeekDay, patch: Partial<DayHoursValue>) => void;
   readonly onCopyMondayToWeekdays: () => void;
 }
 
-// Extracted from SettingsForm (TD37-S5A) — the "Business hours" section (timezone + the 7-day
-// hours grid) is a self-contained, cohesive group, unrelated to the other SectionCard groups
+// Extracted from SettingsForm (TD37-S5A) — the "Business hours" section (the read-only timezone +
+// the 7-day hours grid) is a self-contained, cohesive group, unrelated to the other SectionCard groups
 // around it.
 export function SettingsHoursSection({
   timezone,
-  feedback,
-  timezones,
   days,
   timeFormat,
-  onTimezoneChange,
   onDayChange,
   onCopyMondayToWeekdays,
 }: SettingsHoursSectionProps): React.JSX.Element {
   const t = useTranslations('dashboard.settingsPage');
-  const timezoneField = settingsFieldWiring(feedback, 'timezone', 'settings-timezone');
 
   return (
     <SectionCard size="compact" title={t('sections.hours')}>
       <div>
-        <Label htmlFor="settings-timezone">{t('timezoneLabel')}</Label>
-        <NativeSelect
-          id="settings-timezone"
-          data-testid="settings-timezone-select"
-          value={timezone}
-          onChange={(event) => onTimezoneChange(event.target.value)}
-          {...timezoneField.inputProps}
-          className={timezoneField.inputClassName()}
-          wrapperClassName="max-w-md"
-        >
-          {timezones.map((tz) => (
-            <option key={tz} value={tz}>
-              {tz === 'America/Sao_Paulo' ? t('timezoneBrasilia') : tz}
-            </option>
-          ))}
-        </NativeSelect>
-        <FieldFeedback id={timezoneField.errorId}>{timezoneField.error}</FieldFeedback>
+        <ReadOnlyField
+          testId="settings-timezone"
+          label={t('timezoneLabel')}
+          value={timezone === 'America/Sao_Paulo' ? t('timezoneBrasilia') : timezone}
+        />
+        <p className="mt-1.5 text-sm text-gray-500">{t('timezoneHint')}</p>
       </div>
       <div>
         {WEEK_DAYS.map((day) => (

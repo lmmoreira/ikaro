@@ -50,7 +50,6 @@ export interface SettingsFormValues {
   readonly loyaltyEnableNotifications: boolean;
   readonly loyaltyNotificationMinPoints: string;
   readonly pointsPerCurrencyUnit: string;
-  readonly timezone: string;
   readonly days: Record<WeekDay, DayHoursValue>;
   readonly phone: string;
   readonly email: string;
@@ -75,7 +74,6 @@ export interface SettingsFormErrors {
   loyaltyExpiryWarningDays?: string;
   loyaltyNotificationMinPoints?: string;
   pointsPerCurrencyUnit?: string;
-  timezone?: string;
   phone?: string;
   email?: string;
   addressStreet?: string;
