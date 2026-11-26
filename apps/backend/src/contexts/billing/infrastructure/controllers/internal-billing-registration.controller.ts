@@ -13,6 +13,10 @@ import { NoFeatureGate, SuspensionAccess, ZodValidationPipe } from '@ikaro/nestj
 import { z } from 'zod';
 import { InternalApiGuard } from '../../../../shared/guards/internal-api.guard';
 import {
+  SignupEligibilityQueryDto,
+  SignupEligibilityQuerySchema,
+} from '../../application/dtos/signup-eligibility.dto';
+import {
   ReserveSignupRegistrationDto,
   ReserveSignupRegistrationSchema,
 } from '../../application/dtos/reserve-signup-registration.dto';
@@ -30,9 +34,6 @@ import {
   ReserveSignupRegistrationUseCaseResult,
 } from '../../application/use-cases/reserve-signup-registration.use-case';
 import { mapBillingError } from '../http/billing-error.mapper';
-
-const EligibilityQuerySchema = z.object({ googleSub: z.string().trim().min(1).max(100) });
-type EligibilityQuery = z.infer<typeof EligibilityQuerySchema>;
 
 // Tenant-less by design: `/internal/*` skips the RequestInterceptor, and the registration exists
 // before the tenant does. Called by the BFF (self-signup) and `scripts/provision-tenant.sh`.
@@ -68,7 +69,7 @@ export class InternalBillingRegistrationController {
   // Read-only (UC-127): no lock and no insert, so a session read can never reserve anything.
   @Get('eligibility')
   eligibility(
-    @Query(new ZodValidationPipe(EligibilityQuerySchema)) query: EligibilityQuery,
+    @Query(new ZodValidationPipe(SignupEligibilityQuerySchema)) query: SignupEligibilityQueryDto,
   ): Promise<GetSignupEligibilityUseCaseResult> {
     return this.getEligibility.execute({ googleSub: query.googleSub }).catch(mapBillingError);
   }

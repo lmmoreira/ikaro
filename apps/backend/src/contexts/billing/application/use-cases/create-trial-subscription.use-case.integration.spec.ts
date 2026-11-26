@@ -33,9 +33,6 @@ import {
 import { SUBSCRIPTION_REPOSITORY } from '../ports/subscription-repository.port';
 import { CreateTrialSubscriptionUseCase } from './create-trial-subscription.use-case';
 
-// A fresh 11-digit tax id per test, so a run overlapping this one can never hold the same value.
-const newTaxId = (): string => uuidv7().replace(/\D/g, '').padEnd(11, '0').slice(0, 11);
-
 describe('CreateTrialSubscriptionUseCase (integration)', () => {
   let app: INestApplication;
   let ds: DataSource;
@@ -138,7 +135,7 @@ describe('CreateTrialSubscriptionUseCase (integration)', () => {
 
   it('turns a published TenantProvisioned into a trial, its items, the account and a completed registration', async () => {
     const tenantId = newTenant();
-    const cpf = newTaxId();
+    const cpf = newValidCpf();
     const registrationId = await seedRegistration(
       new SignupRegistrationEntityBuilder().withTaxId('CPF', cpf).build(),
     );
