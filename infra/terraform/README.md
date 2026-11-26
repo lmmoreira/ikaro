@@ -19,7 +19,7 @@ infra/terraform/
 │   ├── edge/              Global ALB + NEGs + Cloudflare — prod only (M17-S22)
 │   ├── monitoring/        dashboards, alerts, uptime checks          (M17-S35)
 │   └── relay-vm/          on-demand IAP relay VM, count-gated        (TD32; Foundation-owned, see below)
-│                          (optional `additional_scripts` map + `startup-script.sh.tftpl`; no Foundation root passes scripts yet, wiring carried to M26-S24; see `modules/relay-vm/README.md` and `docs/RUNBOOKS.md` § Staging)
+│                          (optional `additional_scripts` map + `startup-script.sh.tftpl`; no Foundation root passes scripts yet, wiring carried to M26-S39; see `modules/relay-vm/README.md` and `docs/RUNBOOKS.md` § Staging)
 ├── foundation/       # separately protected IAM/API control plane    (TD34)
 │   ├── modules/control-plane/       foundation identities, WIF, state IAM
 │   ├── modules/custom-roles/        custom IAM roles (e.g. planner read-only IAM-policy reader)
@@ -55,7 +55,7 @@ registry (prod only) ─────────────┘          │
                                              └──► monitoring
 ```
 
-Instantiation order for a fresh env follows the arrows left to right. `registry` and `edge` exist only in `envs/prod` (D8: single registry serving both envs; D5: staging has no LB). `relay-vm` (TD32) runs inside each environment's VPC but is composed and state-owned exclusively by the matching Foundation root. Its `create_relay_vm` toggle defaults to `false` and is changed only through a reviewed Foundation PR plus protected Foundation apply. The module also has an optional `additional_scripts` map (installed by `startup-script.sh.tftpl` next to `provision-tenant.sh`); no Foundation root passes scripts yet (the wiring is carried to M26-S24). See `modules/relay-vm/README.md` and `docs/RUNBOOKS.md` § Staging.
+Instantiation order for a fresh env follows the arrows left to right. `registry` and `edge` exist only in `envs/prod` (D8: single registry serving both envs; D5: staging has no LB). `relay-vm` (TD32) runs inside each environment's VPC but is composed and state-owned exclusively by the matching Foundation root. Its `create_relay_vm` toggle defaults to `false` and is changed only through a reviewed Foundation PR plus protected Foundation apply. The module also has an optional `additional_scripts` map (installed by `startup-script.sh.tftpl` next to `provision-tenant.sh`); no Foundation root passes scripts yet (the wiring is carried to M26-S39). See `modules/relay-vm/README.md` and `docs/RUNBOOKS.md` § Staging.
 
 **Not shown above — a separate, cross-root prerequisite, not a Terraform dependency edge:** `cloudrun-service` can only successfully *serve* once `foundation/modules/runtime-identities` has granted its service account access to every `secret_key_ref` it references. That grant lives in a different Terraform root/state (Foundation) and is never applied automatically by this env root's own apply — see `foundation/README.md` and the M19-S02 precedent in `.copilot/context.md`'s "Cross-layer deployment invariants" for what happens when a new secret's env-root wiring and its Foundation-side grant land out of order.
 
