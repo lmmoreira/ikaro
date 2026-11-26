@@ -316,6 +316,86 @@ describe('TenantSettingsController (integration)', () => {
     expect(body.status).toBe(400);
   });
 
+  // TD61: the timezone is set at provisioning and a manager can never change it (Billing keeps an
+  // immutable snapshot of it); only an operator corrects it, by runbook.
+  describe('timezone is immutable through the settings route', () => {
+    const storedTimezone = async (forTenantId: string): Promise<string> => {
+      const { body } = await request(app.getHttpServer())
+        .get('/tenants/settings')
+        .set('X-Tenant-ID', forTenantId)
+        .set('X-Actor-Role', 'MANAGER')
+        .expect(200);
+      return body.settings.businessHours.timezone as string;
+    };
+
+    const patchSettings = (forTenantId: string, settings: Record<string, unknown>) =>
+      request(app.getHttpServer())
+        .patch('/tenants/settings')
+        .set('X-Tenant-ID', forTenantId)
+        .set('X-Actor-Role', 'MANAGER')
+        .send({ settings });
+
+    it('returns 422 PLATFORM_TENANT_TIMEZONE_IMMUTABLE for a new timezone and stores nothing', async () => {
+      const { body } = await patchSettings(tenantId, {
+        businessHours: { timezone: 'America/Manaus' },
+        booking: { cancellationWindowHours: 12 },
+      }).expect(422);
+
+      expect(body).toMatchObject({
+        status: 422,
+        code: 'PLATFORM_TENANT_TIMEZONE_IMMUTABLE',
+        field: 'settings.businessHours.timezone',
+      });
+      expect(await storedTimezone(tenantId)).toBe('America/Sao_Paulo');
+
+      const { body: after } = await request(app.getHttpServer())
+        .get('/tenants/settings')
+        .set('X-Tenant-ID', tenantId)
+        .set('X-Actor-Role', 'MANAGER')
+        .expect(200);
+      expect(after.settings.booking.cancellationWindowHours).not.toBe(12);
+    });
+
+    it('accepts the stored timezone restated with another change, and a body that omits it', async () => {
+      const restated = await patchSettings(tenantId, {
+        businessHours: { timezone: 'America/Sao_Paulo' },
+        booking: { serviceBufferMinutes: 10 },
+      }).expect(200);
+      expect(restated.body.settings.booking.serviceBufferMinutes).toBe(10);
+
+      const omitted = await patchSettings(tenantId, {
+        loyalty: { expiryDays: 200 },
+      }).expect(200);
+      expect(omitted.body.settings.businessHours.timezone).toBe('America/Sao_Paulo');
+    });
+
+    it("never touches another tenant's timezone, and the other tenant still saves", async () => {
+      const { body: other } = await request(app.getHttpServer())
+        .post('/internal/tenants')
+        .set('X-Platform-Admin-Key', TEST_KEY)
+        .send({
+          name: 'Manaus Timezone Test',
+          slug: 'manaus-timezone-integ-01',
+          adminEmail: 'manaus-timezone@test.com.br',
+          country_code: 'BR',
+          timezone: 'America/Manaus',
+          registrationId: TEST_REGISTRATION_ID,
+        })
+        .expect(201);
+      const otherTenantId = other.tenantId as string;
+
+      await patchSettings(tenantId, { businessHours: { timezone: 'America/Manaus' } }).expect(422);
+      await patchSettings(otherTenantId, {
+        businessHours: { timezone: 'America/Sao_Paulo' },
+      }).expect(422);
+
+      expect(await storedTimezone(tenantId)).toBe('America/Sao_Paulo');
+      expect(await storedTimezone(otherTenantId)).toBe('America/Manaus');
+
+      await patchSettings(otherTenantId, { loyalty: { expiryDays: 77 } }).expect(200);
+    });
+  });
+
   it('returns 200 and persists a businessInfo update with address', async () => {
     const { body } = await request(app.getHttpServer())
       .patch('/tenants/settings')

@@ -16,6 +16,7 @@ import {
   TenantNotFoundError,
   TenantSettingsValidationError,
   TenantSlugInvalidError,
+  TenantTimezoneImmutableError,
 } from './platform-domain.error';
 
 describe('PlatformDomainError (base class)', () => {
@@ -57,6 +58,14 @@ describe('TenantNotFoundError', () => {
 describe('TenantInactiveError', () => {
   it('carries PLATFORM_TENANT_INACTIVE', () => {
     expect(new TenantInactiveError('tenant-1').code).toBe(PlatformErrorCode.TENANT_INACTIVE);
+  });
+});
+
+describe('TenantTimezoneImmutableError', () => {
+  it('carries PLATFORM_TENANT_TIMEZONE_IMMUTABLE and names the settings field', () => {
+    const error = new TenantTimezoneImmutableError('tenant-1');
+    expect(error.code).toBe(PlatformErrorCode.TENANT_TIMEZONE_IMMUTABLE);
+    expect(error.field).toBe('settings.businessHours.timezone');
   });
 });
 

@@ -121,6 +121,25 @@ describe('TenantSettingsController', () => {
     }
   });
 
+  it('maps TenantTimezoneImmutableError to 422 HttpException', async () => {
+    const tenant = new TenantBuilder().withSlug('ctrl-settings-tz-01').build();
+    await tenantRepo.save(tenant);
+    tenantContext.tenantId = tenant.id;
+
+    expect.assertions(3);
+    try {
+      await controller.updateSettings({
+        settings: { businessHours: { timezone: 'America/Manaus' } },
+      });
+    } catch (err) {
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+      expect((err as HttpException).getResponse()).toMatchObject({
+        code: 'PLATFORM_TENANT_TIMEZONE_IMMUTABLE',
+      });
+    }
+  });
+
   it('maps TenantInactiveError to 409 HttpException', async () => {
     const tenant = new TenantBuilder().withSlug('ctrl-settings-04').build();
     tenant.deactivate();

@@ -2513,7 +2513,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
       - **Janela de cancelamento** (horas) — default 48 h
       - **Validade dos pontos de fidelidade** (dias) — default 180 d
       - **Horário de funcionamento** — days of week + open/close times
-      - **Fuso horário** — required; default `America/Sao_Paulo`
+      - **Fuso horário** — set at signup (default `America/Sao_Paulo`) and **never changed by a manager**: the backend refuses a different value (A4)
       - **Buffer entre agendamentos** (minutos) — prep time between bookings, default 60
       - **Endereço, telefone e e-mail do estabelecimento** — `settings.businessInfo` (M12-S06); all optional. Shown on the hotsite `CONTACT` module when its `showAddress`/`showPhone`/`showEmail`/`showMap` flags are enabled (`docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § CONTACT, `docs/TENANTS_SETTINGS_SCHEMA.md` §6)
       - **Conhecimento do assistente (chatbot)** — `settings.chatbot.knowledgeText` (`docs/TENANTS_SETTINGS_SCHEMA.md` §7); free-form textarea (policies, FAQ, tone notes), max 4000 characters (`maxKnowledgeTextLength`, a fixed platform default, not shown in this form — see below). Read by UC-033's system-prompt assembly alongside live services/prices. The other `settings.chatbot` fields (the 8 volume/cost caps, `llmProvider`/`llmModel`) are deliberately **not** in this form — fixed platform defaults for MVP, resolved `tenant override ?? platform default` at read time, only ever set by a developer directly on a specific tenant's row when Ikaro grants an explicit override (see `docs/TENANTS_SETTINGS_SCHEMA.md` §7 for the full rationale)
@@ -2528,6 +2528,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
    - **A1: Invalid field value** → System highlights the specific field with an error message and prevents save.
    - **A2: Slug change attempted** → Slug field is read-only; system ignores any manipulation attempt.
    - **A3: Rename fails after settings already saved** → Since settings-save and rename are two independent calls, the system distinguishes this partial-failure case in its error messaging rather than showing one generic error that would incorrectly imply nothing was saved.
+   - **A4: Timezone change attempted** → `422 PLATFORM_TENANT_TIMEZONE_IMMUTABLE`, nothing saved. The timezone is set once at provisioning because Billing keeps an immutable snapshot of it; only an operator corrects it, by runbook, updating the tenant and the subscription together (TD61).
 
 - **Postconditions:** `tenants` row updated. New settings apply to all future operations (bookings, loyalty) for this tenant.
 - **Events Triggered:** None (settings are read fresh on each request)

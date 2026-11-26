@@ -84,7 +84,7 @@ Content-Type: application/json
 
 ###
 
-### Update business hours (close Sunday, change timezone)
+### Update business hours (close Sunday; the timezone is set at signup and cannot be changed)
 PATCH {{bffUrl}}/v1/tenants/settings
 Authorization: Bearer {{managerToken}}
 Content-Type: application/json
@@ -92,7 +92,6 @@ Content-Type: application/json
 {
   "settings": {
     "businessHours": {
-      "timezone": "America/Manaus",
       "sunday": null
     }
   }
@@ -166,6 +165,18 @@ Content-Type: application/json
 
 {
   "settings": { "notACategory": { "foo": "bar" } }
+}
+
+###
+
+### 422 — Timezone change refused (PLATFORM_TENANT_TIMEZONE_IMMUTABLE, forwarded from the backend; TD61)
+# Assumes the tenant's stored timezone is not America/Manaus (the seeded tenant is America/Sao_Paulo).
+PATCH {{bffUrl}}/v1/tenants/settings
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "settings": { "businessHours": { "timezone": "America/Manaus" } }
 }
 
 ###

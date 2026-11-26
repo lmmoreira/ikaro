@@ -1,6 +1,6 @@
 import { HttpException, INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { TenantSettingsResponse } from '@ikaro/types';
+import { buildProblemDetail, TenantSettingsResponse } from '@ikaro/types';
 import {
   MockBackendHttpService,
   MockHttpService,
@@ -192,6 +192,33 @@ describe('TenantSettingsController (component)', () => {
 
       expect(getRes.status).toBe(200);
       expect(getRes.body.settings.loyalty.expiryDays).toBe(365);
+    });
+
+    // TD61: the backend refuses a changed timezone; the BFF carries no check of its own and
+    // forwards the backend's typed problem unchanged (status, code and field).
+    it('PATCH /v1/tenants/settings → 422 PLATFORM_TENANT_TIMEZONE_IMMUTABLE is forwarded unchanged', async () => {
+      setupActiveGuardMock(httpService);
+      // The shape the backend sends (`throwProblemDetail`): a full RFC 9457 body, which the BFF's
+      // backend client rethrows as-is. A body without `type`/`title` is not a problem detail and
+      // the error filter would normalise it, dropping the code.
+      const problem = buildProblemDetail(
+        422,
+        'PLATFORM_TENANT_TIMEZONE_IMMUTABLE',
+        "Tenant 'tenant-1' timezone is set at signup and cannot be changed",
+        'settings.businessHours.timezone',
+      );
+      backendHttpService.patch.mockRejectedValueOnce(new HttpException(problem, 422));
+
+      const res = await request(app.getHttpServer())
+        .patch('/v1/tenants/settings')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
+        .send({ settings: { businessHours: { timezone: 'America/Manaus' } } });
+
+      expect(res.status).toBe(422);
+      expect(res.body).toMatchObject(problem);
+      expect(backendHttpService.patch).toHaveBeenCalledWith('/tenants/settings', {
+        settings: { businessHours: { timezone: 'America/Manaus' } },
+      });
     });
 
     it('PATCH /v1/tenants/settings → 400 for an empty settings object', async () => {

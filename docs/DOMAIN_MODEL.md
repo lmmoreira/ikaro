@@ -1754,7 +1754,7 @@ Subscription {
   suspensionReason:  'NON_PAYMENT' | 'CANCELED' | 'PAYMENT_REVERSED' | 'OPERATOR' | null   -- non-null iff SUSPENDED
   countryCode:       CountryCode       -- fixed at start
   currency:          'BRL' | 'USD'     -- fixed at start (BR -> BRL, US -> USD)
-  timezone:          IANA zone         -- snapshot of the tenant timezone, IMMUTABLE; every period boundary is local midnight in it; the BOOKING cap date (`bookableUntil`) is derived in it, so it can drift from the tenant's current zone (TD61)
+  timezone:          IANA zone         -- snapshot of the tenant timezone, IMMUTABLE; every period boundary is local midnight in it; the BOOKING cap date (`bookableUntil`) is derived in it; the tenant's zone never changes (`Tenant.updateSettings` refuses a change, TD61), so the two always agree
   merchantProfileKey: String           -- immutable key of the selling entity / provider account (BRL_FAKE, BRL_ASAAS_SANDBOX, live keys in production only)
   cycle:             'MONTHLY'         -- 'ANNUAL' in slice H; applies to the whole subscription
   anchorDay:         1..28             -- day-of-month the renewals land on (29-31 clamped to 28)

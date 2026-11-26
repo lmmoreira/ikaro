@@ -9,6 +9,7 @@ import {
   PlatformDomainError,
   TenantInactiveError,
   TenantNotFoundError,
+  TenantTimezoneImmutableError,
 } from '../../domain/errors/platform-domain.error';
 import { TenantSettings } from '../../domain/value-objects/tenant-settings.vo';
 import { UpdateTenantSettingsUseCase } from './update-tenant-settings.use-case';
@@ -88,17 +89,55 @@ describe('UpdateTenantSettingsUseCase', () => {
     },
   );
 
-  it('updates businessHours timezone and keeps existing day hours', async () => {
+  it('updates one day of businessHours, keeps the others and keeps the timezone', async () => {
     const tenant = new TenantBuilder().build();
     await tenantRepo.save(tenant);
 
     const result = await useCase.execute({
       tenantId: tenant.id,
-      settings: { businessHours: { timezone: 'America/Manaus' } },
+      settings: { businessHours: { tuesday: { open: '10:00', close: '16:00' } } },
     });
 
-    expect(result.settings.businessHours.timezone).toBe('America/Manaus');
+    expect(result.settings.businessHours.timezone).toBe('America/Sao_Paulo');
     expect(result.settings.businessHours.monday).toEqual({ open: '09:00', close: '18:00' });
+    expect(result.settings.businessHours.tuesday).toEqual({ open: '10:00', close: '16:00' });
+  });
+
+  it('accepts a body that restates the stored timezone alongside other changes', async () => {
+    const tenant = new TenantBuilder().build();
+    await tenantRepo.save(tenant);
+
+    const result = await useCase.execute({
+      tenantId: tenant.id,
+      settings: {
+        businessHours: { timezone: 'America/Sao_Paulo' },
+        booking: { cancellationWindowHours: 24 },
+      },
+    });
+
+    expect(result.settings.businessHours.timezone).toBe('America/Sao_Paulo');
+    expect(result.settings.booking.cancellationWindowHours).toBe(24);
+  });
+
+  // Negative guarantee (TD61): the timezone is set at provisioning and no settings path changes it.
+  // Billing keeps an immutable snapshot of it, so a manager's edit would drift every Billing date.
+  it('refuses a changed timezone with TenantTimezoneImmutableError and stores nothing', async () => {
+    const tenant = new TenantBuilder().build();
+    await tenantRepo.save(tenant);
+
+    await expect(
+      useCase.execute({
+        tenantId: tenant.id,
+        settings: {
+          businessHours: { timezone: 'America/Manaus' },
+          booking: { cancellationWindowHours: 24 },
+        },
+      }),
+    ).rejects.toThrow(TenantTimezoneImmutableError);
+
+    const reloaded = await tenantRepo.findById(tenant.id);
+    expect(reloaded?.settings.businessHours.timezone).toBe('America/Sao_Paulo');
+    expect(reloaded?.settings.booking.cancellationWindowHours).toBe(48);
   });
 
   it('closes a day by setting it to null', async () => {
