@@ -36,7 +36,6 @@ import {
 } from '../ports/future-commitment-exception-repository.port';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import { BookableUntilGuard } from '../services/bookable-until.guard';
-import { commitmentEnd } from './bookable-until.helpers';
 import { ApproveBookingDto } from '../dtos/approve-booking.dto';
 import {
   dismissStaleExceptionsAfterMove,
@@ -167,9 +166,9 @@ export class ApproveBookingUseCase {
   ): Promise<void> {
     // A time equal to the booking's own start moves nothing: it is not a new commitment.
     if (scheduledAt.getTime() === booking.scheduledAt.getTime()) return;
-    await this.bookableUntilGuard.assertEndsWithin(
+    await this.bookableUntilGuard.assertCommitmentEndsWithin(
       input.tenantId,
-      commitmentEnd(scheduledAt, booking.totalDurationMins),
+      { startsAt: scheduledAt, durationMins: booking.totalDurationMins },
       input.timezone,
     );
   }

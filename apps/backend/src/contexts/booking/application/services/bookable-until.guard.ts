@@ -7,7 +7,7 @@ import {
   TENANT_ACCESS_PORT,
   type TenantAccessPort,
 } from '../../../../shared/ports/tenant-access.port';
-import { assertEndsWithinBookableUntil } from '../use-cases/bookable-until.helpers';
+import { assertEndsWithinBookableUntil, commitmentEnd } from '../use-cases/bookable-until.helpers';
 
 /**
  * The one place a Booking path takes the bookable-until lock (docs/LOCK_CATALOG.md B-U1, M26-S18b).
@@ -29,9 +29,21 @@ export class BookableUntilGuard {
     return this.access.getBookableUntil(tenantId);
   }
 
-  /** `acquire`, then refuses a single commitment whose end is past the cap. */
-  async assertEndsWithin(tenantId: string, endsAt: Date, timezone: string): Promise<void> {
+  /**
+   * `acquire`, then refuses one commitment that starts at `startsAt` and runs `durationMins`
+   * minutes when its end is past the cap. The end is derived here, once, so a path that creates or
+   * moves a booking never re-implements what a commitment's end is.
+   */
+  async assertCommitmentEndsWithin(
+    tenantId: string,
+    commitment: { startsAt: Date; durationMins: number },
+    timezone: string,
+  ): Promise<void> {
     const bookableUntil = await this.acquire(tenantId);
-    assertEndsWithinBookableUntil(endsAt, bookableUntil, timezone);
+    assertEndsWithinBookableUntil(
+      commitmentEnd(commitment.startsAt, commitment.durationMins),
+      bookableUntil,
+      timezone,
+    );
   }
 }

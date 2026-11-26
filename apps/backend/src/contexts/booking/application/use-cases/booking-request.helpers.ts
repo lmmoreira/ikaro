@@ -24,7 +24,6 @@ import { IServiceRepository } from '../ports/service-repository.port';
 import { IServiceIntakeSchemaRepository } from '../ports/service-intake-schema-repository.port';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import { BookableUntilGuard } from '../services/bookable-until.guard';
-import { commitmentEnd } from './bookable-until.helpers';
 import { BookingQuoteService } from '../services/booking-quote.service';
 import {
   BookingIntakeValidationService,
@@ -294,9 +293,9 @@ export async function persistRequestedBooking(
   return deps.txManager.run(async () => {
     // The bookable-until lock is the first lock of the transaction (docs/LOCK_CATALOG.md B-U1, L-1):
     // a plan save that removes BOOKING is ordered against this booking, and the cap is read after.
-    await deps.bookableUntilGuard.assertEndsWithin(
+    await deps.bookableUntilGuard.assertCommitmentEndsWithin(
       tenantId,
-      commitmentEnd(params.scheduledAt, booking.totalDurationMins),
+      { startsAt: params.scheduledAt, durationMins: booking.totalDurationMins },
       params.timezone,
     );
     // Service rows before resource locks: the recurring request takes them in this order, so the

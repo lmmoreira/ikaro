@@ -66,24 +66,51 @@ describe('BookableUntilGuard', () => {
     });
   });
 
-  describe('assertEndsWithin', () => {
-    it('refuses an end after the boundary with BOOKING_TOO_FAR_AHEAD', async () => {
+  describe('assertCommitmentEndsWithin', () => {
+    const endingAt = (end: Date, durationMins: number) => ({
+      startsAt: new Date(end.getTime() - durationMins * 60_000),
+      durationMins,
+    });
+
+    it('refuses a commitment whose end is one minute after the boundary with BOOKING_TOO_FAR_AHEAD', async () => {
       seedCap(TENANT, '2026-12-15');
 
       await expect(
-        guard.assertEndsWithin(TENANT, new Date(BOUNDARY.getTime() + 60_000), TIMEZONE),
+        guard.assertCommitmentEndsWithin(
+          TENANT,
+          endingAt(new Date(BOUNDARY.getTime() + 60_000), 60),
+          TIMEZONE,
+        ),
       ).rejects.toBeInstanceOf(BookingTooFarAheadError);
     });
 
-    it('accepts an end exactly at the boundary', async () => {
+    it('accepts a commitment whose end is exactly the boundary', async () => {
       seedCap(TENANT, '2026-12-15');
 
-      await expect(guard.assertEndsWithin(TENANT, BOUNDARY, TIMEZONE)).resolves.toBeUndefined();
+      await expect(
+        guard.assertCommitmentEndsWithin(TENANT, endingAt(BOUNDARY, 60), TIMEZONE),
+      ).resolves.toBeUndefined();
+    });
+
+    it('derives the end from the duration: a start before the boundary that runs past it is refused', async () => {
+      seedCap(TENANT, '2026-12-15');
+      const startsAt = new Date(BOUNDARY.getTime() - 30 * 60_000);
+
+      await expect(
+        guard.assertCommitmentEndsWithin(TENANT, { startsAt, durationMins: 30 }, TIMEZONE),
+      ).resolves.toBeUndefined();
+      await expect(
+        guard.assertCommitmentEndsWithin(TENANT, { startsAt, durationMins: 31 }, TIMEZONE),
+      ).rejects.toBeInstanceOf(BookingTooFarAheadError);
     });
 
     it('accepts anything without a cap, and still takes the lock', async () => {
       await expect(
-        guard.assertEndsWithin(TENANT, new Date('2030-01-01T00:00:00Z'), TIMEZONE),
+        guard.assertCommitmentEndsWithin(
+          TENANT,
+          { startsAt: new Date('2030-01-01T00:00:00Z'), durationMins: 600 },
+          TIMEZONE,
+        ),
       ).resolves.toBeUndefined();
 
       expect(lock.calls).toEqual([{ mode: 'shared', tenantId: TENANT }]);
@@ -93,7 +120,11 @@ describe('BookableUntilGuard', () => {
       seedCap(TENANT, '2026-12-15');
 
       await guard
-        .assertEndsWithin(TENANT, new Date('2030-01-01T00:00:00Z'), TIMEZONE)
+        .assertCommitmentEndsWithin(
+          TENANT,
+          { startsAt: new Date('2030-01-01T00:00:00Z'), durationMins: 60 },
+          TIMEZONE,
+        )
         .catch(() => undefined);
 
       expect(lock.calls).toHaveLength(1);
