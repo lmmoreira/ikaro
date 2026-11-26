@@ -28,7 +28,7 @@ The invariant that keeps Billing's snapshot correct is documented but not enforc
 
 1. **Enforce the invariant in Platform's aggregate.** `Tenant.updateSettings()` refuses a settings object whose `businessHours.timezone` differs from the current one, with a typed domain error (`PLATFORM_TENANT_TIMEZONE_IMMUTABLE`, a `422` through the existing error mapper) and both locale messages. Every path that updates settings goes through the aggregate, so none can bypass it.
 2. **Show it read-only in the dashboard** after signup, with a short explanation that an operator corrects it.
-3. **The operator correction is a documented runbook, not a feature.** An operator changes the tenant's `businessHours.timezone` and the subscription's `timezone` **together** in one reviewed action (the runbook gives the exact statements, the tenant read-cache eviction and the pre-checks: the tenant should still be in its trial, with no invoice issued, so nothing has to be re-anchored). It is expected to be rare. If it ever stops being rare, `/create-story` adds an operator endpoint that updates both through an event, and that is the point to revisit.
+3. **The operator correction is a documented runbook, not a feature.** An operator changes four things **together** in one reviewed transaction: the tenant's `settings.businessHours.timezone`, `billing.subscriptions.timezone`, `trial_ends_at` (an instant: the old zone's local midnight, so it is recomputed from `next_due_date` in the new zone; `next_due_date` and `anchor_day` are local dates and stay) and the `subscription_items` rows that start at the old `trial_ends_at`. Changing only the two timezone values would leave `trial_ends_at` on the wrong local day. The pre-checks (decided at Story 1 discovery, 2026-11-26): the subscription is `TRIALING`, the tenant has no `billing.charges` row, and no bookings, availability alerts or schedule closures (data written under the old zone keeps its old local meaning); otherwise stop and decide with the owner. There is no cache eviction an operator can run: the tenant read cache is in-process with a 60 s TTL (`CachingTenantRepository`), so the runbook says to wait about 60 s after the commit (the hotsite and booking manifests lag up to 300 s). It is expected to be rare. If it ever stops being rare, `/create-story` adds an operator endpoint that updates both through an event, and that is the point to revisit.
 4. **Record the invariant once** in `docs/TENANTS_SETTINGS_SCHEMA.md` and remove the "can drift" notes S18b added (`docs/BUSINESS_LOGIC_REFERENCE.md` § The billing `bookableUntil` cap, `docs/TENANTS_SETTINGS_SCHEMA.md`, `docs/DOMAIN_MODEL.md`).
 
 **Rejected:** a Platform event plus a Billing consumer that re-points the subscription's timezone (reverses decision 47, needs a new Pub/Sub topic and subscription, the playbook's Foundation rollout and a policy for dates and charges already computed, for a case the product says never happens); carrying the cap as an instant (fixes the cap only, and leaves the invariant unenforced for every future cross-context date); deriving Billing dates in the tenant's zone at read time (Billing would read Platform settings on every money-date computation, against decision 47).
@@ -102,33 +102,46 @@ The invariant that keeps Billing's snapshot correct is documented but not enforc
 **Complexity:** S
 **Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md` § UI layer model and § Reuse the repo's UI primitives, `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, `journeys/manager/configuracoes.md`, `journeys/manager/prototypes/configuracoes/dev-notes.md`, `docs/RUNBOOKS.md`
 **Dependencies:** TD61 Story 0
-**Pattern:** plain composition: the existing settings section renders the value as read-only text (or a disabled field using the existing primitive) instead of the select; no new component.
+**Pattern:** plain composition: `SettingsHoursSection` renders the stored zone with the existing `ReadOnlyField` (the precedent is `SettingsLocalizationSection`'s country code, currency and language) instead of the select; no new component. The timezone leaves the form's state, validation and save request entirely: it is optional in `BusinessHoursSettingsSchema` and the backend's deep merge keeps the stored value, so a read-only value can never block a save (a disabled select that stayed in the validated state would lock every save for a tenant an operator corrected to a zone outside the country's list).
 **Prototype references:** `journeys/manager/prototypes/configuracoes/` (`01-settings-form.html`, `dev-notes.md` § timezone); the journey `journeys/manager/configuracoes.md` and the prototype note change in the same commit (CLAUDE.md §15's light-sync rule applies: a one-sentence factual sync of an existing journey file needs only the normal doc-gate yes).
 
 **Description:**
-`SettingsHoursSection` shows the timezone as read-only text with a short helper line ("O fuso horário é definido no cadastro. Para corrigi-lo, fale com o suporte.") instead of the enabled select; the form no longer sends a changed timezone, and a stale client that does gets Story 0's typed error mapped to its locale message. `docs/RUNBOOKS.md` gains an entry, **Correct a tenant's timezone (operator)**: the pre-checks (the tenant is still in its trial and has no issued invoice, otherwise stop and decide with the owner), the two statements that change the tenant's `settings.businessHours.timezone` and `billing.subscriptions.timezone` together in one transaction, the tenant read-cache eviction (or the TTL to wait), and the verification query.
+`SettingsHoursSection` shows the stored timezone through `ReadOnlyField` (`data-testid="settings-timezone"`) with a short hint line instead of the enabled select. The section takes the stored zone as a prop from the loaded settings (`initial.settings.businessHours.timezone`); the form's values, validation (`timezones.includes(...)`) and save request no longer carry a timezone, so `businessHours` is sent with the day hours only. A stale client that still sends one gets Story 0's typed error (`field: settings.businessHours.timezone`, not in `SERVER_FIELD_TO_FORM_FIELD`), which falls through to `setFromApiError` and shows its locale message in the action pane. `docs/RUNBOOKS.md` gains a section, **Correct a tenant's timezone (operator)**: the read-only drift count (tenants whose `settings.businessHours.timezone` differs from `billing.subscriptions.timezone`, one cross-schema `SELECT` run by an operator), the pre-checks (see "Chosen approach" item 3), the statements that change the four things together in one transaction, the 60 s wait, and the verification query.
 
-**New migration / i18n keys / env vars / feature flags:** the helper line's two keys in `packages/i18n/locales/{pt-BR,en}/web.json`.
+**Decided at `/story-discovery` (2026-11-26):**
+- Form: option B, `ReadOnlyField` and the timezone removed from the form's state, validation and payload (not a disabled select).
+- Copy: label pt-BR "Fuso horário" / en "Timezone" (no required `*`); hint pt-BR "O fuso horário é definido no cadastro. Para corrigi-lo, fale com o suporte." / en "The timezone is set at signup. Contact support to correct it."; `actionHint` pt-BR "As configurações afetam novos agendamentos. Horários de funcionamento entram em vigor imediatamente." / en "Settings affect new bookings. Business hours take effect immediately." The `errors.timezoneInvalid` key is removed from both locales; `timezoneBrasilia` stays (the display label of the zone).
+- Runbook pre-check is strict (see "Chosen approach" item 3); correcting a tenant that already has bookings, alerts or closures is not supported by the runbook.
+- The runbook SQL is executed against the local E2E stack (`pnpm infra:e2e`, worktree only, `pnpm infra:e2e:down` after) as the story's live check, and the result is noted in the PR body. The drift count against staging and production needs database access the agent does not have: it is the runbook's own first step, run by the operator after the merge, and does not gate the PR.
+- `resolveSettingsLocalization().timezones` has no other web consumer, so it is dropped from `SettingsLocalization` (nothing exported without a consumer).
+- E2E: one `test.step` in the existing "loads the settings page pre-filled" test asserts the zone is shown and `settings-timezone-select` is absent. Saving another field is already proven by the existing "edits fields across sections" test, and the `afterEach` restore sends the unchanged zone, so the guard does not affect it.
+- Prototype pages `01`, `01b`, `01c` and `01d` draw the select and the old `actionHint`; they, `dev-notes.md`, `index.html` and the journey line are factual syncs in the same commit (no new journey or prototype, so no `/docs-audit` baseline).
+
+**New migration / i18n keys / env vars / feature flags:** `dashboard.settingsPage.timezoneHint` added, `timezoneLabel` and `actionHint` reworded, `errors.timezoneInvalid` removed, in `packages/i18n/locales/{pt-BR,en}/web.json`; no migration, env var or flag.
 
 **Files to create/modify:**
-- `apps/web/features/platform/components/settings/SettingsHoursSection.tsx` (+ `.spec.tsx`) (modify)
-- `apps/web/features/platform/components/settings/SettingsForm.tsx` (+ spec) (modify)
-- `apps/web/features/platform/settings-form-validation.ts`, `settings-form.ts` (+ specs) (modify, only if the timezone leaves the editable field set)
+- `apps/web/features/platform/components/settings/SettingsHoursSection.tsx` (+ `.spec.tsx`) (modify: `ReadOnlyField` and a `timezone` display prop; no `timezones`, no change handler)
+- `apps/web/features/platform/components/settings/SettingsForm.tsx` (+ spec) (modify: pass the stored zone, drop the timezone setter)
+- `apps/web/features/platform/settings-form-types.ts`, `settings-form.ts`, `settings-form-shared.ts`, `settings-form-validation.ts`, `settings-form-localization.ts` (+ `settings-form.spec.ts`) (modify: the timezone leaves the values, the errors, `buildBusinessHours`, the validation and `SettingsLocalization`; the three timezone-validation cases are removed)
 - `packages/i18n/locales/en/web.json`, `packages/i18n/locales/pt-BR/web.json` (modify)
-- `journeys/manager/configuracoes.md`, `journeys/manager/prototypes/configuracoes/dev-notes.md`, `journeys/manager/prototypes/configuracoes/01-settings-form.html` (modify)
-- `docs/RUNBOOKS.md` (modify — the operator correction)
-- the settings E2E spec (modify: a `test.step` in the existing settings flow, no new test)
+- `journeys/manager/configuracoes.md` (line 46), `journeys/manager/prototypes/configuracoes/dev-notes.md` (the field list and the validation row), `index.html` (line 88), `01-settings-form.html`, `01b-validation-error.html`, `01c-saved-success.html`, `01d-chatbot-section.html` (modify: factual sync of the select and the `actionHint`)
+- `docs/RUNBOOKS.md` (modify: new `## Correct a tenant's timezone (operator)` section before "Billing (planned)")
+- `docs/TENANTS_SETTINGS_SCHEMA.md` (lines 139 and 142), `docs/BUSINESS_LOGIC_REFERENCE.md` (line 287) (modify: point at the runbook instead of "written by / tracked in TD61 Story 1"); stale-reference sweep of `docs/*.md` for the same wording
+- the settings E2E spec `apps/web/e2e/settings.spec.ts` (modify: a `test.step` in "loads the settings page pre-filled", no new test)
 
 **Acceptance criteria — product:**
 - [ ] A manager sees the business timezone as read-only text with the explanation, and cannot change it; every other settings field still saves.
-- [ ] An operator has a documented, reviewed way to correct a wrong timezone that updates the tenant and the subscription together.
+- [ ] An operator has a documented, reviewed way to correct a wrong timezone that updates the tenant, the subscription, the trial end and its items together, and that refuses (tells the operator to stop) a tenant that is past its trial or already has bookings, alerts or closures.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] the section renders the timezone as read-only (no `select`), with the helper text in both locales
-  - [ ] the form's payload carries the unchanged timezone and no edit control exists for it
+  - [ ] the section renders the stored timezone through `ReadOnlyField` (`data-testid="settings-timezone"`, no `select`), with the hint text in both locales
+  - [ ] the form's values carry no timezone and the save request's `businessHours` has no `timezone` key; the timezone-validation cases are gone and a tenant whose stored zone is outside the country's list can still save
+  - [ ] a stale `422 PLATFORM_TENANT_TIMEZONE_IMMUTABLE` from the save shows its locale message in the action pane
 - E2E:
-  - [ ] a `test.step` in the existing settings journey: the timezone is displayed and not editable, and saving another field succeeds
+  - [ ] a `test.step` in the existing "loads the settings page pre-filled" test: the zone is displayed and `settings-timezone-select` is absent (saving another field is already covered by the existing edit test)
+- Runbook live check:
+  - [ ] the runbook's statements are executed against the local E2E stack's real schema on a freshly provisioned tenant (zone changed, `trial_ends_at` and the item `starts_at` moved, the verification query returns zero differences); the result is noted in the PR body
 - [ ] Negative guarantee pinned: the timezone control is absent (a unit test asserting no element with `data-testid="settings-timezone-select"`)
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean, `pnpm architecture-check` clean
