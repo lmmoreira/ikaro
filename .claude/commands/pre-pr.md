@@ -200,6 +200,8 @@ Wait for all invocations to complete before continuing. Any FAIL from bad-smell-
 
 **Before starting, check the machine.** Run `free -m` and `pgrep -af '^git push|jest'`: another session's push hook or test run alongside this one has made earlyoom SIGTERM jest workers (a failed hook with every test green, M26-S22), and Claude Code kills a background run when memory is critically low. Start only with about 6 GB free and nothing else running, run the two suites below one at a time, and if one was killed for memory, restart it only once the machine is quiet. A SIGTERM is never a code failure and never a reason for `--no-verify`.
 
+**Run the whole backend suite in four shards when memory is tight.** One jest process over all the suites outgrows the host and `earlyoom` kills it (and sometimes the Postgres container, after which every later suite fails with `ECONNREFUSED`). Put a loop in a script file and run it with `run_in_background: true`: for `i` in 1..4, `NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=4096" npx jest --selectProjects integration --maxWorkers=1 --shard=$i/4 > <scratchpad>/be-integration-shard$i.log`, then read each log's `Test Suites:` and `Tests:` lines. The shards are the same suite, so the "run all" decision above still holds. `docs/CI_TRAPS.md` has the symptoms of a killed run.
+
 **Choose the backend scope from the diff, not by habit.** `jest --findRelatedTests` selects the integration specs that import a changed file, directly or through other files, so the dependency graph does the picking and no list is written by hand. Count first, run nothing:
 
 ```bash

@@ -28,6 +28,8 @@ A TD reasoning from a stale claim about "what the code does today" produces a wr
 
 A claim that something is **unenforced, missing or absent** needs a grep of every place it could be enforced, not only the obvious one: `packages/architecture-check/`, the `eslint.config.js` files, `scripts/` (`pre-pr.sh`), `.claude/commands/` (the audit checks) and `.github/workflows/`. Two TD58 stories shipped a wrong premise this way: container widths that no page sets, and "no enforcement" for a rule that `pre-pr.sh` check 27 already enforced.
 
+A remediation that **reverses current behaviour** must also be checked against the **documented decisions** that made it so, not only the code: grep `docs/discovery/**` (decision lists) and the aggregate's own section in `docs/DOMAIN_MODEL.md` for the field's invariants (`immutable`, `snapshot`, `never reads`, `by design`) before drafting. TD61's first draft proposed making Billing's timezone follow the tenant's, and decision 47 plus `docs/DOMAIN_MODEL.md` both documented that field as immutable on purpose, which made a much smaller option (carry an instant) the better fix; the user found the miss only after the TD was written. If a decision is in the way, the TD lists it, puts the alternatives side by side and leaves the choice to discovery.
+
 Also check whether this problem is already tracked: grep `td/*.md` and `docs/ANTI_PATTERNS.md` for the same issue under a different name before creating a duplicate.
 
 ---
