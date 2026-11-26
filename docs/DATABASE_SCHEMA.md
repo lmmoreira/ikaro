@@ -1337,7 +1337,7 @@ A separate aggregate from `subscriptions` (different actor, different reasons to
 | anchor_day | SMALLINT | NOT NULL CHECK (1..28) — avoids the 29–31 problem |
 | anchor_month | SMALLINT | *slice H* — NULLABLE CHECK (1..12), the renewal month of an annual subscription |
 | next_cycle / next_cycle_from | VARCHAR(10) / DATE | *slice H* — a cycle switch scheduled by the manager, applied at the next paid period start |
-| trial_ends_at | TIMESTAMP WITH TIME ZONE | NULLABLE — the tenant-local midnight closing day 14 |
+| trial_ends_at | TIMESTAMP WITH TIME ZONE | NULLABLE — the tenant-local midnight closing day 14. An **instant** in `timezone`: a timezone correction recomputes it from `next_due_date`, together with the trial's item rows that start at it (`docs/RUNBOOKS.md` § Correct a tenant's timezone (operator)) |
 | current_period_start / current_period_end | TIMESTAMP WITH TIME ZONE | NULLABLE — NULL while `TRIALING` until the first charge is paid and the sweep turns it `ACTIVE`; set at payment of a recovery charge |
 | next_due_date | DATE | NULLABLE — tenant-local due date of the **next period still to be issued**; advanced by one cycle in the same transaction that inserts the `PERIOD` charge for it; a recovery payment sets it to the day after the new period's end |
 | past_due_since | TIMESTAMP WITH TIME ZONE | NULLABLE |

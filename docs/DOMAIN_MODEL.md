@@ -1754,7 +1754,7 @@ Subscription {
   suspensionReason:  'NON_PAYMENT' | 'CANCELED' | 'PAYMENT_REVERSED' | 'OPERATOR' | null   -- non-null iff SUSPENDED
   countryCode:       CountryCode       -- fixed at start
   currency:          'BRL' | 'USD'     -- fixed at start (BR -> BRL, US -> USD)
-  timezone:          IANA zone         -- snapshot of the tenant timezone, IMMUTABLE; every period boundary is local midnight in it; the BOOKING cap date (`bookableUntil`) is derived in it; `Tenant.updateSettings` refuses a change of the tenant's zone (TD61), so the two agree unless the tenant was edited before that guard (an operator corrects it, by runbook)
+  timezone:          IANA zone         -- snapshot of the tenant timezone, IMMUTABLE; every period boundary is local midnight in it; the BOOKING cap date (`bookableUntil`) is derived in it; `Tenant.updateSettings` refuses a change of the tenant's zone (TD61), so the two agree unless the tenant was edited before that guard (an operator corrects it, by runbook: `docs/RUNBOOKS.md` § Correct a tenant's timezone (operator))
   merchantProfileKey: String           -- immutable key of the selling entity / provider account (BRL_FAKE, BRL_ASAAS_SANDBOX, live keys in production only)
   cycle:             'MONTHLY'         -- 'ANNUAL' in slice H; applies to the whole subscription
   anchorDay:         1..28             -- day-of-month the renewals land on (29-31 clamped to 28)

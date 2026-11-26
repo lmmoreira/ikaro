@@ -2528,7 +2528,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
    - **A1: Invalid field value** → System highlights the specific field with an error message and prevents save.
    - **A2: Slug change attempted** → Slug field is read-only; system ignores any manipulation attempt.
    - **A3: Rename fails after settings already saved** → Since settings-save and rename are two independent calls, the system distinguishes this partial-failure case in its error messaging rather than showing one generic error that would incorrectly imply nothing was saved.
-   - **A4: Timezone change attempted** → `422 PLATFORM_TENANT_TIMEZONE_IMMUTABLE`, nothing saved. The timezone is set once at provisioning because Billing keeps an immutable snapshot of it; only an operator corrects it, by runbook, updating the tenant and the subscription together (TD61).
+   - **A4: Timezone change attempted** → `422 PLATFORM_TENANT_TIMEZONE_IMMUTABLE`, nothing saved. The timezone is set once at provisioning because Billing keeps an immutable snapshot of it; only an operator corrects it, by runbook (`docs/RUNBOOKS.md` § Correct a tenant's timezone (operator)), updating the tenant's zone, the subscription's zone, `trial_ends_at` and the trial's item rows together, and only for a tenant still in its trial with no charge and no bookings (TD61). The dashboard shows the zone read-only and the form never sends it.
 
 - **Postconditions:** `tenants` row updated. New settings apply to all future operations (bookings, loyalty) for this tenant.
 - **Events Triggered:** None (settings are read fresh on each request)

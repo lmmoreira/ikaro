@@ -7,7 +7,7 @@
 - **Context**: Platform (the settings invariant), BFF and web (the settings form), docs (runbook)
 - **Created**: 2026-11-26 (rewritten twice the same day: the first draft missed decision 47, the second assumed the timezone is editable by design)
 - **Discovered**: M26-S18b PR #847 review: CodeRabbit's finding on `apps/backend/src/contexts/booking/application/use-cases/update-availability-alert.use-case.ts` (the `bookableUntil` cap date is derived in the subscription's timezone, the alert check reads the tenant's). Declined in that PR with a documented limitation in `docs/BUSINESS_LOGIC_REFERENCE.md` § The billing `bookableUntil` cap.
-- **Decision status**: Ready for discovery in the order below; each story still begins with `/story-discovery`. The product rule is decided (owner, 2026-11-26): **the tenant's timezone is set at signup and a manager can never change it; only an operator can correct it, as a rare, documented action.**
+- **Decision status**: ✅ Done: Story 0 (#849) and Story 1 (#850) are merged. The product rule was decided (owner, 2026-11-26): **the tenant's timezone is set at signup and a manager can never change it; only an operator can correct it, as a rare, documented action.**
 - **Related**: `docs/discovery/tenant-billing/tenant-billing.md` decision 47 and decision 119; `docs/DOMAIN_MODEL.md` § Aggregate: Subscription (`timezone`: "snapshot of the tenant timezone, IMMUTABLE"); `docs/TENANTS_SETTINGS_SCHEMA.md` ("Timezone is configured once per tenant and applies globally"); `docs/BUSINESS_LOGIC_REFERENCE.md` § The billing `bookableUntil` cap; `docs/RUNBOOKS.md`; M26-S18a, M26-S18b (PR #847)
 
 ## Problem

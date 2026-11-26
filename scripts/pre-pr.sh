@@ -351,8 +351,7 @@ if [ "$ISSUES" -eq 0 ]; then
   printf "   Step 2   type-check + lint per changed app\n"
   printf "   Step 3a  agent reasoning checks\n"
   printf "   Step 3b  /bad-smell-audit <layer> per changed layer\n"
-  printf "   Step 4   unit tests + coverage ≥ 85%% on changed files\n"
-  printf "   Step 5   integration + component tests\n"
+  printf "   Step 4   integration tests (backend scope chosen from the diff) + BFF component suite when affected\n"
 else
   printf "❌ Script: %d issue(s) — fix before running agent checks\n" "$ISSUES"
 fi

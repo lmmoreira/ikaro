@@ -92,8 +92,9 @@ async function waitForSubscription(tenantId: string, exempt: boolean): Promise<v
         [tenantId],
       );
       if (result.rowCount !== 1) return null;
-      // A trial tenant has no items (its entitlement is every sellable feature); an exempt one
-      // starts with an open-ended item per feature, which is its plan.
+      // A trial tenant's entitlement is every sellable feature whatever its items say, so the wait
+      // does not look at them (its default rows start at `trial_ends_at`); an exempt one starts
+      // with an open-ended item per feature, which is its plan.
       return exempt && Number(result.rows[0].items) === 0 ? null : true;
     }),
   );
