@@ -139,7 +139,7 @@ Defines when the car wash operates. Used for availability calculations and remin
 - Timezone is configured once per tenant and applies globally
 - All times stored in database as UTC (ISO 8601)
 - All times displayed to users in tenant's configured timezone
-- **Billing keeps its own copy.** `billing.subscriptions.timezone` is copied from this value at provisioning and is immutable (`docs/discovery/tenant-billing/tenant-billing.md` decision 47); editing this timezone later does not move it. Billing dates (period boundaries, the BOOKING `bookableUntil` cap) are in that copy, so they can drift from this value after an edit (TD61).
+- **Billing keeps its own copy.** `billing.subscriptions.timezone` is copied from this value at provisioning and is immutable (`docs/discovery/tenant-billing/tenant-billing.md` decision 47); editing this timezone later would not move it. Billing dates (period boundaries, the BOOKING `bookableUntil` cap) are in that copy. The product rule is that a manager never changes the timezone and only an operator corrects it, by runbook, updating both rows together; the dashboard and the backend do not enforce that yet, so a manager's edit can still drift the two (TD61 enforces it and removes this note).
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
