@@ -53,6 +53,23 @@ export class TenantInactiveError extends PlatformDomainError {
   }
 }
 
+/**
+ * The tenant's business timezone is set once, at provisioning, and a manager can never change it
+ * (docs/TENANTS_SETTINGS_SCHEMA.md § 3). Billing keeps an immutable snapshot of it
+ * (`Subscription.timezone`), so an edit here would silently drift every Billing date; only an
+ * operator corrects it, by runbook, updating both rows together (TD61).
+ */
+export class TenantTimezoneImmutableError extends PlatformDomainError {
+  constructor(tenantId: string) {
+    super(
+      `Tenant '${tenantId}' timezone is set at signup and cannot be changed`,
+      PlatformErrorCode.TENANT_TIMEZONE_IMMUTABLE,
+      'settings.businessHours.timezone',
+    );
+    this.name = 'TenantTimezoneImmutableError';
+  }
+}
+
 export class HotsiteNotFoundError extends PlatformDomainError {
   constructor(tenantId: string) {
     super(`Hotsite config for tenant '${tenantId}' not found`, PlatformErrorCode.HOTSITE_NOT_FOUND);

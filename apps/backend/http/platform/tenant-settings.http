@@ -80,7 +80,7 @@ Content-Type: application/json
 
 ###
 
-### Update timezone and close Sunday
+### Update business hours: close Sunday (the timezone is set at signup and cannot be changed)
 PATCH {{baseUrl}}/tenants/settings
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{managerId}}
@@ -91,7 +91,6 @@ Content-Type: application/json
 {
   "settings": {
     "businessHours": {
-      "timezone": "America/Manaus",
       "sunday": null
     }
   }
@@ -257,7 +256,6 @@ Content-Type: application/json
       "slotGranularityMinutes": 30
     },
     "businessHours": {
-      "timezone": "America/Sao_Paulo",
       "monday": { "open": "08:00", "close": "18:00" },
       "tuesday": { "open": "08:00", "close": "18:00" },
       "wednesday": { "open": "08:00", "close": "18:00" },
@@ -294,6 +292,23 @@ Content-Type: application/json
 {
   "settings": {
     "booking": { "cancellationWindowHours": -1 }
+  }
+}
+
+###
+
+### 422 — Timezone change refused (PLATFORM_TENANT_TIMEZONE_IMMUTABLE, TD61: set at signup, only an operator corrects it)
+# Assumes the tenant's stored timezone is not America/Manaus (the seeded tenant is America/Sao_Paulo).
+PATCH {{baseUrl}}/tenants/settings
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "settings": {
+    "businessHours": { "timezone": "America/Manaus" }
   }
 }
 

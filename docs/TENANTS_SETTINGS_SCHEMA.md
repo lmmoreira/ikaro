@@ -136,14 +136,14 @@ Defines when the car wash operates. Used for availability calculations and remin
 **Timezone Model: Single Tenant Timezone**
 - All bookings, staff, and customers in a tenant operate in the **same timezone**
 - No per-user timezone override in MVP
-- Timezone is configured once per tenant and applies globally
+- Timezone is set **once, at provisioning**, and applies globally. **A manager can never change it:** `PATCH /tenants/settings` with a different `businessHours.timezone` is refused `422 PLATFORM_TENANT_TIMEZONE_IMMUTABLE` (enforced in `Tenant.updateSettings`, the aggregate behind the application's only settings-update path; a body that omits the timezone, or restates the stored one, is fine). Only an operator corrects it, by runbook, updating the tenant and `billing.subscriptions.timezone` together (the `docs/RUNBOOKS.md` entry is written by TD61 Story 1)
 - All times stored in database as UTC (ISO 8601)
 - All times displayed to users in tenant's configured timezone
-- **Billing keeps its own copy.** `billing.subscriptions.timezone` is copied from this value at provisioning and is immutable (`docs/discovery/tenant-billing/tenant-billing.md` decision 47); editing this timezone later would not move it. Billing dates (period boundaries, the BOOKING `bookableUntil` cap) are in that copy. The product rule is that a manager never changes the timezone and only an operator corrects it, by runbook, updating both rows together; the dashboard and the backend do not enforce that yet, so a manager's edit can still drift the two (TD61 enforces it and removes this note).
+- **Billing keeps its own copy.** `billing.subscriptions.timezone` is copied from this value at provisioning and is immutable (`docs/discovery/tenant-billing/tenant-billing.md` decision 47). Billing dates (period boundaries, the BOOKING `bookableUntil` cap) are in that copy. Because this timezone no longer changes through the application, the two copies agree for every tenant whose timezone was not edited before the guard shipped, which is what lets Booking compare a Billing date at the tenant's local midnight; a tenant edited earlier can hold a stale snapshot until an operator corrects it (counting those tenants is a read-only check tracked in TD61 Story 1). That is why the rule above is enforced in the aggregate, not left to the form.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `timezone` | string | "America/Sao_Paulo" | IANA timezone identifier (e.g., "America/Sao_Paulo", "America/Manaus", "America/Fortaleza") |
+| `timezone` | string | "America/Sao_Paulo" | IANA timezone identifier (e.g., "America/Sao_Paulo", "America/Manaus", "America/Fortaleza"). Set at provisioning and **read-only afterwards**: a different value on update is `422 PLATFORM_TENANT_TIMEZONE_IMMUTABLE` (exact string comparison) |
 | `monday` | object | `{ open: "09:00", close: "18:00" }` | Hours for this day (null = closed), interpreted in tenant timezone |
 | `tuesday` | object | `{ open: "09:00", close: "18:00" }` | — |
 | `wednesday` | object | `{ open: "09:00", close: "18:00" }` | — |

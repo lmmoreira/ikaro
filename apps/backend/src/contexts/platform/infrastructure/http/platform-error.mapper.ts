@@ -12,6 +12,7 @@ import {
   SlugReservedError,
   TenantInactiveError,
   TenantNotFoundError,
+  TenantTimezoneImmutableError,
 } from '../../domain/errors/platform-domain.error';
 import {
   SignupSlugInvalidError,
@@ -89,11 +90,22 @@ function mapSignupError(err: unknown): void {
   }
 }
 
+// Every rule the Platform tenant policy refuses with a `422`: the slug rules above, and a change of
+// the business timezone, which is set at signup and never edited (TD61). `422`, not the `409` of an
+// inactive tenant: the request is well formed and the rule refuses it. Returns without throwing for
+// any other error.
+function mapTenantRuleError(err: unknown): void {
+  mapSlugError(err);
+  if (err instanceof TenantTimezoneImmutableError) {
+    throw throwProblemDetail(HttpStatus.UNPROCESSABLE_ENTITY, err.code, err.message, err.field);
+  }
+}
+
 export function mapPlatformError(err: unknown): never {
   mapSharedAddressError(err);
   mapSharedVoError(err);
   mapLeadFormError(err);
-  mapSlugError(err);
+  mapTenantRuleError(err);
   if (
     err instanceof TenantInactiveError ||
     err instanceof HotsiteConfigConcurrentModificationError ||

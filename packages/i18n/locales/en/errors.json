@@ -151,6 +151,7 @@
   "PLATFORM_SLUG_ALREADY_TAKEN": "This slug is already in use.",
   "PLATFORM_TENANT_NOT_FOUND": "Business not found.",
   "PLATFORM_TENANT_INACTIVE": "This business is inactive and cannot be modified.",
+  "PLATFORM_TENANT_TIMEZONE_IMMUTABLE": "The business timezone is set at signup and cannot be changed. Contact support to correct it.",
   "PLATFORM_HOTSITE_NOT_FOUND": "Hotsite configuration not found.",
   "PLATFORM_HOTSITE_IMAGE_NOT_UPLOADED": "The provided image could not be found.",
   "PLATFORM_HOTSITE_TEMPLATE_NOT_FOUND": "The requested site template could not be found.",

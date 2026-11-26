@@ -7,6 +7,7 @@ import {
   TenantInactiveError,
   TenantNameRequiredError,
   TenantSlugInvalidError,
+  TenantTimezoneImmutableError,
 } from './errors/platform-domain.error';
 import { TenantSettings } from './value-objects/tenant-settings.vo';
 
@@ -103,6 +104,12 @@ export class Tenant extends AggregateRoot {
 
   updateSettings(settings: TenantSettings): void {
     if (!this.props.isActive) throw new TenantInactiveError(this.props.id);
+    // Set once at provisioning; Billing's `Subscription.timezone` is an immutable snapshot of it
+    // (tenant-billing decision 47), so a change here would drift every Billing date. Only an
+    // operator corrects it, by runbook, outside this aggregate (TD61).
+    if (settings.businessHours.timezone !== this.props.settings.businessHours.timezone) {
+      throw new TenantTimezoneImmutableError(this.props.id);
+    }
     this.props.settings = settings;
     this.props.updatedAt = new Date();
   }

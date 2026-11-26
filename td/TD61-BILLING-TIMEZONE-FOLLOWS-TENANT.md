@@ -12,6 +12,8 @@
 
 ## Problem
 
+*This section describes the state before Story 0. Story 0 ships the aggregate guard described under "Chosen approach"; the dashboard field and the operator runbook are Story 1.*
+
 Billing's `Subscription.timezone` is a snapshot of the tenant's timezone taken at provisioning and is immutable on purpose (`subscription.aggregate.ts:76`; decision 47: "copied from `TenantProvisioned` at creation and is immutable; period boundaries are local midnight in it; Billing never reads Platform settings"). That is only safe if the tenant's own timezone never changes. The docs say so (`docs/TENANTS_SETTINGS_SCHEMA.md`: "Timezone is configured once per tenant"), and the owner confirms the rule: a manager can never change it; only an operator can, as a rare correction.
 
 **The code does not enforce it.** The dashboard's settings form has an enabled timezone select (`apps/web/features/platform/components/settings/SettingsHoursSection.tsx:42-47`, `data-testid="settings-timezone-select"`), the settings update sends `businessHours.timezone`, and nothing in the backend rejects a changed value: `Tenant.updateSettings()` (`apps/backend/src/contexts/platform/domain/tenant.aggregate.ts:104`) replaces the whole settings object and the validator only checks that the value is a real IANA zone (`business-hours.validator.ts`). Platform also publishes no event when it changes.

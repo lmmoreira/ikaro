@@ -151,6 +151,7 @@
   "PLATFORM_SLUG_ALREADY_TAKEN": "Este identificador (slug) já está em uso.",
   "PLATFORM_TENANT_NOT_FOUND": "Estabelecimento não encontrado.",
   "PLATFORM_TENANT_INACTIVE": "Este estabelecimento está inativo e não pode ser modificado.",
+  "PLATFORM_TENANT_TIMEZONE_IMMUTABLE": "O fuso horário do negócio é definido no cadastro e não pode ser alterado. Para corrigi-lo, fale com o suporte.",
   "PLATFORM_HOTSITE_NOT_FOUND": "Configuração do site não encontrada.",
   "PLATFORM_HOTSITE_IMAGE_NOT_UPLOADED": "A imagem informada não foi encontrada.",
   "PLATFORM_HOTSITE_TEMPLATE_NOT_FOUND": "O modelo de site informado não foi encontrado.",

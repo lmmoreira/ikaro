@@ -32,6 +32,7 @@ import {
   TenantInactiveError,
   TenantNotFoundError,
   TenantSettingsValidationError,
+  TenantTimezoneImmutableError,
 } from '../../domain/errors/platform-domain.error';
 import {
   ChatbotConcurrencyCapReachedError,
@@ -125,6 +126,15 @@ describe('mapPlatformError', () => {
     const err = call(new TenantInactiveError('tenant-1'));
     expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
     expect(err.getResponse()).toMatchObject({ code: PlatformErrorCode.TENANT_INACTIVE });
+  });
+
+  it('maps TenantTimezoneImmutableError to 422 with code and field, not the 409 of an inactive tenant', () => {
+    const err = call(new TenantTimezoneImmutableError('tenant-1'));
+    expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+    expect(err.getResponse()).toMatchObject({
+      code: PlatformErrorCode.TENANT_TIMEZONE_IMMUTABLE,
+      field: 'settings.businessHours.timezone',
+    });
   });
 
   it('maps TenantNotFoundError to 404 with code', () => {
