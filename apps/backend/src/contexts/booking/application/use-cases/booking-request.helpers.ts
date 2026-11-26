@@ -23,6 +23,7 @@ import { IResourceRepository } from '../ports/resource-repository.port';
 import { IServiceRepository } from '../ports/service-repository.port';
 import { IServiceIntakeSchemaRepository } from '../ports/service-intake-schema-repository.port';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
+import { BookableUntilGuard } from '../services/bookable-until.guard';
 import { BookingQuoteService } from '../services/booking-quote.service';
 import {
   BookingIntakeValidationService,
@@ -80,6 +81,8 @@ export interface PersistRequestedBookingDeps {
   occupancyRepo: IResourceOccupancyRepository;
   availabilityService: AvailabilityService;
   hoursRepos: HoursScheduleRepos;
+  // The billing `bookableUntil` cap (M26-S18b): taken first in the write transaction below.
+  bookableUntilGuard: BookableUntilGuard;
 }
 
 export function createBookingAddress(
@@ -288,6 +291,13 @@ export async function persistRequestedBooking(
   const lockState = params.occupancyLockState ?? 'HOLD';
 
   return deps.txManager.run(async () => {
+    // The bookable-until lock is the first lock of the transaction (docs/LOCK_CATALOG.md B-U1, L-1):
+    // a plan save that removes BOOKING is ordered against this booking, and the cap is read after.
+    await deps.bookableUntilGuard.assertCommitmentEndsWithin(
+      tenantId,
+      { startsAt: params.scheduledAt, durationMins: booking.totalDurationMins },
+      params.timezone,
+    );
     // Service rows before resource locks: the recurring request takes them in this order, so the
     // two can never wait on each other (docs/LOCK_CATALOG.md § 2, L2 before L3).
     const serviceIds = [...new Set(booking.lines.map((line) => line.serviceId))];

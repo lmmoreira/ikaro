@@ -26,6 +26,13 @@ export interface TenantAccess {
   suspensionReason: TenantAccessSuspensionReason | null;
   operational: boolean;
   features: TenantAccessFeature[];
+  /**
+   * The first tenant-local day (`YYYY-MM-DD`) the BOOKING feature no longer applies, from a saved
+   * removal of a running item or a trial selection without BOOKING; `null` or absent when none is
+   * pending. Internal-only (M26-S18b): no role-reduced view carries it. This cached copy drives
+   * the display clamps; the write paths read the authoritative `getBookableUntil`.
+   */
+  bookableUntil?: string | null;
   provisional?: true;
   degraded?: true;
 }
@@ -37,6 +44,13 @@ export interface TenantAccess {
  */
 export interface TenantAccessPort {
   getAccess(tenantId: string): Promise<TenantAccess>;
+
+  /**
+   * The BOOKING cap read at write time (M26-S18b): bypasses every cache, so a second instance
+   * holding a stale `getAccess` answer still refuses a commitment beyond the effective date. `null`
+   * when no removal is pending. A failed read propagates (it never fails open).
+   */
+  getBookableUntil(tenantId: string): Promise<string | null>;
 
   /**
    * Ids of tenants whose subscription is `SUSPENDED`, for the rare cross-tenant scan (never one

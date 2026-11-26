@@ -17,6 +17,13 @@ import {
   waitForBlockedLock,
 } from '../../../../test/utils/booking-lock-race-world';
 import { TRANSACTION_MANAGER } from '../../../../shared/ports/transaction-manager.port';
+import { TENANT_ACCESS_PORT } from '../../../../shared/ports/tenant-access.port';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
+import {
+  addDaysUTC,
+  todayInTimezone,
+  utcDateToLocalDate,
+} from '../../../../shared/utils/calendar-date';
 import { ITenantLockPort, TENANT_LOCK_PORT } from '../../application/ports/tenant-lock.port';
 import { PlatformModule } from '../../../platform/platform.module';
 import { CustomerEntity } from '../../../customer/infrastructure/entities/customer.entity';
@@ -646,5 +653,126 @@ describe('AvailabilityAlertController (integration)', () => {
       .findOneByOrFail({ tenantId: tenantA, id: stale.id });
     expect(row.status).toBe('ACTIVE');
     expect(row.version).toBe(1);
+  });
+
+  // M26-S18b — an alert holds no capacity, but a new one must not reach past the effective date of
+  // a pending BOOKING removal (UC-136 A11): its last matchable instant is held to the cap.
+  describe('the billing bookable-until cap (M26-S18b)', () => {
+    const TZ = 'America/Sao_Paulo';
+    let access: InMemoryTenantAccessPort;
+
+    const setCap = (tenantId: string, bookableUntil: string | null) =>
+      access.seed(tenantId, {
+        status: 'ACTIVE',
+        suspensionReason: null,
+        operational: true,
+        features: [{ key: 'BOOKING', tier: 'STANDARD' }],
+        bookableUntil,
+      });
+
+    // The cap is a tenant-local date: count days from the tenant-local today, never the UTC day.
+    const capInDays = (days: number) => addDaysUTC(todayInTimezone(TZ), days);
+    const localDayOf = (date: Date) => utcDateToLocalDate(date, TZ);
+
+    const post = (body: Record<string, unknown>, tenantId = tenantA, customerId = CUSTOMER_A) =>
+      request(app.getHttpServer())
+        .post('/availability-alerts')
+        .set(as(tenantId, customerId))
+        .send(body);
+    const alertCount = () =>
+      ds.getRepository(AvailabilityAlertEntity).count({ where: { tenantId: tenantA } });
+
+    const rangeBody = (start: Date, end: Date) => ({
+      serviceId: serviceA,
+      criteriaType: 'ONE_TIME_RANGE',
+      acceptableStartAt: start.toISOString(),
+      acceptableEndAt: end.toISOString(),
+    });
+    const startInFiveDays = () => new Date(Date.now() + 5 * DAY_MS);
+    const fourHoursAfter = (start: Date) => new Date(start.getTime() + 4 * 3_600_000);
+
+    beforeAll(() => {
+      access = app.get<InMemoryTenantAccessPort>(TENANT_ACCESS_PORT);
+    });
+
+    // Suites share one app: a cap seeded here must never leak into another test.
+    afterEach(() => {
+      access.reactivate(tenantA);
+      access.reactivate(tenantB);
+    });
+
+    it('refuses a one-time range that reaches the cap with 422 BOOKING_TOO_FAR_AHEAD and stores nothing', async () => {
+      const start = startInFiveDays();
+      setCap(tenantA, localDayOf(start));
+
+      const { body } = await post(rangeBody(start, fourHoursAfter(start))).expect(422);
+
+      expect(body.code).toBe('BOOKING_TOO_FAR_AHEAD');
+      expect(await alertCount()).toBe(0);
+    });
+
+    it('accepts a one-time range that ends before the cap', async () => {
+      const start = startInFiveDays();
+      const end = fourHoursAfter(start);
+      setCap(tenantA, addDaysUTC(localDayOf(end), 2));
+
+      await post(rangeBody(start, end)).expect(201);
+
+      expect(await alertCount()).toBe(1);
+    });
+
+    it('refuses a weekly preference whose default expiry reaches the cap, and accepts one whose expiry stays before it', async () => {
+      setCap(tenantA, capInDays(10));
+      const { body } = await post(weeklyBody(serviceA)).expect(422);
+      expect(body.code).toBe('BOOKING_TOO_FAR_AHEAD');
+      expect(await alertCount()).toBe(0);
+
+      setCap(tenantA, capInDays(40));
+      await post(weeklyBody(serviceA)).expect(201);
+      expect(await alertCount()).toBe(1);
+    });
+
+    it('refuses an update that pushes the alert past the cap, keeping it as it was, and accepts one before it', async () => {
+      setCap(tenantA, capInDays(10));
+      const expiresInThreeDays = new Date(Date.now() + 3 * DAY_MS);
+      const { body: created } = await post({
+        ...weeklyBody(serviceA),
+        expiresAt: expiresInThreeDays.toISOString(),
+      }).expect(201);
+      const patch = (expiresAt: Date) =>
+        request(app.getHttpServer())
+          .patch(`/availability-alerts/${created.id as string}`)
+          .set(as(tenantA, CUSTOMER_A))
+          .send({ expiresAt: expiresAt.toISOString() });
+
+      const { body } = await patch(new Date(Date.now() + 20 * DAY_MS)).expect(422);
+      expect(body.code).toBe('BOOKING_TOO_FAR_AHEAD');
+      const unchanged = await ds
+        .getRepository(AvailabilityAlertEntity)
+        .findOneByOrFail({ tenantId: tenantA, id: created.id as string });
+      expect(unchanged.expiresAt.toISOString()).toBe(expiresInThreeDays.toISOString());
+      expect(unchanged.version).toBe(1);
+
+      const withinCap = new Date(Date.now() + 6 * DAY_MS);
+      await patch(withinCap).expect(200);
+      const moved = await ds
+        .getRepository(AvailabilityAlertEntity)
+        .findOneByOrFail({ tenantId: tenantA, id: created.id as string });
+      expect(moved.expiresAt.toISOString()).toBe(withinCap.toISOString());
+    });
+
+    it('changes nothing for a null cap', async () => {
+      setCap(tenantA, null);
+
+      await post(weeklyBody(serviceA)).expect(201);
+    });
+
+    it("tenant isolation: another tenant's cap never refuses the alert", async () => {
+      setCap(tenantB, capInDays(1));
+
+      await post(weeklyBody(serviceA)).expect(201);
+      const { body } = await post(weeklyBody(serviceB), tenantB, CUSTOMER_B).expect(422);
+      expect(body.code).toBe('BOOKING_TOO_FAR_AHEAD');
+    });
   });
 });

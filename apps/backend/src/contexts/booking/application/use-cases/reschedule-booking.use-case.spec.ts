@@ -1,8 +1,10 @@
+import { createTestBookableUntilGuard } from '../../../../test/infrastructure/test-bookable-until-guard';
 import { ScheduleClosureBuilder } from '../../../../test/builders/booking/schedule-closure.builder';
-import { utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
+import { addDaysUTC, utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
 import {
   BookingOutsideBusinessHoursError,
   BookingSlotClosedError,
+  BookingTooFarAheadError,
 } from '../../domain/errors/booking-domain.error';
 import { DEFAULT_TEST_BUSINESS_HOURS } from '../../../../test/utils/business-hours-fixtures';
 import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
@@ -54,8 +56,10 @@ describe('RescheduleBookingUseCase', () => {
   let closureRepo: InMemoryScheduleClosureRepository;
   let openingRepo: InMemoryScheduleOpeningRepository;
   let useCase: RescheduleBookingUseCase;
+  let guardParts: ReturnType<typeof createTestBookableUntilGuard>;
 
   beforeEach(() => {
+    guardParts = createTestBookableUntilGuard();
     eventBus = new InMemoryEventBus();
     bookingRepo = new InMemoryBookingRepository(eventBus);
     fixtures = createAutoBookingResourceFixtures();
@@ -77,6 +81,7 @@ describe('RescheduleBookingUseCase', () => {
       new BookingQuoteService(),
       new InMemoryTransactionManager(),
       exceptionRepo,
+      guardParts.guard,
     );
   });
 
@@ -721,6 +726,120 @@ describe('RescheduleBookingUseCase', () => {
       const result = await reschedule(booking.id, newFutureSlot);
 
       expect(result.scheduledAt).toBe(new Date(newFutureSlot).toISOString());
+    });
+  });
+
+  describe('the billing bookable-until cap (M26-S18b)', () => {
+    const localDate = () =>
+      utcDateToLocalDate(new Date(newFutureSlot), DEFAULT_TEST_BUSINESS_HOURS.timezone);
+    const seedCap = (bookableUntil: string | null) =>
+      guardParts.access.seed(TENANT_A, {
+        status: 'ACTIVE',
+        suspensionReason: null,
+        operational: true,
+        features: [{ key: 'BOOKING', tier: 'STANDARD' }],
+        bookableUntil,
+      });
+
+    async function approvedBooking() {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withStatus(BookingStatus.APPROVED)
+        .withScheduledAt(new Date(futureSlot))
+        .withTotalDurationMins(30)
+        .build();
+      await bookingRepo.save(booking);
+      return booking;
+    }
+
+    function reschedule(bookingId: string) {
+      return useCase.execute({
+        bookingId,
+        scheduledAt: newFutureSlot,
+        tenantId: TENANT_A,
+        staffId: STAFF_ID,
+        correlationId: CORRELATION_ID,
+        timezone: 'America/Sao_Paulo',
+        businessHours: DEFAULT_TEST_BUSINESS_HOURS,
+        tenantServiceBufferMinutes: 60,
+      });
+    }
+
+    it('refuses a staff reschedule whose new end is past the cap: nothing is saved, published or moved', async () => {
+      const booking = await approvedBooking();
+      const resource = fixtures.resourceRepo.ensureLocation(TENANT_A);
+      const oldStart = new Date(futureSlot);
+      const oldEnd = new Date(oldStart.getTime() + 30 * 60_000);
+      await occupancyRepo.assign(
+        TENANT_A,
+        booking.lines[0].lineId,
+        [
+          {
+            resourceId: resource.id,
+            resourceType: ResourceType.LOCATION,
+            resourceName: resource.name,
+            legIndex: null,
+            quantityPosition: null,
+            selectionMode: 'NONE' as const,
+            isBundleMember: false,
+            gapMinutes: null,
+            gapSource: null,
+            startsAt: oldStart,
+            endsAt: oldEnd,
+          },
+        ],
+        'COMMITTED',
+        null,
+      );
+      seedCap(localDate());
+
+      await expect(reschedule(booking.id)).rejects.toBeInstanceOf(BookingTooFarAheadError);
+
+      // The in-memory repo shares the aggregate instance (the real transaction rolls it back), so
+      // the proof the move never committed is that no save, event or occupancy move happened.
+      expect(eventBus.published).toHaveLength(0);
+      expect(
+        await occupancyRepo.findConflictingResourceIds(TENANT_A, [
+          { resourceId: resource.id, startsAt: oldStart, endsAt: oldEnd },
+        ]),
+      ).toEqual([resource.id]);
+      const newStart = new Date(newFutureSlot);
+      expect(
+        await occupancyRepo.findConflictingResourceIds(TENANT_A, [
+          {
+            resourceId: resource.id,
+            startsAt: newStart,
+            endsAt: new Date(newStart.getTime() + 30 * 60_000),
+          },
+        ]),
+      ).toEqual([]);
+    });
+
+    it('moves the booking when the new end is before the cap day', async () => {
+      const booking = await approvedBooking();
+      seedCap(addDaysUTC(localDate(), 2));
+
+      const result = await reschedule(booking.id);
+
+      expect(result.scheduledAt).toBe(new Date(newFutureSlot).toISOString());
+    });
+
+    it('is unchanged without a cap', async () => {
+      const booking = await approvedBooking();
+      seedCap(null);
+
+      const result = await reschedule(booking.id);
+
+      expect(result.scheduledAt).toBe(new Date(newFutureSlot).toISOString());
+    });
+
+    it('takes the shared lock for the tenant before the move (docs/LOCK_CATALOG.md B-U1)', async () => {
+      const booking = await approvedBooking();
+
+      await reschedule(booking.id);
+
+      expect(guardParts.lock.calls).toEqual([{ mode: 'shared', tenantId: TENANT_A }]);
+      expect(guardParts.access.getBookableUntilCalls).toEqual([TENANT_A]);
     });
   });
 });

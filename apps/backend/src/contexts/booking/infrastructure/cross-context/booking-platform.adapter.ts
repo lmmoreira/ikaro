@@ -1,6 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import {
+  TENANT_ACCESS_PORT,
+  type TenantAccessPort,
+} from '../../../../shared/ports/tenant-access.port';
+import { clampAdvanceDaysToBookableUntil } from '../../../../shared/utils/bookable-until-days';
+import {
   FRONTEND_REVALIDATION_PORT,
   IFrontendRevalidationPort,
 } from '../../../platform/application/ports/frontend-revalidation.port';
@@ -25,6 +30,7 @@ export class BookingPlatformAdapter implements IBookingPlatformPort {
     private readonly getHotsiteBookingPicker: GetHotsiteBookingPickerUseCase,
     @Inject(FRONTEND_REVALIDATION_PORT)
     private readonly frontendRevalidation: IFrontendRevalidationPort,
+    @Inject(TENANT_ACCESS_PORT) private readonly tenantAccess: TenantAccessPort,
   ) {}
 
   // Best-effort per the port contract — the tenant lookup runs after the caller's write
@@ -68,7 +74,24 @@ export class BookingPlatformAdapter implements IBookingPlatformPort {
   async getTenantBookingWindow(tenantId: string): Promise<TenantBookingWindow> {
     const tenant = await this.getTenantById.execute({ tenantId });
     const { minBookingAdvanceHours, maxBookingAdvanceDays } = tenant.settings.booking;
-    return { minBookingAdvanceHours, maxBookingAdvanceDays };
+    return {
+      minBookingAdvanceHours,
+      maxBookingAdvanceDays,
+      bookableUntil: await this.readBookableUntil(tenantId),
+      timezone: tenant.settings.businessHours.timezone,
+    };
+  }
+
+  // The cached cap, for DISPLAY clamps only (M26-S18b). A failed lookup shows the unclamped window:
+  // the write paths read the authoritative cap themselves and never fail open.
+  private async readBookableUntil(tenantId: string): Promise<string | null> {
+    try {
+      return (await this.tenantAccess.getAccess(tenantId)).bookableUntil ?? null;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'unknown error';
+      this.logger.warn(`Bookable-until display clamp skipped for tenant '${tenantId}': ${message}`);
+      return null;
+    }
   }
 
   async getRecurringRenewalSettings(tenantId: string): Promise<RecurringRenewalTenantSettings> {
@@ -80,22 +103,31 @@ export class BookingPlatformAdapter implements IBookingPlatformPort {
   }
 
   async getAvailabilityAlertContext(tenantId: string): Promise<AvailabilityAlertTenantContext> {
-    const [tenant, picker] = await Promise.all([
+    const [tenant, picker, bookableUntil] = await Promise.all([
       this.getTenantById.execute({ tenantId }),
       this.getHotsiteBookingPicker.execute({ tenantId }),
+      this.readBookableUntil(tenantId),
     ]);
     const { booking, businessHours } = tenant.settings;
+    const selectableDays =
+      picker.datePickerType === 'calendar'
+        ? booking.maxBookingAdvanceDays
+        : Math.min(picker.carouselDays, booking.maxBookingAdvanceDays);
     return {
       businessHours,
       slotGranularityMinutes: booking.slotGranularityMinutes,
       serviceBufferMinutes: booking.serviceBufferMinutes,
-      selectableDays:
-        picker.datePickerType === 'calendar'
-          ? booking.maxBookingAdvanceDays
-          : Math.min(picker.carouselDays, booking.maxBookingAdvanceDays),
+      // The billing cap (M26-S18b) stops the matching at the effective date, like the pickers.
+      selectableDays: clampAdvanceDaysToBookableUntil(
+        selectableDays,
+        bookableUntil,
+        businessHours.timezone,
+      ),
       bookingWindow: {
         minBookingAdvanceHours: booking.minBookingAdvanceHours,
         maxBookingAdvanceDays: booking.maxBookingAdvanceDays,
+        bookableUntil,
+        timezone: businessHours.timezone,
       },
     };
   }

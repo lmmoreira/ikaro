@@ -1,3 +1,4 @@
+import { BookableUntilGuard } from '../services/bookable-until.guard';
 import { INestApplication } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
@@ -478,6 +479,7 @@ describe('booking lock order (integration)', () => {
               closureRepo: app.get(SCHEDULE_CLOSURE_REPOSITORY),
               openingRepo: app.get(SCHEDULE_OPENING_REPOSITORY),
             },
+            bookableUntilGuard: app.get(BookableUntilGuard),
           },
           {
             booking,

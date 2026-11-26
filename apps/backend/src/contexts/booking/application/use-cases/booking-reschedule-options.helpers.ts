@@ -1,3 +1,4 @@
+import type { TenantAccessPort } from '../../../../shared/ports/tenant-access.port';
 import { ITransactionManager } from '../../../../shared/ports/transaction-manager.port';
 import { Booking, BookingStatus } from '../../domain/booking.aggregate';
 import { ResourceType } from '../../domain/resource.types';
@@ -99,15 +100,41 @@ export interface LoadRescheduleOptionsDeps {
   serviceRepo: IServiceRepository;
   occupancyRepo: IResourceOccupancyRepository;
   txManager: ITransactionManager;
+  // The cached access answer, for the billing cap's display clamp (M26-S18b).
+  tenantAccess: TenantAccessPort;
+}
+
+// The reschedule options' day count stops at the billing cap (M26-S18b). Display only, from the
+// cached access answer; a failed lookup leaves the window as the tenant configured it.
+async function withBookableUntil(
+  window: TenantBookingWindow,
+  tenantAccess: TenantAccessPort,
+  tenantId: string,
+): Promise<TenantBookingWindow> {
+  try {
+    const { bookableUntil } = await tenantAccess.getAccess(tenantId);
+    // A null answer is "no cap": it clears a cap the caller's window may still carry.
+    return { ...window, bookableUntil: bookableUntil ?? null };
+  } catch {
+    return window;
+  }
 }
 
 // The customer reschedule screen's input, loaded for an APPROVED booking only (null otherwise).
 export async function loadRescheduleOptions(
   deps: LoadRescheduleOptionsDeps,
-  params: Omit<BuildRescheduleOptionsParams, 'serviceMap' | 'occupancyRows'>,
+  input: Omit<BuildRescheduleOptionsParams, 'serviceMap' | 'occupancyRows'>,
 ): Promise<BookingRescheduleOptionsDetail | null> {
-  const { booking } = params;
+  const { booking } = input;
   if (booking.status !== BookingStatus.APPROVED) return null;
+  const params = {
+    ...input,
+    tenantBookingWindow: await withBookableUntil(
+      input.tenantBookingWindow,
+      deps.tenantAccess,
+      booking.tenantId,
+    ),
+  };
 
   const serviceIds = [...new Set(booking.lines.map((line) => line.serviceId))];
   const [services, occupancyRows] = await Promise.all([

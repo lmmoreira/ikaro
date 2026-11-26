@@ -34,6 +34,7 @@ import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-reposit
 import { BookingIntakeValidationService } from '../services/booking-intake-validation.service';
 import { BookingQuoteService } from '../services/booking-quote.service';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
+import { BookableUntilGuard } from '../services/bookable-until.guard';
 import { PhotoExistenceService } from '../services/photo-existence.service';
 import {
   createBookingAddress,
@@ -103,6 +104,7 @@ export class CreateBookingByStaffUseCase {
     private readonly intakeValidationService: BookingIntakeValidationService,
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
+    private readonly bookableUntilGuard: BookableUntilGuard,
   ) {}
 
   async execute(
@@ -161,6 +163,7 @@ export class CreateBookingByStaffUseCase {
         occupancyRepo: this.occupancyRepo,
         availabilityService: this.availabilityService,
         hoursRepos: { closureRepo: this.closureRepo, openingRepo: this.openingRepo },
+        bookableUntilGuard: this.bookableUntilGuard,
       },
       {
         booking,

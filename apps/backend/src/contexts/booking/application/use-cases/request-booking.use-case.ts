@@ -30,6 +30,7 @@ import {
   SERVICE_INTAKE_SCHEMA_REPOSITORY,
 } from '../ports/service-intake-schema-repository.port';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
+import { BookableUntilGuard } from '../services/bookable-until.guard';
 import { BookingQuoteService } from '../services/booking-quote.service';
 import { BookingIntakeValidationService } from '../services/booking-intake-validation.service';
 import {
@@ -80,6 +81,7 @@ export class RequestBookingUseCase {
     private readonly intakeValidationService: BookingIntakeValidationService,
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
+    private readonly bookableUntilGuard: BookableUntilGuard,
   ) {}
 
   async execute(input: RequestBookingUseCaseInput): Promise<RequestBookingUseCaseResult> {
@@ -121,6 +123,7 @@ export class RequestBookingUseCase {
       occupancyRepo: this.occupancyRepo,
       availabilityService: this.availabilityService,
       hoursRepos: { closureRepo: this.closureRepo, openingRepo: this.openingRepo },
+      bookableUntilGuard: this.bookableUntilGuard,
     };
   }
 

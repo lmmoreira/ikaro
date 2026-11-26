@@ -26,6 +26,7 @@ import {
   BackendBillingPlanPreviewSchema,
   BackendBillingPlanSchema,
   BackendBillingSummarySchema,
+  BackendTenantAccessSchema,
 } from './billing.schemas';
 import type { BackendTenantAccess } from './billing.types';
 
@@ -83,6 +84,8 @@ describe('toBillingAccessResponse', () => {
         features: [],
         provisional: true,
         degraded: true,
+        // The booking cap (M26-S18b) is server-side only: Booking enforces it, no role sees it.
+        bookableUntil: '2026-12-15',
       };
 
       const serialized = JSON.stringify(toBillingAccessResponse(role, backendAnswer));
@@ -91,8 +94,21 @@ describe('toBillingAccessResponse', () => {
       expect(serialized).not.toContain('NON_PAYMENT');
       expect(serialized).not.toContain('provisional');
       expect(serialized).not.toContain('degraded');
+      expect(serialized).not.toContain('bookableUntil');
+      expect(serialized).not.toContain('2026-12-15');
     },
   );
+
+  it('strips bookableUntil when the backend answer is parsed, so no mapper can receive it', () => {
+    const parsed = BackendTenantAccessSchema.parse({
+      status: 'ACTIVE',
+      operational: true,
+      features: [{ key: 'BOOKING', tier: 'STANDARD' }],
+      bookableUntil: '2026-12-15',
+    });
+
+    expect(parsed).not.toHaveProperty('bookableUntil');
+  });
 });
 
 describe('failOpenBackendAccess', () => {

@@ -1,3 +1,5 @@
+import { createTestBookableUntilGuard } from '../../../../test/infrastructure/test-bookable-until-guard';
+import { InMemoryTenantAccessPort } from '../../../../test/infrastructure/in-memory-tenant-access.port';
 import { InMemoryBookingStaffPort } from '../../../../test/infrastructure/in-memory-booking-staff.port';
 import { InMemoryBookingStatusTransitionRepository } from '../../../../test/repositories/booking/in-memory-booking-status-transition.repository';
 import { HttpException, HttpStatus } from '@nestjs/common';
@@ -96,6 +98,7 @@ describe('BookingController', () => {
         new BookingIntakeValidationService(intakeSchemaRepo),
         repo,
         new InMemoryTransactionManager(),
+        createTestBookableUntilGuard().guard,
       ),
       createBookingByStaff: makeStaffUseCase(customerProfilePort, repo),
       requestAuthenticatedBooking: new RequestAuthenticatedBookingUseCase(
@@ -113,6 +116,7 @@ describe('BookingController', () => {
         new BookingIntakeValidationService(intakeSchemaRepo),
         repo,
         new InMemoryTransactionManager(),
+        createTestBookableUntilGuard().guard,
       ),
       listBookings: new ListBookingsUseCase(
         repo,
@@ -128,6 +132,7 @@ describe('BookingController', () => {
         new InMemoryBookingStaffPort(),
         new InMemoryFutureCommitmentExceptionRepository(),
         new InMemoryServiceIntakeSchemaRepository(),
+        new InMemoryTenantAccessPort(),
       ),
     });
 
@@ -175,6 +180,7 @@ describe('BookingController', () => {
       new BookingIntakeValidationService(intakeSchemaRepo),
       repo,
       new InMemoryTransactionManager(),
+      createTestBookableUntilGuard().guard,
     );
 
   const validBody = () => ({
@@ -255,6 +261,7 @@ describe('BookingController', () => {
           new BookingIntakeValidationService(intakeSchemaRepo),
           repoB,
           new InMemoryTransactionManager(),
+          createTestBookableUntilGuard().guard,
         ),
         new RequestAuthenticatedBookingUseCase(
           new InMemoryBookingCustomerPort(),
@@ -271,6 +278,7 @@ describe('BookingController', () => {
           new BookingIntakeValidationService(intakeSchemaRepo),
           repoB,
           new InMemoryTransactionManager(),
+          createTestBookableUntilGuard().guard,
         ),
         makeStaffUseCase(new InMemoryBookingCustomerPort(), repoB),
         new ListBookingsUseCase(repoB, new InMemoryFutureCommitmentExceptionRepository()),
@@ -284,6 +292,7 @@ describe('BookingController', () => {
           new InMemoryBookingStaffPort(),
           new InMemoryFutureCommitmentExceptionRepository(),
           new InMemoryServiceIntakeSchemaRepository(),
+          new InMemoryTenantAccessPort(),
         ),
       );
       const err = await ctrl
@@ -347,6 +356,7 @@ describe('BookingController', () => {
           new BookingIntakeValidationService(intakeSchemaRepo),
           repoC,
           new InMemoryTransactionManager(),
+          createTestBookableUntilGuard().guard,
         ),
         new RequestAuthenticatedBookingUseCase(
           noPhonePort,
@@ -363,6 +373,7 @@ describe('BookingController', () => {
           new BookingIntakeValidationService(intakeSchemaRepo),
           repoC,
           new InMemoryTransactionManager(),
+          createTestBookableUntilGuard().guard,
         ),
         makeStaffUseCase(noPhonePort, repoC),
         new ListBookingsUseCase(repoC, new InMemoryFutureCommitmentExceptionRepository()),
@@ -376,6 +387,7 @@ describe('BookingController', () => {
           new InMemoryBookingStaffPort(),
           new InMemoryFutureCommitmentExceptionRepository(),
           new InMemoryServiceIntakeSchemaRepository(),
+          new InMemoryTenantAccessPort(),
         ),
       );
       const err = await ctrl.createAuthenticated(authBody()).catch((e: unknown) => e);

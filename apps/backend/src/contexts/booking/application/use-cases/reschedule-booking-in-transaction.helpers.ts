@@ -9,6 +9,8 @@ import { IFutureCommitmentExceptionRepository } from '../ports/future-commitment
 import { IResourceOccupancyRepository } from '../ports/resource-occupancy-repository.port';
 import { IResourceRepository } from '../ports/resource-repository.port';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
+import { BookableUntilGuard } from '../services/bookable-until.guard';
+import { assertBookingEndsWithinBookableUntil } from './bookable-until.helpers';
 import {
   dismissStaleExceptionsAfterMove,
   occupiedResourceIds,
@@ -34,6 +36,8 @@ export interface RescheduleBookingInTransactionDeps {
   exceptionRepo: IFutureCommitmentExceptionRepository;
   // Closures and openings: the new time must be one the business is open for.
   hoursRepos: HoursScheduleRepos;
+  // The billing `bookableUntil` cap (M26-S18b): applies to a staff or manager reschedule too.
+  bookableUntilGuard: BookableUntilGuard;
 }
 
 export interface RescheduleBookingInTransactionParams {
@@ -69,16 +73,15 @@ export async function rescheduleBookingInTransaction(
 ): Promise<QuoteRevisionResult | undefined> {
   const { booking, tenantId, staffId } = params;
   const previousTotalPrice = booking.totalPrice;
+  // The bookable-until lock is the first lock (docs/LOCK_CATALOG.md B-U1, L-1), before the
+  // resource locks below. The cap holds for staff too: a booking moved past the effective date is
+  // exactly what the BOOKING removal guard counts (UC-069 A3 exception).
+  const bookableUntil = await deps.bookableUntilGuard.acquire(tenantId);
   const { candidatesByLine, openExceptions } = await resolveAndLockExceptions(deps, params);
 
-  booking.reschedule(
-    staffId,
-    params.newScheduledAt,
-    params.correlationId,
-    true,
-    params.adminNotes,
-    params.durationChange,
-  );
+  applyReschedule(booking, params);
+  // After the change is applied, so a duration change is part of the new end.
+  assertBookingEndsWithinBookableUntil(booking, bookableUntil, params.timezone);
   await deps.bookingRepo.save(booking);
 
   await moveBookingLinesOccupancy(
@@ -103,6 +106,17 @@ export async function rescheduleBookingInTransaction(
     booking.totalPrice,
     'STAFF',
     staffId,
+  );
+}
+
+function applyReschedule(booking: Booking, params: RescheduleBookingInTransactionParams): void {
+  booking.reschedule(
+    params.staffId,
+    params.newScheduledAt,
+    params.correlationId,
+    true,
+    params.adminNotes,
+    params.durationChange,
   );
 }
 

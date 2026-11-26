@@ -1,3 +1,4 @@
+import { createTestBookableUntilGuard } from '../../../../test/infrastructure/test-bookable-until-guard';
 import { InMemoryFutureCommitmentExceptionRepository } from '../../../../test/repositories/booking/in-memory-future-commitment-exception.repository';
 import { HttpException } from '@nestjs/common';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
@@ -118,6 +119,7 @@ describe('RecurringBookingScheduleController', () => {
         tenantLock,
         tx,
         new AvailabilityService(),
+        createTestBookableUntilGuard().guard,
       ),
       new ListRecurringBookingSchedulesUseCase(scheduleRepo, serviceRepo, renewalService),
       new GetRecurringBookingScheduleUseCase(

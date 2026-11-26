@@ -23,6 +23,8 @@ import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repo
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { ITenantLockPort, TENANT_LOCK_PORT } from '../ports/tenant-lock.port';
 import { AvailabilityAlertResultAssembler } from '../services/availability-alert-result.assembler';
+import { BookableUntilGuard } from '../services/bookable-until.guard';
+import { alertLastMatchableInstant, assertEndsWithinBookableUntil } from './bookable-until.helpers';
 import { BookingQuoteService } from '../services/booking-quote.service';
 import {
   assertAlertDuration,
@@ -60,6 +62,7 @@ export class CreateAvailabilityAlertUseCase {
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     private readonly quoteService: BookingQuoteService,
     private readonly resultAssembler: AvailabilityAlertResultAssembler,
+    private readonly bookableUntilGuard: BookableUntilGuard,
   ) {}
 
   async execute(
@@ -71,6 +74,8 @@ export class CreateAvailabilityAlertUseCase {
     // an advisory lock is the right primitive); the service row lock means an eligibility change
     // either commits first and is seen here, or waits for this transaction.
     const alert = await this.txManager.run(async () => {
+      // First lock of the transaction (docs/LOCK_CATALOG.md B-U1, L-1), before the customer key.
+      const bookableUntil = await this.bookableUntilGuard.acquire(input.tenantId);
       await this.tenantLock.lockCustomerAlerts(input.tenantId, input.customerId);
       await this.assertServiceAndResource(input);
       const active = await this.alertRepo.countActiveByCustomer(input.tenantId, input.customerId);
@@ -89,6 +94,12 @@ export class CreateAvailabilityAlertUseCase {
         expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
         correlationId: input.correlationId,
       });
+      // A new alert must not reach past the removal's effective date (UC-136 A11).
+      assertEndsWithinBookableUntil(
+        alertLastMatchableInstant(created.criteria, created.expiresAt),
+        bookableUntil,
+        input.timezone,
+      );
       await this.alertRepo.save(created);
       return created;
     });

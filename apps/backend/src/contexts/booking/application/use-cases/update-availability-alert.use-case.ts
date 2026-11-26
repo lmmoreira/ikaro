@@ -13,6 +13,8 @@ import {
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { AvailabilityAlertResultAssembler } from '../services/availability-alert-result.assembler';
+import { BookableUntilGuard } from '../services/bookable-until.guard';
+import { alertLastMatchableInstant, assertEndsWithinBookableUntil } from './bookable-until.helpers';
 import { BookingQuoteService } from '../services/booking-quote.service';
 import {
   assertAlertDuration,
@@ -48,6 +50,7 @@ export class UpdateAvailabilityAlertUseCase {
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     private readonly quoteService: BookingQuoteService,
     private readonly resultAssembler: AvailabilityAlertResultAssembler,
+    private readonly bookableUntilGuard: BookableUntilGuard,
   ) {}
 
   async execute(
@@ -74,7 +77,17 @@ export class UpdateAvailabilityAlertUseCase {
     // answers 409 for a notified, expired or cancelled one, which must win over a 422 about the
     // body. Nothing is persisted or published until save(), so a refusal here discards the edit.
     await this.assertAgainstService(alert, input);
-    await this.txManager.run(() => this.alertRepo.save(alert));
+    await this.txManager.run(async () => {
+      // First lock of the transaction (docs/LOCK_CATALOG.md B-U1, L-1); an edit must not make the
+      // alert reach past the removal's effective date (UC-136 A11).
+      const bookableUntil = await this.bookableUntilGuard.acquire(input.tenantId);
+      assertEndsWithinBookableUntil(
+        alertLastMatchableInstant(alert.criteria, alert.expiresAt),
+        bookableUntil,
+        alert.timezone,
+      );
+      await this.alertRepo.save(alert);
+    });
     return this.resultAssembler.assembleOne(input.tenantId, alert);
   }
 

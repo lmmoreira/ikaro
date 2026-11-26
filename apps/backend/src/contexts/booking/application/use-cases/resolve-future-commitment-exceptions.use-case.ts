@@ -44,6 +44,7 @@ import {
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { ITenantLockPort, TENANT_LOCK_PORT } from '../ports/tenant-lock.port';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
+import { BookableUntilGuard } from '../services/bookable-until.guard';
 import {
   ReassignedOccurrence,
   syncRecurringScheduleAssignments,
@@ -112,6 +113,7 @@ export class ResolveFutureCommitmentExceptionsUseCase {
     private readonly slotConflictService: BookingSlotConflictService,
     @Inject(SCHEDULE_CLOSURE_REPOSITORY) private readonly closureRepo: IScheduleClosureRepository,
     @Inject(SCHEDULE_OPENING_REPOSITORY) private readonly openingRepo: IScheduleOpeningRepository,
+    private readonly bookableUntilGuard: BookableUntilGuard,
   ) {}
 
   async execute(
@@ -198,6 +200,10 @@ export class ResolveFutureCommitmentExceptionsUseCase {
     if (resolutionType === 'CANCEL') {
       await lockResourcesBeforeEntry(this.closingDeps, exceptionId, tenantId);
     } else if (resolutionType === 'RESCHEDULE' && input.scheduledAt) {
+      // The bookable-until lock comes before every resource lock (docs/LOCK_CATALOG.md B-U1, L-1):
+      // a shared request that arrives behind a waiting plan save would otherwise close a cycle
+      // with a holder of a resource lock. The reschedule below takes it again (already held).
+      await this.bookableUntilGuard.acquire(tenantId);
       // What the lock step read is handed to the reschedule, so it resolves from the same set.
       return lockRescheduleResourcesBeforeEntry(this.worklistDeps, {
         tenantId,
@@ -249,6 +255,7 @@ export class ResolveFutureCommitmentExceptionsUseCase {
       serviceRepo: this.serviceRepo,
       tenantLock: this.tenantLock,
       hoursRepos: { closureRepo: this.closureRepo, openingRepo: this.openingRepo },
+      bookableUntilGuard: this.bookableUntilGuard,
     };
   }
 

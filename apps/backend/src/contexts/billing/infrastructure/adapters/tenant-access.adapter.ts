@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { FeatureKey } from '@ikaro/validation';
 import type { TenantAccess, TenantAccessPort } from '../../../../shared/ports/tenant-access.port';
+import { GetBookableUntilUseCase } from '../../application/use-cases/get-bookable-until.use-case';
 import { GetTenantAccessUseCase } from '../../application/use-cases/get-tenant-access.use-case';
 import { ListSuspendedTenantIdsUseCase } from '../../application/use-cases/list-suspended-tenant-ids.use-case';
 import { ListTenantIdsNotEntitledToUseCase } from '../../application/use-cases/list-tenant-ids-not-entitled-to.use-case';
@@ -15,12 +16,17 @@ import { ListTenantIdsNotEntitledToUseCase } from '../../application/use-cases/l
 export class TenantAccessAdapter implements TenantAccessPort {
   constructor(
     private readonly getTenantAccess: GetTenantAccessUseCase,
+    private readonly getBookable: GetBookableUntilUseCase,
     private readonly listSuspended: ListSuspendedTenantIdsUseCase,
     private readonly listNotEntitled: ListTenantIdsNotEntitledToUseCase,
   ) {}
 
   getAccess(tenantId: string): Promise<TenantAccess> {
     return this.getTenantAccess.execute({ tenantId });
+  }
+
+  async getBookableUntil(tenantId: string): Promise<string | null> {
+    return (await this.getBookable.execute({ tenantId })).bookableUntil;
   }
 
   async listSuspendedTenantIds(): Promise<string[]> {

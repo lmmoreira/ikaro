@@ -100,6 +100,7 @@ import { UpdateAvailabilityAlertUseCase } from './application/use-cases/update-a
 import { CancelAvailabilityAlertUseCase } from './application/use-cases/cancel-availability-alert.use-case';
 import { RecordAvailabilityAlertOutcomeUseCase } from './application/use-cases/record-availability-alert-outcome.use-case';
 import { BookingSlotConflictService } from './application/services/booking-slot-conflict.service';
+import { BookableUntilGuard } from './application/services/bookable-until.guard';
 import { AvailabilityAlertResultAssembler } from './application/services/availability-alert-result.assembler';
 import { BookingQuoteService } from './application/services/booking-quote.service';
 import { RecurringScheduleRenewalService } from './application/services/recurring-schedule-renewal.service';
@@ -176,6 +177,7 @@ export const bookingModuleProviders: Provider[] = [
   AdminScheduleReminderTriggerHandler,
   ResourceOccupancyRetentionPurgeTriggerHandler,
   BookingSlotConflictService,
+  BookableUntilGuard,
   BookingQuoteService,
   AvailabilityAlertResultAssembler,
   RecurringScheduleRenewalService,

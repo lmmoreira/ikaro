@@ -1,3 +1,5 @@
+import { addDaysUTC, utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
+import { createTestBookableUntilGuard } from '../../../../test/infrastructure/test-bookable-until-guard';
 import {
   AvailabilityAlertBuilder,
   ResourceBuilder,
@@ -21,6 +23,7 @@ import {
   BookingDurationOutOfRangeError,
   BookingServiceNotActiveError,
   BookingServiceNotInTenantError,
+  BookingTooFarAheadError,
 } from '../../domain/errors/booking-domain.error';
 import { Resource } from '../../domain/resource.aggregate';
 import { ResourceRequirement } from '../../domain/resource-requirement';
@@ -43,6 +46,8 @@ describe('CreateAvailabilityAlertUseCase', () => {
   let alertRepo: InMemoryAvailabilityAlertRepository;
   let eventBus: InMemoryEventBus;
   let useCase: CreateAvailabilityAlertUseCase;
+  let guardParts: ReturnType<typeof createTestBookableUntilGuard>;
+  let tenantLock: InMemoryTenantLock;
 
   const roomRequirement = (resourcePoolIds?: string[]): ResourceRequirement =>
     ResourceRequirement.create({
@@ -93,14 +98,17 @@ describe('CreateAvailabilityAlertUseCase', () => {
     serviceRepo = new InMemoryServiceRepository();
     resourceRepo = new InMemoryResourceRepository();
     alertRepo = new InMemoryAvailabilityAlertRepository(eventBus);
+    guardParts = createTestBookableUntilGuard();
+    tenantLock = new InMemoryTenantLock();
     useCase = new CreateAvailabilityAlertUseCase(
       serviceRepo,
       resourceRepo,
       alertRepo,
-      new InMemoryTenantLock(),
+      tenantLock,
       new InMemoryTransactionManager(),
       new BookingQuoteService(),
       new AvailabilityAlertResultAssembler(serviceRepo, resourceRepo, alertRepo),
+      guardParts.guard,
     );
   });
 
@@ -397,5 +405,130 @@ describe('CreateAvailabilityAlertUseCase', () => {
       ),
     ).rejects.toThrow(AvailabilityAlertCriteriaInvalidError);
     expect(eventBus.published).toHaveLength(0);
+  });
+
+  describe('the billing bookable-until cap (M26-S18b)', () => {
+    const DAY = 24 * HOUR_MS;
+    const seedCap = (bookableUntil: string | null) =>
+      guardParts.access.seed(TENANT, {
+        status: 'ACTIVE',
+        suspensionReason: null,
+        operational: true,
+        features: [{ key: 'BOOKING', tier: 'STANDARD' }],
+        bookableUntil,
+      });
+    // The tenant-local date of an instant, never the UTC day.
+    const localDateOf = (instant: Date) => utcDateToLocalDate(instant, 'America/Sao_Paulo');
+    const inDays = (days: number) => new Date(Date.now() + days * DAY);
+    const rangeInput = (serviceId: string, end: Date, expiresAt?: Date) =>
+      input(serviceId, {
+        criteriaType: 'ONE_TIME_RANGE',
+        weekdays: undefined,
+        localStartTime: undefined,
+        localEndTime: undefined,
+        acceptableStartAt: inDays(1).toISOString(),
+        acceptableEndAt: end.toISOString(),
+        expiresAt: expiresAt?.toISOString(),
+      });
+    const expectNothingStored = async () => {
+      expect(await alertRepo.countActiveByCustomer(TENANT, CUSTOMER)).toBe(0);
+      expect(eventBus.published).toHaveLength(0);
+    };
+
+    it('refuses a weekly preference whose default 30-day expiry reaches the cap and stores nothing', async () => {
+      const service = await seedService();
+      seedCap(localDateOf(inDays(10)));
+
+      await expect(useCase.execute(input(service.id))).rejects.toBeInstanceOf(
+        BookingTooFarAheadError,
+      );
+
+      await expectNothingStored();
+    });
+
+    it('creates a weekly preference whose expiry ends before the cap day', async () => {
+      const service = await seedService();
+      const expiresAt = inDays(5);
+      seedCap(addDaysUTC(localDateOf(expiresAt), 1));
+
+      const result = await useCase.execute(
+        input(service.id, { expiresAt: expiresAt.toISOString() }),
+      );
+
+      expect(result.status).toBe('ACTIVE');
+    });
+
+    it('refuses a weekly preference whose requested expiry falls on the cap day', async () => {
+      const service = await seedService();
+      const expiresAt = inDays(5);
+      seedCap(localDateOf(expiresAt));
+
+      await expect(
+        useCase.execute(input(service.id, { expiresAt: expiresAt.toISOString() })),
+      ).rejects.toBeInstanceOf(BookingTooFarAheadError);
+
+      await expectNothingStored();
+    });
+
+    it('refuses a one-time range that ends on the cap day', async () => {
+      const service = await seedService();
+      const end = inDays(4);
+      seedCap(localDateOf(end));
+
+      await expect(useCase.execute(rangeInput(service.id, end))).rejects.toBeInstanceOf(
+        BookingTooFarAheadError,
+      );
+
+      await expectNothingStored();
+    });
+
+    it('creates a one-time range that ends before the cap day', async () => {
+      const service = await seedService();
+      const end = inDays(4);
+      seedCap(addDaysUTC(localDateOf(end), 1));
+
+      const result = await useCase.execute(rangeInput(service.id, end));
+
+      expect(result.status).toBe('ACTIVE');
+    });
+
+    it('ends a one-time range at the earlier of its range end and its expiry', async () => {
+      const service = await seedService();
+      const expiresAt = inDays(3);
+      const end = inDays(10);
+
+      // The alert stops matching at its expiry, so a cap between the two does not refuse it.
+      seedCap(localDateOf(inDays(6)));
+      await expect(useCase.execute(rangeInput(service.id, end, expiresAt))).resolves.toMatchObject({
+        status: 'ACTIVE',
+      });
+
+      // A cap on the expiry's day refuses it even though the range runs later.
+      seedCap(localDateOf(expiresAt));
+      await expect(useCase.execute(rangeInput(service.id, end, expiresAt))).rejects.toBeInstanceOf(
+        BookingTooFarAheadError,
+      );
+    });
+
+    it('is unchanged without a cap', async () => {
+      const service = await seedService();
+      seedCap(null);
+
+      await expect(useCase.execute(input(service.id))).resolves.toMatchObject({ status: 'ACTIVE' });
+    });
+
+    it('takes the shared lock for the tenant before the customer alerts lock', async () => {
+      const service = await seedService();
+      const sharedLocksWhenCustomerLocked: number[] = [];
+      jest.spyOn(tenantLock, 'lockCustomerAlerts').mockImplementation(async () => {
+        sharedLocksWhenCustomerLocked.push(guardParts.lock.calls.length);
+      });
+
+      await useCase.execute(input(service.id));
+
+      expect(sharedLocksWhenCustomerLocked).toEqual([1]);
+      expect(guardParts.lock.calls).toEqual([{ mode: 'shared', tenantId: TENANT }]);
+      expect(guardParts.access.getBookableUntilCalls).toEqual([TENANT]);
+    });
   });
 });

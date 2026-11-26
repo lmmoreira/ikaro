@@ -1,3 +1,4 @@
+import { createTestBookableUntilGuard } from '../../../../test/infrastructure/test-bookable-until-guard';
 import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
 import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
 import { HttpException } from '@nestjs/common';
@@ -58,6 +59,7 @@ describe('SchedulingExceptionController', () => {
         new BookingSlotConflictService(world.occupancyRepo, world.tenantLock),
         new InMemoryScheduleClosureRepository(),
         new InMemoryScheduleOpeningRepository(),
+        createTestBookableUntilGuard().guard,
       ),
       new DismissFutureCommitmentExceptionsUseCase(world.exceptionRepo, tx),
     );
