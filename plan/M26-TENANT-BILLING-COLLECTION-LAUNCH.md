@@ -1503,7 +1503,7 @@ The **occurrence bookings of a counted recurring schedule are counted once**, un
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-### M26-S18b — `bookableUntil` window cap and the race primitive (UC-136 A11)
+### M26-S18b — `bookableUntil` window cap and the race primitive (UC-136 A11) ✅ Done
 
 **Agent:** `backend-ts + bff-ts`
 **Complexity:** L
