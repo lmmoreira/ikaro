@@ -1,6 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
+import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { todayInSaoPaulo } from '../../../../test/utils/chatbot-test-helpers';
 import {
   ChatbotSessionEntityBuilder,
@@ -375,7 +376,7 @@ describe('TenantSettingsController (integration)', () => {
         .set('X-Platform-Admin-Key', TEST_KEY)
         .send({
           name: 'Manaus Timezone Test',
-          slug: 'manaus-timezone-integ-01',
+          slug: `manaus-tz-${uuidv7().slice(-12)}`,
           adminEmail: 'manaus-timezone@test.com.br',
           country_code: 'BR',
           timezone: 'America/Manaus',
