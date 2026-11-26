@@ -1,3 +1,4 @@
+import { CURRENT_TERMS_VERSION } from '@ikaro/types';
 import { INestApplication } from '@nestjs/common';
 import { FEATURE_KEYS } from '@ikaro/validation';
 import { DataSource } from 'typeorm';
@@ -192,7 +193,7 @@ describe('CreateTrialSubscriptionUseCase (integration)', () => {
       googleSub,
       countryCode: 'BR',
       taxId: cpf,
-      termsVersion: process.env['SIGNUP_TERMS_VERSION'],
+      termsVersion: CURRENT_TERMS_VERSION,
     });
     const registrationId = reserved.registrationId as string;
     registrationIds.push(registrationId);

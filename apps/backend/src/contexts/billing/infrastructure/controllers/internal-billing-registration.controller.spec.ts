@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus, Logger } from '@nestjs/common';
-import { CountryCodeErrorCode, SignupErrorCode } from '@ikaro/types';
+import { CURRENT_TERMS_VERSION, CountryCodeErrorCode, SignupErrorCode } from '@ikaro/types';
 import { FixedClock } from '../../../../test/infrastructure/fixed-clock';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemorySignupRegistrationLock } from '../../../../test/repositories/billing/in-memory-signup-registration-lock';
@@ -35,7 +35,7 @@ describe('ReserveSignupRegistrationSchema', () => {
         googleSub: SUB,
         taxId: CPF,
         countryCode: 'br',
-        terms: { version: '2026-11-01' },
+        terms: { version: CURRENT_TERMS_VERSION },
       }).success,
     ).toBe(true);
   });
@@ -114,16 +114,14 @@ describe('InternalBillingRegistrationController', () => {
   beforeEach(() => {
     registrations = new InMemorySignupRegistrationRepository();
     const txManager = new InMemoryTransactionManager();
-    const config = { termsVersion: '2026-11-01' };
     controller = new InternalBillingRegistrationController(
       new ReserveSignupRegistrationUseCase(
         registrations,
         new InMemorySignupRegistrationLock(txManager),
         txManager,
         new FixedClock(new Date('2026-11-11T12:00:00Z')),
-        config,
       ),
-      new GetSignupEligibilityUseCase(registrations, new InMemoryBillingPlatformPort(), config),
+      new GetSignupEligibilityUseCase(registrations, new InMemoryBillingPlatformPort()),
       new ReleaseSignupRegistrationUseCase(registrations),
     );
   });
@@ -134,7 +132,7 @@ describe('InternalBillingRegistrationController', () => {
       googleSub: SUB,
       taxId: CPF,
       countryCode: 'BR',
-      terms: { version: '2026-11-01' },
+      terms: { version: CURRENT_TERMS_VERSION },
     });
 
     expect(result).toEqual({ registrationId: registrations.saved[0].id, trialAvailable: true });
@@ -170,7 +168,7 @@ describe('InternalBillingRegistrationController', () => {
       googleSub: SUB,
       taxId: CPF,
       countryCode: 'BR',
-      terms: { version: '2026-11-01' },
+      terms: { version: CURRENT_TERMS_VERSION },
     });
     await controller
       .reserve({ source: 'SELF_SIGNUP', googleSub: SUB, countryCode: 'BR', taxId: CPF })
@@ -179,7 +177,7 @@ describe('InternalBillingRegistrationController', () => {
     const logged = JSON.stringify(spies.flatMap((spy) => spy.mock.calls));
     expect(logged).not.toContain(SUB);
     expect(logged).not.toContain('52998224725');
-    expect(logged).not.toContain('2026-11-01');
+    expect(logged).not.toContain('terms');
     spies.forEach((spy) => spy.mockRestore());
   });
 
@@ -190,7 +188,7 @@ describe('InternalBillingRegistrationController', () => {
         googleSub: SUB,
         countryCode: 'US',
         taxId: '12-3456789',
-        terms: { version: '2026-11-01' },
+        terms: { version: CURRENT_TERMS_VERSION },
       })
       .catch((e) => e);
 
@@ -220,7 +218,7 @@ describe('InternalBillingRegistrationController', () => {
     expect(result).toEqual({
       trialAvailable: true,
       existingTenantSlug: null,
-      termsVersion: '2026-11-01',
+      termsVersion: CURRENT_TERMS_VERSION,
     });
     expect(registrations.saved).toHaveLength(0);
   });
@@ -231,7 +229,7 @@ describe('InternalBillingRegistrationController', () => {
       googleSub: SUB,
       taxId: CPF,
       countryCode: 'BR',
-      terms: { version: '2026-11-01' },
+      terms: { version: CURRENT_TERMS_VERSION },
     });
     const id = reserved.registrationId as string;
 
@@ -246,7 +244,7 @@ describe('InternalBillingRegistrationController', () => {
       googleSub: SUB,
       taxId: CPF,
       countryCode: 'BR',
-      terms: { version: '2026-11-01' },
+      terms: { version: CURRENT_TERMS_VERSION },
     });
     const id = reserved.registrationId as string;
     await registrations.complete(registrations.saved[0].complete('tenant-1'));

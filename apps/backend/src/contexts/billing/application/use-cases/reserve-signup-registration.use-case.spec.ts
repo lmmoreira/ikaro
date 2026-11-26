@@ -1,3 +1,4 @@
+import { CURRENT_TERMS_VERSION } from '@ikaro/types';
 import { FixedClock } from '../../../../test/infrastructure/fixed-clock';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemorySignupRegistrationLock } from '../../../../test/repositories/billing/in-memory-signup-registration-lock';
@@ -12,7 +13,7 @@ import { ReserveSignupRegistrationUseCase } from './reserve-signup-registration.
 const NOW = new Date('2026-11-11T12:00:00Z');
 const CPF = { raw: '529.982.247-25', countryCode: 'BR' };
 const CNPJ = { raw: '11.222.333/0001-81', countryCode: 'BR' };
-const TERMS = '2026-11-01';
+const TERMS = CURRENT_TERMS_VERSION;
 
 describe('ReserveSignupRegistrationUseCase', () => {
   let registrations: InMemorySignupRegistrationRepository;
@@ -29,7 +30,6 @@ describe('ReserveSignupRegistrationUseCase', () => {
       lock,
       txManager,
       new FixedClock(NOW),
-      { termsVersion: TERMS },
     );
   });
 

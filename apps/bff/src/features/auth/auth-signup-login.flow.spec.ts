@@ -35,13 +35,7 @@ describe('self-signup Google step (UC-127)', () => {
     it('keeps the verified identity in the signup cookie and redirects to the form step', () => {
       const res = resMock();
 
-      handleSignupLogin(
-        sessions,
-        configOf({}),
-        profile(true),
-        res as unknown as Response,
-        FRONTEND,
-      );
+      handleSignupLogin(sessions, profile(true), res as unknown as Response, FRONTEND);
 
       expect(res.cookie).toHaveBeenCalledTimes(1);
       expect(res.cookie.mock.calls[0][0]).toContain('signup_session');
@@ -51,44 +45,17 @@ describe('self-signup Google step (UC-127)', () => {
     it('refuses an unverified Google email: no cookie, redirect to the unverified page', () => {
       const res = resMock();
 
-      handleSignupLogin(
-        sessions,
-        configOf({}),
-        profile(false),
-        res as unknown as Response,
-        FRONTEND,
-      );
+      handleSignupLogin(sessions, profile(false), res as unknown as Response, FRONTEND);
 
       expect(res.cookie).not.toHaveBeenCalled();
       expect(res.redirect).toHaveBeenCalledWith(`${FRONTEND}/ikaro-trial/conta-nao-verificada`);
-    });
-
-    it('answers 503 SIGNUP_CLOSED while the kill switch is off, and sets nothing', () => {
-      const res = resMock();
-
-      expect(() =>
-        handleSignupLogin(
-          sessions,
-          configOf({ FEATURE_FLAG_SIGNUP_ENABLED: false }),
-          profile(true),
-          res as unknown as Response,
-          FRONTEND,
-        ),
-      ).toThrow(expect.objectContaining({ status: 503 }));
-      expect(res.cookie).not.toHaveBeenCalled();
     });
 
     // Negative guarantee: no tenant exists yet, so no tenant JWT (the session cookie) is ever set.
     it('never sets the session cookie', () => {
       const res = resMock();
 
-      handleSignupLogin(
-        sessions,
-        configOf({}),
-        profile(true),
-        res as unknown as Response,
-        FRONTEND,
-      );
+      handleSignupLogin(sessions, profile(true), res as unknown as Response, FRONTEND);
 
       expect(res.cookie.mock.calls.map((call) => call[0])).not.toContain(SESSION_COOKIE_NAME);
     });

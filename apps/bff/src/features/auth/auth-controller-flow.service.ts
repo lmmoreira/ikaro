@@ -45,7 +45,7 @@ export class AuthControllerFlowService {
 
     // The self-signup Google step (UC-127): no tenant exists, so no tenant JWT is ever issued.
     if (profile.loginType === 'signup') {
-      handleSignupLogin(this.signupSessions, this.config, profile, res, frontendUrl);
+      handleSignupLogin(this.signupSessions, profile, res, frontendUrl);
       return;
     }
 

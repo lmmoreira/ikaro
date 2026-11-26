@@ -343,11 +343,10 @@ export const SignupErrorCode = {
   TAX_ID_REQUIRED: 'SIGNUP_TAX_ID_REQUIRED',
   TERMS_NOT_ACCEPTED: 'SIGNUP_TERMS_NOT_ACCEPTED',
   // M26-S24 (UC-127): the trial rule's refusal (A3), a failed Turnstile (A2), the burst limit on the
-  // signup POST (A4), the kill switch (A11) and a country outside SIGNUP_SUPPORTED_COUNTRIES (A7).
+  // signup POST (A4) and a country outside SIGNUP_SUPPORTED_COUNTRIES (A7).
   TRIAL_NOT_AVAILABLE: 'SIGNUP_TRIAL_NOT_AVAILABLE',
   TURNSTILE_FAILED: 'SIGNUP_TURNSTILE_FAILED',
   RATE_LIMITED: 'SIGNUP_RATE_LIMITED',
-  CLOSED: 'SIGNUP_CLOSED',
   COUNTRY_NOT_SUPPORTED: 'SIGNUP_COUNTRY_NOT_SUPPORTED',
 } as const;
 export type SignupErrorCode = (typeof SignupErrorCode)[keyof typeof SignupErrorCode];

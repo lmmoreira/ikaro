@@ -259,7 +259,6 @@
   "SIGNUP_TRIAL_NOT_AVAILABLE": "Você já tem um teste em andamento ou não concluído.",
   "SIGNUP_TURNSTILE_FAILED": "Não foi possível confirmar que você não é um robô. Tente novamente.",
   "SIGNUP_RATE_LIMITED": "Muitas tentativas de cadastro. Tente novamente mais tarde.",
-  "SIGNUP_CLOSED": "O cadastro está indisponível no momento.",
   "SIGNUP_COUNTRY_NOT_SUPPORTED": "O cadastro ainda não está disponível para este país.",
   "BILLING_EXEMPT_PROTECTED": "Esta assinatura é isenta e não pode ser alterada desta forma.",
   "BILLING_GRACE_NOT_ALLOWED": "A carência só pode ser definida em uma assinatura em atraso e nunca termina antes dos 14 dias padrão.",

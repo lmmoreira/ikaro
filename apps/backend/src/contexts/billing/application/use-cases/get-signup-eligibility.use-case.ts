@@ -1,9 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { CURRENT_TERMS_VERSION } from '@ikaro/types';
 import { BILLING_PLATFORM_PORT, type IBillingPlatformPort } from '../ports/billing-platform.port';
-import {
-  BILLING_SIGNUP_CONFIG,
-  type BillingSignupConfig,
-} from '../ports/billing-signup-config.port';
 import {
   ISignupRegistrationRepository,
   SIGNUP_REGISTRATION_REPOSITORY,
@@ -20,7 +17,7 @@ export interface GetSignupEligibilityUseCaseResult {
   trialAvailable: boolean;
   /** The earliest unpaid self-signup tenant of this `sub`, so the page can offer sign-in. */
   existingTenantSlug: string | null;
-  /** The Terms version the visitor must accept (`SIGNUP_TERMS_VERSION`). */
+  /** The Terms version the visitor must accept (`CURRENT_TERMS_VERSION`). */
   termsVersion: string;
 }
 
@@ -34,7 +31,6 @@ export class GetSignupEligibilityUseCase {
     @Inject(SIGNUP_REGISTRATION_REPOSITORY)
     private readonly registrations: ISignupRegistrationRepository,
     @Inject(BILLING_PLATFORM_PORT) private readonly platform: IBillingPlatformPort,
-    @Inject(BILLING_SIGNUP_CONFIG) private readonly signupConfig: BillingSignupConfig,
   ) {}
 
   async execute(
@@ -45,7 +41,7 @@ export class GetSignupEligibilityUseCase {
     return {
       trialAvailable,
       existingTenantSlug: trialAvailable ? null : await this.earliestUnpaidSlug(history),
-      termsVersion: this.signupConfig.termsVersion,
+      termsVersion: CURRENT_TERMS_VERSION,
     };
   }
 

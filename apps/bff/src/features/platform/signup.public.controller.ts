@@ -10,7 +10,6 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import {
@@ -21,7 +20,6 @@ import {
   type SlugAvailabilityResponse,
 } from '@ikaro/types';
 import { ZodValidationPipe } from '@ikaro/nestjs-http';
-import { assertSignupOpen } from '../auth/signup-availability';
 import { SignupSession, SignupSessionService } from '../auth/signup-session.service';
 import { Public } from '../../shared/decorators/public.decorator';
 import { ThrottleErrorCode } from '../../shared/decorators/throttle-error-code.decorator';
@@ -47,7 +45,6 @@ export class SignupPublicController {
     private readonly backendHttp: BackendHttpService,
     private readonly signupSessions: SignupSessionService,
     private readonly signup: SignupService,
-    private readonly config: ConfigService,
   ) {}
 
   // 30 requests per minute per IP, through the in-memory throttler: best-effort (per instance), the
@@ -73,7 +70,6 @@ export class SignupPublicController {
   @Public()
   @Header('Cache-Control', 'no-store')
   async getSession(@Req() req: Request): Promise<SignupSessionResponse> {
-    assertSignupOpen(this.config);
     const session = this.requireSession(req);
     const eligibility = await this.backendHttp.get<BackendSignupEligibility>(
       '/internal/billing/registrations/eligibility',
@@ -105,7 +101,6 @@ export class SignupPublicController {
     @Res({ passthrough: true }) res: Response,
     @Body(new ZodValidationPipe(SignupTenantBodySchema)) body: SignupTenantBody,
   ): Promise<SignupTenantResponse> {
-    assertSignupOpen(this.config);
     const session = this.requireSession(req);
     const { tenantId, tenantSlug, nextPath } = await this.signup.signup(
       session,

@@ -1,3 +1,4 @@
+import { CURRENT_TERMS_VERSION } from '@ikaro/types';
 import { FixedClock } from '../../../../test/infrastructure/fixed-clock';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemorySignupRegistrationLock } from '../../../../test/repositories/billing/in-memory-signup-registration-lock';
@@ -18,7 +19,6 @@ describe('ReleaseSignupRegistrationUseCase', () => {
       new InMemorySignupRegistrationLock(txManager),
       txManager,
       new FixedClock(new Date('2026-11-26T12:00:00Z')),
-      { termsVersion: '2026-11' },
     );
     useCase = new ReleaseSignupRegistrationUseCase(registrations);
   });
@@ -30,7 +30,7 @@ describe('ReleaseSignupRegistrationUseCase', () => {
         googleSub,
         countryCode: 'BR',
         taxId: '529.982.247-25',
-        termsVersion: '2026-11',
+        termsVersion: CURRENT_TERMS_VERSION,
       })
     ).registrationId as string;
 

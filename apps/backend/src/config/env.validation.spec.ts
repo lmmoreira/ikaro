@@ -427,24 +427,4 @@ describe('validateEnv()', () => {
       );
     });
   });
-
-  describe('SIGNUP_TERMS_VERSION (M26-S24)', () => {
-    it('defaults so a local or CI run can sign up with no configuration', () => {
-      expect(validateEnv(valid).SIGNUP_TERMS_VERSION).toBe('2026-11');
-    });
-
-    it('takes the version a deployed environment sets, trimmed', () => {
-      expect(
-        validateEnv({ ...valid, SIGNUP_TERMS_VERSION: ' 2027-01 ' }).SIGNUP_TERMS_VERSION,
-      ).toBe('2027-01');
-    });
-
-    // The registration's `terms_version` column holds 20 characters, so a longer value would only
-    // fail later, at the first signup.
-    it.each(['', '   ', 'x'.repeat(21)])('rejects the unusable version "%s"', (version) => {
-      expect(() => validateEnv({ ...valid, SIGNUP_TERMS_VERSION: version })).toThrow(
-        'ENV validation failed',
-      );
-    });
-  });
 });

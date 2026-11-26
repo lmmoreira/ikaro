@@ -29,7 +29,7 @@
 - **The US variant (`02b`, `04g`) is not offered by M26-S33** where the country has no price list (production).
 - **The 60 s "Reenviar e-mail" cooldown on `05` is a UI-only cosmetic cooldown**; the enforced limits are 3 per hour per tenant and 10 per day per IP (Screen 5).
 - **Links "Termos de Uso" / "Política de Privacidade" are `href="#"`** in `04`–`04g` until M26-S33 wires them to `/ikaro-trial/termos` and `/ikaro-trial/privacidade`.
-- **Not drawn:** the "cadastro indisponível" notice (`503 SIGNUP_CLOSED`), the `SIGNUP_TRIAL_NOT_AVAILABLE` 409 other than via the `03c` card.
+- **Not drawn:** the `SIGNUP_TRIAL_NOT_AVAILABLE` 409 other than via the `03c` card. There is no "signup closed" screen: Ikaro closes signup by disabling the `TRIAL_SIGNUP_CTA` module in its hotsite configuration (M26-S24 discovery).
 
 **Screens:** 16 — `01` hotsite CTA · `02`/`02b` details (BR / US) · `02c` prices loading · `02d` prices error · `03` Turnstile + Google · `03b` Turnstile failed · `03c` trial already used · `04` form · `04b` slug taken · `04c` validation errors · `04d` submitting · `04e` rate limited · `04f` creation failed · `04g` US selected · `05` account created.
 
@@ -62,7 +62,7 @@ GET /v1/public/billing/prices?country=BR|US   (@Public)
 **File:** `apps/web/app/[slug]/ikaro-trial/entrar/page.tsx` for the owner slug; `TrialGoogleStep.tsx` renders until `useSignupSession` returns a session, then `TrialSignupForm` renders on the same route (GAP, M26-S33). Google button follows the existing OAuth pattern (`/api/auth/google?redirect=...`) with a signup intent that creates no tenant.
 **Props:** none. The Turnstile token is obtained on the form step (screen 4) and sent in the tenant creation call.
 **BFF call:** `GET /v1/public/signup/session` after the OAuth callback -> `{ email, name, trialAvailable, existingTenantSlug?, termsVersion }` (`trialAvailable=false` when an earlier self-signup tenant of this Google `sub` never paid; the tax-id rule is applied on the final `POST`; `docs/USE_CASES.md` UC-127 A3).
-**States:** idle (Google button enabled) -> 03c trial not available (`trialAvailable = false`); signup closed (`FEATURE_FLAG_SIGNUP_ENABLED` off, `503 SIGNUP_CLOSED`) shows the "cadastro indisponível" notice instead of the button. (`03b` Turnstile failed: see the note above.)
+**States:** idle (Google button enabled) -> 03c trial not available (`trialAvailable = false`); (`03b` Turnstile failed: see the note above.)
 **Error copy:** 03b "Não foi possível verificar que você é uma pessoa." ; 03c "Você já tem um teste em andamento ou não concluído" ("conclua o pagamento do seu teste atual") + "Entrar na conta existente" + "Descartar o teste não pago e começar de novo" (explains that it erases the unpaid trial and frees the name; leads to the same confirm page as `manager-10`; **until M27 the discard action is replaced by the honest "fale com a gente" message** and eligibility is released only by the M27 discard or an operator offboarding, never by cancelling).
 **Mobile:** single column.
 **Decided:** the signup session is a short-lived (30 min), signed, httpOnly cookie reusing `JWT_SECRET` with a distinct `typ`/`aud` and cookie name, set by the OAuth callback and bound to the verified Google account (API_CONTRACTS § Billing — Public Signup API).
@@ -95,7 +95,6 @@ POST /v1/public/signup/tenant
 | 409 | `SIGNUP_TRIAL_NOT_AVAILABLE` | `03c` card |
 | 422 | `SIGNUP_TERMS_NOT_ACCEPTED`, `SIGNUP_SLUG_INVALID`, `SIGNUP_SLUG_RESERVED` (plus `SIGNUP_TAX_ID_INVALID` / `SIGNUP_TAX_ID_REQUIRED`) | `04c` whole-form validation errors |
 | 429 | `SIGNUP_RATE_LIMITED` | `04e`, wait time from `Retry-After` |
-| 503 | `SIGNUP_CLOSED` | "cadastro indisponível" notice (not drawn) |
 | 5xx | tenant creation failed | `04f`, nothing was created |
 **Error copy:** 04e "Muitas tentativas. Por segurança, aguarde alguns minutos antes de tentar de novo." ; 04f "Não conseguimos criar sua conta. Nada foi criado, então você pode tentar de novo com segurança." This applies only when the tenant-creation transaction fails. Post-commit manager/Billing setup is durable asynchronous work; its handoff is the account-created page and existing invitation/login email, not a dashboard redirect.
 **Notes:** slug and country are immutable after creation (hint shown). URL preview uses `ikaro.app/{slug}` (illustrative domain). Desktop buttons are inline, not stretched. Bot Turnstile token is single-use; after a failed submit the page must re-request a token.
@@ -118,7 +117,7 @@ POST /v1/public/signup/tenant
 POST /v1/public/signup/resend   (@Public, no body)
   Auth: resend credential cookie issued at the signup 201 (signed, typ/aud signup-resend, bound to { tenantId, email }, 30 min)
   Response 200: { sent: boolean, ready: boolean }
-  401 without a valid credential (generic, no enumeration); 429 SIGNUP_RATE_LIMITED + Retry-After; 503 SIGNUP_CLOSED
+  401 without a valid credential (generic, no enumeration); 429 SIGNUP_RATE_LIMITED + Retry-After
 ```
 Enforced limits: 3 per hour per tenant and 10 per day per IP (best-effort per BFF instance). `{ sent: false, ready: false }` means the first-manager row does not exist yet (the page keeps waiting); `{ sent: false, ready: true }` means the manager already linked Google (no email sent).
 **Copy:** "Sua conta foi criada" / "Enviamos as instruções de acesso para {email}. Abra o e-mail para entrar e começar seu teste de 14 dias." / "Não encontrou o e-mail? Verifique a caixa de spam ou fale com a gente."

@@ -1,4 +1,3 @@
-import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { HEADERS_METADATA } from '@nestjs/common/constants';
 import type { Request, Response } from 'express';
@@ -19,20 +18,13 @@ import { SignupService } from './signup.service';
 const SECRET = 'test-secret-that-is-at-least-64-characters-long-for-jwt-signing!!';
 const SESSION = { email: 'dona@gmail.com', name: 'Dona', googleSub: 'sub-123' };
 
-function configOf(values: Record<string, unknown> = {}): ConfigService {
-  return { get: (key: string) => values[key] } as unknown as ConfigService;
-}
-
-function build(config: Record<string, unknown> = {}) {
+function build() {
   const get = jest.fn();
   const signupSessions = new SignupSessionService(new JwtService({ secret: SECRET }));
   const signupFn = jest.fn();
-  const controller = new SignupPublicController(
-    makeBackendHttp({ get }),
-    signupSessions,
-    { signup: signupFn } as unknown as SignupService,
-    configOf(config),
-  );
+  const controller = new SignupPublicController(makeBackendHttp({ get }), signupSessions, {
+    signup: signupFn,
+  } as unknown as SignupService);
   return { controller, get, signupSessions, signupFn };
 }
 
@@ -130,13 +122,6 @@ describe('SignupPublicController', () => {
       expect(get).not.toHaveBeenCalled();
     });
 
-    it('answers 503 SIGNUP_CLOSED while the kill switch is off, before the cookie or the backend', async () => {
-      const { controller, get } = build({ FEATURE_FLAG_SIGNUP_ENABLED: false });
-
-      await expect(controller.getSession(NO_COOKIE)).rejects.toMatchObject({ status: 503 });
-      expect(get).not.toHaveBeenCalled();
-    });
-
     it('is public and never cached', () => {
       const handler = SignupPublicController.prototype.getSession;
 
@@ -203,18 +188,13 @@ describe('SignupPublicController', () => {
       expect(res.clearCookie).not.toHaveBeenCalled();
     });
 
-    it('answers 401 without a session and 503 while closed, before the orchestration', async () => {
-      const open = build();
-      await expect(
-        open.controller.createTenant(NO_COOKIE, resMock() as unknown as Response, BODY),
-      ).rejects.toMatchObject({ status: 401 });
+    it('answers 401 without a session, before the orchestration', async () => {
+      const { controller, signupFn } = build();
 
-      const closed = build({ FEATURE_FLAG_SIGNUP_ENABLED: false });
       await expect(
-        closed.controller.createTenant(NO_COOKIE, resMock() as unknown as Response, BODY),
-      ).rejects.toMatchObject({ status: 503 });
-      expect(open.signupFn).not.toHaveBeenCalled();
-      expect(closed.signupFn).not.toHaveBeenCalled();
+        controller.createTenant(NO_COOKIE, resMock() as unknown as Response, BODY),
+      ).rejects.toMatchObject({ status: 401 });
+      expect(signupFn).not.toHaveBeenCalled();
     });
 
     it('is public, 201, never cached, throttled at 10 per minute and answers SIGNUP_RATE_LIMITED', () => {

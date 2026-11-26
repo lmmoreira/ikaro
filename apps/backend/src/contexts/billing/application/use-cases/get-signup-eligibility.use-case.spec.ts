@@ -1,8 +1,9 @@
+import { CURRENT_TERMS_VERSION } from '@ikaro/types';
 import { InMemoryBillingPlatformPort } from '../../../../test/infrastructure/in-memory-billing-platform.port';
 import { InMemorySignupRegistrationRepository } from '../../../../test/repositories/billing/in-memory-signup-registration.repository';
 import { GetSignupEligibilityUseCase } from './get-signup-eligibility.use-case';
 
-const TERMS = '2026-11';
+const TERMS = CURRENT_TERMS_VERSION;
 
 function tenant(tenantId: string, slug: string) {
   return {
@@ -23,7 +24,7 @@ describe('GetSignupEligibilityUseCase', () => {
   beforeEach(() => {
     registrations = new InMemorySignupRegistrationRepository();
     platform = new InMemoryBillingPlatformPort();
-    useCase = new GetSignupEligibilityUseCase(registrations, platform, { termsVersion: TERMS });
+    useCase = new GetSignupEligibilityUseCase(registrations, platform);
   });
 
   it('is available with no history, and reports the current terms version', async () => {

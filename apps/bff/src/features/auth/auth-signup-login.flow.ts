@@ -3,7 +3,6 @@ import { Response } from 'express';
 import { GoogleProfile } from '../../shared/auth/google-profile';
 import { validateDevAuthEnabled } from './auth-dev-login.flow';
 import { DevSignupSessionDto } from './dtos/dev-signup-session.dto';
-import { assertSignupOpen } from './signup-availability';
 import { SignupSessionService } from './signup-session.service';
 
 // Split out of auth-controller-flow.service.ts, like the staff, tenant and dev flows: the self-signup
@@ -18,12 +17,10 @@ import { SignupSessionService } from './signup-session.service';
  */
 export function handleSignupLogin(
   signupSessions: SignupSessionService,
-  config: ConfigService,
   profile: GoogleProfile,
   res: Response,
   frontendUrl: string,
 ): void {
-  assertSignupOpen(config);
   if (!profile.emailVerified) {
     res.redirect(`${frontendUrl}/ikaro-trial/conta-nao-verificada`);
     return;
@@ -44,7 +41,6 @@ export function devSignupSession(
   res: Response,
 ): { ok: true } {
   validateDevAuthEnabled(config);
-  assertSignupOpen(config);
   signupSessions.issueSession(res, {
     email: dto.email,
     name: dto.name,

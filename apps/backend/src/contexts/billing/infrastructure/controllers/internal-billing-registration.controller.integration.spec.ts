@@ -1,3 +1,4 @@
+import { CURRENT_TERMS_VERSION } from '@ikaro/types';
 import { INestApplication } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import request from 'supertest';
@@ -34,8 +35,8 @@ const INTERNAL_KEY = 'integ-registrations-key-integ-x'; // ≥32 chars
 const CPF = '529.982.247-25';
 const CPF_NORMALISED = '52998224725';
 const URL = '/internal/billing/registrations';
-// The Terms version the harness sets (integration-global-setup.ts, the schema's default).
-const TERMS = '2026-11';
+// The Terms version a self-signup must accept (a code constant shared with the web).
+const TERMS = CURRENT_TERMS_VERSION;
 
 describe('InternalBillingRegistrationController (integration)', () => {
   let app: INestApplication;

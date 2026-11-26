@@ -14,9 +14,9 @@ import {
 // defeat the compile-time governance TD23 §9 exists to provide.
 type StaffDeactivatedCode = (typeof StaffErrorCode)['DEACTIVATED'];
 
-// The three signup codes the BFF itself throws (M26-S24): the burst limit, the kill switch and the
-// trial rule it maps from Billing's reserve answer. The others pass through from the backend.
-type SignupBffCode = (typeof SignupErrorCode)['RATE_LIMITED' | 'CLOSED' | 'TRIAL_NOT_AVAILABLE'];
+// The two signup codes the BFF itself throws (M26-S24): the burst limit and the trial rule it maps
+// from Billing's reserve answer. The others pass through from the backend.
+type SignupBffCode = (typeof SignupErrorCode)['RATE_LIMITED' | 'TRIAL_NOT_AVAILABLE'];
 
 // Codes a BFF-originated throw site is allowed to use — spans every origin actually reused
 // across the BFF (TD23 Story 11): BFF-feature-specific, framework/guard fallback, VO-less

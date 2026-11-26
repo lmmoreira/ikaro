@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { CURRENT_TERMS_VERSION } from '@ikaro/types';
 import { countrySpec } from '@ikaro/i18n';
 import { CLOCK, IClock } from '../../../../shared/ports/clock.port';
 import {
@@ -14,10 +15,6 @@ import {
 } from '../../domain/errors/billing-domain.error';
 import { SignupRegistration, type SignupSource } from '../../domain/signup-registration';
 import { evaluateTrialEligibility } from '../../domain/trial-eligibility';
-import {
-  BILLING_SIGNUP_CONFIG,
-  type BillingSignupConfig,
-} from '../ports/billing-signup-config.port';
 import {
   ISignupRegistrationLockPort,
   SIGNUP_REGISTRATION_LOCK,
@@ -64,7 +61,6 @@ export class ReserveSignupRegistrationUseCase {
     @Inject(SIGNUP_REGISTRATION_LOCK) private readonly lock: ISignupRegistrationLockPort,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     @Inject(CLOCK) private readonly clock: IClock,
-    @Inject(BILLING_SIGNUP_CONFIG) private readonly signupConfig: BillingSignupConfig,
   ) {}
 
   async execute(
@@ -118,7 +114,7 @@ export class ReserveSignupRegistrationUseCase {
     if (selfSignup) {
       // A missing version is `SIGNUP_TERMS_NOT_ACCEPTED` too (raised by the aggregate); a stale
       // or invented one is refused here, against the version the session read reported.
-      if (input.termsVersion && input.termsVersion !== this.signupConfig.termsVersion) {
+      if (input.termsVersion && input.termsVersion !== CURRENT_TERMS_VERSION) {
         throw new SignupTermsNotAcceptedError();
       }
     }

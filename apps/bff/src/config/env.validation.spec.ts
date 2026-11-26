@@ -142,27 +142,4 @@ describe('validateEnv()', () => {
       );
     });
   });
-
-  describe('FEATURE_FLAG_SIGNUP_ENABLED (M26-S24)', () => {
-    // Unset is meaningful: signup-availability.ts reads it as open outside production and closed in
-    // production, so the schema must not invent a default that would hide the difference.
-    it('is optional: unset stays undefined', () => {
-      expect(validateEnv(valid).FEATURE_FLAG_SIGNUP_ENABLED).toBeUndefined();
-    });
-
-    it.each([
-      ['true', true],
-      ['false', false],
-    ])('reads "%s" as %s', (raw, expected) => {
-      expect(
-        validateEnv({ ...valid, FEATURE_FLAG_SIGNUP_ENABLED: raw }).FEATURE_FLAG_SIGNUP_ENABLED,
-      ).toBe(expected);
-    });
-
-    it('rejects a value that is not a boolean string', () => {
-      expect(() => validateEnv({ ...valid, FEATURE_FLAG_SIGNUP_ENABLED: 'maybe' })).toThrow(
-        'ENV validation failed',
-      );
-    });
-  });
 });

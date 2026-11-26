@@ -13,7 +13,7 @@
 
 ### Self-signup (BFF). trialAvailable false => no row was inserted and registrationId is null.
 ### Billing checks, before the lock and before writing anything: the country (BR only, otherwise
-### 422 SIGNUP_COUNTRY_NOT_SUPPORTED), the terms version (the current SIGNUP_TERMS_VERSION, otherwise
+### 422 SIGNUP_COUNTRY_NOT_SUPPORTED), the terms version (the current CURRENT_TERMS_VERSION, otherwise
 ### 422 SIGNUP_TERMS_NOT_ACCEPTED) and the tax id (422 SIGNUP_TAX_ID_REQUIRED / SIGNUP_TAX_ID_INVALID).
 POST {{baseUrl}}/internal/billing/registrations
 X-Internal-Key: {{internalKey}}

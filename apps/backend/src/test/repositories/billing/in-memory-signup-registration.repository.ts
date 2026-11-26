@@ -47,7 +47,7 @@ export class InMemorySignupRegistrationRepository implements ISignupRegistration
   async deleteReserved(id: string): Promise<boolean> {
     const index = this.saved.findIndex((row) => row.id === id);
     const row = this.saved[index];
-    if (!row || row.status !== 'RESERVED') return false;
+    if (row?.status !== 'RESERVED') return false;
     this.saved.splice(index, 1);
     this.dropReservedHistoryEntry(row);
     return true;

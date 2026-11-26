@@ -1,10 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { FEATURE_PRICE_REPOSITORY } from './application/ports/feature-price-repository.port';
-import {
-  BILLING_PROVISIONING_CONFIG_PROVIDER,
-  BILLING_SIGNUP_CONFIG_PROVIDER,
-} from './infrastructure/config/billing-config.providers';
+import { BILLING_PROVISIONING_CONFIG_PROVIDER } from './infrastructure/config/billing-config.providers';
 import { GetSignupEligibilityUseCase } from './application/use-cases/get-signup-eligibility.use-case';
 import { ReleaseSignupRegistrationUseCase } from './application/use-cases/release-signup-registration.use-case';
 import { CreateTrialSubscriptionUseCase } from './application/use-cases/create-trial-subscription.use-case';
@@ -182,7 +179,6 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     GetFeaturePriceAtUseCase,
     ListSelectablePricesUseCase,
     BILLING_PROVISIONING_CONFIG_PROVIDER,
-    BILLING_SIGNUP_CONFIG_PROVIDER,
     { provide: BILLING_PLATFORM_PORT, useClass: BillingPlatformAdapter },
     { provide: BILLING_BOOKING_PORT, useClass: BillingBookingAdapter },
     GetTenantAccessUseCase,

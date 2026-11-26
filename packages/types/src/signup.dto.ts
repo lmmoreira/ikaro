@@ -1,5 +1,13 @@
 // Public self-signup contract (UC-127, UC-128). The backend owns every verdict; the BFF forwards it.
 
+/**
+ * The Terms version a self-signup must accept (UC-127 A5). A code constant, not an environment
+ * variable: the version names the hosted legal text, so bumping it and adding that text to the web's
+ * terms texts are one change, reviewed together. Billing enforces it at the reservation and stores
+ * it with the acceptance; the eligibility read reports it and the web renders the text for it.
+ */
+export const CURRENT_TERMS_VERSION = '2026-11';
+
 /** Why a slug is `invalid` (UC-128). The web translates it; the API returns no display text. */
 export type SlugInvalidReason = 'TOO_SHORT' | 'TOO_LONG' | 'INVALID_CHARACTERS' | 'INVALID_HYPHEN';
 

@@ -70,7 +70,7 @@ Content-Type: application/json
 }
 
 ### The verified Google identity, the read-only trial answer and the Terms version to accept.
-### 401 without the cookie, 503 SIGNUP_CLOSED while FEATURE_FLAG_SIGNUP_ENABLED is off.
+### 401 without the cookie.
 GET {{bffUrl}}/v1/public/signup/session
 X-Web-Internal-Key: {{webInternalKey}}
 
