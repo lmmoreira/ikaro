@@ -37,7 +37,7 @@ The invariant that keeps Billing's snapshot correct is documented but not enforc
 
 ## Stories
 
-### Story 0 — Platform refuses a timezone change from the settings route 🟡
+### Story 0 — Platform refuses a timezone change from the settings route 🟡 ✅ Done
 
 **Agent:** backend-ts + bff-ts
 **Complexity:** S
@@ -59,7 +59,7 @@ The invariant that keeps Billing's snapshot correct is documented but not enforc
 **Backend use case steps:**
 1. `Tenant.updateSettings`: after the inactive check, refuse a changed `businessHours.timezone` with the typed error.
 2. `UpdateTenantSettingsUseCase` is unchanged in behavior (it saves through the aggregate); its spec's "updates businessHours timezone" case is rewritten to expect the refusal.
-3. `mapPlatformError` is already 42 lines against the 40-line `max-lines-per-function` cap: the `422` goes in a small helper (like `mapSlugError`) called from it, not another `if` in the function.
+3. `mapPlatformError` was already at the 40-line `max-lines-per-function` cap: the `422` went into `mapTenantRuleError`, a wrapper that also calls `mapSlugError` and replaced that call, so the function did not grow and no lint suppression was needed.
 
 **Backend HTTP surface:** extends the existing tenant settings `PATCH` route: a new `422 PLATFORM_TENANT_TIMEZONE_IMMUTABLE` outcome.
 **BFF endpoint spec:** the same route forwards the typed error unchanged; no new route and no BFF code, only a component-spec case that pins the pass-through.
@@ -74,7 +74,7 @@ The invariant that keeps Billing's snapshot correct is documented but not enforc
 - `apps/bff/src/features/platform/tenant-settings.controller.component.spec.ts` (modify: the `422` and its code pass through)
 - `packages/types/src/error-codes.ts`, `packages/i18n/locales/en/errors.json`, `packages/i18n/locales/pt-BR/errors.json` (modify)
 - `apps/backend/http/platform/tenant-settings.http`, `apps/bff/http/platform/tenant-settings.http` (modify — the new error case)
-- `docs/TENANTS_SETTINGS_SCHEMA.md`, `docs/API_CONTRACTS.md` (§ Tenant Settings: the new `422` line), `docs/BUSINESS_LOGIC_REFERENCE.md`, `docs/DOMAIN_MODEL.md` (modify). `docs/ERROR_CATALOG.md` is not touched: it holds no per-code rows and the `PLATFORM` origin already exists.
+- `docs/TENANTS_SETTINGS_SCHEMA.md`, `docs/API_CONTRACTS.md` (§ Tenant Settings: the new `422` line), `docs/BUSINESS_LOGIC_REFERENCE.md`, `docs/DOMAIN_MODEL.md` (modify). `docs/ERROR_CATALOG.md` gets a Code Origins bullet for the new code (discovery had dropped it; it already lists newer codes there, so review restored it). The sweep also updated `docs/ANTI_PATTERNS.md`, `docs/USE_CASES.md` (UC-026 A4), `docs/TENANT_ISOLATION_STRATEGY.md` and `docs/discovery/tenant-billing/tenant-billing.md`.
 - Stale-reference sweep: grep `docs/USE_CASES.md` (UC-026), `docs/*.md` and `.claude/**` for text that describes the timezone as manager-editable and fix it; the journey and prototype text is Story 1's.
 
 **Acceptance criteria — product:**
