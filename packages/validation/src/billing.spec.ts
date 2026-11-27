@@ -75,6 +75,10 @@ describe('BillingIdentityUpdateSchema (M26-S16)', () => {
     expect(BillingIdentityUpdateSchema.parse({})).toEqual({});
   });
 
+  it('reads a request with no body at all as an empty update', () => {
+    expect(BillingIdentityUpdateSchema.parse(undefined)).toEqual({});
+  });
+
   it('keeps an alphanumeric CNPJ as typed, punctuation and letters included', () => {
     const body = { taxIdType: 'CNPJ', taxId: '12.ABC.345/01DE-35' };
     expect(BillingIdentityUpdateSchema.parse(body)).toEqual(body);

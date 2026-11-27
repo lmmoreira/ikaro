@@ -1,4 +1,5 @@
 import type { TaxIdType } from '@ikaro/i18n';
+import { normalizeOptionalText } from '../../../shared/utils/text-normalization';
 import { Address } from '../../../shared/value-objects/address';
 import type { CountryCode } from '../../../shared/value-objects/country-code.vo';
 import { Email } from '../../../shared/value-objects/email.vo';
@@ -34,10 +35,6 @@ export interface BillingIdentityPatch {
   address?: BillingIdentityAddressPatch;
 }
 
-function isBlank(value: string | null): value is null | '' {
-  return value === null || value.trim() === '';
-}
-
 // A blank value clears the id where the country does not require one (`createOptional` throws
 // `SIGNUP_TAX_ID_REQUIRED` where it does, so a BR tax id is replaced, never cleared). Clearing an
 // id the account never had changes nothing, so an account that holds none (an exempt tenant's
@@ -48,18 +45,18 @@ function resolveTaxId(
   country: CountryCode,
 ): TaxId | null {
   if (patch.taxId === undefined) return current;
-  if (isBlank(patch.taxId) && current === null) return null;
+  if (normalizeOptionalText(patch.taxId) === null && current === null) return null;
   return TaxId.createOptional(patch.taxId, country.spec.taxId, patch.taxIdType ?? undefined);
 }
 
 function resolveText(current: string | null, patch: string | null | undefined): string | null {
-  if (patch === undefined) return current;
-  return isBlank(patch) ? null : patch.trim();
+  return patch === undefined ? current : normalizeOptionalText(patch);
 }
 
 function resolveEmail(current: Email | null, patch: string | null | undefined): Email | null {
   if (patch === undefined) return current;
-  return isBlank(patch) ? null : Email.create(patch);
+  const address = normalizeOptionalText(patch);
+  return address === null ? null : Email.create(address);
 }
 
 // The sent sub-fields are merged over the stored address (or over nothing) and the merged whole is

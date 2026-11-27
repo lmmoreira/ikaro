@@ -92,6 +92,8 @@ export const BillingIdentityUpdateSchema = z
       taxIdType === undefined ||
       (typeof taxId === 'string' && taxId.trim() !== ''),
     { message: 'a declared taxIdType needs a taxId', path: ['taxIdType'] },
-  );
+  )
+  // Every field is optional, so a request with no body at all is an empty update, not a 400.
+  .default({});
 
 export type BillingIdentityUpdateDto = z.infer<typeof BillingIdentityUpdateSchema>;
