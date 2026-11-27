@@ -62,7 +62,7 @@ export class RecordPaymentReturnUseCase {
   private async record(input: RecordPaymentReturnUseCaseInput): Promise<boolean> {
     return this.txManager.run(async () => {
       const locked = await this.charges.findByIdForUpdate(input.tenantId, input.chargeId);
-      if (locked === null || !locked.open) return false;
+      if (!locked?.open) return false;
       if (locked.paymentReturnSeenAt === null) {
         locked.recordPaymentReturn(this.clock.now());
         await this.charges.save(locked);
