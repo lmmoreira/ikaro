@@ -1244,7 +1244,7 @@
       "rule": "error-mapper-coverage",
       "class": "ProviderRequestError",
       "path": "apps/backend/src/contexts/billing/domain/errors/billing-provider.errors.ts",
-      "rationale": "Same as ChargeAlreadyPaidError above: no billing HTTP surface can throw it yet. The first M26 route that issues a payment link maps UNAVAILABLE and LINK_EXPIRED to BILLING_PROVIDER_UNAVAILABLE (retryable) in billing-error.mapper.ts and removes this entry.",
+      "rationale": "Never mapped by billing-error.mapper.ts on purpose: what each failure reason means depends on the operation (every reason of regeneratePaymentLink is 'unavailable'; a cancel would not treat NOT_CANCELLABLE so). Each request-path use case catches it and throws BillingProviderUnavailableError, which the mapper answers as the retryable 503 BILLING_PROVIDER_UNAVAILABLE (M26-S15, GetOrRegenerateChargePaymentLinkUseCase). This stays an exception for as long as no route lets it out unwrapped.",
       "owner": "billing",
       "reviewBy": "2026-12-31"
     },
