@@ -4,11 +4,17 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
   Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { NoFeatureGate, SuspensionAccess, ZodValidationPipe } from '@ikaro/nestjs-http';
+import {
+  CanonicalParseUUIDPipe,
+  NoFeatureGate,
+  SuspensionAccess,
+  ZodValidationPipe,
+} from '@ikaro/nestjs-http';
 import {
   type BillingChargesQuery,
   BillingChargesQuerySchema,
@@ -22,6 +28,10 @@ import {
   GetBillingSummaryUseCaseResult,
 } from '../../application/use-cases/get-billing-summary.use-case';
 import {
+  GetOrRegenerateChargePaymentLinkUseCase,
+  GetOrRegenerateChargePaymentLinkUseCaseResult,
+} from '../../application/use-cases/get-or-regenerate-charge-payment-link.use-case';
+import {
   GetPlanCatalogUseCase,
   GetPlanCatalogUseCaseResult,
 } from '../../application/use-cases/get-plan-catalog.use-case';
@@ -33,12 +43,17 @@ import {
   PreviewPlanSelectionUseCase,
   PreviewPlanSelectionUseCaseResult,
 } from '../../application/use-cases/preview-plan-selection.use-case';
+import {
+  RecordPaymentReturnUseCase,
+  RecordPaymentReturnUseCaseResult,
+} from '../../application/use-cases/record-payment-return.use-case';
 import { mapBillingError } from '../http/billing-error.mapper';
 
-// The manager's billing page reads (UC-117). The tenant is the caller's own, from `RequestContext`
-// (never a parameter). No feature owns billing (`@NoFeatureGate()`), and a suspended manager must
-// still reach it: it is the only page they can (`MANAGER_BILLING` admits `MANAGER` only, and the
-// role guard repeats that at the route). Read-only, so no lock and no transaction.
+// The manager's billing page (UC-117) and the way they pay (UC-119). The tenant is the caller's own,
+// from `RequestContext` (never a parameter). No feature owns billing (`@NoFeatureGate()`), and a
+// suspended manager must still reach it: it is the only page they can (`MANAGER_BILLING` admits
+// `MANAGER` only, and the role guard repeats that at the route). The reads take no lock; the two
+// payment routes lock one charge row inside their use cases.
 @Controller('billing')
 @NoFeatureGate()
 @SuspensionAccess('MANAGER_BILLING')
@@ -49,6 +64,8 @@ export class BillingController {
     private readonly listCharges: ListBillingChargesUseCase,
     private readonly getPlanCatalog: GetPlanCatalogUseCase,
     private readonly previewPlanSelection: PreviewPlanSelectionUseCase,
+    private readonly paymentLink: GetOrRegenerateChargePaymentLinkUseCase,
+    private readonly paymentReturn: RecordPaymentReturnUseCase,
     private readonly requestContext: RequestContext,
   ) {}
 
@@ -88,6 +105,34 @@ export class BillingController {
   ): Promise<PreviewPlanSelectionUseCaseResult> {
     return this.previewPlanSelection
       .execute({ tenantId: this.requestContext.tenantId, items: body.items })
+      .catch(mapBillingError);
+  }
+
+  // UC-119: the hosted payment URL of one of the tenant's own charges (a charge id of another
+  // tenant is "not found"). The response is the one place a URL is returned.
+  @Post('charges/:chargeId/payment-link')
+  @HttpCode(HttpStatus.OK)
+  getPaymentLink(
+    @Param('chargeId', CanonicalParseUUIDPipe) chargeId: string,
+  ): Promise<GetOrRegenerateChargePaymentLinkUseCaseResult> {
+    return this.paymentLink
+      .execute({ tenantId: this.requestContext.tenantId, chargeId })
+      .catch(mapBillingError);
+  }
+
+  // UC-119 / UC-116: the manager is back from the hosted page. Never fails because the provider is
+  // unreachable; the answer is the charge's current state.
+  @Post('charges/:chargeId/payment-return')
+  @HttpCode(HttpStatus.OK)
+  recordPaymentReturn(
+    @Param('chargeId', CanonicalParseUUIDPipe) chargeId: string,
+  ): Promise<RecordPaymentReturnUseCaseResult> {
+    return this.paymentReturn
+      .execute({
+        tenantId: this.requestContext.tenantId,
+        chargeId,
+        correlationId: this.requestContext.correlationId,
+      })
       .catch(mapBillingError);
   }
 }

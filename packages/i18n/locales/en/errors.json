@@ -270,5 +270,9 @@
   "BILLING_FEATURE_DEPENDENCY_UNMET": "This feature needs another feature that is not in your plan. Add it, or remove this one.",
   "BILLING_FEATURE_HAS_DEPENDENTS": "This feature cannot be removed while another feature in your plan depends on it.",
   "BILLING_PLAN_EMPTY": "A plan must keep at least one feature.",
-  "BILLING_NO_PRICE_FOR_COUNTRY": "One of the selected options is not available for your country right now."
+  "BILLING_NO_PRICE_FOR_COUNTRY": "One of the selected options is not available for your country right now.",
+  "BILLING_CHARGE_NOT_PAYABLE": "This charge can no longer be paid.",
+  "BILLING_ADDRESS_REQUIRED": "Add your billing address to continue.",
+  "BILLING_PROVIDER_UNAVAILABLE": "The payment provider is unavailable. Try again in a moment.",
+  "BILLING_CHARGE_NOT_FOUND": "This charge was not found."
 }

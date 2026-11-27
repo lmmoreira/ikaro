@@ -8,7 +8,11 @@ import {
 import { CountryCodeValidationError } from '../../../../shared/value-objects/country-code.vo';
 import { TaxIdValidationError } from '../../../../shared/value-objects/tax-id.vo';
 import {
+  BillingAddressRequiredError,
+  BillingProviderUnavailableError,
   BillingTenantNotFoundError,
+  ChargeNotFoundError,
+  ChargeNotPayableError,
   ExemptProtectedError,
   FeatureDependencyUnmetError,
   FeatureHasDependentsError,
@@ -67,6 +71,38 @@ describe('mapBillingError', () => {
   ])('maps the plan refusal %p to 422 with its code (UC-136 A1, A5, A6)', (error, code) => {
     const thrown = call(error) as HttpException;
     expect(thrown.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+    expect(thrown.getResponse()).toMatchObject({ code });
+  });
+
+  // Paying a charge (M26-S15, UC-119): the four codes the two payment routes answer.
+  it.each([
+    [
+      'a charge the tenant does not own',
+      new ChargeNotFoundError('c-1'),
+      HttpStatus.NOT_FOUND,
+      BillingErrorCode.CHARGE_NOT_FOUND,
+    ],
+    [
+      'a charge that can no longer be paid',
+      new ChargeNotPayableError('c-1', 'CANCELED'),
+      HttpStatus.CONFLICT,
+      BillingErrorCode.CHARGE_NOT_PAYABLE,
+    ],
+    [
+      'a charge held for the billing address',
+      new BillingAddressRequiredError(),
+      HttpStatus.UNPROCESSABLE_ENTITY,
+      BillingErrorCode.ADDRESS_REQUIRED,
+    ],
+    [
+      'a provider that cannot issue a link',
+      new BillingProviderUnavailableError('UNAVAILABLE'),
+      HttpStatus.SERVICE_UNAVAILABLE,
+      BillingErrorCode.PROVIDER_UNAVAILABLE,
+    ],
+  ])('maps %s to its status and code', (_name, error, status, code) => {
+    const thrown = call(error) as HttpException;
+    expect(thrown.getStatus()).toBe(status);
     expect(thrown.getResponse()).toMatchObject({ code });
   });
 

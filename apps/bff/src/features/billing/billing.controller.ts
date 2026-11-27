@@ -1,8 +1,10 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query } from '@nestjs/common';
-import { ZodValidationPipe } from '@ikaro/nestjs-http';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
+import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import type {
   BillingAccessResponse,
   BillingChargesResponse,
+  BillingPaymentLinkResponse,
+  BillingPaymentReturnResponse,
   BillingPlanPreviewResponse,
   BillingPlanResponse,
   BillingSummaryResponse,
@@ -25,7 +27,13 @@ import {
   toBillingSummaryResponse,
 } from './billing.mapper';
 import {
+  toBillingPaymentLinkResponse,
+  toBillingPaymentReturnResponse,
+} from './billing-payment.mapper';
+import {
   BackendBillingChargesSchema,
+  BackendBillingPaymentLinkSchema,
+  BackendBillingPaymentReturnSchema,
   BackendBillingPlanPreviewSchema,
   BackendBillingPlanSchema,
   BackendBillingSummarySchema,
@@ -92,5 +100,36 @@ export class BillingController {
       items: body.items,
     });
     return toBillingPlanPreviewResponse(BackendBillingPlanPreviewSchema.parse(raw));
+  }
+
+  // UC-119: the one route that returns a provider URL. The backend owns "is it payable" and
+  // "is the tenant suspended" (the manager of a suspended tenant still reaches it); this layer
+  // forwards its typed errors and adds no check of its own.
+  @Post('charges/:chargeId/payment-link')
+  @HttpCode(HttpStatus.OK)
+  @Roles('MANAGER')
+  async getPaymentLink(
+    @Param('chargeId', CanonicalParseUUIDPipe) chargeId: string,
+  ): Promise<BillingPaymentLinkResponse> {
+    const raw = await this.backendHttp.post<unknown>(
+      `/billing/charges/${chargeId}/payment-link`,
+      {},
+    );
+    return toBillingPaymentLinkResponse(BackendBillingPaymentLinkSchema.parse(raw));
+  }
+
+  // UC-119 / UC-116: called when the manager returns from the hosted page. The backend never fails
+  // it because the provider is unreachable, so neither does this.
+  @Post('charges/:chargeId/payment-return')
+  @HttpCode(HttpStatus.OK)
+  @Roles('MANAGER')
+  async recordPaymentReturn(
+    @Param('chargeId', CanonicalParseUUIDPipe) chargeId: string,
+  ): Promise<BillingPaymentReturnResponse> {
+    const raw = await this.backendHttp.post<unknown>(
+      `/billing/charges/${chargeId}/payment-return`,
+      {},
+    );
+    return toBillingPaymentReturnResponse(BackendBillingPaymentReturnSchema.parse(raw));
   }
 }

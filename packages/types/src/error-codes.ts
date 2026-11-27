@@ -368,6 +368,14 @@ export const BillingErrorCode = {
   FEATURE_HAS_DEPENDENTS: 'BILLING_FEATURE_HAS_DEPENDENTS',
   PLAN_EMPTY: 'BILLING_PLAN_EMPTY',
   NO_PRICE_FOR_COUNTRY: 'BILLING_NO_PRICE_FOR_COUNTRY',
+  // Paying a charge (M26-S15, UC-119): a charge that cannot be paid any more (409), the billing
+  // identity a held charge still waits for (422, reused by the plan save and reactivate), a provider
+  // that cannot issue a link or create a charge (503, retryable, reused by reactivate) and a charge id
+  // the tenant does not own (404).
+  CHARGE_NOT_PAYABLE: 'BILLING_CHARGE_NOT_PAYABLE',
+  ADDRESS_REQUIRED: 'BILLING_ADDRESS_REQUIRED',
+  PROVIDER_UNAVAILABLE: 'BILLING_PROVIDER_UNAVAILABLE',
+  CHARGE_NOT_FOUND: 'BILLING_CHARGE_NOT_FOUND',
 } as const;
 export type BillingErrorCode = (typeof BillingErrorCode)[keyof typeof BillingErrorCode];
 

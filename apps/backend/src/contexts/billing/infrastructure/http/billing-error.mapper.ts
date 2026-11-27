@@ -6,7 +6,11 @@ import { IllegalChargeTransitionError } from '../../domain/errors/illegal-charge
 import { FakeScenarioNotApplicableError } from '../../domain/errors/billing-provider.errors';
 import { RecoveryChargeAlreadyOpenError } from '../../domain/errors/recovery-charge-already-open.error';
 import {
+  BillingAddressRequiredError,
+  BillingProviderUnavailableError,
   BillingTenantNotFoundError,
+  ChargeNotFoundError,
+  ChargeNotPayableError,
   ExemptProtectedError,
   FeatureDependencyUnmetError,
   FeatureHasDependentsError,
@@ -21,6 +25,23 @@ import {
 } from '../../domain/errors/billing-domain.error';
 import { mapSharedAddressError } from '../../../../shared/http/address-validation-error.mapper';
 import { mapSharedVoError } from '../../../../shared/http/vo-validation-error.mapper';
+
+// The refusals of paying a charge (M26-S15, UC-119) that are not a plain conflict: a charge id the
+// tenant does not own reads the same as an unknown one (404); the identity a held recovery charge
+// waits for is a refusal of the request (422); a provider that cannot issue a link is a retryable
+// 503, whose retry the creation job or the manager's next click will satisfy. `ChargeNotPayableError`
+// is a 409 and sits with the other conflicts below. Returns when `err` is none of these.
+function mapPaymentRefusal(err: unknown): void {
+  if (err instanceof ChargeNotFoundError) {
+    throw throwProblemDetail(HttpStatus.NOT_FOUND, err.code, err.message);
+  }
+  if (err instanceof BillingAddressRequiredError) {
+    throw throwProblemDetail(HttpStatus.UNPROCESSABLE_ENTITY, err.code, err.message);
+  }
+  if (err instanceof BillingProviderUnavailableError) {
+    throw throwProblemDetail(HttpStatus.SERVICE_UNAVAILABLE, err.code, err.message);
+  }
+}
 
 // Billing's domain-error-to-HTTP mapper (M25-S06). Today it only handles the shared VO errors the
 // Billing aggregates construct (CountryCode, CalendarDate, TaxId, ...). Billing's own domain errors
@@ -49,6 +70,7 @@ export function mapBillingError(err: unknown): never {
   if (err instanceof BillingTenantNotFoundError) {
     throw throwProblemDetail(HttpStatus.NOT_FOUND, err.code, err.message);
   }
+  mapPaymentRefusal(err);
   // Operator refusals (M25-S15b, UC-111 / UC-137): the exempt protection is a 403, the two state
   // conflicts are 409s.
   if (err instanceof ExemptProtectedError) {
@@ -59,6 +81,8 @@ export function mapBillingError(err: unknown): never {
   if (
     err instanceof GraceNotAllowedError ||
     err instanceof UnsuspendNotAllowedError ||
+    // A charge that was cancelled, refunded or charged back cannot be paid any more (UC-119 A5).
+    err instanceof ChargeNotPayableError ||
     err instanceof SubscriptionConcurrentModificationError ||
     // The Charge errors (M26-S02) are internal: the two "already" ones are consumed by the use
     // cases, and none has a client code of its own, so they answer the same generic conflict.

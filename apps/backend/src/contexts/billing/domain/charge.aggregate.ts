@@ -195,6 +195,36 @@ export class Charge extends AggregateRoot {
     return this._status === 'PENDING' || this._status === 'OVERDUE';
   }
 
+  /**
+   * What paying this charge means (UC-119). `PAID` is not an error: the page just refreshes to the
+   * paid state (A4). `CANCELED`, `REFUNDED` and `CHARGEBACK` can no longer be paid (A5). `PENDING`
+   * and `OVERDUE` are payable, and so is `FAILED` (unreachable in M26: a fresh link on it starts a
+   * new provider attempt, so M29 needs no change here). Exhaustive on purpose: a new status will not
+   * compile until it is placed.
+   */
+  get payability(): 'PAYABLE' | 'PAID' | 'NOT_PAYABLE' {
+    switch (this._status) {
+      case 'PAID':
+        return 'PAID';
+      case 'CANCELED':
+      case 'REFUNDED':
+      case 'CHARGEBACK':
+        return 'NOT_PAYABLE';
+      case 'PENDING':
+      case 'OVERDUE':
+      case 'FAILED':
+        return 'PAYABLE';
+    }
+  }
+
+  /**
+   * The manager came back from the hosted page and the charge is still open: the one signal behind
+   * "pagamento recebido, reativando…" (UC-119). The summary and `payment-return` both read it.
+   */
+  get paymentConfirmationPending(): boolean {
+    return this.open && this._paymentReturnSeenAt !== null;
+  }
+
   /** The repository calls it after a successful write so the next save checks the new version. */
   markPersisted(version: number): void {
     this._version = version;
@@ -311,6 +341,21 @@ export class Charge extends AggregateRoot {
    */
   markCreationFailed(): void {
     if (this._providerCreationStatus === 'READY') throw this.illegal('fail its provider creation');
+  }
+
+  /**
+   * The provider issued a fresh link for a charge it already holds (UC-119 A1): replaces the stored
+   * URL and expiry. Legal on a charge of any status (a webhook can settle it while the provider call
+   * is in flight, and the link the provider issued is still stored), and it never touches the status
+   * or raises an event. A charge the provider does not hold yet has nothing to renew.
+   */
+  renewPaymentLink(paymentUrl: string, paymentUrlExpiresAt: Date | null): void {
+    if (paymentUrl.trim() === '') {
+      throw new ChargeInvariantError('A payment link needs a non-empty URL');
+    }
+    if (this._providerCreationStatus !== 'READY') throw this.illegal('renew a link it never had');
+    this._paymentUrl = paymentUrl;
+    this._paymentUrlExpiresAt = paymentUrlExpiresAt;
   }
 
   /** The manager came back from the hosted payment page; the first return is the one kept. */

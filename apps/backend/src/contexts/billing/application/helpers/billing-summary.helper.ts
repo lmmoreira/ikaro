@@ -141,7 +141,7 @@ export function toReadySummary(
     totalMinor: subscription.exempt ? 0 : sumTotal(priced),
     openCharge: openCharge ? toOpenCharge(openCharge, now) : null,
     autoBilling: { mode: 'NONE', status: 'INACTIVE', label: null },
-    paymentConfirmationPending: openCharge !== null && openCharge.paymentReturnSeenAt !== null,
+    paymentConfirmationPending: openCharge?.paymentConfirmationPending === true,
     upcomingPriceChanges: parts.upcoming,
   };
 }

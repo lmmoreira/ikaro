@@ -973,7 +973,7 @@ Cancel-at runs before the non-payment rules, so a tenant that cancelled and laps
 
 ## Billing — Reconcile: scopes, the run budget and the health write (M26-S07)
 
-UC-116. Code: `ReconcileChargesJob` (`application/jobs/`), `ReconcileOneChargeUseCase`, `RefreshChargeFromProviderUseCase`, `RecordReconcilePassUseCase`, `RetryProviderChargeCancelUseCase` (`application/use-cases/`) and `ChargeProviderSyncService` (`application/services/`), over `ApplyChargeFactService` (the webhook's apply) and the selectors of `typeorm-charge.reconcile-queries.ts`. A missed webhook must never leave a paying tenant locked out, so every hour (minute 10, before the sweep at minute 40) the job asks the provider about the charges that could be wrong.
+UC-116. Code: `ReconcileChargesJob` (`application/jobs/`), `ReconcileOneChargeUseCase`, `RecordReconcilePassUseCase`, `RetryProviderChargeCancelUseCase` (`application/use-cases/`) and `ChargeProviderSyncService` (`application/services/`), over `ApplyChargeFactService` (the webhook's apply) and the selectors of `typeorm-charge.reconcile-queries.ts`. A missed webhook must never leave a paying tenant locked out, so every hour (minute 10, before the sweep at minute 40) the job asks the provider about the charges that could be wrong.
 
 ```mermaid
 flowchart TD
@@ -996,7 +996,7 @@ flowchart TD
 
 **The health write.** `last_reconcile_ok_at` advances per merchant profile key, only on a run that was not truncated and in which at least one provider read for that key succeeded (a failed charge read does not block it: one bad charge must not freeze every suspension); `last_full_reconcile_at` advances only when the full pass also read every charge and every selection page without a failure, or the redelivery would run as the at-risk scope and skip the rest of the day's pass; a key with nothing to read is asked for its account health first, so an empty at-risk set cannot report success while the provider is down (the freeze, M26-S08, reads that column). The write is a column-scoped upsert: it sets only the reconcile columns, so a freeze or webhook status another writer set while the run was in flight survives it. A key whose health read fails stays unstamped and fails the run (the trigger message is nacked and redelivered). The pending provider cancels run first, so a truncated read pass cannot starve them. An open local charge the provider has cancelled is logged as `billing_reconcile_drift_unapplied` and left alone. **Which accounts.** The provider accounts are the distinct `merchant_profile_key`s of the subscriptions that an adapter serves (`ProviderAccountsService`, shared with self-heal): a key with no adapter yet (a staging sandbox key before M26-S37, a US key before M28) is dropped and logged once per run as `billing_provider_not_supported: skipped` at `warn`, never a failure, so the message is acked instead of nacked and dead-lettered. A key the environment forbids stays in the list and fails its own account alone, loudly.
 
-**On-demand refresh.** `RefreshChargeFromProviderUseCase` is the same read and apply for one tenant's one charge, for the payment page's return (UC-119, S15): it never throws on a provider error and returns the charge unchanged, and another tenant's charge id is "not found".
+**On-demand refresh.** `ChargeProviderSyncService` is the same read and apply for one tenant's one charge, and `RecordPaymentReturnUseCase` (M26-S15) calls it when the manager returns from the payment page (UC-119): it never fails on a provider error and answers the charge unchanged, and another tenant's charge id is "not found" (`docs/BUSINESS_LOGIC_REFERENCE.md` § Billing — Paying a charge).
 
 ---
 
@@ -1100,6 +1100,41 @@ UC-117 and UC-111. Code: `GetBillingSummaryUseCase`, `ListBillingChargesUseCase`
 - **Constants in M26:** `canDiscard` is `false` (M27), `cycle` is `MONTHLY`, `nextCycle` and `nextCycleFrom` are `null` (M30) and `autoBilling` is `NONE` / `INACTIVE`. `addressRequired` is true until the billing account holds a full address, and for a tenant with no account row.
 - **Charge history:** Pattern A, newest due date first (`(tenant_id, due_date DESC)`, `IDX_billing_charges_history`), `limit` 1–100 (default 25) and `offset` ≥ 0 from the one shared `BillingChargesQuerySchema`. Each item carries its frozen `lines`, `taxMinor: 0` and `taxLines: []`; `receiptUrl` is whatever the provider stored and the BFF accepts only `https:`.
 - **Operator list (UC-111):** `ListTenantBillingStatusUseCase` adds three Charge-derived fields to each row with one `tenant_id = ANY($1)` statement per page of at most 100 ids (`DISTINCT ON (tenant_id)`, three branches over `IDX_billing_charges_history`), so no row can read another tenant's charge and there is no per-row query. `lastCharge` is the latest non-`CANCELED` charge; `openRecovery` is the latest `RECOVERY` charge still `PENDING` or `OVERDUE`; `overdueDays` is the whole days from the oldest `OVERDUE` charge's due date to today in the subscription's own timezone (`null` when none is overdue), so a row near local midnight is not a day off.
+
+---
+
+## Billing — Paying a charge: payability, link regeneration and the return (M26-S15)
+
+UC-119 (UC-116's on-demand path). Code: `GetOrRegenerateChargePaymentLinkUseCase` and `RecordPaymentReturnUseCase` (`billing/application/use-cases/`), the aggregate's `payability`, `renewPaymentLink` and `paymentConfirmationPending` (`domain/charge.aggregate.ts`), and `ChargeProviderSyncService` (`application/services/`) for the provider read. The contract is `docs/API_CONTRACTS.md` § Billing — Manager API; the lock is B-C1 (`docs/LOCK_CATALOG.md`). The backend owns every rule here; the BFF validates and shapes the answer (the payment URL only as `https:`).
+
+```mermaid
+flowchart TD
+  A[POST payment-link] --> B{charge of this tenant?}
+  B -- no --> N404[404 BILLING_CHARGE_NOT_FOUND]
+  B -- yes --> C{payability of the status}
+  C -- NOT_PAYABLE: CANCELED, REFUNDED, CHARGEBACK --> N409[409 BILLING_CHARGE_NOT_PAYABLE]
+  C -- PAID --> P[200 status PAID, no link]
+  C -- PAYABLE: PENDING, OVERDUE, FAILED --> D{stored link null expiry or ahead?}
+  D -- yes --> L[200 the stored link, no provider call]
+  D -- no --> E{provider id known?}
+  E -- no, identity not billable --> N422[422 BILLING_ADDRESS_REQUIRED]
+  E -- no, identity billable --> N503[503 BILLING_PROVIDER_UNAVAILABLE]
+  E -- yes --> F[regeneratePaymentLink: no transaction, no lock]
+  F -- no adapter, or the provider refuses --> N503
+  F -- ok --> G[short transaction: B-C1 on a fresh read, store the link, save]
+  G --> H{payability of the fresh read}
+  H -- PAID --> P
+  H -- NOT_PAYABLE --> N409
+  H -- PAYABLE --> L2[200 the new link]
+```
+
+- **Payability is one exhaustive `switch` on the status** (`Charge.payability`): `PAID` is the paid state (A4), `CANCELED`, `REFUNDED` and `CHARGEBACK` are not payable (A5), `PENDING`, `OVERDUE` and `FAILED` are payable. `FAILED` is unreachable in M26 (a failed creation attempt stays `PENDING`); it is listed so M29 needs no change here and a new status will not compile until it is placed.
+- **A usable link is never regenerated:** `payment_url` set and `payment_url_expires_at` null or in the future (the rule `hasPaymentLink` applies in the summary). A null expiry is the provider giving none; the response carries `expiresAt: null` and never invents one.
+- **Held versus outage, with no provider call in either:** a charge with no provider id is `PENDING` creation. If the billing account is not billable (`hasBillableIdentity()`, a missing account included) it is the recovery charge the sweep inserted and held, and the manager is sent to "Dados de cobrança" (`422`); otherwise the creation retry will make it (`503`). A held charge exists only as a `RECOVERY` charge: the issue job inserts no `PERIOD` charge for an incomplete identity.
+- **Provider errors become one typed error:** `ProviderRequestError` (unreachable, refused, unknown charge) and `ProviderNotSupportedError` (a merchant key with no adapter yet, such as `BRL_ASAAS_SANDBOX` before M26-S37) both become `BillingProviderUnavailableError` (`503`, retryable). `MerchantProfileKeyNotAllowedError` (the fake in production) is deliberately not mapped: it is a deployment defect and stays a loud 500.
+- **The write after the provider call is B-C1 only.** The provider is called with no transaction and no lock held (M26-D3). The store (and the return's record) is one short transaction that takes the charge row (`findByIdForUpdate`) on a fresh read, writes charge columns only and reads nothing from the subscription, so it takes no B-R1: B-R1 would queue every manager click behind the tenant's webhook and sweep traffic. A webhook that paid the charge in between is serialised, not overwritten: the link is kept whatever the charge became, and the payability rule is applied again to the fresh read (paid in between answers the paid state, cancelled in between answers `409`). `charges.version` is the second line of defence: without the lock the manager would get `ChargeConcurrentModificationError` (`409`) instead of the paid state, which is what the mutation check of the two race tests proves.
+- **`payment-return` records, then refreshes, and never fails because of the provider.** For an open charge it sets `payment_return_seen_at` once (a second return writes nothing, and a charge a webhook settled between the read and the lock records nothing), which lengthens the status sweep's settlement margin for a boleto that has not compensated (UC-115). It then calls `ChargeProviderSyncService` outside any transaction (the shared provider read and `ApplyChargeFactService`, so a paid fact reactivates the tenant exactly as the webhook does). Any error from that read, a key with no adapter included (the sync skips it), is logged at `warn` and the answer is the unchanged state, so the page keeps polling the summary (UC-117 A3). A charge that is not open records and reads nothing. The answer is `{ status, paymentConfirmationPending }`, with `paymentConfirmationPending` the one rule `Charge.paymentConfirmationPending` (`open` and a return seen) that the summary also reads.
+- **No use case calls another use case** (`no-billing-application-internal-imports`): `RecordPaymentReturnUseCase` composes the sync service, which is why the former `RefreshChargeFromProviderUseCase` (M26-S07, no other caller) was removed.
 
 ---
 

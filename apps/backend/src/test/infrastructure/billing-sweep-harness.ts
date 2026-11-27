@@ -39,10 +39,12 @@ export interface SeedChargeOptions {
   /** The period the charge pays for; ignored by a recovery charge. */
   period?: [string, string];
   dueDate: string;
-  status?: 'PENDING' | 'OVERDUE';
+  status?: 'PENDING' | 'OVERDUE' | 'CANCELED' | 'REFUNDED' | 'CHARGEBACK';
   /** `false` leaves it without a payment link: its provider creation is still `PENDING`. */
   ready?: boolean;
   paymentReturnSeenAt?: Date;
+  /** When the stored link stops being usable; `null` is a link the provider gave no expiry for. */
+  paymentUrlExpiresAt?: Date | null;
 }
 
 /**
@@ -179,7 +181,12 @@ export function createSweepHarness() {
     if (options.kind === 'RECOVERY') builder.asRecovery();
     else if (options.period) builder.withPeriod(options.period[0], options.period[1]);
     if (options.paymentReturnSeenAt) builder.withPaymentReturnSeenAt(options.paymentReturnSeenAt);
-    if (options.status === 'OVERDUE') builder.withStatus('OVERDUE');
+    if (options.status !== undefined && options.status !== 'PENDING') {
+      builder.withStatus(options.status);
+    }
+    if (options.paymentUrlExpiresAt !== undefined) {
+      builder.withPaymentUrlExpiresAt(options.paymentUrlExpiresAt);
+    }
     if (options.ready !== false) {
       builder.withProviderReady(
         providerOfMerchantProfileKey(subscription.merchantProfileKey),

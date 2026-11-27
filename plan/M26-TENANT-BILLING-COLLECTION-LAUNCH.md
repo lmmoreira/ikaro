@@ -788,7 +788,7 @@ For each charge: `fetchChargeStatus` (provider call, outside any transaction, th
   - [ ] The at-risk scope runs every hour; the full scope runs once a day (fake clock); at-risk selects only at-risk charges (trial ending within 14 days, `PAST_DUE`, `SUSPENDED` recovery, any open charge due today or earlier), full selects open charges and charges `PAID` within 35 days (`EXPLAIN` asserted for both, standalone indexes incl. `IDX_billing_charges_paid_recent`); the job reaches `SUSPENDED` tenants with an open recovery charge (no operational-status filter)
   - [ ] An `ACTIVE` tenant whose payment webhook was missed and whose charge is due today is corrected by the at-risk pass before the sweep marks it `PAST_DUE`
   - [ ] No provider call inside a transaction (`transactional-io` passes)
-  - [ ] `RefreshChargeFromProviderUseCase` on an unreachable provider returns the unchanged charge, never throws
+  - [ ] `RefreshChargeFromProviderUseCase` on an unreachable provider returns the unchanged charge, never throws *(superseded by M26-S15: the use case was removed, and `RecordPaymentReturnUseCase` carries this behaviour over `ChargeProviderSyncService`)*
 - Tenant isolation: [ ] the refresh use case is tenant-scoped (another tenant's charge id → not found); the job passes explicit `tenantId`s
 - E2E: none — covered by integration; live check above
 - [ ] Checkov clean

@@ -249,3 +249,18 @@ export interface BillingChargesResponse {
   items: BillingChargeHistoryItemDto[];
   pagination: Pagination;
 }
+
+/**
+ * `POST /v1/billing/charges/{chargeId}/payment-link` (M26-S15, UC-119). A payable charge carries the
+ * provider's hosted URL and its expiry (`expiresAt` is `null` when the provider gave none, never
+ * invented); an already-paid charge (A4) carries neither and the page refreshes to the paid state.
+ */
+export type BillingPaymentLinkResponse =
+  | { status: 'PAID'; paymentUrl: null; expiresAt: null }
+  | { status: Exclude<BillingChargeStatus, 'PAID'>; paymentUrl: string; expiresAt: string | null };
+
+/** `POST /v1/billing/charges/{chargeId}/payment-return` (M26-S15, UC-119, UC-116). */
+export interface BillingPaymentReturnResponse {
+  status: BillingChargeStatus;
+  paymentConfirmationPending: boolean;
+}
