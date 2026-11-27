@@ -14,10 +14,7 @@ import {
   ChargeNotFoundError,
   ChargeNotPayableError,
 } from '../../domain/errors/billing-domain.error';
-import {
-  ProviderNotSupportedError,
-  ProviderRequestError,
-} from '../../domain/errors/billing-provider.errors';
+import { ProviderRequestError } from '../../domain/errors/billing-provider.errors';
 import {
   BILLING_ACCOUNT_REPOSITORY,
   IBillingAccountRepository,
@@ -90,7 +87,10 @@ export class GetOrRegenerateChargePaymentLinkUseCase {
     if (usable !== null) return usable;
 
     const providerChargeId = charge.providerChargeId ?? (await this.noProviderCharge(charge));
-    const adapter = this.resolveAdapter(charge);
+    // A key with no adapter yet (`ProviderNotSupportedError`) answers the manager through the error
+    // mapper as the same retryable 503; a key not allowed in this environment is a deployment defect
+    // and stays a loud 500 (TD51 Story 9).
+    const adapter = this.registry.resolve(charge.merchantProfileKey);
     const link = await this.regenerate(adapter, providerChargeId, charge);
     return this.store(input, link);
   }
@@ -123,23 +123,6 @@ export class GetOrRegenerateChargePaymentLinkUseCase {
     throw new BillingProviderUnavailableError(
       'the charge has not been created at the provider yet',
     );
-  }
-
-  // A key with no adapter yet (a sandbox or live key before its adapter ships) answers the manager,
-  // never a 500 and never a silent skip (TD51 Story 9). A key not allowed in this environment is a
-  // deployment defect and stays loud.
-  private resolveAdapter(charge: Charge): BillingProviderPort {
-    try {
-      return this.registry.resolve(charge.merchantProfileKey);
-    } catch (err) {
-      if (!(err instanceof ProviderNotSupportedError)) throw err;
-      this.logger.warn('billing_payment_link_provider_unsupported', {
-        tenantId: charge.tenantId,
-        chargeId: charge.id,
-        merchantProfileKey: charge.merchantProfileKey,
-      });
-      throw new BillingProviderUnavailableError('no adapter serves this merchant profile');
-    }
   }
 
   private async regenerate(

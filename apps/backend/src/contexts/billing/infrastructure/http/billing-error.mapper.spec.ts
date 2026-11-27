@@ -24,6 +24,10 @@ import {
   SubscriptionConcurrentModificationError,
   UnsuspendNotAllowedError,
 } from '../../domain/errors/billing-domain.error';
+import {
+  MerchantProfileKeyNotAllowedError,
+  ProviderNotSupportedError,
+} from '../../domain/errors/billing-provider.errors';
 import { ChargeAlreadyExistsError } from '../../domain/errors/charge-already-exists.error';
 import { ChargeConcurrentModificationError } from '../../domain/errors/charge-concurrent-modification.error';
 import { IllegalChargeTransitionError } from '../../domain/errors/illegal-charge-transition.error';
@@ -104,6 +108,20 @@ describe('mapBillingError', () => {
     const thrown = call(error) as HttpException;
     expect(thrown.getStatus()).toBe(status);
     expect(thrown.getResponse()).toMatchObject({ code });
+  });
+
+  it('maps a merchant profile with no adapter to the same retryable 503, without naming the key', () => {
+    const thrown = call(
+      new ProviderNotSupportedError('merchant profile key BRL_ASAAS_SANDBOX'),
+    ) as HttpException;
+    expect(thrown.getStatus()).toBe(HttpStatus.SERVICE_UNAVAILABLE);
+    expect(thrown.getResponse()).toMatchObject({ code: BillingErrorCode.PROVIDER_UNAVAILABLE });
+    expect(JSON.stringify(thrown.getResponse())).not.toContain('BRL_ASAAS_SANDBOX');
+  });
+
+  it('keeps a key not allowed in this environment a loud error, never a 503', () => {
+    const err = new MerchantProfileKeyNotAllowedError('BRL_FAKE', 'production');
+    expect(call(err)).toBe(err);
   });
 
   it('maps ExemptProtectedError to 403 BILLING_EXEMPT_PROTECTED (UC-111 A3)', () => {

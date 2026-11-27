@@ -7,6 +7,7 @@ import {
   ChargeNotFoundError,
   ChargeNotPayableError,
 } from '../../domain/errors/billing-domain.error';
+import { ProviderNotSupportedError } from '../../domain/errors/billing-provider.errors';
 import type { Subscription } from '../../domain/subscription.aggregate';
 
 const LINK_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -164,7 +165,7 @@ describe('GetOrRegenerateChargePaymentLinkUseCase (UC-119)', () => {
       },
     );
 
-    it('a merchant profile no adapter serves yet is "unavailable", never a crash', async () => {
+    it('a merchant profile no adapter serves yet is not served, and the provider is not asked (the mapper makes it a 503)', async () => {
       const sandbox = new ChargeBuilder()
         .withTenantId(subscription.tenantId)
         .withSubscriptionId(subscription.id)
@@ -174,7 +175,7 @@ describe('GetOrRegenerateChargePaymentLinkUseCase (UC-119)', () => {
         .build();
       await h.charges.save(sandbox);
 
-      await expect(link(sandbox)).rejects.toThrow(BillingProviderUnavailableError);
+      await expect(link(sandbox)).rejects.toThrow(ProviderNotSupportedError);
 
       expect(regenerate).not.toHaveBeenCalled();
     });

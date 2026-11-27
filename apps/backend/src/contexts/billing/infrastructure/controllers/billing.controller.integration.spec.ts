@@ -369,6 +369,20 @@ describe('BillingController (integration)', () => {
       expect(body.code).toBe('BILLING_PROVIDER_UNAVAILABLE');
     });
 
+    it('answers a merchant profile no adapter serves yet as the same 503, through the mapper', async () => {
+      const { tenantId, subscriptionId } = await activeTenant();
+      const charge = await seedCharge(tenantId, subscriptionId!, (b) =>
+        withLink(new Date(Date.now() - DAY_MS))(b).withMerchantProfileKey('BRL_ASAAS_SANDBOX'),
+      );
+
+      const { body } = await post(`/billing/charges/${charge.id}/payment-link`, tenantId).expect(
+        503,
+      );
+
+      expect(body.code).toBe('BILLING_PROVIDER_UNAVAILABLE');
+      expect(JSON.stringify(body)).not.toContain('BRL_ASAAS_SANDBOX');
+    });
+
     it('holds a recovery charge with no billing identity as 422 BILLING_ADDRESS_REQUIRED', async () => {
       const { tenantId, subscriptionId } = await suspendedTenant();
       // Inserted `PENDING` with no provider id, and the tenant has no billing account.

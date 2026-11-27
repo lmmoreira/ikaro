@@ -1,9 +1,13 @@
 import { HttpStatus } from '@nestjs/common';
 import { throwProblemDetail } from '@ikaro/nestjs-http';
+import { BillingErrorCode } from '@ikaro/types';
 import { ChargeAlreadyExistsError } from '../../domain/errors/charge-already-exists.error';
 import { ChargeConcurrentModificationError } from '../../domain/errors/charge-concurrent-modification.error';
 import { IllegalChargeTransitionError } from '../../domain/errors/illegal-charge-transition.error';
-import { FakeScenarioNotApplicableError } from '../../domain/errors/billing-provider.errors';
+import {
+  FakeScenarioNotApplicableError,
+  ProviderNotSupportedError,
+} from '../../domain/errors/billing-provider.errors';
 import { RecoveryChargeAlreadyOpenError } from '../../domain/errors/recovery-charge-already-open.error';
 import {
   BillingAddressRequiredError,
@@ -40,6 +44,15 @@ function mapPaymentRefusal(err: unknown): void {
   }
   if (err instanceof BillingProviderUnavailableError) {
     throw throwProblemDetail(HttpStatus.SERVICE_UNAVAILABLE, err.code, err.message);
+  }
+  // No adapter serves the merchant profile key yet (a sandbox or live key before its adapter ships):
+  // the same retryable answer. The message names the key, so the client gets a fixed one.
+  if (err instanceof ProviderNotSupportedError) {
+    throw throwProblemDetail(
+      HttpStatus.SERVICE_UNAVAILABLE,
+      BillingErrorCode.PROVIDER_UNAVAILABLE,
+      'The billing provider is unavailable',
+    );
   }
 }
 
