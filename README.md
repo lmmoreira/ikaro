@@ -195,3 +195,4 @@ See `docs/` for full architecture documentation and `plan/` for the implementati
 - Node.js ≥ 20
 - pnpm ≥ 9
 - Docker (for local infrastructure)
+
