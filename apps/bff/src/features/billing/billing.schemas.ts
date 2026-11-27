@@ -1,4 +1,4 @@
-import { CHATBOT_TIERS, FEATURE_KEYS } from '@ikaro/validation';
+import { BILLING_TAX_ID_TYPES, CHATBOT_TIERS, FEATURE_KEYS } from '@ikaro/validation';
 import { z } from 'zod';
 
 // The backend's `GET /internal/billing/tenants/{id}/access` answer, parsed at the BFF boundary.
@@ -207,3 +207,34 @@ export const BackendBillingPlanPreviewSchema = z.object({
   effectiveFrom: DATE.nullable(),
   deferredBecauseNextInvoicePaid: z.boolean(),
 });
+
+// ── Billing identity (M26-S16, UC-118) ────────────────────────────────────────────────────────
+// The backend's identity read and save answer, parsed at the boundary. The request body is the
+// shared `BillingIdentityUpdateSchema` of `@ikaro/validation`, imported by the controller, so the
+// backend and this layer hold one copy of the body rules.
+const IdentityAddressSchema = z.object({
+  street: z.string(),
+  number: z.string(),
+  complement: z.string().nullable(),
+  neighborhood: z.string().nullable(),
+  city: z.string(),
+  state: z.string(),
+  zipCode: z.string(),
+});
+
+const ReadyIdentitySchema = z.object({
+  provisioning: z.literal(false),
+  taxIdType: z.enum(BILLING_TAX_ID_TYPES).nullable(),
+  taxId: z.string().nullable(),
+  legalName: z.string().nullable(),
+  billingEmail: z.string().nullable(),
+  address: IdentityAddressSchema.nullable(),
+});
+
+export const BackendBillingIdentitySchema = z.discriminatedUnion('provisioning', [
+  z.object({ provisioning: z.literal(true) }),
+  ReadyIdentitySchema,
+]);
+
+// `PUT` never answers the provisioning window with a 200 (it is a 503), so its answer is the ready shape.
+export const BackendBillingIdentitySavedSchema = ReadyIdentitySchema;

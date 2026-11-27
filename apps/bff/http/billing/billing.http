@@ -118,3 +118,71 @@ Authorization: Bearer {{staffToken}}
 
 ### No token: 401
 POST {{bffUrl}}/v1/billing/charges/{{chargeId}}/payment-return
+
+
+# ── Billing identity (M26-S16, UC-118) ───────────────────────────────────────────────────────────
+# GET / PUT /v1/billing/identity: MANAGER only, reachable while the tenant is suspended. The body
+# is validated at the edge by the shared schema (the backend repeats it); the country's tax id,
+# email and address rules are the backend's, and its typed errors come back as they are.
+
+### Identity: 200 { provisioning: false, taxIdType, taxId, legalName, billingEmail, address }
+### (or 200 { provisioning: true } while the billing account is being prepared)
+GET {{bffUrl}}/v1/billing/identity
+Authorization: Bearer {{managerToken}}
+
+### Save: 200 with the same shape; every field is optional
+PUT {{bffUrl}}/v1/billing/identity
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "taxId": "529.982.247-25",
+  "legalName": "Lavacar BH Ltda",
+  "billingEmail": "cobranca@lavacar.com.br",
+  "address": { "street": "Rua das Flores", "number": "100", "neighborhood": "Centro", "city": "Belo Horizonte", "state": "MG", "zipCode": "30130-110" }
+}
+
+### Alphanumeric CNPJ as typed: forwarded untouched, validated by the backend: 200
+PUT {{bffUrl}}/v1/billing/identity
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{ "taxIdType": "CNPJ", "taxId": "12.ABC.345/01DE-35" }
+
+### Bad check digits: 422 BILLING_IDENTITY_TAX_ID_INVALID
+PUT {{bffUrl}}/v1/billing/identity
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{ "taxId": "11222333000182" }
+
+### Invalid email: 422 BILLING_IDENTITY_EMAIL_INVALID
+PUT {{bffUrl}}/v1/billing/identity
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{ "billingEmail": "not-an-email" }
+
+### Wrong postal code: 400 ADDRESS_POSTAL_CODE_INVALID
+PUT {{bffUrl}}/v1/billing/identity
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{ "address": { "zipCode": "30140-07" } }
+
+### A body the shared schema refuses (a null address): 400, the backend is never called
+PUT {{bffUrl}}/v1/billing/identity
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{ "address": null }
+
+### Staff: 403
+GET {{bffUrl}}/v1/billing/identity
+Authorization: Bearer {{staffToken}}
+
+### No token: 401
+PUT {{bffUrl}}/v1/billing/identity
+Content-Type: application/json
+
+{ "legalName": "x" }

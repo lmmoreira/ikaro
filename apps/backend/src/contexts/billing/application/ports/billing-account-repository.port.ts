@@ -11,6 +11,15 @@ export interface IBillingAccountRepository {
   findByTenantId(tenantId: string): Promise<BillingAccount | null>;
 
   /**
+   * B-I1 (`docs/LOCK_CATALOG.md`): the account row locked `FOR UPDATE`, hydrated like
+   * `findByTenantId`. The identity save takes it so its whole-row `save()` cannot overwrite the
+   * provider customer `assignProviderCustomer` stores in between, nor another save's fields. Throws
+   * outside an active transaction. The country is read from the subscription row, which is
+   * immutable, so no subscription lock is taken.
+   */
+  findByTenantIdForUpdate(tenantId: string): Promise<BillingAccount | null>;
+
+  /**
    * Cross-tenant job lookup (no tenant: the webhook resolves the tenant from the provider customer
    * id before any tenant context exists), served by the UNIQUE standalone index
    * `UQ_billing_billing_accounts_provider_customer`.

@@ -188,3 +188,133 @@ X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{staffId}}
 X-Actor-Type: STAFF
 X-Actor-Role: STAFF
+
+
+# ── Billing identity (M26-S16, UC-118) ──────────────────────────────────────────────────────────
+# The "Dados de cobrança" tab. Manager-only (STAFF / CUSTOMER 403), reachable while the tenant is
+# SUSPENDED. Every PUT field is optional: a field left out is untouched; null or "" clears taxId,
+# legalName and billingEmail (a BR tax id is replaced, never cleared: 422); `address` merges its sent
+# sub-fields over the stored one and is validated whole (never cleared). The save takes the account
+# row lock (B-I1) and never calls the provider: the identity is synced to the provider customer at
+# the next charge, and a subscription held for a missing identity is issued by the next job run.
+# A tenant with no billing account yet: GET answers 200 { "provisioning": true }, PUT answers
+# 503 BILLING_PROVISIONING (retryable).
+
+### Identity: 200 { provisioning: false, taxIdType, taxId (normalised), legalName, billingEmail, address }
+GET {{baseUrl}}/billing/identity
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+### Save a complete BR identity: 200 with the same shape as the GET
+PUT {{baseUrl}}/billing/identity
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "taxId": "529.982.247-25",
+  "legalName": "Lavacar BH Ltda",
+  "billingEmail": "cobranca@lavacar.com.br",
+  "address": { "street": "Rua das Flores", "number": "100", "neighborhood": "Centro", "city": "Belo Horizonte", "state": "MG", "zipCode": "30130-110" }
+}
+
+### Partial update: only the sent fields change; the address merges (here only the city and ZIP)
+PUT {{baseUrl}}/billing/identity
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{ "address": { "city": "Contagem", "zipCode": "32010-000" } }
+
+### Alphanumeric CNPJ with valid check digits, punctuation and letters accepted: 200
+PUT {{baseUrl}}/billing/identity
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{ "taxIdType": "CNPJ", "taxId": "12.ABC.345/01DE-35" }
+
+### Bad check digits: 422 BILLING_IDENTITY_TAX_ID_INVALID
+PUT {{baseUrl}}/billing/identity
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{ "taxId": "11222333000182" }
+
+### An empty tax id on a BR account that has one: 422 BILLING_IDENTITY_TAX_ID_INVALID, stored value kept
+PUT {{baseUrl}}/billing/identity
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{ "taxId": "" }
+
+### Invalid email: 422 BILLING_IDENTITY_EMAIL_INVALID
+PUT {{baseUrl}}/billing/identity
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{ "billingEmail": "not-an-email" }
+
+### Wrong postal code (a BR CEP is 00000-000): 400 ADDRESS_POSTAL_CODE_INVALID
+PUT {{baseUrl}}/billing/identity
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{ "address": { "zipCode": "30140-07" } }
+
+### An address still incomplete after the merge: 400 ADDRESS_FIELD_REQUIRED, nothing is saved
+PUT {{baseUrl}}/billing/identity
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{ "legalName": "Half", "address": { "city": "Belo Horizonte" } }
+
+### A body the schema refuses (a taxIdType without a taxId, a null address): 400
+PUT {{baseUrl}}/billing/identity
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{ "taxIdType": "CPF" }
+
+### Staff: 403 on read and save
+GET {{baseUrl}}/billing/identity
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+
+### Customer: 403
+PUT {{baseUrl}}/billing/identity
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+Content-Type: application/json
+
+{ "legalName": "x" }

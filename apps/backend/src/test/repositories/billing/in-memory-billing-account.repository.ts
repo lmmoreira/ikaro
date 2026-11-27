@@ -12,6 +12,11 @@ export class InMemoryBillingAccountRepository implements IBillingAccountReposito
     return this.saved.find((account) => account.tenantId === tenantId) ?? null;
   }
 
+  // The in-memory double has no concurrency to order; it keeps the contract's one observable rule.
+  async findByTenantIdForUpdate(tenantId: string): Promise<BillingAccount | null> {
+    return this.findByTenantId(tenantId);
+  }
+
   async findByProviderCustomerIdForJob(
     provider: BillingProvider,
     providerCustomerId: string,

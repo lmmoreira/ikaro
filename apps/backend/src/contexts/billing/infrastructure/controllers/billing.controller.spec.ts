@@ -3,17 +3,25 @@ import { Reflector } from '@nestjs/core';
 import { NO_FEATURE_GATE_KEY, SUSPENSION_ACCESS_KEY } from '@ikaro/nestjs-http';
 import { ManagerRoleGuard } from '../../../../shared/guards/manager-role.guard';
 import { RequestContext } from '../../../../shared/request/request-context';
-import { ChargeBuilder, SubscriptionBuilder } from '../../../../test/builders/billing';
+import {
+  BillingAccountBuilder,
+  ChargeBuilder,
+  SubscriptionBuilder,
+} from '../../../../test/builders/billing';
+import { AddressBuilder } from '../../../../test/builders/shared';
 import { createReconcileHarness } from '../../../../test/infrastructure/billing-reconcile-harness';
 import { FixedClock } from '../../../../test/infrastructure/fixed-clock';
 import { InMemoryBillingAccountRepository } from '../../../../test/repositories/billing/in-memory-billing-account.repository';
 import type { InMemoryChargeRepository } from '../../../../test/repositories/billing/in-memory-charge.repository';
 import { InMemoryFeaturePriceRepository } from '../../../../test/repositories/billing/in-memory-feature-price.repository';
 import { InMemorySubscriptionRepository } from '../../../../test/repositories/billing/in-memory-subscription.repository';
+import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
+import { GetBillingIdentityUseCase } from '../../application/use-cases/get-billing-identity.use-case';
 import { GetBillingSummaryUseCase } from '../../application/use-cases/get-billing-summary.use-case';
 import { GetPlanCatalogUseCase } from '../../application/use-cases/get-plan-catalog.use-case';
 import { ListBillingChargesUseCase } from '../../application/use-cases/list-billing-charges.use-case';
 import { PreviewPlanSelectionUseCase } from '../../application/use-cases/preview-plan-selection.use-case';
+import { UpdateBillingIdentityUseCase } from '../../application/use-cases/update-billing-identity.use-case';
 import { BillingController } from './billing.controller';
 
 const TENANT_ID = '0197b0a0-0000-7000-8000-0000000000a1';
@@ -25,6 +33,7 @@ describe('BillingController', () => {
   const reflector = new Reflector();
   const context = { tenantId: TENANT_ID, correlationId: 'corr-controller' } as RequestContext;
   let charges: InMemoryChargeRepository;
+  let accounts: InMemoryBillingAccountRepository;
   let pay: ReturnType<typeof createReconcileHarness>;
   let controller: BillingController;
 
@@ -34,21 +43,18 @@ describe('BillingController', () => {
     pay = createReconcileHarness();
     charges = pay.charges;
     const subscriptions = new InMemorySubscriptionRepository();
+    accounts = new InMemoryBillingAccountRepository();
     const prices = new InMemoryFeaturePriceRepository();
     const clock = new FixedClock(new Date('2026-11-12T15:00:00.000Z'));
     controller = new BillingController(
-      new GetBillingSummaryUseCase(
-        subscriptions,
-        new InMemoryBillingAccountRepository(),
-        charges,
-        prices,
-        clock,
-      ),
+      new GetBillingSummaryUseCase(subscriptions, accounts, charges, prices, clock),
       new ListBillingChargesUseCase(charges),
       new GetPlanCatalogUseCase(subscriptions, charges, prices, clock),
       new PreviewPlanSelectionUseCase(subscriptions, charges, prices, clock),
       pay.paymentLink,
       pay.recordReturn,
+      new GetBillingIdentityUseCase(accounts),
+      new UpdateBillingIdentityUseCase(accounts, new InMemoryTransactionManager()),
       context,
     );
   });
@@ -100,6 +106,49 @@ describe('BillingController', () => {
 
   // The page bounds are `BillingChargesQuerySchema`'s (specified in `packages/validation`); the
   // controller integration spec proves the route answers 400 for an out-of-range page.
+
+  describe('the billing identity (UC-118)', () => {
+    it('answers provisioning on a read and a retryable 503 on a save when the tenant has no account', async () => {
+      await expect(controller.identity()).resolves.toEqual({ provisioning: true });
+      await expect(controller.saveIdentity({ legalName: 'Acme' })).rejects.toMatchObject({
+        status: 503,
+        response: { code: 'BILLING_PROVISIONING' },
+      });
+    });
+
+    it('saves for the caller’s own tenant only and reads it back', async () => {
+      await accounts.save(new BillingAccountBuilder().withTenantId(TENANT_ID).build());
+      const other = new BillingAccountBuilder().withTenantId(OTHER_TENANT_ID).build();
+      await accounts.save(other);
+
+      await controller.saveIdentity({ taxId: '529.982.247-25', legalName: 'Acme Ltda' });
+
+      await expect(controller.identity()).resolves.toMatchObject({
+        taxId: '52998224725',
+        legalName: 'Acme Ltda',
+      });
+      expect(other.taxId).toBeNull();
+      expect(other.legalName).toBeNull();
+    });
+
+    it.each([
+      ['an invalid tax id', { taxId: '123' }, 422, 'BILLING_IDENTITY_TAX_ID_INVALID'],
+      ['an invalid email', { billingEmail: 'nope' }, 422, 'BILLING_IDENTITY_EMAIL_INVALID'],
+      ['an invalid postal code', { address: { zipCode: '1' } }, 400, 'ADDRESS_POSTAL_CODE_INVALID'],
+    ])('answers %s with its documented status and code', async (_label, body, status, code) => {
+      await accounts.save(
+        new BillingAccountBuilder()
+          .withTenantId(TENANT_ID)
+          .withAddress(new AddressBuilder().build())
+          .build(),
+      );
+
+      await expect(controller.saveIdentity(body)).rejects.toMatchObject({
+        status,
+        response: { code },
+      });
+    });
+  });
 
   describe('paying a charge (UC-119)', () => {
     const seedCharge = async (tenantId: string, options: { status?: 'CANCELED' } = {}) => {

@@ -11,7 +11,10 @@ import {
 import { RecoveryChargeAlreadyOpenError } from '../../domain/errors/recovery-charge-already-open.error';
 import {
   BillingAddressRequiredError,
+  BillingIdentityEmailInvalidError,
+  BillingIdentityTaxIdInvalidError,
   BillingProviderUnavailableError,
+  BillingProvisioningError,
   BillingTenantNotFoundError,
   ChargeNotFoundError,
   ChargeNotPayableError,
@@ -56,14 +59,30 @@ function mapPaymentRefusal(err: unknown): void {
   }
 }
 
+// The billing identity save (M26-S16, UC-118): a tax id or an email the billing country refuses is a
+// refusal of the request (422); a tenant with no billing account yet (the provisioning window) is a
+// retryable 503. The address errors keep the shared mapper's 400. Returns when `err` is none of these.
+function mapIdentityRefusal(err: unknown): void {
+  if (
+    err instanceof BillingIdentityTaxIdInvalidError ||
+    err instanceof BillingIdentityEmailInvalidError
+  ) {
+    throw throwProblemDetail(HttpStatus.UNPROCESSABLE_ENTITY, err.code, err.message);
+  }
+  if (err instanceof BillingProvisioningError) {
+    throw throwProblemDetail(HttpStatus.SERVICE_UNAVAILABLE, err.code, err.message);
+  }
+}
+
 // Billing's domain-error-to-HTTP mapper (M25-S06). Today it only handles the shared VO errors the
 // Billing aggregates construct (CountryCode, CalendarDate, TaxId, ...). Billing's own domain errors
-// are added by the story that first gives them an HTTP surface (S15b mapped the operator refusals;
-// S16 and M26 add the rest); until then the unmapped ones stay on the error-mapper-coverage
+// are added by the story that first gives them an HTTP surface (S15b mapped the operator refusals,
+// S16 the identity save); until then the unmapped ones stay on the error-mapper-coverage
 // exceptions in architecture-policy.json.
 export function mapBillingError(err: unknown): never {
   mapSharedAddressError(err);
   mapSharedVoError(err);
+  mapIdentityRefusal(err);
   // SIGNUP_TERMS_NOT_ACCEPTED: a business refusal, 422 per docs/API_CONTRACTS.md (M25-S09).
   // SIGNUP_COUNTRY_NOT_SUPPORTED (M26-S24, UC-127 A7): the same kind of refusal, 422.
   if (err instanceof SignupTermsNotAcceptedError || err instanceof SignupCountryNotSupportedError) {

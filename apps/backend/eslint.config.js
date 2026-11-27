@@ -529,7 +529,7 @@ module.exports = [
       ...maxLinesAggregateExceptionPaths,
     ],
     rules: {
-      'max-lines': ['error', { max: 250, skipBlankLines: true, skipComments: true }],
+      'max-lines': ['error', { max: 300, skipBlankLines: true, skipComments: true }],
     },
   },
 

@@ -57,3 +57,41 @@ export const PlanPreviewSchema = z.object({
 
 export type PlanSelectionItem = z.infer<typeof PlanSelectionItemSchema>;
 export type PlanPreviewDto = z.infer<typeof PlanPreviewSchema>;
+
+// `PUT /billing/identity` (M26-S16, UC-118): every field optional, one schema for both apps. A field
+// left out is untouched; `null` or a blank string clears `taxId`, `legalName` and `billingEmail`
+// (the backend rejects clearing a tax id the billing country requires); `address` merges its sent
+// sub-fields over the stored one and is never cleared. Only the SHAPE is checked here: the tax id's
+// format (an alphanumeric CNPJ included), the email and the country's address rules are the
+// backend value objects' (one rule, one layer), so `taxId` takes letters and punctuation as typed.
+export const BILLING_TAX_ID_TYPES = ['CNPJ', 'CPF', 'EIN', 'OTHER'] as const;
+
+export type BillingTaxIdType = (typeof BILLING_TAX_ID_TYPES)[number];
+
+const BillingIdentityAddressPatchSchema = z.object({
+  street: z.string().max(255).optional(),
+  number: z.string().max(30).optional(),
+  complement: z.string().max(255).nullable().optional(),
+  neighborhood: z.string().max(255).nullable().optional(),
+  city: z.string().max(255).optional(),
+  state: z.string().trim().max(10).optional(),
+  zipCode: z.string().trim().max(20).optional(),
+});
+
+export const BillingIdentityUpdateSchema = z
+  .object({
+    taxIdType: z.enum(BILLING_TAX_ID_TYPES).nullable().optional(),
+    taxId: z.string().max(64).nullable().optional(),
+    legalName: z.string().max(255).nullable().optional(),
+    billingEmail: z.string().max(255).nullable().optional(),
+    address: BillingIdentityAddressPatchSchema.optional(),
+  })
+  .refine(
+    ({ taxIdType, taxId }) =>
+      taxIdType === null ||
+      taxIdType === undefined ||
+      (typeof taxId === 'string' && taxId.trim() !== ''),
+    { message: 'a declared taxIdType needs a taxId', path: ['taxIdType'] },
+  );
+
+export type BillingIdentityUpdateDto = z.infer<typeof BillingIdentityUpdateSchema>;

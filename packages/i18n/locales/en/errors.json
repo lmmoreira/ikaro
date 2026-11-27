@@ -274,5 +274,8 @@
   "BILLING_CHARGE_NOT_PAYABLE": "This charge can no longer be paid.",
   "BILLING_ADDRESS_REQUIRED": "Add your billing address to continue.",
   "BILLING_PROVIDER_UNAVAILABLE": "The payment provider is unavailable. Try again in a moment.",
-  "BILLING_CHARGE_NOT_FOUND": "This charge was not found."
+  "BILLING_CHARGE_NOT_FOUND": "This charge was not found.",
+  "BILLING_IDENTITY_TAX_ID_INVALID": "The tax ID is not valid. Check the number and try again.",
+  "BILLING_IDENTITY_EMAIL_INVALID": "The billing email is not valid.",
+  "BILLING_PROVISIONING": "We are still preparing your account. Try again in a moment."
 }

@@ -96,6 +96,8 @@ import { ReconcileOneChargeUseCase } from './application/use-cases/reconcile-one
 import { RecordReconcilePassUseCase } from './application/use-cases/record-reconcile-pass.use-case';
 import { GetOrRegenerateChargePaymentLinkUseCase } from './application/use-cases/get-or-regenerate-charge-payment-link.use-case';
 import { RecordPaymentReturnUseCase } from './application/use-cases/record-payment-return.use-case';
+import { GetBillingIdentityUseCase } from './application/use-cases/get-billing-identity.use-case';
+import { UpdateBillingIdentityUseCase } from './application/use-cases/update-billing-identity.use-case';
 import { RetryProviderChargeCancelUseCase } from './application/use-cases/retry-provider-charge-cancel.use-case';
 import { ReconcileTriggerHandler } from './infrastructure/events/reconcile-trigger.handler';
 import { TypeOrmProviderHealthRepository } from './infrastructure/repositories/typeorm-provider-health.repository';
@@ -242,6 +244,9 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     // Paying a charge (M26-S15).
     GetOrRegenerateChargePaymentLinkUseCase,
     RecordPaymentReturnUseCase,
+    // The billing identity read and save (M26-S16).
+    GetBillingIdentityUseCase,
+    UpdateBillingIdentityUseCase,
   ],
   // The shared access port is consumed by every context (M25-S16 onwards). The registration and
   // the five operator use cases are injected by this module's own controllers, which the
@@ -265,6 +270,8 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     PreviewPlanSelectionUseCase,
     GetOrRegenerateChargePaymentLinkUseCase,
     RecordPaymentReturnUseCase,
+    GetBillingIdentityUseCase,
+    UpdateBillingIdentityUseCase,
     // Injected by this module's own `InternalBillingPricesController` (M26-S23), which the detector counts as external.
     ListSelectablePricesUseCase,
     ProcessProviderWebhookUseCase,
