@@ -154,7 +154,8 @@ describe('RecordPaymentReturnUseCase (UC-119, the on-demand refresh of UC-116)',
       },
     );
 
-    it('a charge a webhook settled between the read and the lock records nothing', async () => {
+    it('a charge a webhook settled between the read and the lock records nothing and reads nothing at the provider', async () => {
+      const fetched = jest.spyOn(h.provider, 'fetchChargeStatus');
       const lock = h.charges.findByIdForUpdate.bind(h.charges);
       jest.spyOn(h.charges, 'findByIdForUpdate').mockImplementationOnce(async (tenantId, id) => {
         const current = await stored();
@@ -169,6 +170,7 @@ describe('RecordPaymentReturnUseCase (UC-119, the on-demand refresh of UC-116)',
       });
 
       expect((await stored()).paymentReturnSeenAt).toBeNull();
+      expect(fetched).not.toHaveBeenCalled();
     });
   });
 

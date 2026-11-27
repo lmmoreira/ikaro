@@ -217,6 +217,22 @@ export async function waitForBlockedLock(
   await pollUntil(blocked, 150, `no session ever blocked on a ${kind} lock`);
 }
 
+// Polls Postgres until a backend is blocked by the holder's own backend pid. Use it when the holder
+// and the contender hit the same table: nobody else's lock wait can satisfy it, so the probe is
+// scoped to the one competing writer (`docs/ENGINEERING_RULES_TESTING.md` § Scope the blocked-lock
+// probe). The holder reports its pid with `SELECT pg_backend_pid()` on its transaction's connection.
+export async function waitForParkedBehind(ds: DataSource, holderPid: number): Promise<void> {
+  const parked = async (): Promise<boolean> => {
+    const [{ waiting }] = await ds.query<{ waiting: number }[]>(
+      `SELECT count(*)::int AS waiting FROM pg_stat_activity
+        WHERE datname = current_database() AND $1 = ANY(pg_blocking_pids(pid))`,
+      [holderPid],
+    );
+    return waiting > 0;
+  };
+  await pollUntil(parked, 250, 'the contender never parked behind the lock holder');
+}
+
 // Checks every 20 ms, at most `attempts` times, then fails with `message`.
 async function pollUntil(
   check: () => Promise<boolean>,

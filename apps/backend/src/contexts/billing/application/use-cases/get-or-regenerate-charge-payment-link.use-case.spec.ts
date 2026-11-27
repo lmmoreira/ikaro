@@ -88,7 +88,9 @@ describe('GetOrRegenerateChargePaymentLinkUseCase (UC-119)', () => {
       expect(regenerate).not.toHaveBeenCalled();
     });
 
-    it.each(['PENDING', 'OVERDUE'] as const)('a %s charge is payable', async (status) => {
+    // `FAILED` is unreachable in M26 and payable by design (a fresh link starts a new provider
+    // attempt), so the use case path is pinned here and M29 needs no change.
+    it.each(['PENDING', 'OVERDUE', 'FAILED'] as const)('a %s charge is payable', async (status) => {
       const charge = await seed({ status, paymentUrlExpiresAt: future() });
 
       await expect(link(charge)).resolves.toMatchObject({ status });

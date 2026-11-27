@@ -1,9 +1,10 @@
+import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { addDaysUTC, todayUTC } from '../../../../shared/utils/calendar-date';
 import {
   createReconcileWorld,
   type ReconcileWorld,
 } from '../../../../test/utils/billing-reconcile-world';
-import { databaseNow, waitForBlockedLock } from '../../../../test/utils/booking-lock-race-world';
+import { waitForParkedBehind } from '../../../../test/utils/booking-lock-race-world';
 import {
   BillingAddressRequiredError,
   ChargeNotFoundError,
@@ -100,29 +101,32 @@ describe('GetOrRegenerateChargePaymentLinkUseCase (integration, UC-119)', () => 
       paymentUrlExpiresAt: expired(),
     });
     let release!: () => void;
-    let signalLocked!: () => void;
+    let signalLocked!: (holderPid: number) => void;
     const gate = new Promise<void>((resolve) => (release = resolve));
-    const locked = new Promise<void>((resolve) => (signalLocked = resolve));
+    const locked = new Promise<number>((resolve) => (signalLocked = resolve));
     // The webhook's shape (docs/LOCK_CATALOG.md § 4): the subscription row, then the charge row,
-    // paid and committed after the link store has had to wait for it.
+    // paid and committed after the link store has had to wait for it. It reports its own backend
+    // pid, so the probe below is satisfied only by a session parked behind this transaction.
     const payment = world.txManager.run(async () => {
       const subscription = await world.subscriptions.findByTenantIdForUpdate(tenant.tenantId);
       const current = await world.charges.findByIdForUpdate(tenant.tenantId, charge.id);
       if (!subscription || !current) throw new Error('seeded rows missing');
       current.markPaid('PIX', new Date(), null, 'corr-webhook', null);
       await world.charges.save(current);
-      signalLocked();
+      const [{ pid }] = await getActiveEntityManager()!.query<{ pid: number }[]>(
+        'SELECT pg_backend_pid() AS pid',
+      );
+      signalLocked(pid);
       await gate;
     });
-    await locked;
+    const holderPid = await locked;
 
-    const since = await databaseNow(world.ds);
     const answering = world.paymentLink.execute({
       tenantId: tenant.tenantId,
       chargeId: charge.id,
     });
     try {
-      await waitForBlockedLock(world.ds, 'row', since);
+      await waitForParkedBehind(world.ds, holderPid);
     } finally {
       release();
       await payment;

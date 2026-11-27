@@ -1,9 +1,10 @@
+import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { addDaysUTC, todayUTC } from '../../../../shared/utils/calendar-date';
 import {
   createReconcileWorld,
   type ReconcileWorld,
 } from '../../../../test/utils/billing-reconcile-world';
-import { databaseNow, waitForBlockedLock } from '../../../../test/utils/booking-lock-race-world';
+import { waitForParkedBehind } from '../../../../test/utils/booking-lock-race-world';
 import { ChargeNotFoundError } from '../../domain/errors/billing-domain.error';
 
 // The payment return against Postgres: the real charge and subscription repositories, the row locks
@@ -95,27 +96,31 @@ describe('RecordPaymentReturnUseCase (integration, UC-119, UC-116)', () => {
   it('B-C1: a payment landing between the read and the lock is not overwritten: nothing is recorded and the answer is the paid state', async () => {
     const tenant = await pastDueTenant();
     const charge = await overdueCharge(tenant);
+    const fetched = jest.spyOn(world.provider, 'fetchChargeStatus');
     let release!: () => void;
-    let signalLocked!: () => void;
+    let signalLocked!: (holderPid: number) => void;
     const gate = new Promise<void>((resolve) => (release = resolve));
-    const locked = new Promise<void>((resolve) => (signalLocked = resolve));
+    const locked = new Promise<number>((resolve) => (signalLocked = resolve));
     // The webhook's shape: the subscription row, then the charge row, paid and committed after the
-    // return has had to wait for it.
+    // return has had to wait for it. It reports its own backend pid, so the probe below is
+    // satisfied only by a session parked behind this transaction.
     const payment = world.txManager.run(async () => {
       const subscription = await world.subscriptions.findByTenantIdForUpdate(tenant.tenantId);
       const current = await world.charges.findByIdForUpdate(tenant.tenantId, charge.id);
       if (!subscription || !current) throw new Error('seeded rows missing');
       current.markPaid('PIX', new Date(), null, 'corr-webhook', null);
       await world.charges.save(current);
-      signalLocked();
+      const [{ pid }] = await getActiveEntityManager()!.query<{ pid: number }[]>(
+        'SELECT pg_backend_pid() AS pid',
+      );
+      signalLocked(pid);
       await gate;
     });
-    await locked;
+    const holderPid = await locked;
 
-    const since = await databaseNow(world.ds);
     const answering = returnTo(tenant.tenantId, charge.id);
     try {
-      await waitForBlockedLock(world.ds, 'row', since);
+      await waitForParkedBehind(world.ds, holderPid);
     } finally {
       release();
       await payment;
@@ -125,5 +130,6 @@ describe('RecordPaymentReturnUseCase (integration, UC-119, UC-116)', () => {
     const row = await chargeRow(tenant.tenantId);
     expect(row.status).toBe('PAID');
     expect(row.paymentReturnSeenAt).toBeNull();
+    expect(fetched).not.toHaveBeenCalled();
   });
 });

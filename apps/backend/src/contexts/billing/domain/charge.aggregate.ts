@@ -6,6 +6,7 @@ import type { ChargeLine } from './charge-line';
 import type {
   ChargeIssuedNotice,
   ChargeKind,
+  ChargePayability,
   ChargeProps,
   ChargeProviderCreationStatus,
   ChargeStatus,
@@ -21,14 +22,30 @@ import { MinorAmount } from './value-objects/minor-amount.vo';
 
 export * from './charge.types';
 
+// Exhaustive by type: a new `ChargeStatus` does not compile until it is placed here. `FAILED` is
+// unreachable in M26 (a failed creation attempt stays `PENDING`) and payable, because a fresh link
+// on it starts a new provider attempt, so M29 needs no change here.
+const PAYABILITY_BY_STATUS: Readonly<Record<ChargeStatus, ChargePayability>> = {
+  PENDING: 'PAYABLE',
+  OVERDUE: 'PAYABLE',
+  FAILED: 'PAYABLE',
+  PAID: 'PAID',
+  CANCELED: 'NOT_PAYABLE',
+  REFUNDED: 'NOT_PAYABLE',
+  CHARGEBACK: 'NOT_PAYABLE',
+};
+
 /**
  * One bill, in its own aggregate (not a child of the subscription: one per period forever). The
  * lines and amounts are written once with the charge; afterwards only the status and the payment /
  * provider fields move, through the transition table in docs/DOMAIN_MODEL.md § Aggregate: Charge.
  *
- * Like `Subscription`, it never reads a clock: a method that needs an instant takes it. It raises no
- * domain event but one: `markPaid` raises `ChargePaid`, which the charge repository drains into the
- * outbox in the transaction of the save (the same shape as `Subscription`).
+ * Like `Subscription`, it never reads a clock: a method that needs an instant takes it. It raises
+ * two domain events: `markCreationReady` raises `ChargeIssued` and `markPaid` raises `ChargePaid`,
+ * which the charge repository drains into the outbox in the transaction of the save (the same shape
+ * as `Subscription`). Every other mutator is silent on purpose (the payment link, the payment
+ * return, the provider-cancel flag, a failed creation attempt): nothing consumes them, and an event
+ * with no consumer must not ship (`docs/DOMAIN_EVENTS.md`).
  * The creation lease (`provider_creation_attempts` / `_last_attempt_at`) belongs to the repository's
  * claim, so the aggregate only carries those two values and never changes them.
  */
@@ -196,25 +213,12 @@ export class Charge extends AggregateRoot {
   }
 
   /**
-   * What paying this charge means (UC-119). `PAID` is not an error: the page just refreshes to the
-   * paid state (A4). `CANCELED`, `REFUNDED` and `CHARGEBACK` can no longer be paid (A5). `PENDING`
-   * and `OVERDUE` are payable, and so is `FAILED` (unreachable in M26: a fresh link on it starts a
-   * new provider attempt, so M29 needs no change here). Exhaustive on purpose: a new status will not
-   * compile until it is placed.
+   * What paying this charge means (UC-119), read from `PAYABILITY_BY_STATUS`. `PAID` is not an
+   * error: the page just refreshes to the paid state (A4). `CANCELED`, `REFUNDED` and `CHARGEBACK`
+   * can no longer be paid (A5). `PENDING`, `OVERDUE` and `FAILED` are payable.
    */
-  get payability(): 'PAYABLE' | 'PAID' | 'NOT_PAYABLE' {
-    switch (this._status) {
-      case 'PAID':
-        return 'PAID';
-      case 'CANCELED':
-      case 'REFUNDED':
-      case 'CHARGEBACK':
-        return 'NOT_PAYABLE';
-      case 'PENDING':
-      case 'OVERDUE':
-      case 'FAILED':
-        return 'PAYABLE';
-    }
+  get payability(): ChargePayability {
+    return PAYABILITY_BY_STATUS[this._status];
   }
 
   /**

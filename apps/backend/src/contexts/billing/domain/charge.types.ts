@@ -14,6 +14,12 @@ export type ChargeKind = 'PERIOD' | 'RECOVERY';
 export type ChargeStatus =
   'PENDING' | 'PAID' | 'OVERDUE' | 'FAILED' | 'CANCELED' | 'REFUNDED' | 'CHARGEBACK';
 
+/**
+ * What paying a charge means (UC-119): `PAID` answers the paid state (not an error), `NOT_PAYABLE`
+ * is refused, `PAYABLE` gets a link.
+ */
+export type ChargePayability = 'PAYABLE' | 'PAID' | 'NOT_PAYABLE';
+
 /** `FAILED` exists in the column's CHECK but is unreachable in M26: a failed attempt stays `PENDING`. */
 export type ChargeProviderCreationStatus = 'PENDING' | 'READY' | 'FAILED';
 

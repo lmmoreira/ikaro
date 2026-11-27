@@ -49,20 +49,25 @@ export class RecordPaymentReturnUseCase {
     if (charge === null) throw new ChargeNotFoundError(input.chargeId);
     if (!charge.open) return toResponse(charge);
 
-    await this.record(input);
-    await this.refresh(input);
+    // A charge a webhook settled between the read and the lock is not open any more: there is
+    // nothing to record and nothing to ask the provider.
+    if (await this.record(input)) await this.refresh(input);
     const current = await this.charges.findById(input.tenantId, input.chargeId);
     if (current === null) throw new ChargeNotFoundError(input.chargeId);
     return toResponse(current);
   }
 
-  // Set once: a second return, or a charge a webhook settled meanwhile, writes nothing.
-  private async record(input: RecordPaymentReturnUseCaseInput): Promise<void> {
-    await this.txManager.run(async () => {
+  // Set once: a second return writes nothing. Answers whether the charge was still open under the
+  // lock, which is what the refresh that follows depends on.
+  private async record(input: RecordPaymentReturnUseCaseInput): Promise<boolean> {
+    return this.txManager.run(async () => {
       const locked = await this.charges.findByIdForUpdate(input.tenantId, input.chargeId);
-      if (locked === null || !locked.open || locked.paymentReturnSeenAt !== null) return;
-      locked.recordPaymentReturn(this.clock.now());
-      await this.charges.save(locked);
+      if (locked === null || !locked.open) return false;
+      if (locked.paymentReturnSeenAt === null) {
+        locked.recordPaymentReturn(this.clock.now());
+        await this.charges.save(locked);
+      }
+      return true;
     });
   }
 

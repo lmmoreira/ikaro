@@ -39,7 +39,7 @@ export interface SeedChargeOptions {
   /** The period the charge pays for; ignored by a recovery charge. */
   period?: [string, string];
   dueDate: string;
-  status?: 'PENDING' | 'OVERDUE' | 'CANCELED' | 'REFUNDED' | 'CHARGEBACK';
+  status?: 'PENDING' | 'OVERDUE' | 'FAILED' | 'CANCELED' | 'REFUNDED' | 'CHARGEBACK';
   /** `false` leaves it without a payment link: its provider creation is still `PENDING`. */
   ready?: boolean;
   paymentReturnSeenAt?: Date;
