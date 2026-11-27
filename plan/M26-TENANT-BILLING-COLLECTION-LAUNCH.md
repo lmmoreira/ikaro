@@ -1271,7 +1271,7 @@ The read side of the billing page. `GET /v1/billing/summary` returns the documen
 
 ---
 
-### M26-S15 — Payment link and payment return (UC-119)
+### M26-S15 — Payment link and payment return (UC-119) ✅ Done
 
 **Agent:** `backend-ts + bff-ts`
 **Complexity:** M
