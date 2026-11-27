@@ -336,7 +336,17 @@ describe('IssueNextChargesJob (integration, UC-113)', () => {
 
     // The manager saves the identity through the real use case (UC-118): saving calls no provider,
     // and the next job run resumes with no operator step.
-    const providerCallsBefore = provider.charges.size;
+    const providerCalls = [
+      jest.spyOn(provider, 'ensureCustomer'),
+      jest.spyOn(provider, 'createCharge'),
+      jest.spyOn(provider, 'regeneratePaymentLink'),
+      jest.spyOn(provider, 'cancelCharge'),
+      jest.spyOn(provider, 'startAutoBilling'),
+      jest.spyOn(provider, 'revokeAutoBilling'),
+      jest.spyOn(provider, 'fetchChargeStatus'),
+      jest.spyOn(provider, 'readAccountHealth'),
+      jest.spyOn(provider, 'reenableWebhookQueue'),
+    ];
     await new UpdateBillingIdentityUseCase(accounts, txManager).execute({
       tenantId,
       taxId: '111.444.777-35',
@@ -349,11 +359,13 @@ describe('IssueNextChargesJob (integration, UC-113)', () => {
         zipCode: '30130-110',
       },
     });
-    expect(provider.charges.size).toBe(providerCallsBefore);
+    for (const call of providerCalls) expect(call).not.toHaveBeenCalled();
     expect(await chargeRows(tenantId)).toHaveLength(0);
 
     await issueNext.run({ correlationId: 'corr-2' });
 
     expect(await chargeRows(tenantId)).toHaveLength(1);
+    // The spies are wired: the job's own provider customer call is the first one they see.
+    expect(providerCalls[0]).toHaveBeenCalledTimes(1);
   });
 });

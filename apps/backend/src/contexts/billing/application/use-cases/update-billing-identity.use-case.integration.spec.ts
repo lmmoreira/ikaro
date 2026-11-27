@@ -205,8 +205,14 @@ describe('UpdateBillingIdentityUseCase (integration, UC-118)', () => {
 
       // The issue job's own column-scoped statement (S05) arrives while the save is in flight.
       const assigning = accounts.assignProviderCustomer(tenantId, 'ASAAS', 'cus_123');
-      await waitForParkedBehind(ds, holder.holderPid);
-      await holder.release();
+      try {
+        await waitForParkedBehind(ds, holder.holderPid);
+      } finally {
+        // Never leave the holder's transaction open, even when the parking assertion fails: the
+        // cleanup would block on the locked row instead of reporting the failure.
+        await holder.release();
+        await assigning.catch(() => undefined);
+      }
       await expect(assigning).resolves.toBe(true);
 
       expect(await row(tenantId)).toMatchObject({
@@ -223,8 +229,12 @@ describe('UpdateBillingIdentityUseCase (integration, UC-118)', () => {
       );
 
       const second = update.execute({ tenantId, legalName: 'Acme Ltda' });
-      await waitForParkedBehind(ds, holder.holderPid);
-      await holder.release();
+      try {
+        await waitForParkedBehind(ds, holder.holderPid);
+      } finally {
+        await holder.release();
+        await second.catch(() => undefined);
+      }
       await second;
 
       expect(await row(tenantId)).toMatchObject({

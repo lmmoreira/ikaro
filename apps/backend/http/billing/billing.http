@@ -282,7 +282,9 @@ Content-Type: application/json
 
 { "address": { "zipCode": "30140-07" } }
 
-### An address still incomplete after the merge: 400 ADDRESS_FIELD_REQUIRED, nothing is saved
+### An address still incomplete after the merge: 400 ADDRESS_FIELD_REQUIRED, nothing is saved.
+### Run it against a tenant with NO stored address (a second tenant id in `tenantId`): once the
+### complete save above has run, this city-only patch merges into that address and succeeds.
 PUT {{baseUrl}}/billing/identity
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{managerId}}
