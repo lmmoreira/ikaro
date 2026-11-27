@@ -3,10 +3,11 @@ import { Reflector } from '@nestjs/core';
 import { NO_FEATURE_GATE_KEY, SUSPENSION_ACCESS_KEY } from '@ikaro/nestjs-http';
 import { ManagerRoleGuard } from '../../../../shared/guards/manager-role.guard';
 import { RequestContext } from '../../../../shared/request/request-context';
-import { ChargeBuilder } from '../../../../test/builders/billing';
+import { ChargeBuilder, SubscriptionBuilder } from '../../../../test/builders/billing';
+import { createReconcileHarness } from '../../../../test/infrastructure/billing-reconcile-harness';
 import { FixedClock } from '../../../../test/infrastructure/fixed-clock';
 import { InMemoryBillingAccountRepository } from '../../../../test/repositories/billing/in-memory-billing-account.repository';
-import { InMemoryChargeRepository } from '../../../../test/repositories/billing/in-memory-charge.repository';
+import type { InMemoryChargeRepository } from '../../../../test/repositories/billing/in-memory-charge.repository';
 import { InMemoryFeaturePriceRepository } from '../../../../test/repositories/billing/in-memory-feature-price.repository';
 import { InMemorySubscriptionRepository } from '../../../../test/repositories/billing/in-memory-subscription.repository';
 import { GetBillingSummaryUseCase } from '../../application/use-cases/get-billing-summary.use-case';
@@ -22,12 +23,16 @@ const OTHER_TENANT_ID = '0197b0a0-0000-7000-8000-0000000000b2';
 // what the manager would get, not what a mock was told to say.
 describe('BillingController', () => {
   const reflector = new Reflector();
-  const context = { tenantId: TENANT_ID } as RequestContext;
+  const context = { tenantId: TENANT_ID, correlationId: 'corr-controller' } as RequestContext;
   let charges: InMemoryChargeRepository;
+  let pay: ReturnType<typeof createReconcileHarness>;
   let controller: BillingController;
 
   beforeEach(() => {
-    charges = new InMemoryChargeRepository();
+    // The two payment use cases come composed over the reconcile harness's repositories and fake
+    // provider; the reads are wired by hand over the same charge repository.
+    pay = createReconcileHarness();
+    charges = pay.charges;
     const subscriptions = new InMemorySubscriptionRepository();
     const prices = new InMemoryFeaturePriceRepository();
     const clock = new FixedClock(new Date('2026-11-12T15:00:00.000Z'));
@@ -42,6 +47,8 @@ describe('BillingController', () => {
       new ListBillingChargesUseCase(charges),
       new GetPlanCatalogUseCase(subscriptions, charges, prices, clock),
       new PreviewPlanSelectionUseCase(subscriptions, charges, prices, clock),
+      pay.paymentLink,
+      pay.recordReturn,
       context,
     );
   });
@@ -93,4 +100,53 @@ describe('BillingController', () => {
 
   // The page bounds are `BillingChargesQuerySchema`'s (specified in `packages/validation`); the
   // controller integration spec proves the route answers 400 for an out-of-range page.
+
+  describe('paying a charge (UC-119)', () => {
+    const seedCharge = async (tenantId: string, options: { status?: 'CANCELED' } = {}) => {
+      const subscription = new SubscriptionBuilder()
+        .withTenantId(tenantId)
+        .withStatus('ACTIVE')
+        .withItems([pay.hotsiteItem()])
+        .build();
+      await pay.seedTenant(subscription);
+      return pay.seedCharge(subscription, {
+        dueDate: '2026-03-10',
+        period: ['2026-03-01', '2026-03-31'],
+        paymentUrlExpiresAt: new Date('2027-01-01T00:00:00Z'),
+        ...options,
+      });
+    };
+
+    it('gives the caller the link of their own charge', async () => {
+      const charge = await seedCharge(TENANT_ID);
+
+      await expect(controller.getPaymentLink(charge.id)).resolves.toEqual({
+        status: 'PENDING',
+        paymentUrl: charge.paymentUrl,
+        expiresAt: '2027-01-01T00:00:00.000Z',
+      });
+    });
+
+    it('answers another tenant’s charge as not found, through the error mapper', async () => {
+      const other = await seedCharge(OTHER_TENANT_ID);
+
+      await expect(controller.getPaymentLink(other.id)).rejects.toMatchObject({ status: 404 });
+      await expect(controller.recordPaymentReturn(other.id)).rejects.toMatchObject({ status: 404 });
+    });
+
+    it('answers a charge that can no longer be paid as a conflict', async () => {
+      const closed = await seedCharge(TENANT_ID, { status: 'CANCELED' });
+
+      await expect(controller.getPaymentLink(closed.id)).rejects.toMatchObject({ status: 409 });
+    });
+
+    it('records the return of the caller’s own charge and answers its state', async () => {
+      const charge = await seedCharge(TENANT_ID);
+
+      await expect(controller.recordPaymentReturn(charge.id)).resolves.toEqual({
+        status: 'PENDING',
+        paymentConfirmationPending: true,
+      });
+    });
+  });
 });

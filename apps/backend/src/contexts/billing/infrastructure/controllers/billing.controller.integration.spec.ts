@@ -280,4 +280,177 @@ describe('BillingController (integration)', () => {
       await get('/billing/charges', tenantId).expect(200);
     });
   });
+
+  // Paying a charge (M26-S15, UC-119): the real routes, guards, error filter and fake provider.
+  describe('POST /billing/charges/:chargeId/payment-link and payment-return', () => {
+    const post = (
+      path: string,
+      tenantId: string,
+      role: 'MANAGER' | 'STAFF' | 'CUSTOMER' = 'MANAGER',
+    ) =>
+      request(app.getHttpServer())
+        .post(path)
+        .set(actorHeaders(tenantId, uuidv7(), role));
+    const activeTenant = () => seedTenant((b) => b.withStatus('ACTIVE').withTrialEndsAt(null));
+    const suspendedTenant = () =>
+      seedTenant((b) =>
+        b.withSuspension('NON_PAYMENT', new Date(Date.now() - DAY_MS)).withTrialEndsAt(null),
+      );
+    const withLink = (expiresAt: Date) => (b: ChargeEntityBuilder) =>
+      b.withProviderReady('ASAAS', `pay_${uuidv7()}`).withPaymentUrl(PAYMENT_URL, expiresAt);
+
+    it('gives the manager the link of an open charge: the one place the URL is returned', async () => {
+      const { tenantId, subscriptionId } = await activeTenant();
+      const charge = await seedCharge(
+        tenantId,
+        subscriptionId!,
+        withLink(new Date(Date.now() + DAY_MS)),
+      );
+
+      const { body } = await post(`/billing/charges/${charge.id}/payment-link`, tenantId).expect(
+        200,
+      );
+
+      expect(body).toMatchObject({ status: 'PENDING', paymentUrl: PAYMENT_URL });
+    });
+
+    it('is reachable by the manager of a SUSPENDED tenant for the recovery charge', async () => {
+      const { tenantId, subscriptionId } = await suspendedTenant();
+      const recovery = await seedCharge(tenantId, subscriptionId!, (b) =>
+        withLink(new Date(Date.now() + DAY_MS))(b.asRecovery().withDueDate('2030-01-20')),
+      );
+
+      const { body } = await post(`/billing/charges/${recovery.id}/payment-link`, tenantId).expect(
+        200,
+      );
+
+      expect(body).toMatchObject({ status: 'PENDING', paymentUrl: PAYMENT_URL });
+    });
+
+    it('answers a paid charge with the paid state and no link', async () => {
+      const { tenantId, subscriptionId } = await activeTenant();
+      const paid = await seedCharge(tenantId, subscriptionId!, (b) =>
+        withLink(new Date(Date.now() + DAY_MS))(b)
+          .withStatus('PAID')
+          .withPaidAt(new Date()),
+      );
+
+      const { body } = await post(`/billing/charges/${paid.id}/payment-link`, tenantId).expect(200);
+
+      expect(body).toEqual({ status: 'PAID', paymentUrl: null, expiresAt: null });
+    });
+
+    it('answers a cancelled charge as a conflict BILLING_CHARGE_NOT_PAYABLE', async () => {
+      const { tenantId, subscriptionId } = await activeTenant();
+      const closed = await seedCharge(tenantId, subscriptionId!, (b) =>
+        withLink(new Date(Date.now() + DAY_MS))(b).withStatus('CANCELED'),
+      );
+
+      const { body } = await post(`/billing/charges/${closed.id}/payment-link`, tenantId).expect(
+        409,
+      );
+
+      expect(body.code).toBe('BILLING_CHARGE_NOT_PAYABLE');
+    });
+
+    it('answers a link the provider cannot regenerate as a retryable 503 BILLING_PROVIDER_UNAVAILABLE', async () => {
+      const { tenantId, subscriptionId } = await activeTenant();
+      // The fake provider of this process never created the charge, so it does not know it.
+      const charge = await seedCharge(
+        tenantId,
+        subscriptionId!,
+        withLink(new Date(Date.now() - DAY_MS)),
+      );
+
+      const { body } = await post(`/billing/charges/${charge.id}/payment-link`, tenantId).expect(
+        503,
+      );
+
+      expect(body.code).toBe('BILLING_PROVIDER_UNAVAILABLE');
+    });
+
+    it('answers a merchant profile no adapter serves yet as the same 503, through the mapper', async () => {
+      const { tenantId, subscriptionId } = await activeTenant();
+      const charge = await seedCharge(tenantId, subscriptionId!, (b) =>
+        withLink(new Date(Date.now() - DAY_MS))(b).withMerchantProfileKey('BRL_ASAAS_SANDBOX'),
+      );
+
+      const { body } = await post(`/billing/charges/${charge.id}/payment-link`, tenantId).expect(
+        503,
+      );
+
+      expect(body.code).toBe('BILLING_PROVIDER_UNAVAILABLE');
+      expect(JSON.stringify(body)).not.toContain('BRL_ASAAS_SANDBOX');
+    });
+
+    it('holds a recovery charge with no billing identity as 422 BILLING_ADDRESS_REQUIRED', async () => {
+      const { tenantId, subscriptionId } = await suspendedTenant();
+      // Inserted `PENDING` with no provider id, and the tenant has no billing account.
+      const held = await seedCharge(tenantId, subscriptionId!, (b) =>
+        b.asRecovery().withDueDate('2030-01-20'),
+      );
+
+      const { body } = await post(`/billing/charges/${held.id}/payment-link`, tenantId).expect(422);
+
+      expect(body.code).toBe('BILLING_ADDRESS_REQUIRED');
+    });
+
+    it('answers another tenant’s charge as 404 BILLING_CHARGE_NOT_FOUND on both routes', async () => {
+      const owner = await activeTenant();
+      const stranger = await activeTenant();
+      const charge = await seedCharge(
+        owner.tenantId,
+        owner.subscriptionId!,
+        withLink(new Date(Date.now() + DAY_MS)),
+      );
+
+      const link = await post(
+        `/billing/charges/${charge.id}/payment-link`,
+        stranger.tenantId,
+      ).expect(404);
+      await post(`/billing/charges/${charge.id}/payment-return`, stranger.tenantId).expect(404);
+
+      expect(link.body.code).toBe('BILLING_CHARGE_NOT_FOUND');
+    });
+
+    it.each(['payment-link', 'payment-return'] as const)(
+      '%s refuses STAFF and CUSTOMER with 403 and a charge id that is not a UUID with 400',
+      async (route) => {
+        const { tenantId, subscriptionId } = await activeTenant();
+        const charge = await seedCharge(
+          tenantId,
+          subscriptionId!,
+          withLink(new Date(Date.now() + DAY_MS)),
+        );
+
+        await post(`/billing/charges/${charge.id}/${route}`, tenantId, 'STAFF').expect(403);
+        await post(`/billing/charges/${charge.id}/${route}`, tenantId, 'CUSTOMER').expect(403);
+        await post(`/billing/charges/not-a-uuid/${route}`, tenantId).expect(400);
+      },
+    );
+
+    it('records the return once, answers the awaited payment even though the provider does not know the charge, and the summary shows it', async () => {
+      const { tenantId, subscriptionId } = await activeTenant();
+      const charge = await seedCharge(
+        tenantId,
+        subscriptionId!,
+        withLink(new Date(Date.now() + DAY_MS)),
+      );
+
+      const first = await post(`/billing/charges/${charge.id}/payment-return`, tenantId).expect(
+        200,
+      );
+      const stored = await ds.getRepository(ChargeEntity).findOneByOrFail({ id: charge.id });
+      await post(`/billing/charges/${charge.id}/payment-return`, tenantId).expect(200);
+
+      expect(first.body).toEqual({ status: 'PENDING', paymentConfirmationPending: true });
+      expect(stored.paymentReturnSeenAt).not.toBeNull();
+      expect(
+        (await ds.getRepository(ChargeEntity).findOneByOrFail({ id: charge.id }))
+          .paymentReturnSeenAt,
+      ).toEqual(stored.paymentReturnSeenAt);
+      const { body: summary } = await get('/billing/summary', tenantId).expect(200);
+      expect(summary.paymentConfirmationPending).toBe(true);
+    });
+  });
 });

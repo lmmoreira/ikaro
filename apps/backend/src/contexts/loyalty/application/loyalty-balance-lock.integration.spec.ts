@@ -10,6 +10,7 @@ import { InMemoryLoyaltyPlatformPort } from '../../../test/infrastructure/in-mem
 import { InMemoryTenantAccessPort } from '../../../test/infrastructure/in-memory-tenant-access.port';
 import { InMemoryExpirySweepStateRepository } from '../../../test/repositories/loyalty/in-memory-expiry-sweep-state.repository';
 import { createTestDataSource } from '../../../test/test-datasource';
+import { waitForParkedBehind } from '../../../test/utils/booking-lock-race-world';
 import { LoyaltyInsufficientPointsError } from '../domain/errors/loyalty-domain.error';
 import { LoyaltyBalance } from '../domain/loyalty-balance.aggregate';
 import { BalanceExpiryLogEntity } from '../infrastructure/entities/balance-expiry-log.entity';
@@ -32,21 +33,6 @@ import { RedeemPointsUseCase } from './use-cases/redeem-points/redeem-points.use
 // right after A takes the lock, starts writer B, waits until Postgres shows B parked behind A's
 // transaction, then lets A commit. The final state must equal the serial outcome. Without the lock
 // B never parks and the test fails, so each one fails when the lock is removed.
-
-// True once a backend is blocked by the holder's own backend pid: nobody else's lock wait can
-// satisfy it, so the probe is scoped to the one competing writer.
-async function waitForParkedBehind(dataSource: DataSource, holderPid: number): Promise<void> {
-  for (let attempt = 0; attempt < 500; attempt++) {
-    const [{ waiting }] = await dataSource.query<{ waiting: number }[]>(
-      `SELECT count(*)::int AS waiting FROM pg_stat_activity
-        WHERE datname = current_database() AND $1 = ANY(pg_blocking_pids(pid))`,
-      [holderPid],
-    );
-    if (waiting > 0) return;
-    await dataSource.query('SELECT pg_sleep(0.01)');
-  }
-  throw new Error('the contender never parked behind the lock holder');
-}
 
 // Waits until the contender is parked behind the holder, then releases the holder. The release is
 // in a `finally`, so a failed probe (or a contender that finishes without waiting, which is what a

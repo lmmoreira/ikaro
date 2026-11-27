@@ -61,9 +61,11 @@ export interface SeedChargeOptions {
   kind?: 'PERIOD' | 'RECOVERY';
   period?: [string, string];
   dueDate: string;
-  status?: 'PENDING' | 'OVERDUE';
+  status?: 'PENDING' | 'OVERDUE' | 'CANCELED';
   /** `false` leaves no payment link: its provider creation is still `PENDING`. */
   ready?: boolean;
+  /** When the stored link stops being usable; `null` is a link the provider gave no expiry for. */
+  paymentUrlExpiresAt?: Date | null;
 }
 
 /**
@@ -208,7 +210,12 @@ export async function createSweepWorld() {
       builder.withPeriod(
         ...(options.period ?? [addDaysUTC(options.dueDate, -30), options.dueDate]),
       );
-    if (options.status === 'OVERDUE') builder.withStatus('OVERDUE');
+    if (options.status !== undefined && options.status !== 'PENDING') {
+      builder.withStatus(options.status);
+    }
+    if (options.paymentUrlExpiresAt !== undefined) {
+      builder.withPaymentUrlExpiresAt(options.paymentUrlExpiresAt);
+    }
     if (options.ready !== false) {
       const providerChargeId = await createAtProvider(tenant, builder.build());
       builder.withProviderReady(providerOfMerchantProfileKey('BRL_FAKE'), providerChargeId);

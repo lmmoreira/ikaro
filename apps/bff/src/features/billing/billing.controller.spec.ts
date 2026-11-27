@@ -216,4 +216,121 @@ describe('BillingController', () => {
       await expect(controller.previewPlan({ items: [] })).rejects.toThrow();
     });
   });
+
+  describe('paying a charge (M26-S15, UC-119)', () => {
+    const reflector = new Reflector();
+    const CHARGE_ID = '50000000-0000-4000-8000-000000000001';
+
+    it('both routes are manager-only and carry no tenant-access annotation', () => {
+      for (const handler of [
+        BillingController.prototype.getPaymentLink,
+        BillingController.prototype.recordPaymentReturn,
+      ]) {
+        expect(reflector.get(ROLES_KEY, handler)).toEqual(['MANAGER']);
+        expect(reflector.get(SUSPENSION_ACCESS_KEY, handler)).toBeUndefined();
+        expect(reflector.get(REQUIRES_FEATURE_KEY, handler)).toBeUndefined();
+      }
+    });
+
+    it('asks the backend for the link of the charge and maps it, URL included', async () => {
+      const backendHttp = makeBackendHttp();
+      backendHttp.post.mockResolvedValueOnce({
+        status: 'PENDING',
+        paymentUrl: 'https://pay.example/i/1',
+        expiresAt: '2026-11-20T00:00:00.000Z',
+      });
+
+      const link = await new BillingController(backendHttp).getPaymentLink(CHARGE_ID);
+
+      expect(backendHttp.post).toHaveBeenCalledWith(
+        `/billing/charges/${CHARGE_ID}/payment-link`,
+        {},
+      );
+      expect(link).toEqual({
+        status: 'PENDING',
+        paymentUrl: 'https://pay.example/i/1',
+        expiresAt: '2026-11-20T00:00:00.000Z',
+      });
+    });
+
+    it('keeps a link the provider gave no expiry for as one with no expiry', async () => {
+      const backendHttp = makeBackendHttp();
+      backendHttp.post.mockResolvedValueOnce({
+        status: 'OVERDUE',
+        paymentUrl: 'https://pay.example/i/1',
+        expiresAt: null,
+      });
+
+      await expect(new BillingController(backendHttp).getPaymentLink(CHARGE_ID)).resolves.toEqual({
+        status: 'OVERDUE',
+        paymentUrl: 'https://pay.example/i/1',
+        expiresAt: null,
+      });
+    });
+
+    it('answers an already-paid charge with no link', async () => {
+      const backendHttp = makeBackendHttp();
+      backendHttp.post.mockResolvedValueOnce({ status: 'PAID', paymentUrl: null, expiresAt: null });
+
+      await expect(new BillingController(backendHttp).getPaymentLink(CHARGE_ID)).resolves.toEqual({
+        status: 'PAID',
+        paymentUrl: null,
+        expiresAt: null,
+      });
+    });
+
+    it.each(['javascript:alert(1)', 'http://pay.example/i/1', 'not a url'])(
+      'refuses a payment URL that is not https (%s) instead of handing it to the web',
+      async (paymentUrl) => {
+        const backendHttp = makeBackendHttp();
+        backendHttp.post.mockResolvedValueOnce({ status: 'PENDING', paymentUrl, expiresAt: null });
+
+        await expect(
+          new BillingController(backendHttp).getPaymentLink(CHARGE_ID),
+        ).rejects.toThrow();
+      },
+    );
+
+    it('refuses a payable status with no URL, and a paid one that carries a URL', async () => {
+      const backendHttp = makeBackendHttp();
+      backendHttp.post
+        .mockResolvedValueOnce({ status: 'PENDING', paymentUrl: null, expiresAt: null })
+        .mockResolvedValueOnce({
+          status: 'PAID',
+          paymentUrl: 'https://pay.example/i/1',
+          expiresAt: null,
+        });
+      const controller = new BillingController(backendHttp);
+
+      await expect(controller.getPaymentLink(CHARGE_ID)).rejects.toThrow();
+      await expect(controller.getPaymentLink(CHARGE_ID)).rejects.toThrow();
+    });
+
+    it('records the return through the backend and maps the state', async () => {
+      const backendHttp = makeBackendHttp();
+      backendHttp.post.mockResolvedValueOnce({
+        status: 'PENDING',
+        paymentConfirmationPending: true,
+        paymentUrl: 'https://pay.example/i/1',
+      });
+
+      const answer = await new BillingController(backendHttp).recordPaymentReturn(CHARGE_ID);
+
+      expect(backendHttp.post).toHaveBeenCalledWith(
+        `/billing/charges/${CHARGE_ID}/payment-return`,
+        {},
+      );
+      // Only the declared fields survive the boundary parse.
+      expect(answer).toEqual({ status: 'PENDING', paymentConfirmationPending: true });
+    });
+
+    it('rejects a payment-return answer that is not the documented shape', async () => {
+      const backendHttp = makeBackendHttp();
+      backendHttp.post.mockResolvedValueOnce({ status: 'NOPE', paymentConfirmationPending: 'yes' });
+
+      await expect(
+        new BillingController(backendHttp).recordPaymentReturn(CHARGE_ID),
+      ).rejects.toThrow();
+    });
+  });
 });

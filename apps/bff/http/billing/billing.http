@@ -91,3 +91,30 @@ POST {{bffUrl}}/v1/billing/plan/preview
 Content-Type: application/json
 
 { "items": [] }
+
+# ── Paying a charge (M26-S15, UC-119) ──────────────────────────────────────────────────────────
+# `chargeId` is one of the tenant's own charges (`openCharge.id` of GET /v1/billing/summary). These
+# are the only routes that return a provider URL, and only an https one.
+@chargeId = 00000000-0000-7000-8000-000000000000
+
+### Payment link: 200 { status, paymentUrl, expiresAt }; a paid charge answers
+### { status: "PAID", paymentUrl: null, expiresAt: null }. 409 BILLING_CHARGE_NOT_PAYABLE,
+### 422 BILLING_ADDRESS_REQUIRED, 503 BILLING_PROVIDER_UNAVAILABLE, 404 BILLING_CHARGE_NOT_FOUND
+POST {{bffUrl}}/v1/billing/charges/{{chargeId}}/payment-link
+Authorization: Bearer {{managerToken}}
+
+### Payment return: 200 { status, paymentConfirmationPending }; the web calls it when the manager
+### comes back from the hosted page (`?payment=return&charge={id}`)
+POST {{bffUrl}}/v1/billing/charges/{{chargeId}}/payment-return
+Authorization: Bearer {{managerToken}}
+
+### Not a UUID: 400
+POST {{bffUrl}}/v1/billing/charges/not-a-uuid/payment-link
+Authorization: Bearer {{managerToken}}
+
+### Staff: 403
+POST {{bffUrl}}/v1/billing/charges/{{chargeId}}/payment-link
+Authorization: Bearer {{staffToken}}
+
+### No token: 401
+POST {{bffUrl}}/v1/billing/charges/{{chargeId}}/payment-return

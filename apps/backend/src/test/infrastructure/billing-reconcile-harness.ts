@@ -3,7 +3,8 @@ import { ChargeProviderSyncService } from '../../contexts/billing/application/se
 import { ProviderAccountsService } from '../../contexts/billing/application/services/provider-accounts.service';
 import { ReconcileOneChargeUseCase } from '../../contexts/billing/application/use-cases/reconcile-one-charge.use-case';
 import { RecordReconcilePassUseCase } from '../../contexts/billing/application/use-cases/record-reconcile-pass.use-case';
-import { RefreshChargeFromProviderUseCase } from '../../contexts/billing/application/use-cases/refresh-charge-from-provider.use-case';
+import { GetOrRegenerateChargePaymentLinkUseCase } from '../../contexts/billing/application/use-cases/get-or-regenerate-charge-payment-link.use-case';
+import { RecordPaymentReturnUseCase } from '../../contexts/billing/application/use-cases/record-payment-return.use-case';
 import { RetryProviderChargeCancelUseCase } from '../../contexts/billing/application/use-cases/retry-provider-charge-cancel.use-case';
 import { BillingProviderRegistry } from '../../contexts/billing/infrastructure/providers/billing-provider.registry';
 import { createSweepHarness } from './billing-sweep-harness';
@@ -31,7 +32,20 @@ export function createReconcileHarness() {
   const reconcileOne = new ReconcileOneChargeUseCase(sync);
   const retryCancel = new RetryProviderChargeCancelUseCase(base.cancellation);
   const recordPass = new RecordReconcilePassUseCase(registry, base.health);
-  const refresh = new RefreshChargeFromProviderUseCase(sync, base.charges);
+  // The manager's pay flow (UC-119): the on-demand refresh is the return use case's, over the sync.
+  const recordReturn = new RecordPaymentReturnUseCase(
+    base.charges,
+    sync,
+    base.txManager,
+    base.clock,
+  );
+  const paymentLink = new GetOrRegenerateChargePaymentLinkUseCase(
+    base.charges,
+    base.accounts,
+    registry,
+    base.txManager,
+    base.clock,
+  );
   const providerAccounts = new ProviderAccountsService(base.subscriptions, registry);
   const reconcile = new ReconcileChargesJob(
     providerAccounts,
@@ -50,7 +64,8 @@ export function createReconcileHarness() {
     reconcileOne,
     retryCancel,
     recordPass,
-    refresh,
+    recordReturn,
+    paymentLink,
     reconcile,
   };
 }

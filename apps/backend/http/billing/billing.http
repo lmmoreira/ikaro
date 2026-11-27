@@ -149,3 +149,42 @@ X-Actor-Type: CUSTOMER
 X-Actor-Role: CUSTOMER
 
 { "items": [{ "featureKey": "HOTSITE", "tier": "STANDARD" }] }
+
+# ── Paying a charge (M26-S15, UC-119) ──────────────────────────────────────────────────────────
+# `chargeId` is one of the tenant's own charges: read it from GET /billing/summary (`openCharge.id`)
+# or GET /billing/charges. Another tenant's id answers 404 BILLING_CHARGE_NOT_FOUND. Both routes are
+# manager-only and reachable while the tenant is SUSPENDED. Locally the provider is the fake.
+@chargeId = 00000000-0000-7000-8000-000000000000
+
+### Payment link: 200 { status, paymentUrl, expiresAt }; a link still valid is returned as it is, an
+### expired one is regenerated. A paid charge answers { status: "PAID", paymentUrl: null, expiresAt: null }.
+### Errors: 409 BILLING_CHARGE_NOT_PAYABLE (cancelled, refunded, charged back), 422
+### BILLING_ADDRESS_REQUIRED (a recovery charge held for the billing identity), 503
+### BILLING_PROVIDER_UNAVAILABLE (retryable), 404 BILLING_CHARGE_NOT_FOUND
+POST {{baseUrl}}/billing/charges/{{chargeId}}/payment-link
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+### Payment return: records `payment_return_seen_at` once and refreshes the charge from the provider.
+### 200 { status, paymentConfirmationPending }; never fails because the provider is unreachable.
+POST {{baseUrl}}/billing/charges/{{chargeId}}/payment-return
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+### Not a UUID: 400
+POST {{baseUrl}}/billing/charges/not-a-uuid/payment-link
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+### Staff: 403
+POST {{baseUrl}}/billing/charges/{{chargeId}}/payment-link
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF

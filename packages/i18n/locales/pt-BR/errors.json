@@ -270,5 +270,9 @@
   "BILLING_FEATURE_DEPENDENCY_UNMET": "Este recurso precisa de outro recurso que não está no seu plano. Adicione-o ou remova este.",
   "BILLING_FEATURE_HAS_DEPENDENTS": "Este recurso não pode ser removido enquanto outro recurso do seu plano depende dele.",
   "BILLING_PLAN_EMPTY": "O plano precisa manter pelo menos um recurso.",
-  "BILLING_NO_PRICE_FOR_COUNTRY": "Uma das opções selecionadas não está disponível para o seu país no momento."
+  "BILLING_NO_PRICE_FOR_COUNTRY": "Uma das opções selecionadas não está disponível para o seu país no momento.",
+  "BILLING_CHARGE_NOT_PAYABLE": "Esta cobrança não pode mais ser paga.",
+  "BILLING_ADDRESS_REQUIRED": "Informe o endereço de cobrança para continuar.",
+  "BILLING_PROVIDER_UNAVAILABLE": "O provedor de pagamento está indisponível. Tente novamente em instantes.",
+  "BILLING_CHARGE_NOT_FOUND": "Cobrança não encontrada."
 }

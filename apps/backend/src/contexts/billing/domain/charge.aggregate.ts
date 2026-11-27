@@ -6,6 +6,7 @@ import type { ChargeLine } from './charge-line';
 import type {
   ChargeIssuedNotice,
   ChargeKind,
+  ChargePayability,
   ChargeProps,
   ChargeProviderCreationStatus,
   ChargeStatus,
@@ -21,14 +22,30 @@ import { MinorAmount } from './value-objects/minor-amount.vo';
 
 export * from './charge.types';
 
+// Exhaustive by type: a new `ChargeStatus` does not compile until it is placed here. `FAILED` is
+// unreachable in M26 (a failed creation attempt stays `PENDING`) and payable, because a fresh link
+// on it starts a new provider attempt, so M29 needs no change here.
+const PAYABILITY_BY_STATUS: Readonly<Record<ChargeStatus, ChargePayability>> = {
+  PENDING: 'PAYABLE',
+  OVERDUE: 'PAYABLE',
+  FAILED: 'PAYABLE',
+  PAID: 'PAID',
+  CANCELED: 'NOT_PAYABLE',
+  REFUNDED: 'NOT_PAYABLE',
+  CHARGEBACK: 'NOT_PAYABLE',
+};
+
 /**
  * One bill, in its own aggregate (not a child of the subscription: one per period forever). The
  * lines and amounts are written once with the charge; afterwards only the status and the payment /
  * provider fields move, through the transition table in docs/DOMAIN_MODEL.md § Aggregate: Charge.
  *
- * Like `Subscription`, it never reads a clock: a method that needs an instant takes it. It raises no
- * domain event but one: `markPaid` raises `ChargePaid`, which the charge repository drains into the
- * outbox in the transaction of the save (the same shape as `Subscription`).
+ * Like `Subscription`, it never reads a clock: a method that needs an instant takes it. It raises
+ * two domain events: `markCreationReady` raises `ChargeIssued` and `markPaid` raises `ChargePaid`,
+ * which the charge repository drains into the outbox in the transaction of the save (the same shape
+ * as `Subscription`). Every other mutator is silent on purpose (the payment link, the payment
+ * return, the provider-cancel flag, a failed creation attempt): nothing consumes them, and an event
+ * with no consumer must not ship (`docs/DOMAIN_EVENTS.md`).
  * The creation lease (`provider_creation_attempts` / `_last_attempt_at`) belongs to the repository's
  * claim, so the aggregate only carries those two values and never changes them.
  */
@@ -195,6 +212,23 @@ export class Charge extends AggregateRoot {
     return this._status === 'PENDING' || this._status === 'OVERDUE';
   }
 
+  /**
+   * What paying this charge means (UC-119), read from `PAYABILITY_BY_STATUS`. `PAID` is not an
+   * error: the page just refreshes to the paid state (A4). `CANCELED`, `REFUNDED` and `CHARGEBACK`
+   * can no longer be paid (A5). `PENDING`, `OVERDUE` and `FAILED` are payable.
+   */
+  get payability(): ChargePayability {
+    return PAYABILITY_BY_STATUS[this._status];
+  }
+
+  /**
+   * The manager came back from the hosted page and the charge is still open: the one signal behind
+   * "pagamento recebido, reativando…" (UC-119). The summary and `payment-return` both read it.
+   */
+  get paymentConfirmationPending(): boolean {
+    return this.open && this._paymentReturnSeenAt !== null;
+  }
+
   /** The repository calls it after a successful write so the next save checks the new version. */
   markPersisted(version: number): void {
     this._version = version;
@@ -311,6 +345,21 @@ export class Charge extends AggregateRoot {
    */
   markCreationFailed(): void {
     if (this._providerCreationStatus === 'READY') throw this.illegal('fail its provider creation');
+  }
+
+  /**
+   * The provider issued a fresh link for a charge it already holds (UC-119 A1): replaces the stored
+   * URL and expiry. Legal on a charge of any status (a webhook can settle it while the provider call
+   * is in flight, and the link the provider issued is still stored), and it never touches the status
+   * or raises an event. A charge the provider does not hold yet has nothing to renew.
+   */
+  renewPaymentLink(paymentUrl: string, paymentUrlExpiresAt: Date | null): void {
+    if (paymentUrl.trim() === '') {
+      throw new ChargeInvariantError('A payment link needs a non-empty URL');
+    }
+    if (this._providerCreationStatus !== 'READY') throw this.illegal('renew a link it never had');
+    this._paymentUrl = paymentUrl;
+    this._paymentUrlExpiresAt = paymentUrlExpiresAt;
   }
 
   /** The manager came back from the hosted payment page; the first return is the one kept. */

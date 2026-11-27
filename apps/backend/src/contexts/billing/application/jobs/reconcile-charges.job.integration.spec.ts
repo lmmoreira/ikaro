@@ -1,4 +1,3 @@
-import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { addDaysUTC, todayInTimezone, todayUTC } from '../../../../shared/utils/calendar-date';
 import {
   createReconcileWorld,
@@ -150,60 +149,6 @@ describe('ReconcileChargesJob (integration, UC-116)', () => {
 
       expect(again.outcome).toBe('NO_CHANGE');
       expect(world.outbox.published).toEqual([]);
-    });
-  });
-
-  describe('RefreshChargeFromProviderUseCase', () => {
-    it('returns the charge as paid on the next poll, without the webhook', async () => {
-      const tenant = await overdueTenant();
-      const charge = await world.seedCharge(tenant, {
-        dueDate: addDaysUTC(todayUTC(), -5),
-        status: 'OVERDUE',
-      });
-      world.provider.simulatePayment(charge.providerChargeId!, 'PIX');
-
-      const refreshed = await world.refresh.execute({
-        tenantId: tenant.tenantId,
-        chargeId: charge.id,
-        correlationId: 'corr-refresh',
-      });
-
-      expect(refreshed?.status).toBe('PAID');
-    });
-
-    it('an unreachable provider returns the unchanged charge and never throws', async () => {
-      const tenant = await overdueTenant();
-      const charge = await world.seedCharge(tenant, {
-        dueDate: addDaysUTC(todayUTC(), -5),
-        status: 'OVERDUE',
-      });
-      world.provider.failNextCall('UNAVAILABLE');
-
-      const refreshed = await world.refresh.execute({
-        tenantId: tenant.tenantId,
-        chargeId: charge.id,
-        correlationId: 'corr-refresh',
-      });
-
-      expect(refreshed?.status).toBe('OVERDUE');
-    });
-
-    it('is tenant-scoped: another tenant’s charge id is not found and nothing is read at the provider', async () => {
-      const tenant = await overdueTenant();
-      const charge = await world.seedCharge(tenant, {
-        dueDate: addDaysUTC(todayUTC(), -5),
-        status: 'OVERDUE',
-      });
-      const fetched = jest.spyOn(world.provider, 'fetchChargeStatus');
-
-      const refreshed = await world.refresh.execute({
-        tenantId: uuidv7(),
-        chargeId: charge.id,
-        correlationId: 'corr-refresh',
-      });
-
-      expect(refreshed).toBeNull();
-      expect(fetched).not.toHaveBeenCalled();
     });
   });
 

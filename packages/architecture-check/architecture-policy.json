@@ -1226,14 +1226,6 @@
     },
     {
       "rule": "error-mapper-coverage",
-      "class": "ProviderNotSupportedError",
-      "path": "apps/backend/src/contexts/billing/domain/errors/billing-provider.errors.ts",
-      "rationale": "Same as ChargeAlreadyPaidError above: no billing HTTP surface can throw it yet. M26's callers of the provider registry (the issue-charges job, the status sweep, reconcile, self-heal) treat it for a US subscription as skip-and-log, never a response; if a route can ever surface it, that story maps it and removes this entry.",
-      "owner": "billing",
-      "reviewBy": "2026-12-31"
-    },
-    {
-      "rule": "error-mapper-coverage",
       "class": "InvalidProviderWebhookError",
       "path": "apps/backend/src/contexts/billing/domain/errors/billing-provider.errors.ts",
       "rationale": "Same as ChargeAlreadyPaidError above: raised by parseWebhook, whose only caller is M26's webhook use case. That story decides the response status (the provider must still get a 200 for a body it can never process, so a retry loop is not started) and maps or absorbs it, then removes this entry.",

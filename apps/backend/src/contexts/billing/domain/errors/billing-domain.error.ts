@@ -263,3 +263,60 @@ export class SimulationNotApplicableError extends BillingDomainError implements 
     this.name = 'SimulationNotApplicableError';
   }
 }
+
+/**
+ * A charge the tenant cannot pay any more: cancelled, refunded or charged back (UC-119 A5). `409`.
+ * An already-paid charge is not this error, it is the paid state (A4).
+ */
+export class ChargeNotPayableError extends BillingDomainError implements DomainErrorShape {
+  readonly code = BillingErrorCode.CHARGE_NOT_PAYABLE;
+
+  constructor(
+    readonly chargeId: string,
+    readonly status: string,
+  ) {
+    super(`Charge ${chargeId} is ${status} and can no longer be paid`);
+    this.name = 'ChargeNotPayableError';
+  }
+}
+
+/**
+ * The billing identity a charge needs is incomplete (UC-119, UC-118 A6): a recovery charge the
+ * status sweep inserted is held until the tax id and the address are saved, and has no link to give.
+ * `422`. Reused by the plan save and reactivate.
+ */
+export class BillingAddressRequiredError extends BillingDomainError implements DomainErrorShape {
+  readonly code = BillingErrorCode.ADDRESS_REQUIRED;
+
+  constructor(message = 'The billing identity is incomplete: the billing address is required') {
+    super(message);
+    this.name = 'BillingAddressRequiredError';
+  }
+}
+
+/**
+ * The provider cannot do what the request needs right now: it is unreachable, refused the call,
+ * has no adapter for the merchant key yet, or the charge has not been created at the provider.
+ * `503`, retryable. Reused by reactivate.
+ */
+export class BillingProviderUnavailableError
+  extends BillingDomainError
+  implements DomainErrorShape
+{
+  readonly code = BillingErrorCode.PROVIDER_UNAVAILABLE;
+
+  constructor(readonly reason: string) {
+    super(`The billing provider is unavailable: ${reason}`);
+    this.name = 'BillingProviderUnavailableError';
+  }
+}
+
+/** No such charge for this tenant: another tenant's id reads the same as an unknown one. `404`. */
+export class ChargeNotFoundError extends BillingDomainError implements DomainErrorShape {
+  readonly code = BillingErrorCode.CHARGE_NOT_FOUND;
+
+  constructor(readonly chargeId: string) {
+    super(`Charge ${chargeId} not found`);
+    this.name = 'ChargeNotFoundError';
+  }
+}

@@ -174,6 +174,25 @@ export const BackendBillingPlanSchema = z.discriminatedUnion('provisioning', [
   ReadyPlanSchema,
 ]);
 
+// ── Paying a charge (M26-S15, UC-119) ─────────────────────────────────────────────────────────
+// The payment link is the one place a provider URL reaches the web, so it is the one place the URL
+// is declared, and only as an `https:` one (as the receipt link): a `javascript:` or `http:` value
+// can never become a redirect. A paid charge carries no link. The backend answers `PENDING` or
+// `OVERDUE` today; `FAILED` is payable and arrives with M29.
+export const BackendBillingPaymentLinkSchema = z.union([
+  z.object({ status: z.literal('PAID'), paymentUrl: z.null(), expiresAt: z.null() }),
+  z.object({
+    status: z.enum(['PENDING', 'OVERDUE', 'FAILED']),
+    paymentUrl: HTTPS_URL,
+    expiresAt: z.string().nullable(),
+  }),
+]);
+
+export const BackendBillingPaymentReturnSchema = z.object({
+  status: CHARGE_STATUS,
+  paymentConfirmationPending: z.boolean(),
+});
+
 export const BackendBillingPlanPreviewSchema = z.object({
   changes: z.array(
     z.object({

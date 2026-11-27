@@ -94,7 +94,8 @@ import { ChargeProviderSyncService } from './application/services/charge-provide
 import { ProviderAccountsService } from './application/services/provider-accounts.service';
 import { ReconcileOneChargeUseCase } from './application/use-cases/reconcile-one-charge.use-case';
 import { RecordReconcilePassUseCase } from './application/use-cases/record-reconcile-pass.use-case';
-import { RefreshChargeFromProviderUseCase } from './application/use-cases/refresh-charge-from-provider.use-case';
+import { GetOrRegenerateChargePaymentLinkUseCase } from './application/use-cases/get-or-regenerate-charge-payment-link.use-case';
+import { RecordPaymentReturnUseCase } from './application/use-cases/record-payment-return.use-case';
 import { RetryProviderChargeCancelUseCase } from './application/use-cases/retry-provider-charge-cancel.use-case';
 import { ReconcileTriggerHandler } from './infrastructure/events/reconcile-trigger.handler';
 import { TypeOrmProviderHealthRepository } from './infrastructure/repositories/typeorm-provider-health.repository';
@@ -219,7 +220,6 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     ReconcileOneChargeUseCase,
     RecordReconcilePassUseCase,
     RetryProviderChargeCancelUseCase,
-    RefreshChargeFromProviderUseCase,
     ProviderAccountsService,
     ReconcileChargesJob,
     ReconcileTriggerHandler,
@@ -239,6 +239,9 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     ListBillingChargesUseCase,
     GetPlanCatalogUseCase,
     PreviewPlanSelectionUseCase,
+    // Paying a charge (M26-S15).
+    GetOrRegenerateChargePaymentLinkUseCase,
+    RecordPaymentReturnUseCase,
   ],
   // The shared access port is consumed by every context (M25-S16 onwards). The registration and
   // the five operator use cases are injected by this module's own controllers, which the
@@ -260,6 +263,8 @@ import { FakeBillingProvider } from './infrastructure/providers/fake-billing.pro
     ListBillingChargesUseCase,
     GetPlanCatalogUseCase,
     PreviewPlanSelectionUseCase,
+    GetOrRegenerateChargePaymentLinkUseCase,
+    RecordPaymentReturnUseCase,
     // Injected by this module's own `InternalBillingPricesController` (M26-S23), which the detector counts as external.
     ListSelectablePricesUseCase,
     ProcessProviderWebhookUseCase,

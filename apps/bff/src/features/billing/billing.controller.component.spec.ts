@@ -314,4 +314,86 @@ describe('BillingController (component)', () => {
       expect(backendHttpService.get).toHaveBeenCalledWith('/billing/summary');
     });
   });
+
+  describe('paying a charge (M26-S15)', () => {
+    const CHARGE_ID = '50000000-0000-4000-8000-000000000001';
+    const pay = (route: 'payment-link' | 'payment-return', jwt?: string, id = CHARGE_ID) => {
+      const call = request(app.getHttpServer()).post(`/v1/billing/charges/${id}/${route}`);
+      return jwt === undefined ? call : call.set('Authorization', `Bearer ${jwt}`);
+    };
+
+    it.each(['payment-link', 'payment-return'] as const)(
+      'POST %s → 401 without a token',
+      async (route) => {
+        expect((await pay(route)).status).toBe(401);
+        expect(backendHttpService.post).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(['payment-link', 'payment-return'] as const)(
+      'POST %s → 403 for STAFF and CUSTOMER, backend never called',
+      async (route) => {
+        setupActiveGuardMock(httpService);
+
+        const staff = await pay(route, makeStaffJwt(jwtService));
+        const customer = await pay(route, makeCustomerJwt(jwtService));
+
+        expect([staff.status, customer.status]).toEqual([403, 403]);
+        expect(backendHttpService.post).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(['payment-link', 'payment-return'] as const)(
+      'POST %s → 400 for a charge id that is not a UUID, backend never called',
+      async (route) => {
+        setupActiveGuardMock(httpService);
+
+        const res = await pay(route, makeManagerJwt(jwtService), 'not-a-uuid');
+
+        expect(res.status).toBe(400);
+        expect(backendHttpService.post).not.toHaveBeenCalled();
+      },
+    );
+
+    it('POST payment-link → 200 for a MANAGER with the URL and no undeclared field on the wire', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.post.mockResolvedValueOnce({
+        status: 'PENDING',
+        paymentUrl: 'https://pay.example/i/1',
+        expiresAt: '2026-11-20T00:00:00.000Z',
+        providerChargeId: 'pay_internal',
+      });
+
+      const res = await pay('payment-link', makeManagerJwt(jwtService));
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({
+        status: 'PENDING',
+        paymentUrl: 'https://pay.example/i/1',
+        expiresAt: '2026-11-20T00:00:00.000Z',
+      });
+      expect(res.text).not.toContain('pay_internal');
+      expect(backendHttpService.post).toHaveBeenCalledWith(
+        `/billing/charges/${CHARGE_ID}/payment-link`,
+        {},
+      );
+    });
+
+    it('POST payment-return → 200 for a MANAGER with the state of the charge', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.post.mockResolvedValueOnce({
+        status: 'PENDING',
+        paymentConfirmationPending: true,
+      });
+
+      const res = await pay('payment-return', makeManagerJwt(jwtService));
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ status: 'PENDING', paymentConfirmationPending: true });
+      expect(backendHttpService.post).toHaveBeenCalledWith(
+        `/billing/charges/${CHARGE_ID}/payment-return`,
+        {},
+      );
+    });
+  });
 });
