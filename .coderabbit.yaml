@@ -141,7 +141,7 @@ reviews:
           super() or instanceof checks silently fail.
         - Domain-validated fields use shared value objects, not primitives; money uses the Money
           VO (Decimal.js), never native float arithmetic.
-        - Size limits are enforced by ESLint (functions <= 40 lines, files <= 250 lines; reviewed
+        - Size limits are enforced by ESLint (functions <= 40 lines, files <= 300 lines; reviewed
           exceptions live in architecture-policy.json) — do not comment on length.
 
     # ── Backend: Application layer (use cases, ports) ─────────────────────

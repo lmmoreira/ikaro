@@ -102,6 +102,7 @@ describe('BillingIdentityUpdateSchema (M26-S16)', () => {
 
   it.each([
     ['a taxIdType without a taxId', { taxIdType: 'CPF' }],
+    ['a null taxIdType without a taxId', { taxIdType: null }],
     ['a taxIdType beside a null taxId', { taxIdType: 'CPF', taxId: null }],
     ['a taxIdType beside a blank taxId', { taxIdType: 'EIN', taxId: '  ' }],
     ['an unknown taxIdType', { taxIdType: 'SSN', taxId: '123' }],
@@ -110,6 +111,13 @@ describe('BillingIdentityUpdateSchema (M26-S16)', () => {
     ['an address field that is not a string', { address: { street: 12 } }],
   ])('rejects %s', (_label, body) => {
     expect(() => BillingIdentityUpdateSchema.parse(body)).toThrow();
+  });
+
+  it.each([
+    ['a null taxId', { taxIdType: null, taxId: null }],
+    ['a blank taxId', { taxIdType: null, taxId: '' }],
+  ])('accepts a null taxIdType beside %s: a clear request the backend decides', (_label, body) => {
+    expect(BillingIdentityUpdateSchema.parse(body)).toEqual(body);
   });
 
   it('accepts a taxIdType null beside a taxId: the type is inferred', () => {

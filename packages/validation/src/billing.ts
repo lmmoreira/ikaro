@@ -87,11 +87,14 @@ export const BillingIdentityUpdateSchema = z
     address: BillingIdentityAddressPatchSchema.optional(),
   })
   .refine(
-    ({ taxIdType, taxId }) =>
-      taxIdType === null ||
-      taxIdType === undefined ||
-      (typeof taxId === 'string' && taxId.trim() !== ''),
-    { message: 'a declared taxIdType needs a taxId', path: ['taxIdType'] },
+    ({ taxIdType, taxId }) => {
+      if (taxIdType === undefined) return true;
+      // Any supplied type, `null` ("infer") included, needs a taxId beside it; a named type needs a
+      // real value, not a clear request.
+      if (taxId === undefined) return false;
+      return taxIdType === null || (typeof taxId === 'string' && taxId.trim() !== '');
+    },
+    { message: 'a taxIdType needs a taxId beside it', path: ['taxIdType'] },
   )
   // Every field is optional, so a request with no body at all is an empty update, not a 400.
   .default({});
