@@ -7,9 +7,10 @@
 //
 // One JSON line is appended per suite as it finishes, so a worker that dies out of memory
 // (exit 134) still leaves the series up to the crash: the data that matters most for a crash.
-// The heap value needs `--logHeapUsage`; running Node with `--expose-gc` makes Jest collect
-// garbage before it reads the heap, so the figure is what the worker retains, not what it has
-// not yet collected.
+// The heap value needs `--logHeapUsage`. Do not add `--expose-gc` to a full run: it makes Jest
+// force a full collection after every suite, which cost about 1.2 s per suite (91 s against 141 s
+// for 42 suites), while the series without it stayed within about 5% of the forced-GC one
+// (TD62 Story 0 findings), because what the worker retains dominates what it has not collected.
 //
 // Output file: `INTEGRATION_HEAP_FILE`, else the reporter option `outputFile`, else
 // `integration-report/heap.ndjson` under the working directory.
