@@ -38,6 +38,8 @@ jobs:
       # it never rides along with the coverage-generation step the other shared packages use).
       - run: pnpm --filter @ikaro/architecture-check test
       - run: pnpm architecture-check
+      # The backend integration run's report tooling (TD62): nothing else in CI executes its spec.
+      - run: pnpm integration-report:test
 
   dependency-cruise:
     name: Dependency graph validation

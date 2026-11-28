@@ -22,6 +22,9 @@ out/
 
 # Test coverage
 coverage/
+
+# Backend integration run report (TD62: per-suite time and heap, Jest JSON)
+integration-report/
 .nyc_output/
 
 # Playwright
