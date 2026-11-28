@@ -118,7 +118,7 @@ Fix the documentation drift the investigation proves: the container-reuse statem
 - [ ] The cause of the memory growth, and the measured gain of each candidate lever, are written down with numbers before any suite or config change is made.
 
 **Acceptance criteria — technical:**
-- [ ] **No test coverage lost:** this story changes no test, assertion, Jest config or helper behaviour (its only spec edits are comment corrections of the container-reuse claim); the green CI run after it shows the same suite and test totals as the baseline it records.
+- [ ] **No test coverage lost:** this story changes no existing test, assertion, Jest config or helper behaviour (it adds the report script's own spec, and its only edits to integration specs are comment corrections of the container-reuse claim); the green CI run after it shows the same suite and test totals as the baseline it records.
 - Unit:
   - [ ] `integration-report.spec.cjs`: the slowest-suite ranking, the heap-after-suite series, a report with a failing suite, an empty report, and a fixture produced by `integration-heap-reporter.cjs` (the reporter has no spec of its own)
   - [ ] the spec runs in CI (`pr-quality.yml`), not only locally
