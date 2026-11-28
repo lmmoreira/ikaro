@@ -74,7 +74,7 @@ Story 1 and Story 2 are independent once Story 0 has landed and can merge in eit
 
 ## Stories
 
-### Story 0 — Measure the integration suite and find what retains memory 🔴
+### Story 0 — Measure the integration suite and find what retains memory 🔴 ✅ Done
 
 **Agent:** `backend-ts + devops`
 **Complexity:** M
