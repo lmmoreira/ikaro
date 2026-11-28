@@ -32,7 +32,7 @@ import { TypeOrmBookingStatusTransitionRepository } from './typeorm-booking-stat
 import { TypeOrmRecurringBookingScheduleRepository } from './typeorm-recurring-booking-schedule.repository';
 
 // M26-S18a: the two reads behind the BOOKING-removal guard, against real Postgres. Every id is
-// generated per run, so a reused container never sees a row an earlier run left behind.
+// generated per run, so a row another spec file left in the shared container never collides.
 const TIMEZONE = 'America/Sao_Paulo';
 const EFFECTIVE_DATE = '2026-12-15';
 // 2026-12-15T03:00:00Z: the instant the effective day starts in São Paulo (UTC-3).
@@ -46,8 +46,8 @@ describe('TypeOrmFeatureRemovalBlockersRepository (integration)', () => {
   let bookingRepo: TypeOrmBookingRepository;
   let scheduleRepo: TypeOrmRecurringBookingScheduleRepository;
   let blockersRepo: TypeOrmFeatureRemovalBlockersRepository;
-  // Every tenant a test creates is remembered, so teardown deletes all of its rows: CI reuses one
-  // Postgres container across runs.
+  // Every tenant a test creates is remembered, so teardown deletes all of its rows: every spec file
+  // of a run shares one Postgres container.
   const seededTenantIds: string[] = [];
   const newTenant = (): string => {
     const id = uuidv7();

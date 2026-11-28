@@ -254,7 +254,7 @@ reviews:
       instructions: |
         Integration tests — real Postgres via Testcontainers.
         - Unique inline tenant UUID per suite for count assertions; fixed-UUID fixtures need
-          symmetric, complete setup AND teardown (containers are reused across runs in CI).
+          symmetric, complete setup AND teardown (every spec file of a run shares one Postgres container).
         - A new entity/migration must be registered in
           apps/backend/src/test/integration-global-setup.ts in the same commit.
         - Concurrency-sensitive paths need a real concurrent test: two simultaneous approvals for

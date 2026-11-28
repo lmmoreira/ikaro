@@ -133,6 +133,26 @@ test('a run that died before writing heap data still reports from the Jest file'
   assert.equal(summary.slowest[0].heapMB, null);
 });
 
+test('a skipped or focused suite in the Jest file is not reported as failed', () => {
+  const suite = (name, status) => ({
+    name: `/repo/apps/backend/src/${name}.integration.spec.ts`,
+    startTime: 0,
+    endTime: 1000,
+    status,
+    assertionResults: [{}],
+  });
+  const summary = buildSummary({
+    jestReport: {
+      numTotalTestSuites: 3,
+      numFailedTestSuites: 1,
+      numTotalTests: 3,
+      numFailedTests: 1,
+      testResults: [suite('a', 'passed'), suite('b', 'pending'), suite('c', 'failed')],
+    },
+  });
+  assert.deepEqual(summary.failed, ['apps/backend/src/c.integration.spec.ts']);
+});
+
 test('the sorted suite list is the coverage baseline', () => {
   const summary = buildSummary({ heapEntries: [entry('b', 1, 1), entry('a', 1, 1)] });
   assert.deepEqual(summary.suitePaths, [

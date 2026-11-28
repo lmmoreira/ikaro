@@ -54,7 +54,7 @@ function suitesFromJest(jestReport) {
     path: normalizeSuitePath(result.name),
     durationMs: result.endTime - result.startTime,
     heapMB: null,
-    status: result.status === 'passed' ? 'passed' : 'failed',
+    status: result.status === 'failed' ? 'failed' : 'passed',
     tests: (result.assertionResults || []).length,
   }));
 }

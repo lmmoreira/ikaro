@@ -11,7 +11,7 @@
     "type-check": "tsc --noEmit",
     "format": "prettier --write \"src/**/*.ts\"",
     "test": "NODE_OPTIONS=\"--experimental-vm-modules --max-old-space-size=8192\" jest",
-    "test:integration:report": "NODE_OPTIONS=\"--experimental-vm-modules --max-old-space-size=8192\" jest --selectProjects integration --maxWorkers=1 --logHeapUsage --json --outputFile=integration-report/jest.json --reporters=default '--reporters=<rootDir>/../../../scripts/integration-heap-reporter.cjs'; code=$?; node ../../scripts/integration-report.cjs; exit $code",
+    "test:integration:report": "rm -rf integration-report; pnpm run test:integration --logHeapUsage --json --outputFile=integration-report/jest.json --reporters=default '--reporters=<rootDir>/../../../scripts/integration-heap-reporter.cjs'; code=$?; node ../../scripts/integration-report.cjs; exit $code",
     "test:unit": "NODE_OPTIONS=\"--max-old-space-size=3072\" jest --selectProjects unit --maxWorkers=2",
     "test:integration": "NODE_OPTIONS=\"--experimental-vm-modules --max-old-space-size=8192\" jest --selectProjects integration --maxWorkers=1",
     "test:cov": "NODE_OPTIONS=\"--max-old-space-size=3072\" jest --selectProjects unit --coverage --maxWorkers=2",

@@ -108,7 +108,9 @@ Fix the documentation drift the investigation proves: the container-reuse statem
 - `scripts/integration-heap-reporter.cjs` (new: a Jest reporter passed on the CLI only, `--reporters default --reporters <file>`, writing each suite's path, duration and `memoryUsage`; no Jest config change)
 - `package.json` (root, modify: an `integration-report:test` script, `node --test scripts/integration-report.spec.cjs`)
 - `.github/workflows/pr-quality.yml` (modify: a step running `pnpm integration-report:test` beside `dep-cruise:test`, so the spec runs in CI)
-- `docs/ENGINEERING_RULES_TESTING.md`, `docs/TESTING_STRATEGY.md`, `docs/CI_TRAPS.md` (modify: findings and the corrected reuse statements)
+- `docs/ENGINEERING_RULES_TESTING.md`, `.copilot/context.md` (modify: the corrected reuse statements and the pointer to these findings); `docs/TESTING_STRATEGY.md` and `docs/CI_TRAPS.md` needed no change (the first already says one shared ephemeral container per run)
+- `.coderabbit.yaml`, `apps/backend/src/test/utils/valid-cpf.ts` and 10 `*.integration.spec.ts` files (modify: comments only, the container-reuse claim)
+- `.gitignore` (modify: the `integration-report/` output folder)
 - `td/TD62-INTEGRATION-SUITE-MEMORY-AND-CI-EFFICIENCY.md` (modify: `## Findings`)
 
 **Acceptance criteria — product:**
@@ -116,7 +118,7 @@ Fix the documentation drift the investigation proves: the container-reuse statem
 - [ ] The cause of the memory growth, and the measured gain of each candidate lever, are written down with numbers before any suite or config change is made.
 
 **Acceptance criteria — technical:**
-- [ ] **No test coverage lost:** this story changes no spec, no Jest config and no test helper; the green CI run after it shows the same suite and test totals as the baseline it records.
+- [ ] **No test coverage lost:** this story changes no test, assertion, Jest config or helper behaviour (its only spec edits are comment corrections of the container-reuse claim); the green CI run after it shows the same suite and test totals as the baseline it records.
 - Unit:
   - [ ] `integration-report.spec.cjs`: the slowest-suite ranking, the heap-after-suite series, a report with a failing suite, an empty report, and a fixture produced by `integration-heap-reporter.cjs` (the reporter has no spec of its own)
   - [ ] the spec runs in CI (`pr-quality.yml`), not only locally
@@ -283,18 +285,19 @@ Replace "bump the ceiling" with a visible budget. Each shard's job summary shows
 
 ### Story 0 — measurement and root cause (2026-11-28)
 
-Measured locally on the development host (8 GB RAM, warm Docker images) with the report tooling this story adds. Local runs were four sequential shards at 4096 MB (`docs/CI_TRAPS.md`), because one 8 GB process does not fit this host beside Docker. **The CI baseline (suites, tests, job time, peak heap of a green run) is added to the Baseline table below from this story's own PR run; until then the local numbers stand.**
+Measured locally on the development host (8 GB RAM, warm Docker images) with the report tooling this story adds. Local runs were four sequential shards at 4096 MB (`docs/CI_TRAPS.md`), because one 8 GB process does not fit this host beside Docker. **The CI baseline is the second column of the Baseline table, taken from this story's own PR run.**
 
 #### 1. Baseline (the coverage the whole TD must preserve)
 
-| | Local, four shards, cold Jest cache |
+| | Local (four shards, cold Jest cache) unless stated |
 |---|---|
 | Suites | **169** (43, 42, 42, 42 per shard), 0 failed |
 | Tests | **2,349** passed, 0 failed (638, 549, 754, 408 per shard); the TD's "about 1,793" was an undercount |
 | Sorted suite list | 169 paths; `find apps/backend/src -name '*.integration.spec.ts' \| sort \| sha256sum` starts `c883533ccd51ebe1`. The suites the four shards executed hash to the same value, so **the union of the shards equals the files on disk** |
 | Sum of suite durations | 335 s (median suite 1.6 s; 6 suites over 5 s, 50 s in total; slowest `recurring-booking-schedule.controller` 18.2 s) |
 | Peak heap per shard | 2,299 / 2,134 / 2,226 / 2,036 MB (first suite 708 to 948 MB) |
-| CI job (last eight runs, from the TD) | 8m46s to 10m55s, one worker, no report; **CI baseline row to be added from this PR's run** |
+| CI job before this PR (last eight runs, from the TD) | 8m46s to 10m55s, one worker, no report |
+| **CI run on this PR** (`Backend Integration Tests`, run 46140636192) | 10m34s; **169 suites, 2,349 tests, 0 failed** (the same totals); suite time 552 s; heap 1,131 MB after the first suite and 6,163 MB after the last (suite 169), **peak 6,287 MB**, +30 MB per suite; the 169 suite paths in the artifact hash to `c883533ccd51ebe1`, the value for the files on disk |
 
 #### 2. Where the memory goes: the worker retains every suite, linearly
 
@@ -322,7 +325,7 @@ One scratch spec (not committed) timed each helper's phases, cold Jest cache the
 
 #### 4. Container reuse: inert, and a fixed cost of about 13 seconds per run
 
-- `TESTCONTAINERS_REUSE_ENABLE: 'true'` does nothing. Testcontainers 12.2.2 reuses a container only when `.withReuse()` was called (`generic-container.js:91` tests `this.reuse`), and no container in `apps` or `packages` calls it. A GitHub-hosted runner is also a fresh machine for every job. `docs/ENGINEERING_RULES_TESTING.md` § An integration test seeding fixtures under fixed/hardcoded tenant UUIDs and `.copilot/context.md` said a CI container carried corruption into a later run; both are corrected in this story. Four spec comments (the `schedule-day-grid`, `internal-slug`, `internal-tenant` and `internal-signup` controller specs) and `src/test/utils/valid-cpf.ts` repeat the old claim; this story changes no spec, so **Story 1 or a follow-up fixes those comments**. The `TESTCONTAINERS_REUSE_ENABLE` line in `pr-tests.yml` is removed by Story 2.
+- `TESTCONTAINERS_REUSE_ENABLE: 'true'` does nothing. Testcontainers 12.2.2 reuses a container only when `.withReuse()` was called (`generic-container.js:91` tests `this.reuse`), and no container in `apps` or `packages` calls it. A GitHub-hosted runner is also a fresh machine for every job. `docs/ENGINEERING_RULES_TESTING.md` § An integration test seeding fixtures under fixed/hardcoded tenant UUIDs and `.copilot/context.md` said a CI container carried corruption into a later run; both are corrected in this story. Ten spec comments, `src/test/utils/valid-cpf.ts` and `.coderabbit.yaml` repeated the old claim; they are corrected in this story (comments only). The `TESTCONTAINERS_REUSE_ENABLE` line in `pr-tests.yml` is removed by Story 2.
 - **What one run spends on containers and migrations:** a one-suite run took 14.3, 14.9 and 17.2 s of wall time against 2.0, 2.0 and 5.0 s of Jest time, so Postgres and fake-gcs start, about 80 migrations and teardown cost **about 12 to 13 s per run** (images already pulled). Cross-check: shard 4 without the heap flags took 84 s of wall time for 71 s of suite time, the same 13 s.
 - **Pre-migrated template database / real reuse: not worth it.** The ceiling of the gain is about 12 s of a job that takes 9 to 11 minutes (about 2%), per run and per shard, and it would put fixed-UUID rows from one run in front of the next, which the isolation rule exists to prevent. **Drop** (Story 1 lever 6).
 
@@ -331,7 +334,7 @@ One scratch spec (not committed) timed each helper's phases, cold Jest cache the
 The numbers that matter:
 
 - 35 of 169 specs have a `beforeEach`. About **2 re-seed data the tests probably only read** (`customer.repository`, `typeorm-expiry-sweep-state.repository`, both unsure); **14 reset state the tests mutate** (must stay); **19 only recreate in-memory fakes, a counter or a spy** (cost nothing). No spec recreates its app per test. The "35 specs use `beforeEach`" figure is therefore not where time goes.
-- The three largest files have **no** `beforeEach`; their repeated arrange is inline helper calls per test: `booking.controller` (115 tests; `createApprovedBooking` x5, `createApprovedCustomerBooking` x6, `guestBooking` x8, `createResource` x7; mostly mutating), `recurring-booking-schedule.controller` (75 tests; `seedService` x59, `postFridayPattern` x46; mixed), `service.controller` (62 tests; **`provisionTenant()`, a full `POST /internal/tenants`, x39**, almost always as a deliberate `isolatedTenant`; the one real hoisting candidate, with its isolation purpose to weigh). **No saving was timed**: a hoist is only worth doing where Story 1 measures it.
+- The three largest files have **no** `beforeEach`; their repeated arrange is inline helper calls per test: `booking.controller` (115 tests; `createApprovedBooking` x5, `createApprovedCustomerBooking` x6, `guestBooking` x8, `createResource` x7; mostly mutating), `recurring-booking-schedule.controller` (81 tests; `seedService` x59, `postFridayPattern` x46; mixed), `service.controller` (62 tests; **`provisionTenant()`, a full `POST /internal/tenants`, x39**, almost always as a deliberate `isolatedTenant`; the one real hoisting candidate, with its isolation purpose to weigh). **Upper bound on the saving, from this run's per-test durations** (the whole test-body time of the file, arrange plus act plus assert, so the real saving is a fraction of it): `service.controller` at most 2.3 s of its 4.1 s (62 tests, median 38 ms), `booking.controller` at most 4.7 s of 8.2 s (115 tests, median 34 ms), `recurring-booking-schedule.controller` at most 6.7 s of 18.2 s (81 tests, median 61 ms). Together at most 13.7 s of the 335 s of suites (4%), even if every arrange cost the whole test; the rest of those files' time is outside their test bodies (module load, `beforeAll`, `afterEach`). Story 1 measures a real hoist where it tries one.
 - Overlapping scenarios are by identical test title only and the bodies were not compared; they are findings, not duplicates: the same job idempotency title in three jobs (`admin-schedule-reminder`, `booking-reminder`, `notify-expiring-points`); "tenant isolation: an event of Tenant A never reaches Tenant B" in three notification handlers; the suspended-tenant gate pair in the six `*-tenant-access.integration.spec.ts` files plus `cross-cutting-tenant-access`; `returns 404 when booking does not exist` x8 and cross-tenant service 404 titles x11 inside two controllers; same-file repeats `cannot cancel a booking from tenantB` (booking.controller) and the `customer.controller` tenant-isolation title. Left alone.
 
 #### 6. The measurement itself has a cost: do not force garbage collection
@@ -342,10 +345,10 @@ The numbers that matter:
 
 | # | Lever | Measured gain | Verdict |
 |---|---|---|---|
-| 1 | **Shard the CI job (Story 2)**: four sequential processes of about 42 suites peak at 2.0 to 2.3 GB; parallel jobs also divide the time | memory: the ceiling stops growing with the suite (about 6 GB single process against 2.3 GB per shard); time: a 42-suite shard took 84 s (shard 4, no heap flags, including the 13 s setup) against about 335 s of suites in one job | **Adopt (Story 2)** |
+| 1 | **Shard the CI job (Story 2)**: four sequential processes of about 42 suites peak at 2.0 to 2.3 GB; parallel jobs also divide the time | memory: each shard's peak still grows with the suites it runs (about 31 MB per suite) but it holds a quarter of them, so the per-process peak falls from 6.3 GB (the single CI process, measured) to about 2.3 GB at four shards, and further with more shards; time: a 42-suite shard took 84 s (shard 4, no heap flags, including the 13 s setup) against about 335 s of suites in one job | **Adopt (Story 2)** |
 | 2 | **Cut module-load cost per suite (Story 1)**: `ts-jest` `isolatedModules` / `diagnostics` (type-check already runs in `tsc --noEmit`), a lighter module graph for the Nest helpers | the booking helper alone: 6.4 s cold against 1.6 s warm; the whole-run effect of dropping type-check is **not measured**, Story 1 measures it on a cold cache | Measure, then adopt or drop (Story 1) |
 | 3 | **Remove the need for `--experimental-vm-modules`** (`teeny-request` ESM import) | **not measured** (the guard blocks it); a known retention source | Measure first in Story 1 |
-| 4 | **Hoist read-only arrange** (`service.controller` `provisionTenant`, `customer.repository`) | **not measured**; the evidence shows at most two `beforeEach` blocks and one helper | Only if Story 1 times a gain above the noise |
+| 4 | **Hoist read-only arrange** (`service.controller` `provisionTenant`, `customer.repository`) | upper bound 13.7 s of 335 s (4%) over the three largest files; at most two `beforeEach` blocks and one helper | Only if Story 1 times a gain above the noise |
 | 5 | **`workerIdleMemoryLimit`** | none: it applies to workers, and `--maxWorkers=1` runs in band | **Drop** |
 | 6 | **Template database / real container reuse** | at most about 12 s of 9 to 11 minutes (2%) | **Drop** |
 | 7 | **Raise the heap ceiling again** | none | **Drop** (the TD's premise) |

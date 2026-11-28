@@ -103,8 +103,8 @@ describe('Tenant unavailable notice, end to end (M25-S28)', () => {
           .build(),
       );
 
-  // The tenants' ids are fixed and CI reuses one Postgres container across runs, so rows an earlier
-  // aborted run left behind are cleared before seeding, and again at the end.
+  // The tenants' ids are fixed and every spec file of a run shares one Postgres container, so rows
+  // an earlier aborted spec left behind are cleared before seeding, and again at the end.
   const cleanup = async (): Promise<void> => {
     await ds.query(`DELETE FROM notification.notification_logs WHERE tenant_id = ANY($1)`, [
       FIXTURE_TENANTS,

@@ -13,7 +13,7 @@ const URL = '/internal/billing/public-prices';
 // The seed migration fills the whole natural-key space in every integration database, so this spec
 // never inserts a price: it reads the seeded rows and adds a synthetic announced version dated far in
 // the future to one of them, deleting exactly the row it added (symmetric teardown: `feature_prices`
-// is a global table and the Testcontainers database is reused across runs).
+// is a global table and the Testcontainers database is shared by every spec file of a run).
 describe('InternalBillingPricesController (integration)', () => {
   let app: INestApplication;
   let ds: DataSource;
