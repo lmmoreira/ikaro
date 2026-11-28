@@ -1138,6 +1138,39 @@ flowchart TD
 
 ---
 
+## Billing — The billing identity save: field semantics and the account row lock (M26-S16)
+
+UC-118. Code: `UpdateBillingIdentityUseCase` and `GetBillingIdentityUseCase` (`billing/application/use-cases/`), `BillingAccount.updateIdentity` and the pure `applyBillingIdentityPatch` (`domain/billing-account.aggregate.ts`, `domain/billing-identity.ts`), `IBillingAccountRepository.findByTenantIdForUpdate` (the B-I1 lock). The contract is `docs/API_CONTRACTS.md` § Billing — Manager API (the Identity paragraph); the lock is `docs/LOCK_CATALOG.md` B-I1.
+
+```mermaid
+sequenceDiagram
+  participant M as Manager PUT /billing/identity
+  participant U as UpdateBillingIdentityUseCase
+  participant A as billing_accounts row
+  participant J as Issue job (assignProviderCustomer)
+  M->>U: patch (only the sent fields)
+  U->>A: txManager.run: findByTenantIdForUpdate (B-I1, FOR UPDATE)
+  J->>A: UPDATE provider, provider_customer_id (waits for the lock)
+  U->>U: updateIdentity: resolve every field first, assign only if all pass
+  U->>A: save() the whole row, commit
+  A-->>J: the lock is released: the UPDATE runs on the committed row
+```
+
+| Field | Left out | `null` or blank | A value |
+|---|---|---|---|
+| `taxId` | untouched | a country that requires one (BR): `422 BILLING_IDENTITY_TAX_ID_INVALID`, the stored id kept; an account that holds none: no-op; any other country: the id and its type are cleared | replaced; the type is the declared one, else inferred (BR by shape, US `EIN`); an id the country refuses is `422` |
+| `legalName` | untouched | cleared | trimmed |
+| `billingEmail` | untouched | cleared (the managers become the recipients) | lower-cased; invalid is `422 BILLING_IDENTITY_EMAIL_INVALID` |
+| `address` | untouched | never cleared (`400` at the schema) | the sent sub-fields merge over the stored address and the merged whole is validated by the country's `AddressSpec`; still incomplete is `400 ADDRESS_FIELD_REQUIRED` and nothing is stored |
+
+- **Why the row lock:** `billing_accounts` has no `version` and `save()` rewrites every column. The issue job stores the provider customer in its own column-scoped `UPDATE` before it creates the charge, so a save that read the account earlier and wrote after it would put `provider_customer_id` back to `NULL` (a second provider customer on the next charge), and two saves of different fields would overwrite each other. The lock is taken inside the transaction that saves, alone (no B-R1, the country is read from the immutable subscription row).
+- **All or nothing:** `applyBillingIdentityPatch` resolves tax id, name, email and address before any is assigned, so one refused field leaves the aggregate unchanged and nothing is saved.
+- **Saving never calls the provider.** The identity is synced to the provider customer the next time a charge is issued; a subscription held for a missing identity (UC-113 A8 / A9) stays due and is issued by the next job run, with no re-trigger.
+- **Error ownership:** the shared `TaxId` and `Email` value objects keep their own codes for every other caller; the use case wraps them into Billing's two codes (the `Email` one with a fixed message, because the VO's message quotes the address). Address errors keep the shared mapper's `400`.
+- **No account row yet** (the provisioning window): the read answers `{ provisioning: true }`, the save is a retryable `503 BILLING_PROVISIONING`. The tax id, name and email are PII and never reach a log line or an event.
+
+---
+
 ## Billing — Plan reads: effective date, pricing and read-only states (M26-S17)
 
 UC-136 main flow 1–2. Code: `GetPlanCatalogUseCase` and `PreviewPlanSelectionUseCase`, the helpers in `billing/application/helpers/` (`selectable-prices`, `priced-selection`, `plan-timing`, `plan-view`) and, on `Subscription`, `planReadOnlyReason`, `nextPeriodStart(nextPeriodPaid)` and `previewSelection`. The contract is `docs/API_CONTRACTS.md` § Billing — Manager API (`Plan shapes`); both reads save nothing and the BOOKING removal guard is not part of them (it runs at save only, M26-S18a / S19). The backend owns every rule here.
