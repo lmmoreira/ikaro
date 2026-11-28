@@ -12,7 +12,7 @@ import { ServiceEntity } from '../entities/service.entity';
 import { TypeOrmRecurringBookingScheduleRepository } from './typeorm-recurring-booking-schedule.repository';
 
 // M23-S21: the two reads the renewal reminder and the schedule list's `renewable` flag sit on,
-// against real Postgres. Every id is generated per run, so a reused container never sees a
+// against real Postgres. Every id is generated per run, so the shared container never sees a
 // leftover row from another spec.
 describe('TypeOrmRecurringBookingScheduleRepository — renewal reads (integration)', () => {
   let dataSource: DataSource;

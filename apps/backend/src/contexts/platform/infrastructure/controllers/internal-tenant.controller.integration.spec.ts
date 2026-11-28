@@ -15,7 +15,7 @@ import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 
 const PLATFORM_KEY = 'integ-test-key-integ-test-key-xx'; // exactly 32 chars
 const INTERNAL_KEY = 'integ-tenant-key-integ-tenant-key'; // 33 chars (≥32)
-// Random per run: TESTCONTAINERS_REUSE_ENABLE reuses one Postgres across runs, and the owner slug is
+// Random per run: every spec file of a run shares one Postgres, and the owner slug is
 // provisioned for real below.
 // The suffix is the random tail of a uuidv7; every slug built from it stays under 30 characters.
 const RUN_SUFFIX = uuidv7().slice(-8);

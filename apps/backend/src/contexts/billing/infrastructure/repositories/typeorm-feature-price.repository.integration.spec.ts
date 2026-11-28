@@ -10,7 +10,7 @@ import { TypeOrmFeaturePriceRepository } from './typeorm-feature-price.repositor
 // The seed migration fills the whole natural-key space and runs in every integration database, so
 // this spec never inserts a new FeaturePrice: it reads the seeded rows and adds synthetic versions
 // dated far in the future, deleting exactly the rows it added (symmetric teardown — the
-// Testcontainers database is reused across runs).
+// Testcontainers database is shared by every spec file of a run).
 describe('TypeOrmFeaturePriceRepository (integration)', () => {
   let dataSource: DataSource;
   let repo: TypeOrmFeaturePriceRepository;

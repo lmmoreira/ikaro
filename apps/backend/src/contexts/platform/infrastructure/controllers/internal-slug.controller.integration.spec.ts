@@ -11,7 +11,7 @@ import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 const INTERNAL_KEY = 'integ-slug-key-integ-slug-key-xxxx'; // ≥ 32 chars
 // The random tail of a uuidv7 (its head is the timestamp); 8 hex characters keep every slug under 30.
 const SUFFIX = uuidv7().slice(-8);
-// Random per run: TESTCONTAINERS_REUSE_ENABLE reuses one Postgres across unrelated runs.
+// Random per run: every spec file of a run shares one Postgres, so a fixed slug could collide.
 const TAKEN_SLUG = `slug-taken-${SUFFIX}`;
 const OWNER_SLUG = `ikaro-owner-${SUFFIX}`;
 

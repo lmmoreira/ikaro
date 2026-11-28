@@ -28,8 +28,8 @@ describe('ScheduleDayGridController (integration)', () => {
   let ds: DataSource;
 
   // Deletes in FK-safe order for both fixture tenants at once — used both defensively before
-  // seeding (self-heals if a prior run's afterAll never completed, e.g. under CI's
-  // TESTCONTAINERS_REUSE_ENABLE) and in afterAll's own teardown, so the two never drift apart.
+  // seeding (self-heals if an earlier spec file's afterAll never completed, since every spec
+  // file shares one Postgres) and in afterAll's own teardown, so the two never drift apart.
   async function cleanupFixtures(): Promise<void> {
     await ds.getRepository(ResourceOccupancyEntity).delete({ tenantId: In(FIXTURE_TENANT_IDS) });
     await ds

@@ -1,7 +1,7 @@
 /**
  * A fresh CPF with valid check digits, digits only. A reservation holds its tax id until the row is
- * deleted, so a spec that shares a fixed one with an overlapping run (TESTCONTAINERS_REUSE_ENABLE
- * reuses one Postgres) would look like trial farming.
+ * deleted, so a spec that shares a fixed one with another spec file of the same run (they share one
+ * Postgres) would look like trial farming.
  */
 export function newValidCpf(): string {
   const digits = Array.from({ length: 9 }, () => Math.floor(Math.random() * 10));

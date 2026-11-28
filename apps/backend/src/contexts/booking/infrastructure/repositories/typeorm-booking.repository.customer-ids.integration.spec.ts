@@ -12,8 +12,8 @@ import { BookingStatusTransitionEntity } from '../entities/booking-status-transi
 import { TypeOrmBookingRepository } from './typeorm-booking.repository';
 import { TypeOrmBookingStatusTransitionRepository } from './typeorm-booking-status-transition.repository';
 
-// Own tenants, never shared with another spec: CI reuses one Postgres container across runs
-// (docs/ENGINEERING_RULES_TESTING.md).
+// Own tenants, never shared with another spec: every spec file of a run shares one Postgres
+// container (docs/ENGINEERING_RULES_TESTING.md).
 const TENANT_A = '00000000-0000-7000-8000-0000000028a1';
 const TENANT_B = '00000000-0000-7000-8000-0000000028b1';
 const APPROVER = '00000000-0000-7000-8000-0000000028f1';
@@ -46,8 +46,8 @@ describe('TypeOrmBookingRepository.findCustomerIdsWithApprovedBookingsAfter (int
     await repo.save(builder.build());
   };
 
-  // The tenants' ids are fixed and CI reuses one Postgres container across runs, so rows an earlier
-  // aborted run left behind are cleared before seeding, and again at the end.
+  // The tenants' ids are fixed and every spec file of a run shares one Postgres container, so rows
+  // an earlier aborted spec left behind are cleared before seeding, and again at the end.
   const cleanup = async (): Promise<void> => {
     const tenantIds = [TENANT_A, TENANT_B];
     await dataSource.query(

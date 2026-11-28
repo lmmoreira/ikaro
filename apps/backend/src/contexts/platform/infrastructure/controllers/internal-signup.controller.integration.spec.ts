@@ -18,7 +18,7 @@ import { HotsiteConfigEntity } from '../entities/hotsite-config.entity';
 import { TenantEntity } from '../entities/tenant.entity';
 
 const INTERNAL_KEY = 'integ-signup-key-integ-signup-key-x'; // ≥32 chars
-// Random per run: TESTCONTAINERS_REUSE_ENABLE reuses one Postgres across unrelated runs. The random
+// Random per run: every spec file of a run shares one Postgres. The random
 // tail of a uuidv7 keeps every slug below under 30 characters.
 const SUFFIX = uuidv7().slice(-8);
 const OWNER_SLUG = `ikaro-owner-${SUFFIX}`;
