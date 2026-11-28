@@ -105,6 +105,9 @@ Fix the documentation drift the investigation proves: the container-reuse statem
 - `.github/workflows/pr-tests.yml` (modify: `--logHeapUsage`, `--json --outputFile`, the artifact upload and the job summary, on the `backend-integration` job only)
 - `apps/backend/package.json` (modify: a `test:integration:report` script that adds the same flags locally; `test:integration` itself unchanged)
 - `scripts/integration-report.cjs`, `scripts/integration-report.spec.cjs` (new)
+- `scripts/integration-heap-reporter.cjs` (new: a Jest reporter passed on the CLI only, `--reporters default --reporters <file>`, writing each suite's path, duration and `memoryUsage`; no Jest config change)
+- `package.json` (root, modify: an `integration-report:test` script, `node --test scripts/integration-report.spec.cjs`)
+- `.github/workflows/pr-quality.yml` (modify: a step running `pnpm integration-report:test` beside `dep-cruise:test`, so the spec runs in CI)
 - `docs/ENGINEERING_RULES_TESTING.md`, `docs/TESTING_STRATEGY.md`, `docs/CI_TRAPS.md` (modify: findings and the corrected reuse statements)
 - `td/TD62-INTEGRATION-SUITE-MEMORY-AND-CI-EFFICIENCY.md` (modify: `## Findings`)
 
@@ -115,7 +118,8 @@ Fix the documentation drift the investigation proves: the container-reuse statem
 **Acceptance criteria — technical:**
 - [ ] **No test coverage lost:** this story changes no spec, no Jest config and no test helper; the green CI run after it shows the same suite and test totals as the baseline it records.
 - Unit:
-  - [ ] `integration-report.spec.cjs`: the slowest-suite ranking, the heap-after-suite series, a report with a failing suite, and an empty report
+  - [ ] `integration-report.spec.cjs`: the slowest-suite ranking, the heap-after-suite series, a report with a failing suite, an empty report, and a fixture produced by `integration-heap-reporter.cjs` (the reporter has no spec of its own)
+  - [ ] the spec runs in CI (`pr-quality.yml`), not only locally
 - Integration: none (no application code changes)
 - E2E: none
 - [ ] The integration job still passes and its duration is not worse than the baseline by more than the cost of the extra flags (reported)
@@ -123,6 +127,13 @@ Fix the documentation drift the investigation proves: the container-reuse statem
 - [ ] **Live-verification check:** open the PR, then read the job's summary and the uploaded artifact from the PR's own CI run (`gh run view <id> --log` and `gh run download`); pass = the report lists 169 suites and the totals equal the baseline, the heap series is present, and the artifact downloads.
 
 **PR sequence:** 1 PR (a workflow and script change, no Terraform, so `infra/terraform/README.md`'s playbook does not apply).
+
+**Discovery decisions (TD62-S0, 2026-11-28):**
+- **Pattern:** plain composition; no named pattern applies.
+- **Heap source:** Jest 30.5.2's `--json` output carries no `memoryUsage` (only the console reporter prints it), so per-suite heap and duration come from `integration-heap-reporter.cjs`; `--json --outputFile` stays for totals and test names.
+- **Local investigation:** the integration suite may be run locally, one process at a time, as four sequential shards at 4096 MB (`docs/CI_TRAPS.md`), after clearing `/tmp/jest_rs`; stop any container this story starts.
+- **Findings in two passes:** the local analysis first; the CI baseline and peak heap as a follow-up commit on the PR branch once the PR's own run is green.
+- **Item 5 stays read-only and bounded:** the three named files get a measured saving estimate; the other specs get counts only, gathered by a subagent that returns numbers, not file contents.
 
 ---
 
