@@ -2899,6 +2899,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
    - **A4: Save fails** → error message, form kept.
    - **A5: Postal code or state in the wrong format for the country** → field error from the country's rule (for example CEP `00000-000`, US ZIP `90210`).
    - **A6: Address still missing** → the page, the plan tab and the dashboard banner warn (`summary.addressRequired`); `PUT /v1/billing/plan` is rejected with `BILLING_ADDRESS_REQUIRED` until it is saved, and issuing resumes automatically afterwards (UC-113 A7–A9).
+   - **A7: No billing account yet** (the provisioning window, UC-117 A9) → `GET` answers `200 { "provisioning": true }` and the page shows its "preparando sua conta" state; `PUT` answers a retryable `503 BILLING_PROVISIONING`, nothing is saved.
 - **Postconditions:** Identity stored. It never blocks *using* the product; the minimum (BR tax id and address, US full address) is what lets a charge be issued.
 - **Events Triggered:** None
 
@@ -3513,7 +3514,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 | UC-115 | System sweeps statuses *(built, M26-S06)* | System | `OVERDUE` / `PAST_DUE` / `SUSPENDED` / `ACTIVE` per the ladder; stale charge cancelled + recovery charge issued |
 | UC-116 | System reconciles charges with the provider *(built, M26-S07)* | System | Drift corrected; `provider_health` updated; at-risk tenants hourly |
 | UC-117 | Manager views the billing page *(planned, not built)* | Manager | Read-only: status, features, total, open charge, history; the only reachable page while suspended (identity is edited in the Dados tab, UC-118) |
-| UC-118 | Manager updates the billing identity *(planned, not built)* | Manager | Country-driven identity and address saved; synced to the provider customer at the next charge |
+| UC-118 | Manager updates the billing identity *(routes built, M26-S16; the tab is M26-S29)* | Manager | Country-driven identity and address saved; synced to the provider customer at the next charge |
 | UC-119 | Manager pays an open charge *(built, M26-S15)* | Manager | Provider-hosted payment URL; on return an on-demand refresh; webhook confirms |
 | UC-120 | System resolves a tenant's access, `TenantAccessPort` *(built, M25-S13)* | System | Explicit `tenantId`; cached, fails open on a lookup error; batch method for crons |
 | UC-121 | Login routing by role when suspended *(partly built: access read M25-S13, route policies S16–S19, `operational` flags S26; the manager notice and the manager redirect built in M25-S29; the staff notice, the "Suspensa" list, the customer badge and the read-only detail built in M25-S31a)* | Manager / Staff / Customer | Login never blocked; manager → billing only, staff → notice, customer → "Empresa inativa" account |

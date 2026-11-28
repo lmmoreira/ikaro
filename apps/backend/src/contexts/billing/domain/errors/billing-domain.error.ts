@@ -320,3 +320,46 @@ export class ChargeNotFoundError extends BillingDomainError implements DomainErr
     this.name = 'ChargeNotFoundError';
   }
 }
+
+/**
+ * The tax id the manager sent is not one the billing country accepts, or clears one the country
+ * requires (UC-118 A1). The Billing wrapper of the shared `TaxId` VO's own `SIGNUP_TAX_ID_*` error:
+ * the VO keeps its code for signup, and the identity save speaks Billing's. `422`.
+ */
+export class BillingIdentityTaxIdInvalidError
+  extends BillingDomainError
+  implements DomainErrorShape
+{
+  readonly code = BillingErrorCode.IDENTITY_TAX_ID_INVALID;
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'BillingIdentityTaxIdInvalidError';
+  }
+}
+
+/** The billing email is not a valid address (UC-118 A2). Wraps the shared `Email` VO's error. `422`. */
+export class BillingIdentityEmailInvalidError
+  extends BillingDomainError
+  implements DomainErrorShape
+{
+  readonly code = BillingErrorCode.IDENTITY_EMAIL_INVALID;
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'BillingIdentityEmailInvalidError';
+  }
+}
+
+/**
+ * The tenant has no billing account yet (the provisioning window, UC-117 A9): there is nothing to
+ * save an identity onto. `503`, retryable. The read answers `{ provisioning: true }` instead.
+ */
+export class BillingProvisioningError extends BillingDomainError implements DomainErrorShape {
+  readonly code = BillingErrorCode.PROVISIONING;
+
+  constructor() {
+    super('The billing account is not ready yet');
+    this.name = 'BillingProvisioningError';
+  }
+}

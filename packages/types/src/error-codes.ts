@@ -376,6 +376,12 @@ export const BillingErrorCode = {
   ADDRESS_REQUIRED: 'BILLING_ADDRESS_REQUIRED',
   PROVIDER_UNAVAILABLE: 'BILLING_PROVIDER_UNAVAILABLE',
   CHARGE_NOT_FOUND: 'BILLING_CHARGE_NOT_FOUND',
+  // Saving the billing identity (M26-S16, UC-118): a tax id or an email the billing country's rules
+  // refuse (422 each, the Billing wrappers of the shared VOs' own codes), and the provisioning
+  // window, when the tenant has no billing account yet (503, retryable).
+  IDENTITY_TAX_ID_INVALID: 'BILLING_IDENTITY_TAX_ID_INVALID',
+  IDENTITY_EMAIL_INVALID: 'BILLING_IDENTITY_EMAIL_INVALID',
+  PROVISIONING: 'BILLING_PROVISIONING',
 } as const;
 export type BillingErrorCode = (typeof BillingErrorCode)[keyof typeof BillingErrorCode];
 

@@ -264,3 +264,29 @@ export interface BillingPaymentReturnResponse {
   status: BillingChargeStatus;
   paymentConfirmationPending: boolean;
 }
+
+/**
+ * `GET` / `PUT /v1/billing/identity` (M26-S16, UC-118): the tenant's billing identity. `taxId` is
+ * normalised (no punctuation, upper case) and typed by `taxIdType`; the web formats it. A tenant
+ * with no billing account yet (the provisioning window) answers `{ provisioning: true }` on `GET`.
+ */
+export interface BillingIdentityAddressDto {
+  street: string;
+  number: string;
+  complement: string | null;
+  neighborhood: string | null;
+  city: string;
+  state: string;
+  zipCode: string;
+}
+
+export interface BillingIdentityReadyResponse {
+  provisioning: false;
+  taxIdType: 'CNPJ' | 'CPF' | 'EIN' | 'OTHER' | null;
+  taxId: string | null;
+  legalName: string | null;
+  billingEmail: string | null;
+  address: BillingIdentityAddressDto | null;
+}
+
+export type BillingIdentityResponse = { provisioning: true } | BillingIdentityReadyResponse;

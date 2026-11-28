@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -18,11 +19,17 @@ import {
 import {
   type BillingChargesQuery,
   BillingChargesQuerySchema,
+  type BillingIdentityUpdateDto,
+  BillingIdentityUpdateSchema,
   type PlanPreviewDto,
   PlanPreviewSchema,
 } from '@ikaro/validation';
 import { ManagerRoleGuard } from '../../../../shared/guards/manager-role.guard';
 import { RequestContext } from '../../../../shared/request/request-context';
+import {
+  GetBillingIdentityUseCase,
+  GetBillingIdentityUseCaseResult,
+} from '../../application/use-cases/get-billing-identity.use-case';
 import {
   GetBillingSummaryUseCase,
   GetBillingSummaryUseCaseResult,
@@ -47,6 +54,10 @@ import {
   RecordPaymentReturnUseCase,
   RecordPaymentReturnUseCaseResult,
 } from '../../application/use-cases/record-payment-return.use-case';
+import {
+  UpdateBillingIdentityUseCase,
+  UpdateBillingIdentityUseCaseResult,
+} from '../../application/use-cases/update-billing-identity.use-case';
 import { mapBillingError } from '../http/billing-error.mapper';
 
 // The manager's billing page (UC-117) and the way they pay (UC-119). The tenant is the caller's own,
@@ -66,6 +77,8 @@ export class BillingController {
     private readonly previewPlanSelection: PreviewPlanSelectionUseCase,
     private readonly paymentLink: GetOrRegenerateChargePaymentLinkUseCase,
     private readonly paymentReturn: RecordPaymentReturnUseCase,
+    private readonly getIdentity: GetBillingIdentityUseCase,
+    private readonly updateIdentity: UpdateBillingIdentityUseCase,
     private readonly requestContext: RequestContext,
   ) {}
 
@@ -84,6 +97,26 @@ export class BillingController {
   ): Promise<ListBillingChargesUseCaseResult> {
     return this.listCharges
       .execute({ tenantId: this.requestContext.tenantId, ...query })
+      .catch(mapBillingError);
+  }
+
+  // The "Dados de cobrança" tab (UC-118, M26-S16). The save is a partial update under the account
+  // row lock; it never calls the provider.
+  @Get('identity')
+  @HttpCode(HttpStatus.OK)
+  identity(): Promise<GetBillingIdentityUseCaseResult> {
+    return this.getIdentity
+      .execute({ tenantId: this.requestContext.tenantId })
+      .catch(mapBillingError);
+  }
+
+  @Put('identity')
+  @HttpCode(HttpStatus.OK)
+  saveIdentity(
+    @Body(new ZodValidationPipe(BillingIdentityUpdateSchema)) body: BillingIdentityUpdateDto,
+  ): Promise<UpdateBillingIdentityUseCaseResult> {
+    return this.updateIdentity
+      .execute({ ...body, tenantId: this.requestContext.tenantId })
       .catch(mapBillingError);
   }
 

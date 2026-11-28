@@ -1,8 +1,20 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Put,
+  Query,
+} from '@nestjs/common';
 import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import type {
   BillingAccessResponse,
   BillingChargesResponse,
+  BillingIdentityReadyResponse,
+  BillingIdentityResponse,
   BillingPaymentLinkResponse,
   BillingPaymentReturnResponse,
   BillingPlanPreviewResponse,
@@ -12,6 +24,8 @@ import type {
 import {
   type BillingChargesQuery,
   BillingChargesQuerySchema,
+  type BillingIdentityUpdateDto,
+  BillingIdentityUpdateSchema,
   type PlanPreviewDto,
   PlanPreviewSchema,
 } from '@ikaro/validation';
@@ -27,11 +41,17 @@ import {
   toBillingSummaryResponse,
 } from './billing.mapper';
 import {
+  toBillingIdentityResponse,
+  toBillingIdentitySavedResponse,
+} from './billing-identity.mapper';
+import {
   toBillingPaymentLinkResponse,
   toBillingPaymentReturnResponse,
 } from './billing-payment.mapper';
 import {
   BackendBillingChargesSchema,
+  BackendBillingIdentitySavedSchema,
+  BackendBillingIdentitySchema,
   BackendBillingPaymentLinkSchema,
   BackendBillingPaymentReturnSchema,
   BackendBillingPlanPreviewSchema,
@@ -79,6 +99,26 @@ export class BillingController {
       offset: query.offset,
     });
     return toBillingChargesResponse(BackendBillingChargesSchema.parse(raw));
+  }
+
+  // The "Dados de cobrança" tab (UC-118, M26-S16). Manager-only. The body rules are the shared
+  // `BillingIdentityUpdateSchema` (the backend repeats them); the backend owns the country's tax id,
+  // email and address validation and answers its typed errors, which this layer forwards.
+  @Get('identity')
+  @Roles('MANAGER')
+  async getIdentity(): Promise<BillingIdentityResponse> {
+    const raw = await this.backendHttp.get<unknown>('/billing/identity');
+    return toBillingIdentityResponse(BackendBillingIdentitySchema.parse(raw));
+  }
+
+  @Put('identity')
+  @HttpCode(HttpStatus.OK)
+  @Roles('MANAGER')
+  async saveIdentity(
+    @Body(new ZodValidationPipe(BillingIdentityUpdateSchema)) body: BillingIdentityUpdateDto,
+  ): Promise<BillingIdentityReadyResponse> {
+    const raw = await this.backendHttp.put<unknown>('/billing/identity', body);
+    return toBillingIdentitySavedResponse(BackendBillingIdentitySavedSchema.parse(raw));
   }
 
   // The Plano tab (UC-136, M26-S17). Manager-only; the backend owns read-only and suspension.

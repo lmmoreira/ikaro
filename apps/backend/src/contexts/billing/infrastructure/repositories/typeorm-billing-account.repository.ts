@@ -32,6 +32,18 @@ export class TypeOrmBillingAccountRepository implements IBillingAccountRepositor
     return this.hydrate(manager, entity);
   }
 
+  async findByTenantIdForUpdate(tenantId: string): Promise<BillingAccount | null> {
+    const manager = getActiveEntityManager();
+    if (!manager) {
+      throw new Error('findByTenantIdForUpdate must be called inside an active transaction');
+    }
+    const entity = await manager.findOne(BillingAccountEntity, {
+      where: { tenantId },
+      lock: { mode: 'pessimistic_write' },
+    });
+    return this.hydrate(manager, entity);
+  }
+
   async findByProviderCustomerIdForJob(
     provider: BillingProvider,
     providerCustomerId: string,

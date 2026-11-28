@@ -9,7 +9,10 @@ import { CountryCodeValidationError } from '../../../../shared/value-objects/cou
 import { TaxIdValidationError } from '../../../../shared/value-objects/tax-id.vo';
 import {
   BillingAddressRequiredError,
+  BillingIdentityEmailInvalidError,
+  BillingIdentityTaxIdInvalidError,
   BillingProviderUnavailableError,
+  BillingProvisioningError,
   BillingTenantNotFoundError,
   ChargeNotFoundError,
   ChargeNotPayableError,
@@ -103,6 +106,24 @@ describe('mapBillingError', () => {
       new BillingProviderUnavailableError('UNAVAILABLE'),
       HttpStatus.SERVICE_UNAVAILABLE,
       BillingErrorCode.PROVIDER_UNAVAILABLE,
+    ],
+    [
+      'a tax id the billing country refuses (UC-118 A1)',
+      new BillingIdentityTaxIdInvalidError('not a valid CPF or CNPJ'),
+      HttpStatus.UNPROCESSABLE_ENTITY,
+      BillingErrorCode.IDENTITY_TAX_ID_INVALID,
+    ],
+    [
+      'an invalid billing email (UC-118 A2)',
+      new BillingIdentityEmailInvalidError('not an email'),
+      HttpStatus.UNPROCESSABLE_ENTITY,
+      BillingErrorCode.IDENTITY_EMAIL_INVALID,
+    ],
+    [
+      'the provisioning window, with no billing account to save onto',
+      new BillingProvisioningError(),
+      HttpStatus.SERVICE_UNAVAILABLE,
+      BillingErrorCode.PROVISIONING,
     ],
   ])('maps %s to its status and code', (_name, error, status, code) => {
     const thrown = call(error) as HttpException;

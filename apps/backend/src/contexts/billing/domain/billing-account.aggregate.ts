@@ -5,6 +5,7 @@ import { Address } from '../../../shared/value-objects/address';
 import { CountryCode } from '../../../shared/value-objects/country-code.vo';
 import { Email } from '../../../shared/value-objects/email.vo';
 import { TaxId } from '../../../shared/value-objects/tax-id.vo';
+import { applyBillingIdentityPatch, type BillingIdentityPatch } from './billing-identity';
 import { BillingAccountTaxIdNotAllowedError } from './errors/billing-domain.error';
 
 export type BillingProvider = 'ASAAS' | 'STRIPE';
@@ -64,10 +65,10 @@ export class BillingAccount extends AggregateRoot {
   readonly id: string;
   readonly tenantId: string;
   readonly countryCode: CountryCode;
-  readonly taxId: TaxId | null;
-  readonly legalName: string | null;
-  readonly billingEmail: Email | null;
-  readonly address: Address | null;
+  private _taxId: TaxId | null;
+  private _legalName: string | null;
+  private _billingEmail: Email | null;
+  private _address: Address | null;
   private _provider: BillingProvider | null;
   private _providerCustomerId: string | null;
   readonly autoBilling: AutoBilling;
@@ -80,10 +81,10 @@ export class BillingAccount extends AggregateRoot {
     this.id = props.id;
     this.tenantId = props.tenantId;
     this.countryCode = props.countryCode;
-    this.taxId = props.taxId;
-    this.legalName = props.legalName;
-    this.billingEmail = props.billingEmail;
-    this.address = props.address;
+    this._taxId = props.taxId;
+    this._legalName = props.legalName;
+    this._billingEmail = props.billingEmail;
+    this._address = props.address;
     this._provider = props.provider;
     this._providerCustomerId = props.providerCustomerId;
     this.autoBilling = props.autoBilling;
@@ -122,6 +123,22 @@ export class BillingAccount extends AggregateRoot {
     return new BillingAccount(props);
   }
 
+  get taxId(): TaxId | null {
+    return this._taxId;
+  }
+
+  get legalName(): string | null {
+    return this._legalName;
+  }
+
+  get billingEmail(): Email | null {
+    return this._billingEmail;
+  }
+
+  get address(): Address | null {
+    return this._address;
+  }
+
   get provider(): BillingProvider | null {
     return this._provider;
   }
@@ -140,6 +157,30 @@ export class BillingAccount extends AggregateRoot {
     this._provider = provider;
     this._providerCustomerId = providerCustomerId;
     return true;
+  }
+
+  /**
+   * The manager's partial edit of the identity (UC-118). A field left out is untouched; a sent
+   * `address` merges over the stored one and the merged whole is validated by the billing
+   * country's `AddressSpec`. A tax id the country requires (BR) is replaced, never cleared. Throws
+   * the value objects' own errors (`TaxIdValidationError`, `EmailValidationError`,
+   * `AddressValidationError`) and changes nothing when it does.
+   */
+  updateIdentity(patch: BillingIdentityPatch): void {
+    const next = applyBillingIdentityPatch(
+      {
+        taxId: this._taxId,
+        legalName: this._legalName,
+        billingEmail: this._billingEmail,
+        address: this._address,
+      },
+      patch,
+      this.countryCode,
+    );
+    this._taxId = next.taxId;
+    this._legalName = next.legalName;
+    this._billingEmail = next.billingEmail;
+    this._address = next.address;
   }
 
   /**

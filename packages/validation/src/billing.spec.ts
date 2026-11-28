@@ -1,5 +1,6 @@
 import {
   BillingChargesQuerySchema,
+  BillingIdentityUpdateSchema,
   CHATBOT_TIERS,
   FEATURE_KEYS,
   PlanPreviewSchema,
@@ -66,5 +67,62 @@ describe('billing closed enums', () => {
 
   it('lists the two chatbot tiers', () => {
     expect([...CHATBOT_TIERS]).toEqual(['BASIC', 'PLUS']);
+  });
+});
+
+describe('BillingIdentityUpdateSchema (M26-S16)', () => {
+  it('accepts an empty body: every field is optional', () => {
+    expect(BillingIdentityUpdateSchema.parse({})).toEqual({});
+  });
+
+  it('reads a request with no body at all as an empty update', () => {
+    expect(BillingIdentityUpdateSchema.parse(undefined)).toEqual({});
+  });
+
+  it('keeps an alphanumeric CNPJ as typed, punctuation and letters included', () => {
+    const body = { taxIdType: 'CNPJ', taxId: '12.ABC.345/01DE-35' };
+    expect(BillingIdentityUpdateSchema.parse(body)).toEqual(body);
+  });
+
+  it.each([
+    ['null', null],
+    ['a blank string', ''],
+  ])(
+    'accepts %s for taxId, legalName and billingEmail: a clear request for the backend',
+    (_l, v) => {
+      const body = { taxId: v, legalName: v, billingEmail: v };
+      expect(BillingIdentityUpdateSchema.parse(body)).toEqual(body);
+    },
+  );
+
+  it('accepts a partial address and a null complement', () => {
+    const body = { address: { city: 'Belo Horizonte', complement: null } };
+    expect(BillingIdentityUpdateSchema.parse(body)).toEqual(body);
+  });
+
+  it.each([
+    ['a taxIdType without a taxId', { taxIdType: 'CPF' }],
+    ['a null taxIdType without a taxId', { taxIdType: null }],
+    ['a taxIdType beside a null taxId', { taxIdType: 'CPF', taxId: null }],
+    ['a taxIdType beside a blank taxId', { taxIdType: 'EIN', taxId: '  ' }],
+    ['an unknown taxIdType', { taxIdType: 'SSN', taxId: '123' }],
+    ['a null address (an address is never cleared)', { address: null }],
+    ['a taxId over 64 characters', { taxId: 'A'.repeat(65) }],
+    ['an address field that is not a string', { address: { street: 12 } }],
+  ])('rejects %s', (_label, body) => {
+    expect(() => BillingIdentityUpdateSchema.parse(body)).toThrow();
+  });
+
+  it.each([
+    ['a null taxId', { taxIdType: null, taxId: null }],
+    ['a blank taxId', { taxIdType: null, taxId: '' }],
+  ])('accepts a null taxIdType beside %s: a clear request the backend decides', (_label, body) => {
+    expect(BillingIdentityUpdateSchema.parse(body)).toEqual(body);
+  });
+
+  it('accepts a taxIdType null beside a taxId: the type is inferred', () => {
+    expect(BillingIdentityUpdateSchema.parse({ taxIdType: null, taxId: '529.982.247-25' })).toEqual(
+      { taxIdType: null, taxId: '529.982.247-25' },
+    );
   });
 });

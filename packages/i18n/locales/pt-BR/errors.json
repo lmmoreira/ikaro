@@ -274,5 +274,8 @@
   "BILLING_CHARGE_NOT_PAYABLE": "Esta cobrança não pode mais ser paga.",
   "BILLING_ADDRESS_REQUIRED": "Informe o endereço de cobrança para continuar.",
   "BILLING_PROVIDER_UNAVAILABLE": "O provedor de pagamento está indisponível. Tente novamente em instantes.",
-  "BILLING_CHARGE_NOT_FOUND": "Cobrança não encontrada."
+  "BILLING_CHARGE_NOT_FOUND": "Cobrança não encontrada.",
+  "BILLING_IDENTITY_TAX_ID_INVALID": "O número do documento fiscal não é válido. Confira e tente novamente.",
+  "BILLING_IDENTITY_EMAIL_INVALID": "O e-mail de cobrança não é válido.",
+  "BILLING_PROVISIONING": "Ainda estamos preparando sua conta. Tente novamente em instantes."
 }

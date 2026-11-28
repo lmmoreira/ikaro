@@ -30,6 +30,7 @@ import { TypeOrmSubscriptionRepository } from '../../infrastructure/repositories
 import { ProviderChargeCreationService } from '../services/provider-charge-creation.service';
 import { IssueChargeForSubscriptionUseCase } from '../use-cases/issue-charge-for-subscription.use-case';
 import { RetryPendingChargeCreationUseCase } from '../use-cases/retry-pending-charge-creation.use-case';
+import { UpdateBillingIdentityUseCase } from '../use-cases/update-billing-identity.use-case';
 import { IssueNextChargesJob } from './issue-next-charges.job';
 
 // The real repositories and row locks against Postgres (docs/LOCK_CATALOG.md B-R1, B-C1 and the
@@ -333,22 +334,38 @@ describe('IssueNextChargesJob (integration, UC-113)', () => {
     expect(await chargeRows(tenantId)).toHaveLength(0);
     expect(await nextDueDateOf(tenantId)).toBe(due);
 
-    // The manager saves the identity (S16): the next run resumes with no operator step.
-    const account = await accounts.findByTenantId(tenantId);
-    await txManager.run(() =>
-      accounts.save(
-        new BillingAccountBuilder()
-          .withId(account!.id)
-          .withTenantId(tenantId)
-          .withTaxId('11144477735', 'CPF')
-          .withAddress(new AddressBuilder().build())
-          .build(),
-      ),
-    );
-
-    await expect(issueOne.execute({ tenantId, correlationId: 'corr-2' })).resolves.toMatchObject({
-      outcome: 'ISSUED',
+    // The manager saves the identity through the real use case (UC-118): saving calls no provider,
+    // and the next job run resumes with no operator step.
+    const providerCalls = [
+      jest.spyOn(provider, 'ensureCustomer'),
+      jest.spyOn(provider, 'createCharge'),
+      jest.spyOn(provider, 'regeneratePaymentLink'),
+      jest.spyOn(provider, 'cancelCharge'),
+      jest.spyOn(provider, 'startAutoBilling'),
+      jest.spyOn(provider, 'revokeAutoBilling'),
+      jest.spyOn(provider, 'fetchChargeStatus'),
+      jest.spyOn(provider, 'readAccountHealth'),
+      jest.spyOn(provider, 'reenableWebhookQueue'),
+    ];
+    await new UpdateBillingIdentityUseCase(accounts, txManager).execute({
+      tenantId,
+      taxId: '111.444.777-35',
+      address: {
+        street: 'Rua das Flores',
+        number: '100',
+        neighborhood: 'Centro',
+        city: 'Belo Horizonte',
+        state: 'MG',
+        zipCode: '30130-110',
+      },
     });
+    for (const call of providerCalls) expect(call).not.toHaveBeenCalled();
+    expect(await chargeRows(tenantId)).toHaveLength(0);
+
+    await issueNext.run({ correlationId: 'corr-2' });
+
     expect(await chargeRows(tenantId)).toHaveLength(1);
+    // The spies are wired: the job's own provider customer call is the first one they see.
+    expect(providerCalls[0]).toHaveBeenCalledTimes(1);
   });
 });

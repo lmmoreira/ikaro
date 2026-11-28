@@ -2,6 +2,8 @@ import type { z } from 'zod';
 import type { BackendPublicPricesSchema } from './billing.public.schemas';
 import type {
   BackendBillingChargesSchema,
+  BackendBillingIdentitySavedSchema,
+  BackendBillingIdentitySchema,
   BackendBillingPaymentLinkSchema,
   BackendBillingPaymentReturnSchema,
   BackendBillingPlanPreviewSchema,
@@ -33,3 +35,9 @@ export type BackendBillingPaymentReturn = z.infer<typeof BackendBillingPaymentRe
 
 /** The backend's public price list after the boundary parse (UC-128). */
 export type BackendPublicPrices = z.infer<typeof BackendPublicPricesSchema>;
+
+/** The backend's billing identity read after the boundary parse. */
+export type BackendBillingIdentity = z.infer<typeof BackendBillingIdentitySchema>;
+
+/** The backend's billing identity save answer after the boundary parse. */
+export type BackendBillingIdentitySaved = z.infer<typeof BackendBillingIdentitySavedSchema>;
